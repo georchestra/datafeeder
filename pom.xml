@@ -7,7 +7,7 @@
 <!--     <artifactId>root</artifactId> -->
 <!--     <version>20.2-SNAPSHOT</version> -->
 <!--   </parent> -->
-  <version>24.1-SNAPSHOT</version>
+  <version>1.0.0-SNAPSHOT</version>
   <groupId>org.georchestra</groupId>
   <artifactId>datafeeder</artifactId>
   <packaging>jar</packaging>
@@ -29,8 +29,11 @@
     <formatter-maven-plugin.version>2.20.0</formatter-maven-plugin.version>
     <fmt.skip>false</fmt.skip>
     <fmt.action>format</fmt.action><!-- or fmt.action 'validate' -->
-    <gs-rest-java-client.version>2.20-SNAPSHOT</gs-rest-java-client.version>
+    <gs-rest-java-client.version>2.25.6</gs-rest-java-client.version>
   </properties>
+  <scm>
+    <developerConnection>scm:git:https://github.com/georchestra/datafeeder.git</developerConnection>
+  </scm>
   <repositories>
     <repository>
       <id>osgeo</id>
@@ -53,6 +56,11 @@
       <releases>
         <enabled>false</enabled>
       </releases>
+    </repository>
+    <repository>
+      <id>geOrchestra-artifactory</id>
+      <name>geOrchestra Maven repository</name>
+      <url>https://artifactory.georchestra.org/artifactory/georchestra/</url>
     </repository>
   </repositories>
   <dependencyManagement>
@@ -556,6 +564,11 @@
           </annotationProcessorPaths>
           <generatedSourcesDirectory>${project.build.directory}/generated-sources/mapstruct</generatedSourcesDirectory>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>3.1.1</version>
       </plugin>
     </plugins>
   </build>
