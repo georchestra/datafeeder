@@ -1,9 +1,8 @@
 <?xml version="1.0"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <version>1.0.0-SNAPHOT</version>
+  <version>1.0.0-SNAPSHOT</version>
   <groupId>org.georchestra</groupId>
   <artifactId>datafeeder</artifactId>
   <packaging>jar</packaging>
@@ -28,6 +27,9 @@
     <fmt.action>format</fmt.action><!-- or fmt.action 'validate' -->
     <gs-rest-java-client.version>2.20-SNAPSHOT</gs-rest-java-client.version>
   </properties>
+  <scm>
+    <developerConnection>scm:git:https://github.com/georchestra/datafeeder.git</developerConnection>
+  </scm>
   <repositories>
     <repository>
       <id>osgeo</id>
@@ -50,6 +52,11 @@
       <releases>
         <enabled>false</enabled>
       </releases>
+    </repository>
+    <repository>
+      <id>geOrchestra-artifactory</id>
+      <name>geOrchestra Maven repository</name>
+      <url>https://artifactory.georchestra.org/artifactory/georchestra/</url>
     </repository>
   </repositories>
   <dependencyManagement>
@@ -554,6 +561,11 @@
           <generatedSourcesDirectory>${project.build.directory}/generated-sources/mapstruct</generatedSourcesDirectory>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>3.1.1</version>
+      </plugin>
     </plugins>
   </build>
   <profiles>
@@ -643,9 +655,7 @@
                           <configuration>
                             <exportAntProperties>true</exportAntProperties>
                             <target>
-                                <condition property="project.packageVersion"
-                                  value="${build.closest.tag.name}.${maven.build.timestamp}~${build.commit.id.abbrev}"
-                                  else="99.master.${maven.build.timestamp}~${build.commit.id.abbrev}">
+                                <condition property="project.packageVersion" value="${build.closest.tag.name}.${maven.build.timestamp}~${build.commit.id.abbrev}" else="99.master.${maven.build.timestamp}~${build.commit.id.abbrev}">
                                 <matches string="${build.branch}" pattern="\d{2}\.\d\.x$" />
                               </condition>
                             </target>
@@ -675,10 +685,10 @@
                                 <target>
                                     <chmod perm="ugo+x">
                                         <fileset dir="${project.basedir}/target/deb">
-                                            <include name="**/bin/**"/>
-                                            <include name="**/sbin/**"/>
-                                            <include name="DEBIAN/post*"/>
-                                            <include name="DEBIAN/pre*"/>
+                                            <include name="**/bin/**" />
+                                            <include name="**/sbin/**" />
+                                            <include name="DEBIAN/post*" />
+                                            <include name="DEBIAN/pre*" />
                                         </fileset>
                                     </chmod>
                                 </target>
