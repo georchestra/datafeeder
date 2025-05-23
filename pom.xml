@@ -16,7 +16,7 @@
     <georchestra.version>24.1-SNAPSHOT</georchestra.version>
 
     <gt.version>29.0</gt.version>
-    <openapi-generator-maven-plugin.version>5.0.1</openapi-generator-maven-plugin.version>
+    <openapi-generator-maven-plugin.version>5.1.0</openapi-generator-maven-plugin.version>
     <mapstruct.version>1.6.0</mapstruct.version>
     <lombok.version>1.18.22</lombok.version>
 
