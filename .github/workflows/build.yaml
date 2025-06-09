@@ -28,24 +28,13 @@ jobs:
           server-password: ARTIFACTORY_TOKEN_REF
 
       - name: "Installing & checking formatting"
-        run: ./mvnw install -pl :datafeeder --also-make -P-all,datafeeder --no-transfer-progress -B -Dfmt.action=validate -Dadditionalparam=-Xdoclint:none -DskipTests
-        # note "-pl :datafeeder --also-make" builds only the project and its dependencies
-
+        run: ./mvnw install --no-transfer-progress -B -Dfmt.action=validate -Dadditionalparam=-Xdoclint:none -DskipTests
       - name: "Running Unit Tests"
-        run: ./mvnw test -pl :datafeeder -P-all,datafeeder -ntp -Dfmt.skip=true -Dadditionalparam=-Xdoclint:none
-
-        # pull images, fetches in parallel docker layers and speeds up the process
-      - name: "Pull required docker images for integration testing"
-        working-directory: datafeeder/
-        run: docker compose pull -q
-
-      - name: "Up docker images for integration testing"
-        working-directory: datafeeder/
-        run: docker compose up -d --wait
+        run: ./mvnw test -ntp -Dfmt.skip=true -Dadditionalparam=-Xdoclint:none
 
       - name: "Running Integration Tests"
         working-directory: datafeeder/
-        run: ./mvnw verify -P-all,datafeeder -DskipITs=false -DskipTests -ntp -Dfmt.skip=true -Dadditionalparam=-Xdoclint:none
+        run: ./mvnw verify -DskipITs=false -DskipTests -ntp -Dfmt.skip=true -Dadditionalparam=-Xdoclint:none
 
       - name: Getting image tag
         if: github.repository == 'georchestra/datafeeder' && github.actor != 'dependabot[bot]'
@@ -94,7 +83,7 @@ jobs:
           docker push georchestra/datafeeder-frontend:${{ steps.version.outputs.VERSION }}
 
       - name: "Publish war in artifactory"
-        run: ./mvnw deploy -pl :datafeeder -P-all,datafeeder -DskipTests -ntp -Dfmt.skip=true
+        run: ./mvnw deploy -DskipTests -ntp -Dfmt.skip=true
         if: github.actor != 'dependabot[bot]' && github.event_name != 'pull_request'
         continue-on-error: true
         env:

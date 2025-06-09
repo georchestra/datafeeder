@@ -2,8 +2,10 @@ install:
 	./mvnw clean install -DskipTests
 
 test:
-	docker compose
 	./mvnw clean verify
+
+its:
+	./mvnw clean verify  -DskipITs=false -DskipTests
 
 release:
 	./mvnw clean release:prepare -Darguments="-DskipTests"

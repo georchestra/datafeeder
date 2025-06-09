@@ -832,7 +832,7 @@
                 <phase>pre-integration-test</phase>
                 <configuration>
                   <executable>docker</executable>
-                  <commandlineArgs>compose up -d</commandlineArgs>
+                  <commandlineArgs>compose up -d --wait</commandlineArgs>
                 </configuration>
                 <goals>
                   <goal>exec</goal>
