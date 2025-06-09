@@ -399,7 +399,7 @@
         default java client) -->
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient</artifactId>
-      <version>4.5.13</version>
+      <version>4.5.14</version>
       <scope>test</scope>
     </dependency>
     <dependency>
