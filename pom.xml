@@ -1,6 +1,5 @@
 <?xml version="1.0"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.georchestra</groupId>
   <artifactId>datafeeder</artifactId>
@@ -21,7 +20,7 @@
     <formatter-maven-plugin.version>2.20.0</formatter-maven-plugin.version>
     <fmt.skip>false</fmt.skip>
     <fmt.action>format</fmt.action><!-- or fmt.action 'validate' -->
-    <gs-rest-java-client.version>2.25.6</gs-rest-java-client.version>
+    <gs-rest-java-client.version>2.20.7</gs-rest-java-client.version>
     <packageDatadirScmVersion>master</packageDatadirScmVersion>
     <server>default</server>
   </properties>
@@ -581,6 +580,12 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-release-plugin</artifactId>
         <version>3.1.1</version>
+        <configuration>
+          <tagNameFormat>@{project.version}</tagNameFormat>
+          <pushChanges>false</pushChanges>
+          <scmReleaseCommitComment>Release @{releaseLabel}</scmReleaseCommitComment>
+          <scmDevelopmentCommitComment>Back to snapshot</scmDevelopmentCommitComment>
+        </configuration>
       </plugin>
     </plugins>
   </build>
@@ -672,10 +677,8 @@
                           <configuration>
                             <exportAntProperties>true</exportAntProperties>
                             <target>
-                                <condition property="project.packageVersion"
-                                  value="${build.closest.tag.name}.${maven.build.timestamp}~${build.commit.id.abbrev}"
-                                  else="99.master.${maven.build.timestamp}~${build.commit.id.abbrev}">
-                                <matches string="${build.branch}" pattern="\d{2}\.\d\.x$" />
+                                <condition property="project.packageVersion" value="${build.closest.tag.name}.${maven.build.timestamp}~${build.commit.id.abbrev}" else="99.master.${maven.build.timestamp}~${build.commit.id.abbrev}">
+                                <matches string="${build.branch}" pattern="\d+\.\d\.x$" />
                               </condition>
                             </target>
                           </configuration>
@@ -704,10 +707,10 @@
                                 <target>
                                     <chmod perm="ugo+x">
                                         <fileset dir="${project.basedir}/target/deb">
-                                            <include name="**/bin/**"/>
-                                            <include name="**/sbin/**"/>
-                                            <include name="DEBIAN/post*"/>
-                                            <include name="DEBIAN/pre*"/>
+                                            <include name="**/bin/**" />
+                                            <include name="**/sbin/**" />
+                                            <include name="DEBIAN/post*" />
+                                            <include name="DEBIAN/pre*" />
                                         </fileset>
                                     </chmod>
                                 </target>
@@ -831,6 +834,7 @@
                 <id>Run Containers</id>
                 <phase>pre-integration-test</phase>
                 <configuration>
+                  <skip>${skipITs}</skip>
                   <executable>docker</executable>
                   <commandlineArgs>compose up -d --wait</commandlineArgs>
                 </configuration>
@@ -842,6 +846,7 @@
                 <id>Stop Containers</id>
                 <phase>post-integration-test</phase>
                 <configuration>
+                  <skip>${skipITs}</skip>
                   <executable>docker</executable>
                   <commandlineArgs>compose down -v</commandlineArgs>
                 </configuration>

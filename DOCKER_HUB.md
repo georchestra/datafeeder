@@ -8,7 +8,8 @@
 
 # Featured tags
 
-- `latest`, `24.0.x`, `23.1.x`
+- `latest`, `1.0.x`
+- Old builds : `24.0.x`
 
 # Quick reference
 
@@ -19,7 +20,7 @@
      [`amd64`](https://hub.docker.com/r/amd64/docker/)
 
 -	**Source of this description**:  
-     [docs repo's `datafeeder/` directory](https://github.com/georchestra/datafeeder/blob/master/datafeeder/DOCKER_HUB.md)
+     [daafeeder repo's ](https://github.com/georchestra/datafeeder/blob/main/DOCKER_HUB.md)
 
 # What is `georchestra/datafeeder`
 

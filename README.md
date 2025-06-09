@@ -1,4 +1,17 @@
-# Data Feeder
+# geOrchestra Datafeeder
+
+<div align="center">
+  <img src="https://github.com/georchestra/georchestra/blob/master/georchestra-logo.svg" alt="geOrchestra Logo" width="300"/>
+  <h3>Import and share SHP or CSV with ease.</h3>
+</div>
+
+<p align="center">
+  <a href="https://github.com/georchestra/datafeeder-ui/actions"><img src="https://github.com/georchestra/datafeeder/actions/workflows/build.yaml/badge.svg" alt="Build Status"></a>
+  <!--<a href="https://docs.georchestra.org/datafeeder-ui/"><img src="https://img.shields.io/badge/docs-latest-blue" alt="Documentation"></a>-->
+  <a href="https://github.com/georchestra/datafeeder/blob/main/LICENSE.txt"><img src="https://img.shields.io/github/license/georchestra/datafeeder" alt="License"></a>
+</p>
+
+## Overview
 
 "Datafeeder" is geOrchestra's backend RESTful service to upload file based datasets and publish them to GeoServer and GeoNetwork in one shot.
 
