@@ -4,7 +4,7 @@
       [georchestra.org](https://www.georchestra.org/)
 
 -    **Where to get help**:  
-     the [geOrchestra Github repo](https://github.com/georchestra/georchestra), [IRC chat](https://matrix.to/#/#georchestra:osgeo.org), Stack Overflow
+     the [geOrchestra Github repo](https://github.com/georchestra/datafeeder), [IRC chat](https://matrix.to/#/#georchestra:osgeo.org), Stack Overflow
 
 # Featured tags
 
@@ -13,13 +13,13 @@
 # Quick reference
 
 -	**Where to file issues**:  
-     [https://github.com/georchestra/georchestra/issues](https://github.com/georchestra/georchestra/issues)
+     [https://github.com/georchestra/datafeeder/issues](https://github.com/georchestra/datafeeder/issues)
 
 -	**Supported architectures**:   
      [`amd64`](https://hub.docker.com/r/amd64/docker/)
 
 -	**Source of this description**:  
-     [docs repo's `datafeeder/` directory](https://github.com/georchestra/georchestra/blob/master/datafeeder/DOCKER_HUB.md)
+     [docs repo's `datafeeder/` directory](https://github.com/georchestra/datafeeder/blob/master/datafeeder/DOCKER_HUB.md)
 
 # What is `georchestra/datafeeder`
 

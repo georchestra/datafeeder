@@ -2,38 +2,47 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-<!--   <parent> -->
-<!--     <groupId>org.georchestra</groupId> -->
-<!--     <artifactId>root</artifactId> -->
-<!--     <version>20.2-SNAPSHOT</version> -->
-<!--   </parent> -->
-  <version>1.0.0-SNAPSHOT</version>
   <groupId>org.georchestra</groupId>
   <artifactId>datafeeder</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>Data-Feeder microservice</name>
   <properties>
+    <georchestra.version>24.0.11</georchestra.version>
     <context.name>${project.artifactId}</context.name>
-
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <java.version>11</java.version>
     <spring-boot.version>2.3.3.RELEASE</spring-boot.version>
-
     <gt.version>29.0</gt.version>
     <openapi-generator-maven-plugin.version>5.0.1</openapi-generator-maven-plugin.version>
     <mapstruct.version>1.6.0</mapstruct.version>
     <lombok.version>1.18.22</lombok.version>
-
     <jersey-version>2.29.1</jersey-version>
-
     <formatter-maven-plugin.version>2.20.0</formatter-maven-plugin.version>
     <fmt.skip>false</fmt.skip>
     <fmt.action>format</fmt.action><!-- or fmt.action 'validate' -->
     <gs-rest-java-client.version>2.25.6</gs-rest-java-client.version>
+    <packageDatadirScmVersion>master</packageDatadirScmVersion>
+    <server>default</server>
   </properties>
+
   <scm>
     <developerConnection>scm:git:https://github.com/georchestra/datafeeder.git</developerConnection>
   </scm>
+
+  <distributionManagement>
+    <repository>
+      <id>geOrchestra-artifactory</id>
+      <name>geOrchestra Maven repository</name>
+      <url>https://artifactory.georchestra.org/artifactory/georchestra/</url>
+    </repository>
+    <snapshotRepository>
+      <id>geOrchestra-artifactory</id>
+      <name>geOrchestra Maven repository</name>
+      <url>https://artifactory.georchestra.org/artifactory/georchestra/</url>
+    </snapshotRepository>
+  </distributionManagement>
+
   <repositories>
     <repository>
       <id>osgeo</id>
@@ -63,6 +72,7 @@
       <url>https://artifactory.georchestra.org/artifactory/georchestra/</url>
     </repository>
   </repositories>
+
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -75,12 +85,12 @@
       <dependency>
         <groupId>org.georchestra</groupId>
         <artifactId>georchestra-commons</artifactId>
-        <version>${project.version}</version>
+        <version>${georchestra.version}</version>
       </dependency>
       <dependency>
         <groupId>org.georchestra</groupId>
         <artifactId>security-proxy-spring-integration</artifactId>
-        <version>${project.version}</version>
+        <version>${georchestra.version}</version>
       </dependency>
       <dependency>
         <groupId>org.geoserver.community</groupId>
@@ -200,6 +210,7 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
   <dependencies>
     <dependency>
       <groupId>org.georchestra</groupId>
@@ -363,7 +374,7 @@
     <dependency>
       <groupId>org.georchestra</groupId>
       <artifactId>security-proxy-spring-integration</artifactId>
-      <version>${project.version}</version>
+      <version>${georchestra.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
@@ -407,6 +418,7 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
   <build>
     <finalName>${project.artifactId}-${server}</finalName>
     <pluginManagement>
@@ -572,6 +584,7 @@
       </plugin>
     </plugins>
   </build>
+
   <profiles>
     <profile>
       <id>debianPackage</id>
@@ -808,6 +821,35 @@
                       </goals>
                   </execution>
               </executions>
+          </plugin>
+          <plugin>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.5.1</version>
+            <groupId>org.codehaus.mojo</groupId>
+            <executions>
+              <execution>
+                <id>Run Containers</id>
+                <phase>pre-integration-test</phase>
+                <configuration>
+                  <executable>docker</executable>
+                  <commandlineArgs>compose up -d</commandlineArgs>
+                </configuration>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>Stop Containers</id>
+                <phase>post-integration-test</phase>
+                <configuration>
+                  <executable>docker</executable>
+                  <commandlineArgs>compose down -v</commandlineArgs>
+                </configuration>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>
