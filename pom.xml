@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.georchestra</groupId>
   <artifactId>datafeeder</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>Data-Feeder microservice</name>
   <properties>
@@ -27,7 +27,7 @@
 
   <scm>
     <developerConnection>scm:git:https://github.com/georchestra/datafeeder.git</developerConnection>
-    <tag>1.0.0</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <distributionManagement>
