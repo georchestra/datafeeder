@@ -1,0 +1,49 @@
+# Default georchestra gateway specific configuration, always imported from application.yml
+# configure target base URL's, headers and role based access, per service name.
+# Replaces security-proxy's targets-mapping.properties, headers-mapping.properties, and security-mappings.xml
+#
+spring.config.import: security.yaml, routes.yaml, roles-mappings.yaml
+
+georchestra:
+  gateway:
+    default-headers:
+      # Default security headers to append to proxied requests
+      proxy: true
+      username: true
+      roles: true
+      org: true
+      orgname: true
+      email: true
+      firstName: true
+      lastName: true
+      userid: false
+      lastUpdated: false
+      tel: false
+      address: false
+      title: false
+      notes: false
+      orgid: false
+      orgLastUpdated: false
+      jsonUser: false
+      jsonOrganization: false
+    global-access-rules:
+    - intercept-url:
+      - /**
+      anonymous: true
+    services:
+      backend:
+        target: http://backend:8081/
+        access-rules:
+        - intercept-url: /backend**
+          anonymous: false
+        headers:
+          json-user: true
+          json-organization: true
+
+---
+# docker profile, sets backend services target URLs to match default docker-compose host names and ports
+spring.config.activate.on-profile: docker
+ldapHost: ldap
+georchestra.gateway.services:
+  backend.target: http://backend:8000/backend/
+

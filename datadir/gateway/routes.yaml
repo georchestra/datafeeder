@@ -1,0 +1,11 @@
+# File included by gateway.yaml to set up the spring-gateway's routes
+# target service URL's are defined in gateway.yaml (e.g. georchestra.gateway.services.<service>.target)
+
+spring:
+  cloud:
+    gateway:
+      routes:
+      - id: backend
+        uri: ${georchestra.gateway.services.backend.target}
+        predicates:
+        - Path=/backend/**

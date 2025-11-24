@@ -63,7 +63,7 @@ x-airflow-common:
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
-    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8081/execution/'
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
@@ -121,9 +121,9 @@ services:
     <<: *airflow-common
     command: api-server
     ports:
-      - "8080:8080"
+      - "8081:8081"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/version"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8081/api/v2/version"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -332,6 +332,30 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+
+  ldap:
+    image: georchestra/ldap:latest
+    restart: always
+    ports:
+      - 3891:389
+    ulimits:
+          nofile:
+            soft: "1024"
+            hard: "1024"
+
+  gateway:
+    image: georchestra/gateway:latest
+    depends_on:
+      - ldap
+    volumes:
+      - ./datadir:/etc/georchestra
+    environment:
+      - JAVA_TOOL_OPTIONS=-Dgeorchestra.datadir=/etc/georchestra -Dspring.profiles.active=docker -Xmx512M -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
+    restart: always
+    ports:
+      - 8080:8080
+      - 5005:5005
+
 
 volumes:
   postgres-db-volume:

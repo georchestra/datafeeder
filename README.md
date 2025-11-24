@@ -15,4 +15,8 @@ Initialize the DB
 docker compose up airflow-init
 ```
 
-Launch docker comp and go http://localhost:8080/ login and paswword `airflow` 
+Launch docker comp and go http://localhost:8081/ login and paswword `airflow/airflow` 
+
+### geOrchestra:
+
+Launch docker comp and go to http://localhost:8080/ login and password `testadmin/testadmin`

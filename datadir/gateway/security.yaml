@@ -1,0 +1,60 @@
+# File included by gateway.yaml to set up the security/authentication aspects
+# of the application.
+
+georchestra:
+  gateway:
+    security:
+      createNonExistingUsersInLDAP: false
+      events:
+        rabbitmq:
+          # Note usually enableRabbitmqEvents, rabbitmqHost, etc. come from georchestra's default.properties
+          enabled: false
+          host: ${rabbitmqHost}
+          port: ${rabbitmqPort}
+          user: ${rabbitmqUser}
+          password: ${rabbitmqPassword}
+      oauth2:
+        # if enabled, make sure to have at least one OAuth2 client
+        # set up at spring.security.oauth2.client below 
+        enabled: false
+        proxy:
+          # If the OAuht2 clients need to go through an HTTP Proxy, enable and configure.
+          enabled: false
+          host: localhost
+          port: 8000
+          username: jack
+          password: insecure
+      ldap:
+        # Multiple LDAP data sources are supported. The first key defines a simple
+        # name for them. The `default` one here, disabled by default, is pre-configured
+        # to use Georchestra's default OpenLDAP database.
+        # You should usually just enable it in the georchestra datadir's gateway.yml
+        # with georchestra.gateway.security.ldap.default.enabled: true
+        default:
+          enabled: true
+        activeDirSample:
+          enabled: false
+          activeDirectory: true
+          url: ${ldapScheme}://${ldapHost}:${ldapPort}
+          baseDn: ${ldapBaseDn:dc=georchestra,dc=org}
+          users:
+            rdn: ${ldapUsersRdn:ou=users}
+            searchFilter: ${ldapUserSearchFilter:(uid={0})}
+          roles:
+            rdn: ${ldapRolesRdn:ou=roles}
+            searchFilter: (&(objectClass=user)(userPrincipalName={0}))
+          adminDn: uid=gdi-admin,ou=myorg,ou=Applications
+          adminPassword: s3cr3t
+
+---
+spring.config.activate.on-profile: preauth
+georchestra:
+  gateway:
+    security:
+      createNonExistingUsersInLDAP: true
+      header-authentication:
+        enabled: true
+      ldap:
+        default:
+          adminDn: cn=admin,dc=georchestra,dc=org
+          adminPassword: secret
