@@ -12,6 +12,7 @@ This project is licensed under the GNU General Public License v3.0. See the [LIC
 
 Initialize the DB
 ```
+mkdir -p ./dags ./logs ./plugins ./config
 docker compose up airflow-init
 ```
 
