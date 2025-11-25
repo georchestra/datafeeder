@@ -18,4 +18,35 @@
 
     // Type checking
     "python.analysis.typeCheckingMode": "basic",
+    
+    // Format with ruff
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        }
+    },
+    
+    // File associations
+    "files.associations": {
+        "*.toml": "toml",
+        "Dockerfile*": "dockerfile",
+        "uv.lock": "toml",
+        ".env*": "dotenv"
+    },
+
+    "github.copilot.enable": {
+        "*": true,
+        "dotenv": false,
+    },
+    
+    // Exclude patterns
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        "**/.pytest_cache": true,
+        "**/.ruff_cache": true
+    }
 }
