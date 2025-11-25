@@ -1,0 +1,9 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ruff
+.ruff_cache

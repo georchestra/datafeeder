@@ -1,0 +1,7 @@
+[dependency-groups]
+dev = [
+    "ruff>=0.14.6",
+]
+
+[tool.uv.workspace]
+members = ["apps/backend", "libs/data-manipulation"]
