@@ -6,4 +6,4 @@ __pycache__/
 *.pyd
 
 # Ruff
-.ruff_cache
+.ruff_cache/
