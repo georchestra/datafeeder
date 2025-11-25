@@ -2,6 +2,12 @@
 
 Data ingestion module for geOrchestra
 
+## Frontend Application
+
+The DataKern frontend is built with Angular 20 and provides the user interface for managing data ingestion workflows. It features a modern, component-based architecture using Tailwind CSS for styling.
+
+For detailed information about the frontend application structure, development setup, and guidelines, see the [frontend README](./frontend/README.md).
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
