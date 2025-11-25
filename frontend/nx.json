@@ -55,7 +55,7 @@
     "@nx/angular:application": {
       "e2eTestRunner": "cypress",
       "linter": "eslint",
-      "style": "scss",
+      "style": "css",
       "unitTestRunner": "vitest"
     }
   },

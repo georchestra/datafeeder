@@ -6,7 +6,7 @@ import { NxWelcome } from './nx-welcome';
   imports: [NxWelcome, RouterModule],
   selector: 'app-root',
   templateUrl: './app.html',
-  styleUrl: './app.scss',
+  styleUrl: './app.css',
 })
 export class App {
   protected title = 'frontend';
