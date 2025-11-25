@@ -1,5 +1,5 @@
-from fastapi import FastAPI
 from data_manipulation import hello
+from fastapi import FastAPI
 
 app = FastAPI()
 
