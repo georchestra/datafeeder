@@ -1,0 +1,21 @@
+{
+    "python-envs.pythonProjects": [
+        {
+            "path": "apps/backend",
+            "envManager": "ms-python.python:venv",
+            "packageManager": "ms-python.python:pip"
+        },
+        {
+            "path": "libs/data-manipulation",
+            "envManager": "ms-python.python:venv",
+            "packageManager": "ms-python.python:pip"
+        }
+    ],
+
+    // Python interpreter selection
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+
+    // Type checking
+    "python.analysis.typeCheckingMode": "basic",
+}
