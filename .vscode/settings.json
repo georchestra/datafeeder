@@ -6,7 +6,7 @@
             "packageManager": "ms-python.python:pip"
         },
         {
-            "path": "libs/data-manipulation",
+            "path": "libs/data_manipulation",
             "envManager": "ms-python.python:venv",
             "packageManager": "ms-python.python:pip"
         }

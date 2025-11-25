@@ -4,4 +4,4 @@ dev = [
 ]
 
 [tool.uv.workspace]
-members = ["apps/backend", "libs/data-manipulation"]
+members = ["apps/backend", "libs/data_manipulation"]

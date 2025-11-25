@@ -17,12 +17,12 @@ run-backend: install ## Run the backend application
 	uv run fastapi dev apps/backend/main.py
 
 lint: install ## Lint Python code with ruff
-	uv run ruff check apps/backend libs/data-manipulation
+	uv run ruff check apps/backend libs/data_manipulation
 
 lint-and-fix: install ## Lint Python code with ruff and fix any fixable errors
-	uv run ruff check apps/backend libs/data-manipulation --fix
+	uv run ruff check apps/backend libs/data_manipulation --fix
 
 format: install ## Format Python code with ruff
-	uv run ruff format apps/backend libs/data-manipulation
+	uv run ruff format apps/backend libs/data_manipulation
 
 .PHONY: default help clean install lint lint-and-fix format
