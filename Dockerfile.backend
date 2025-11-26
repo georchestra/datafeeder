@@ -10,10 +10,6 @@ WORKDIR /app
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:0.9.12 /uv /usr/local/bin/uv
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
-
 # - Silence uv complaining about not being able to use hard links,
 # - tell uv to byte-compile packages for faster application startups,
 # - prevent uv from accidentally downloading isolated Python builds,
@@ -34,6 +30,8 @@ ENV UV_LINK_MODE=copy \
 # Development stage: Full environment with dev dependencies
 # ============================================================================
 FROM base AS development
+
+WORKDIR /app
 
 # Copy workspace configuration and libs
 COPY pyproject.toml uv.lock ./
@@ -56,6 +54,8 @@ CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", 
 # Production stage: Minimal image without dev dependencies
 # ============================================================================
 FROM base AS production
+
+WORKDIR /app
 
 # Create non-root user
 ARG UID=10000
