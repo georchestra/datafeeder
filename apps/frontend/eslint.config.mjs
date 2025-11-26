@@ -1,30 +1,22 @@
-import nx from '@nx/eslint-plugin';
+import js from '@eslint/js';
+import angular from 'angular-eslint';
+import tseslint from 'typescript-eslint';
+import cypress from 'eslint-plugin-cypress';
 
-export default [
-  ...nx.configs['flat/base'],
-  ...nx.configs['flat/typescript'],
-  ...nx.configs['flat/javascript'],
+export default tseslint.config(
   {
-    ignores: ['**/dist', '**/vitest.config.*.timestamp*'],
+    ignores: ['**/dist', '**/vitest.config.*.timestamp*', '**/node_modules', '**/.angular'],
   },
-  {
-    files: [
-      '**/*.ts',
-      '**/*.tsx',
-      '**/*.cts',
-      '**/*.mts',
-      '**/*.js',
-      '**/*.jsx',
-      '**/*.cjs',
-      '**/*.mjs',
-    ],
-    // Override or add rules here
-    rules: {},
-  },
-  ...nx.configs['flat/angular'],
-  ...nx.configs['flat/angular-template'],
+  js.configs.recommended,
+  ...angular.configs.tsRecommended,
   {
     files: ['**/*.ts'],
+    ignores: ['**/*.spec.ts', '**/test-setup.ts', 'cypress/**/*', 'e2e/**/*'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+      },
+    },
     rules: {
       '@angular-eslint/directive-selector': [
         'error',
@@ -46,7 +38,42 @@ export default [
   },
   {
     files: ['**/*.html'],
-    // Override or add rules here
-    rules: {},
+    ...angular.configs.templateRecommended[0],
   },
-];
+  {
+    files: ['**/*.html'],
+    ...angular.configs.templateAccessibility[0],
+  },
+  {
+    files: ['cypress/**/*.cy.ts', 'cypress/**/*.cy.js', 'cypress/**/*.ts', 'cypress/**/*.js'],
+    plugins: {
+      cypress,
+    },
+    languageOptions: {
+      globals: {
+        cy: 'readonly',
+        Cypress: 'readonly',
+        describe: 'readonly',
+        context: 'readonly',
+        it: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        before: 'readonly',
+        after: 'readonly',
+        expect: 'readonly',
+        assert: 'readonly',
+        console: 'readonly',
+        require: 'readonly',
+        setTimeout: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        __filename: 'readonly',
+        __dirname: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  }
+);
