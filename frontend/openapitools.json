@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/@openapitools/openapi-generator-cli/config.schema.json",
+  "spaces": 2,
+  "generator-cli": {
+    "version": "7.16.0",
+      "generators": {
+        "typescript-angular": {
+          "generatorName": "typescript-angular",
+          "glob": "./openapi.{json,yaml}",
+          "output": "./src/app/core/api/",
+          "additionalProperties": {
+            "supportES6": true,
+            "npmName": "@datakern/api-client",
+            "ngVersion": "20.0.0",
+            "withInterfaces": true,
+            "modelFileSuffix": ".api.model",
+            "modelSuffix": "ApiModel",
+            "serviceSuffix": "ApiService",
+            "serviceFileSuffix": ".api.service",
+            "standalone": true,
+            "providedInRoot": true
+          }
+        }
+      }
+  }
+}

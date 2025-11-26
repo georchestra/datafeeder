@@ -5,6 +5,7 @@
   "scripts": {
     "start": "nx serve",
     "build": "nx build",
+    "generate-api": "openapi-generator-cli generate",
     "lint": "nx lint",
     "test:ut": "nx test",
     "test:e2e": "cypress open",
@@ -46,6 +47,7 @@
     "@nx/vitest": "22.1.1",
     "@nx/web": "22.1.1",
     "@nx/workspace": "22.1.1",
+    "@openapitools/openapi-generator-cli": "^2.25.2",
     "@schematics/angular": "~20.3.0",
     "@swc-node/register": "~1.9.1",
     "@swc/core": "~1.5.7",
