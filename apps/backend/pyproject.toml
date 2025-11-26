@@ -12,15 +12,15 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff",
+    "ruff>0",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["app"]
+[tool.uv.sources]
+data_manipulation = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv.sources]
-data_manipulation = { workspace = true }
+[tool.hatch.build.targets.wheel]
+packages = ["app"]

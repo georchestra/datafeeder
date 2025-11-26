@@ -16,7 +16,7 @@ You can use the provided Makefile to manage the development environment and run 
 
 Initialize the DB
 ```
-mkdir -p ./dags ./logs ./plugins ./config
+mkdir -p ./datadir/airflow/dags ./datadir/airflow/logs ./datadir/airflow/plugins ./datadir/airflow/config
 docker compose up airflow-init
 ```
 

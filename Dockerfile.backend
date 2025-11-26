@@ -38,17 +38,14 @@ COPY pyproject.toml uv.lock ./
 COPY libs/data_manipulation ./libs/data_manipulation
 COPY apps/backend ./apps/backend
 
-# Install dependencies from root of workspace
-RUN uv sync
-
-RUN chown -R georchestra_user:georchestra_user /app
-USER georchestra_user
+# Install dependencies from root of workspace (editable for hot-reload)
+RUN uv sync --editable
 
 WORKDIR /app/apps/backend
 EXPOSE 8000
 
 # Run with hot-reload
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/apps/backend", "--reload-dir", "/app/libs"]
 
 # ============================================================================
 # Production stage: Minimal image without dev dependencies
@@ -79,4 +76,4 @@ WORKDIR /app/apps/backend
 EXPOSE 8000
 
 # Run without reload
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

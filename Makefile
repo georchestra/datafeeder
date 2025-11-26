@@ -11,10 +11,10 @@ clean: ## Clean uv cache and lock file
 	uv cache clean
 
 install: ## Install all dependencies using uv
-	uv sync --all-groups
+	uv sync --all-packages
 
 run-backend: install ## Run the backend application
-	uv run fastapi dev apps/backend/main.py
+	uv run fastapi dev apps/backend/app/main.py
 
 lint: install ## Lint Python code with ruff
 	uv run ruff check apps/backend libs/data_manipulation
@@ -26,9 +26,9 @@ format: install ## Format Python code with ruff
 	uv run ruff format apps/backend libs/data_manipulation
 
 docker-build-backend: install ## Build the backend Docker image
-	docker build -f Dockerfile.backend -t datakern-backend .
+	docker build -f Dockerfile.backend --target development -t backend:dev .
 
 docker-run-backend: install ## Run the backend Docker container (with hot-reloading)
-	docker run -p 8000:8000 -v $(pwd)/pyproject.toml:/app/pyproject.toml -v $(pwd)/uv.lock:/app/uv.lock -v $(pwd)/libs:/app/libs -v $(pwd)/apps:/app/apps backend:dev
+	docker run -p 8000:8000 -v ./pyproject.toml:/app/pyproject.toml -v ./uv.lock:/app/uv.lock -v ./libs:/app/libs -v ./apps:/app/apps backend:dev
 
 .PHONY: default help clean install lint lint-and-fix format
