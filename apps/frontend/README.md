@@ -4,6 +4,8 @@ The new (geo) data ingestion plateform.
 
 ## 🚀 Quickstart
 
+**Note:** The frontend requires the backend to be running on port 8000. See the [main README](../../README.md) for backend setup instructions.
+
 Start the frontend app in dev mode:
 
 ```sh
@@ -74,4 +76,34 @@ To launch end-to-end tests (Cypress):
 npm run test:e2e
 # or
 npm run test:e2e:ci # headless mode specially used by the ci
+```
+
+## 🐳 Docker
+
+### Build the Docker image
+
+From the frontend directory:
+
+```bash
+docker build -t datakern-frontend:latest .
+```
+
+### Run the Docker container
+
+```bash
+docker run -p 4200:8080 datakern-frontend:latest
+```
+
+The frontend will be available at http://localhost:4200
+
+### Using Docker Compose
+
+From the project root directory:
+
+```bash
+# Build and start the frontend service
+docker-compose up frontend
+
+# Or rebuild and start
+docker-compose up --build frontend
 ```
