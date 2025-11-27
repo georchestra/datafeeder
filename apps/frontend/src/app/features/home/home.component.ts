@@ -21,6 +21,6 @@ import { MatCheckboxModule } from '@angular/material/checkbox'
         <mat-checkbox>Check this</mat-checkbox>
       </div>
     </div>
-  `,
+  `
 })
 export class HomeComponent {}

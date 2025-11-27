@@ -3,7 +3,7 @@ import { Injectable, signal, effect } from '@angular/core'
 export type Theme = 'light' | 'dark'
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: 'root'
 })
 export class ThemeService {
   private readonly THEME_KEY = 'datakern-theme'
