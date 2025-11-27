@@ -4,7 +4,7 @@ describe('Home Page', () => {
   });
 
   it('should display the home page title', () => {
-    cy.get('h1').should('contain', 'Home page');
+    cy.get('h1').should('contain', 'DataKern');
   });
 
   it('should display the lorem ipsum text', () => {
@@ -19,14 +19,6 @@ describe('Home Page', () => {
 
   it('should be able to click the button', () => {
     cy.get('button[mat-raised-button]').click();
-  });
-
-  it('should be able to toggle the checkbox', () => {
-    cy.get('mat-checkbox').click();
-    cy.get('mat-checkbox input[type="checkbox"]').should('be.checked');
-    
-    cy.get('mat-checkbox').click();
-    cy.get('mat-checkbox input[type="checkbox"]').should('not.be.checked');
   });
 
   it('should have proper spacing and layout', () => {

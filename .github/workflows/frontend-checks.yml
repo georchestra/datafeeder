@@ -1,4 +1,4 @@
-name: Frontend Checks
+name: DataKern CI Frontend
 run-name: 🩺 Frontend quality checks on ${{ github.event_name == 'pull_request' && 'PR' || '🌱' }} ${{ github.event_name == 'pull_request' && github.event.number || github.ref_name }}
 
 env:
