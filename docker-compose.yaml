@@ -333,6 +333,9 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+
+## georchestra services
+
   ldap:
     image: georchestra/ldap:latest
     restart: always
@@ -356,6 +359,13 @@ services:
       - 8080:8080
       - 5005:5005
 
+
+  database:
+    build:
+      context: .
+      dockerfile: Dockerfile.georchestra-database
+    ports:
+      - "5432:5432"
 
 volumes:
   postgres-db-volume:
