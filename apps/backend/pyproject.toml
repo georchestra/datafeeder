@@ -28,6 +28,12 @@ dev = [
 [tool.uv.sources]
 data_manipulation = { workspace = true }
 
+[tool.ruff]
+extend = "../../ruff.toml"
+
+[tool.pyright]
+extend = "../../pyrightconfig.json"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

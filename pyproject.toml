@@ -18,9 +18,3 @@ required-version = "==0.9.13"
 
 [tool.uv.workspace]
 members = ["apps/backend", "libs/data_manipulation"]
-
-[tool.pyright]
-include = ["apps", "libs"]
-exclude = ["**/__pycache__", "**/.venv"]
-pythonVersion = "3.13"
-typeCheckingMode = "strict"
