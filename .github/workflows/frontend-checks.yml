@@ -67,19 +67,28 @@ jobs:
       - name: Run unit tests
         run: npm run test:ut:ci
 
-      # - name: Create pipeline docker image
-      #   working-directory: tools
-      #   run: docker build . -f pipelines/Dockerfile -t geonetwork/geonetwork-ui-tools-pipelines:latest
+      - name: Set up Python for backend
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
 
-      # - name: Start up backend support services
-      #   env:
-      #     GEONETWORK_VERSION: ${{ env.GEONETWORK_VERSION }}
-      #     ELASTICSEARCH_VERSION: ${{ env.ELASTICSEARCH_VERSION }}
-      #     # this is because the xpack.security. params should only be applied to ES v8 and above; using an uppercase prefix makes the params ignored
-      #     ES_XPACK_PARAMETER_PREFIX: ${{ !env.ELASTICSEARCH_VERSION.startsWith('8') && 'IGNORE_' || '' }}
-      #   working-directory: support-services
-      #   run: docker compose up --quiet-pull init
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
+      - name: Install backend dependencies
+        working-directory: .
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          uv sync --all-packages
+
+      - name: Start backend server
+        working-directory: .
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          uv run fastapi dev apps/backend/src/main.py --reload &
+          echo "Waiting for backend to be ready..."
+          timeout 30 bash -c 'until curl -f http://localhost:8000/version; do sleep 1; done'
+        
       - name: Run E2E tests
         run: npm run test:e2e:ci
 
