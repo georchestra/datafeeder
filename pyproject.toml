@@ -1,6 +1,6 @@
 [tool.poe.tasks]
 clean = "uv clean"
-install = "uv install --all-packages"
+install = "uv sync --all-packages"
 
 lint = "ruff check ."
 "lint:fix" = "ruff check . --fix"
