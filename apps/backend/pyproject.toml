@@ -1,10 +1,11 @@
 [tool.poe.tasks]
-lint = "ruff check . --fix"
-fmt = "ruff format ."
-check= "pyright ."
+lint = "ruff check ."
+"lint:fix" = "ruff check . --fix"
 
-"ci:fmt" = "ruff format --check ."
-"ci:lint" = "ruff check ."
+fmt = "ruff format . --check"
+"fmt:fix" = "ruff format ."
+
+check= "pyright ."
 
 [project]
 name = "datakern-backend"

@@ -35,11 +35,11 @@ jobs:
       
       - name: Lint code
         working-directory: ./apps/backend
-        run: uv run poe ci:lint
+        run: uv run poe lint
       
       - name: Format code
         working-directory: ./apps/backend
-        run: uv run poe ci:fmt
+        run: uv run poe fmt
       
       - name: Type check
         working-directory: ./apps/backend
@@ -71,11 +71,11 @@ jobs:
 
       - name: Lint code
         working-directory: ./libs/data_manipulation
-        run: uv run poe ci:lint
+        run: uv run poe lint
       
       - name: Format code
         working-directory: ./libs/data_manipulation
-        run: uv run poe ci:fmt
+        run: uv run poe fmt
       
       - name: Type check
         working-directory: ./libs/data_manipulation

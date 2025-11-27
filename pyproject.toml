@@ -1,3 +1,15 @@
+[tool.poe.tasks]
+clean = "uv clean"
+install = "uv install --all-packages"
+
+lint = "ruff check ."
+"lint:fix" = "ruff check . --fix"
+
+fmt = "ruff format . --check"
+"fmt:fix" = "ruff format ."
+
+check= "pyright ."
+
 [project]
 name = "datakern-python-monorepo"
 version = "0.1.0"
