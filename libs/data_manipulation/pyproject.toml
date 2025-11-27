@@ -1,0 +1,33 @@
+[tool.poe.tasks]
+lint = "ruff check ."
+"lint:fix" = "ruff check . --fix"
+
+fmt = "ruff format . --check"
+"fmt:fix" = "ruff format ."
+
+check= "pyright ."
+
+[project]
+name = "data_manipulation"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "==3.13.*"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff>0",
+    "poethepoet>0",
+    "pyright>0",
+]
+
+[tool.ruff]
+extend = "../../ruff.toml"
+
+[tool.pyright]
+extends = "../../pyrightconfig.json"
+
+[build-system]
+requires = ["uv_build>=0.9.11,<0.10.0"]
+build-backend = "uv_build"
