@@ -1,6 +1,8 @@
-import { Component } from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { MatButtonModule } from '@angular/material/button'
 import { MatCheckboxModule } from '@angular/material/checkbox'
+import { Api } from '../../core/api/api'
+import { readVersionVersionGet } from '../../core/api/functions'
 
 @Component({
   selector: 'app-home',
@@ -16,6 +18,14 @@ import { MatCheckboxModule } from '@angular/material/checkbox'
         commodo consequat.
       </p>
 
+      @if (version()) {
+      <div class="rounded-lg bg-blue-50 p-4">
+        <p class="text-sm font-medium text-blue-900">
+          Backend Version: {{ version() }}
+        </p>
+      </div>
+      }
+
       <div class="flex items-center gap-4">
         <button mat-raised-button color="primary">Click me</button>
         <mat-checkbox>Check this</mat-checkbox>
@@ -23,4 +33,20 @@ import { MatCheckboxModule } from '@angular/material/checkbox'
     </div>
   `
 })
-export class HomeComponent {}
+export class HomeComponent {
+  private api = inject(Api)
+  version = signal<string | null>(null)
+
+  constructor() {
+    this.loadVersion()
+  }
+
+  private async loadVersion() {
+    try {
+      const response = await this.api.invoke(readVersionVersionGet)
+      this.version.set(response.version)
+    } catch (error) {
+      console.error('Failed to load version:', error)
+    }
+  }
+}

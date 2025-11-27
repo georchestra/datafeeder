@@ -46,4 +46,4 @@ Thumbs.db
 
 vitest.config.*.timestamp*
 
-./openapi.json
+openapi.json

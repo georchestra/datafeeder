@@ -1,16 +1,25 @@
 #! /usr/bin/env bash
-set -euxo pipefail
+set -euo pipefail
 
 APPS_DIR="apps"
-BACKEND_DIR="backend"
+BACKEND_URL="http://localhost:8000"
 FRONTEND_DIR="frontend"
 OPENAPI_FILE="openapi.json"
 
-cd "$APPS_DIR"
-cd "$BACKEND_DIR"
-mv "$OPENAPI_FILE" "$FRONTEND_DIR/"
-python -c "import app.main; import json; print(json.dumps(app.main.app.openapi()))" > "../$OPENAPI_FILE"
-cd ..
-mv "$OPENAPI_FILE" "$FRONTEND_DIR/"
-cd "$FRONTEND_DIR"
+# Check if backend is running
+if ! curl -s "$BACKEND_URL/openapi.json" > /dev/null; then
+    echo "Error: Backend is not running at $BACKEND_URL"
+    echo "Please start the backend first with: uv run fastapi dev apps/backend/src/main.py --reload"
+    exit 1
+fi
+
+# Download OpenAPI spec from running backend
+echo "Downloading OpenAPI spec from backend..."
+curl -s "$BACKEND_URL/openapi.json" > "$APPS_DIR/$FRONTEND_DIR/$OPENAPI_FILE"
+
+# Generate the API client
+echo "Generating API client..."
+cd "$APPS_DIR/$FRONTEND_DIR"
 npm run generate-api
+
+echo "API client generated successfully!"

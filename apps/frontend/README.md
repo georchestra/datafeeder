@@ -34,21 +34,25 @@ npm run generate-api
 * From the top level project directory, run the script:
 
 ```bash
-./scripts/generate-client.sh
+apps/frontend/scripts/generate-api.sh
 ```
 
 * Commit the changes.
 
 ### Manually
 
-* Start the Docker Compose stack.
+* Start the Docker Compose stack or start the standalone backend.
 
-* Download the OpenAPI JSON file from `http://localhost:8000/api/v1/openapi.json` and copy it to a new file `openapi.json` at the root of the `frontend` directory.
+* Download the OpenAPI JSON file from `http://localhost:8000/openapi.json` and copy it to a new file `openapi.json` at the root of the `frontend` directory.
+
+```bash
+curl -o openapi.json http://localhost:8000/openapi.json
+```
 
 * To generate the frontend client, run:
 
 ```bash
-npm run generate-client
+npm run generate-api
 ```
 
 * Commit the changes.
