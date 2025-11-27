@@ -47,6 +47,9 @@ jobs:
         working-directory: ./apps/backend
         run: uv run poe ci:format
       
+      - name: Type check
+        run: uv run poe type-check
+      
       - name: Build Docker image
         run: docker build -f Dockerfile.backend --target production -t backend .
 
@@ -65,3 +68,6 @@ jobs:
       - name: Format code
         working-directory: ./libs/data_manipulation
         run: uv run poe ci:format
+      
+      - name: Type check
+        run: uv run poe type-check

@@ -23,6 +23,10 @@ lint: install ## Lint all
 format: install ## Format all
 	(cd ./apps/backend && uv run poe format)
 	(cd ./libs/data_manipulation && uv run poe format)
+
+type-check: install ## Type check all
+	(cd ./apps/backend && uv run poe type-check)
+	(cd ./libs/data_manipulation && uv run poe type-check)
 	
 docker-build-backend: install ## Build the backend Docker image
 	docker build -f Dockerfile.backend --target development -t backend:dev .

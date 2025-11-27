@@ -1,8 +1,10 @@
 [tool.poe.tasks]
 lint = "ruff check . --fix"
-"ci:lint" = "ruff check ."
 format = "ruff format ."
+type-check= "pyright ."
+
 "ci:format" = "ruff format --check ."
+"ci:lint" = "ruff check ."
 
 [project]
 name = "data_manipulation"
@@ -16,6 +18,7 @@ dependencies = []
 dev = [
     "ruff>0",
     "poethepoet>0",
+    "pyright>0",
 ]
 
 [build-system]

@@ -10,6 +10,7 @@ dependencies = []
 dev = [
     "ruff>=0.14.6",
     "poethepoet>=0.38.0",
+    "pyright>=1.1.407",
 ]
 
 [tool.uv]
@@ -17,3 +18,9 @@ required-version = "==0.9.13"
 
 [tool.uv.workspace]
 members = ["apps/backend", "libs/data_manipulation"]
+
+[tool.pyright]
+include = ["apps", "libs"]
+exclude = ["**/__pycache__", "**/.venv"]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"
