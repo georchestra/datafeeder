@@ -1,12 +1,13 @@
 from datetime import datetime
 
 from airflow import DAG
+from airflow.operators.empty import EmptyOperator
 
 with DAG(
     dag_id="my_first_dag",
-    schedule_interval="*/5 * * * *",  # every 5 minutes
-    start_date=datetime.now(),
+    schedule="*/5 * * * *",
+    start_date=datetime(2024, 1, 1),
     catchup=False,
-) as dag:
-    print("Hello, Airflow!")
-    pass
+    tags=["test"],
+):
+    EmptyOperator(task_id="hello")
