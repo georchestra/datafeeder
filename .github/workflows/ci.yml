@@ -30,8 +30,8 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install common python dependencies using uv
-        run: uv sync --all-packages
+      - name: Install backend deps
+        run: uv sync --project ./apps/backend
       
       - name: Lint code
         working-directory: ./apps/backend
@@ -66,8 +66,8 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install common python dependencies using uv
-        run: uv sync --all-packages
+      - name: Install data manipulation deps
+        run: uv sync --project ./libs/data_manipulation
 
       - name: Lint code
         working-directory: ./libs/data_manipulation
@@ -99,8 +99,8 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install common python dependencies using uv
-        run: uv sync --all-packages
+      - name: Install Airflow deps
+        run: uv sync --project ./apps/elt
 
       - name: Lint code
         working-directory: ./apps/elt
