@@ -5,7 +5,7 @@ import cypress from 'eslint-plugin-cypress';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist', '**/vitest.config.*.timestamp*', '**/node_modules', '**/.angular'],
+    ignores: ['**/dist', '**/vitest.config.*.timestamp*', '**/node_modules', '**/.angular', 'src/app/core/api/**'],
   },
   js.configs.recommended,
   ...angular.configs.tsRecommended,
@@ -15,6 +15,9 @@ export default tseslint.config(
     languageOptions: {
       globals: {
         console: 'readonly',
+        document: 'readonly',
+        localStorage: 'readonly',
+        window: 'readonly',
       },
     },
     rules: {
