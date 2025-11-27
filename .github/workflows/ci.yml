@@ -1,0 +1,82 @@
+name: DataKern CI
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "*"
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    name: Backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install common python dependencies using uv
+        run: uv sync --all-packages
+      
+      - name: Lint code
+        working-directory: ./apps/backend
+        run: uv run poe lint
+      
+      - name: Format code
+        working-directory: ./apps/backend
+        run: uv run poe fmt
+      
+      - name: Type check
+        working-directory: ./apps/backend
+        run: uv run poe check
+      
+      - name: Build Docker image
+        run: docker build -f Dockerfile.backend --target production -t backend .
+
+  data-manipulation:
+    runs-on: ubuntu-latest
+    name: Data Manipulation
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install common python dependencies using uv
+        run: uv sync --all-packages
+
+      - name: Lint code
+        working-directory: ./libs/data_manipulation
+        run: uv run poe lint
+      
+      - name: Format code
+        working-directory: ./libs/data_manipulation
+        run: uv run poe fmt
+      
+      - name: Type check
+        working-directory: ./libs/data_manipulation
+        run: uv run poe check

@@ -1,0 +1,32 @@
+[tool.poe.tasks]
+clean = "uv clean"
+install = "uv install --all-packages"
+
+lint = "ruff check ."
+"lint:fix" = "ruff check . --fix"
+
+fmt = "ruff format . --check"
+"fmt:fix" = "ruff format ."
+
+check= "pyright ."
+
+[project]
+name = "datakern-python-monorepo"
+version = "0.1.0"
+description = "Datakern python monorepo using uv"
+readme = "README.md"
+requires-python = "==3.13.*"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.6",
+    "poethepoet>=0.38.0",
+    "pyright>=1.1.407",
+]
+
+[tool.uv]
+required-version = "==0.9.13"
+
+[tool.uv.workspace]
+members = ["apps/backend", "libs/data_manipulation"]
