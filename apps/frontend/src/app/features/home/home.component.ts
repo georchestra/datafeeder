@@ -9,7 +9,7 @@ import { readVersionVersionGet } from '../../core/api/functions'
   imports: [MatButtonModule, MatCheckboxModule],
   template: `
     <div class="space-y-4 py-8">
-      <h1 class="text-2xl font-bold">Home page</h1>
+      <h1 class="text-2xl font-bold">DataKern</h1>
 
       <p>
         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
@@ -28,7 +28,6 @@ import { readVersionVersionGet } from '../../core/api/functions'
 
       <div class="flex items-center gap-4">
         <button mat-raised-button color="primary">Click me</button>
-        <mat-checkbox>Check this</mat-checkbox>
       </div>
     </div>
   `

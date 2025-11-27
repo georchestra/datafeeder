@@ -17,10 +17,6 @@ describe('Home Page', () => {
       .and('contain', 'Click me');
   });
 
-  it('should have a checkbox', () => {
-    cy.get('mat-checkbox').should('be.visible').and('contain', 'Check this');
-  });
-
   it('should be able to click the button', () => {
     cy.get('button[mat-raised-button]').click();
   });
