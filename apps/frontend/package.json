@@ -13,8 +13,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,html,css,scss,json}\"",
     "test:ut": "vitest",
     "test:ut:ci": "vitest --run",
-    "test:e2e": "cypress open",
-    "test:e2e:ci": "cypress run"
+    "test:e2e": "ng serve --port 4201 & cypress open",
+    "test:e2e:ci": "ng serve --port 4201 & cypress run"
   },
   "private": true,
   "dependencies": {
