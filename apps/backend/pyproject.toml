@@ -1,9 +1,9 @@
 [tool.poe.tasks]
 lint = "ruff check . --fix"
-format = "ruff format ."
-type-check= "pyright ."
+fmt = "ruff format ."
+check= "pyright ."
 
-"ci:format" = "ruff format --check ."
+"ci:fmt" = "ruff format --check ."
 "ci:lint" = "ruff check ."
 
 [project]
