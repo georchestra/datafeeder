@@ -1,0 +1,64 @@
+name: DataKern CI
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "*"
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  common-python-setup:
+    runs-on: ubuntu-latest
+    name: Common Python Setup
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Install common python dependencies using uv
+        run: uv sync --all-packages
+
+  backend:
+    runs-on: ubuntu-latest
+    name: Backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Lint code
+        working-directory: ./apps/backend
+        run: uv run poe ci:lint
+      
+      - name: Format code
+        working-directory: ./apps/backend
+        run: uv run poe ci:format
+      
+      - name: Build Docker image
+        run: docker build -f Dockerfile.backend --target production -t backend .
+
+  data-manipulation:
+    runs-on: ubuntu-latest
+    name: Data Manipulation
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lint code
+        working-directory: ./libs/data_manipulation
+        run: uv run poe ci:lint
+      
+      - name: Format code
+        working-directory: ./libs/data_manipulation
+        run: uv run poe ci:format

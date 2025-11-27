@@ -14,21 +14,20 @@ install: ## Install all dependencies using uv
 	uv sync --all-packages
 
 run-backend: install ## Run the backend application
-	uv run fastapi dev apps/backend/app/main.py
+	uv run fastapi dev apps/backend/src/main.py --reload
 
-lint: install ## Lint Python code with ruff
-	uv run ruff check apps/backend libs/data_manipulation
+lint: install ## Lint all 
+	(cd ./apps/backend && uv run poe lint)
+	(cd ./libs/data_manipulation && uv run poe lint)
 
-lint-and-fix: install ## Lint Python code with ruff and fix any fixable errors
-	uv run ruff check apps/backend libs/data_manipulation --fix
-
-format: install ## Format Python code with ruff
-	uv run ruff format apps/backend libs/data_manipulation
-
+format: install ## Format all
+	(cd ./apps/backend && uv run poe format)
+	(cd ./libs/data_manipulation && uv run poe format)
+	
 docker-build-backend: install ## Build the backend Docker image
 	docker build -f Dockerfile.backend --target development -t backend:dev .
 
 docker-run-backend: install ## Run the backend Docker container (with hot-reloading)
 	docker run -p 8000:8000 -v ./pyproject.toml:/app/pyproject.toml -v ./uv.lock:/app/uv.lock -v ./libs:/app/libs -v ./apps:/app/apps backend:dev
 
-.PHONY: default help clean install lint lint-and-fix format
+.PHONY: default help clean install lint format docker-build-backend docker-run-backend
