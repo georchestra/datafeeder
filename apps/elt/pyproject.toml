@@ -1,0 +1,42 @@
+[tool.poe.tasks]
+lint = "ruff check ."
+"lint:fix" = "ruff check . --fix"
+
+fmt = "ruff format . --check"
+"fmt:fix" = "ruff format ."
+
+check= "pyright ."
+
+[project]
+name = "datakern-airflow-elt"
+version = "0.1.0"
+description = "Airflow DAGs for ELT in DataKern"
+readme = "README.md"
+requires-python = "==3.13.*"
+dependencies = [
+    "data_manipulation",
+    "apache-airflow==2.10.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>0",
+    "poethepoet>0",
+    "pyright>0",
+]
+
+[tool.uv.sources]
+data_manipulation = { workspace = true }
+
+[tool.ruff]
+extend = "../../ruff.toml"
+
+[tool.pyright]
+extends = "../../pyrightconfig.json"
+
+# [build-system]
+# requires = ["hatchling"]
+# build-backend = "hatchling.build"
+
+# [tool.hatch.build.targets.wheel]
+# packages = ["dags"]

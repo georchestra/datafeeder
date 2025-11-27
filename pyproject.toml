@@ -29,4 +29,8 @@ dev = [
 required-version = "==0.9.13"
 
 [tool.uv.workspace]
-members = ["apps/backend", "libs/data_manipulation"]
+members = [
+    "apps/backend",
+    "apps/elt",
+    "libs/data_manipulation"
+]
