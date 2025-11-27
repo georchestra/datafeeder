@@ -32,7 +32,7 @@ data_manipulation = { workspace = true }
 extend = "../../ruff.toml"
 
 [tool.pyright]
-extend = "../../pyrightconfig.json"
+extends = "../../pyrightconfig.json"
 
 [build-system]
 requires = ["hatchling"]

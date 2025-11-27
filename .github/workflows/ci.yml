@@ -42,6 +42,7 @@ jobs:
         run: uv run poe ci:fmt
       
       - name: Type check
+        working-directory: ./apps/backend
         run: uv run poe check
       
       - name: Build Docker image
@@ -77,4 +78,5 @@ jobs:
         run: uv run poe ci:fmt
       
       - name: Type check
+        working-directory: ./libs/data_manipulation
         run: uv run poe check
