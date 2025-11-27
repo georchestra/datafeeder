@@ -14,6 +14,6 @@ export const appConfig: ApplicationConfig = {
     provideZonelessChangeDetection(),
     provideRouter(appRoutes),
     provideHttpClient(),
-    provideApiConfiguration('http://localhost:8000')
+    provideApiConfiguration('/backend')
   ]
 }
