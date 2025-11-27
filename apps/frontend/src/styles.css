@@ -1,7 +1,7 @@
 /* You can add global styles to this file, and also import other style files */
-@import "tailwindcss";
-@import "@angular/material/prebuilt-themes/indigo-pink.css";
+@import 'tailwindcss';
+@import '@angular/material/prebuilt-themes/purple-green.css';
 
 :root {
-    --mat-button-filled-container-color: #d21957;
+  --mat-button-filled-container-color: #d21957;
 }

@@ -1,5 +1,5 @@
-import { Route } from '@angular/router';
-import { MainLayoutComponent } from './layout/main-layout.component';
+import { Route } from '@angular/router'
+import { MainLayoutComponent } from './layout/main-layout.component'
 
 export const appRoutes: Route[] = [
   {
@@ -8,8 +8,9 @@ export const appRoutes: Route[] = [
     children: [
       {
         path: '',
-        loadComponent: () => import('./features/home/home.component').then(m => m.HomeComponent)
-      }
-    ]
-  }
-];
+        loadComponent: () =>
+          import('./features/home/home.component').then((m) => m.HomeComponent),
+      },
+    ],
+  },
+]
