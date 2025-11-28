@@ -8,3 +8,6 @@ __pycache__/
 
 # Ruff
 .ruff_cache/
+
+# Airflow logs
+datadir/airflow/logs/**

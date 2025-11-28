@@ -12,19 +12,21 @@ You can use the provided Makefile to manage the development environment and run 
 
 ## Running dev env: 
 
+Run:
+```bash
+mkdir -p ./datadir/airflow/logs ./datadir/airflow/plugins ./datadir/airflow/config
+make
+```
+
 ### Airflow: 
 
-Initialize the DB
-```
-mkdir -p ./datadir/airflow/dags ./datadir/airflow/logs ./datadir/airflow/plugins ./datadir/airflow/config
-docker compose up airflow-init
-```
+Go to http://localhost:8080/airflow login and paswword `airflow/airflow` 
 
-Launch docker comp and go http://localhost:8081/ login and paswword `airflow/airflow` 
+### Backend:
 
-### geOrchestra:
+Backend runs locally, but you can access through the gateway at http://localhost:8080/backend/
 
-Launch docker comp and go to http://localhost:8080/ login and password `testadmin/testadmin`
+Go to http://localhost:8080/ login and password `testadmin/testadmin`
 
 ### Backend:
 

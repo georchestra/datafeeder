@@ -32,7 +32,7 @@ georchestra:
       anonymous: true
     services:
       backend:
-        target: http://backend:8081/
+        target: http://host.docker.internal:8000/
         access-rules:
         - intercept-url: /backend**
           anonymous: false
@@ -45,5 +45,10 @@ georchestra:
 spring.config.activate.on-profile: docker
 ldapHost: ldap
 georchestra.gateway.services:
-  backend.target: http://backend:8000/backend/
+  backend.target: http://host.docker.internal:8000/
+  airflow.target: http://airflow-apiserver:8081/execution/
 
+logging:
+  level:
+    root: warn
+    '[reactor.netty.http]': info
