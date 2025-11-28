@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(npm run build:*)",
+      "WebSearch",
+      "WebFetch(domain:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run generate-api:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(chmod:*)",
+      "Bash(/home/aabt/.claude/statusline-command.sh)",
+      "Bash(npm run format:*)",
+      "Bash(npm run test:ut:ci:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__take_screenshot",
+      "mcp__chrome-devtools__list_console_messages",
+      "mcp__chrome-devtools__evaluate_script"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

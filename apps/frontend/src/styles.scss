@@ -1,0 +1,36 @@
+/* You can add global styles to this file, and also import other style files */
+@use '@angular/material' as mat;
+
+@import 'tailwindcss';
+/*
+@import '@angular/material/prebuilt-themes/purple-green.css';
+*/
+
+:root {
+  --mat-button-filled-container-color: #E30513;
+  --color-primary: #E30513;
+}
+
+html {
+  color-scheme: light dark;
+  @include mat.theme((
+    color: mat.$violet-palette,
+    typography: Roboto,
+    density: 0
+  ));
+}
+
+html, body {
+  height: 100% ;
+}
+
+body {
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  margin: 0;
+}
+
+/* Data Import Wizard Tab Styling */
+.data-import-wizard .mat-mdc-tab.mdc-tab--active {
+  background-color: var(--color-primary);
+}
