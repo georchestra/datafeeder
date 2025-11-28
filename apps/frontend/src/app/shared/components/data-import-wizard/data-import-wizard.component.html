@@ -1,0 +1,23 @@
+<mat-tab-group [(selectedIndex)]="selectedTabIndex" class="data-import-wizard">
+  <mat-tab>
+    <ng-template mat-tab-label>
+      <mat-icon class="mr-2">add</mat-icon>
+      Ajouter un jeu de donnée
+    </ng-template>
+    <div class="p-6">
+      <app-data-source-selector
+        [sourceData]="importData().source"
+        (sourceChanged)="onSourceChanged($event)"
+      />
+    </div>
+  </mat-tab>
+  <mat-tab>
+    <ng-template mat-tab-label>
+      <mat-icon class="mr-2">settings</mat-icon>
+      Paramétrer le jeu de donnée
+    </ng-template>
+    <div class="p-6">
+      <app-dataset-configuration />
+    </div>
+  </mat-tab>
+</mat-tab-group>

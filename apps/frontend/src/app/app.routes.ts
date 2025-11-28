@@ -10,6 +10,13 @@ export const appRoutes: Route[] = [
         path: '',
         loadComponent: () =>
           import('./features/home/home.component').then((m) => m.HomeComponent)
+      },
+      {
+        path: 'import',
+        loadComponent: () =>
+          import('./features/import/import.component').then(
+            (m) => m.ImportComponent
+          )
       }
     ]
   }

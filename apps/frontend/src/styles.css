@@ -4,4 +4,29 @@
 
 :root {
   --mat-button-filled-container-color: #d21957;
+  --color-primary: #d21957;
+}
+
+/* Data Import Wizard Tab Styling */
+.data-import-wizard .mat-mdc-tab.mdc-tab--active {
+  background-color: var(--color-primary);
+}
+
+.data-import-wizard .mat-mdc-tab.mdc-tab--active .mdc-tab__text-label,
+.data-import-wizard .mat-mdc-tab.mdc-tab--active mat-icon {
+  color: white;
+}
+
+.data-import-wizard .mat-mdc-tab:not(.mdc-tab--active) {
+  background-color: #e5e7eb;
+}
+
+.data-import-wizard .mat-mdc-tab:not(.mdc-tab--active) .mdc-tab__text-label,
+.data-import-wizard .mat-mdc-tab:not(.mdc-tab--active) mat-icon {
+  color: #374151;
+}
+
+/* Fix radio button label color */
+mat-radio-button label {
+  color: #111827 !important;
 }
