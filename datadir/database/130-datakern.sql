@@ -23,6 +23,7 @@ create table if not exists datakern.staging_job
 (
     id                 serial,
     dag_run_id         varchar(256),
+    creator            varchar(256),
     staging_table_name varchar(256),
     created_at         timestamp default current_timestamp
 );
