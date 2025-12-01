@@ -37,15 +37,17 @@ For detailed information about the frontend application structure, development s
 
 The DataKern backend is built with FastAPI and serves as the core API for data ingestion operations.
 
-- **Gateway URL**: http://localhost:8080/backend/
-- **Direct URL**: http://localhost:8081
-- **API Documentation**: http://localhost:8081/docs
+- **Gateway URL**: TODO
+- **Direct URL**: http://localhost:8000/
+- **API Documentation**: http://localhost:8000/docs
 
 ### Airflow
 
 The ELT application uses Apache Airflow for data orchestration and workflow management.
 
 - **URL**: http://localhost:8080/airflow
+- **Direct URL**: http://localhost:8081
+- **Airflow API Documentation**: http://localhost:8081/docs
 - **Credentials**: `airflow/airflow`
 
 ## License
