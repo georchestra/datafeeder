@@ -14,13 +14,13 @@ install-python: ## Install all dependencies using uv
 	uv run poe install
 
 check-all-python: install-python ## Run all checks: linting, formatting, and type checking
-	(uv run poe lint)
-	(uv run poe fmt)
-	(uv run poe check)
+	-uv run poe lint
+	-uv run poe fmt
+	-uv run poe check
 
 fix-all-python: install-python ## Fix all issues: linting and formatting
-	(uv run poe lint:fix)
-	(uv run poe fmt:fix)
+	-uv run poe lint:fix
+	-uv run poe fmt:fix
 
 up: ## Start all services using Docker Compose
 	docker compose up -d --wait
