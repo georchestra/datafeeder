@@ -5,7 +5,19 @@ spring:
   cloud:
     gateway:
       routes:
+      - id: root
+        uri: no://op
+        predicates:
+          - Path=/
+        filters:
+          - RedirectTo=307, /backend/
       - id: backend
         uri: ${georchestra.gateway.services.backend.target}
         predicates:
         - Path=/backend/**
+        filters:
+          - RewritePath=/backend/(?<segment>.*),/$\{segment}
+      - id: airflow
+        uri: ${georchestra.gateway.services.airflow.target}
+        predicates:
+        - Path=/airflow/**

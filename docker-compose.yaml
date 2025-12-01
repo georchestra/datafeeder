@@ -62,7 +62,7 @@ x-airflow-common:
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-    AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8081/execution/'
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
@@ -75,10 +75,15 @@ x-airflow-common:
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
   volumes:
-    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+    - ${AIRFLOW_DAGS_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    # Mount workspace files for hot-reload with uv
+    - ./pyproject.toml:/app/pyproject.toml
+    - ./uv.lock:/app/uv.lock
+    - ./libs:/app/libs
+    - ./apps/elt:/app/apps/elt
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -102,6 +107,8 @@ services:
       retries: 5
       start_period: 5s
     restart: always
+    ports:
+      - "5433:5432"
 
   redis:
     # Redis is limited to 7.2-bookworm due to licencing change
@@ -121,9 +128,9 @@ services:
     <<: *airflow-common
     command: api-server
     ports:
-      - "8081:8081"
+      - "8081:8080"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8081/api/v2/version"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/version"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -337,7 +344,7 @@ services:
 ## georchestra services
 
   ldap:
-    image: georchestra/ldap:latest
+    image: georchestra/ldap:25.0.0
     restart: always
     ports:
       - 3891:389
@@ -345,19 +352,23 @@ services:
           nofile:
             soft: "1024"
             hard: "1024"
+    healthcheck:
+      test: ["CMD-SHELL", "ldapsearch -x -H ldap://localhost:389 -D 'cn=admin,dc=georchestra,dc=org' -w 'secret' -b 'dc=georchestra,dc=org' '(objectclass=*)' > /dev/null"]
 
   gateway:
-    image: georchestra/gateway:latest
+    image: georchestra/gateway:latest-debug
     depends_on:
       - ldap
     volumes:
       - ./datadir:/etc/georchestra
     environment:
-      - JAVA_TOOL_OPTIONS=-Dgeorchestra.datadir=/etc/georchestra -Dspring.profiles.active=docker -Xmx512M -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
+      - JAVA_TOOL_OPTIONS=-Dgeorchestra.datadir=/etc/georchestra -Dspring.profiles.active=docker -Xmx512M -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005 -Dreactor.netty.http.server.accessLogEnabled=true
     restart: always
     ports:
       - 8080:8080
       - 5005:5005
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
 
 
   database:

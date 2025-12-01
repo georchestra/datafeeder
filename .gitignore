@@ -1,4 +1,9 @@
+# .env file
+.env
+
+# JetBrains IDEs
 .idea/
+
 # Python
 .venv/
 __pycache__/
@@ -8,3 +13,7 @@ __pycache__/
 
 # Ruff
 .ruff_cache/
+
+# Airflow logs
+datadir/airflow/logs/**
+apps/elt/airflow

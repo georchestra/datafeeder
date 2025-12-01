@@ -1,6 +1,8 @@
 {
     "include": ["apps", "libs"],
     "exclude": ["**/__pycache__", "**/.venv"],
-    "pythonVersion": "3.13",
-    "typeCheckingMode": "strict"
+    "pythonVersion": "3.12",
+    "typeCheckingMode": "strict",
+    "reportUnknownVariableType": "warning",
+    "reportUnusedExpression": "warning"
 }

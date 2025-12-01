@@ -15,7 +15,7 @@ name = "datakern-python-monorepo"
 version = "0.1.0"
 description = "Datakern python monorepo using uv"
 readme = "README.md"
-requires-python = "==3.13.*"
+requires-python = "==3.12.*"
 dependencies = []
 
 [dependency-groups]
@@ -26,7 +26,11 @@ dev = [
 ]
 
 [tool.uv]
-required-version = "==0.9.13"
+required-version = ">=0.9.9"
 
 [tool.uv.workspace]
-members = ["apps/backend", "libs/data_manipulation"]
+members = [
+    "apps/backend",
+    "apps/elt",
+    "libs/data_manipulation"
+]
