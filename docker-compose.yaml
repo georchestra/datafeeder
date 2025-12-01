@@ -367,5 +367,13 @@ services:
     ports:
       - "5432:5432"
 
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "4200:8080"
+    restart: always
+
 volumes:
   postgres-db-volume:

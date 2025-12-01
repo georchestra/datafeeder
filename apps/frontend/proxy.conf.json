@@ -1,0 +1,11 @@
+{
+  "/backend": {
+    "target": "http://localhost:8000",
+    "pathRewrite": {
+      "^/backend": ""
+    },
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}

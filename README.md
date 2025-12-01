@@ -37,3 +37,9 @@ Run the backend container (with hot-reloading):
 ```
 make docker-run-backend
 ```
+
+## Frontend Application
+
+The DataKern frontend is built with Angular 20 and provides the user interface for managing data ingestion workflows. It features a modern, component-based architecture using Tailwind CSS for styling.
+
+For detailed information about the frontend application structure, development setup, and guidelines, see the [frontend README](./apps/frontend/README.md).
