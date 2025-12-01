@@ -42,18 +42,22 @@ Dans le cas ou ces deux seuls composants sont intégrés, les interactions serai
 1. Un utilisateur ou un système externe envoie une requête d'ingestion (fichier, url) de données à l'API REST du backend.
 2. Le backend déclenche un DAG Airflow correspondant à la tâche d'ingestion (et récupère le dag run id). Il fournit un endpoint pour suivre l'état de la tâche d'ingestion.
 3. Airflow ingère les données dans une table staging dédiée.
-4. ---- Le front poll l'état de la tâche d'ingestion via l'API REST du backend. ----
+4. ---- Le front poll l'état de la tâche d'ingestion via l'API REST du backend. ---- L'integrity link est créé à ce moment-là (staging_table_name + gn-metadata si gn actif). 
 5.
    - Un endpoint permettant de récupérer les N premières données de la table staging est disponible pour prévisualiser les données ingérées.
    - Un endpoint permettant de récupérer certaines listes sont dispo (à définir: CRS ? autre ?)
+   - Un endpoint permet de récupérer les informations de configuration du JDD (pour le front notamment).
 6. Un endpoint de l'API REST du backend permet de définir la transformation, le nom de table finale... et l'enregistre en bdd (Voir la [structure ici](datadir/database/130-datakern.sql))
    - Si dans la configuration, geonetwork est activé, le backend crée une fiche de métadonnée dans geonetwork.
 7. Cette bdd est poll par aiflow qui crée les dags dynamiques pour chaque tâche d'ingestion récurrente.
 8. Un tâche générique est utilisée pour les ingestions qui n'ont pas de fréquence définie (ingestion one-shot).
+9. A la fin d'un dag, la table staging est vidée.
+10. si des données de staging ont été DL, on peut les réutiliser (prévention de co internet foireuse, etc...)
 
 API: 
 - *GET /<base_path>/config* : Récupérer la configuration de l'application.
 - *POST /<base_path>/dataset/new* : Créer une nouvelle tâche d'ingestion.
+- *GET /<base_path>/dataset/{datakern.integrity_link.id}/edit_source* : Permet de modifier la source d'un JDD. Secured
 - *GET /<base_path>/{datakern.staging_job.dag_run_id}/status* : Récupérer l'état de la tâche d'ingestion. Secured
 - *GET /<base_path>/{datakern.staging_job.staging_table_name}/preview* : Récupérer un aperçu des données ingérées. Secured
 - *POST /<base_path>/dataset/finalize* : Finaliser la tâche d'ingestion avec les transformations et le nom de la table finale. Secured
