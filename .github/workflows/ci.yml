@@ -43,7 +43,7 @@ jobs:
       
       - name: Type check
         working-directory: ./apps/backend
-        run: uv run poe check
+        run: uv run poe check --verbose
       
       - name: Build Docker image
         run: docker build -f Dockerfile.backend --target production -t backend .
@@ -79,7 +79,7 @@ jobs:
       
       - name: Type check
         working-directory: ./libs/data_manipulation
-        run: uv run poe check
+        run: uv run poe check --verbose
   
   airflow-elt:
     runs-on: ubuntu-latest
@@ -112,4 +112,4 @@ jobs:
 
       - name: Type check
         working-directory: ./apps/elt
-        run: uv run poe check
+        run: uv run poe check --verbose
