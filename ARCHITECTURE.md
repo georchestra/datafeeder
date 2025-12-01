@@ -27,7 +27,7 @@ DataKern/
 
 ## Fonctionnement minimal
 
-DataKern soit être pensé en "API first" et, si possible, indépendant de n'importe quel outil.  
+DataKern doit être pensé en "API first" et, si possible, indépendant de n'importe quel outil.  
 
 Le fonctionnement minimum viable de DataKern repose sur l'interaction entre deux composants principaux : 
 - Le backend (et sa bdd) qui expose une API REST pour gérer les demandes d'ingestion de données.
@@ -47,23 +47,23 @@ Dans le cas ou ces deux seuls composants sont intégrés, les interactions serai
    - Un endpoint permettant de récupérer les N premières données de la table staging est disponible pour prévisualiser les données ingérées.
    - Un endpoint permettant de récupérer certaines listes sont dispo (à définir: CRS ? autre ?)
 6. Un endpoint de l'API REST du backend permet de définir la transformation, le nom de table finale... et l'enregistre en bdd (Voir la [structure ici](datadir/database/130-datakern.sql))
-   - Si dans la configuration, geonetwork est activé, le backend créé une fiche de métadonnée dans geonetwork.
-7. Cette bdd est poll par aiflow qui créer les dags dynamique pour chaque tâche d'ingestion récurrentes.
+   - Si dans la configuration, geonetwork est activé, le backend crée une fiche de métadonnée dans geonetwork.
+7. Cette bdd est poll par aiflow qui crée les dags dynamiques pour chaque tâche d'ingestion récurrente.
 8. Un tâche générique est utilisée pour les ingestions qui n'ont pas de fréquence définie (ingestion one-shot).
 
 API: 
 - *GET /<base_path>/config* : Récupérer la configuration de l'application.
-- *PUT /<base_path>/new* : Créer une nouvelle tâche d'ingestion.
-- *GET /<base_path>/{task_id}/status* : Récupérer l'état de la tâche d'ingestion. Secured
-- *GET /<base_path>/{staging_id}/preview* : Récupérer un aperçu des données ingérées. Secured
-- *POST /<base_path>/{task_id}/finalize* : Finaliser la tâche d'ingestion avec les transformations et le nom de la table finale. Secured
+- *POST /<base_path>/dataset/new* : Créer une nouvelle tâche d'ingestion.
+- *GET /<base_path>/{datakern.staging_job.dag_run_id}/status* : Récupérer l'état de la tâche d'ingestion. Secured
+- *GET /<base_path>/{datakern.staging_job.staging_table_name}/preview* : Récupérer un aperçu des données ingérées. Secured
+- *POST /<base_path>/dataset/finalize* : Finaliser la tâche d'ingestion avec les transformations et le nom de la table finale. Secured
 - *GET /lists/crs* : Récupérer la liste des systèmes de référence ??
 
 *Management du JDD*
 
-- *POST /<base_path>/<dataset>/ : Met à jour un jeu de données. Secured
-- *DELETE /<base_path>/<dataset>/delete* : Supprime un jeu de données. Secured
-- *POST /<base_path>/<dataset>/rules* : Définit des règles de gestion pour un jeu de données. Secured
+- *POST /<base_path>/dataset/{datakern.integrity_link.id} : Met à jour un jeu de données. Secured
+- *DELETE /<base_path>/dataset/{datakern.integrity_link.id}* : Supprime un jeu de données. Secured
+- *POST /<base_path>/dataset/{datakern.integrity_link.id}/rules* : Définit des règles de gestion pour un jeu de données. Secured
 
 ## Fonctionnment du front end 
 
