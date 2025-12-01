@@ -16,3 +16,4 @@ __pycache__/
 
 # Airflow logs
 datadir/airflow/logs/**
+apps/elt/airflow

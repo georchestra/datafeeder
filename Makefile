@@ -1,5 +1,5 @@
 # Display help message by default
-default: run
+default: help
 
 help: ## Display this help message
 	@echo "Usage: make <target>"
@@ -22,23 +22,22 @@ fix-all-python: install-python ## Fix all issues: linting and formatting
 	(uv run poe lint:fix)
 	(uv run poe fmt:fix)
 
-run: libs docker-build-airflow
-	docker compose up -d --wait && \
-	$(MAKE) run-backend
+up: ## Start all services using Docker Compose
+	docker compose up -d --wait
 
 run-backend: install-python ## Run the backend application
 	uv run fastapi dev apps/backend/src/main.py --reload --host 0.0.0.0
 
-libs:
-	uv build libs/data_manipulation
-
-docker-build-backend: install-python ## Build the backend Docker image
+docker-build-backend: ## Build the backend Docker image
 	docker build -f Dockerfile.backend --target development -t backend:dev .
 
-docker-run-backend: install-python ## Run the backend Docker container (with hot-reloading)
+docker-build-airflow: ## Build the Airflow Docker image
+	docker build -f Dockerfile.airflow --target development -t apache/airflow:dev .
+
+docker-run-backend: docker-build-backend ## Run the backend Docker container (with hot-reloading)
 	docker run -p 8000:8000 -v ./pyproject.toml:/app/pyproject.toml -v ./uv.lock:/app/uv.lock -v ./libs:/app/libs -v ./apps:/app/apps backend:dev
 
-docker-build-airflow: install-python libs ## Build the Airflow Docker image
-	 docker build -f Dockerfile.airflow -t apache/airflow:dev .
+docker-run-airflow: docker-build-airflow ## Run the Airflow Docker container
+	docker compose up -d --wait airflow-apiserver
 
-.PHONY: default help clean-python install-python check-all-python fix-all-python run-backend docker-build-backend docker-run-backend
+.PHONY: default help clean-python install-python check-all-python fix-all-python up run-backend docker-build-backend docker-build-airflow docker-run-backend docker-run-airflow
