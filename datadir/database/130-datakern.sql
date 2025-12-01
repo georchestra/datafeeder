@@ -12,7 +12,7 @@ create table if not exists datakern.integrity_link
     integrity_organization   text,
     integrity_transformation jsonb,
     staging_table_name       varchar(63),
-    final_table_name         varchar(63),
+    final_table_name         varchar(63) UNIQUE,
 --     integrity_status         varchar(50)  NULL,
     schedule                 varchar(10)  NULL,
     schedule_enabled         boolean   default true,
