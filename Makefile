@@ -25,8 +25,14 @@ fix-all-python: install-python ## Fix all issues: linting and formatting
 up: ## Start all services using Docker Compose
 	docker compose up -d --wait
 
+down: ## Stop all services using Docker Compose
+	docker compose down
+
 run-backend: install-python ## Run the backend application
 	uv run fastapi dev apps/backend/src/main.py --reload --host 0.0.0.0
+
+run-frontend: ## Run the frontend application
+	cd apps/frontend && npx nx serve
 
 docker-build-backend: ## Build the backend Docker image
 	docker build -f Dockerfile.backend --target development -t backend:dev .
