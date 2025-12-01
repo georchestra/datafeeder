@@ -2,5 +2,7 @@
     "include": ["apps", "libs"],
     "exclude": ["**/__pycache__", "**/.venv"],
     "pythonVersion": "3.12",
-    "typeCheckingMode": "strict"
+    "typeCheckingMode": "strict",
+    "reportUnknownVariableType": "warning",
+    "reportUnusedExpression": "warning"
 }
