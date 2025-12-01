@@ -1,4 +1,9 @@
+# .env file
+.env
+
+# JetBrains IDEs
 .idea/
+
 # Python
 .venv/
 __pycache__/
