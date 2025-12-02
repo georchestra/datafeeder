@@ -19,10 +19,10 @@ make up-full
 make run-backend
 
 # In another terminal, launch only the frontend app
-make run-frontend
+cd apps/frontend && npm start
 
 # If you want to re-build airflow external libs (data-manipulation):
-make reload-airflow-libs
+make reload-airflow-deps
 ```
 
 ## Application Access
