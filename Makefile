@@ -29,7 +29,7 @@ up-light: build-libs ## Start all services using Docker Compose
 	docker compose up -d --wait --build
 
 up-full: build-libs ## Start all services including GeoServer and GeoNetwork using Docker Compose
-	docker compose up -d --wait --build --profile geoserver --profile geonetwork
+	docker compose --profile geoserver --profile geonetwork up -d --wait --build
 
 down: ## Stop all services using Docker Compose
 	docker compose down
