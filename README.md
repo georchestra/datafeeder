@@ -3,23 +3,26 @@
 Data ingestion module for geOrchestra
 
 
-## Dev environment setup: 
+## Dev environment setup:
 
 You can use the provided Makefile to manage the development environment and run common tasks. `make help` is self-explanatory.
 
 Running services:
 ```bash
-# Launch all services
-make up
+# Launch all services (Airflow + gateway + ldap)
+make up-light
 
-# Launch only the backend app
+# Or launch all services + GeoServer and GeoNetwork
+make up-full
+
+# In another terminal, launch only the backend app
 make run-backend
 
-# Launch only the frontend app
-make run-frontend
+# In another terminal, launch only the frontend app
+cd apps/frontend && npm start
 
-# Launch only the ELT (Airflow) app
-make docker-run-airflow
+# If you want to re-build airflow external libs (data-manipulation):
+make reload-airflow-deps
 ```
 
 ## Application Access
@@ -28,6 +31,7 @@ make docker-run-airflow
 
 The DataKern frontend is built with Angular 20 and provides the user interface for managing data ingestion workflows. It features a modern, component-based architecture using Tailwind CSS for styling.
 
+- **Gateway URL**: http://localhost:8080/datakern/
 - **URL**: http://localhost:8080/
 - **Credentials**: `testadmin/testadmin`
 
@@ -37,9 +41,10 @@ For detailed information about the frontend application structure, development s
 
 The DataKern backend is built with FastAPI and serves as the core API for data ingestion operations.
 
-- **Gateway URL**: TODO
+- **Gateway URL**: http://localhost:8080/datakern-backend/
 - **Direct URL**: http://localhost:8000/
 - **API Documentation**: http://localhost:8000/docs
+- **Credentials**: `testadmin/testadmin`
 
 ### Airflow
 
