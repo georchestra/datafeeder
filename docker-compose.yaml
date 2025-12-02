@@ -380,8 +380,6 @@ services:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
-    ports:
-      - "4200:8080"
     restart: always
 
 volumes:

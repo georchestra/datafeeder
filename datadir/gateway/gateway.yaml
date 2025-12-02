@@ -36,6 +36,13 @@ georchestra:
         access-rules:
         - intercept-url: /backend**
           anonymous: false
+          allowed-roles: IMPORT
+      frontend:
+        target: http://host.docker.internal:4200/
+        access-rules:
+        - intercept-url: /frontend**
+          anonymous: false
+          allowed-roles: IMPORT
         headers:
           json-user: true
           json-organization: true
@@ -46,6 +53,8 @@ spring.config.activate.on-profile: docker
 ldapHost: ldap
 georchestra.gateway.services:
   backend.target: http://host.docker.internal:8000/
+  #frontend.target: http://frontend:8080/
+  frontend.target: http://host.docker.internal:4200/frontend/
   airflow.target: http://airflow-apiserver:8081/execution/
 
 logging:

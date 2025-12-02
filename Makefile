@@ -41,9 +41,6 @@ reload-airflow-deps: build-libs ## Reload Airflow DAG processor with updated dep
 run-backend: install-python ## Run the backend application
 	uv run fastapi dev apps/backend/src/main.py --reload --host 0.0.0.0
 
-run-frontend: ## Run the frontend application
-	cd apps/frontend && npx nx serve
-
 docker-build-backend: ## Build the backend Docker image
 	echo "TODO: Implement backend Docker build"
 
