@@ -22,11 +22,21 @@ fix-all-python: install-python ## Fix all issues: linting and formatting
 	-uv run poe lint:fix
 	-uv run poe fmt:fix
 
-up: ## Start all services using Docker Compose
-	docker compose up -d --wait
+build-libs: install-python ## Build all shared libraries
+	uv build libs/data_manipulation
+
+up-light: build-libs ## Start all services using Docker Compose
+	docker compose up -d --wait --build
+
+up-full: build-libs ## Start all services including GeoServer and GeoNetwork using Docker Compose
+	docker compose up -d --wait --build --profile geoserver --profile geonetwork
 
 down: ## Stop all services using Docker Compose
 	docker compose down
+
+reload-airflow-deps: build-libs ## Reload Airflow DAG processor with updated dependencies
+	docker compose down airflow-dag-processor &&
+	docker compose up -d --build --wait airflow-dag-processor
 
 run-backend: install-python ## Run the backend application
 	uv run fastapi dev apps/backend/src/main.py --reload --host 0.0.0.0
@@ -35,15 +45,9 @@ run-frontend: ## Run the frontend application
 	cd apps/frontend && npx nx serve
 
 docker-build-backend: ## Build the backend Docker image
-	docker build -f Dockerfile.backend --target development -t backend:dev .
+	echo "TODO: Implement backend Docker build"
 
-docker-build-airflow: ## Build the Airflow Docker image
-	docker build -f Dockerfile.airflow --target development -t apache/airflow:dev .
-
-docker-run-backend: docker-build-backend ## Run the backend Docker container (with hot-reloading)
-	docker run -p 8000:8000 -v ./pyproject.toml:/app/pyproject.toml -v ./uv.lock:/app/uv.lock -v ./libs:/app/libs -v ./apps:/app/apps backend:dev
-
-docker-run-airflow: docker-build-airflow ## Run the Airflow Docker container
-	docker compose up -d --wait airflow-apiserver
+docker-build-frontend: ## Build the frontend Docker image
+	echo "TODO: Implement frontend Docker build"
 
 .PHONY: default help clean-python install-python check-all-python fix-all-python up run-backend docker-build-backend docker-build-airflow docker-run-backend docker-run-airflow
