@@ -20,15 +20,17 @@ from typing_extensions import Self
 def load_georchestra_properties() -> dict[str, Any]:
     """Load geOrchestra default.properties file for database configuration."""
     # Path from apps/backend/src/core/config.py -> datadir/default.properties
-    props_file = Path(__file__).parent.parent.parent.parent.parent / "datadir" / "default.properties"
-    
+    props_file = (
+        Path(__file__).parent.parent.parent.parent.parent / "datadir" / "default.properties"
+    )
+
     if not props_file.exists():
         return {}
-    
+
     props = Properties()
     with open(props_file, "rb") as f:
         props.load(f)
-    
+
     # Extract postgres configuration from georchestra properties
     result = {}
     if props.get("pgsqlHost"):
@@ -43,7 +45,7 @@ def load_georchestra_properties() -> dict[str, Any]:
         result["POSTGRES_PASSWORD"] = props.get("pgsqlPassword").data
     if props.get("pgsqlDatabase"):
         result["POSTGRES_DB"] = props.get("pgsqlDatabase").data
-    
+
     return result
 
 
@@ -69,9 +71,7 @@ class Settings(BaseSettings):
     FRONTEND_HOST: str = "http://localhost:5173"
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
 
-    BACKEND_CORS_ORIGINS: Annotated[
-        list[AnyUrl] | str, BeforeValidator(parse_cors)
-    ] = []
+    BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = []
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -82,7 +82,7 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "DataKern"
     SENTRY_DSN: HttpUrl | None = None
-    
+
     # Database settings with defaults from georchestra properties
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432
@@ -143,9 +143,7 @@ class Settings(BaseSettings):
     def _enforce_non_default_secrets(self) -> Self:
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
-        self._check_default_secret(
-            "FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD
-        )
+        self._check_default_secret("FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD)
 
         return self
 

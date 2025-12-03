@@ -10,7 +10,9 @@ class IntegrityLink(SQLModel, table=True):
     __tablename__ = "integrity_link"
     __table_args__ = {"schema": "datakern"}
 
-    id: Optional[UUID] = Field(default=None, primary_key=True, sa_column_kwargs={"server_default": "gen_random_uuid()"})
+    id: Optional[UUID] = Field(
+        default=None, primary_key=True, sa_column_kwargs={"server_default": "gen_random_uuid()"}
+    )
     data_id: Optional[str] = Field(default=None, max_length=256)
     metadata_id: Optional[str] = Field(default=None, max_length=256)
     integrity_owner: str = Field(max_length=256)
@@ -22,5 +24,6 @@ class IntegrityLink(SQLModel, table=True):
     retrieve_time: Optional[timedelta] = None
     schedule: Optional[str] = Field(default=None, max_length=10)
     schedule_enabled: bool = Field(default=False)
-    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow, sa_column_kwargs={"server_default": "current_timestamp"})
-
+    created_at: Optional[datetime] = Field(
+        default_factory=datetime.utcnow, sa_column_kwargs={"server_default": "current_timestamp"}
+    )
