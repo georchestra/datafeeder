@@ -47,7 +47,8 @@ reload-airflow-deps: build-libs ## Reload Airflow DAG processor with updated dep
 	docker compose up -d --build --wait airflow-dag-processor
 
 run-backend: install-python ## Run the backend application
-	uv run fastapi dev apps/backend/src/main.py --reload --host 0.0.0.0
+	cd apps/backend && \
+	uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs
 
 docker-build-backend: ## Build the backend Docker image
 	echo "TODO: Implement backend Docker build"
