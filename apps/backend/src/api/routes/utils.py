@@ -42,11 +42,15 @@ async def broadcast_dataset(session: SessionDep, request: DatasetBroadcastReques
         base_url="http://localhost:8080/geoserver", username="testadmin", password="testadmin"
     )
 
-    # Use organization name as workspace name
+    # Use organization name as workspace name, organization_name_ds as datastore
     workspace_name = integrity_link.integrity_organization
+    datastore_name = f"{workspace_name}_ds"
 
     try:
-        workspace = await geoserver_service.create_workspace(workspace_name)
+        workspace = await geoserver_service.create_workspace(
+            workspace_name=workspace_name,
+            datastore_name=datastore_name
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to create GeoServer workspace: {str(e)}"
