@@ -2,14 +2,37 @@
 @import 'tailwindcss';
 
 :root {
-  --color-primary: #E30513;
+  --color-primary: #e30513;
 }
 
-html, body {
+html,
+body {
   height: 100%;
 }
 
 /* Data Import Wizard Tab Styling */
 .data-import-wizard .mat-mdc-tab.mdc-tab--active {
   background-color: var(--color-primary);
+}
+/* Inactive tabs - match panel border */
+.data-import-wizard .mat-mdc-tab:not(.mdc-tab--active) {
+  border: 1px solid #e5e7eb; /* gray-200 */
+  border-bottom: none; /* No bottom border to connect with panel */
+  border-radius: 4px 4px 0 0; /* Rounded top corners */
+}
+.data-import-wizard .mat-mdc-tab:first-of-type {
+  border-radius: 4px 0 0 0;
+}
+.data-import-wizard .mat-mdc-tab:last-of-type {
+  border-radius: 0 4px 0 0;
+}
+.mat-mdc-tab-list .mat-mdc-tab.mdc-tab--active {
+  &:active,
+  &:hover,
+  &:focus,
+  & {
+    .mdc-tab__text-label {
+      color: white;
+    }
+  }
 }

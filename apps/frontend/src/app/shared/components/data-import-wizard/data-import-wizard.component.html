@@ -1,23 +1,36 @@
-<mat-tab-group [(selectedIndex)]="selectedTabIndex" class="data-import-wizard">
-  <mat-tab>
-    <ng-template mat-tab-label>
-      <mat-icon class="mr-2">add</mat-icon>
-      Ajouter un jeu de donnée
-    </ng-template>
-    <div class="p-6">
-      <app-data-source-selector
-        [sourceData]="importData().source"
-        (sourceChanged)="onSourceChanged($event)"
-      />
-    </div>
-  </mat-tab>
-  <mat-tab>
-    <ng-template mat-tab-label>
-      <mat-icon class="mr-2">settings</mat-icon>
+<div class="flex gap-4">
+  <div class="flex-1">
+    <mat-tab-group
+      [(selectedIndex)]="selectedTabIndex"
+      class="data-import-wizard"
+    >
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="mr-2">add</mat-icon>
+          Ajouter un jeu de donnée
+        </ng-template>
+        <div class="p-6 border-gray-200 border-b border-x rounded-b-lg">
+          <app-data-source-selector
+            [sourceData]="importData().source"
+            (sourceChanged)="onSourceChanged($event)"
+          />
+        </div>
+      </mat-tab>
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="mr-2">settings</mat-icon>
+          Paramétrer le jeu de donnée
+        </ng-template>
+        <div class="p-6 border-gray-200 border-b border-x rounded-b-lg">
+          <app-dataset-configuration />
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </div>
+
+  <div class="flex items-start pt-12">
+    <button mat-raised-button color="primary" [disabled]="!validSource()">
       Paramétrer le jeu de donnée
-    </ng-template>
-    <div class="p-6">
-      <app-dataset-configuration />
-    </div>
-  </mat-tab>
-</mat-tab-group>
+    </button>
+  </div>
+</div>

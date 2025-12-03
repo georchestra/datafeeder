@@ -14,11 +14,11 @@ describe('ImportComponent', () => {
     expect(fixture.componentInstance).toBeTruthy()
   })
 
-  it('should display title', () => {
+  it('should display tab labels', () => {
     const fixture = TestBed.createComponent(ImportComponent)
     fixture.detectChanges()
     const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain('Import de données')
+    expect(compiled.textContent).toContain('Ajouter un jeu de donnée')
   })
 
   it('should render data import wizard', () => {

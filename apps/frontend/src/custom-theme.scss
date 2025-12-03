@@ -1,4 +1,3 @@
-
 // Include theming for Angular Material with `mat.theme()`.
 // This Sass mixin will define CSS variables that are used for styling Angular Material
 // components according to the Material 3 design spec.
@@ -8,14 +7,35 @@
 @use './m3-theme';
 
 html {
-  @include mat.theme((
-    color: (
-      primary: m3-theme.$primary-palette,
-      tertiary: m3-theme.$tertiary-palette,
-    ),
-    typography: Roboto,
-    density: 0,
-  ));
+  @include mat.theme(
+    (
+      color: (
+        primary: m3-theme.$primary-palette,
+        tertiary: m3-theme.$tertiary-palette
+      ),
+      typography: Roboto,
+      density: 0,
+      shape: (
+        small: 2px,
+        medium: 4px,
+        large: 6px,
+        extra-large: 8px
+      )
+    )
+  );
+
+  // Override Material 3 system corner tokens to match our shape scale
+  --mat-sys-corner-extra-small: 2px;
+  --mat-sys-corner-small: 2px;
+  --mat-sys-corner-medium: 4px;
+  --mat-sys-corner-large: 6px;
+  --mat-sys-corner-extra-large: 8px;
+
+  // Override button shape tokens to use 4px
+  --mat-button-protected-container-shape: 4px;
+  --mat-button-filled-container-shape: 4px;
+  --mat-button-outlined-container-shape: 4px;
+  --mat-button-text-container-shape: 4px;
 }
 
 body {
