@@ -29,8 +29,12 @@
   </div>
 
   <div class="flex items-start pt-12">
-    <button mat-raised-button color="primary" [disabled]="!validSource()">
-      Paramétrer le jeu de donnée
+    <button
+      mat-raised-button
+      color="primary"
+      [disabled]="!validSource() || validating()"
+    >
+      @if (validating()) { Validation... } @else { Paramétrer le jeu de donnée }
     </button>
   </div>
 </div>

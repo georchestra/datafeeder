@@ -1,11 +1,14 @@
 import { TestBed } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
+import { provideHttpClient } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing'
 import { ImportComponent } from './import.component'
 
 describe('ImportComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ImportComponent, NoopAnimationsModule]
+      imports: [ImportComponent, NoopAnimationsModule],
+      providers: [provideHttpClient(), provideHttpClientTesting()]
     }).compileComponents()
   })
 
