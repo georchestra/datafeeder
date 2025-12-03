@@ -46,6 +46,12 @@ georchestra:
         headers:
           json-user: true
           json-organization: true
+      geoserver:
+        target: http://geoserver:8080/
+        access-rules:
+        - intercept-url: /geoserver**
+          anonymous: false
+          allowed-roles: IMPORT
 
 ---
 # docker profile, sets backend services target URLs to match default docker-compose host names and ports

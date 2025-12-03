@@ -28,4 +28,3 @@ create table if not exists datakern.staging_job
     status             varchar(50)  default 'QUEUED',
     created_at         timestamp default current_timestamp
 );
-
