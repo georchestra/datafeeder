@@ -36,6 +36,27 @@ html {
   --mat-button-filled-container-shape: 4px;
   --mat-button-outlined-container-shape: 4px;
   --mat-button-text-container-shape: 4px;
+
+  // Override protected button colors to match active tab (white on red #e30513)
+  // Note: mat-raised-button uses "protected" tokens in Material 3
+  --mat-protected-button-container-color: #e30513;
+  --mat-protected-button-label-text-color: #ffffff;
+  --mat-protected-button-hover-state-layer-color: #ffffff;
+  --mat-protected-button-focus-state-layer-color: #ffffff;
+  --mat-protected-button-pressed-state-layer-color: #ffffff;
+}
+
+// Direct override for raised buttons with primary color (only when not disabled)
+.mat-mdc-raised-button.mat-primary:not([disabled]) {
+  --mdc-protected-button-container-color: #e30513;
+  --mdc-protected-button-label-text-color: #ffffff;
+
+  background-color: #e30513;
+  color: #ffffff;
+
+  .mdc-button__label {
+    color: #ffffff;
+  }
 }
 
 body {
