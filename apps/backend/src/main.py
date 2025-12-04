@@ -37,7 +37,7 @@ def read_version():
     return {"version": BACKEND_VERSION}
 
 
-@app.get("/airflow/dags/{dag_id}/runs/{dag_run_id}", tags=["Airflow"])
+@app.get("/airflow/dags/{dag_id}/runs/{dag_run_id}", tags=["Airflow"], response_model=DagRunState)
 def get_dag_run_status(dag_id: str, dag_run_id: str) -> DagRunState:
     try:
         dag_run = get_dag_run_api().get_dag_run(dag_id, dag_run_id)

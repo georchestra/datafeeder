@@ -6,16 +6,19 @@ from airflow_client.client.configuration import Configuration
 
 from ..config import get_settings
 
-CONFIGURATION = Configuration(
-    host=get_settings().airflow_host,
-    username=get_settings().airflow_username,
-    password=get_settings().airflow_password,
-)
+
+@lru_cache
+def get_airflow_configuration() -> Configuration:
+    settings = get_settings()
+    config = Configuration(host=settings.airflow_host)
+    config.username = settings.airflow_username
+    config.password = settings.airflow_password
+    return config
 
 
 @lru_cache
 def get_airflow_api_client() -> ApiClient:
-    return ApiClient(CONFIGURATION)
+    return ApiClient(get_airflow_configuration())
 
 
 @lru_cache
