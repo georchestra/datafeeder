@@ -7,7 +7,7 @@ from sqlmodel import select
 from src.api.deps import SessionDep
 from src.core.config import settings
 from src.models.integrity_link import IntegrityLink
-from src.services.geoserver import GeoServerService
+from src.services.geoserver import GeoServerService  # type: ignore[attr-defined]
 
 router = APIRouter(prefix="/utils", tags=["utils"])
 
@@ -18,7 +18,7 @@ class DatasetBroadcastRequest(BaseModel):
 
 class BroadcastResponse(BaseModel):
     integrity_link: IntegrityLink
-    geoserver_workspace: dict
+    geoserver_workspace: dict[str, str]
 
 
 @router.get("/health-check/")

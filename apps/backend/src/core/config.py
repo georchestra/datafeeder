@@ -3,7 +3,7 @@ import warnings
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from jproperties import Properties
+from jproperties import Properties  # type: ignore[import-untyped]
 from pydantic import (
     AnyUrl,
     BeforeValidator,
@@ -32,39 +32,39 @@ def load_georchestra_properties() -> dict[str, Any]:
 
     props = Properties()
     with open(props_file, "rb") as f:
-        props.load(f)
+        props.load(f)  # type: ignore[no-untyped-call]
 
     # Extract postgres configuration from georchestra properties
-    result = {}
+    result: dict[str, Any] = {}
 
     # Extract project name
-    if props.get("projectName"):
-        result["PROJECT_NAME"] = props.get("projectName").data
+    if props.get("projectName"):  # type: ignore[no-untyped-call]
+        result["PROJECT_NAME"] = props.get("projectName").data  # type: ignore[no-untyped-call, union-attr]
 
     # Extract frontend host
-    if props.get("frontendHost"):
-        result["FRONTEND_HOST"] = props.get("frontendHost").data
+    if props.get("frontendHost"):  # type: ignore[no-untyped-call]
+        result["FRONTEND_HOST"] = props.get("frontendHost").data  # type: ignore[no-untyped-call, union-attr]
 
-    if props.get("pgsqlHost"):
+    if props.get("pgsqlHost"):  # type: ignore[no-untyped-call]
         # Convert 'database' hostname to 'localhost' for local development
-        host = props.get("pgsqlHost").data
+        host = props.get("pgsqlHost").data  # type: ignore[no-untyped-call, union-attr]
         result["POSTGRES_SERVER"] = "localhost" if host == "database" else host
-    if props.get("pgsqlPort"):
-        result["POSTGRES_PORT"] = int(props.get("pgsqlPort").data)
-    if props.get("pgsqlUser"):
-        result["POSTGRES_USER"] = props.get("pgsqlUser").data
-    if props.get("pgsqlPassword"):
-        result["POSTGRES_PASSWORD"] = props.get("pgsqlPassword").data
-    if props.get("pgsqlDatabase"):
-        result["POSTGRES_DB"] = props.get("pgsqlDatabase").data
+    if props.get("pgsqlPort"):  # type: ignore[no-untyped-call]
+        result["POSTGRES_PORT"] = int(props.get("pgsqlPort").data)  # type: ignore[no-untyped-call, union-attr, arg-type]
+    if props.get("pgsqlUser"):  # type: ignore[no-untyped-call]
+        result["POSTGRES_USER"] = props.get("pgsqlUser").data  # type: ignore[no-untyped-call, union-attr]
+    if props.get("pgsqlPassword"):  # type: ignore[no-untyped-call]
+        result["POSTGRES_PASSWORD"] = props.get("pgsqlPassword").data  # type: ignore[no-untyped-call, union-attr]
+    if props.get("pgsqlDatabase"):  # type: ignore[no-untyped-call]
+        result["POSTGRES_DB"] = props.get("pgsqlDatabase").data  # type: ignore[no-untyped-call, union-attr]
 
     # Extract GeoServer configuration
-    if props.get("geoserverUrl"):
-        result["GEOSERVER_URL"] = props.get("geoserverUrl").data
-    if props.get("geoserverUser"):
-        result["GEOSERVER_USER"] = props.get("geoserverUser").data
-    if props.get("geoserverPassword"):
-        result["GEOSERVER_PASSWORD"] = props.get("geoserverPassword").data
+    if props.get("geoserverUrl"):  # type: ignore[no-untyped-call]
+        result["GEOSERVER_URL"] = props.get("geoserverUrl").data  # type: ignore[no-untyped-call, union-attr]
+    if props.get("geoserverUser"):  # type: ignore[no-untyped-call]
+        result["GEOSERVER_USER"] = props.get("geoserverUser").data  # type: ignore[no-untyped-call, union-attr]
+    if props.get("geoserverPassword"):  # type: ignore[no-untyped-call]
+        result["GEOSERVER_PASSWORD"] = props.get("geoserverPassword").data  # type: ignore[no-untyped-call, union-attr]
 
     return result
 
@@ -139,7 +139,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _set_default_emails_from(self) -> Self:
         if not self.EMAILS_FROM_NAME:
-            self.EMAILS_FROM_NAME = self.PROJECT_NAME
+            object.__setattr__(self, "EMAILS_FROM_NAME", self.PROJECT_NAME)
         return self
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48

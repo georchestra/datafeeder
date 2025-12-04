@@ -1,4 +1,4 @@
-from geoservercloud import GeoServerCloud
+from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
 
 
 class GeoServerService:
@@ -22,7 +22,7 @@ class GeoServerService:
         datastore_name: str | None = None,
         jndi_reference: str = "jdbc/datakern",
         pg_schema: str | None = None,
-    ) -> dict:
+    ) -> dict[str, str]:
         """
         Create a workspace and optionally a JNDI datastore in GeoServer.
 

@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from sqlmodel import Field, SQLModel
 
 
@@ -10,7 +12,7 @@ class TokenPayload(SQLModel):
 class User(SQLModel, table=True):
     """User model for authentication."""
 
-    __tablename__ = "user"
+    __tablename__: ClassVar[str] = "user"  # type: ignore[misc]
 
     id: int | None = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True, max_length=255)
