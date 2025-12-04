@@ -2,18 +2,44 @@
 
 Data ingestion module for geOrchestra
 
+## Prerequisites
+
+- Python 3.12
+- Node 22.12.0+
+
+You can use the provided Makefile to manage the development environment and run common tasks. `make help` is self-explanatory.
+
+First install uv:
+
+```bash
+# Install uv if you don't have it yet
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# verify that uv is usable
+uv --version
+```
+
+## Docker quick-start
+
+Then, you can setup the development environment:
+```
+Running services:
+```bash
+# Launch all services + GeoServer + GeoNetwork + frontend + backend
+make up-full
+
+# If you want to re-build airflow external libs (data-manipulation):
+make reload-airflow-deps
+```
 
 ## Dev environment setup:
 
-You can use the provided Makefile to manage the development environment and run common tasks. `make help` is self-explanatory.
+If you want to run backend and frontend separately for development purposes, you can setup the development environment:
+```
 
 Running services:
 ```bash
 # Launch all services (Airflow + gateway + ldap)
 make up-light
-
-# Or launch all services + GeoServer + GeoNetwork + frontend + backend
-make up-full
 
 # In light mode, you can launch backend and frontend separately but you will need to change the gateway config to right hosts in docker/datadir/gateway/gateway.yaml to use host.docker.internal:
 # georchestra.gateway.services:

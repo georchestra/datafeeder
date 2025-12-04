@@ -37,7 +37,7 @@ down: ## Stop all services using Docker Compose
 	docker compose down
 
 reload-airflow-deps: build-libs ## Reload Airflow DAG processor with updated dependencies
-	docker compose down airflow-dag-processor &&
+	docker compose down airflow-dag-processor && \
 	docker compose up -d --build --wait airflow-dag-processor
 
 run-backend: install-python ## Run the backend application

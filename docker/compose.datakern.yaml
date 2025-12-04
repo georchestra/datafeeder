@@ -8,7 +8,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8001:8080"
-    restart: always
 
   datakern-backend:
     profiles:
@@ -19,4 +18,3 @@ services:
       target: development
     ports:
       - "8002:8000"
-    restart: always

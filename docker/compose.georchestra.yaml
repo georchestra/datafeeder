@@ -23,7 +23,6 @@ services:
       - postgresql_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    restart: always
 
   ldap:
     image: georchestra/ldap:25.0.x
@@ -40,7 +39,6 @@ services:
     volumes:
       - ldap_data:/var/lib/ldap
       - ldap_config:/etc/ldap
-    restart: always
     ports:
       - 3891:389
     ulimits:
@@ -65,7 +63,6 @@ services:
       - .envs-ldap
       - .envs-hosts
       - .envs-database-georchestra
-    restart: always
     ports:
       - 8080:8080
       - 5005:5005
@@ -98,7 +95,6 @@ services:
       - XMX=8G
     env_file:
       - .envs-database-georchestra
-    restart: always
 
   console:
     image: georchestra/console:25.0.x
@@ -123,7 +119,6 @@ services:
       - .envs-ldap
       - .envs-database-georchestra
       - .envs-hosts
-    restart: always
 
   geonetwork:
     profiles:
@@ -153,7 +148,6 @@ services:
       - .envs-hosts
       - .envs-database-georchestra
       - .envs-elastic
-    restart: always
 
   elasticsearch:
     profiles:
@@ -177,5 +171,4 @@ services:
     environment:
       discovery.type: single-node
       ES_JAVA_OPTS: -Xms512m -Xmx512m
-    restart: always
 
