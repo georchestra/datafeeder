@@ -81,6 +81,17 @@ jobs:
           export PATH="$HOME/.cargo/bin:$PATH"
           uv sync --all-packages
 
+      - name: Create backend .env file
+        run: |
+          cat > .env << EOF
+          POSTGRES_SERVER=localhost
+          POSTGRES_PORT=5432
+          POSTGRES_USER=georchestra
+          POSTGRES_PASSWORD=georchestra
+          POSTGRES_DB=georchestra
+          SECRET_KEY=test-secret-key-for-ci
+          EOF
+
       - name: Start backend server
         working-directory: .
         run: |
