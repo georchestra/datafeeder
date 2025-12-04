@@ -12,6 +12,8 @@ clean-python: ## Clean uv cache and lock file
 
 install-python: ## Install all dependencies using uv
 	uv run poe install
+	# write current user's UID into .env; use $$ to let the shell evaluate `id -u`
+	printf 'AIRFLOW_UID=%s\n' "$$(id -u)" > .env
 
 check-all-python: install-python ## Run all checks: linting, formatting, and type checking
 	-uv run poe lint

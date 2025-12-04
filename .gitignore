@@ -15,11 +15,6 @@ __pycache__/
 .ruff_cache/
 
 # Airflow logs
-datadir/airflow/logs/**
-apps/elt/airflow
-apps/elt/tmp/
-
-# docker volumes
-docker/volumes/
+apps/elt/logs/**
 
 dist/

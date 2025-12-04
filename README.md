@@ -15,7 +15,12 @@ make up-light
 # Or launch all services + GeoServer + GeoNetwork + frontend + backend
 make up-full
 
-# In light mode, you can launch backend and frontend separately:
+# In light mode, you can launch backend and frontend separately but you will need to change the gateway config to right hosts in docker/datadir/gateway/gateway.yaml to use host.docker.internal:
+# georchestra.gateway.services:
+# backend.target: http://datakern-backend:8000/ Comment this line
+# backend.target: http://host.docker.internal:8000/ Use this line
+# frontend.target: http://datakern-frontend:8080/ Comment this line
+# frontend.target: http://host.docker.internal:4200/frontend/ Use this line
 make run-backend
 cd apps/frontend && npm start
 
@@ -32,12 +37,14 @@ The DataKern application is accessible through a gateway that handles authentica
 - **URL**: http://localhost:8080/
 - **Credentials**: `testadmin/testadmin`
 
+It redirects, by default, to the frontend at http://localhost:8080/datakern/.
+
 ### Frontend
 
 The DataKern frontend is built with Angular 20 and provides the user interface for managing data ingestion workflows. It features a modern, component-based architecture using Tailwind CSS for styling.
 
 - **Gateway URL**: http://localhost:8080/datakern/
-- **URL**: http://localhost:8080/
+- **URL**: http://localhost:8001/
 
 For detailed information about the frontend application structure, development setup, and guidelines, see the [frontend README](./apps/frontend/README.md).
 
@@ -46,8 +53,8 @@ For detailed information about the frontend application structure, development s
 The DataKern backend is built with FastAPI and serves as the core API for data ingestion operations.
 
 - **Gateway URL**: http://localhost:8080/datakern-backend/
-- **Direct URL**: http://localhost:8000/
-- **API Documentation**: http://localhost:8000/docs
+- **Direct URL**: http://localhost:8002/
+- **API Documentation**: http://localhost:8002/docs
 
 ### Airflow ELT
 
