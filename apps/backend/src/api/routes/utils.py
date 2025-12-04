@@ -50,8 +50,7 @@ async def broadcast_dataset(session: SessionDep, request: DatasetBroadcastReques
 
     try:
         workspace = await geoserver_service.create_workspace(
-            workspace_name=workspace_name,
-            datastore_name=datastore_name
+            workspace_name=workspace_name, datastore_name=datastore_name
         )
     except Exception as e:
         raise HTTPException(

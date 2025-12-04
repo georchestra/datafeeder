@@ -21,7 +21,10 @@ def load_georchestra_properties() -> dict[str, Any]:
     """Load geOrchestra default.properties file for database configuration."""
     # Path from apps/backend/src/core/config.py -> docker/datadir/default.properties
     props_file = (
-        Path(__file__).parent.parent.parent.parent.parent / "docker" / "datadir" / "default.properties"
+        Path(__file__).parent.parent.parent.parent.parent
+        / "docker"
+        / "datadir"
+        / "default.properties"
     )
 
     if not props_file.exists():
@@ -33,15 +36,15 @@ def load_georchestra_properties() -> dict[str, Any]:
 
     # Extract postgres configuration from georchestra properties
     result = {}
-    
+
     # Extract project name
     if props.get("projectName"):
         result["PROJECT_NAME"] = props.get("projectName").data
-    
+
     # Extract frontend host
     if props.get("frontendHost"):
         result["FRONTEND_HOST"] = props.get("frontendHost").data
-    
+
     if props.get("pgsqlHost"):
         # Convert 'database' hostname to 'localhost' for local development
         host = props.get("pgsqlHost").data
@@ -54,7 +57,7 @@ def load_georchestra_properties() -> dict[str, Any]:
         result["POSTGRES_PASSWORD"] = props.get("pgsqlPassword").data
     if props.get("pgsqlDatabase"):
         result["POSTGRES_DB"] = props.get("pgsqlDatabase").data
-    
+
     # Extract GeoServer configuration
     if props.get("geoserverUrl"):
         result["GEOSERVER_URL"] = props.get("geoserverUrl").data
