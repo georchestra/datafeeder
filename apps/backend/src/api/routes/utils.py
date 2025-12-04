@@ -19,6 +19,7 @@ class DatasetBroadcastRequest(BaseModel):
 class BroadcastResponse(BaseModel):
     integrity_link: IntegrityLink
     geoserver_workspace: dict[str, str]
+    geoserver_layer: dict[str, str] | None = None
 
 
 @router.get("/health-check/")
@@ -50,11 +51,30 @@ async def broadcast_dataset(session: SessionDep, request: DatasetBroadcastReques
 
     try:
         workspace = await geoserver_service.create_workspace(
-            workspace_name=workspace_name, datastore_name=datastore_name
+            workspace_name=workspace_name,
+            datastore_name=datastore_name,
         )
+        
+        # Create layer if final_table_name exists (optional - don't fail if this doesn't work)
+        layer = None
+        if integrity_link.final_table_name:
+            try:
+                layer = await geoserver_service.create_layer(
+                    workspace_name=workspace_name,
+                    datastore_name=datastore_name,
+                    layer_name=integrity_link.final_table_name,
+                    table_name=integrity_link.final_table_name,
+                    title=integrity_link.final_table_name,
+                )
+            except Exception as layer_error:
+                # Log the error but don't fail the whole request
+                # The workspace/datastore were created successfully
+                print(f"Warning: Failed to create layer: {str(layer_error)}")
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to create GeoServer workspace: {str(e)}"
         )
 
-    return BroadcastResponse(integrity_link=integrity_link, geoserver_workspace=workspace)
+    return BroadcastResponse(
+        integrity_link=integrity_link, geoserver_workspace=workspace, geoserver_layer=layer
+    )

@@ -34,37 +34,60 @@ def load_georchestra_properties() -> dict[str, Any]:
     with open(props_file, "rb") as f:
         props.load(f)  # type: ignore[no-untyped-call]
 
+    # Helper to check if a value is a placeholder like ${VARIABLE}
+    def is_placeholder(value: str) -> bool:
+        return value.startswith("${") and value.endswith("}")
+
     # Extract postgres configuration from georchestra properties
     result: dict[str, Any] = {}
 
     # Extract project name
     if props.get("projectName"):  # type: ignore[no-untyped-call]
-        result["PROJECT_NAME"] = props.get("projectName").data  # type: ignore[no-untyped-call, union-attr]
+        value = props.get("projectName").data  # type: ignore[no-untyped-call, union-attr]
+        if not is_placeholder(value):
+            result["PROJECT_NAME"] = value
 
     # Extract frontend host
     if props.get("frontendHost"):  # type: ignore[no-untyped-call]
-        result["FRONTEND_HOST"] = props.get("frontendHost").data  # type: ignore[no-untyped-call, union-attr]
+        value = props.get("frontendHost").data  # type: ignore[no-untyped-call, union-attr]
+        if not is_placeholder(value):
+            result["FRONTEND_HOST"] = value
 
     if props.get("pgsqlHost"):  # type: ignore[no-untyped-call]
         # Convert 'database' hostname to 'localhost' for local development
         host = props.get("pgsqlHost").data  # type: ignore[no-untyped-call, union-attr]
-        result["POSTGRES_SERVER"] = "localhost" if host == "database" else host
+        if not is_placeholder(host):
+            result["POSTGRES_SERVER"] = "localhost" if host == "database" else host
     if props.get("pgsqlPort"):  # type: ignore[no-untyped-call]
-        result["POSTGRES_PORT"] = int(props.get("pgsqlPort").data)  # type: ignore[no-untyped-call, union-attr, arg-type]
+        value = props.get("pgsqlPort").data  # type: ignore[no-untyped-call, union-attr]
+        if not is_placeholder(value):
+            result["POSTGRES_PORT"] = int(value)  # type: ignore[arg-type]
     if props.get("pgsqlUser"):  # type: ignore[no-untyped-call]
-        result["POSTGRES_USER"] = props.get("pgsqlUser").data  # type: ignore[no-untyped-call, union-attr]
+        value = props.get("pgsqlUser").data  # type: ignore[no-untyped-call, union-attr]
+        if not is_placeholder(value):
+            result["POSTGRES_USER"] = value
     if props.get("pgsqlPassword"):  # type: ignore[no-untyped-call]
-        result["POSTGRES_PASSWORD"] = props.get("pgsqlPassword").data  # type: ignore[no-untyped-call, union-attr]
+        value = props.get("pgsqlPassword").data  # type: ignore[no-untyped-call, union-attr]
+        if not is_placeholder(value):
+            result["POSTGRES_PASSWORD"] = value
     if props.get("pgsqlDatabase"):  # type: ignore[no-untyped-call]
-        result["POSTGRES_DB"] = props.get("pgsqlDatabase").data  # type: ignore[no-untyped-call, union-attr]
+        value = props.get("pgsqlDatabase").data  # type: ignore[no-untyped-call, union-attr]
+        if not is_placeholder(value):
+            result["POSTGRES_DB"] = value
 
     # Extract GeoServer configuration
     if props.get("geoserverUrl"):  # type: ignore[no-untyped-call]
-        result["GEOSERVER_URL"] = props.get("geoserverUrl").data  # type: ignore[no-untyped-call, union-attr]
+        value = props.get("geoserverUrl").data  # type: ignore[no-untyped-call, union-attr]
+        if not is_placeholder(value):
+            result["GEOSERVER_URL"] = value
     if props.get("geoserverUser"):  # type: ignore[no-untyped-call]
-        result["GEOSERVER_USER"] = props.get("geoserverUser").data  # type: ignore[no-untyped-call, union-attr]
+        value = props.get("geoserverUser").data  # type: ignore[no-untyped-call, union-attr]
+        if not is_placeholder(value):
+            result["GEOSERVER_USER"] = value
     if props.get("geoserverPassword"):  # type: ignore[no-untyped-call]
-        result["GEOSERVER_PASSWORD"] = props.get("geoserverPassword").data  # type: ignore[no-untyped-call, union-attr]
+        value = props.get("geoserverPassword").data  # type: ignore[no-untyped-call, union-attr]
+        if not is_placeholder(value):
+            result["GEOSERVER_PASSWORD"] = value
 
     return result
 
