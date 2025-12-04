@@ -20,7 +20,7 @@ class GeoServerService:
         self,
         workspace_name: str,
         datastore_name: str | None = None,
-        jndi_reference: str = "jdbc/datafeeder",
+        jndi_reference: str = "jdbc/datakern",
         pg_schema: str | None = None,
     ) -> dict:
         """

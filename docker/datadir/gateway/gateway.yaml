@@ -64,7 +64,7 @@ georchestra.gateway.services:
 #  frontend.target: http://host.docker.internal:4200/frontend/
   airflow.target: http://airflow-apiserver:8081/airflow/
   console.target: http://console:8080/
-  geoserver.target: http://${GEOSERVER_HOST:geoserver}:8080/geoserver/
+  geoserver.target: http://${GEOSERVER_HOST:geoserver}:8080/
   geonetwork.target: http://${GEONETWORK_HOST:geonetwork}:8080/geonetwork/
 
 logging:
