@@ -18,3 +18,8 @@ __pycache__/
 datadir/airflow/logs/**
 apps/elt/airflow
 apps/elt/tmp/
+
+# docker volumes
+docker/volumes/
+
+dist/

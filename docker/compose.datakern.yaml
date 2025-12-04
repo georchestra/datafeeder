@@ -1,0 +1,22 @@
+
+services:
+  datakern-frontend:
+    profiles:
+      - datakern
+    build:
+      context: ../apps/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8080"
+    restart: always
+
+  datakern-backend:
+    profiles:
+      - datakern
+    build:
+      context: ../
+      dockerfile: ./apps/backend/Dockerfile
+      target: development
+    ports:
+      - "8002:8000"
+    restart: always

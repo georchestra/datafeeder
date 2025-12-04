@@ -1,0 +1,3 @@
+FROM georchestra/database:latest
+
+COPY datadir/database/ /docker-entrypoint-initdb.d/

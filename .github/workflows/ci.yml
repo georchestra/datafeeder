@@ -46,7 +46,7 @@ jobs:
         run: uv run poe check --verbose
       
       - name: Build Docker image
-        run: docker build -f Dockerfile.backend --target production -t backend .
+        run: docker build -f ./apps/backend/Dockerfile --target production -t backend .
 
   data-manipulation:
     runs-on: ubuntu-latest

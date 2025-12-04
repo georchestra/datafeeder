@@ -29,7 +29,7 @@ up-light: build-libs ## Start all services using Docker Compose
 	docker compose up -d --wait --build
 
 up-full: build-libs ## Start all services including GeoServer and GeoNetwork using Docker Compose
-	docker compose --profile geoserver --profile geonetwork up -d --wait --build
+	docker compose  --profile geoserver --profile geonetwork --profile datakern up -d --wait --build
 
 down: ## Stop all services using Docker Compose
 	docker compose down
@@ -47,4 +47,4 @@ docker-build-backend: ## Build the backend Docker image
 docker-build-frontend: ## Build the frontend Docker image
 	echo "TODO: Implement frontend Docker build"
 
-.PHONY: default help clean-python install-python check-all-python fix-all-python build-libs up-light up-full down reload-airflow-deps run-backend docker-build-backend docker-build-frontend
+.PHONY: default help clean-python install-python check-all-python fix-all-python up run-backend docker-build-backend docker-build-airflow docker-run-backend docker-run-airflow

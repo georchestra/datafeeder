@@ -1,0 +1,2 @@
+Just used to initialize the logs folder in the Airflow data directory.
+Also used to check in airflow-init if file is present.

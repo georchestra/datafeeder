@@ -1,0 +1,51 @@
+georchestra:
+  gateway:
+    security:
+      header-authentication:
+        # If enabled, pre-authentication is enabled and can be performed by passing
+        # true to the sec-georchestra-preauthenticated request header, and user details
+        # through the following request headers: preauth-username, preauth-firstname,
+        # preauth-lastname, preauth-org, preauth-email, preauth-roles.
+        # In such case, it is crucial for the reverse proxy in front of the gateway to
+        # sanitize the mentioned request headers to prevent external impersonation.
+        enabled: false
+      createNonExistingUsersInLDAP: true
+      enableRabbitmqEvents: true
+      oauth2:
+        enabled: false
+      ldap:
+        default:
+          enabled: true
+          extended: true
+          url: ldap://${ldapHost:localhost}:${ldapPort:389}/
+          baseDn: ${ldapBaseDn:dc=georchestra,dc=org}
+          adminDn: ${ldapAdminDn:cn=admin,dc=georchestra,dc=org"}
+          adminPassword: ${ldapAdminPassword:secret}
+          users:
+            rdn: ${ldapUsersRdn:ou=users}
+            searchFilter: ${ldapUserSearchFilter:(uid={0})}
+            pendingUsersSearchBaseDN: ou=pendingusers
+            protectedUsers: geoserver_privileged_user
+          roles:
+            rdn: ${ldapRolesRdn:ou=roles}
+            searchFilter: ${ldapRolesSearchFilter:(member={0})}
+          orgs:
+            rdn: ${ldapOrgsRdn:ou=orgs}
+            protectedRoles: ADMINISTRATOR, GN_.*, ORGADMIN, REFERENT, USER, SUPERUSER
+# uncomment for oauth 2.0
+#spring:
+#  security:
+#    oauth2:
+#      client:
+#        registration:
+#          cas-oauth2:
+#            client-id: external-oauth2
+#            client-secret: aaaa
+#            authorization-grant-type: authorization_code
+#            redirect-uri: "{baseUrl}/login/oauth2/code/cas-oauth2"
+#        provider:
+#          cas-oauth2:
+#            authorization-uri: https://georchestra-127-0-0-1.nip.io/cas/oauth2.0/authorize
+#            token-uri: https://georchestra-127-0-0-1.nip.io/cas/oauth2.0/accessToken
+#            user-info-uri: https://georchestra-127-0-0-1.nip.io/cas/oauth2.0/profile
+#            userNameAttribute: id

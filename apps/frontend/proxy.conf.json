@@ -1,8 +1,8 @@
 {
-  "/backend": {
-    "target": "http://localhost:8000",
+  "/datakern-backend": {
+    "target": "http://localhost:8080/datakern-backend/",
     "pathRewrite": {
-      "^/backend": ""
+      "^/datakern-backend": ""
     },
     "secure": false,
     "changeOrigin": true,

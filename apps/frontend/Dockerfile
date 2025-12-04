@@ -7,7 +7,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm install
 
 COPY ./ .
-RUN npm run build && ls -la dist/
+RUN npm run build --deploy-url=. && ls -la dist/
 
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine

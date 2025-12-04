@@ -32,15 +32,15 @@ georchestra:
       anonymous: true
     services:
       backend:
-        target: http://host.docker.internal:8000/
+        target: http://datakern-backend:8000/
         access-rules:
-        - intercept-url: /backend**
+        - intercept-url: /datakern-backend**, /datakern-backend/**
           anonymous: false
           allowed-roles: IMPORT
       frontend:
-        target: http://host.docker.internal:4200/
+        target: http://datakern-frontend:8080/
         access-rules:
-        - intercept-url: /frontend**
+        - intercept-url: /datakern**, /datakern/**
           anonymous: false
           allowed-roles: IMPORT
         headers:
@@ -52,10 +52,13 @@ georchestra:
 spring.config.activate.on-profile: docker
 ldapHost: ldap
 georchestra.gateway.services:
-  backend.target: http://host.docker.internal:8000/
+  backend.target: http://datakern-backend:8000/
   #frontend.target: http://frontend:8080/
-  frontend.target: http://host.docker.internal:4200/frontend/
-  airflow.target: http://airflow-apiserver:8081/execution/
+  frontend.target: http://datakern-frontend:8080/
+  airflow.target: http://airflow-apiserver:8081/airflow/
+  console.target: http://console:8080/
+  geoserver.target: http://${GEOSERVER_HOST:geoserver}:8080/geoserver/
+  geonetwork.target: http://${GEONETWORK_HOST:geonetwork}:8080/geonetwork/
 
 logging:
   level:
