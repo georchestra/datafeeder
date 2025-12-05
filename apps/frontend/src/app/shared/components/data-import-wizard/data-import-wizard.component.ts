@@ -1,12 +1,41 @@
 import { Component, signal, effect, inject } from '@angular/core'
 import { HttpClient } from '@angular/common/http'
-import { debounceTime, switchMap, catchError, of, tap } from 'rxjs'
+import {
+  debounceTime,
+  switchMap,
+  catchError,
+  of,
+  tap,
+  interval,
+  lastValueFrom,
+  takeWhile,
+  timeout,
+  throwError
+} from 'rxjs'
+import { Api } from '../../../core/api/api'
+import {
+  createImportV1ImportPost,
+  getImportStatusV1ImportStatusGet
+} from '../../../core/api/functions'
+import type { ImportResponse, StatusResponse } from '../../../core/api/models'
 import { MatTabsModule } from '@angular/material/tabs'
 import { MatIconModule } from '@angular/material/icon'
 import { MatButtonModule } from '@angular/material/button'
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
 import type { SourceData } from '../data-source-selector/data-source-selector.component'
+
+const POLL_INTERVAL_MS = 500
+const MAX_POLL_TIME_MS = 30000
+
+/* eslint-disable no-unused-vars */
+const enum ImportStatus {
+  PENDING = 'pending',
+  RUNNING = 'running',
+  FINISHED = 'finished',
+  FAILED = 'failed'
+}
+/* eslint-enable no-unused-vars */
 
 export interface ImportWizardData {
   source: SourceData
@@ -26,6 +55,7 @@ export interface ImportWizardData {
 })
 export class DataImportWizardComponent {
   private http = inject(HttpClient)
+  private api = inject(Api)
 
   selectedTabIndex = signal(0)
   importData = signal<ImportWizardData>({
@@ -34,6 +64,10 @@ export class DataImportWizardComponent {
 
   validSource = signal(false)
   validating = signal(false)
+  importing = signal(false)
+  polling = signal(false)
+  importError = signal<string | null>(null)
+  dagRunInfo = signal<{ dag_id: string; dag_run_id: string } | null>(null)
 
   constructor() {
     effect((onCleanup) => {
@@ -76,5 +110,87 @@ export class DataImportWizardComponent {
       ...current,
       source: data
     }))
+  }
+
+  async onConfigureDataset() {
+    this.importError.set(null)
+    this.importing.set(true)
+
+    try {
+      const importResponse = await this.createImportRequest()
+
+      this.dagRunInfo.set({
+        dag_id: importResponse.dag_id,
+        dag_run_id: importResponse.dag_run_id
+      })
+
+      this.importing.set(false)
+      this.polling.set(true)
+
+      await this.pollImportStatus(
+        importResponse.dag_id,
+        importResponse.dag_run_id
+      )
+
+      this.selectedTabIndex.set(1)
+    } catch (error) {
+      this.importError.set(
+        error instanceof Error ? error.message : 'Une erreur est survenue'
+      )
+    } finally {
+      this.importing.set(false)
+      this.polling.set(false)
+    }
+  }
+
+  private async createImportRequest(): Promise<ImportResponse> {
+    const url = this.importData().source.url
+
+    if (!url) {
+      throw new Error('URL manquante')
+    }
+
+    return await this.api.invoke(createImportV1ImportPost, {
+      body: {
+        type: 'url',
+        url: url
+      }
+    })
+  }
+
+  private async pollImportStatus(
+    dagId: string,
+    dagRunId: string
+  ): Promise<void> {
+    await lastValueFrom(
+      interval(POLL_INTERVAL_MS).pipe(
+        switchMap(() =>
+          this.api.invoke(getImportStatusV1ImportStatusGet, {
+            dag_id: dagId,
+            dag_run_id: dagRunId
+          })
+        ),
+        takeWhile(
+          (response: StatusResponse) =>
+            response.status !== ImportStatus.FINISHED &&
+            response.status !== ImportStatus.FAILED,
+          true
+        ),
+        timeout(MAX_POLL_TIME_MS),
+        catchError((error) => {
+          if (error.name === 'TimeoutError') {
+            return throwError(() => new Error("Délai d'attente dépassé"))
+          }
+          return throwError(() => error)
+        }),
+        switchMap((response: StatusResponse) => {
+          if (response.status === ImportStatus.FAILED) {
+            const errorMsg = response.error || 'Le traitement a échoué'
+            return throwError(() => new Error(errorMsg))
+          }
+          return of(response)
+        })
+      )
+    )
   }
 }

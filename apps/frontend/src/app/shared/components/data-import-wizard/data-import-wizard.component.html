@@ -10,6 +10,15 @@
           Ajouter un jeu de donnée
         </ng-template>
         <div class="p-6 border-gray-200 border-b border-x rounded-b-lg">
+
+          @if (importError()) {
+          <div class="mb-4 rounded-lg bg-red-50 p-4 border border-red-200">
+            <p class="text-sm font-medium text-red-900">
+              {{ importError() }}
+            </p>
+          </div>
+          }
+
           <app-data-source-selector
             [sourceData]="importData().source"
             (sourceChanged)="onSourceChanged($event)"
@@ -21,6 +30,7 @@
           <mat-icon class="mr-2">settings</mat-icon>
           Paramétrer le jeu de donnée
         </ng-template>
+
         <div class="p-6 border-gray-200 border-b border-x rounded-b-lg">
           <app-dataset-configuration />
         </div>
@@ -32,9 +42,12 @@
     <button
       mat-raised-button
       color="primary"
-      [disabled]="!validSource() || validating()"
+      [disabled]="!validSource() || validating() || importing() || polling()"
+      (click)="onConfigureDataset()"
     >
-      @if (validating()) { Validation... } @else { Paramétrer le jeu de donnée }
+      @if (validating()) { Validation... } @else if (importing()) { Envoi en
+      cours... } @else if (polling()) { Traitement en cours... } @else {
+      Paramétrer le jeu de donnée }
     </button>
   </div>
 </div>
