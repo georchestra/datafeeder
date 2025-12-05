@@ -24,6 +24,12 @@ fix-all-python: install-python ## Fix all issues: linting and formatting
 	-uv run poe lint:fix
 	-uv run poe fmt:fix
 
+test-backend: install-python ## Run backend tests with pytest
+	cd apps/backend && uv run pytest tests/ -v
+
+test-backend-coverage: install-python ## Run backend tests with coverage report
+	cd apps/backend && uv run pytest tests/ -v --cov=src --cov-report=html --cov-report=term
+
 build-libs: install-python ## Build all shared libraries
 	uv build libs/data_manipulation
 

@@ -68,26 +68,37 @@ jobs:
         run: npm run test:ut:ci
 
       - name: Set up Python for backend
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version-file: ".python-version"
 
       - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
 
       - name: Install backend dependencies
-        working-directory: .
+        run: uv sync --project ../backend
+
+      - name: Create backend .env file
+        working-directory: ../backend
         run: |
-          export PATH="$HOME/.cargo/bin:$PATH"
-          uv sync --all-packages
+          cat > .env << EOF
+          POSTGRES_SERVER=localhost
+          POSTGRES_PORT=5432
+          POSTGRES_USER=georchestra
+          POSTGRES_PASSWORD=georchestra
+          POSTGRES_DB=georchestra
+          SECRET_KEY=test-secret-key-for-ci
+          EOF
 
       - name: Start backend server
-        working-directory: .
+        working-directory: ../backend
         run: |
-          export PATH="$HOME/.cargo/bin:$PATH"
-          uv run fastapi dev apps/backend/src/main.py --reload &
+          uv run fastapi dev src/main.py --host 0.0.0.0 --port 8000 &
           echo "Waiting for backend to be ready..."
           timeout 30 bash -c 'until curl -f http://localhost:8000/version; do sleep 1; done'
+          echo "Backend is ready!"
         
       - name: Run E2E tests
         run: npm run test:e2e:ci

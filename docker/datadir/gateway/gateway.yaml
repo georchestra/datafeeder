@@ -46,6 +46,12 @@ georchestra:
         headers:
           json-user: true
           json-organization: true
+      geoserver:
+        target: http://geoserver:8080/
+        access-rules:
+        - intercept-url: /geoserver**
+          anonymous: false
+          allowed-roles: IMPORT
 
 ---
 # docker profile, sets backend services target URLs to match default docker-compose host names and ports
@@ -58,7 +64,7 @@ georchestra.gateway.services:
 #  frontend.target: http://host.docker.internal:4200/frontend/
   airflow.target: http://airflow-apiserver:8081/airflow/
   console.target: http://console:8080/
-  geoserver.target: http://${GEOSERVER_HOST:geoserver}:8080/geoserver/
+  geoserver.target: http://${GEOSERVER_HOST:geoserver}:8080/
   geonetwork.target: http://${GEONETWORK_HOST:geonetwork}:8080/geonetwork/
 
 logging:

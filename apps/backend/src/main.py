@@ -4,6 +4,8 @@ from data_manipulation import hello
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.main import api_router
+
 BACKEND_VERSION = importlib.metadata.version("datakern-backend")
 
 app = FastAPI()
@@ -16,6 +18,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include API router
+app.include_router(api_router)
 
 
 @app.get("/", tags=["Health"])
