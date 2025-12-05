@@ -49,7 +49,7 @@ export class DataImportWizardComponent {
       // Start validation
       this.validating.set(true)
 
-      const subscription = of(url) // TODO proxify request to avoid CORS issues
+      const subscription = of(url) // TODO proxify request to avoid CORS issues
         .pipe(
           debounceTime(300),
           tap(() => this.validating.set(true)),

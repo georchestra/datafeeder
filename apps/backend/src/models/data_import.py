@@ -1,4 +1,3 @@
-from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel
@@ -23,6 +22,15 @@ class ImportRequest(BaseModel):
 class ImportResponse(BaseModel):
     """Response model for import endpoint"""
 
-    task_id: str
+    dag_id: str
+    dag_run_id: str
     status: str
-    created_at: datetime
+
+
+class StatusResponse(BaseModel):
+    """Response model for status endpoint"""
+
+    dag_id: str
+    dag_run_id: str
+    status: str
+    error: str | None = None
