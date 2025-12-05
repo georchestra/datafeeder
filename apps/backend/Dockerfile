@@ -6,7 +6,7 @@
 FROM python:3.12-slim AS base
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:0.9.13 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.9.15 /uv /uvx /bin/
 
 # - Silence uv complaining about not being able to use hard links,
 # - tell uv to byte-compile packages for faster application startups,
@@ -35,6 +35,9 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY libs/data_manipulation ./libs/data_manipulation
 COPY apps/backend ./apps/backend
+
+RUN apt update && apt install -y git curl && apt clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install dependencies from root of workspace (editable for hot-reload)
 RUN uv sync --editable

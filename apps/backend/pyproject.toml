@@ -23,6 +23,7 @@ dependencies = [
     "jproperties>=2.1.2",
     "psycopg[binary]>=3.3.1",
     "geoservercloud",
+    "geonetwork",
 ]
 
 [dependency-groups]
@@ -38,6 +39,7 @@ dev = [
 [tool.uv.sources]
 data_manipulation = { workspace = true }
 geoservercloud = { git = "https://github.com/camptocamp/python-geoservercloud.git" }
+geonetwork = { git = "https://github.com/camptocamp/python-geonetwork.git" }
 
 [tool.ruff]
 extend = "../../ruff.toml"

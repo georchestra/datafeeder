@@ -18,3 +18,10 @@ services:
       target: development
     ports:
       - "8002:8000"
+    volumes:
+      - ./datadir:/etc/georchestra
+      # for dev only
+      - ../apps:/app/apps
+      - ../pyproject.toml:/app/pyproject.toml
+      - ../uv.lock:/app/uv.lock
+    restart: always
