@@ -69,7 +69,7 @@ class GeoServerService:
         abstract: str | None = None,
         enable_wms: bool = True,
         enable_wfs: bool = True,
-    ) -> dict[str, str]:
+    ) -> dict[str, str | dict[str, str | None] | None]:
         """
         Create a WFS and WMS layer from a database table.
 
@@ -85,7 +85,7 @@ class GeoServerService:
 
         Returns:
             dict: Response with layer information including WMS and WFS URLs
-            
+
         Raises:
             Exception: If the table doesn't exist in the database or GeoServer fails to create the layer
         """
@@ -99,7 +99,7 @@ class GeoServerService:
             # Create the feature type (layer) from the database table
             # Note: The layer_name is used as both the layer name and the native table name
             # GeoServer will look for the table in the schema configured in the datastore
-            self.geoserver.create_feature_type(
+            self.geoserver.create_feature_type(  # type: ignore[misc]
                 layer_name=table_name,  # Use table_name as the layer name so it matches the DB table
                 workspace_name=workspace_name,
                 datastore_name=datastore_name,
@@ -120,7 +120,7 @@ class GeoServerService:
                     )
                     # Layer exists, the 500 was just the template error
                     pass
-                except:
+                except Exception:
                     # Layer doesn't exist, it's a real error
                     raise Exception(
                         f"Failed to create layer '{layer_name}' in GeoServer. "
@@ -138,35 +138,35 @@ class GeoServerService:
         # Build service URLs
         base_url = self.geoserver.url.rstrip("/")
         layer_qualified_name = f"{workspace_name}:{table_name}"
-        
+
         # WMS GetCapabilities URL for the workspace
         wms_capabilities_url = (
             f"{base_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities"
             if enable_wms
             else None
         )
-        
+
         # WMS GetMap URL for the specific layer
         wms_getmap_url = (
             f"{base_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}"
             if enable_wms
             else None
         )
-        
+
         # WMS GetLegendGraphic URL for the layer
         wms_legend_url = (
             f"{base_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetLegendGraphic&layer={layer_qualified_name}&format=image/png"
             if enable_wms
             else None
         )
-        
+
         # WFS GetCapabilities URL for the workspace
         wfs_capabilities_url = (
             f"{base_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities"
             if enable_wfs
             else None
         )
-        
+
         # WFS GetFeature URL for the specific layer
         wfs_getfeature_url = (
             f"{base_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames={layer_qualified_name}"
@@ -184,9 +184,13 @@ class GeoServerService:
                 "capabilities": wms_capabilities_url,
                 "getmap": wms_getmap_url,
                 "legend": wms_legend_url,
-            } if enable_wms else None,
+            }
+            if enable_wms
+            else None,
             "wfs": {
                 "capabilities": wfs_capabilities_url,
                 "getfeature": wfs_getfeature_url,
-            } if enable_wfs else None,
+            }
+            if enable_wfs
+            else None,
         }

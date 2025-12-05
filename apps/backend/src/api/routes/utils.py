@@ -75,7 +75,7 @@ async def broadcast_dataset(session: SessionDep, request: DatasetBroadcastReques
             workspace_name=workspace_name,
             datastore_name=datastore_name,
         )
-        
+
         # Create layer if final_table_name exists (optional - don't fail if this doesn't work)
         layer = None
         if integrity_link.final_table_name:
@@ -97,5 +97,7 @@ async def broadcast_dataset(session: SessionDep, request: DatasetBroadcastReques
         )
 
     return BroadcastResponse(
-        integrity_link=integrity_link, geoserver_workspace=workspace, geoserver_layer=layer
+        integrity_link=integrity_link,
+        geoserver_workspace=workspace,
+        geoserver_layer=GeoServerLayer.model_validate(layer) if layer else None,
     )

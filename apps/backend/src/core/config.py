@@ -43,50 +43,50 @@ def load_georchestra_properties() -> dict[str, Any]:
 
     # Extract project name
     if props.get("projectName"):  # type: ignore[no-untyped-call]
-        value = props.get("projectName").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):
+        value: str = props.get("projectName").data  # type: ignore[no-untyped-call, union-attr]
+        if not is_placeholder(value):  # type: ignore[arg-type]
             result["PROJECT_NAME"] = value
 
     # Extract frontend host
     if props.get("frontendHost"):  # type: ignore[no-untyped-call]
         value = props.get("frontendHost").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):
+        if not is_placeholder(value):  # type: ignore[arg-type]
             result["FRONTEND_HOST"] = value
 
     if props.get("pgsqlHost"):  # type: ignore[no-untyped-call]
         # Convert 'database' hostname to 'localhost' for local development
-        host = props.get("pgsqlHost").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(host):
+        host: str = props.get("pgsqlHost").data  # type: ignore[no-untyped-call, union-attr]
+        if not is_placeholder(host):  # type: ignore[arg-type]
             result["POSTGRES_SERVER"] = "localhost" if host == "database" else host
     if props.get("pgsqlPort"):  # type: ignore[no-untyped-call]
         value = props.get("pgsqlPort").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):
+        if not is_placeholder(value):  # type: ignore[arg-type]
             result["POSTGRES_PORT"] = int(value)  # type: ignore[arg-type]
     if props.get("pgsqlUser"):  # type: ignore[no-untyped-call]
         value = props.get("pgsqlUser").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):
+        if not is_placeholder(value):  # type: ignore[arg-type]
             result["POSTGRES_USER"] = value
     if props.get("pgsqlPassword"):  # type: ignore[no-untyped-call]
         value = props.get("pgsqlPassword").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):
+        if not is_placeholder(value):  # type: ignore[arg-type]
             result["POSTGRES_PASSWORD"] = value
     if props.get("pgsqlDatabase"):  # type: ignore[no-untyped-call]
         value = props.get("pgsqlDatabase").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):
+        if not is_placeholder(value):  # type: ignore[arg-type]
             result["POSTGRES_DB"] = value
 
     # Extract GeoServer configuration
     if props.get("geoserverUrl"):  # type: ignore[no-untyped-call]
         value = props.get("geoserverUrl").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):
+        if not is_placeholder(value):  # type: ignore[arg-type]
             result["GEOSERVER_URL"] = value
     if props.get("geoserverUser"):  # type: ignore[no-untyped-call]
         value = props.get("geoserverUser").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):
+        if not is_placeholder(value):  # type: ignore[arg-type]
             result["GEOSERVER_USER"] = value
     if props.get("geoserverPassword"):  # type: ignore[no-untyped-call]
         value = props.get("geoserverPassword").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):
+        if not is_placeholder(value):  # type: ignore[arg-type]
             result["GEOSERVER_PASSWORD"] = value
 
     return result
