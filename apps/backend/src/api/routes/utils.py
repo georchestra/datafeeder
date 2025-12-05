@@ -16,10 +16,31 @@ class DatasetBroadcastRequest(BaseModel):
     id: UUID
 
 
+class WMSUrls(BaseModel):
+    capabilities: str
+    getmap: str
+    legend: str
+
+
+class WFSUrls(BaseModel):
+    capabilities: str
+    getfeature: str
+
+
+class GeoServerLayer(BaseModel):
+    workspace: str
+    datastore: str
+    layer: str
+    layer_qualified_name: str
+    table: str
+    wms: WMSUrls | None = None
+    wfs: WFSUrls | None = None
+
+
 class BroadcastResponse(BaseModel):
     integrity_link: IntegrityLink
     geoserver_workspace: dict[str, str]
-    geoserver_layer: dict[str, str] | None = None
+    geoserver_layer: GeoServerLayer | None = None
 
 
 @router.get("/health-check/")

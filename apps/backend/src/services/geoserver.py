@@ -137,15 +137,39 @@ class GeoServerService:
 
         # Build service URLs
         base_url = self.geoserver.url.rstrip("/")
+        layer_qualified_name = f"{workspace_name}:{table_name}"
+        
         # WMS GetCapabilities URL for the workspace
-        wms_url = (
+        wms_capabilities_url = (
             f"{base_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities"
             if enable_wms
             else None
         )
+        
+        # WMS GetMap URL for the specific layer
+        wms_getmap_url = (
+            f"{base_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}"
+            if enable_wms
+            else None
+        )
+        
+        # WMS GetLegendGraphic URL for the layer
+        wms_legend_url = (
+            f"{base_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetLegendGraphic&layer={layer_qualified_name}&format=image/png"
+            if enable_wms
+            else None
+        )
+        
         # WFS GetCapabilities URL for the workspace
-        wfs_url = (
+        wfs_capabilities_url = (
             f"{base_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities"
+            if enable_wfs
+            else None
+        )
+        
+        # WFS GetFeature URL for the specific layer
+        wfs_getfeature_url = (
+            f"{base_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames={layer_qualified_name}"
             if enable_wfs
             else None
         )
@@ -154,7 +178,15 @@ class GeoServerService:
             "workspace": workspace_name,
             "datastore": datastore_name,
             "layer": table_name,  # The actual layer name in GeoServer
+            "layer_qualified_name": layer_qualified_name,
             "table": table_name,
-            "wms_url": wms_url,
-            "wfs_url": wfs_url,
+            "wms": {
+                "capabilities": wms_capabilities_url,
+                "getmap": wms_getmap_url,
+                "legend": wms_legend_url,
+            } if enable_wms else None,
+            "wfs": {
+                "capabilities": wfs_capabilities_url,
+                "getfeature": wfs_getfeature_url,
+            } if enable_wfs else None,
         }
