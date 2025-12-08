@@ -35,16 +35,16 @@ class TestGeoServerService:
         # Verify datastore creation with defaults
         geoserver_service.geoserver.create_jndi_datastore.assert_called_once_with(  # type: ignore[attr-defined]
             workspace_name=workspace_name,
-            datastore_name=f"datafeeder_{workspace_name}",
+            datastore_name=f"{workspace_name}_ds",
             jndi_reference="jdbc/datakern",
             pg_schema=workspace_name,
-            description=f"Datafeeder uploaded datasets for {workspace_name}",
+            description=f"DataKern datasets for {workspace_name}",
         )
 
         # Verify return value
         assert result == {
             "workspace": workspace_name,
-            "datastore": f"datafeeder_{workspace_name}",
+            "datastore": f"{workspace_name}_ds",
             "schema": workspace_name,
         }
 
@@ -74,7 +74,7 @@ class TestGeoServerService:
             datastore_name=datastore_name,
             jndi_reference=jndi_reference,
             pg_schema=pg_schema,
-            description=f"Datafeeder uploaded datasets for {workspace_name}",
+            description=f"DataKern datasets for {workspace_name}",
         )
 
         # Verify return value
