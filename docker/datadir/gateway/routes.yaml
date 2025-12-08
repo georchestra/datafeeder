@@ -21,8 +21,6 @@ spring:
         uri: ${georchestra.gateway.services.datakern.target}
         predicates:
         - Path=/datakern/**
-        filters:
-          - RewritePath=/datakern/(?<segment>.*),/$\{segment}
       - id: airflow
         uri: ${georchestra.gateway.services.airflow.target}
         predicates:
