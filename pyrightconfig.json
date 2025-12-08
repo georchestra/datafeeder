@@ -4,5 +4,7 @@
     "pythonVersion": "3.12",
     "typeCheckingMode": "strict",
     "reportUnknownVariableType": "warning",
-    "reportUnusedExpression": "warning"
+    "reportUnknownMemberType": "warning",
+    "reportUnusedExpression": "warning",
+    "reportMissingImports": "warning"
 }
