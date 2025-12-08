@@ -8,7 +8,7 @@ from airflow_client.client.api_client import ApiClient
 from airflow_client.client.configuration import Configuration
 from pydantic import BaseModel
 
-from ..config import get_settings
+from ..core.config import get_settings
 
 __all__ = ["get_airflow_api_client", "get_dag_run_api", "get_dag_api"]
 
@@ -20,10 +20,10 @@ class AirflowAccessTokenResponse(BaseModel):
 def _request_new_access_token() -> str:
     settings = get_settings()
 
-    url = f"{settings.airflow_host}/auth/token"
+    url = f"{settings.AIRFLOW_HOST}/auth/token"
     payload = {
-        "username": settings.airflow_username,
-        "password": settings.airflow_password,
+        "username": settings.AIRFLOW_USERNAME,
+        "password": settings.AIRFLOW_PASSWORD,
     }
     headers = {"Content-Type": "application/json"}
 
@@ -49,7 +49,7 @@ def _is_jwt_expired(token: str) -> bool:
 @lru_cache
 def _get_cached_airflow_api_client() -> ApiClient:
     settings = get_settings()
-    config = Configuration(host=settings.airflow_host)
+    config = Configuration(host=settings.AIRFLOW_HOST)
     config.access_token = _request_new_access_token()
     return ApiClient(configuration=config)
 
