@@ -1,5 +1,6 @@
 import secrets
 import warnings
+from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -15,6 +16,8 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
+
+__all__ = ["Settings", "get_settings"]
 
 
 def _is_placeholder(value: str) -> bool:
@@ -189,4 +192,9 @@ class Settings(BaseSettings):
         return self
 
 
-settings = Settings(**_load_georchestra_properties())  # type: ignore[arg-type]
+# Use lru_cache to ensure settings are only loaded once
+# FastAP's doc about it :
+# https://fastapi.tiangolo.com/advanced/settings/#creating-the-settings-only-once-with-lru-cache
+@lru_cache
+def get_settings():
+    return Settings(**_load_georchestra_properties())  # type: ignore[arg-type]

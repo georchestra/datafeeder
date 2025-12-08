@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from src.api.deps import SessionDep
-from src.core.config import settings
+from src.core.config import get_settings
 from src.models.integrity_link import IntegrityLink
 from src.services.geoserver import GeoServerService  # type: ignore[attr-defined]
 
@@ -59,6 +59,7 @@ async def broadcast_dataset(session: SessionDep, request: DatasetBroadcastReques
     if not integrity_link:
         raise HTTPException(status_code=404, detail=f"IntegrityLink with id {request.id} not found")
 
+    settings = get_settings()
     # Create workspace in GeoServer through the gateway
     geoserver_service = GeoServerService(
         base_url=settings.GEOSERVER_URL,
