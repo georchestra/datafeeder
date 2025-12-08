@@ -33,8 +33,6 @@ extend = "../../ruff.toml"
 
 [tool.pyright]
 extends = "../../pyrightconfig.json"
-venvPath = "../.."
-venv = ".venv"
 
 # [build-system]
 # requires = ["hatchling"]

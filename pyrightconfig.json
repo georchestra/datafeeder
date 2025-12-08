@@ -1,6 +1,17 @@
 {
     "include": ["apps", "libs"],
-    "exclude": ["**/__pycache__", "**/.venv", "apps/frontend"],
+    "exclude": [
+        "apps/frontend", 
+        "**/__pycache__", 
+        "**/.*", 
+        "**/node_modules", 
+        "**/dist", 
+        "**/.venv",
+        "**/logs",
+        "**/tmp"
+    ],
+    "venvPath": ".",
+    "venv": ".venv",
     "pythonVersion": "3.12",
     "typeCheckingMode": "strict",
     "reportUnknownVariableType": "warning",
