@@ -78,7 +78,7 @@ def get_airflow_api_client() -> ApiClient:
 
 @lru_cache
 def _get_cached_dag_run_api() -> DagRunApi:
-    return DagRunApi(_get_cached_airflow_api_client)
+    return DagRunApi(_get_cached_airflow_api_client())
 
 
 def get_dag_run_api() -> DagRunApi:
