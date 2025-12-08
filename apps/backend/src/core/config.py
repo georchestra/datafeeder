@@ -17,7 +17,20 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
 
 
-def load_georchestra_properties() -> dict[str, Any]:
+def _is_placeholder(value: str) -> bool:
+    """Check if a property value is a placeholder like ${VARIABLE}."""
+    return value.startswith("${") and value.endswith("}")
+
+
+def _extract_property(properties: Properties, key: str) -> str | None:
+    """Extract a property value if it exists and is not a placeholder."""
+    if not properties.get(key):  # type: ignore[no-untyped-call]
+        return None
+    value: str = properties.get(key).data  # type: ignore[no-untyped-call, union-attr]
+    return None if _is_placeholder(value) else value  # type: ignore[return-value]
+
+
+def _load_georchestra_properties() -> dict[str, Any]:
     """Load geOrchestra default.properties file for database configuration."""
     # Path from apps/backend/src/core/config.py -> docker/datadir/default.properties
     props_file = (
@@ -34,60 +47,34 @@ def load_georchestra_properties() -> dict[str, Any]:
     with open(props_file, "rb") as f:
         props.load(f)  # type: ignore[no-untyped-call]
 
-    # Helper to check if a value is a placeholder like ${VARIABLE}
-    def is_placeholder(value: str) -> bool:
-        return value.startswith("${") and value.endswith("}")
-
     # Extract postgres configuration from georchestra properties
     result: dict[str, Any] = {}
 
-    # Extract project name
-    if props.get("projectName"):  # type: ignore[no-untyped-call]
-        value: str = props.get("projectName").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):  # type: ignore[arg-type]
-            result["PROJECT_NAME"] = value
+    # Project configuration
+    if project_name := _extract_property(props, "projectName"):
+        result["PROJECT_NAME"] = project_name
+    if frontend_host := _extract_property(props, "frontendHost"):
+        result["FRONTEND_HOST"] = frontend_host
 
-    # Extract frontend host
-    if props.get("frontendHost"):  # type: ignore[no-untyped-call]
-        value = props.get("frontendHost").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):  # type: ignore[arg-type]
-            result["FRONTEND_HOST"] = value
+    # PostgreSQL configuration
+    if pgsql_host := _extract_property(props, "pgsqlHost"):
+        result["POSTGRES_SERVER"] = "localhost" if pgsql_host == "database" else pgsql_host
+    if pgsql_port := _extract_property(props, "pgsqlPort"):
+        result["POSTGRES_PORT"] = int(pgsql_port)
+    if pgsql_user := _extract_property(props, "pgsqlUser"):
+        result["POSTGRES_USER"] = pgsql_user
+    if pgsql_password := _extract_property(props, "pgsqlPassword"):
+        result["POSTGRES_PASSWORD"] = pgsql_password
+    if pgsql_database := _extract_property(props, "pgsqlDatabase"):
+        result["POSTGRES_DB"] = pgsql_database
 
-    if props.get("pgsqlHost"):  # type: ignore[no-untyped-call]
-        # Convert 'database' hostname to 'localhost' for local development
-        host: str = props.get("pgsqlHost").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(host):  # type: ignore[arg-type]
-            result["POSTGRES_SERVER"] = "localhost" if host == "database" else host
-    if props.get("pgsqlPort"):  # type: ignore[no-untyped-call]
-        value = props.get("pgsqlPort").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):  # type: ignore[arg-type]
-            result["POSTGRES_PORT"] = int(value)  # type: ignore[arg-type]
-    if props.get("pgsqlUser"):  # type: ignore[no-untyped-call]
-        value = props.get("pgsqlUser").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):  # type: ignore[arg-type]
-            result["POSTGRES_USER"] = value
-    if props.get("pgsqlPassword"):  # type: ignore[no-untyped-call]
-        value = props.get("pgsqlPassword").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):  # type: ignore[arg-type]
-            result["POSTGRES_PASSWORD"] = value
-    if props.get("pgsqlDatabase"):  # type: ignore[no-untyped-call]
-        value = props.get("pgsqlDatabase").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):  # type: ignore[arg-type]
-            result["POSTGRES_DB"] = value
-
-    # Extract GeoServer configuration
-    if props.get("geoserverUrl"):  # type: ignore[no-untyped-call]
-        value = props.get("geoserverUrl").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):  # type: ignore[arg-type]
-            result["GEOSERVER_URL"] = value
-    if props.get("geoserverUser"):  # type: ignore[no-untyped-call]
-        value = props.get("geoserverUser").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):  # type: ignore[arg-type]
-            result["GEOSERVER_USER"] = value
-    if props.get("geoserverPassword"):  # type: ignore[no-untyped-call]
-        value = props.get("geoserverPassword").data  # type: ignore[no-untyped-call, union-attr]
-        if not is_placeholder(value):  # type: ignore[arg-type]
-            result["GEOSERVER_PASSWORD"] = value
+    # GeoServer configuration
+    if geoserver_url := _extract_property(props, "geoserverUrl"):
+        result["GEOSERVER_URL"] = geoserver_url
+    if geoserver_user := _extract_property(props, "geoserverUser"):
+        result["GEOSERVER_USER"] = geoserver_user
+    if geoserver_password := _extract_property(props, "geoserverPassword"):
+        result["GEOSERVER_PASSWORD"] = geoserver_password
 
     return result
 
@@ -107,13 +94,21 @@ class Settings(BaseSettings):
         env_ignore_empty=True,
         extra="ignore",
     )
-    API_V1_STR: str = "/api/v1"
-    SECRET_KEY: str = secrets.token_urlsafe(32)
-    # 60 minutes * 24 hours * 8 days = 8 days
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
-    FRONTEND_HOST: str = "http://localhost:5173"
-    ENVIRONMENT: Literal["local", "staging", "production"] = "local"
 
+    # Project Information
+    PROJECT_NAME: str = "DataKern"
+
+    # API Configuration
+    API_V1_STR: str = "/api/v1"
+    ENVIRONMENT: Literal["local", "staging", "production"] = "local"
+    SENTRY_DSN: HttpUrl | None = None
+
+    # Security
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 60 minutes * 24 hours * 8 days = 8 days
+
+    # CORS Configuration
+    FRONTEND_HOST: str = "http://localhost:5173"
     BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = []
 
     @computed_field  # type: ignore[prop-decorator]
@@ -123,15 +118,7 @@ class Settings(BaseSettings):
             self.FRONTEND_HOST
         ]
 
-    PROJECT_NAME: str = "DataKern"
-    SENTRY_DSN: HttpUrl | None = None
-
-    # GeoServer settings
-    GEOSERVER_URL: str = "http://localhost:8080/geoserver"
-    GEOSERVER_USER: str = "testadmin"
-    GEOSERVER_PASSWORD: str = "testadmin"
-
-    # Database settings with defaults from georchestra properties
+    # PostgreSQL Database
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "georchestra"
@@ -150,6 +137,12 @@ class Settings(BaseSettings):
             path=self.POSTGRES_DB,
         )
 
+    # GeoServer
+    GEOSERVER_URL: str = "http://localhost:8080/geoserver"
+    GEOSERVER_USER: str = "testadmin"
+    GEOSERVER_PASSWORD: str = "testadmin"
+
+    # Email Configuration
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
     SMTP_PORT: int = 587
@@ -158,13 +151,6 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str | None = None
     EMAILS_FROM_EMAIL: EmailStr | None = None
     EMAILS_FROM_NAME: str | None = None
-
-    @model_validator(mode="after")
-    def _set_default_emails_from(self) -> Self:
-        if not self.EMAILS_FROM_NAME:
-            object.__setattr__(self, "EMAILS_FROM_NAME", self.PROJECT_NAME)
-        return self
-
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
 
     @computed_field  # type: ignore[prop-decorator]
@@ -172,10 +158,18 @@ class Settings(BaseSettings):
     def emails_enabled(self) -> bool:
         return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
 
+    @model_validator(mode="after")
+    def _set_default_emails_from(self) -> Self:
+        if not self.EMAILS_FROM_NAME:
+            object.__setattr__(self, "EMAILS_FROM_NAME", self.PROJECT_NAME)
+        return self
+
+    # Test Users
     EMAIL_TEST_USER: EmailStr = "test@example.com"
     FIRST_SUPERUSER: EmailStr = "admin@example.com"
     FIRST_SUPERUSER_PASSWORD: str = "changethis"
 
+    # Validators
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
             message = (
@@ -192,12 +186,7 @@ class Settings(BaseSettings):
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
         self._check_default_secret("FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD)
-
         return self
 
 
-# Load georchestra properties and merge with settings
-_georchestra_props = load_georchestra_properties()
-
-# Create settings instance with georchestra defaults
-settings = Settings(**_georchestra_props)  # type: ignore
+settings = Settings(**_load_georchestra_properties())  # type: ignore[arg-type]
