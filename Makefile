@@ -10,9 +10,8 @@ help: ## Display this help message
 clean-python: ## Clean uv cache and lock file
 	uv run poe clean
 
-install-python: ## Install all dependencies using uv
+install-python: ## Install all dependencies using uv + write current user's UID into .env
 	uv run poe install
-	# write current user's UID into .env; use $$ to let the shell evaluate `id -u`
 	printf 'AIRFLOW_UID=%s\n' "$$(id -u)" > .env
 
 check-all-python: install-python ## Run all checks: linting, formatting, and type checking
