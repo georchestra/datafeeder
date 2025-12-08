@@ -9,11 +9,11 @@ from src.models import ImportRequest, ImportResponse, StatusResponse
 from src.models.data_import import ImportTaskStatus
 from src.services.airflow_client import get_dag_run_api
 
-router = APIRouter(prefix="/v1", tags=["Import"])
+router = APIRouter(prefix="/import", tags=["Import"])
 
 
 @router.post(
-    "/import",
+    "/",
     response_model=ImportResponse,
     summary="Create a new import task",
     description="Submit data for import. Returns a task ID for tracking the async import process.",
@@ -39,7 +39,7 @@ def create_import(request: ImportRequest) -> ImportResponse:
 
 
 @router.get(
-    "/import/status",
+    "/status",
     response_model=StatusResponse,
     summary="Get the status of an import task",
     description="Retrieve the current status of an import task using its task ID.",
