@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
 from uuid import uuid4
 
 from airflow_client.client.exceptions import NotFoundException
 from airflow_client.client.models.dag_run_state import DagRunState
+from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from fastapi import APIRouter, HTTPException
 
 from src.models import ImportRequest, ImportResponse, StatusResponse
@@ -12,11 +12,24 @@ from src.services.airflow_client import get_dag_run_api
 router = APIRouter(prefix="/import", tags=["Import"])
 
 
+def dag_run_state_to_import_status(state: DagRunState) -> ImportTaskStatus:
+    """Helpers to map DagRunState to ImportTaskStatus"""
+    match state:
+        case DagRunState.QUEUED:
+            return ImportTaskStatus.QUEUED
+        case DagRunState.RUNNING:
+            return ImportTaskStatus.RUNNING
+        case DagRunState.SUCCESS:
+            return ImportTaskStatus.SUCCESS
+        case DagRunState.FAILED:
+            return ImportTaskStatus.FAILED
+
+
 @router.post(
     "/",
     response_model=ImportResponse,
     summary="Create a new import task",
-    description="Submit data for import. Returns a task ID for tracking the async import process.",
+    description="Submit data for import.",
 )
 def create_import(request: ImportRequest) -> ImportResponse:
     """
@@ -26,16 +39,21 @@ def create_import(request: ImportRequest) -> ImportResponse:
         request: Import configuration including type and optional URL
 
     Returns:
-        ImportResponse with task_id, status, and timestamp
+        ImportResponse with DAG ID, DAG run ID, and current status
     """
-    dag_id = str(uuid4())
     dag_run_id = str(uuid4())
-    import_tasks[dag_run_id] = {
-        "dag_id": dag_id,
-        "status": "pending",
-        "created_at": datetime.now(timezone.utc),
-    }
-    return ImportResponse(dag_id=dag_id, dag_run_id=dag_run_id, status="pending")
+    dag_run_response = get_dag_run_api().trigger_dag_run(
+        dag_id="my_first_dag",
+        trigger_dag_run_post_body=TriggerDAGRunPostBody(
+            dag_run_id=dag_run_id,
+        ),
+    )
+
+    return ImportResponse(
+        dag_id=dag_run_response.dag_id,
+        dag_run_id=dag_run_response.dag_run_id,
+        status=dag_run_state_to_import_status(dag_run_response.state),
+    )
 
 
 @router.get(
@@ -53,24 +71,13 @@ def get_import_status(dag_id: str, dag_run_id: str) -> StatusResponse:
         dag_run_id: The ID of the DAG run
 
     Returns:
-        StatusResponse with current status and timestamps
+        StatusResponse with current status of the import task
     """
 
     try:
         dag_run = get_dag_run_api().get_dag_run(dag_id, dag_run_id)
-        
-        match dag_run.state:
-            case DagRunState.QUEUED:
-                status = ImportTaskStatus.QUEUED
-            case DagRunState.RUNNING:
-                status = ImportTaskStatus.RUNNING
-            case DagRunState.SUCCESS:
-                status = ImportTaskStatus.SUCCESS
-            case DagRunState.FAILED:
-                status = ImportTaskStatus.FAILED
-
         return StatusResponse(
-            status=status,
+            status=dag_run_state_to_import_status(dag_run.state),
         )
     except NotFoundException:
         return StatusResponse(

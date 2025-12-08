@@ -12,6 +12,16 @@ class ImportType(str, Enum):
     API = "api"
 
 
+class ImportTaskStatus(str, Enum):
+    """Possible task statuses"""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    NOT_FOUND = "not_found"
+
+
 class ImportRequest(BaseModel):
     """Request model for import endpoint"""
 
@@ -24,17 +34,7 @@ class ImportResponse(BaseModel):
 
     dag_id: str
     dag_run_id: str
-    status: str
-
-
-class ImportTaskStatus(str, Enum):
-    """Possible task statuses"""
-
-    QUEUED = "queued"
-    RUNNING = "running"
-    SUCCESS = "success"
-    FAILED = "failed"
-    NOT_FOUND = "not_found"
+    status: ImportTaskStatus
 
 
 class StatusResponse(BaseModel):
