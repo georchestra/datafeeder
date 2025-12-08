@@ -9,11 +9,11 @@ from pydantic import ValidationError
 from sqlmodel import Session
 
 from src.core import security
-from src.core.config import settings
+from src.core.config import get_settings
 from src.core.db import engine
 from src.models import TokenPayload, User
 
-reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login/access-token")
+reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{get_settings().API_V1_STR}/login/access-token")
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -27,7 +27,7 @@ TokenDep = Annotated[str, Depends(reusable_oauth2)]
 
 def get_current_user(session: SessionDep, token: TokenDep) -> User:
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[security.ALGORITHM])  # type: ignore[arg-type]
+        payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=[security.ALGORITHM])  # type: ignore[arg-type]
         token_data = TokenPayload(**payload)
     except (InvalidTokenError, ValidationError):
         raise HTTPException(

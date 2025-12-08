@@ -9,7 +9,7 @@ OPENAPI_FILE="openapi.json"
 # Check if backend is running
 if ! curl -s "$BACKEND_URL/openapi.json" > /dev/null; then
     echo "Error: Backend is not running at $BACKEND_URL"
-    echo "Please start the backend first with: uv run fastapi dev apps/backend/src/main.py --reload"
+    echo "Please start the backend first with: make run-backend"
     exit 1
 fi
 

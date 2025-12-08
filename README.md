@@ -34,7 +34,6 @@ make reload-airflow-deps
 ## Dev environment setup:
 
 If you want to run backend and frontend separately for development purposes, you can setup the development environment:
-```
 
 Running services:
 ```bash
@@ -47,8 +46,12 @@ make up-light
 # backend.target: http://host.docker.internal:8000/ Use this line
 # frontend.target: http://datakern-frontend:8080/ Comment this line
 # frontend.target: http://host.docker.internal:4200/frontend/ Use this line
+
+# Then launch the backend:
 make run-backend
-cd apps/frontend && npm start
+
+# And in another terminal, launch the frontend:
+cd apps/frontend && npm install && npm start
 
 # If you want to re-build airflow external libs (data-manipulation):
 make reload-airflow-deps

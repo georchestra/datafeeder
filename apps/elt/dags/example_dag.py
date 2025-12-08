@@ -1,6 +1,6 @@
 import os
 
-from airflow.decorators import dag, task, task_group
+from airflow.sdk import dag, task, task_group
 from data_manipulation.test import manipulate_data
 
 

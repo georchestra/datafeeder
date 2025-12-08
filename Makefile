@@ -10,9 +10,8 @@ help: ## Display this help message
 clean-python: ## Clean uv cache and lock file
 	uv run poe clean
 
-install-python: ## Install all dependencies using uv
+install-python: ## Install all dependencies using uv + write current user's UID into .env
 	uv run poe install
-	# write current user's UID into .env; use $$ to let the shell evaluate `id -u`
 	printf 'AIRFLOW_UID=%s\n' "$$(id -u)" > .env
 
 check-all-python: install-python ## Run all checks: linting, formatting, and type checking
@@ -37,17 +36,21 @@ up-light: build-libs ## Start all services using Docker Compose
 	docker compose up -d --wait --build
 
 up-full: build-libs ## Start all services including GeoServer and GeoNetwork using Docker Compose
-	docker compose  --profile geoserver --profile geonetwork --profile datakern up -d --wait --build
+	docker compose --profile geoserver --profile geonetwork up -d --wait --build
 
 down: ## Stop all services using Docker Compose
 	docker compose down
+
+down-v: ## Stop all services and remove volumes using Docker Compose
+	docker compose down -v
 
 reload-airflow-deps: build-libs ## Reload Airflow DAG processor with updated dependencies
 	docker compose down airflow-dag-processor && \
 	docker compose up -d --build --wait airflow-dag-processor
 
 run-backend: install-python ## Run the backend application
-	uv run fastapi dev apps/backend/src/main.py --reload --host 0.0.0.0
+	cd apps/backend && \
+	uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs
 
 docker-build-backend: ## Build the backend Docker image
 	echo "TODO: Implement backend Docker build"
@@ -55,4 +58,4 @@ docker-build-backend: ## Build the backend Docker image
 docker-build-frontend: ## Build the frontend Docker image
 	echo "TODO: Implement frontend Docker build"
 
-.PHONY: default help clean-python install-python check-all-python fix-all-python up run-backend docker-build-backend docker-build-airflow docker-run-backend docker-run-airflow
+.PHONY: default help clean-python install-python check-all-python fix-all-python build-libs up-light up-full down down-v reload-airflow-deps run-backend docker-build-backend docker-build-frontend

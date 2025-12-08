@@ -1,8 +1,21 @@
 {
     "include": ["apps", "libs"],
-    "exclude": ["**/__pycache__", "**/.venv"],
+    "exclude": [
+        "apps/frontend", 
+        "**/__pycache__", 
+        "**/.*", 
+        "**/node_modules", 
+        "**/dist", 
+        "**/.venv",
+        "**/logs",
+        "**/tmp"
+    ],
+    "venvPath": ".",
+    "venv": ".venv",
     "pythonVersion": "3.12",
     "typeCheckingMode": "strict",
     "reportUnknownVariableType": "warning",
-    "reportUnusedExpression": "warning"
+    "reportUnknownMemberType": "warning",
+    "reportUnusedExpression": "warning",
+    "reportMissingImports": "warning"
 }
