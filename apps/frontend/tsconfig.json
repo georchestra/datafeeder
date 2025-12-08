@@ -5,6 +5,7 @@
     "target": "es2022",
     "module": "preserve",
     "lib": ["es2020", "dom"],
+    "skipLibCheck": true,
     "paths": {},
     "isolatedModules": true
   },

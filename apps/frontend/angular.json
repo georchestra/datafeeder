@@ -22,11 +22,11 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "public"
+                "input": "public",
+                "output": "assets/"
               }
             ],
             "styles": [
-              "src/custom-theme.scss",
               "src/styles.scss"
             ]
           },
@@ -47,6 +47,7 @@
               "outputHashing": "all"
             },
             "development": {
+              "preserveSymlinks": true,
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
