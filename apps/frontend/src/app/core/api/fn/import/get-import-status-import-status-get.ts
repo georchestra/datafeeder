@@ -7,22 +7,27 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-import { ImportRequest } from '../../models/import-request'
-import { ImportResponse } from '../../models/import-response'
+import { StatusResponse } from '../../models/status-response'
 
-export interface CreateImportV1ImportPost$Params {
-  body: ImportRequest
+export interface GetImportStatusImportStatusGet$Params {
+  dag_id: string
+  dag_run_id: string
 }
 
-export function createImportV1ImportPost(
+export function getImportStatusImportStatusGet(
   http: HttpClient,
   rootUrl: string,
-  params: CreateImportV1ImportPost$Params,
+  params: GetImportStatusImportStatusGet$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<ImportResponse>> {
-  const rb = new requestBuilders(rootUrl, createImportV1ImportPost.PATH, 'post')
+): Observable<StrictHttpResponse<StatusResponse>> {
+  const rb = new requestBuilders(
+    rootUrl,
+    getImportStatusImportStatusGet.PATH,
+    'get'
+  )
   if (params) {
-    rb.body(params.body, 'application/json')
+    rb.query('dag_id', params.dag_id, {})
+    rb.query('dag_run_id', params.dag_run_id, {})
   }
 
   return http
@@ -32,9 +37,9 @@ export function createImportV1ImportPost(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<ImportResponse>
+        return r as StrictHttpResponse<StatusResponse>
       })
     )
 }
 
-createImportV1ImportPost.PATH = '/v1/import'
+getImportStatusImportStatusGet.PATH = '/import/status'

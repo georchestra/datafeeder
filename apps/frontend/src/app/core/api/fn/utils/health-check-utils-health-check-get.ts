@@ -7,27 +7,20 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-import { StatusResponse } from '../../models/status-response'
+export interface HealthCheckUtilsHealthCheckGet$Params {}
 
-export interface GetImportStatusV1ImportStatusGet$Params {
-  dag_id: string
-  dag_run_id: string
-}
-
-export function getImportStatusV1ImportStatusGet(
+export function healthCheckUtilsHealthCheckGet(
   http: HttpClient,
   rootUrl: string,
-  params: GetImportStatusV1ImportStatusGet$Params,
+  params?: HealthCheckUtilsHealthCheckGet$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<StatusResponse>> {
+): Observable<StrictHttpResponse<boolean>> {
   const rb = new requestBuilders(
     rootUrl,
-    getImportStatusV1ImportStatusGet.PATH,
+    healthCheckUtilsHealthCheckGet.PATH,
     'get'
   )
   if (params) {
-    rb.query('dag_id', params.dag_id, {})
-    rb.query('dag_run_id', params.dag_run_id, {})
   }
 
   return http
@@ -37,9 +30,11 @@ export function getImportStatusV1ImportStatusGet(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<StatusResponse>
+        return (r as HttpResponse<any>).clone({
+          body: String((r as HttpResponse<any>).body) === 'true'
+        }) as StrictHttpResponse<boolean>
       })
     )
 }
 
-getImportStatusV1ImportStatusGet.PATH = '/v1/import/status'
+healthCheckUtilsHealthCheckGet.PATH = '/utils/health-check/'
