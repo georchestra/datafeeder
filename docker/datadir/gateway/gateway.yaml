@@ -58,10 +58,10 @@ georchestra:
 spring.config.activate.on-profile: docker
 ldapHost: ldap
 georchestra.gateway.services:
-  # backend.target: http://datakern-backend:8000/
-  backend.target: http://host.docker.internal:8000/
-  # frontend.target: http://datakern-frontend:8080/
-  frontend.target: http://host.docker.internal:4200/frontend/
+  backend.target: http://datakern-backend:8000/
+  # backend.target: http://host.docker.internal:8000/
+  frontend.target: http://datakern-frontend:8080/
+  # frontend.target: http://host.docker.internal:4200/frontend/
   airflow.target: http://airflow-apiserver:8081/airflow/
   console.target: http://console:8080/
   geoserver.target: http://${GEOSERVER_HOST:geoserver}:8080/
