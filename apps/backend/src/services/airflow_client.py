@@ -45,50 +45,50 @@ def _is_jwt_expired(token: str) -> bool:
 
 
 @lru_cache
-def _cached_airflow_api_client() -> ApiClient:
+def _get_cached_airflow_api_client() -> ApiClient:
     settings = get_settings()
     config = Configuration(host=settings.airflow_host)
     config.access_token = _request_new_access_token()
     return ApiClient(configuration=config)
 
 
-def refresh_airflow_api_client_if_needed() -> None:
+def _refresh_caches_if_token_expired() -> None:
     """
     Refresh the cached Airflow API client if its access token is expired.
     This function can be called to ensure the client is up-to-date.
     """
-    client = _cached_airflow_api_client()
+    client = _get_cached_airflow_api_client()
 
     # Check if airflow access token is expired
     token = getattr(getattr(client, "configuration", None), "access_token", None)
     if token is None or _is_jwt_expired(token):
-        _cached_airflow_api_client.cache_clear()
+        _get_cached_airflow_api_client.cache_clear()
 
         # Also clear dependent caches to ensure they use the refreshed client
-        _cached_dag_run_api.cache_clear()
-        _cached_dag_api.cache_clear()
+        _get_cached_dag_run_api.cache_clear()
+        _get_cached_dag_api.cache_clear()
 
 
 def get_airflow_api_client() -> ApiClient:
-    refresh_airflow_api_client_if_needed()
-    return _cached_airflow_api_client()
+    _refresh_caches_if_token_expired()
+    return _get_cached_airflow_api_client()
 
 
 @lru_cache
-def _cached_dag_run_api() -> DagRunApi:
-    return DagRunApi(get_airflow_api_client())
+def _get_cached_dag_run_api() -> DagRunApi:
+    return DagRunApi(_get_cached_airflow_api_client)
 
 
 def get_dag_run_api() -> DagRunApi:
-    refresh_airflow_api_client_if_needed()
-    return _cached_dag_run_api()
+    _refresh_caches_if_token_expired()
+    return _get_cached_dag_run_api()
 
 
 @lru_cache
-def _cached_dag_api() -> DAGApi:
-    return DAGApi(get_airflow_api_client())
+def _get_cached_dag_api() -> DAGApi:
+    return DAGApi(_get_cached_airflow_api_client())
 
 
 def get_dag_api() -> DAGApi:
-    refresh_airflow_api_client_if_needed()
-    return _cached_dag_api()
+    _refresh_caches_if_token_expired()
+    return _get_cached_dag_api()
