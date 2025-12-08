@@ -30,10 +30,11 @@ const MAX_POLL_TIME_MS = 30000
 
 /* eslint-disable no-unused-vars */
 const enum ImportStatus {
-  PENDING = 'pending',
+  QUEUED = 'queued',
   RUNNING = 'running',
-  FINISHED = 'finished',
-  FAILED = 'failed'
+  SUCCESS = 'success',
+  FAILED = 'failed',
+  NOT_FOUND = 'not_found'
 }
 /* eslint-enable no-unused-vars */
 
@@ -172,8 +173,8 @@ export class DataImportWizardComponent {
         ),
         takeWhile(
           (response: StatusResponse) =>
-            response.status !== ImportStatus.FINISHED &&
-            response.status !== ImportStatus.FAILED,
+            response.status === ImportStatus.QUEUED ||
+            response.status === ImportStatus.RUNNING,
           true
         ),
         timeout(MAX_POLL_TIME_MS),
@@ -185,7 +186,10 @@ export class DataImportWizardComponent {
         }),
         switchMap((response: StatusResponse) => {
           if (response.status === ImportStatus.FAILED) {
-            const errorMsg = response.error || 'Le traitement a échoué'
+            const errorMsg = 'Le traitement a échoué'
+            return throwError(() => new Error(errorMsg))
+          } else if (response.status === ImportStatus.NOT_FOUND) {
+            const errorMsg = 'La tâche est introuvable'
             return throwError(() => new Error(errorMsg))
           }
           return of(response)

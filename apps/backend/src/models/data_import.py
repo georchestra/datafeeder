@@ -27,10 +27,17 @@ class ImportResponse(BaseModel):
     status: str
 
 
+class ImportTaskStatus(str, Enum):
+    """Possible task statuses"""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    NOT_FOUND = "not_found"
+
+
 class StatusResponse(BaseModel):
     """Response model for status endpoint"""
 
-    dag_id: str
-    dag_run_id: str
-    status: str
-    error: str | None = None
+    status: ImportTaskStatus
