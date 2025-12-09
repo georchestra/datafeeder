@@ -14,9 +14,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
+    "geoalchemy2==0.18.1",
     "geopandas==1.1.1",
     "sqlalchemy==2.0.44",
-    "geoalchemy2==0.18.1",
+    "geoservercloud",
 ]
 
 [dependency-groups]
@@ -24,7 +25,11 @@ dev = [
     "ruff>0",
     "poethepoet>0",
     "pyright>0",
+    "pytest>=8.0.0",
 ]
+
+[tool.uv.sources]
+geoservercloud = { git = "https://github.com/camptocamp/python-geoservercloud.git" }
 
 [tool.ruff]
 extend = "../../ruff.toml"
