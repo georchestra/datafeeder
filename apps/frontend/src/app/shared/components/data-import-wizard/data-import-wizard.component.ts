@@ -14,8 +14,8 @@ import {
 } from 'rxjs'
 import { Api } from '../../../core/api/api'
 import {
-  createImportV1ImportPost,
-  getImportStatusV1ImportStatusGet
+  createImportImportPost,
+  getImportStatusImportStatusGet
 } from '../../../core/api/functions'
 import type { ImportResponse, StatusResponse } from '../../../core/api/models'
 import { MatTabsModule } from '@angular/material/tabs'
@@ -151,7 +151,7 @@ export class DataImportWizardComponent {
       throw new Error('URL manquante')
     }
 
-    return await this.api.invoke(createImportV1ImportPost, {
+    return await this.api.invoke(createImportImportPost, {
       body: {
         type: 'url',
         url: url
@@ -166,7 +166,7 @@ export class DataImportWizardComponent {
     await lastValueFrom(
       interval(POLL_INTERVAL_MS).pipe(
         switchMap(() =>
-          this.api.invoke(getImportStatusV1ImportStatusGet, {
+          this.api.invoke(getImportStatusImportStatusGet, {
             dag_id: dagId,
             dag_run_id: dagRunId
           })
