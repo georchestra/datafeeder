@@ -431,7 +431,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
   })
 
   // Successful Import Flow Tests
-  it('should call POST /v1/import with correct URL', async () => {
+  it('should call POST /import with correct URL', async () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
@@ -446,7 +446,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     // Wait for the HTTP request
-    const req = httpMock.expectOne('http://localhost:8000/v1/import')
+    const req = httpMock.expectOne('http://localhost:8000/import/')
     expect(req.request.method).toBe('POST')
     expect(req.request.body).toEqual({
       type: 'url',
@@ -459,7 +459,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     // Wait for the status polling request
     await new Promise((resolve) => setTimeout(resolve, 600)) // Wait for poll interval
     const statusReq = httpMock.expectOne((r) =>
-      r.url.includes('/v1/import/status')
+      r.url.includes('/import/status')
     )
     statusReq.flush(mockStatusFinished)
 
@@ -478,7 +478,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     component.validSource.set(true)
     const promise = component.onConfigureDataset()
 
-    const req = httpMock.expectOne('http://localhost:8000/v1/import')
+    const req = httpMock.expectOne('http://localhost:8000/import/')
     req.flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 10))
 
@@ -489,7 +489,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 600))
     httpMock
-      .expectOne((r) => r.url.includes('/v1/import/status'))
+      .expectOne((r) => r.url.includes('/import/status'))
       .flush(mockStatusFinished)
     await promise
   })
@@ -506,12 +506,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     httpMock
-      .expectOne('http://localhost:8000/v1/import')
+      .expectOne('http://localhost:8000/import/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     const statusReq = httpMock.expectOne((r) =>
-      r.url.includes('/v1/import/status')
+      r.url.includes('/import/status')
     )
     expect(statusReq.request.params.get('dag_id')).toBe('test-dag-123')
     expect(statusReq.request.params.get('dag_run_id')).toBe('test-run-456')
@@ -531,25 +531,25 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     httpMock
-      .expectOne('http://localhost:8000/v1/import')
+      .expectOne('http://localhost:8000/import/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     // First poll - running
     httpMock
-      .expectOne((r) => r.url.includes('/v1/import/status'))
+      .expectOne((r) => r.url.includes('/import/status'))
       .flush(mockStatusRunning)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     // Second poll - running
     httpMock
-      .expectOne((r) => r.url.includes('/v1/import/status'))
+      .expectOne((r) => r.url.includes('/import/status'))
       .flush(mockStatusRunning)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     // Third poll - finished
     httpMock
-      .expectOne((r) => r.url.includes('/v1/import/status'))
+      .expectOne((r) => r.url.includes('/import/status'))
       .flush(mockStatusFinished)
     await promise
   })
@@ -566,17 +566,17 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     httpMock
-      .expectOne('http://localhost:8000/v1/import')
+      .expectOne('http://localhost:8000/import/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     httpMock
-      .expectOne((r) => r.url.includes('/v1/import/status'))
+      .expectOne((r) => r.url.includes('/import/status'))
       .flush(mockStatusRunning)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     httpMock
-      .expectOne((r) => r.url.includes('/v1/import/status'))
+      .expectOne((r) => r.url.includes('/import/status'))
       .flush(mockStatusFinished)
     await promise
 
@@ -597,21 +597,19 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     try {
       const promise = component.onConfigureDataset()
       httpMock
-        .expectOne('http://localhost:8000/v1/import')
+        .expectOne('http://localhost:8000/import/')
         .flush(mockImportResponse)
       await new Promise((resolve) => setTimeout(resolve, 600))
 
       httpMock
-        .expectOne((r) => r.url.includes('/v1/import/status'))
+        .expectOne((r) => r.url.includes('/import/status'))
         .flush(mockStatusFailed)
       await promise
     } catch (error) {
       // Expected to throw
     }
 
-    expect(component.importError()).toBe(
-      'Processing failed: invalid data format'
-    )
+    expect(component.importError()).toBe('Le traitement a échoué')
     expect(component.selectedTabIndex()).toBe(0)
   })
 
@@ -627,7 +625,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
     try {
       const promise = component.onConfigureDataset()
-      const req = httpMock.expectOne('http://localhost:8000/v1/import')
+      const req = httpMock.expectOne('http://localhost:8000/import/')
       req.error(new ProgressEvent('Network error'))
       await promise
     } catch (error) {
@@ -653,14 +651,14 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     try {
       const promise = component.onConfigureDataset()
       httpMock
-        .expectOne('http://localhost:8000/v1/import')
+        .expectOne('http://localhost:8000/import/')
         .flush(mockImportResponse)
 
       // Keep polling with 'running' status until timeout (30000ms)
       // At 500ms intervals, we need 60 iterations to reach 30000ms
       for (let i = 0; i < 61; i++) {
         await new Promise((resolve) => setTimeout(resolve, 550))
-        const req = httpMock.match((r) => r.url.includes('/v1/import/status'))
+        const req = httpMock.match((r) => r.url.includes('/import/status'))
         if (req.length > 0) {
           req[0].flush(mockStatusRunning)
         }
@@ -710,11 +708,11 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     expect(button.disabled).toBe(true)
 
     httpMock
-      .expectOne('http://localhost:8000/v1/import')
+      .expectOne('http://localhost:8000/import/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 600))
     httpMock
-      .expectOne((r) => r.url.includes('/v1/import/status'))
+      .expectOne((r) => r.url.includes('/import/status'))
       .flush(mockStatusFinished)
     await promise
   })
@@ -733,7 +731,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     httpMock
-      .expectOne('http://localhost:8000/v1/import')
+      .expectOne('http://localhost:8000/import/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 10))
 
@@ -747,7 +745,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 600))
     httpMock
-      .expectOne((r) => r.url.includes('/v1/import/status'))
+      .expectOne((r) => r.url.includes('/import/status'))
       .flush(mockStatusFinished)
     await promise
   })
@@ -803,11 +801,11 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     httpMock
-      .expectOne('http://localhost:8000/v1/import')
+      .expectOne('http://localhost:8000/import/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 600))
     httpMock
-      .expectOne((r) => r.url.includes('/v1/import/status'))
+      .expectOne((r) => r.url.includes('/import/status'))
       .flush(mockStatusFinished)
     await promise
 
