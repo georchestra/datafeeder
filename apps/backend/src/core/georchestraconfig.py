@@ -1,9 +1,10 @@
+import re
 from configparser import ConfigParser
 from itertools import chain
-from os import getenv, getcwd
-import json
-import re
+from os import getenv
+
 import yaml
+
 
 class GeorchestraConfig:
     def __init__(self):
@@ -23,12 +24,14 @@ class GeorchestraConfig:
         self.sections["default"]["datadirpath"] = self.datadirpath
 
     def read_gateway_routes(self):
-        with (open(f"{self.datadirpath}/gateway/routes.yaml") as lines):
+        with open(f"{self.datadirpath}/gateway/routes.yaml") as lines:
             self.sections["gateway_routes"] = dict()
             lines2 = yaml.safe_load(lines)
             # only get the targets lines https://github.com/georchestra/datadir/blob/docker-master/gateway/routes.yaml#L76
             for service_target in lines2["georchestra.gateway.services"]:
-                self.sections["gateway_routes"][service_target] = lines2["georchestra.gateway.services"][service_target]
+                self.sections["gateway_routes"][service_target] = lines2[
+                    "georchestra.gateway.services"
+                ][service_target]
 
     def tostr(self):
         str = ""
@@ -65,15 +68,11 @@ class GeorchestraConfig:
             elif search_env3:
                 if getenv(search_env3.group(2)):
                     value = (
-                        search_env3.group(1)
-                        + getenv(search_env3.group(2))
-                        + search_env3.group(3)
+                        search_env3.group(1) + getenv(search_env3.group(2)) + search_env3.group(3)
                     )
             elif search_env2:
                 if getenv(search_env2.group(2)):
                     value = (
-                        search_env2.group(1)
-                        + getenv(search_env2.group(2))
-                        + search_env2.group(3)
+                        search_env2.group(1) + getenv(search_env2.group(2)) + search_env2.group(3)
                     )
         return value
