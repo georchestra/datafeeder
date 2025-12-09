@@ -23,6 +23,9 @@ fix-all-python: install-python ## Fix all issues: linting and formatting
 	-uv run poe lint:fix
 	-uv run poe fmt:fix
 
+test-libs: install-python ## Run library tests with pytest
+	cd libs/data_manipulation && uv run pytest tests/ -v
+
 test-backend: install-python ## Run backend tests with pytest
 	cd apps/backend && uv run pytest tests/ -v
 

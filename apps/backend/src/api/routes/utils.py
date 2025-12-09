@@ -1,11 +1,13 @@
 from uuid import UUID
 
+from data_manipulation.database import create_schema
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import select
 
 from src.api.deps import SessionDep
 from src.core.config import get_settings
+from src.core.db import engine
 from src.models.integrity_link import IntegrityLink
 from src.services.geoserver import GeoServerService  # type: ignore[attr-defined]
 
@@ -72,6 +74,10 @@ async def broadcast_dataset(session: SessionDep, request: DatasetBroadcastReques
     datastore_name = f"{workspace_name}_ds"
 
     try:
+        # Create database schema first
+        create_schema(engine, workspace_name)
+
+        # Create GeoServer workspace and datastore
         workspace = await geoserver_service.create_workspace(
             workspace_name=workspace_name,
             datastore_name=datastore_name,
@@ -84,9 +90,9 @@ async def broadcast_dataset(session: SessionDep, request: DatasetBroadcastReques
                 layer = await geoserver_service.create_layer(
                     workspace_name=workspace_name,
                     datastore_name=datastore_name,
-                    layer_name=integrity_link.final_table_name,
                     table_name=integrity_link.final_table_name,
                     title=integrity_link.final_table_name,
+                    abstract=integrity_link.final_table_name,
                 )
             except Exception as layer_error:
                 # Log the error but don't fail the whole request
