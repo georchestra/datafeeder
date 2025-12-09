@@ -24,4 +24,9 @@ services:
       - ../apps:/app/apps
       - ../pyproject.toml:/app/pyproject.toml
       - ../uv.lock:/app/uv.lock
+    env_file:
+      - .envs-common
+      - .envs-ldap
+      - .envs-hosts
+      - .envs-database-georchestra
     restart: always
