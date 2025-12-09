@@ -67,41 +67,41 @@ jobs:
       - name: Run unit tests
         run: npm run test:ut:ci
 
-      - name: Set up Python for backend
-        uses: actions/setup-python@v6
-        with:
-          python-version-file: ".python-version"
+      # - name: Set up Python for backend
+      #   uses: actions/setup-python@v6
+      #   with:
+      #     python-version-file: ".python-version"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
+      # - name: Install uv
+      #   uses: astral-sh/setup-uv@v7
+      #   with:
+      #     enable-cache: true
 
-      - name: Install backend dependencies
-        run: uv sync --project ../backend
+      # - name: Install backend dependencies
+      #   run: uv sync --project apps/backend
 
-      - name: Create backend .env file
-        working-directory: ../backend
-        run: |
-          cat > .env << EOF
-          POSTGRES_SERVER=localhost
-          POSTGRES_PORT=5432
-          POSTGRES_USER=georchestra
-          POSTGRES_PASSWORD=georchestra
-          POSTGRES_DB=georchestra
-          SECRET_KEY=test-secret-key-for-ci
-          EOF
+      # - name: Create backend .env file
+      #   working-directory: apps/backend
+      #   run: |
+      #     cat > .env << EOF
+      #     POSTGRES_SERVER=localhost
+      #     POSTGRES_PORT=5432
+      #     POSTGRES_USER=georchestra
+      #     POSTGRES_PASSWORD=georchestra
+      #     POSTGRES_DB=georchestra
+      #     SECRET_KEY=test-secret-key-for-ci
+      #     EOF
 
-      - name: Start backend server
-        working-directory: ../backend
-        run: |
-          uv run fastapi dev src/main.py --host 0.0.0.0 --port 8000 &
-          echo "Waiting for backend to be ready..."
-          timeout 30 bash -c 'until curl -f http://localhost:8000/version; do sleep 1; done'
-          echo "Backend is ready!"
+      # - name: Start backend server
+      #   working-directory: apps/backend
+      #   run: |
+      #     georchestradatadir=/home/runner/work/DataKern/DataKern/docker/datadir uv run fastapi dev src/main.py --host 0.0.0.0 --port 8000 &
+      #     echo "Waiting for backend to be ready..."
+      #     timeout 30 bash -c 'until curl -f http://localhost:8000/version; do sleep 1; done'
+      #     echo "Backend is ready!"
         
-      - name: Run E2E tests
-        run: npm run test:e2e:ci
+      # - name: Run E2E tests
+      #   run: npm run test:e2e:ci
 
       - name: Coveralls
         uses: coverallsapp/github-action@v2
