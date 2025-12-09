@@ -10,13 +10,21 @@ from geonetwork import GnApi
 from src.api.main import api_router
 from src.core.georchestraconfig import GeorchestraConfig
 
-DEBUG = False
-if os.getenv("DEBUG"):
+
+def _get_debug_flag() -> bool:
+    """Get DEBUG flag from environment variable."""
     value = os.getenv("DEBUG")
-    if "false" == value.lower():
-        DEBUG = False
-    elif "true" == value.lower():
-        DEBUG = True
+    if value is None:
+        return False
+    value_lower = value.lower()
+    if value_lower == "false":
+        return False
+    elif value_lower == "true":
+        return True
+    return False
+
+
+DEBUG = _get_debug_flag()
 
 BACKEND_VERSION = importlib.metadata.version("datakern-backend")
 
@@ -53,7 +61,7 @@ def read_geonetwork():
     gnapi = GnApi(
         api_url="http://gateway:8080/geonetwork/srv/api", credentials=None, verifytls=False
     )
-    return {"Hello": gnapi._get_version().json()}
+    return {"Hello": gnapi._get_version().json()}  # type: ignore[reportPrivateUsage]
 
 
 if DEBUG:
