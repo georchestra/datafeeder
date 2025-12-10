@@ -1,16 +1,23 @@
 import { Component, inject, signal } from '@angular/core'
 import { MatButtonModule } from '@angular/material/button'
 import { MatCheckboxModule } from '@angular/material/checkbox'
+import { TranslateDirective, TranslatePipe } from '@ngx-translate/core'
 import { CopyTextButtonComponent } from 'geonetwork-ui'
 import { Api } from '../../core/api/api'
 import { readVersionVersionGet } from '../../core/api/functions'
 
 @Component({
   selector: 'app-home',
-  imports: [MatButtonModule, MatCheckboxModule, CopyTextButtonComponent],
+  imports: [
+    MatButtonModule,
+    MatCheckboxModule,
+    CopyTextButtonComponent,
+    TranslateDirective,
+    TranslatePipe
+  ],
   template: `
     <div class="space-y-4 py-8">
-      <h1 class="text-2xl font-bold">DataKern</h1>
+      <h1 class="text-2xl font-bold" translate>dk.title</h1>
 
       <p>
         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
@@ -21,7 +28,7 @@ import { readVersionVersionGet } from '../../core/api/functions'
 
       <gn-ui-copy-text-button
         [text]="'Lorem ipsum'"
-        [tooltipText]="'Copy lorem ipsum to clipboard'"
+        [tooltipText]="'dk.tooltip.url.copy' | translate"
         [displayText]="true"
       ></gn-ui-copy-text-button>
 
