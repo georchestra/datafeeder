@@ -10,6 +10,11 @@ body {
   height: 100%;
 }
 
+h1 {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
 /* Data Import Wizard Tab Styling */
 .data-import-wizard .mat-mdc-tab.mdc-tab--active {
   background-color: var(--color-primary);

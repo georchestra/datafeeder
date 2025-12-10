@@ -17,6 +17,13 @@ export const appRoutes: Route[] = [
           import('./features/import/import.component').then(
             (m) => m.ImportComponent
           )
+      },
+      {
+        path: 'events/:reference',
+        loadComponent: () =>
+          import('./features/events/events.component').then(
+            (m) => m.EventsComponent
+          )
       }
     ]
   }
