@@ -1,0 +1,75 @@
+// Include theming for Angular Material with `mat.theme()`.
+// This Sass mixin will define CSS variables that are used for styling Angular Material
+// components according to the Material 3 design spec.
+// Learn more about theming and how to use it for your application's
+// custom components at https://material.angular.dev/guide/theming
+@use '@angular/material' as mat;
+@use './m3-theme';
+
+html {
+  @include mat.theme(
+    (
+      color: (
+        primary: m3-theme.$primary-palette,
+        tertiary: m3-theme.$tertiary-palette
+      ),
+      typography: Roboto,
+      density: 0,
+      shape: (
+        small: 2px,
+        medium: 4px,
+        large: 6px,
+        extra-large: 8px
+      )
+    )
+  );
+
+  // Override Material 3 system corner tokens to match our shape scale
+  --mat-sys-corner-extra-small: 2px;
+  --mat-sys-corner-small: 2px;
+  --mat-sys-corner-medium: 4px;
+  --mat-sys-corner-large: 6px;
+  --mat-sys-corner-extra-large: 8px;
+
+  // Override button shape tokens to use 4px
+  --mat-button-protected-container-shape: 4px;
+  --mat-button-filled-container-shape: 4px;
+  --mat-button-outlined-container-shape: 4px;
+  --mat-button-text-container-shape: 4px;
+
+  // Override protected button colors to match active tab (white on red #e30513)
+  // Note: mat-raised-button uses "protected" tokens in Material 3
+  --mat-protected-button-container-color: #e30513;
+  --mat-protected-button-label-text-color: #ffffff;
+  --mat-protected-button-hover-state-layer-color: #ffffff;
+  --mat-protected-button-focus-state-layer-color: #ffffff;
+  --mat-protected-button-pressed-state-layer-color: #ffffff;
+}
+
+// Direct override for raised buttons with primary color (only when not disabled)
+.mat-mdc-raised-button.mat-primary:not([disabled]) {
+  --mdc-protected-button-container-color: #e30513;
+  --mdc-protected-button-label-text-color: #ffffff;
+
+  background-color: #e30513;
+  color: #ffffff;
+
+  .mdc-button__label {
+    color: #ffffff;
+  }
+}
+
+body {
+  // Defer to the user's system settings for light/dark mode
+  color-scheme: light dark;
+
+  // Set a default background, font and text colors for the application using
+  // Angular Material's system-level CSS variables. Learn more about these
+  // variables at https://material.angular.dev/guide/system-variables
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+
+  // Reset the user agent margin.
+  margin: 0;
+}

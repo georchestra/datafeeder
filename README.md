@@ -40,7 +40,7 @@ Running services:
 # Launch all services (Airflow + gateway + ldap)
 make up-light
 
-# In light mode, you can launch backend and frontend separately but you will need to change the gateway config to right hosts in docker/datadir/gateway/gateway.yaml to use host.docker.internal:
+# In light mode, you can launch backend and frontend separately but you will need to change the gateway config to right hosts in docker/datadir/gateway/routes.yaml to use host.docker.internal:
 # georchestra.gateway.services:
 # backend.target: http://datakern-backend:8000/ Comment this line
 # backend.target: http://host.docker.internal:8000/ Use this line

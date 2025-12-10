@@ -12,17 +12,15 @@ spring:
         filters:
           - RedirectTo=307, /datakern/
       - id: backend
-        uri: ${georchestra.gateway.services.datakern-backend.target}
+        uri: ${georchestra.gateway.services.backend.target}
         predicates:
         - Path=/datakern-backend/**
         filters:
           - RewritePath=/datakern-backend/(?<segment>.*),/$\{segment}
       - id: frontend
-        uri: ${georchestra.gateway.services.datakern.target}
+        uri: ${georchestra.gateway.services.frontend.target}
         predicates:
         - Path=/datakern/**
-        filters:
-          - RewritePath=/datakern/(?<segment>.*),/$\{segment}
       - id: airflow
         uri: ${georchestra.gateway.services.airflow.target}
         predicates:
@@ -41,9 +39,9 @@ spring:
           - Path=/geoserver/**
 
 georchestra.gateway.services:
-  datakern-backend.target: http://datakern-backend:8000/
+  backend.target: http://datakern-backend:8000/
 #  backend.target: http://host.docker.internal:8000/
-  datakern.target: http://datakern-frontend:8080/
+  frontend.target: http://datakern-frontend:8080/
 #  frontend.target: http://host.docker.internal:4200/frontend/
   airflow.target: http://airflow-apiserver:8081/airflow/
   console.target: http://console:8080/

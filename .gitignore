@@ -23,3 +23,6 @@ htmlcov/
 apps/elt/logs/**
 
 dist/
+
+.claude
+CLAUDE.md

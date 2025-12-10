@@ -32,13 +32,13 @@ georchestra:
       anonymous: true
     services:
       backend:
-        target: http://datakern-backend:8000/
+        target: ${georchestra.gateway.services.backend.target}
         access-rules:
         - intercept-url: /datakern-backend**, /datakern-backend/**
           anonymous: false
           allowed-roles: IMPORT
       frontend:
-        target: http://datakern-frontend:8080/
+        target: ${georchestra.gateway.services.frontend.target}
         access-rules:
         - intercept-url: /datakern**, /datakern/**
           anonymous: false
@@ -53,10 +53,6 @@ georchestra:
           anonymous: false
           allowed-roles: IMPORT
 
----
-# docker profile, sets backend services target URLs to match default docker-compose host names and ports
-spring.config.activate.on-profile: docker
-ldapHost: ldap
 logging:
   level:
     root: warn

@@ -1,19 +1,23 @@
-from configparser import ConfigParser
-from itertools import chain
-from os import getenv, getcwd
-import json
 import re
+from configparser import ConfigParser, SectionProxy
+from itertools import chain
+from os import getenv
+from typing import Any
+
 import yaml
 
+
 class GeorchestraConfig:
-    def __init__(self):
-        self.sections = dict()
-        self.datadirpath = getenv("georchestradatadir", "/etc/georchestra")
+    def __init__(self) -> None:
+        self.sections: dict[str, dict[str, Any] | SectionProxy] = {}
+        self.datadirpath: str = (
+            getenv("georchestradatadir", "/etc/georchestra") or "/etc/georchestra"
+        )
 
         self.read_default()
         self.read_gateway_routes()
 
-    def read_default(self):
+    def read_default(self) -> None:
         parser = ConfigParser()
         with open(f"{self.datadirpath}/default.properties") as lines:
             lines = chain(("[section]",), lines)  # This line does the trick.
@@ -22,33 +26,35 @@ class GeorchestraConfig:
         self.sections["default"] = parser["section"]
         self.sections["default"]["datadirpath"] = self.datadirpath
 
-    def read_gateway_routes(self):
-        with (open(f"{self.datadirpath}/gateway/routes.yaml") as lines):
+    def read_gateway_routes(self) -> None:
+        with open(f"{self.datadirpath}/gateway/routes.yaml") as lines:
             self.sections["gateway_routes"] = dict()
             lines2 = yaml.safe_load(lines)
             # only get the targets lines https://github.com/georchestra/datadir/blob/docker-master/gateway/routes.yaml#L76
             for service_target in lines2["georchestra.gateway.services"]:
-                self.sections["gateway_routes"][service_target] = lines2["georchestra.gateway.services"][service_target]
+                self.sections["gateway_routes"][service_target] = lines2[
+                    "georchestra.gateway.services"
+                ][service_target]
 
-    def tostr(self):
-        str = ""
+    def tostr(self) -> str:
+        result = ""
         for key in self.sections:
-            str += key + ":\r\n<br>"
+            result += key + ":\r\n<br>"
             for key2 in self.sections[key]:
-                str += " \t&emsp;" + key2 + " : "
+                result += " \t&emsp;" + key2 + " : "
                 if self.sections[key][key2] == self.get(key2, section=key):
-                    str += " \t&emsp;" + self.sections[key][key2] + "\r\n<br> "
+                    result += " \t&emsp;" + str(self.sections[key][key2]) + "\r\n<br> "
                 else:
-                    str += (
+                    result += (
                         " \t&emsp;"
-                        + self.sections[key][key2]
+                        + str(self.sections[key][key2])
                         + " = "
-                        + self.get(key2, section=key)
+                        + str(self.get(key2, section=key))
                         + "\r\n<br> "
                     )
-        return str
+        return result
 
-    def get(self, key, section="default"):
+    def get(self, key: str, section: str = "default") -> str | None:
         if section not in self.sections:
             return None
         value = self.sections[section].get(key, None)
@@ -60,20 +66,15 @@ class GeorchestraConfig:
             search_env3 = re.match("(.*)\\${(.*):.*}(.*)", value)
 
             if search_env:
-                if getenv(search_env.group(1)):
-                    value = getenv(search_env.group(1))
+                env_value = getenv(search_env.group(1))
+                if env_value:
+                    value = env_value
             elif search_env3:
-                if getenv(search_env3.group(2)):
-                    value = (
-                        search_env3.group(1)
-                        + getenv(search_env3.group(2))
-                        + search_env3.group(3)
-                    )
+                env_value = getenv(search_env3.group(2))
+                if env_value:
+                    value = search_env3.group(1) + env_value + search_env3.group(3)
             elif search_env2:
-                if getenv(search_env2.group(2)):
-                    value = (
-                        search_env2.group(1)
-                        + getenv(search_env2.group(2))
-                        + search_env2.group(3)
-                    )
+                env_value = getenv(search_env2.group(2))
+                if env_value:
+                    value = search_env2.group(1) + env_value + search_env2.group(3)
         return value

@@ -1,0 +1,27 @@
+<div class="space-y-4">
+  <h2 class="text-lg font-medium text-gray-900">
+    Choisissez par quel biais vous souhaitez importer votre donnée
+  </h2>
+
+  <form [formGroup]="form" class="space-y-4">
+    <mat-radio-group formControlName="sourceType">
+      <mat-radio-button value="url" class="mb-4">
+        À partir d'une URL
+      </mat-radio-button>
+    </mat-radio-group>
+
+    @if (form.controls.sourceType.value === 'url') {
+    <mat-form-field appearance="outline" class="w-full">
+      <input
+        matInput
+        formControlName="url"
+        placeholder="https://example"
+        type="url"
+      />
+      @if (form.controls.url.errors?.['pattern']) {
+      <mat-error>URL doit commencer par http:// ou https://</mat-error>
+      }
+    </mat-form-field>
+    }
+  </form>
+</div>
