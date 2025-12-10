@@ -552,6 +552,7 @@ dependencies = [
 dev = [
     { name = "poethepoet" },
     { name = "pyright" },
+    { name = "pytest" },
     { name = "ruff" },
 ]
 
@@ -566,6 +567,7 @@ requires-dist = [
 dev = [
     { name = "poethepoet", specifier = ">0" },
     { name = "pyright", specifier = ">0" },
+    { name = "pytest", specifier = ">=8.0.0" },
     { name = "ruff", specifier = ">0" },
 ]
 

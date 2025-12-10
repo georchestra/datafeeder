@@ -17,7 +17,7 @@ install-python: ## Install all dependencies using uv + write current user's UID 
 check-all-python: install-python ## Run all checks: linting, formatting, and type checking
 	-uv run poe lint
 	-uv run poe fmt
-	-uv run poe check
+	-uv run poe check --verbose
 
 fix-all-python: install-python ## Fix all issues: linting and formatting
 	-uv run poe lint:fix

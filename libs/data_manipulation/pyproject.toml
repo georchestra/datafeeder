@@ -28,9 +28,6 @@ dev = [
     "pytest>=8.0.0",
 ]
 
-[tool.uv.sources]
-geoservercloud = { git = "https://github.com/camptocamp/python-geoservercloud.git" }
-
 [tool.ruff]
 extend = "../../ruff.toml"
 
