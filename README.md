@@ -5,7 +5,7 @@ Data ingestion module for geOrchestra
 ## Prerequisites
 
 - Python 3.12
-- Node 22.12.0+
+- Node 22.20.0+
 
 You can use the provided Makefile to manage the development environment and run common tasks. `make help` is self-explanatory.
 
