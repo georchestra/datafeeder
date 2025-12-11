@@ -72,6 +72,12 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             description="FTP, URL, OGC WFS, FILE",
             enum=["FTP", "URL", "OGC_WFS", "FILE"],
         ),
+        "staging_table_name": Param(
+            default="my_table",
+            type="string",
+            description="Name of the staging table to create",
+            minLength=1,
+        ),
         "success_callback_url": Param(
             default="", type=["null", "string"], description="URL to call on success", minLength=1
         ),
@@ -84,7 +90,8 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
 )
 def staging_dag(**context: dict[str, Any]) -> None:
     # Add ingestion task group
-    ingestion_group()
+    params = context.get("params", {})
+    ingestion_group(target_table_name=params.get("staging_table_name"))
 
 
 staging_dag_instance = staging_dag()

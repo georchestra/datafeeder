@@ -1,8 +1,10 @@
 CREATE SCHEMA IF NOT EXISTS datakern;
 CREATE SCHEMA IF NOT EXISTS data;
+CREATE SCHEMA IF NOT EXISTS staging;
 
 CREATE SEQUENCE datakern.hibernate_sequence;
 GRANT ALL ON datakern.hibernate_sequence TO georchestra;
+GRANT ALL ON SCHEMA staging TO georchestra;
 
 CREATE TYPE datakern.rule_type_enum AS ENUM
     (
