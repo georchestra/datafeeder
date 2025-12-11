@@ -81,8 +81,8 @@ x-airflow-common:
   volumes:
     - ../apps/elt/dags:/opt/airflow/dags
     - ../apps/elt/logs:/opt/airflow/logs
-    - ./datadir/airflow/config:/opt/airflow/config
-    - ./datadir/airflow/plugins:/opt/airflow/plugins
+    - ./datadir/datakern/airflow/config:/opt/airflow/config
+    - ./datadir/datakern/airflow/plugins:/opt/airflow/plugins
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on

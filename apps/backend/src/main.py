@@ -8,14 +8,14 @@ from fastapi.responses import HTMLResponse
 from geonetwork import GnApi
 
 from src.api.main import api_router
-from src.core.georchestraconfig import GeorchestraConfig
+from src.core.config import get_settings
 
 
 def _get_debug_flag() -> bool:
     """Get DEBUG flag from environment variable."""
     value = os.getenv("DEBUG")
     if value is None:
-        return False
+        return True
     value_lower = value.lower()
     if value_lower == "false":
         return False
@@ -42,9 +42,6 @@ app.add_middleware(
 # Include API router
 app.include_router(api_router)
 
-# Load georchestra properties and merge with settings
-geor_config = GeorchestraConfig()
-
 
 @app.get("/", tags=["Health"])
 def read_root():
@@ -58,8 +55,10 @@ def read_version():
 
 @app.get("/geonetwork", tags=["Health"])
 def read_geonetwork():
-    gnapi = GnApi(
-        api_url="http://gateway:8080/geonetwork/srv/api", credentials=None, verifytls=False
+    gnapi: GnApi = GnApi(
+        api_url=f"{get_settings().georchestra_config.get('geonetwork.target', 'gateway_routes')}srv/api",
+        credentials=None,
+        verifytls=False,
     )
     return {"Hello": gnapi._get_version().json()}  # type: ignore[reportPrivateUsage]
 
@@ -68,5 +67,4 @@ if DEBUG:
 
     @app.get("/config", tags=["Health"], response_class=HTMLResponse)
     def read_config():
-        print(geor_config.get("domainname", "default"))
-        return geor_config.tostr()
+        return get_settings().georchestra_config.tostr() + get_settings().tostr()

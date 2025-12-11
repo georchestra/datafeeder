@@ -31,9 +31,18 @@ class TestAirflowClient:
     def mock_settings(self) -> Mock:
         """Create mock settings for Airflow connection."""
         settings = Mock()
-        settings.AIRFLOW_HOST = "http://test-airflow.example.com"
+        settings.georchestra_config.get.return_value = "http://test-airflow.example.com"
         settings.AIRFLOW_USERNAME = "test_user"
         settings.AIRFLOW_PASSWORD = "test_pass"
+
+        def datakern_config_get(key: str) -> str:
+            if key == "AIRFLOW_USERNAME" or key == "airflow_username":
+                return "test_user"
+            elif key == "AIRFLOW_PASSWORD" or key == "airflow_password":
+                return "test_pass"
+            return ""
+
+        settings.datakern_config.get.side_effect = datakern_config_get
         return settings
 
     @pytest.fixture

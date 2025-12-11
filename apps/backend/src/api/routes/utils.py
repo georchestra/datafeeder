@@ -62,9 +62,9 @@ async def broadcast_dataset(session: SessionDep, request: DatasetBroadcastReques
     settings = get_settings()
     # Create workspace in GeoServer through the gateway
     geoserver_service = GeoServerService(
-        base_url=settings.GEOSERVER_URL,
-        username=settings.GEOSERVER_USER,
-        password=settings.GEOSERVER_PASSWORD,
+        base_url=get_settings().georchestra_config.get("geoserver.target", "gateway_routes"),
+        username=settings.datakern_config.get("api_username"),  # type: ignore[arg-type]
+        password=settings.datakern_config.get("api_password"),  # type: ignore[arg-type]
     )
 
     # Use organization name as workspace name, organization_name_ds as datastore

@@ -11,7 +11,7 @@ class GeorchestraConfig:
     def __init__(self) -> None:
         self.sections: dict[str, dict[str, Any] | SectionProxy] = {}
         self.datadirpath: str = (
-            getenv("georchestradatadir", "/etc/georchestra") or "/etc/georchestra"
+            getenv("GEORCHESTRA_DATADIR", "/etc/georchestra") or "/etc/georchestra"
         )
 
         self.read_default()
@@ -54,10 +54,12 @@ class GeorchestraConfig:
                     )
         return result
 
-    def get(self, key: str, section: str = "default") -> str | None:
+    def get(self, key: str, section: str = "default") -> str:
         if section not in self.sections:
-            return None
+            return ""
         value = self.sections[section].get(key, None)
+        if value is None:
+            value = ""
         if value:
             # this is to catch ${ENV_VAR}
             search_env = re.match("^\\${(.*)}$", value)
@@ -68,7 +70,7 @@ class GeorchestraConfig:
             if search_env:
                 env_value = getenv(search_env.group(1))
                 if env_value:
-                    value = env_value
+                    value = env_value  # type: ignore[arg-type]
             elif search_env3:
                 env_value = getenv(search_env3.group(2))
                 if env_value:
@@ -77,4 +79,5 @@ class GeorchestraConfig:
                 env_value = getenv(search_env2.group(2))
                 if env_value:
                     value = search_env2.group(1) + env_value + search_env2.group(3)
+
         return value

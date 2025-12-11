@@ -50,7 +50,11 @@ reload-airflow-deps: build-libs ## Reload Airflow DAG processor with updated dep
 
 run-backend: install-python ## Run the backend application
 	cd apps/backend && \
-	uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs
+	set -a && . "$(CURDIR)/docker/.envs-common" && set +a && \
+	set -a && . "$(CURDIR)/docker/.envs-database-georchestra" && set +a && \
+	set -a && . "$(CURDIR)/docker/.envs-hosts" && set +a && \
+	set -a && . "$(CURDIR)/docker/.envs-ldap" && set +a && \
+	GEORCHESTRA_DATADIR="$(CURDIR)/docker/datadir" uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs
 
 docker-build-backend: ## Build the backend Docker image
 	echo "TODO: Implement backend Docker build"
