@@ -8,9 +8,8 @@ from data_manipulation.ingestion import (
     ingest_data_from_file_into_postgis,
     ingest_data_from_url_into_postgis,
 )
-from utils import get_final_schema, get_sqlalchemy_engine
+from utils import get_staging_schema, get_sqlalchemy_engine
 
-STAGING_SCHEMA = "staging"
 
 def ingestion_group(target_table_name: str | None = None, group_id: Literal["initial_ingestion", "refresh_ingestion"] = "initial_ingestion"):
     
@@ -48,7 +47,7 @@ def ingestion_group(target_table_name: str | None = None, group_id: Literal["ini
                     params.get("source", ""),
                     params.get("staging_table_name", ""),
                     engine,
-                    schema=get_final_schema(),
+                    schema=get_staging_schema(),
                 )
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from file: {e}")
@@ -64,7 +63,7 @@ def ingestion_group(target_table_name: str | None = None, group_id: Literal["ini
                     params.get("source", ""),
                     params.get("staging_table_name", ""),
                     engine,
-                    schema=get_final_schema(),
+                    schema=get_staging_schema(),
                 )
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from URL: {e}")
