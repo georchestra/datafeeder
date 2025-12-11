@@ -16,8 +16,8 @@ requires-python = "==3.12.*"
 dependencies = [
     "geoalchemy2==0.18.1",
     "geopandas==1.1.1",
-    "sqlalchemy==2.0.44",
     "geoservercloud",
+    "sqlalchemy==2.0.44",
 ]
 
 [dependency-groups]
@@ -25,7 +25,7 @@ dev = [
     "ruff>0",
     "poethepoet>0",
     "pyright>0",
-    "pytest>=8.0.0",
+    "pytest>0",
 ]
 
 [tool.ruff]
