@@ -33,9 +33,10 @@ def sanitize_name(name: str) -> str:
         'myorg'
     """
     import unicodedata
+
     # Normalize and remove accents
-    sanitized = unicodedata.normalize('NFKD', name)
-    sanitized = ''.join(c for c in sanitized if not unicodedata.combining(c))
+    sanitized = unicodedata.normalize("NFKD", name)
+    sanitized = "".join(c for c in sanitized if not unicodedata.combining(c))
     # Replace spaces with underscores
     sanitized = sanitized.replace(" ", "_")
     # Keep only alphanumeric characters, underscores, and hyphens
