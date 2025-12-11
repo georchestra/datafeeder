@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 const baseConfig = require('./node_modules/geonetwork-ui/tailwind.base.config')
 const { join } = require('path')
 
