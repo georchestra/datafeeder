@@ -11,7 +11,6 @@ CREATE TYPE datakern.rule_type_enum AS ENUM
         'BOTH'
         );
 
-
 CREATE TYPE datakern.rule_value_enum AS ENUM
     (
         'READ',
@@ -28,14 +27,18 @@ create table if not exists datakern.integrity_link
     integrity_organization    varchar(256)       NOT NULL,
     integrity_transformation  jsonb              NULL,
     staging_table_name        varchar(63)        NULL,
-    last_staging_retrieved_at timestamp          NULL,
+    staging_retrieve_time     interval           NULL,
     final_table_name          varchar(63) UNIQUE NULL,
-    retrieve_time             interval           NULL,
---     integrity_status         varchar(50)  NULL,
+    last_retrieval_timestamp  timestamp           NULL,
     schedule                  varchar(10)        NULL,
     schedule_enabled          boolean   default false,
     created_at                timestamp default current_timestamp
 );
+
+comment on column datakern.integrity_link.staging_retrieve_time is
+    'Estimated time taken to retrieve data into staging table. Used to define the minimum interval allowed between two schedules.';
+comment on column datakern.integrity_link.last_retrieval_timestamp is
+    'Timestamp of the last successful retrieval into the final table';
 
 create table if not exists datakern.integrity_link_rules
 (
@@ -45,4 +48,3 @@ create table if not exists datakern.integrity_link_rules
     rule_value             datakern.rule_value_enum DEFAULT 'READ',
     organization_concerned varchar(256) NULL
 );
-
