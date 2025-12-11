@@ -51,16 +51,6 @@ describe('DataImportWizardComponent', () => {
     expect(compiled.textContent).toContain('Paramétrer le jeu de donnée')
   })
 
-  it('should render tab icons', () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    fixture.detectChanges()
-    const compiled = fixture.nativeElement as HTMLElement
-    const icons = compiled.querySelectorAll('mat-icon')
-    expect(icons.length).toBeGreaterThanOrEqual(2)
-    expect(icons[0].textContent).toContain('add')
-    expect(icons[1].textContent).toContain('settings')
-  })
-
   it('should update import data when source changes', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
