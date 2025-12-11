@@ -4,12 +4,9 @@ import { MatTabsModule } from '@angular/material/tabs'
 import {
   NgIconComponent,
   provideIcons,
-  provideNgIconsConfig,
+  provideNgIconsConfig
 } from '@ng-icons/core'
-import {
-  iconoirNumber1Square,
-  iconoirNumber2Square,
-} from '@ng-icons/iconoir'
+import { iconoirNumber1Square, iconoirNumber2Square } from '@ng-icons/iconoir'
 import { ButtonComponent } from 'geonetwork-ui'
 import {
   catchError,
@@ -66,8 +63,8 @@ export interface ImportWizardData {
       iconoirNumber2Square
     }),
     provideNgIconsConfig({
-      size: '2em',
-    }),
+      size: '2em'
+    })
   ]
 })
 export class DataImportWizardComponent {
@@ -130,7 +127,12 @@ export class DataImportWizardComponent {
   }
 
   cantConfigureDataset() {
-    return !this.validSource() || this.validating() || this.importing() || this.polling()
+    return (
+      !this.validSource() ||
+      this.validating() ||
+      this.importing() ||
+      this.polling()
+    )
   }
 
   async onConfigureDataset() {
