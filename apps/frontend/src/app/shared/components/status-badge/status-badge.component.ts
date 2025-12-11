@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { CommonModule } from '@angular/common'
 
-export type StatusType = 'success' | 'error' | 'warning' | 'info' | 'working'
+export type StatusType = 'success' | 'error' | 'warning' | 'info' | 'running'
 
 @Component({
   selector: 'app-status-badge',

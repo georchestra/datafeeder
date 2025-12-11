@@ -6,7 +6,11 @@
   } @else {
   <div class="events-container">
     @for (event of events; track event.id) {
-    <app-event [event]="event" [reference]="reference" />
+    <app-event
+      [event]="event"
+      [reference]="reference"
+      (downloadLogsClicked)="downloadLogsClicked.emit($event)"
+    />
     }
   </div>
   }

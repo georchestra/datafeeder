@@ -10,24 +10,33 @@
     <div class="grow flex gap-2">
       <div class="flex flex-col bg-gray-200 p-2 rounded-sm">
         <span class="font-semibold text-gray-600">Début</span>
-        <small>{{ event.timestamp | date : 'short' }}</small>
+        <small>{{ event.start_date | date : 'short' }}</small>
       </div>
       <div class="flex flex-col bg-gray-200 p-2 rounded-sm">
         <span class="font-semibold text-gray-600">Fin</span>
-        <small>{{ event.timestamp | date : 'short' }}</small>
+        <small>
+          @if (event.end_date) {
+          {{ event.end_date | date : 'short' }}
+          } @else {
+          <span class="mx-[20px]">-</span>
+          }
+        </small>
       </div>
       <div class="flex flex-col bg-gray-200 p-2 rounded-sm">
         <span class="font-semibold text-gray-600">Durée</span>
-        <small>{{ event.timestamp | date : 'short' }}</small>
+        <small>{{ formatDuration(event.duration) }}</small>
       </div>
     </div>
     <div class="flex gap-4 items-center mb-4">
+      @if (event.status === 'error') {
       <button
         class="hover:cursor-pointer hover:bg-gray-200 px-5 py-1 border border-gray-400 text-gray-600 flex items-center gap-2"
+        (click)="downloadLogs()"
       >
         Télécharger les logs
         <mat-icon class="!text-base">download</mat-icon>
       </button>
+      }
       <app-status-badge [status]="event.status" />
     </div>
   </div>

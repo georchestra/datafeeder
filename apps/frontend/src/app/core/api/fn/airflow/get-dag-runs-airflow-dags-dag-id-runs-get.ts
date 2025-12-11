@@ -7,16 +7,27 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface ReadVersionVersionGet$Params {}
+import { DagRunCollectionResponse } from '../../models/dag-run-collection-response'
 
-export function readVersionVersionGet(
+export interface GetDagRunsAirflowDagsDagIdRunsGet$Params {
+  dag_id: string
+  limit?: number
+}
+
+export function getDagRunsAirflowDagsDagIdRunsGet(
   http: HttpClient,
   rootUrl: string,
-  params?: ReadVersionVersionGet$Params,
+  params: GetDagRunsAirflowDagsDagIdRunsGet$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<any>> {
-  const rb = new requestBuilders(rootUrl, readVersionVersionGet.PATH, 'get')
+): Observable<StrictHttpResponse<DagRunCollectionResponse>> {
+  const rb = new requestBuilders(
+    rootUrl,
+    getDagRunsAirflowDagsDagIdRunsGet.PATH,
+    'get'
+  )
   if (params) {
+    rb.path('dag_id', params.dag_id, {})
+    rb.query('limit', params.limit, {})
   }
 
   return http
@@ -26,9 +37,9 @@ export function readVersionVersionGet(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<any>
+        return r as StrictHttpResponse<DagRunCollectionResponse>
       })
     )
 }
 
-readVersionVersionGet.PATH = '/version'
+getDagRunsAirflowDagsDagIdRunsGet.PATH = '/airflow/dags/{dag_id}/runs'

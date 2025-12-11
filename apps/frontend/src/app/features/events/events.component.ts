@@ -1,10 +1,15 @@
-import { Component, OnInit } from '@angular/core'
+import { Component, OnInit, inject, signal } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { CommonModule } from '@angular/common'
 import {
   EventsListComponent,
   Event
 } from '../../shared/components/events-list/events-list.component'
+import { Api } from '../../core/api/api'
+import { getDagRunsAirflowDagsDagIdRunsGet } from '../../core/api/fn/airflow/get-dag-runs-airflow-dags-dag-id-runs-get'
+import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
+import { DagRunResponse } from '../../core/api/models/dag-run-response'
+import { EventTypeType } from '../../shared/components/event-type-badge/event-type-badge.component'
 
 @Component({
   selector: 'app-events',
@@ -13,56 +18,88 @@ import {
   styleUrl: './events.component.css'
 })
 export class EventsComponent implements OnInit {
-  reference: string | null = null
-  events: Event[] = []
+  private route = inject(ActivatedRoute)
+  private api = inject(Api)
 
-  constructor(private route: ActivatedRoute) {}
+  reference: string | null = null
+  events = signal<Event[]>([])
 
   ngOnInit(): void {
     this.reference = this.route.snapshot.paramMap.get('reference')
-    // TODO: Fetch events from API based on reference
-    // For now, using mock data
-    this.loadMockEvents()
+    if (this.reference) {
+      this.loadDagRuns(this.reference)
+    }
   }
 
-  private loadMockEvents(): void {
-    this.events = [
-      {
-        id: '1',
-        timestamp: new Date().toISOString(),
-        type: 'Run manual',
-        message: 'Data import process has been initiated',
-        status: 'info'
-      },
-      {
-        id: '2',
-        timestamp: new Date(Date.now() - 60000).toISOString(),
-        type: 'Programmé',
-        message: 'Data validation completed successfully',
-        status: 'success'
-      },
-      {
-        id: '3',
-        timestamp: new Date(Date.now() - 120000).toISOString(),
-        type: 'Run manual',
-        message: 'Processing 1000 records',
-        status: 'info'
-      },
-      {
-        id: '4',
-        timestamp: new Date(Date.now() - 180000).toISOString(),
-        type: 'Programmé',
-        message:
-          'Failed to process record: Invalid data format in column "email"',
-        status: 'error'
-      },
-      {
-        id: '5',
-        timestamp: new Date(Date.now() - 30000).toISOString(),
-        type: 'Run manual',
-        message: 'Currently processing batch 2 of 10',
-        status: 'working'
-      }
-    ]
+  private async loadDagRuns(dagId: string): Promise<void> {
+    try {
+      const response: DagRunCollectionResponse = await this.api.invoke(
+        getDagRunsAirflowDagsDagIdRunsGet,
+        {
+          dag_id: dagId,
+          limit: 20
+        }
+      )
+
+      this.events.set(
+        response.dag_runs.map((dagRun) => this.transformDagRunToEvent(dagRun))
+      )
+    } catch (error) {
+      console.error('Error loading DAG runs:', error)
+    }
+  }
+
+  private transformDagRunToEvent(dagRun: DagRunResponse): Event {
+    return {
+      id: dagRun.dag_run_id,
+      start_date: dagRun.start_date || null,
+      end_date: dagRun.end_date || null,
+      duration: dagRun.duration || null,
+      type: this.mapRunTypeToEventType(dagRun.run_type),
+      status: this.mapDagStateToEventStatus(dagRun.state)
+    }
+  }
+
+  private mapRunTypeToEventType(runType: string): EventTypeType {
+    return runType === 'manual' ? 'Run manual' : 'Programmé'
+  }
+
+  private mapDagStateToEventStatus(
+    state: string
+  ): 'success' | 'error' | 'warning' | 'info' | 'running' {
+    switch (state) {
+      case 'success':
+        return 'success'
+      case 'failed':
+        return 'error'
+      case 'running':
+        return 'running'
+      case 'queued':
+        return 'info'
+      default:
+        return 'info'
+    }
+  }
+
+  async onDownloadLogsClicked({
+    dag_id,
+    dag_run_id
+  }: {
+    dag_id: string
+    dag_run_id: string
+  }) {
+    const { getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet } = await import(
+      '../../core/api/fn/airflow/get-dag-run-logs-airflow-dags-dag-id-runs-dag-run-id-logs-get'
+    )
+    try {
+      const logs = await this.api.invoke(
+        getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet,
+        { dag_id, dag_run_id }
+      )
+      console.log('Event logs:', logs)
+      // TODO: Format and trigger download as file if needed
+    } catch (error) {
+      console.error('Failed to fetch event logs:', error)
+    }
   }
 }
