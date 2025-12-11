@@ -85,10 +85,10 @@ class TestSanitizeName:
         assert result == ""
 
     def test_unicode_characters(self):
-        """Test that unicode/accented characters are removed."""
-        assert sanitize_name("café_layer") == "caf_layer"
-        assert sanitize_name("naïve_dataset") == "nave_dataset"
-        assert sanitize_name("über_test") == "ber_test"
+        """Test that unicode/accented characters are replaced with their base ASCII equivalents."""
+        assert sanitize_name("café_layer") == "cafe_layer"
+        assert sanitize_name("naïve_dataset") == "naive_dataset"
+        assert sanitize_name("über_test") == "uber_test"
 
     def test_only_numbers(self):
         """Test name that is only numbers gets prefixed."""
