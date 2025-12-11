@@ -6,7 +6,7 @@ from data_manipulation.utils import sanitize_name
 
 
 def create_workspace(
-    geoserver: GeoServerCloud,
+    geoserver: GeoServerCloud,  # type: ignore[reportUnknownParameterType]
     workspace_name: str,
     datastore_name: str,
     jndi_reference: str,
@@ -38,10 +38,10 @@ def create_workspace(
         pg_schema = workspace_name
 
     # Create workspace
-    geoserver.create_workspace(workspace_name)
+    geoserver.create_workspace(workspace_name)  # type: ignore[reportUnknownMemberType]
 
     # Create JNDI datastore
-    geoserver.create_jndi_datastore(
+    geoserver.create_jndi_datastore(  # type: ignore[reportUnknownMemberType]
         workspace_name=workspace_name,
         datastore_name=datastore_name,
         jndi_reference=jndi_reference,
@@ -57,7 +57,7 @@ def create_workspace(
 
 
 def create_layer(
-    geoserver: GeoServerCloud,
+    geoserver: GeoServerCloud,  # type: ignore[reportUnknownVariableType]
     workspace_name: str,
     datastore_name: str | None,
     table_name: str,
@@ -108,7 +108,7 @@ def create_layer(
         try:
             # Verify if the layer was actually created despite the error
             # (the error may not be critical)
-            geoserver.get_feature_type(
+            geoserver.get_feature_type(  # type: ignore[reportUnknownMemberType]
                 workspace_name=workspace_name,
                 datastore_name=datastore_name,
                 feature_type_name=table_name,

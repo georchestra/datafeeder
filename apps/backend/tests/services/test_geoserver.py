@@ -125,15 +125,35 @@ class TestGeoServerService:
         assert "capabilities" in result["wms"]
         assert "getmap" in result["wms"]
         assert "legend" in result["wms"]
-        assert workspace_name in result["wms"]["capabilities"]
-        assert table_name in result["wms"]["getmap"]
+        wms = result["wms"]
+        wms_capabilities_val = ""
+        wms_getmap_val = ""
+        if isinstance(wms, dict):
+            cap = wms.get("capabilities", "")
+            gm = wms.get("getmap", "")
+            if isinstance(cap, str):
+                wms_capabilities_val = cap
+            if isinstance(gm, str):
+                wms_getmap_val = gm
+        assert str(workspace_name) in wms_capabilities_val
+        assert str(table_name) in wms_getmap_val
 
         # Verify WFS URLs
         assert result["wfs"] is not None
         assert "capabilities" in result["wfs"]
         assert "getfeature" in result["wfs"]
-        assert workspace_name in result["wfs"]["capabilities"]
-        assert table_name in result["wfs"]["getfeature"]
+        wfs = result["wfs"]
+        capabilities_val = ""
+        getfeature_val = ""
+        if isinstance(wfs, dict):
+            cap = wfs.get("capabilities", "")
+            gf = wfs.get("getfeature", "")
+            if isinstance(cap, str):
+                capabilities_val = cap
+            if isinstance(gf, str):
+                getfeature_val = gf
+        assert str(workspace_name) in capabilities_val
+        assert str(table_name) in getfeature_val
 
     @pytest.mark.asyncio
     @patch("src.services.geoserver.dm_create_layer")

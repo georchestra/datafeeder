@@ -15,7 +15,9 @@ class TestCreateWorkspace:
 
     def test_create_workspace_success(self, mock_geoserver: MagicMock) -> None:
         """Test successful workspace and datastore creation."""
-        from data_manipulation.geoserver import create_workspace
+        from data_manipulation.geoserver import (
+            create_workspace,  # type: ignore[reportUnknownVariableType]
+        )
 
         workspace_name = "test_workspace"
         datastore_name = "test_datastore"
@@ -46,7 +48,9 @@ class TestCreateWorkspace:
 
     def test_create_workspace_handles_workspace_error(self, mock_geoserver: MagicMock) -> None:
         """Test that workspace creation errors are propagated."""
-        from data_manipulation.geoserver import create_workspace
+        from data_manipulation.geoserver import (
+            create_workspace,  # type: ignore[reportUnknownVariableType]
+        )
 
         mock_geoserver.create_workspace.side_effect = Exception("Workspace creation failed")
 
@@ -67,7 +71,9 @@ class TestCreateWorkspace:
 
     def test_create_workspace_handles_datastore_error(self, mock_geoserver: MagicMock) -> None:
         """Test that datastore creation errors are propagated."""
-        from data_manipulation.geoserver import create_workspace
+        from data_manipulation.geoserver import (
+            create_workspace,  # type: ignore[reportUnknownVariableType]
+        )
 
         mock_geoserver.create_jndi_datastore.side_effect = Exception("Datastore creation failed")
 
@@ -96,7 +102,9 @@ class TestCreateLayer:
 
     def test_create_layer_success(self, mock_geoserver: MagicMock) -> None:
         """Test successful layer creation."""
-        from data_manipulation.geoserver import create_layer
+        from data_manipulation.geoserver import (
+            create_layer,  # type: ignore[reportUnknownVariableType]
+        )
 
         workspace_name = "test_workspace"
         datastore_name = "test_datastore"
@@ -128,7 +136,9 @@ class TestCreateLayer:
 
     def test_create_layer_with_error_but_layer_exists(self, mock_geoserver: MagicMock) -> None:
         """Test layer creation when create_feature_type fails but layer exists."""
-        from data_manipulation.geoserver import create_layer
+        from data_manipulation.geoserver import (
+            create_layer,  # type: ignore[reportUnknownVariableType]
+        )
 
         workspace_name = "test_workspace"
         datastore_name = "test_datastore"
@@ -161,7 +171,9 @@ class TestCreateLayer:
 
     def test_create_layer_with_error_and_layer_not_exists(self, mock_geoserver: MagicMock) -> None:
         """Test layer creation when create_feature_type fails and layer doesn't exist."""
-        from data_manipulation.geoserver import create_layer
+        from data_manipulation.geoserver import (
+            create_layer,  # type: ignore[reportUnknownVariableType]
+        )
 
         workspace_name = "test_workspace"
         datastore_name = "test_datastore"
@@ -193,7 +205,9 @@ class TestCreateLayer:
 
     def test_create_layer_propagates_real_error(self, mock_geoserver: MagicMock) -> None:
         """Test that real errors during layer creation are propagated."""
-        from data_manipulation.geoserver import create_layer
+        from data_manipulation.geoserver import (
+            create_layer,  # type: ignore[reportUnknownVariableType]
+        )
 
         workspace_name = "test_workspace"
         datastore_name = "test_datastore"
