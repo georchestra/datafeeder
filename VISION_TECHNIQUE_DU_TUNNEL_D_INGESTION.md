@@ -114,3 +114,10 @@ TODO: à détailler. pour l'instant, on reprends juste les tasks du `staging_dag
 - Création dynamique de DAGs pour chaqu'un de ces `integrity_link`
 - Exécution des DAGs de transformation pour mettre à jour les données finales selon le schedule défini
 
+
+## Notes additionnelles
+
+- Il faut penser à gérer les droits
+- Il faut penser à la gestion des erreurs
+- Les callbacks du backend doivent être sécurisées (pas possible de les appeler depuis l'extérieur d'Airflow)
+- Il faut penser à clear les tables staging quand elles ne sont plus utilisées
