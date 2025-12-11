@@ -1,4 +1,4 @@
-<div class="bg-white flex gap-4 rounded-b-lg">
+<div class="bg-white flex gap-9 rounded-lg p-7">
   <div class="flex-1">
     <mat-tab-group
       [(selectedIndex)]="selectedTabIndex"
@@ -9,7 +9,7 @@
           <ng-icon class="mr-2" name="iconoirNumber1Square"></ng-icon>
           Ajouter un jeu de donnée
         </ng-template>
-        <div class="p-6 border-gray-200 border-b border-x rounded-b-lg">
+        <div class="p-6 border-gray-600 border-b border-x rounded-b-lg">
           @if (importError()) {
           <div class="mb-4 rounded-lg bg-red-50 p-4 border border-red-200">
             <p class="text-sm font-medium text-red-900">
@@ -27,10 +27,10 @@
       <mat-tab>
         <ng-template mat-tab-label>
           <ng-icon class="mr-2" name="iconoirNumber2Square"></ng-icon>
-          Paramétrer le jeu de donnée
+          Paramétrer le jeu de données
         </ng-template>
 
-        <div class="p-6 border-gray-200 border-b border-x rounded-b-lg">
+        <div class="p-6 border-gray-600 border-b border-x rounded-b-lg">
           <app-dataset-configuration />
         </div>
       </mat-tab>
@@ -38,15 +38,14 @@
   </div>
 
   <div class="flex items-start pt-12">
-    <button
-      mat-raised-button
-      color="primary"
-      [disabled]="!validSource() || validating() || importing() || polling()"
+    <gn-ui-button
+      [type]="cantConfigureDataset() ? 'outline' : 'primary'"
+      [disabled]="cantConfigureDataset()"
       (click)="onConfigureDataset()"
     >
       @if (validating()) { Validation... } @else if (importing()) { Envoi en
       cours... } @else if (polling()) { Traitement en cours... } @else {
-      Paramétrer le jeu de donnée }
-    </button>
+      Paramétrer le jeu de données }
+    </gn-ui-button>
   </div>
 </div>

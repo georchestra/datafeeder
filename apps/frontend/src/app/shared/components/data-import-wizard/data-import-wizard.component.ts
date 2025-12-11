@@ -1,6 +1,5 @@
 import { HttpClient } from '@angular/common/http'
 import { Component, effect, inject, signal } from '@angular/core'
-import { MatButtonModule } from '@angular/material/button'
 import { MatTabsModule } from '@angular/material/tabs'
 import {
   NgIconComponent,
@@ -11,6 +10,7 @@ import {
   iconoirNumber1Square,
   iconoirNumber2Square,
 } from '@ng-icons/iconoir'
+import { ButtonComponent } from 'geonetwork-ui'
 import {
   catchError,
   debounceTime,
@@ -54,7 +54,7 @@ export interface ImportWizardData {
   imports: [
     MatTabsModule,
     NgIconComponent,
-    MatButtonModule,
+    ButtonComponent,
     DataSourceSelectorComponent,
     DatasetConfigurationComponent
   ],
@@ -127,6 +127,10 @@ export class DataImportWizardComponent {
       ...current,
       source: data
     }))
+  }
+
+  cantConfigureDataset() {
+    return !this.validSource() || this.validating() || this.importing() || this.polling()
   }
 
   async onConfigureDataset() {

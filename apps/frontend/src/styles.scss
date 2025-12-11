@@ -37,21 +37,32 @@ h1 {
   font-weight: bold;
 }
 
+.data-import-wizard {
+  // TODO: implement into GN-UI instead
+  --mat-tab-active-label-text-color: var(--color-secondary);
+  --mat-tab-active-ripple-color: var(--color-secondary);
+  --mat-tab-inactive-ripple-color: var(--color-secondary);
+  --mat-tab-active-focus-label-text-color: var(--color-secondary);
+  --mat-tab-active-hover-label-text-color: var(--color-secondary);
+  --mat-tab-active-focus-indicator-color: var(--color-secondary);
+  --mat-tab-active-hover-indicator-color: var(--color-secondary);
+  --mat-tab-active-indicator-color: var(--color-secondary);
+}
+
 /* Data Import Wizard Tab Styling */
 .data-import-wizard .mat-mdc-tab.mdc-tab--active {
   background-color: var(--color-primary);
 }
 /* Inactive tabs - match panel border */
 .data-import-wizard .mat-mdc-tab:not(.mdc-tab--active) {
-  border: 1px solid #e5e7eb; /* gray-200 */
-  border-bottom: none; /* No bottom border to connect with panel */
-  border-radius: 4px 4px 0 0; /* Rounded top corners */
+  border: 1px solid var(--color-gray-600);
+  border-radius: 8px 8px 0 0; /* Rounded top corners */
 }
 .data-import-wizard .mat-mdc-tab:first-of-type {
-  border-radius: 4px 0 0 0;
+  border-radius: 8px 0 0 0;
 }
 .data-import-wizard .mat-mdc-tab:last-of-type {
-  border-radius: 0 4px 0 0;
+  border-radius: 0 8px 0 0;
 }
 .mat-mdc-tab-list .mat-mdc-tab.mdc-tab--active {
   &:active,
