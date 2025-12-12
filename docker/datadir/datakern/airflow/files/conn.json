@@ -1,0 +1,3 @@
+{
+  "CONN_POSTGIS": "postgresql://georchestra:georchestra@database/georchestra"
+}

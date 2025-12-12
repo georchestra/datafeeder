@@ -1,1 +1,1 @@
-CREATE SCHEMA airflow;
+CREATE SCHEMA IF NOT EXISTS airflow;

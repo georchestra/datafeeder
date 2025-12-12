@@ -15,11 +15,9 @@ def _get_debug_flag() -> bool:
     """Get DEBUG flag from environment variable."""
     value = os.getenv("DEBUG")
     if value is None:
-        return True
-    value_lower = value.lower()
-    if value_lower == "false":
         return False
-    elif value_lower == "true":
+    value_lower = value.lower()
+    if value_lower == "true":
         return True
     return False
 
@@ -51,6 +49,18 @@ def read_root():
 @app.get("/version", tags=["Health"])
 def read_version():
     return {"version": BACKEND_VERSION}
+
+
+@app.get("/print_dag_success", tags=["Health"])
+def read_print_dag_success():
+    print("DAG success callback works!")
+    return {"message": "DAG success callback works!"}
+
+
+@app.get("/print_dag_failure", tags=["Health"])
+def read_print_dag_failure():
+    print("DAG failure callback works!")
+    return {"message": "DAG failure callback works!"}
 
 
 @app.get("/geonetwork", tags=["Health"])

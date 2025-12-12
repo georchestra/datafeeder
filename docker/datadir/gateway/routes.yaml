@@ -39,11 +39,12 @@ spring:
           - Path=/geoserver/**
 
 georchestra.gateway.services:
-  backend.target: http://datakern-backend:8000/
-#  backend.target: http://host.docker.internal:8000/
-  frontend.target: http://datakern-frontend:8080/
-#  frontend.target: http://host.docker.internal:4200/datakern/
-  airflow.target: http://airflow-apiserver:8081/airflow/
+#  backend.target: http://datakern-backend:8000/
+  backend.target: http://host.docker.internal:8000/
+#  frontend.target: http://datakern-frontend:8080/
+  frontend.target: http://host.docker.internal:4200/datakern/
+  airflow.target: http://airflow-apiserver:8081/airflow
+  # airflow.target: http://localhost:8081/airflow
   console.target: http://console:8080/
   geoserver.target: http://${GEOSERVER_HOST:geoserver}:8080/
   geonetwork.target: http://${GEONETWORK_HOST:geonetwork}:8080/geonetwork/

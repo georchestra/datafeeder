@@ -31,16 +31,18 @@ class TestAirflowClient:
     def mock_settings(self) -> Mock:
         """Create mock settings for Airflow connection."""
         settings = Mock()
-        settings.georchestra_config.get.return_value = "http://test-airflow.example.com"
+        settings.datakern_config.get.return_value = "http://test-airflow.example.com"
         settings.AIRFLOW_USERNAME = "test_user"
         settings.AIRFLOW_PASSWORD = "test_pass"
 
-        def datakern_config_get(key: str) -> str:
+        def datakern_config_get(key: str, default: str = "") -> str:
             if key == "AIRFLOW_USERNAME" or key == "airflow_username":
                 return "test_user"
             elif key == "AIRFLOW_PASSWORD" or key == "airflow_password":
                 return "test_pass"
-            return ""
+            elif key == "airflow_url":
+                return "http://test-airflow.example.com"
+            return default
 
         settings.datakern_config.get.side_effect = datakern_config_get
         return settings

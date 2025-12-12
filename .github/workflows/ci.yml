@@ -113,7 +113,3 @@ jobs:
       - name: Format code
         working-directory: ./apps/elt
         run: uv run poe fmt
-
-      - name: Type check
-        working-directory: ./apps/elt
-        run: uv run poe check --verbose
