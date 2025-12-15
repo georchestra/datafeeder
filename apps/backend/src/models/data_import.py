@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, AnyUrl
 
 
 class ImportType(str, Enum):
@@ -26,7 +26,7 @@ class ImportRequest(BaseModel):
     """Request model for import endpoint"""
 
     type: ImportType
-    url: str | None = None
+    url: AnyUrl
 
 
 class ImportResponse(BaseModel):

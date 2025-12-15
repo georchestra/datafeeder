@@ -2,6 +2,8 @@ import logging
 from datetime import datetime, timezone
 from urllib.parse import urlencode
 from uuid import UUID, uuid4
+import hashlib
+from uuid import uuid4
 
 from airflow_client.client.exceptions import NotFoundException
 from airflow_client.client.models.dag_run_state import DagRunState
@@ -18,9 +20,8 @@ from src.services.airflow_client import get_dag_run_api
 
 # Use uvicorn's logger to get colored output
 logger = logging.getLogger("uvicorn.error")
-
-router = APIRouter(prefix="/import", tags=["Import"])
-
+router = APIRouter(prefix="/ingestion", tags=["Import"])
+settings = get_settings()
 
 def _build_callback_url(route: str, query_params: dict[str, str] | None = None) -> str:
     """Build full callback URL for Airflow DAG callbacks.
@@ -32,7 +33,6 @@ def _build_callback_url(route: str, query_params: dict[str, str] | None = None) 
     Returns:
         Full URL for the callback endpoint with query parameters
     """
-    settings = get_settings()
     base_url = f"{settings.datakern_config.get('backend_url', 'default')}{route}"
 
     if query_params:
@@ -40,6 +40,22 @@ def _build_callback_url(route: str, query_params: dict[str, str] | None = None) 
         return f"{base_url}?{query_string}"
 
     return base_url
+
+def _generate_staging_table_name(dag_run_id: str) -> str:
+    """Generate a unique, readable staging table name from an Airflow DAG run ID.
+
+    Args:
+        dag_run_id: The Airflow DAG run ID
+
+    Returns:
+        A unique staging table name
+    """
+    # TODO: could be nice to have more readable names (extract filename if possible)
+    # HttpURL: Head request ?
+    # FileUrl: use path name directly ?
+
+    # Generate short hash for uniqueness (encode the full URL)
+    return f"staging_{dag_run_id.replace('-', '_')[:32]}"
 
 
 def dag_run_state_to_import_status(state: DagRunState) -> ImportTaskStatus:
@@ -56,19 +72,19 @@ def dag_run_state_to_import_status(state: DagRunState) -> ImportTaskStatus:
 
 
 @router.post(
-    "/",
+    "/staging",
     response_model=ImportResponse,
-    summary="Create a new import task",
-    description="Submit data for import.",
+    summary="Submit data for staging import",
+    description="Submit data for staging import by triggering the Airflow staging DAG.",
 )
-def create_import(
+def staging_import(
     request: ImportRequest,
     session: SessionDep,
     sec_username: str = Header(..., alias="sec-username"),
     sec_org: str = Header(..., alias="sec-org"),
 ) -> ImportResponse:
     """
-    Create a new import task.
+    Submit data for staging import.
 
     Args:
         request: Import configuration including type and optional URL
@@ -78,10 +94,10 @@ def create_import(
     Returns:
         ImportResponse with DAG ID, DAG run ID, and current status
     """
+
     dag_run_id = str(uuid4())
 
-    # Generate a fake staging table name for this import
-    staging_table_name = f"staging_{dag_run_id.replace('-', '_')[:32]}"
+    staging_table_name = _generate_staging_table_name(dag_run_id)
 
     # Create IntegrityLink immediately
     integrity_link = IntegrityLink(
@@ -115,9 +131,9 @@ def create_import(
             trigger_dag_run_post_body=TriggerDAGRunPostBody(
                 dag_run_id=dag_run_id,
                 conf={
-                    "source": request.url,
+                    "source": str(request.url),
+                    "source_type": request.type.value.upper(),
                     "staging_table_name": staging_table_name,
-                    "source_type": "URL",
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,
                 },
@@ -134,12 +150,12 @@ def create_import(
 
 
 @router.get(
-    "/status",
+    "/dags/{dag_id}/{dag_run_id}/status",
     response_model=StatusResponse,
-    summary="Get the status of an import task",
-    description="Retrieve the current status of an import task using its task ID.",
+    summary="Get import task status",
+    description="Retrieve the current status of an import task using dag_id and dag_run_id.",
 )
-def get_import_status(dag_id: str, dag_run_id: str) -> StatusResponse:
+def get_import_task_status(dag_id: str, dag_run_id: str) -> StatusResponse:
     """
     Get the status of an import task.
 

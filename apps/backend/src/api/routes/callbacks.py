@@ -13,22 +13,21 @@ router = APIRouter(prefix="/callbacks", tags=["callbacks"])
 async def staging_success_callback(
     dag_run_id: str = Query(..., description="DAG run ID"),
     staging_table_name: str = Query(..., description="Name of the staging table"),
+    owner: str = Query(..., description="Owner of the staging table"),
+    organization: str = Query(..., description="Organization of the staging table"),
 ) -> None:
     """Callback when staging_dag completes successfully.
 
     Args:
         dag_run_id: Unique identifier for the DAG run
         staging_table_name: Name of the staging table that was created
-
-    Returns:
-        JSON response with status
     """
 
     logger.info(
-        f"Staging DAG succeeded - dag_run_id={dag_run_id}, staging_table={staging_table_name}"
+        f"Staging DAG succeeded - dag_run_id={dag_run_id}, staging_table={staging_table_name}, owner={owner}, organization={organization}"
     )
 
-    # TODO: Cleanup staging table after configurable retention period
+    # TODO: Create integrity_link
 
 
 @router.post("/staging/failure")
@@ -39,9 +38,6 @@ async def staging_failure_callback(
 
     Args:
         dag_run_id: Unique identifier for the DAG run
-
-    Returns:
-        JSON response with status
     """
     logger.error(f"Staging DAG failed - dag_run_id={dag_run_id}")
 
@@ -58,27 +54,22 @@ async def final_success_callback(
     Args:
         dag_run_id: Unique identifier for the DAG run
         final_table_name: Name of the final table that was created
-
-    Returns:
-        JSON response with status
     """
-    logger.info(f"Final DAG succeeded - dag_run_id={dag_run_id}, final_table={final_table_name}")
+    logger.info(f"Final DAG succeeded - dag_run_id={dag_run_id}, final_table_name={final_table_name}")
 
     # TODO: Update integrity_link table with last_retrieval_timestamp
-
+    
 
 @router.post("/final/failure")
 async def final_failure_callback(
     dag_run_id: str = Query(..., description="DAG run ID"),
+    final_table_name: str = Query(..., description="Name of the final table"),
 ) -> None:
     """Callback when final_dag fails.
 
     Args:
         dag_run_id: Unique identifier for the DAG run
-
-    Returns:
-        JSON response with status
     """
-    logger.error(f"Final DAG failed - dag_run_id={dag_run_id}")
+    logger.error(f"Final DAG failed - dag_run_id={dag_run_id}, final_table_name={final_table_name}")
 
     # TODO: Cleanup ?
