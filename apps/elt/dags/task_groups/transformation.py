@@ -6,21 +6,23 @@ from typing import Any
 from airflow.exceptions import AirflowException
 from airflow.sdk import task, task_group
 from data_manipulation import (
-    read_data_from_postgis,
     apply_transformations,
+    read_data_from_postgis,
     write_data_to_postgis,
 )
-from utils import get_final_schema, get_staging_schema, get_sqlalchemy_engine
+from utils import get_final_schema, get_sqlalchemy_engine, get_staging_schema
 
 logger = logging.getLogger(__name__)
 
 
 @task_group(group_id="final_transformation")
-def final_transformation_group() -> None:
+def final_transformation_group(staging_table_name: str) -> None:
     """Task group for final transformation from staging to final table.
 
+    Args:
+        staging_table_name: Name of the staging table to read from
+
     Required params:
-        - staging_table_name: Name of the staging table to read from
         - final_table_name: Name of the final table to write to
         - integrity_transformation: JSON config for transformations (optional, default: {})
 
@@ -31,14 +33,14 @@ def final_transformation_group() -> None:
     def read_transform_write_task(**context: dict[str, Any]) -> None:
         """Read from staging, apply transformations, and write to final table."""
         params = context.get("params", {})
-        staging_table_name = params.get("staging_table_name")
+
         final_table_name = params.get("final_table_name")
         transformation_config = params.get("integrity_transformation", {})
 
         # Validate required parameters
-        if not staging_table_name:
+        if not staging_table_name or not staging_table_name.strip():
             raise AirflowException("staging_table_name is required and cannot be empty")
-        
+
         if not final_table_name:
             raise AirflowException("final_table_name is required and cannot be empty")
 
@@ -61,10 +63,7 @@ def final_transformation_group() -> None:
 
             logger.info(f"Writing data to {final_schema}.{final_table_name}")
             write_data_to_postgis(
-                gdf=transformed_gdf,
-                table_name=final_table_name,
-                engine=engine,
-                schema=final_schema
+                gdf=transformed_gdf, table_name=final_table_name, engine=engine, schema=final_schema
             )
             logger.info(f"Successfully wrote {len(transformed_gdf)} rows to final table")
 
