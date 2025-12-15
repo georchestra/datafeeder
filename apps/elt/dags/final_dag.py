@@ -17,31 +17,29 @@ logger = logging.getLogger(__name__)
 
 
 def _dag_success_callback(context: dict[str, Any]) -> None:
-    """Callback called when DAG succeeds."""
+    """Callback when final_dag succeeds."""
     params = context.get("params", {})
-    success_url = params.get("success_callback_url")
+    success_callback_url = params.get("success_callback_url")
 
-    if success_url:
+    if success_callback_url:
         try:
-            requests.post(success_url, timeout=10)
+            logger.info(f"Calling success callback: {success_callback_url}")
+            requests.post(success_callback_url, timeout=10)
         except Exception as e:
             logger.error(f"Failed to call success callback: {e}")
-    else:
-        logger.info("No success callback URL provided.")
 
 
 def _dag_failure_callback(context: dict[str, Any]) -> None:
-    """Callback called when DAG fails."""
+    """Callback when final_dag fails."""
     params = context.get("params", {})
-    failure_url = params.get("failure_callback_url")
+    failure_callback_url = params.get("failure_callback_url")
 
-    if failure_url:
+    if failure_callback_url:
         try:
-            requests.post(failure_url, timeout=10)
+            logger.info(f"Calling failure callback: {failure_callback_url}")
+            requests.post(failure_callback_url, timeout=10)
         except Exception as e:
             logger.error(f"Failed to call failure callback: {e}")
-    else:
-        logger.info("No failure callback URL provided.")
 
 
 @dag(

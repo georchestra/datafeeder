@@ -33,6 +33,7 @@ def _call_callback(callback_url: str, callback_type: str) -> None:
 
 
 def _dag_success_callback(context: dict[str, Any]) -> None:
+    """Callback when staging_dag succeeds."""
     params = context.get("params", {})
     callback_url = params.get("success_callback_url")
 
@@ -41,6 +42,7 @@ def _dag_success_callback(context: dict[str, Any]) -> None:
 
 
 def _dag_failure_callback(context: dict[str, Any]) -> None:
+    """Callback when staging_dag fails."""
     params = context.get("params", {})
     callback_url = params.get("failure_callback_url")
 
