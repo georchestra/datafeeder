@@ -55,10 +55,12 @@ async def final_success_callback(
         dag_run_id: Unique identifier for the DAG run
         final_table_name: Name of the final table that was created
     """
-    logger.info(f"Final DAG succeeded - dag_run_id={dag_run_id}, final_table_name={final_table_name}")
+    logger.info(
+        f"Final DAG succeeded - dag_run_id={dag_run_id}, final_table_name={final_table_name}"
+    )
 
-    # TODO: Update integrity_link table with last_retrieval_timestamp
-    
+    # TODO: Update integrity_link table with last_retrieval_timestamp + final_table_name
+
 
 @router.post("/final/failure")
 async def final_failure_callback(

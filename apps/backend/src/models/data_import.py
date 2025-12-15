@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel, AnyUrl
+from pydantic import AnyUrl, BaseModel
 
 
 class ImportType(str, Enum):
@@ -22,11 +22,18 @@ class ImportTaskStatus(str, Enum):
     NOT_FOUND = "not_found"
 
 
-class ImportRequest(BaseModel):
+class StagingImportRequest(BaseModel):
     """Request model for import endpoint"""
 
     type: ImportType
     url: AnyUrl
+
+
+class FinalImportRequest(BaseModel):
+    """Request model for final import endpoint"""
+
+    staging_table_name: str
+    final_table_name: str
 
 
 class ImportResponse(BaseModel):

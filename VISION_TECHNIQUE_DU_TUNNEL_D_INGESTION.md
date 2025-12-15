@@ -91,19 +91,19 @@ Le **Backend** reçoit cette configuration et exécute les étapes suivantes :
 - Renseigne la config json de transformation dans l'integrityLink (`integrity_transformation`)
 - Génère une backend callback URL pour la fin du DAG (si succès) :
   - Met à jour l'`integrity_link` avec :
-    - `integrity_title` (fournis par le frontend = le titre brut)
     - `final_table_name` (généré côté Backend = le nom sanitisé et unique)
-    - `integrity_transformation` (json des transformations à appliquer)
+    - `last_retrieval_timestamp` (requête à airflow sur le dag_run_id pour connaitre le temps d'exécution)
 - Génère une backend callback URL pour la fin du DAG (si échec)
   - TODO: définir ce qu'on fait en cas d'échec
+- Met à jour l'`integrity_link` en avance avec :
+  - `integrity_title`
+  - `integrity_transformation`
 - Déclenche le `final_dag` via l'API Airflow avec les paramètres suivants :
-  - `final_table_name` (le titre brut sanitisé et unique)
   - `staging_table_name` (récupéré depuis l'integrity_link)
-  - `last_retrieval_timestamp` (requête à airflow sur le dag_run_id pour connaitre le temps d'exécution)
-  - `integrity_transformation` (json des transformations à appliquer)
+  - `final_table_name` (le titre brut sanitisé et unique)
   - `callback_success_url`
   - `callback_failure_url`
-- Retourne le `dag_id` et `dag_run_id` au **Frontend** pour le suivi du statut du DAG.
+- Retourne le `dag_id`, `dag_run_id` et `integrity_link_id` au **Frontend** pour le suivi du statut du DAG.
 
 ### 7. Transformation finale via le DAG de transformation Airflow
 

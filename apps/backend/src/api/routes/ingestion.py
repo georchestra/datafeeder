@@ -13,7 +13,7 @@ from sqlalchemy import text
 
 from src.api.deps import SessionDep
 from src.core.config import get_settings
-from src.models import ImportRequest, ImportResponse, StatusResponse
+from src.models import FinalImportRequest, ImportResponse, StagingImportRequest, StatusResponse
 from src.models.data_import import ImportTaskStatus
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
@@ -58,6 +58,33 @@ def _generate_staging_table_name(dag_run_id: str) -> str:
     return f"staging_{dag_run_id.replace('-', '_')[:32]}"
 
 
+def _build_final_callback_urls(
+    dag_run_id: str,
+    final_table_name: str,
+) -> tuple[str, str]:
+    """Build callback URLs for final DAG (success and failure).
+
+    Args:
+        final_table_name: The final table name (used as dag_id in Airflow) for reference in callbacks
+        dag_run_id: The Airflow DAG run ID
+    Returns:
+        Tuple of (success_callback_url, failure_callback_url) with query params
+    """
+
+    settings = get_settings()
+    base_url = settings.datakern_config.get("backend_url")
+
+    success_url = (
+        f"{base_url}/callbacks/final/success"
+        f"?dag_run_id={dag_run_id}&final_table_name={final_table_name}"
+    )
+    failure_url = (
+        f"{base_url}/callbacks/final/failure"
+        f"?dag_run_id={dag_run_id}&final_table_name={final_table_name}"
+    )
+    return success_url, failure_url
+
+
 def dag_run_state_to_import_status(state: DagRunState) -> ImportTaskStatus:
     """Helpers to map DagRunState to ImportTaskStatus"""
     match state:
@@ -78,7 +105,7 @@ def dag_run_state_to_import_status(state: DagRunState) -> ImportTaskStatus:
     description="Submit data for staging import by triggering the Airflow staging DAG.",
 )
 def staging_import(
-    request: ImportRequest,
+    request: StagingImportRequest,
     session: SessionDep,
     sec_username: str = Header(..., alias="sec-username"),
     sec_org: str = Header(..., alias="sec-org"),
@@ -134,6 +161,55 @@ def staging_import(
                     "source": str(request.url),
                     "source_type": request.type.value.upper(),
                     "staging_table_name": staging_table_name,
+                    "success_callback_url": success_callback_url,
+                    "failure_callback_url": failure_callback_url,
+                },
+            ),
+        )
+
+        return ImportResponse(
+            dag_id=dag_run_response.dag_id,
+            dag_run_id=dag_run_response.dag_run_id,
+            status=dag_run_state_to_import_status(dag_run_response.state),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
+
+
+@router.post(
+    "/final",
+    response_model=ImportResponse,
+    summary="Submit data for final import",
+    description="Submit data for final import by triggering the Airflow final DAG.",
+)
+def final_import(request: FinalImportRequest) -> ImportResponse:
+    """
+    Submit data for final import.
+
+    Args:
+        request: Import configuration including staging table name and final table name
+
+    Returns:
+        ImportResponse with DAG ID, DAG run ID, and current status
+    """
+
+    dag_run_id = str(uuid4())
+
+    # TODO: update integrity link with integrity_title and integrity_transformation
+    # To big to be passed as params to airflow
+
+    success_callback_url, failure_callback_url = _build_final_callback_urls(
+        dag_run_id, request.final_table_name
+    )
+
+    try:
+        dag_run_response = get_dag_run_api().trigger_dag_run(
+            dag_id="final_dag",
+            trigger_dag_run_post_body=TriggerDAGRunPostBody(
+                dag_run_id=dag_run_id,
+                conf={
+                    "staging_table_name": request.staging_table_name,
+                    "final_table_name": request.final_table_name,
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,
                 },
