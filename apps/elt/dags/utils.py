@@ -18,6 +18,7 @@ def get_final_schema() -> str:
     """Get the final schema from Airflow Variable, defaulting to 'data'."""
     return Variable.get("final_schema", "data")
 
+
 def get_staging_schema() -> str:
     """Get the staging schema from Airflow Variable, defaulting to 'staging'."""
     return "staging"

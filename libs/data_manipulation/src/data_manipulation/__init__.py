@@ -1,8 +1,8 @@
 from data_manipulation.ingestion import (
+    apply_transformations,
     ingest_data_from_file_into_postgis,
     ingest_data_from_url_into_postgis,
     read_data_from_postgis,
-    apply_transformations,
     write_data_to_postgis,
 )
 
