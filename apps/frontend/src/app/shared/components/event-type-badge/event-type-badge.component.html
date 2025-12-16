@@ -1,8 +1,8 @@
 <span
-  class="px-3 py-1 rounded-sm text-xs font-semibold tracking-wide inline-block border border-gray-800"
+  class="px-3 py-1 rounded-sm text-xs font-semibold tracking-wide inline-block cursor-default"
   [ngClass]="{
-    'bg-blue-500': type === 'Run manual',
-    'bg-violet-500': type === 'Programmé'
+    'run-manual': type === 'Run manual',
+    'run-planned': type === 'Programmé'
   }"
 >
   {{ type }}

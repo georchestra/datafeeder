@@ -1,1 +1,13 @@
 /* All styles moved to template using Tailwind utility classes */
+.run-manual {
+    background-color: #A1DBDE;
+}
+
+.run-planned {
+    background-color: #BDC9ED;
+}
+
+.run-manual,
+.run-planned {
+    border: 1px solid #3753A4;
+}

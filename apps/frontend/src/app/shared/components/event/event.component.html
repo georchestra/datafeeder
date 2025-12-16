@@ -1,6 +1,5 @@
 <div
-  class="event"
-  class="event bg-gray-100 flex flex-col gap-2 w-full px-4 pt-4 mb-4 border border-gray-300 rounded-sm"
+  class="event flex flex-col gap-2 w-full px-4 pt-4 mb-4 rounded-sm"
 >
   <div class="event-title">
     <h3 class="font-semibold">{{ reference }}</h3>
@@ -8,11 +7,11 @@
   <div class="event-body flex gap-6 items-end">
     <app-event-type-badge class="mb-4" [type]="event.type" />
     <div class="grow flex gap-2">
-      <div class="flex flex-col bg-gray-200 p-2 rounded-sm">
+      <div class="event__start-date flex flex-col bg-gray-200 p-2 rounded-t-sm">
         <span class="font-semibold text-gray-600">Début</span>
         <small>{{ event.start_date | date : 'short' }}</small>
       </div>
-      <div class="flex flex-col bg-gray-200 p-2 rounded-sm">
+      <div class="event__end-date flex flex-col bg-gray-200 p-2 rounded-t-sm">
         <span class="font-semibold text-gray-600">Fin</span>
         <small>
           @if (event.end_date) {
@@ -22,7 +21,7 @@
           }
         </small>
       </div>
-      <div class="flex flex-col bg-gray-200 p-2 rounded-sm">
+      <div class="event__duration flex flex-col bg-gray-200 p-2 rounded-t-sm">
         <span class="font-semibold text-gray-600">Durée</span>
         <small>{{ formatDuration(event.duration) }}</small>
       </div>
