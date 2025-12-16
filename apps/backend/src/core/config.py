@@ -68,7 +68,8 @@ class DataKernSettings:
             scheme="postgresql+psycopg",
             username=self.georchestra_config.get("pgsqluser", "default"),
             password=self.georchestra_config.get("pgsqlpassword", "default"),
-            host=self.georchestra_config.get("pgsqlhost", "default"),
+            host='127.0.0.1',
+            # host=self.georchestra_config.get("pgsqlhost", "default"),
             port=int(self.georchestra_config.get("pgsqlport", "default")),
             path=self.georchestra_config.get("pgsqldatabase", "default"),
         )

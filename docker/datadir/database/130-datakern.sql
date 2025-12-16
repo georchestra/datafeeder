@@ -23,7 +23,7 @@ create table if not exists datakern.integrity_link
     id                        uuid      DEFAULT gen_random_uuid() PRIMARY KEY,
     data_id                   varchar(256)       NULL,
     metadata_id               varchar(256)       NULL,
-    integrity_title           text               NOT NULL,
+    integrity_title           text               NULL,
     integrity_owner           varchar(256)       NOT NULL,
     integrity_organization    varchar(256)       NOT NULL,
     integrity_transformation  jsonb              NULL,
