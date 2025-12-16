@@ -50,20 +50,22 @@ class TestAirflowClient:
     @pytest.fixture
     def valid_jwt_token(self) -> str:
         """Generate a valid JWT token that expires in 1 hour."""
-        payload = {
+        payload: dict[str, object] = {
             "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "sub": "test_user",
         }
-        return jwt.encode(payload, "secret", algorithm="HS256")
+        encoded: str = jwt.encode(payload, "secret", algorithm="HS256")
+        return encoded
 
     @pytest.fixture
     def expired_jwt_token(self) -> str:
         """Generate an expired JWT token."""
-        payload = {
+        payload: dict[str, object] = {
             "exp": datetime.now(timezone.utc) - timedelta(hours=1),
             "sub": "test_user",
         }
-        return jwt.encode(payload, "secret", algorithm="HS256")
+        encoded: str = jwt.encode(payload, "secret", algorithm="HS256")
+        return encoded
 
     def test_given_valid_credentials_when_requesting_new_token_then_returns_token_successfully(
         self, mock_settings: Mock

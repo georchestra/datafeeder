@@ -14,8 +14,8 @@ class User(SQLModel, table=True):
 
     __tablename__: ClassVar[str] = "user"  # type: ignore[misc]
 
-    id: int | None = Field(default=None, primary_key=True)
-    email: str = Field(unique=True, index=True, max_length=255)
+    id: int | None = Field(default=None, primary_key=True)  # type: Any
+    email: str = Field(unique=True, index=True, max_length=255)  # type: Any
     hashed_password: str
     is_active: bool = True
     is_superuser: bool = False

@@ -545,6 +545,7 @@ source = { editable = "libs/data_manipulation" }
 dependencies = [
     { name = "geoalchemy2" },
     { name = "geopandas" },
+    { name = "geoservercloud" },
     { name = "sqlalchemy" },
 ]
 
@@ -552,6 +553,7 @@ dependencies = [
 dev = [
     { name = "poethepoet" },
     { name = "pyright" },
+    { name = "pytest" },
     { name = "ruff" },
 ]
 
@@ -559,6 +561,7 @@ dev = [
 requires-dist = [
     { name = "geoalchemy2", specifier = "==0.18.1" },
     { name = "geopandas", specifier = "==1.1.1" },
+    { name = "geoservercloud" },
     { name = "sqlalchemy", specifier = "==2.0.44" },
 ]
 
@@ -566,6 +569,7 @@ requires-dist = [
 dev = [
     { name = "poethepoet", specifier = ">0" },
     { name = "pyright", specifier = ">0" },
+    { name = "pytest", specifier = ">0" },
     { name = "ruff", specifier = ">0" },
 ]
 
@@ -647,9 +651,9 @@ requires-dist = [
 dev = [
     { name = "poethepoet", specifier = ">0" },
     { name = "pyright", specifier = ">0" },
-    { name = "pytest", specifier = ">=8.0.0" },
-    { name = "pytest-asyncio", specifier = ">=0.23.0" },
-    { name = "pytest-cov", specifier = ">=4.0.0" },
+    { name = "pytest", specifier = ">0" },
+    { name = "pytest-asyncio", specifier = ">0" },
+    { name = "pytest-cov", specifier = ">0" },
     { name = "ruff", specifier = ">0" },
 ]
 
@@ -662,6 +666,9 @@ source = { virtual = "." }
 dev = [
     { name = "poethepoet" },
     { name = "pyright" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
     { name = "ruff" },
 ]
 
@@ -671,6 +678,9 @@ dev = [
 dev = [
     { name = "poethepoet", specifier = ">=0.38.0" },
     { name = "pyright", specifier = ">=1.1.407" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23.0" },
+    { name = "pytest-cov", specifier = ">=4.0.0" },
     { name = "ruff", specifier = ">=0.14.6" },
 ]
 
