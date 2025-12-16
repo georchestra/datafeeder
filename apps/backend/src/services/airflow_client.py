@@ -5,13 +5,20 @@ import requests
 from airflow_client.client.api.dag_api import DAGApi
 from airflow_client.client.api.dag_run_api import DagRunApi
 from airflow_client.client.api.event_log_api import EventLogApi
+from airflow_client.client.api.task_instance_api import TaskInstanceApi
 from airflow_client.client.api_client import ApiClient
 from airflow_client.client.configuration import Configuration
 from pydantic import BaseModel
 
 from ..core.config import get_settings
 
-__all__ = ["get_airflow_api_client", "get_dag_run_api", "get_dag_api", "get_event_log_api"]
+__all__ = [
+    "get_airflow_api_client",
+    "get_dag_run_api",
+    "get_dag_api",
+    "get_event_log_api",
+    "get_task_instance_api",
+]
 
 
 class AirflowAccessTokenResponse(BaseModel):
@@ -106,3 +113,13 @@ def _get_cached_event_log_api() -> EventLogApi:
 def get_event_log_api() -> EventLogApi:
     _refresh_caches_if_token_expired()
     return _get_cached_event_log_api()
+
+
+@lru_cache
+def _get_cached_task_instance_api() -> TaskInstanceApi:
+    return TaskInstanceApi(_get_cached_airflow_api_client())
+
+
+def get_task_instance_api() -> TaskInstanceApi:
+    _refresh_caches_if_token_expired()
+    return _get_cached_task_instance_api()

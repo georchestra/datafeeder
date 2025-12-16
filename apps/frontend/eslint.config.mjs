@@ -19,6 +19,10 @@ export default tseslint.config(
         localStorage: 'readonly',
         window: 'readonly',
         setTimeout: 'readonly',
+        Blob: 'readonly',
+        URL: 'readonly',
+        FileReader: 'readonly',
+        navigator: 'readonly',
       },
     },
     rules: {

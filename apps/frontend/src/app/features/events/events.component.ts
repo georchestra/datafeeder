@@ -7,9 +7,14 @@ import {
 } from '../../shared/components/events-list/events-list.component'
 import { Api } from '../../core/api/api'
 import { getDagRunsAirflowDagsDagIdRunsGet } from '../../core/api/fn/airflow/get-dag-runs-airflow-dags-dag-id-runs-get'
+import { getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet } from '../../core/api/fn/airflow/get-dag-run-logs-airflow-dags-dag-id-runs-dag-run-id-logs-get'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
-import { DagRunResponse } from '../../core/api/models/dag-run-response'
+
+import { downloadTextBlob } from '../../shared/utils/download.util'
 import { EventTypeType } from '../../shared/components/event-type-badge/event-type-badge.component'
+import { DagRunResponse } from '../../core/api/models/dag-run-response'
+
+const DAG_RUNGS_PAGE_SIZE = 20
 
 @Component({
   selector: 'app-events',
@@ -37,7 +42,7 @@ export class EventsComponent implements OnInit {
         getDagRunsAirflowDagsDagIdRunsGet,
         {
           dag_id: dagId,
-          limit: 20
+          limit: DAG_RUNGS_PAGE_SIZE
         }
       )
 
@@ -88,16 +93,12 @@ export class EventsComponent implements OnInit {
     dag_id: string
     dag_run_id: string
   }) {
-    const { getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet } = await import(
-      '../../core/api/fn/airflow/get-dag-run-logs-airflow-dags-dag-id-runs-dag-run-id-logs-get'
-    )
     try {
       const logs = await this.api.invoke(
         getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet,
         { dag_id, dag_run_id }
       )
-      console.log('Event logs:', logs)
-      // TODO: Format and trigger download as file if needed
+      downloadTextBlob(logs, `logs_${dag_id}_${dag_run_id}.txt`)
     } catch (error) {
       console.error('Failed to fetch event logs:', error)
     }

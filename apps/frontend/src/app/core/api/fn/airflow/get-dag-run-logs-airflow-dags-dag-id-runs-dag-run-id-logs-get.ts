@@ -7,8 +7,6 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-import { EventLogCollectionResponse } from '../../models/event-log-collection-response'
-
 export interface GetDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet$Params {
   dag_id: string
   dag_run_id: string
@@ -19,7 +17,7 @@ export function getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet(
   rootUrl: string,
   params: GetDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<EventLogCollectionResponse>> {
+): Observable<StrictHttpResponse<string>> {
   const rb = new requestBuilders(
     rootUrl,
     getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet.PATH,
@@ -31,13 +29,11 @@ export function getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet(
   }
 
   return http
-    .request(
-      rb.build({ responseType: 'json', accept: 'application/json', context })
-    )
+    .request(rb.build({ responseType: 'text', accept: 'text/plain', context }))
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<EventLogCollectionResponse>
+        return r as StrictHttpResponse<string>
       })
     )
 }

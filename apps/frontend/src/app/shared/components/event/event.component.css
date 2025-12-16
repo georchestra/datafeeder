@@ -1,10 +1,10 @@
 .event {
-    background-color: #EEEEEE80;
-    border: 1px solid #CCCDD2;
+  background-color: #eeeeee80;
+  border: 1px solid #cccdd2;
 }
 
 .event__end-date,
 .event__start-date,
 .event__duration {
-    background-color: #7C7C7C1A;
+  background-color: #7c7c7c1a;
 }
