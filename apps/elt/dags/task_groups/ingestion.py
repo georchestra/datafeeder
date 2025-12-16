@@ -12,12 +12,11 @@ from utils import get_sqlalchemy_engine, get_staging_schema
 
 
 def ingestion_group(
-    target_table_name: str, group_id: Literal["initial_ingestion", "refresh_ingestion"]
+    group_id: Literal["initial_ingestion", "refresh_ingestion"]
 ) -> None:
     """Factory function that creates an ingestion task group.
 
     Args:
-        target_table_name: Table name to use for ingestion (Required)
         group_id: Identifier for the task group (initial_ingestion or refresh_ingestion)
 
     Returns:
@@ -47,12 +46,21 @@ def ingestion_group(
         @task(task_id="file_ingest_step")
         def file_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
+            ti = context.get("ti")
+                        
+            # Try to get staging_table_name from params first (staging_dag case)
+            target_table_name = params.get("staging_table_name")
+            
+            # If not in params, try XCom from generate_staging_table_name (final_dag scheduled case)
+            if not target_table_name and ti:
+                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
+
             engine = get_sqlalchemy_engine()
 
             try:
                 ingest_data_from_file_into_postgis(
                     params.get("source", ""),
-                    params.get("staging_table_name", ""),
+                    target_table_name,
                     engine,
                     schema=get_staging_schema(),
                 )
@@ -62,6 +70,14 @@ def ingestion_group(
         @task(task_id="url_ingest_step")
         def url_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
+            ti = context.get("ti")
+                        
+            # Try to get staging_table_name from params first (staging_dag case)
+            target_table_name = params.get("staging_table_name")
+            
+            # If not in params, try XCom from generate_staging_table_name (final_dag scheduled case)
+            if not target_table_name and ti:
+                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
             engine = get_sqlalchemy_engine()
             
             try:
@@ -76,4 +92,4 @@ def ingestion_group(
 
         do_branching() >> [file_ingest_step(), url_ingest_step()]
 
-    return _ingestion_impl()
+    return _ingestion_impl

@@ -98,10 +98,7 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
 )
 def staging_dag(**context: dict[str, Any]) -> None:
     """Staging DAG for initial data ingestion."""
-    params = context.get("params", {})
-    staging_table_name = params.get("staging_table_name")
-
-    ingestion_group(target_table_name=staging_table_name, group_id="initial_ingestion")
+    ingestion_group(group_id="initial_ingestion")()
 
 
 staging_dag_instance = staging_dag()

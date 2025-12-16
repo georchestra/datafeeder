@@ -132,7 +132,7 @@ def final_dag(**context: dict[str, Any]) -> None:
         # Validate that we have either staging_table_name OR (source + source_type)
         if staging_table_name:
             logger.info(f"Using existing staging table: {staging_table_name}")
-            return "context_staging_table_name"
+            return "use_staging_table_from_context"
         elif source and source_type:
             logger.info("Re-ingesting from source")
             return "generate_staging_table_name"
@@ -143,31 +143,34 @@ def final_dag(**context: dict[str, Any]) -> None:
 
     # Tasks
     branch = decide_ingestion_mode()
-    generated_staging_table_name = generate_staging_table_name()
-    context_staging_table_name = use_staging_table_from_context()
+    use_staging = use_staging_table_from_context()
+    generate_staging = generate_staging_table_name()
 
     # Ingestion group for refresh mode
-    refresh_ingest = ingestion_group(
-        target_table_name=generated_staging_table_name, group_id="refresh_ingestion"
-    )
+    # Notes: Depends on generate_staging_table_name to access its XCom
+    refresh_ingest = ingestion_group(group_id="refresh_ingestion")()
 
     # Two separate transformation groups - one for each path
-    # Direct mode: use staging_table_name from context
-    transform_direct = final_transformation_group(source_staging_table=context_staging_table_name)
+    # Direct mode: will pull staging_table_name from use_staging_table_from_context XCom
+    transform_direct = final_transformation_group(
+        group_id="transform_direct",
+        task_id_where_to_get_staging_table_name="use_staging_table_from_context",
+    )()
 
-    # Refresh mode: use generated temp table after ingestion
+    # Refresh mode: will pull staging_table_name from generate_staging_table_name XCom
     transform_refresh = final_transformation_group(
-        source_staging_table=generated_staging_table_name
-    )
+        group_id="transform_refresh",
+        task_id_where_to_get_staging_table_name="generate_staging_table_name",
+    )()
 
     # Two branches from decision
-    branch >> [context_staging_table_name, generated_staging_table_name]
+    branch >> [use_staging, generate_staging]
 
-    # Direct branch: skip ingestion
-    context_staging_table_name >> transform_direct
+    # Direct branch: use_staging_table_from_context then transform
+    use_staging >> transform_direct
 
-    # Refresh branch: refresh ingestion before transform
-    generated_staging_table_name >> refresh_ingest >> transform_refresh
+    # Refresh branch: generate_staging_table_name then ingest then transform
+    generate_staging >> refresh_ingest >> transform_refresh
 
 
 final_dag_instance = final_dag()

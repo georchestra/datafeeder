@@ -13,7 +13,9 @@ def ingest_data_from_file_into_postgis(
 
     try:
         gdf = gpd.read_file(file_path)
-        gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema)
+        target_schema = schema or "public"
+
+        gdf.to_postgis(table_name, engine, if_exists="replace", schema=target_schema)
     except Exception as e:
         logger.error(f"Error ingesting data from file {file_path}: {e}")
         raise
@@ -26,7 +28,9 @@ def ingest_data_from_url_into_postgis(
 
     try:
         gdf = gpd.read_file(url)
-        gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema)
+        target_schema = schema or "public"
+
+        gdf.to_postgis(table_name, engine, if_exists="replace", schema=target_schema)
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
         raise
@@ -54,7 +58,8 @@ def read_data_from_postgis(
         gdf = gpd.read_postgis(query, engine, geom_col="geometry")
         return gdf
     except Exception as e:
-        logger.error(f"Error reading data from PostGIS table {schema}.{table_name}: {e}")
+        table_ref = f"{schema or 'public'}.{table_name}"
+        logger.error(f"Error reading data from PostGIS table {table_ref}: {e}")
         raise
 
 
@@ -90,7 +95,10 @@ def write_data_to_postgis(
         schema: PostgreSQL schema name (optional)
     """
     try:
-        gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema)
+        target_schema = schema or "public"
+
+        gdf.to_postgis(table_name, engine, if_exists="replace", schema=target_schema)
     except Exception as e:
-        logger.error(f"Error writing data to PostGIS table {schema}.{table_name}: {e}")
+        table_ref = f"{schema or 'public'}.{table_name}"  # type: ignore
+        logger.error(f"Error writing data to PostGIS table {table_ref}: {e}")
         raise
