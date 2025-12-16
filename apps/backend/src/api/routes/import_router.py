@@ -116,6 +116,7 @@ def create_import(
                 dag_run_id=dag_run_id,
                 conf={
                     "source": request.url,
+                    "staging_table_name": staging_table_name,
                     "source_type": "URL",
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,
@@ -265,7 +266,8 @@ def dag_failure_callback(
 
         # Use quoted identifier for safety
         # Note: execute() is correct here for DDL statements (not deprecated for this use case)
-        session.execute(text(f'DROP TABLE IF EXISTS "{staging_table_name}" CASCADE'))  # type: ignore[misc]
+        schema = "data"  # FIXME get from config
+        session.execute(text(f'DROP TABLE IF EXISTS "{schema}"."{staging_table_name}" CASCADE'))  # type: ignore[misc]
         session.commit()
     except Exception as e:
         # Log the error but continue with IntegrityLink deletion
