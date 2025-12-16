@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlencode
 from uuid import UUID, uuid4
 import hashlib
+import logging
 from uuid import uuid4
 
 from airflow_client.client.exceptions import NotFoundException
@@ -157,6 +158,8 @@ def staging_import(
         f"owner={sec_username} | org={sec_org} | table={staging_table_name}"
     )
     logger.info(f"Success callback URL: {success_callback_url}")
+
+    logger.info(f"Triggering staging_dag with source_type: {request.type.value.upper()}")
 
     try:
         dag_run_response = get_dag_run_api().trigger_dag_run(

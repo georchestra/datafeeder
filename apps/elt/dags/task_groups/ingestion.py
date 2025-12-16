@@ -1,5 +1,6 @@
 """Ingestion task group."""
 
+import logging
 from typing import Any, Literal
 
 from airflow.exceptions import AirflowException
@@ -9,6 +10,8 @@ from data_manipulation.ingestion import (
     ingest_data_from_url_into_postgis,
 )
 from utils import get_sqlalchemy_engine, get_staging_schema
+
+logger = logging.getLogger(__name__)
 
 
 def ingestion_group(
@@ -35,6 +38,8 @@ def ingestion_group(
             params = context.get("params", {})
             source_type = params.get("source_type")
 
+            logger.info(f"Ingestion source_type: {source_type}")
+
             match source_type:
                 case "FILE":
                     return f"{group_id}.file_ingest_step"
@@ -54,6 +59,9 @@ def ingestion_group(
             # If not in params, try XCom from generate_staging_table_name (final_dag scheduled case)
             if not target_table_name and ti:
                 target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
+                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
+            else:
+                logger.info(f"Using staging_table_name from params: {target_table_name}")
 
             engine = get_sqlalchemy_engine()
 
@@ -78,6 +86,10 @@ def ingestion_group(
             # If not in params, try XCom from generate_staging_table_name (final_dag scheduled case)
             if not target_table_name and ti:
                 target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
+                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
+            else:
+                logger.info(f"Using staging_table_name from params: {target_table_name}")
+            
             engine = get_sqlalchemy_engine()
             
             try:

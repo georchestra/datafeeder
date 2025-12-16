@@ -1,4 +1,5 @@
 import importlib.metadata
+import logging
 import os
 
 from data_manipulation import hello
@@ -9,6 +10,9 @@ from geonetwork import GnApi
 
 from src.api.main import api_router
 from src.core.config import get_settings
+
+# Configure logging to show INFO level messages
+logging.basicConfig(level=logging.INFO)
 
 
 def _get_debug_flag() -> bool:
