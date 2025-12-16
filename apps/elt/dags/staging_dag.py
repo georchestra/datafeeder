@@ -27,7 +27,9 @@ def _call_callback(callback_url: str, callback_type: str) -> None:
         )
         response.raise_for_status()
     except requests.RequestException as e:
-        logger.error(f"{callback_type.capitalize()} callback failed | url={callback_url} | error={str(e)}")
+        logger.error(
+            f"{callback_type.capitalize()} callback failed | url={callback_url} | error={str(e)}"
+        )
 
 
 def _dag_success_callback(context: dict[str, Any]) -> None:

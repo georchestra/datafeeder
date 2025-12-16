@@ -1,11 +1,13 @@
 import logging
+from datetime import datetime, timezone
 from urllib.parse import urlencode
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from airflow_client.client.exceptions import NotFoundException
 from airflow_client.client.models.dag_run_state import DagRunState
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
+from sqlalchemy import text
 
 from src.api.deps import SessionDep
 from src.core.config import get_settings
@@ -98,8 +100,8 @@ def create_import(
     }
 
     # Build callback URLs
-    success_callback_url = _build_callback_url("/print_dag_success", callback_params)
-    failure_callback_url = _build_callback_url("/print_dag_failure")
+    success_callback_url = _build_callback_url("/import/dag_success", callback_params)
+    failure_callback_url = _build_callback_url("/import/dag_failure", callback_params)
 
     logger.info(
         f"Created IntegrityLink {integrity_link.id} for DAG run {dag_run_id} | "
@@ -159,3 +161,123 @@ def get_import_status(dag_id: str, dag_run_id: str) -> StatusResponse:
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
+
+
+@router.post("/dag_success", tags=["Callbacks"])
+def dag_success_callback(
+    session: SessionDep,
+    integrity_link_id: str = Query(..., description="IntegrityLink ID"),
+    staging_table_name: str = Query(..., max_length=63, description="Staging table name"),
+):
+    """
+    Success callback endpoint called by Airflow DAG on successful completion.
+    Updates the existing IntegrityLink record with job duration.
+
+    Args:
+        session: Database session (injected)
+        integrity_link_id: IntegrityLink UUID (required)
+        staging_table_name: Staging table name (required, max 63 chars, for verification)
+
+    Returns:
+        Success message with updated IntegrityLink details
+    """
+    # Query existing IntegrityLink
+    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    if not integrity_link:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    # Verify staging table name matches
+    if integrity_link.staging_table_name != staging_table_name:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Staging table name mismatch: expected {integrity_link.staging_table_name}, got {staging_table_name}",
+        )
+
+    # Calculate job duration
+    now = datetime.now(timezone.utc)
+
+    # Ensure created_at exists and is timezone-aware
+    if integrity_link.created_at is None:
+        raise HTTPException(
+            status_code=500,
+            detail="IntegrityLink created_at is missing",
+        )
+
+    created_at = (
+        integrity_link.created_at.replace(tzinfo=timezone.utc)
+        if integrity_link.created_at.tzinfo is None
+        else integrity_link.created_at
+    )
+    retrieve_time = now - created_at
+
+    # Update IntegrityLink
+    integrity_link.retrieve_time = retrieve_time
+    integrity_link.last_staging_retrieved_at = now
+    session.commit()
+    session.refresh(integrity_link)
+
+    return {
+        "message": "DAG success callback processed",
+        "integrity_link_id": str(integrity_link.id),
+        "owner": integrity_link.integrity_owner,
+        "organization": integrity_link.integrity_organization,
+        "staging_table_name": integrity_link.staging_table_name,
+        "retrieve_time_seconds": retrieve_time.total_seconds(),
+    }
+
+
+@router.post("/dag_failure", tags=["Callbacks"])
+def dag_failure_callback(
+    session: SessionDep,
+    integrity_link_id: str = Query(..., description="IntegrityLink ID"),
+    staging_table_name: str = Query(..., max_length=63, description="Staging table name"),
+):
+    """
+    Failure callback endpoint called by Airflow DAG on failure.
+    Deletes the IntegrityLink and drops the staging table.
+
+    Args:
+        session: Database session (injected)
+        integrity_link_id: IntegrityLink UUID (required)
+        staging_table_name: Staging table name to drop (required, max 63 chars)
+
+    Returns:
+        Success message with cleanup details
+    """
+    # Query existing IntegrityLink
+    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    if not integrity_link:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    # Verify staging table name matches
+    if integrity_link.staging_table_name != staging_table_name:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Staging table name mismatch: expected {integrity_link.staging_table_name}, got {staging_table_name}",
+        )
+
+    # Drop the staging table if it exists
+    # Use parameterized query with identifier to prevent SQL injection
+    try:
+        # Validate table name format (alphanumeric and underscores only)
+        if not staging_table_name.replace("_", "").isalnum():
+            raise ValueError(f"Invalid table name format: {staging_table_name}")
+
+        # Use quoted identifier for safety
+        # Note: execute() is correct here for DDL statements (not deprecated for this use case)
+        session.execute(text(f'DROP TABLE IF EXISTS "{staging_table_name}" CASCADE'))  # type: ignore[misc]
+        session.commit()
+    except Exception as e:
+        # Log the error but continue with IntegrityLink deletion
+        logger.error(f"Error dropping staging table {staging_table_name}: {e}")
+
+    # Delete the IntegrityLink
+    session.delete(integrity_link)
+    session.commit()
+
+    return {
+        "message": "DAG failure callback processed",
+        "integrity_link_id": str(integrity_link_id),
+        "staging_table_name": staging_table_name,
+        "actions": ["staging_table_dropped", "integrity_link_deleted"],
+    }
