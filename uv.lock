@@ -545,6 +545,7 @@ source = { editable = "libs/data_manipulation" }
 dependencies = [
     { name = "geoalchemy2" },
     { name = "geopandas" },
+    { name = "geoservercloud" },
     { name = "sqlalchemy" },
 ]
 
@@ -560,6 +561,7 @@ dev = [
 requires-dist = [
     { name = "geoalchemy2", specifier = "==0.18.1" },
     { name = "geopandas", specifier = "==1.1.1" },
+    { name = "geoservercloud" },
     { name = "sqlalchemy", specifier = "==2.0.44" },
 ]
 
