@@ -49,7 +49,9 @@ def final_transformation_group(
             staging_table_name = None
             if task_id_where_to_get_staging_table_name:
                 staging_table_name = ti.xcom_pull(task_ids=task_id_where_to_get_staging_table_name)
-                logger.info(f"Using staging_table_name from task '{task_id_where_to_get_staging_table_name}': {staging_table_name}")
+                logger.info(
+                    f"Using staging_table_name from task '{task_id_where_to_get_staging_table_name}': {staging_table_name}"
+                )
             else:
                 staging_table_name = params.get("staging_table_name")
                 logger.info(f"Using staging_table_name from params: {staging_table_name}")
@@ -80,7 +82,10 @@ def final_transformation_group(
 
                 logger.info(f"Writing data to {final_schema}.{final_table_name}")
                 write_data_to_postgis(
-                    gdf=transformed_gdf, table_name=final_table_name, engine=engine, schema=final_schema
+                    gdf=transformed_gdf,
+                    table_name=final_table_name,
+                    engine=engine,
+                    schema=final_schema,
                 )
                 logger.info(f"Successfully wrote {len(transformed_gdf)} rows to final table")
 

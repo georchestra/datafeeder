@@ -14,9 +14,7 @@ from utils import get_sqlalchemy_engine, get_staging_schema
 logger = logging.getLogger(__name__)
 
 
-def ingestion_group(
-    group_id: Literal["initial_ingestion", "refresh_ingestion"]
-) -> None:
+def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"]) -> None:
     """Factory function that creates an ingestion task group.
 
     Args:
@@ -52,10 +50,10 @@ def ingestion_group(
         def file_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
             ti = context.get("ti")
-                        
+
             # Try to get staging_table_name from params first (staging_dag case)
             target_table_name = params.get("staging_table_name")
-            
+
             # If not in params, try XCom from generate_staging_table_name (final_dag scheduled case)
             if not target_table_name and ti:
                 target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
@@ -79,17 +77,17 @@ def ingestion_group(
         def url_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
             ti = context.get("ti")
-                        
+
             # Try to get staging_table_name from params first (staging_dag case)
             target_table_name = params.get("staging_table_name")
-            
+
             # If not in params, try XCom from generate_staging_table_name (final_dag scheduled case)
             if not target_table_name and ti:
                 target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
                 logger.info(f"Using staging_table_name from XCom: {target_table_name}")
             else:
                 logger.info(f"Using staging_table_name from params: {target_table_name}")
-            
+
             engine = get_sqlalchemy_engine()
             
             try:
