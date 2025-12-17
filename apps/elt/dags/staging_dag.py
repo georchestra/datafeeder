@@ -5,9 +5,11 @@ from typing import Any
 import requests
 from airflow.decorators import dag
 from airflow.models import Param
+from data_manipulation.logging import configure_logging
 from task_groups.ingestion import ingestion_group
 
 logger = logging.getLogger(__name__)
+configure_logging(logger)
 
 
 def _call_callback(callback_url: str, callback_type: str) -> None:

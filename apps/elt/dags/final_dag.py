@@ -10,10 +10,12 @@ from airflow.decorators import dag
 from airflow.exceptions import AirflowException
 from airflow.models import Param
 from airflow.sdk import task
+from data_manipulation.logging import configure_logging
 from task_groups.ingestion import ingestion_group
 from task_groups.transformation import final_transformation_group
 
 logger = logging.getLogger(__name__)
+configure_logging(logger)
 
 
 def _dag_success_callback(context: dict[str, Any]) -> None:

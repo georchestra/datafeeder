@@ -10,9 +10,11 @@ from data_manipulation import (
     read_data_from_postgis,
     write_data_to_postgis,
 )
+from data_manipulation.logging import configure_logging
 from utils import get_final_schema, get_sqlalchemy_engine, get_staging_schema
 
 logger = logging.getLogger(__name__)
+configure_logging(logger)
 
 
 def final_transformation_group(

@@ -9,9 +9,11 @@ from data_manipulation.ingestion import (
     ingest_data_from_file_into_postgis,
     ingest_data_from_url_into_postgis,
 )
+from data_manipulation.logging import configure_logging
 from utils import get_sqlalchemy_engine, get_staging_schema
 
 logger = logging.getLogger(__name__)
+configure_logging(logger)
 
 
 def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"]) -> None:
