@@ -95,9 +95,9 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
 
             if not target_table_name:
                 raise AirflowException("staging_table_name is not provided")
-            
+
             engine = get_sqlalchemy_engine()
-            
+
             try:
                 ingest_data_from_url_into_postgis(
                     params.get("source", ""),

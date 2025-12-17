@@ -1,7 +1,9 @@
 import logging
+
 import requests
 
 logger = logging.getLogger(__name__)
+
 
 def call_callback(callback_url: str, callback_type: str) -> None:
     """Call a callback URL and log the request and response.

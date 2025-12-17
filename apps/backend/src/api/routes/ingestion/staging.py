@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
-from uuid import uuid4
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import text
 
 from src.api.deps import SessionDep
+from src.core.callback import build_callback_url
 from src.core.logging import get_logger
 from src.models import (
     StagingRequest,
@@ -14,8 +14,6 @@ from src.models import (
 )
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
-from src.core.callback import build_callback_url
-
 
 # Use uvicorn's logger to get colored output
 logger = get_logger()
@@ -91,7 +89,9 @@ def submit_staging(
     )
     logger.info(f"Success callback URL: {success_callback_url}")
     logger.info(f"Failure callback URL: {failure_callback_url}")
-    logger.info(f"Triggering staging_dag with source_type: {request.type.value.upper()} and source: {request.url}")
+    logger.info(
+        f"Triggering staging_dag with source_type: {request.type.value.upper()} and source: {request.url}"
+    )
 
     try:
         dag_run_response = get_dag_run_api().trigger_dag_run(
@@ -189,7 +189,7 @@ def dag_failure_callback(
         staging_table_name = integrity_link.staging_table_name
         if not staging_table_name:
             raise Exception("Staging table name is missing in IntegrityLink")
-        
+
         # Use quoted identifier for safety
         # Note: execute() is correct here for DDL statements (not deprecated for this use case)
         schema = "staging"  # FIXME get it from config

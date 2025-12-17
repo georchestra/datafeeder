@@ -21,10 +21,7 @@ def get_dag_runs(dag_id: str, limit: int = 20) -> DAGRunCollectionResponse:
         raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
 
 
-@router.get(
-    "/dags/{dag_id}/runs/{dag_run_id}/status",
-    response_model=DagRunState
-)
+@router.get("/dags/{dag_id}/runs/{dag_run_id}/status", response_model=DagRunState)
 def get_dag_run_status(dag_id: str, dag_run_id: str) -> DagRunState:
     try:
         dag_run = get_dag_run_api().get_dag_run(dag_id, dag_run_id)

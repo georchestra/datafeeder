@@ -5,15 +5,14 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-import requests
 from airflow.decorators import dag
 from airflow.exceptions import AirflowException
 from airflow.models import Param
 from airflow.sdk import task
+from callback import call_callback
 from data_manipulation.logging import configure_logging
 from task_groups.ingestion import ingestion_group
 from task_groups.transformation import final_transformation_group
-from callback import call_callback
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)

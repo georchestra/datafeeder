@@ -1,7 +1,7 @@
 from enum import Enum
 
-from pydantic import AnyUrl, BaseModel
 from airflow_client.client.models.dag_run_state import DagRunState
+from pydantic import AnyUrl, BaseModel
 
 
 class ImportType(str, Enum):
@@ -43,6 +43,7 @@ class StagingResponse(BaseModel):
     dag_id: str
     dag_run_id: str
     status: DagRunState
+
 
 class ProcessResponse(BaseModel):
     """Response model for final import endpoint"""

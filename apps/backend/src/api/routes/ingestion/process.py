@@ -1,12 +1,13 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
-from uuid import uuid4
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
-from fastapi import APIRouter, HTTPException, Header, Query
+from data_manipulation.utils import sanitize_name
+from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import text
 
 from src.api.deps import SessionDep
+from src.core.callback import build_callback_url
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models import (
@@ -15,8 +16,6 @@ from src.models import (
 )
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
-from src.core.callback import build_callback_url
-from data_manipulation.utils import sanitize_name
 
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion", "Process"])
 logger = get_logger()
@@ -49,7 +48,7 @@ def process_staging_data(
     integrity_link = session.get(IntegrityLink, UUID(request.integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
-    
+
     # Check ownership
     if integrity_link.integrity_owner != sec_username:
         raise HTTPException(status_code=403, detail="User does not own the IntegrityLink")
@@ -58,10 +57,10 @@ def process_staging_data(
     staging_table_name = integrity_link.staging_table_name
     if not staging_table_name:
         raise HTTPException(status_code=400, detail="Staging table name not found in IntegrityLink")
-    
+
     dag_run_id = str(uuid4())
-    final_table_name = sanitize_name(request.title) + "_" + dag_run_id.replace('-', '_')[:32]
-    
+    final_table_name = sanitize_name(request.title) + "_" + dag_run_id.replace("-", "_")[:32]
+
     # integrity_transformation = request.config # FIXME: currently not used
 
     # TODO: update integrity link with integrity_transformation
@@ -81,10 +80,14 @@ def process_staging_data(
         "integrity_link_id": str(integrity_link.id),
         "final_table_name": final_table_name,
     }
-    
+
     # Build callback URLs
-    success_callback_url = build_callback_url("/ingestion/process/dag_success", success_callback_params)
-    failure_callback_url = build_callback_url("/ingestion/process/dag_failure", failure_callback_params)
+    success_callback_url = build_callback_url(
+        "/ingestion/process/dag_success", success_callback_params
+    )
+    failure_callback_url = build_callback_url(
+        "/ingestion/process/dag_failure", failure_callback_params
+    )
 
     try:
         dag_run_response = get_dag_run_api().trigger_dag_run(
@@ -136,7 +139,7 @@ def dag_success_callback(
     # Update IntegrityLink with final table information
     integrity_link.final_table_name = final_table_name
     integrity_link.last_retrieval_timestamp = datetime.now(timezone.utc)
-    
+
     session.commit()
     session.refresh(integrity_link)
 

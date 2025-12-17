@@ -4,9 +4,9 @@ from typing import Any
 
 from airflow.decorators import dag
 from airflow.models import Param
+from callback import call_callback
 from data_manipulation.logging import configure_logging
 from task_groups.ingestion import ingestion_group
-from callback import call_callback
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -72,7 +72,7 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
 )
 def staging_dag(**context: dict[str, Any]) -> None:
     """Staging DAG for initial data ingestion."""
-    
+
     ingestion_group(group_id="initial_ingestion")()
 
 
