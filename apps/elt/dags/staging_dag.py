@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Any
 
@@ -6,19 +7,45 @@ from airflow.decorators import dag
 from airflow.models import Param
 from task_groups.ingestion import ingestion_group
 
+logger = logging.getLogger(__name__)
+
+
+def _call_callback(callback_url: str, callback_type: str) -> None:
+    """Call a callback URL and log the request and response.
+
+    Args:
+        callback_url: The URL to call
+        callback_type: Type of callback (e.g., "success", "failure") for logging
+    """
+    logger.info(f"Calling {callback_type} callback URL: {callback_url}")
+    try:
+        response = requests.post(callback_url, timeout=10)
+        logger.info(
+            f"{callback_type.capitalize()} callback responded | "
+            f"status_code={response.status_code} | "
+            f"response={response.text[:200]}"
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.error(
+            f"{callback_type.capitalize()} callback failed | url={callback_url} | error={str(e)}"
+        )
+
 
 def _dag_success_callback(context: dict[str, Any]) -> None:
     params = context.get("params", {})
+    callback_url = params.get("success_callback_url")
 
-    if params.get("success_backend_route_callback"):
-        requests.post(params.get("success_backend_route_callback"))
+    if callback_url:
+        _call_callback(callback_url, "success")
 
 
 def _dag_failure_callback(context: dict[str, Any]) -> None:
     params = context.get("params", {})
+    callback_url = params.get("failure_callback_url")
 
-    if params.get("failure_backend_route_callback"):
-        requests.post(params.get("failure_backend_route_callback"))
+    if callback_url:
+        _call_callback(callback_url, "failure")
 
 
 @dag(
@@ -31,6 +58,12 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             default="/tmp/files/myfile.gpkg",
             type="string",
             description="Source path or URL",
+            minLength=1,
+        ),
+        "staging_table_name": Param(
+            default="staging_truite",
+            type="string",
+            description="Name of the staging table",
             minLength=1,
         ),
         "source_type": Param(

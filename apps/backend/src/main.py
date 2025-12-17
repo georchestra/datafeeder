@@ -51,18 +51,6 @@ def read_version():
     return {"version": BACKEND_VERSION}
 
 
-@app.get("/print_dag_success", tags=["Health"])
-def read_print_dag_success():
-    print("DAG success callback works!")
-    return {"message": "DAG success callback works!"}
-
-
-@app.get("/print_dag_failure", tags=["Health"])
-def read_print_dag_failure():
-    print("DAG failure callback works!")
-    return {"message": "DAG failure callback works!"}
-
-
 @app.get("/geonetwork", tags=["Health"])
 def read_geonetwork():
     gnapi: GnApi = GnApi(

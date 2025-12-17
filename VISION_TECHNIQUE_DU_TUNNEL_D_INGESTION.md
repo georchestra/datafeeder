@@ -27,8 +27,9 @@ Puis il demande le chargement de la source.
 
 Le **Backend** reçoit la requête d'ingestion et exécute les étapes suivantes :
   - Génère un `dag_id` et un `dag_run_id` (uuid)
+  - Création d'un `integrity_link` (avec pour `id` le `dag_id`).
   - Génère une callback URL pour la fin du DAG (si succès)
-    - Pour créer ou mettre à jour l'`integrity_link` (avec pour `id` le `dag_id`)
+    - Pour mettre à jour l'`integrity_link` (avec pour `id` le `dag_id`)
   - Déclenche le DAG `staging_dag` via l'API Airflow (avec les uuid, paramètres fournis et la callback URL)
   - Retourne le `dag_id` et `dag_run_id` au **Frontend**
 
@@ -46,7 +47,6 @@ Le DAG `staging_dag` est trigger :
 
 ### 5. Callback de fin de DAG de staging côté Backend
 
-Création d'un `integrity_link` (avec pour `id` le `dag_id`).
 Le **Frontend** est notifié que le DAG de staging a réussi via le polling.
 
 ### 6. Prévisualisation des données et transformations en local

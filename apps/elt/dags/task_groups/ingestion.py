@@ -39,7 +39,10 @@ def ingestion_group() -> None:
 
         try:
             ingest_data_from_file_into_postgis(
-                params.get("source", ""), "my_table", engine, schema=get_final_schema()
+                params.get("source", ""),
+                params.get("staging_table_name", ""),
+                engine,
+                schema=get_final_schema(),
             )
         except Exception as e:
             raise AirflowException(f"Failed to ingest data from file: {e}")
@@ -52,7 +55,7 @@ def ingestion_group() -> None:
         try:
             ingest_data_from_url_into_postgis(
                 params.get("source", ""),
-                "my_table",
+                params.get("staging_table_name", ""),
                 engine,
                 schema=get_final_schema(),
             )
