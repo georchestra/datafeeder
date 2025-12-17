@@ -1,6 +1,7 @@
 import logging
 
 import geopandas as gpd
+from sqlalchemy import MetaData, Table, select
 from sqlalchemy.engine import Engine
 
 logger = logging.getLogger(__name__)
@@ -49,12 +50,12 @@ def read_data_from_postgis(
     Returns:
         GeoDataFrame containing the table data
     """
-    if schema:
-        query = f"SELECT * FROM {schema}.{table_name}"
-    else:
-        query = f"SELECT * FROM {table_name}"
-
     try:
+        # Use SQLAlchemy Core to safely construct the query
+        metadata = MetaData(schema=schema)
+        table = Table(table_name, metadata, autoload_with=engine)
+        query = select(table)
+
         gdf = gpd.read_postgis(query, engine, geom_col="geometry")
         return gdf
     except Exception as e:
