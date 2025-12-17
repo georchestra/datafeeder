@@ -3,6 +3,7 @@
   <app-events-list
     [events]="events()"
     [reference]="reference || ''"
+    [downloadingEventId]="downloadingEventId()"
     (downloadLogsClicked)="onDownloadLogsClicked($event)"
   />
 </div>

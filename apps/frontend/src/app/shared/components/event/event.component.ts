@@ -31,6 +31,7 @@ export interface Event {
 export class EventComponent {
   @Input({ required: true }) event!: Event
   @Input({ required: true }) reference!: string
+  @Input({ required: false }) downloading: boolean = false
 
   formatDuration(duration: number | null): string | undefined {
     if (!duration) return undefined
@@ -44,6 +45,7 @@ export class EventComponent {
   }>()
 
   downloadLogs() {
+    if (this.downloading) return
     this.downloadLogsClicked.emit({
       dag_id: this.reference,
       dag_run_id: this.event.id

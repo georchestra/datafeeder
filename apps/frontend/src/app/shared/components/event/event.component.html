@@ -41,11 +41,18 @@
     <div class="flex gap-4 items-center mb-4">
       @if (event.status === 'error') {
       <button
-        class="hover:cursor-pointer hover:bg-gray-200 px-5 py-1 border border-gray-400 text-gray-600 flex items-center gap-2"
+        class="hover:cursor-pointer hover:bg-gray-200 px-5 py-1 border border-gray-400 text-gray-600 flex items-center gap-2 disabled:opacity-60"
         (click)="downloadLogs()"
+        [disabled]="downloading"
       >
-        Télécharger les logs
-        <mat-icon class="!text-base">download</mat-icon>
+        <ng-container *ngIf="!downloading; else downloadingTpl">
+          Télécharger les logs
+          <mat-icon class="!text-base">download</mat-icon>
+        </ng-container>
+        <ng-template #downloadingTpl>
+          Télécharger les logs
+          <mat-icon class="!text-base animate-spin">autorenew</mat-icon>
+        </ng-template>
       </button>
       }
       <app-status-badge [status]="event.status" />

@@ -9,6 +9,7 @@
     <app-event
       [event]="event"
       [reference]="reference"
+      [downloading]="downloadingEventId === event.id"
       (downloadLogsClicked)="downloadLogsClicked.emit($event)"
     />
     }

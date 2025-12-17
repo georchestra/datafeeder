@@ -29,6 +29,7 @@ export class EventsComponent implements OnInit {
 
   reference: string | null = null
   events = signal<Event[]>([])
+  downloadingEventId = signal<string | null>(null)
 
   ngOnInit(): void {
     this.reference = this.route.snapshot.paramMap.get('reference')
@@ -92,12 +93,14 @@ export class EventsComponent implements OnInit {
     dag_id: string
     dag_run_id: string
   }) {
+    this.downloadingEventId.set(dag_run_id)
     try {
       const logs = await this.api.invoke(
         getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet,
         { dag_id, dag_run_id }
       )
       downloadTextBlob(logs, `logs_${dag_id}_${dag_run_id}.txt`)
+      this.downloadingEventId.set(null)
     } catch (error) {
       console.error('Failed to fetch event logs:', error)
     }
