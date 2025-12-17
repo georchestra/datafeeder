@@ -182,11 +182,12 @@ def dag_failure_callback(
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
+    # Get staging table name
+    staging_table_name = integrity_link.staging_table_name
+
     # Drop the staging table if it exists
     # Use parameterized query with identifier to prevent SQL injection
     try:
-        # Get staging table name
-        staging_table_name = integrity_link.staging_table_name
         if not staging_table_name:
             raise Exception("Staging table name is missing in IntegrityLink")
 
