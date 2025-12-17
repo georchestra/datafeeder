@@ -30,28 +30,24 @@ class TransformationConfig(BaseModel):
 class ProcessRequest(BaseModel):
     """Request model for final import endpoint"""
 
+    integrity_link_id: str
     title: str
     # config: TransformationConfig
     # cron_schedule: str | None
-
-    # TODO: Replace by integrity_link_id
-    staging_table_name: str
 
 
 class StagingResponse(BaseModel):
     """Response model for import endpoint"""
 
+    integrity_link_id: str
     dag_id: str
     dag_run_id: str
     status: DagRunState
 
-    # TODO: Replace by integrity_link_id
-    staging_table_name: str
-
-
 class ProcessResponse(BaseModel):
     """Response model for final import endpoint"""
 
+    integrity_link_id: str
     dag_id: str
     dag_run_id: str
     status: DagRunState

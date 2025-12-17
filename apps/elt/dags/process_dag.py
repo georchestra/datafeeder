@@ -43,11 +43,13 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
     start_date=datetime(2025, 1, 1),
     catchup=False,
     params={  # type: ignore[arg-type]
+        # Either staging_table_name, for first ingestion mode
         "staging_table_name": Param(
             default=None,
             type=["null", "string"],
             description="Name of existing staging table (optional, if source and source_type provided)",
         ),
+        # Or source + source_type for re-ingestion mode
         "source": Param(
             default=None,
             type=["null", "string"],

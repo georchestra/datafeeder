@@ -42,12 +42,6 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             description="Source path or URL",
             minLength=1,
         ),
-        "staging_table_name": Param(
-            default="staging_truite",
-            type="string",
-            description="Name of the staging table",
-            minLength=1,
-        ),
         "source_type": Param(
             default="FILE",
             type="string",
@@ -63,13 +57,13 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
         "success_callback_url": Param(
             default="",
             type=["null", "string"],
-            description="Backend route to call on success",
+            description="URL to call on success",
             minLength=1,
         ),
         "failure_callback_url": Param(
             default="",
             type=["null", "string"],
-            description="Backend route to call on failure",
+            description="URL to call on failure",
             minLength=1,
         ),
     },

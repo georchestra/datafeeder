@@ -63,6 +63,9 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             else:
                 logger.info(f"Using staging_table_name from params: {target_table_name}")
 
+            if not target_table_name:
+                raise AirflowException("staging_table_name is not provided")
+
             engine = get_sqlalchemy_engine()
 
             try:
@@ -90,6 +93,9 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             else:
                 logger.info(f"Using staging_table_name from params: {target_table_name}")
 
+            if not target_table_name:
+                raise AirflowException("staging_table_name is not provided")
+            
             engine = get_sqlalchemy_engine()
             
             try:
