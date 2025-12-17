@@ -14,7 +14,7 @@ import {
 } from 'rxjs'
 import { Api } from '../../../core/api/api'
 import {
-  submitStagingIngestionStagingPostIngestion,
+  submitStagingIngestionStagingPost,
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet
 } from '../../../core/api/functions'
 import type { StagingResponse, DagRunState } from '../../../core/api/models'
@@ -150,7 +150,7 @@ export class DataImportWizardComponent {
       throw new Error('URL manquante')
     }
 
-    return await this.api.invoke(submitStagingIngestionStagingPostIngestion, {
+    return await this.api.invoke(submitStagingIngestionStagingPost, {
       body: {
         type: 'url',
         url: url
