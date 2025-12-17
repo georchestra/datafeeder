@@ -13,7 +13,7 @@ from fastapi import HTTPException
 from .airflow_client import get_task_instance_api
 
 
-def generate_dag_run_logs(dag_id: str, dag_run_id: str) -> str:
+def generate_failed_dag_run_logs(dag_id: str, dag_run_id: str) -> str:
     try:
         failed_task_instances: TaskInstanceCollectionResponse = (
             get_task_instance_api().get_task_instances(

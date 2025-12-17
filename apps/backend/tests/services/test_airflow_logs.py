@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from src.services.airflow_logs import generate_dag_run_logs
+from src.services.airflow_logs import generate_failed_dag_run_logs
 
 
 class DummyTaskInstance:
@@ -34,7 +34,7 @@ class DummyTaskInstances:
 
 
 @patch("src.services.airflow_logs.get_task_instance_api")
-def test_generate_dag_run_logs_success(mock_get_task_instance_api: MagicMock):
+def test_generate_failed_dag_run_logs_success(mock_get_task_instance_api: MagicMock):
     # Setup dummy data
     task_instance = DummyTaskInstance("task1", 1)
     log_entry1 = DummyLogEntry("event1", timestamp=None)
@@ -48,16 +48,16 @@ def test_generate_dag_run_logs_success(mock_get_task_instance_api: MagicMock):
     mock_api.get_log.return_value = dummy_logs
     mock_get_task_instance_api.return_value = mock_api
 
-    result = generate_dag_run_logs("dag1", "run1")
+    result = generate_failed_dag_run_logs("dag1", "run1")
     assert "--- Logs for task: task1 (try: 1) ---" in result
     assert "event1" in result
     assert "event2" in result
 
 
 @patch("src.services.airflow_logs.get_task_instance_api")
-def test_generate_dag_run_logs_not_found(mock_get_task_instance_api: MagicMock):
+def test_generate_failed_dag_run_logs_not_found(mock_get_task_instance_api: MagicMock):
     mock_api = MagicMock()
     mock_api.get_task_instances.side_effect = Exception("Not found")
     mock_get_task_instance_api.return_value = mock_api
     with pytest.raises(HTTPException):
-        generate_dag_run_logs("dag1", "run1")
+        generate_failed_dag_run_logs("dag1", "run1")

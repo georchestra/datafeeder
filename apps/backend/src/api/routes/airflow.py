@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from ...services.airflow_client import get_dag_run_api
-from ...services.airflow_logs import generate_dag_run_logs
+from ...services.airflow_logs import generate_failed_dag_run_logs
 
 router = APIRouter(prefix="/airflow", tags=["Airflow"])
 
@@ -34,4 +34,4 @@ def get_dag_run_status(dag_id: str, dag_run_id: str) -> DagRunState:
 
 @router.get("/dags/{dag_id}/runs/{dag_run_id}/logs", response_class=PlainTextResponse)
 def get_dag_run_logs(dag_id: str, dag_run_id: str) -> str:
-    return generate_dag_run_logs(dag_id, dag_run_id)
+    return generate_failed_dag_run_logs(dag_id, dag_run_id)
