@@ -78,7 +78,7 @@ def _refresh_caches_if_token_expired() -> None:
         _get_cached_dag_run_api.cache_clear()
         _get_cached_dag_api.cache_clear()
         _get_cached_event_log_api.cache_clear()
-
+        _get_cached_task_instance_api.cache_clear()
 
 def get_airflow_api_client() -> ApiClient:
     _refresh_caches_if_token_expired()
