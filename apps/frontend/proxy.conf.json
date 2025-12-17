@@ -1,6 +1,6 @@
 {
   "/datakern-backend": {
-    "target": "http://localhost:8000",
+    "target": "http://localhost:8000/datakern-backend/",
     "pathRewrite": {
       "^/datakern-backend": ""
     },
