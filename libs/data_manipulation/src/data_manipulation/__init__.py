@@ -5,6 +5,7 @@ from data_manipulation.ingestion import (
     read_data_from_postgis,
     write_data_to_postgis,
 )
+from data_manipulation.logging import configure_logging
 
 __all__ = [
     "hello",
@@ -13,6 +14,7 @@ __all__ = [
     "read_data_from_postgis",
     "apply_transformations",
     "write_data_to_postgis",
+    "configure_logging",
 ]
 
 
