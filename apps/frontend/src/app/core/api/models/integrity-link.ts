@@ -8,6 +8,7 @@ export interface IntegrityLink {
   id?: string | null
   integrity_organization: string
   integrity_owner: string
+  integrity_title?: string | null
   integrity_transformation?: {
     [key: string]: any
   } | null
