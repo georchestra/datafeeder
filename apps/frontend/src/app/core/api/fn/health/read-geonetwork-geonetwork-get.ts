@@ -7,15 +7,19 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface ReadRootGet$Params {}
+export interface ReadGeonetworkGeonetworkGet$Params {}
 
-export function readRootGet(
+export function readGeonetworkGeonetworkGet(
   http: HttpClient,
   rootUrl: string,
-  params?: ReadRootGet$Params,
+  params?: ReadGeonetworkGeonetworkGet$Params,
   context?: HttpContext
 ): Observable<StrictHttpResponse<any>> {
-  const rb = new requestBuilders(rootUrl, readRootGet.PATH, 'get')
+  const rb = new requestBuilders(
+    rootUrl,
+    readGeonetworkGeonetworkGet.PATH,
+    'get'
+  )
   if (params) {
   }
 
@@ -31,4 +35,4 @@ export function readRootGet(
     )
 }
 
-readRootGet.PATH = '/'
+readGeonetworkGeonetworkGet.PATH = '/geonetwork'

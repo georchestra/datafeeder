@@ -1,0 +1,9 @@
+<span
+  class="px-3 py-1 rounded-sm text-xs font-semibold tracking-wide inline-block cursor-default"
+  [ngClass]="{
+    'run-manual': type === 'Run manual',
+    'run-planned': type === 'Programmé'
+  }"
+>
+  {{ type }}
+</span>

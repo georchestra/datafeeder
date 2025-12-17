@@ -1,0 +1,9 @@
+<div class="events-container">
+  <h1>Journal d'évènements</h1>
+  <app-events-list
+    [events]="events()"
+    [reference]="reference || ''"
+    [downloadingEventId]="downloadingEventId()"
+    (downloadLogsClicked)="onDownloadLogsClicked($event)"
+  />
+</div>

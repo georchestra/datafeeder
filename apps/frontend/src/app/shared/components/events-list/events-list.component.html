@@ -1,0 +1,18 @@
+<div class="events-list">
+  @if (events.length === 0) {
+  <div class="no-events">
+    <p>No events found</p>
+  </div>
+  } @else {
+  <div class="events-container">
+    @for (event of events; track event.id) {
+    <app-event
+      [event]="event"
+      [reference]="reference"
+      [downloading]="downloadingEventId === event.id"
+      (downloadLogsClicked)="downloadLogsClicked.emit($event)"
+    />
+    }
+  </div>
+  }
+</div>

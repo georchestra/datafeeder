@@ -1,0 +1,12 @@
+<span
+  class="min-w-20 text-center py-1 rounded-sm text-xs text-white font-semibold tracking-wide inline-block capitalize"
+  [ngClass]="{
+    'bg-green-500': status === 'success',
+    'bg-red-500': status === 'error',
+    'bg-orange-500': status === 'warning',
+    'bg-blue-500': status === 'queued',
+    'bg-teal-500 animate-pulse': status === 'running'
+  }"
+>
+  {{ status }}
+</span>
