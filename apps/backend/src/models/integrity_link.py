@@ -15,6 +15,7 @@ class IntegrityLink(SQLModel, table=True):
     )
     data_id: Optional[str] = Field(default=None, max_length=256)
     metadata_id: Optional[str] = Field(default=None, max_length=256)
+    integrity_title: Optional[str] = Field(default=None, max_length=256)
     integrity_owner: str = Field(max_length=256)
     integrity_organization: str
     integrity_transformation: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))

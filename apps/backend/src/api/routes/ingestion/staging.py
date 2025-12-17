@@ -80,8 +80,8 @@ def submit_staging(
     }
 
     # Build callback URLs
-    success_callback_url = build_callback_url("/import/dag_success", callback_params)
-    failure_callback_url = build_callback_url("/import/dag_failure", callback_params)
+    success_callback_url = build_callback_url("/ingestion/staging/dag_success", callback_params)
+    failure_callback_url = build_callback_url("/ingestion/staging/dag_failure", callback_params)
 
     logger.info(
         f"Created IntegrityLink {integrity_link.id} for DAG run {dag_run_id} | "
