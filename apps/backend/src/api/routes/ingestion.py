@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from urllib.parse import urlencode
 from uuid import UUID, uuid4
 import hashlib
-import logging
 from uuid import uuid4
 
 from airflow_client.client.exceptions import NotFoundException
@@ -14,6 +13,7 @@ from sqlalchemy import text
 
 from src.api.deps import SessionDep
 from src.core.config import get_settings
+from src.core.logging import get_logger
 from src.models import (
     FinalImportRequest,
     FinalImportResponse,
@@ -26,7 +26,7 @@ from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 
 # Use uvicorn's logger to get colored output
-logger = logging.getLogger("uvicorn.error")
+logger = get_logger()
 router = APIRouter(prefix="/ingestion", tags=["Import"])
 settings = get_settings()
 

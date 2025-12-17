@@ -1,11 +1,11 @@
 """Callback routes for Airflow DAG completion events."""
 
-import logging
-
 from fastapi import APIRouter, Query
 
-logger = logging.getLogger(__name__)
+from src.core.logging import get_logger
+
 router = APIRouter(prefix="/callbacks", tags=["callbacks"])
+logger = get_logger()
 
 
 @router.post("/staging/success")

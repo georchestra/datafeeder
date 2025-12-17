@@ -20,21 +20,21 @@ def configure_logging(parent_logger: logging.Logger) -> None:
         >>> from data_manipulation.logging import configure_logging
         >>> uvicorn_logger = logging.getLogger("uvicorn.error")
         >>> configure_logging(uvicorn_logger)
-        
+
         >>> # In an Airflow DAG
         >>> task_logger = logging.getLogger("airflow.task")
         >>> configure_logging(task_logger)
     """
     # Get the data_manipulation logger
     data_manipulation_logger = logging.getLogger(__name__)
-    
+
     # Set the same level as the parent logger
     data_manipulation_logger.setLevel(parent_logger.level)
-    
+
     # Add parent's handlers to data_manipulation logger
     for handler in parent_logger.handlers:
         if handler not in data_manipulation_logger.handlers:
             data_manipulation_logger.addHandler(handler)
-    
+
     # Prevent propagation to avoid duplicate logs
     data_manipulation_logger.propagate = False
