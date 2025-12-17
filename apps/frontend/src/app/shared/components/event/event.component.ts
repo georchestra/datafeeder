@@ -6,6 +6,7 @@ import {
   EventTypeBadgeComponent,
   EventTypeType
 } from '../event-type-badge/event-type-badge.component'
+import { StatusType } from '../../types/status-type'
 
 export interface Event {
   id: string
@@ -13,7 +14,7 @@ export interface Event {
   end_date: string | null
   duration: number | null
   type: EventTypeType
-  status: 'success' | 'error' | 'warning' | 'info' | 'running'
+  status: StatusType
 }
 
 @Component({
@@ -31,19 +32,10 @@ export class EventComponent {
   @Input({ required: true }) event!: Event
   @Input({ required: true }) reference!: string
 
-  formatDuration(duration: number | null): string {
-    if (!duration) return '00:00:00.000'
-    const hours = Math.floor(duration / 3600)
-    const minutes = Math.floor((duration % 3600) / 60)
-    const seconds = Math.floor(duration % 60)
-    const milliseconds = Math.floor((duration % 1) * 1000)
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(
-      2,
-      '0'
-    )}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(
-      3,
-      '0'
-    )}`
+  formatDuration(duration: number | null): string | undefined {
+    if (!duration) return undefined
+    const date = new Date(duration * 1000) // Convert seconds to milliseconds
+    return date.toISOString().slice(11, 23) // Extract HH:mm:ss.SSS
   }
 
   @Output() downloadLogsClicked = new EventEmitter<{

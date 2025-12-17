@@ -13,6 +13,7 @@ import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collecti
 import { downloadTextBlob } from '../../shared/utils/download.util'
 import { EventTypeType } from '../../shared/components/event-type-badge/event-type-badge.component'
 import { DagRunResponse } from '../../core/api/models/dag-run-response'
+import { DagRunState } from '../../core/api/models'
 
 const DAG_RUNGS_PAGE_SIZE = 20
 
@@ -47,7 +48,13 @@ export class EventsComponent implements OnInit {
       )
 
       this.events.set(
-        response.dag_runs.map((dagRun) => this.transformDagRunToEvent(dagRun))
+        response.dag_runs
+          .map((dagRun) => this.transformDagRunToEvent(dagRun))
+          .sort((a, b) => {
+            if (!a.start_date && b.start_date) return -1
+            if (a.start_date && !b.start_date) return 1
+            return 0
+          })
       )
     } catch (error) {
       console.error('Error loading DAG runs:', error)
@@ -70,20 +77,12 @@ export class EventsComponent implements OnInit {
   }
 
   private mapDagStateToEventStatus(
-    state: string
-  ): 'success' | 'error' | 'warning' | 'info' | 'running' {
-    switch (state) {
-      case 'success':
-        return 'success'
-      case 'failed':
-        return 'error'
-      case 'running':
-        return 'running'
-      case 'queued':
-        return 'info'
-      default:
-        return 'info'
+    state: DagRunState
+  ): 'success' | 'error' | 'warning' | 'running' | 'queued' {
+    if (state === 'failed') {
+      return 'error'
     }
+    return state
   }
 
   async onDownloadLogsClicked({

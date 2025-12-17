@@ -9,7 +9,13 @@
     <div class="flex gap-2 grow justify-between md:justify-normal">
       <div class="event__start-date flex flex-col bg-gray-200 p-2 rounded-t-sm">
         <span class="font-semibold text-gray-600">Début</span>
-        <small>{{ event.start_date | date : 'short' }}</small>
+        <small>
+          @if (event.start_date) {
+          {{ event.start_date | date : 'short' }}
+          } @else {
+          <span class="mx-[20px]">-</span>
+          }</small
+        >
       </div>
       <div class="event__end-date flex flex-col bg-gray-200 p-2 rounded-t-sm">
         <span class="font-semibold text-gray-600">Fin</span>
@@ -23,7 +29,13 @@
       </div>
       <div class="event__duration flex flex-col bg-gray-200 p-2 rounded-t-sm">
         <span class="font-semibold text-gray-600">Durée</span>
-        <small>{{ formatDuration(event.duration) }}</small>
+        <small
+          >@if (event.duration) {
+          {{ formatDuration(event.duration) }}
+          } @else {
+          <span class="mx-[20px]">-</span>
+          }</small
+        >
       </div>
     </div>
     <div class="flex gap-4 items-center mb-4">
