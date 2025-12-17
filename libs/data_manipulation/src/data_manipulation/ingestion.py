@@ -53,10 +53,13 @@ def read_data_from_postgis(
     try:
         # Use SQLAlchemy Core to safely construct the query
         metadata = MetaData(schema=schema)
-        table = Table(table_name, metadata, autoload_with=engine)
+        table = Table(table_name, metadata, must_exist=True)
         query = select(table)
 
-        gdf = gpd.read_postgis(query, engine, geom_col="geometry")
+        # Compile the query to SQL string (with literal binds)
+        compiled_query = str(query.compile(engine, compile_kwargs={"literal_binds": True}))
+
+        gdf = gpd.read_postgis(compiled_query, engine, geom_col="geometry")
         return gdf
     except Exception as e:
         table_ref = f"{schema or 'public'}.{table_name}"
