@@ -53,7 +53,7 @@ def read_data_from_postgis(
     try:
         # Use SQLAlchemy Core to safely construct the query
         metadata = MetaData(schema=schema)
-        table = Table(table_name, metadata, must_exist=True)
+        table = Table(table_name, metadata, autoload_with=engine)
         query = select(table)
 
         # Compile the query to SQL string (with literal binds)
