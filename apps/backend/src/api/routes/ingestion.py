@@ -15,10 +15,10 @@ from src.api.deps import SessionDep
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models import (
-    FinalImportRequest,
-    FinalImportResponse,
-    StagingImportRequest,
-    StagingImportResponse,
+    ProcessRequest,
+    ProcessResponse,
+    StagingRequest,
+    StagingResponse,
     StatusResponse,
 )
 from src.models.data_import import ImportTaskStatus
@@ -107,16 +107,16 @@ def dag_run_state_to_import_status(state: DagRunState) -> ImportTaskStatus:
 
 @router.post(
     "/staging",
-    response_model=StagingImportResponse,
+    response_model=StagingResponse,
     summary="Submit data for staging import",
     description="Submit data for staging import by triggering the Airflow staging DAG.",
 )
 def staging_import(
-    request: StagingImportRequest,
+    request: StagingRequest,
     session: SessionDep,
     sec_username: str = Header(..., alias="sec-username"),
     sec_org: str = Header(..., alias="sec-org"),
-) -> StagingImportResponse:
+) -> StagingResponse:
     """
     Submit data for staging import.
 
@@ -126,7 +126,7 @@ def staging_import(
         sec_org: Organization from geOrchestra security headers
 
     Returns:
-        StagingImportResponse with DAG ID, DAG run ID, and current status
+        StagingResponse with DAG ID, DAG run ID, and current status
     """
 
     dag_run_id = str(uuid4())
@@ -176,7 +176,7 @@ def staging_import(
             ),
         )
 
-        return StagingImportResponse(
+        return StagingResponse(
             dag_id=dag_run_response.dag_id,
             dag_run_id=dag_run_response.dag_run_id,
             status=dag_run_state_to_import_status(dag_run_response.state),
@@ -187,20 +187,20 @@ def staging_import(
 
 
 @router.post(
-    "/final",
-    response_model=FinalImportResponse,
-    summary="Submit data for final import",
-    description="Submit data for final import by triggering the Airflow final DAG.",
+    "/process",
+    response_model=ProcessResponse,
+    summary="Submit staging data for processing",
+    description="Submit staging data for final processing by triggering the Airflow final DAG.",
 )
-def final_import(request: FinalImportRequest) -> FinalImportResponse:
+def final_import(request: ProcessRequest) -> ProcessResponse:
     """
-    Submit data for final import.
+    Submit staging data for processing.
 
     Args:
-        request: Import configuration including staging table name
-
+        request: Final import configuration including staging table name and final table name
+    
     Returns:
-        FinalImportResponse with DAG ID, DAG run ID, and current status
+        ProcessResponse with DAG ID, DAG run ID, and current status
     """
 
     dag_run_id = str(uuid4())
@@ -218,7 +218,7 @@ def final_import(request: FinalImportRequest) -> FinalImportResponse:
 
     try:
         dag_run_response = get_dag_run_api().trigger_dag_run(
-            dag_id="final_dag",
+            dag_id="process_dag",
             trigger_dag_run_post_body=TriggerDAGRunPostBody(
                 dag_run_id=dag_run_id,
                 conf={
@@ -230,7 +230,7 @@ def final_import(request: FinalImportRequest) -> FinalImportResponse:
             ),
         )
 
-        return FinalImportResponse(
+        return ProcessResponse(
             dag_id=dag_run_response.dag_id,
             dag_run_id=dag_run_response.dag_run_id,
             status=dag_run_state_to_import_status(dag_run_response.state),

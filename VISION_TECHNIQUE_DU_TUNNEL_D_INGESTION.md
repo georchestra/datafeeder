@@ -11,7 +11,7 @@ Ce document décrit simplement les flux de communication entre les composants (F
 ### DAGs Airflow
 
 - **`staging_dag`** : DAG d'ingestion d'un dataset dans une table staging
-- **`final_dag`** : DAG de transformation et d'ingestion d'un dataset dans la table finale
+- **`process_dag`** : DAG de transformation et d'ingestion d'un dataset dans la table finale
 
 ## Flux du tunnel d'ingestion
 
@@ -98,7 +98,7 @@ Le **Backend** reçoit cette configuration et exécute les étapes suivantes :
 - Met à jour l'`integrity_link` en avance avec :
   - `integrity_title`
   - `integrity_transformation`
-- Déclenche le `final_dag` via l'API Airflow avec les paramètres suivants :
+- Déclenche le `process_dag` via l'API Airflow avec les paramètres suivants :
   - `staging_table_name` (récupéré depuis l'integrity_link)
   - `final_table_name` (le titre brut sanitisé et unique)
   - `callback_success_url`

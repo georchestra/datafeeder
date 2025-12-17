@@ -20,7 +20,7 @@ configure_logging(logger)
 
 
 def _dag_success_callback(context: dict[str, Any]) -> None:
-    """Callback when final_dag succeeds."""
+    """Callback when process_dag succeeds."""
     params = context.get("params", {})
     callback_url = params.get("success_callback_url")
 
@@ -29,7 +29,7 @@ def _dag_success_callback(context: dict[str, Any]) -> None:
 
 
 def _dag_failure_callback(context: dict[str, Any]) -> None:
-    """Callback when final_dag fails."""
+    """Callback when process_dag fails."""
     params = context.get("params", {})
     callback_url = params.get("failure_callback_url")
 
@@ -38,7 +38,7 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
 
 
 @dag(
-    dag_id="final_dag",
+    dag_id="process_dag",
     schedule=None,
     start_date=datetime(2025, 1, 1),
     catchup=False,
@@ -86,7 +86,7 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
     on_success_callback=_dag_success_callback,
     on_failure_callback=_dag_failure_callback,
 )
-def final_dag(**context: dict[str, Any]) -> None:
+def process_dag(**context: dict[str, Any]) -> None:
     """DAG for final transformation and ingestion into final tables.
 
     Two modes:
@@ -168,4 +168,4 @@ def final_dag(**context: dict[str, Any]) -> None:
     generate_staging >> refresh_ingest >> transform_refresh
 
 
-final_dag_instance = final_dag()
+process_dag_instance = process_dag()

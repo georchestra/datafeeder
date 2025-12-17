@@ -56,7 +56,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             # Try to get staging_table_name from params first (staging_dag case)
             target_table_name = params.get("staging_table_name")
 
-            # If not in params, try XCom from generate_staging_table_name (final_dag scheduled case)
+            # If not in params, try XCom from generate_staging_table_name (process_dag scheduled case)
             if not target_table_name and ti:
                 target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
                 logger.info(f"Using staging_table_name from XCom: {target_table_name}")
@@ -83,7 +83,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             # Try to get staging_table_name from params first (staging_dag case)
             target_table_name = params.get("staging_table_name")
 
-            # If not in params, try XCom from generate_staging_table_name (final_dag scheduled case)
+            # If not in params, try XCom from generate_staging_table_name (process_dag scheduled case)
             if not target_table_name and ti:
                 target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
                 logger.info(f"Using staging_table_name from XCom: {target_table_name}")

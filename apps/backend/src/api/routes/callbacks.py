@@ -48,7 +48,7 @@ async def final_success_callback(
     dag_run_id: str = Query(..., description="DAG run ID"),
     final_table_name: str = Query(..., description="Name of the final table"),
 ) -> None:
-    """Callback when final_dag completes successfully.
+    """Callback when process_dag completes successfully.
 
     Args:
         dag_run_id: Unique identifier for the DAG run
@@ -66,7 +66,7 @@ async def final_failure_callback(
     dag_run_id: str = Query(..., description="DAG run ID"),
     final_table_name: str = Query(..., description="Name of the final table"),
 ) -> None:
-    """Callback when final_dag fails.
+    """Callback when process_dag fails.
 
     Args:
         dag_run_id: Unique identifier for the DAG run

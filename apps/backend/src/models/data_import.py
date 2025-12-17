@@ -22,7 +22,7 @@ class ImportTaskStatus(str, Enum):
     NOT_FOUND = "not_found"
 
 
-class StagingImportRequest(BaseModel):
+class StagingRequest(BaseModel):
     """Request model for import endpoint"""
 
     type: ImportType
@@ -36,7 +36,7 @@ class TransformationConfig(BaseModel):
     # TODO: add more fields as needed
 
 
-class FinalImportRequest(BaseModel):
+class ProcessRequest(BaseModel):
     """Request model for final import endpoint"""
 
     title: str
@@ -47,7 +47,7 @@ class FinalImportRequest(BaseModel):
     staging_table_name: str
 
 
-class StagingImportResponse(BaseModel):
+class StagingResponse(BaseModel):
     """Response model for import endpoint"""
 
     dag_id: str
@@ -58,7 +58,7 @@ class StagingImportResponse(BaseModel):
     staging_table_name: str
 
 
-class FinalImportResponse(BaseModel):
+class ProcessResponse(BaseModel):
     """Response model for final import endpoint"""
 
     dag_id: str

@@ -1,8 +1,8 @@
 from src.models.data_import import (
-    FinalImportRequest,
-    FinalImportResponse,
-    StagingImportRequest,
-    StagingImportResponse,
+    ProcessRequest,
+    ProcessResponse,
+    StagingRequest,
+    StagingResponse,
     StatusResponse,
 )
 from src.models.integrity_link import IntegrityLink
@@ -12,9 +12,9 @@ __all__ = [
     "IntegrityLink",
     "TokenPayload",
     "User",
-    "StagingImportRequest",
-    "FinalImportRequest",
-    "StagingImportResponse",
-    "FinalImportResponse",
+    "StagingRequest",
+    "ProcessRequest",
+    "StagingResponse",
+    "ProcessResponse",
     "StatusResponse",
 ]
