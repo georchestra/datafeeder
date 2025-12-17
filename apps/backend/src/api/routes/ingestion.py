@@ -170,8 +170,8 @@ def staging_import(
                     "source": str(request.url),
                     "source_type": request.type.value.upper(),
                     "staging_table_name": staging_table_name,
-                    "success_backend_route_callback": success_callback_url,
-                    "failure_backend_route_callback": failure_callback_url,
+                    "success_callback_url": success_callback_url,
+                    "failure_callback_url": failure_callback_url,
                 },
             ),
         )

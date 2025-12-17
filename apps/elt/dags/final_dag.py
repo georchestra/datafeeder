@@ -13,6 +13,7 @@ from airflow.sdk import task
 from data_manipulation.logging import configure_logging
 from task_groups.ingestion import ingestion_group
 from task_groups.transformation import final_transformation_group
+from callback import call_callback
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -21,27 +22,19 @@ configure_logging(logger)
 def _dag_success_callback(context: dict[str, Any]) -> None:
     """Callback when final_dag succeeds."""
     params = context.get("params", {})
-    success_callback_url = params.get("success_callback_url")
+    callback_url = params.get("success_callback_url")
 
-    if success_callback_url:
-        try:
-            logger.info(f"Calling success callback: {success_callback_url}")
-            requests.post(success_callback_url, timeout=10)
-        except Exception as e:
-            logger.error(f"Failed to call success callback: {e}")
+    if callback_url:
+        call_callback(callback_url, "success")
 
 
 def _dag_failure_callback(context: dict[str, Any]) -> None:
     """Callback when final_dag fails."""
     params = context.get("params", {})
-    failure_callback_url = params.get("failure_callback_url")
+    callback_url = params.get("failure_callback_url")
 
-    if failure_callback_url:
-        try:
-            logger.info(f"Calling failure callback: {failure_callback_url}")
-            requests.post(failure_callback_url, timeout=10)
-        except Exception as e:
-            logger.error(f"Failed to call failure callback: {e}")
+    if callback_url:
+        call_callback(callback_url, "failure")
 
 
 @dag(

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 configure_logging(logger)
 
 
-def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"]) -> None:
+def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"]):
     """Factory function that creates an ingestion task group.
 
     Args:

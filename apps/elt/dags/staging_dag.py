@@ -2,36 +2,14 @@ import logging
 from datetime import datetime
 from typing import Any
 
-import requests
 from airflow.decorators import dag
 from airflow.models import Param
 from data_manipulation.logging import configure_logging
 from task_groups.ingestion import ingestion_group
+from callback import call_callback
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
-
-
-def _call_callback(callback_url: str, callback_type: str) -> None:
-    """Call a callback URL and log the request and response.
-
-    Args:
-        callback_url: The URL to call
-        callback_type: Type of callback (e.g., "success", "failure") for logging
-    """
-    logger.info(f"Calling {callback_type} callback URL: {callback_url}")
-    try:
-        response = requests.post(callback_url, timeout=10)
-        logger.info(
-            f"{callback_type.capitalize()} callback responded | "
-            f"status_code={response.status_code} | "
-            f"response={response.text[:200]}"
-        )
-        response.raise_for_status()
-    except requests.RequestException as e:
-        logger.error(
-            f"{callback_type.capitalize()} callback failed | url={callback_url} | error={str(e)}"
-        )
 
 
 def _dag_success_callback(context: dict[str, Any]) -> None:
@@ -40,7 +18,7 @@ def _dag_success_callback(context: dict[str, Any]) -> None:
     callback_url = params.get("success_callback_url")
 
     if callback_url:
-        _call_callback(callback_url, "success")
+        call_callback(callback_url, "success")
 
 
 def _dag_failure_callback(context: dict[str, Any]) -> None:
@@ -49,7 +27,7 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
     callback_url = params.get("failure_callback_url")
 
     if callback_url:
-        _call_callback(callback_url, "failure")
+        call_callback(callback_url, "failure")
 
 
 @dag(
@@ -82,13 +60,13 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             description="Name of the staging table to create",
             minLength=1,
         ),
-        "success_backend_route_callback": Param(
+        "success_callback_url": Param(
             default="",
             type=["null", "string"],
             description="Backend route to call on success",
             minLength=1,
         ),
-        "failure_backend_route_callback": Param(
+        "failure_callback_url": Param(
             default="",
             type=["null", "string"],
             description="Backend route to call on failure",
@@ -100,6 +78,7 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
 )
 def staging_dag(**context: dict[str, Any]) -> None:
     """Staging DAG for initial data ingestion."""
+    
     ingestion_group(group_id="initial_ingestion")()
 
 
