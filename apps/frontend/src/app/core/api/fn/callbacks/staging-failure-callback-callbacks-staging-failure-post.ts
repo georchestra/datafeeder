@@ -7,20 +7,26 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface ReadPrintDagSuccessPrintDagSuccessGet$Params {}
+export interface StagingFailureCallbackCallbacksStagingFailurePost$Params {
+  /**
+   * DAG run ID
+   */
+  dag_run_id: string
+}
 
-export function readPrintDagSuccessPrintDagSuccessGet(
+export function stagingFailureCallbackCallbacksStagingFailurePost(
   http: HttpClient,
   rootUrl: string,
-  params?: ReadPrintDagSuccessPrintDagSuccessGet$Params,
+  params: StagingFailureCallbackCallbacksStagingFailurePost$Params,
   context?: HttpContext
 ): Observable<StrictHttpResponse<any>> {
   const rb = new requestBuilders(
     rootUrl,
-    readPrintDagSuccessPrintDagSuccessGet.PATH,
-    'get'
+    stagingFailureCallbackCallbacksStagingFailurePost.PATH,
+    'post'
   )
   if (params) {
+    rb.query('dag_run_id', params.dag_run_id, {})
   }
 
   return http
@@ -35,4 +41,5 @@ export function readPrintDagSuccessPrintDagSuccessGet(
     )
 }
 
-readPrintDagSuccessPrintDagSuccessGet.PATH = '/print_dag_success'
+stagingFailureCallbackCallbacksStagingFailurePost.PATH =
+  '/callbacks/staging/failure'

@@ -7,20 +7,28 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface ReadPrintDagFailurePrintDagFailureGet$Params {}
+import { ProcessRequest } from '../../models/process-request'
+import { ProcessResponse } from '../../models/process-response'
 
-export function readPrintDagFailurePrintDagFailureGet(
+export interface ProcessStagingDataIngestionProcessPost$Params {
+  'sec-username': string
+  body: ProcessRequest
+}
+
+export function processStagingDataIngestionProcessPost(
   http: HttpClient,
   rootUrl: string,
-  params?: ReadPrintDagFailurePrintDagFailureGet$Params,
+  params: ProcessStagingDataIngestionProcessPost$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<any>> {
+): Observable<StrictHttpResponse<ProcessResponse>> {
   const rb = new requestBuilders(
     rootUrl,
-    readPrintDagFailurePrintDagFailureGet.PATH,
-    'get'
+    processStagingDataIngestionProcessPost.PATH,
+    'post'
   )
   if (params) {
+    rb.header('sec-username', params['sec-username'], {})
+    rb.body(params.body, 'application/json')
   }
 
   return http
@@ -30,9 +38,9 @@ export function readPrintDagFailurePrintDagFailureGet(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<any>
+        return r as StrictHttpResponse<ProcessResponse>
       })
     )
 }
 
-readPrintDagFailurePrintDagFailureGet.PATH = '/print_dag_failure'
+processStagingDataIngestionProcessPost.PATH = '/ingestion/process/'

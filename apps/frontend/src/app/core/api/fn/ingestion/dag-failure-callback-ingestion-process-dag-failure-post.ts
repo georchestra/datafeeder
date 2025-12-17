@@ -7,27 +7,32 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-import { DagRunState } from '../../models/dag-run-state'
+export interface DagFailureCallbackIngestionProcessDagFailurePost$Params {
+  /**
+   * IntegrityLink ID
+   */
+  integrity_link_id: string
 
-export interface GetDagRunStatusAirflowDagsDagIdRunsDagRunIdGet$Params {
-  dag_id: string
-  dag_run_id: string
+  /**
+   * Final table name (if created)
+   */
+  final_table_name?: string
 }
 
-export function getDagRunStatusAirflowDagsDagIdRunsDagRunIdGet(
+export function dagFailureCallbackIngestionProcessDagFailurePost(
   http: HttpClient,
   rootUrl: string,
-  params: GetDagRunStatusAirflowDagsDagIdRunsDagRunIdGet$Params,
+  params: DagFailureCallbackIngestionProcessDagFailurePost$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<DagRunState>> {
+): Observable<StrictHttpResponse<any>> {
   const rb = new requestBuilders(
     rootUrl,
-    getDagRunStatusAirflowDagsDagIdRunsDagRunIdGet.PATH,
-    'get'
+    dagFailureCallbackIngestionProcessDagFailurePost.PATH,
+    'post'
   )
   if (params) {
-    rb.path('dag_id', params.dag_id, {})
-    rb.path('dag_run_id', params.dag_run_id, {})
+    rb.query('integrity_link_id', params.integrity_link_id, {})
+    rb.query('final_table_name', params.final_table_name, {})
   }
 
   return http
@@ -37,10 +42,10 @@ export function getDagRunStatusAirflowDagsDagIdRunsDagRunIdGet(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<DagRunState>
+        return r as StrictHttpResponse<any>
       })
     )
 }
 
-getDagRunStatusAirflowDagsDagIdRunsDagRunIdGet.PATH =
-  '/airflow/dags/{dag_id}/runs/{dag_run_id}'
+dagFailureCallbackIngestionProcessDagFailurePost.PATH =
+  '/ingestion/process/dag_failure'
