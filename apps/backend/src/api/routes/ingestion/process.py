@@ -17,7 +17,7 @@ from src.models import (
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 
-router = APIRouter(prefix="/ingestion/process", tags=["Ingestion", "Process"])
+router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
 logger = get_logger()
 settings = get_settings()
 
@@ -113,7 +113,7 @@ def process_staging_data(
         raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
 
 
-@router.post("/dag_success", tags=["Callbacks"])
+@router.post("/dag_success")
 def dag_success_callback(
     session: SessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
@@ -149,7 +149,7 @@ def dag_success_callback(
     )
 
 
-@router.post("/dag_failure", tags=["Callbacks"])
+@router.post("/dag_failure")
 def dag_failure_callback(
     session: SessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),

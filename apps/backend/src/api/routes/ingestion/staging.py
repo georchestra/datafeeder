@@ -17,7 +17,7 @@ from src.services.airflow_client import get_dag_run_api
 
 # Use uvicorn's logger to get colored output
 logger = get_logger()
-router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion", "Staging"])
+router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 
 
 def _generate_staging_table_name(dag_run_id: str) -> str:
@@ -118,7 +118,7 @@ def submit_staging(
         raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
 
 
-@router.post("/dag_success", tags=["Callbacks"])
+@router.post("/dag_success")
 def dag_success_callback(
     session: SessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
@@ -161,7 +161,7 @@ def dag_success_callback(
     session.refresh(integrity_link)
 
 
-@router.post("/dag_failure", tags=["Callbacks"])
+@router.post("/dag_failure")
 def dag_failure_callback(
     session: SessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
