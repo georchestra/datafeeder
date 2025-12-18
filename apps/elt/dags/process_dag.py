@@ -1,4 +1,4 @@
-"""Final DAG for transforming data from staging to final tables."""
+"""Process DAG for transforming data from staging into final table."""
 
 import logging
 from datetime import datetime
