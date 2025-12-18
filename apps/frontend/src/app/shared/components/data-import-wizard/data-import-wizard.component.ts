@@ -151,6 +151,8 @@ export class DataImportWizardComponent {
     }
 
     return await this.api.invoke(submitStagingIngestionStagingPost, {
+      'sec-username': 'toto', // FIXME get it from gateway auth
+      'sec-org': 'c2c', // FIXME get it from gateway auth
       body: {
         type: 'url',
         url: url
