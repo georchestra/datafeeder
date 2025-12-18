@@ -17,5 +17,5 @@ export interface IntegrityLink {
   schedule?: string | null
   schedule_enabled?: boolean
   staging_retrieve_time?: string | null
-  staging_table_name?: string | null
+  staging_table_name?: string
 }
