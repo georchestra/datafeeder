@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from data_manipulation.utils import sanitize_name
 from fastapi import APIRouter, Header, HTTPException, Query
-from sqlalchemy import text
+from sqlalchemy import MetaData, Table
 
 from src.api.deps import SessionDep
 from src.core.callback import build_callback_url
@@ -72,22 +72,14 @@ def process_staging_data(
     session.refresh(integrity_link)
 
     # Build callback parameters
-    success_callback_params = {
-        "integrity_link_id": str(integrity_link.id),
-        "final_table_name": final_table_name,
-    }
-    failure_callback_params = {
+    callback_params = {
         "integrity_link_id": str(integrity_link.id),
         "final_table_name": final_table_name,
     }
 
     # Build callback URLs
-    success_callback_url = build_callback_url(
-        "/ingestion/process/dag_success", success_callback_params
-    )
-    failure_callback_url = build_callback_url(
-        "/ingestion/process/dag_failure", failure_callback_params
-    )
+    success_callback_url = build_callback_url("/ingestion/process/dag_success", callback_params)
+    failure_callback_url = build_callback_url("/ingestion/process/dag_failure", callback_params)
 
     try:
         dag_run_response = get_dag_run_api().trigger_dag_run(
@@ -173,12 +165,11 @@ def dag_failure_callback(
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
     # Drop the final table if it exists
-    # Use parameterized query with identifier to prevent SQL injection
     try:
-        # Use quoted identifier for safety
-        # Note: execute() is correct here for DDL statements (not deprecated for this use case)
         schema = "data"  # FIXME get it from config
-        session.execute(text(f'DROP TABLE IF EXISTS "{schema}"."{final_table_name}" CASCADE'))  # type: ignore[misc]
+        metadata = MetaData(schema=schema)
+        table = Table(final_table_name, metadata)
+        table.drop(session.get_bind(), checkfirst=True)
         session.commit()
     except Exception as e:
         # Log the error but continue with IntegrityLink deletion

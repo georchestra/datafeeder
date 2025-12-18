@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from fastapi import APIRouter, Header, HTTPException, Query
-from sqlalchemy import text
+from sqlalchemy import MetaData, Table
 
 from src.api.deps import SessionDep
 from src.core.callback import build_callback_url
@@ -186,15 +186,14 @@ def dag_failure_callback(
     staging_table_name = integrity_link.staging_table_name
 
     # Drop the staging table if it exists
-    # Use parameterized query with identifier to prevent SQL injection
     try:
         if not staging_table_name:
             raise Exception("Staging table name is missing in IntegrityLink")
 
-        # Use quoted identifier for safety
-        # Note: execute() is correct here for DDL statements (not deprecated for this use case)
         schema = "staging"  # FIXME get it from config
-        session.execute(text(f'DROP TABLE IF EXISTS "{schema}"."{staging_table_name}" CASCADE'))  # type: ignore[misc]
+        metadata = MetaData(schema=schema)
+        table = Table(staging_table_name, metadata)
+        table.drop(session.get_bind(), checkfirst=True)
         session.commit()
     except Exception as e:
         # Log the error but continue with IntegrityLink deletion
