@@ -354,29 +354,15 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
   const mockImportResponse = {
     dag_id: 'test-dag-123',
     dag_run_id: 'test-run-456',
-    status: 'pending'
+    integrity_link_id: 'test-link-789',
+    status: 'queued'
   }
 
-  const mockStatusRunning = {
-    dag_id: 'test-dag-123',
-    dag_run_id: 'test-run-456',
-    status: 'running',
-    error: null
-  }
+  const mockStatusRunning: string = 'running'
 
-  const mockStatusFinished = {
-    dag_id: 'test-dag-123',
-    dag_run_id: 'test-run-456',
-    status: 'finished',
-    error: null
-  }
+  const mockStatusFinished: string = 'success'
 
-  const mockStatusFailed = {
-    dag_id: 'test-dag-123',
-    dag_run_id: 'test-run-456',
-    status: 'failed',
-    error: 'Processing failed: invalid data format'
-  }
+  const mockStatusFailed: string = 'failed'
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -446,7 +432,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     // Wait for the HTTP request
-    const req = httpMock.expectOne('http://localhost:8000/import/')
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
     expect(req.request.method).toBe('POST')
     expect(req.request.body).toEqual({
       type: 'url',
@@ -459,7 +445,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     // Wait for the status polling request
     await new Promise((resolve) => setTimeout(resolve, 600)) // Wait for poll interval
     const statusReq = httpMock.expectOne((r) =>
-      r.url.includes('/import/status')
+      r.url.includes('/airflow/dags/test-dag-123/runs/test-run-456/status')
     )
     statusReq.flush(mockStatusFinished)
 
@@ -478,7 +464,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     component.validSource.set(true)
     const promise = component.onConfigureDataset()
 
-    const req = httpMock.expectOne('http://localhost:8000/import/')
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
     req.flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 10))
 
@@ -489,7 +475,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 600))
     httpMock
-      .expectOne((r) => r.url.includes('/import/status'))
+      .expectOne((r) =>
+        r.url.includes('/airflow/dags/test-dag-123/runs/test-run-456/status')
+      )
       .flush(mockStatusFinished)
     await promise
   })
@@ -506,15 +494,14 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     httpMock
-      .expectOne('http://localhost:8000/import/')
+      .expectOne('http://localhost:8000/ingestion/staging/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     const statusReq = httpMock.expectOne((r) =>
-      r.url.includes('/import/status')
+      r.url.includes('/airflow/dags/test-dag-123/runs/test-run-456/status')
     )
-    expect(statusReq.request.params.get('dag_id')).toBe('test-dag-123')
-    expect(statusReq.request.params.get('dag_run_id')).toBe('test-run-456')
+    expect(statusReq.request.method).toBe('GET')
     statusReq.flush(mockStatusFinished)
     await promise
   })
@@ -531,25 +518,25 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     httpMock
-      .expectOne('http://localhost:8000/import/')
+      .expectOne('http://localhost:8000/ingestion/staging/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     // First poll - running
     httpMock
-      .expectOne((r) => r.url.includes('/import/status'))
+      .expectOne((r) => r.url.includes('/airflow/dags'))
       .flush(mockStatusRunning)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     // Second poll - running
     httpMock
-      .expectOne((r) => r.url.includes('/import/status'))
+      .expectOne((r) => r.url.includes('/airflow/dags'))
       .flush(mockStatusRunning)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     // Third poll - finished
     httpMock
-      .expectOne((r) => r.url.includes('/import/status'))
+      .expectOne((r) => r.url.includes('/airflow/dags'))
       .flush(mockStatusFinished)
     await promise
   })
@@ -566,17 +553,17 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     httpMock
-      .expectOne('http://localhost:8000/import/')
+      .expectOne('http://localhost:8000/ingestion/staging/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     httpMock
-      .expectOne((r) => r.url.includes('/import/status'))
+      .expectOne((r) => r.url.includes('/airflow/dags'))
       .flush(mockStatusRunning)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
     httpMock
-      .expectOne((r) => r.url.includes('/import/status'))
+      .expectOne((r) => r.url.includes('/airflow/dags'))
       .flush(mockStatusFinished)
     await promise
 
@@ -597,12 +584,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     try {
       const promise = component.onConfigureDataset()
       httpMock
-        .expectOne('http://localhost:8000/import/')
+        .expectOne('http://localhost:8000/ingestion/staging/')
         .flush(mockImportResponse)
       await new Promise((resolve) => setTimeout(resolve, 600))
 
       httpMock
-        .expectOne((r) => r.url.includes('/import/status'))
+        .expectOne((r) => r.url.includes('/airflow/dags'))
         .flush(mockStatusFailed)
       await promise
     } catch (error) {
@@ -625,7 +612,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
     try {
       const promise = component.onConfigureDataset()
-      const req = httpMock.expectOne('http://localhost:8000/import/')
+      const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
       req.error(new ProgressEvent('Network error'))
       await promise
     } catch (error) {
@@ -651,14 +638,14 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     try {
       const promise = component.onConfigureDataset()
       httpMock
-        .expectOne('http://localhost:8000/import/')
+        .expectOne('http://localhost:8000/ingestion/staging/')
         .flush(mockImportResponse)
 
       // Keep polling with 'running' status until timeout (30000ms)
       // At 500ms intervals, we need 60 iterations to reach 30000ms
       for (let i = 0; i < 61; i++) {
         await new Promise((resolve) => setTimeout(resolve, 550))
-        const req = httpMock.match((r) => r.url.includes('/import/status'))
+        const req = httpMock.match((r) => r.url.includes('/airflow/dags'))
         if (req.length > 0) {
           req[0].flush(mockStatusRunning)
         }
@@ -708,11 +695,11 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     expect(button.disabled).toBe(true)
 
     httpMock
-      .expectOne('http://localhost:8000/import/')
+      .expectOne('http://localhost:8000/ingestion/staging/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 600))
     httpMock
-      .expectOne((r) => r.url.includes('/import/status'))
+      .expectOne((r) => r.url.includes('/airflow/dags'))
       .flush(mockStatusFinished)
     await promise
   })
@@ -731,7 +718,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     httpMock
-      .expectOne('http://localhost:8000/import/')
+      .expectOne('http://localhost:8000/ingestion/staging/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 10))
 
@@ -745,7 +732,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 600))
     httpMock
-      .expectOne((r) => r.url.includes('/import/status'))
+      .expectOne((r) => r.url.includes('/airflow/dags'))
       .flush(mockStatusFinished)
     await promise
   })
@@ -801,11 +788,11 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const promise = component.onConfigureDataset()
 
     httpMock
-      .expectOne('http://localhost:8000/import/')
+      .expectOne('http://localhost:8000/ingestion/staging/')
       .flush(mockImportResponse)
     await new Promise((resolve) => setTimeout(resolve, 600))
     httpMock
-      .expectOne((r) => r.url.includes('/import/status'))
+      .expectOne((r) => r.url.includes('/airflow/dags'))
       .flush(mockStatusFinished)
     await promise
 

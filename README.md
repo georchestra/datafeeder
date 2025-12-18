@@ -84,8 +84,8 @@ For detailed information about the frontend application structure, development s
 The DataKern backend is built with FastAPI and serves as the core API for data ingestion operations.
 
 - **Gateway URL**: http://localhost:8080/datakern-backend/
-- **Direct URL**: http://localhost:8002/
-- **API Documentation**: http://localhost:8002/docs
+- **Direct URL**: http://localhost:8000/
+- **API Documentation**: http://localhost:8000/docs
 
 ### Airflow ELT
 

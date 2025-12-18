@@ -14,10 +14,10 @@ import {
 } from 'rxjs'
 import { Api } from '../../../core/api/api'
 import {
-  createImportImportPost,
-  getImportStatusImportStatusGet
+  submitStagingIngestionStagingPost,
+  getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet
 } from '../../../core/api/functions'
-import type { ImportResponse, StatusResponse } from '../../../core/api/models'
+import type { StagingResponse, DagRunState } from '../../../core/api/models'
 import { MatTabsModule } from '@angular/material/tabs'
 import { MatIconModule } from '@angular/material/icon'
 import { MatButtonModule } from '@angular/material/button'
@@ -33,8 +33,7 @@ const enum ImportStatus {
   QUEUED = 'queued',
   RUNNING = 'running',
   SUCCESS = 'success',
-  FAILED = 'failed',
-  NOT_FOUND = 'not_found'
+  FAILED = 'failed'
 }
 /* eslint-enable no-unused-vars */
 
@@ -144,14 +143,14 @@ export class DataImportWizardComponent {
     }
   }
 
-  private async createImportRequest(): Promise<ImportResponse> {
+  private async createImportRequest(): Promise<StagingResponse> {
     const url = this.importData().source.url
 
     if (!url) {
       throw new Error('URL manquante')
     }
 
-    return await this.api.invoke(createImportImportPost, {
+    return await this.api.invoke(submitStagingIngestionStagingPost, {
       body: {
         type: 'url',
         url: url
@@ -166,15 +165,17 @@ export class DataImportWizardComponent {
     await lastValueFrom(
       interval(POLL_INTERVAL_MS).pipe(
         switchMap(() =>
-          this.api.invoke(getImportStatusImportStatusGet, {
-            dag_id: dagId,
-            dag_run_id: dagRunId
-          })
+          this.api.invoke(
+            getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
+            {
+              dag_id: dagId,
+              dag_run_id: dagRunId
+            }
+          )
         ),
         takeWhile(
-          (response: StatusResponse) =>
-            response.status === ImportStatus.QUEUED ||
-            response.status === ImportStatus.RUNNING,
+          (status: DagRunState) =>
+            status === ImportStatus.QUEUED || status === ImportStatus.RUNNING,
           true
         ),
         timeout(MAX_POLL_TIME_MS),
@@ -184,15 +185,12 @@ export class DataImportWizardComponent {
           }
           return throwError(() => error)
         }),
-        switchMap((response: StatusResponse) => {
-          if (response.status === ImportStatus.FAILED) {
+        switchMap((status: DagRunState) => {
+          if (status === ImportStatus.FAILED) {
             const errorMsg = 'Le traitement a échoué'
             return throwError(() => new Error(errorMsg))
-          } else if (response.status === ImportStatus.NOT_FOUND) {
-            const errorMsg = 'La tâche est introuvable'
-            return throwError(() => new Error(errorMsg))
           }
-          return of(response)
+          return of(status)
         })
       )
     )

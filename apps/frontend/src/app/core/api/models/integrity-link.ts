@@ -8,13 +8,14 @@ export interface IntegrityLink {
   id?: string | null
   integrity_organization: string
   integrity_owner: string
+  integrity_title?: string | null
   integrity_transformation?: {
     [key: string]: any
   } | null
-  last_staging_retrieved_at?: string | null
+  last_retrieval_timestamp?: string | null
   metadata_id?: string | null
-  retrieve_time?: string | null
   schedule?: string | null
   schedule_enabled?: boolean
-  staging_table_name?: string | null
+  staging_retrieve_time?: string | null
+  staging_table_name?: string
 }

@@ -7,20 +7,26 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface ReadPrintDagSuccessPrintDagSuccessGet$Params {}
+export interface DagSuccessCallbackIngestionStagingDagSuccessPost$Params {
+  /**
+   * IntegrityLink ID
+   */
+  integrity_link_id: string
+}
 
-export function readPrintDagSuccessPrintDagSuccessGet(
+export function dagSuccessCallbackIngestionStagingDagSuccessPost(
   http: HttpClient,
   rootUrl: string,
-  params?: ReadPrintDagSuccessPrintDagSuccessGet$Params,
+  params: DagSuccessCallbackIngestionStagingDagSuccessPost$Params,
   context?: HttpContext
 ): Observable<StrictHttpResponse<any>> {
   const rb = new requestBuilders(
     rootUrl,
-    readPrintDagSuccessPrintDagSuccessGet.PATH,
-    'get'
+    dagSuccessCallbackIngestionStagingDagSuccessPost.PATH,
+    'post'
   )
   if (params) {
+    rb.query('integrity_link_id', params.integrity_link_id, {})
   }
 
   return http
@@ -35,4 +41,5 @@ export function readPrintDagSuccessPrintDagSuccessGet(
     )
 }
 
-readPrintDagSuccessPrintDagSuccessGet.PATH = '/print_dag_success'
+dagSuccessCallbackIngestionStagingDagSuccessPost.PATH =
+  '/ingestion/staging/dag_success'

@@ -1,6 +1,7 @@
 from enum import Enum
 
-from pydantic import BaseModel
+from airflow_client.client.models.dag_run_state import DagRunState
+from pydantic import AnyUrl, BaseModel
 
 
 class ImportType(str, Enum):
@@ -12,32 +13,48 @@ class ImportType(str, Enum):
     API = "api"
 
 
-class ImportTaskStatus(str, Enum):
-    """Possible task statuses"""
-
-    QUEUED = "queued"
-    RUNNING = "running"
-    SUCCESS = "success"
-    FAILED = "failed"
-    NOT_FOUND = "not_found"
-
-
-class ImportRequest(BaseModel):
+class StagingRequest(BaseModel):
     """Request model for import endpoint"""
 
     type: ImportType
-    url: str | None = None
+    url: AnyUrl
 
 
-class ImportResponse(BaseModel):
+class TransformationConfig(BaseModel):
+    """Transformation configuration model"""
+
+    crs: str | None
+    # TODO: add more fields as needed
+
+
+class ProcessRequest(BaseModel):
+    """Request model for final import endpoint"""
+
+    integrity_link_id: str
+    title: str
+    # config: TransformationConfig
+    # cron_schedule: str | None
+
+
+class StagingResponse(BaseModel):
     """Response model for import endpoint"""
 
+    integrity_link_id: str
     dag_id: str
     dag_run_id: str
-    status: ImportTaskStatus
+    status: DagRunState
+
+
+class ProcessResponse(BaseModel):
+    """Response model for final import endpoint"""
+
+    integrity_link_id: str
+    dag_id: str
+    dag_run_id: str
+    status: DagRunState
 
 
 class StatusResponse(BaseModel):
     """Response model for status endpoint"""
 
-    status: ImportTaskStatus
+    status: DagRunState

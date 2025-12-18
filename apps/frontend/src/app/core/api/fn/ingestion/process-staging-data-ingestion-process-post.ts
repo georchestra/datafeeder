@@ -7,27 +7,26 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-import { DagRunState } from '../../models/dag-run-state'
+import { ProcessRequest } from '../../models/process-request'
+import { ProcessResponse } from '../../models/process-response'
 
-export interface GetDagRunStatusAirflowDagsDagIdRunsDagRunIdGet$Params {
-  dag_id: string
-  dag_run_id: string
+export interface ProcessStagingDataIngestionProcessPost$Params {
+  body: ProcessRequest
 }
 
-export function getDagRunStatusAirflowDagsDagIdRunsDagRunIdGet(
+export function processStagingDataIngestionProcessPost(
   http: HttpClient,
   rootUrl: string,
-  params: GetDagRunStatusAirflowDagsDagIdRunsDagRunIdGet$Params,
+  params: ProcessStagingDataIngestionProcessPost$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<DagRunState>> {
+): Observable<StrictHttpResponse<ProcessResponse>> {
   const rb = new requestBuilders(
     rootUrl,
-    getDagRunStatusAirflowDagsDagIdRunsDagRunIdGet.PATH,
-    'get'
+    processStagingDataIngestionProcessPost.PATH,
+    'post'
   )
   if (params) {
-    rb.path('dag_id', params.dag_id, {})
-    rb.path('dag_run_id', params.dag_run_id, {})
+    rb.body(params.body, 'application/json')
   }
 
   return http
@@ -37,10 +36,9 @@ export function getDagRunStatusAirflowDagsDagIdRunsDagRunIdGet(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<DagRunState>
+        return r as StrictHttpResponse<ProcessResponse>
       })
     )
 }
 
-getDagRunStatusAirflowDagsDagIdRunsDagRunIdGet.PATH =
-  '/airflow/dags/{dag_id}/runs/{dag_run_id}'
+processStagingDataIngestionProcessPost.PATH = '/ingestion/process/'

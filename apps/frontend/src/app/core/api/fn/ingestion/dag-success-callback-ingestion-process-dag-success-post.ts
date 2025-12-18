@@ -7,20 +7,32 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface ReadPrintDagFailurePrintDagFailureGet$Params {}
+export interface DagSuccessCallbackIngestionProcessDagSuccessPost$Params {
+  /**
+   * IntegrityLink ID
+   */
+  integrity_link_id: string
 
-export function readPrintDagFailurePrintDagFailureGet(
+  /**
+   * Final table name
+   */
+  final_table_name: string
+}
+
+export function dagSuccessCallbackIngestionProcessDagSuccessPost(
   http: HttpClient,
   rootUrl: string,
-  params?: ReadPrintDagFailurePrintDagFailureGet$Params,
+  params: DagSuccessCallbackIngestionProcessDagSuccessPost$Params,
   context?: HttpContext
 ): Observable<StrictHttpResponse<any>> {
   const rb = new requestBuilders(
     rootUrl,
-    readPrintDagFailurePrintDagFailureGet.PATH,
-    'get'
+    dagSuccessCallbackIngestionProcessDagSuccessPost.PATH,
+    'post'
   )
   if (params) {
+    rb.query('integrity_link_id', params.integrity_link_id, {})
+    rb.query('final_table_name', params.final_table_name, {})
   }
 
   return http
@@ -35,4 +47,5 @@ export function readPrintDagFailurePrintDagFailureGet(
     )
 }
 
-readPrintDagFailurePrintDagFailureGet.PATH = '/print_dag_failure'
+dagSuccessCallbackIngestionProcessDagSuccessPost.PATH =
+  '/ingestion/process/dag_success'

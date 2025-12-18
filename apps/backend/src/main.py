@@ -2,6 +2,7 @@ import importlib.metadata
 import os
 
 from data_manipulation import hello
+from data_manipulation.logging import configure_logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -9,6 +10,11 @@ from geonetwork import GnApi
 
 from src.api.main import api_router
 from src.core.config import get_settings
+from src.core.logging import get_logger
+
+logger = get_logger()
+# Configure logging for data_manipulation library
+configure_logging(logger)
 
 
 def _get_debug_flag() -> bool:

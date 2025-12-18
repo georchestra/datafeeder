@@ -7,27 +7,32 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-import { StatusResponse } from '../../models/status-response'
+export interface DagFailureCallbackIngestionProcessDagFailurePost$Params {
+  /**
+   * IntegrityLink ID
+   */
+  integrity_link_id: string
 
-export interface GetImportStatusImportStatusGet$Params {
-  dag_id: string
-  dag_run_id: string
+  /**
+   * Final table name (if created)
+   */
+  final_table_name?: string
 }
 
-export function getImportStatusImportStatusGet(
+export function dagFailureCallbackIngestionProcessDagFailurePost(
   http: HttpClient,
   rootUrl: string,
-  params: GetImportStatusImportStatusGet$Params,
+  params: DagFailureCallbackIngestionProcessDagFailurePost$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<StatusResponse>> {
+): Observable<StrictHttpResponse<any>> {
   const rb = new requestBuilders(
     rootUrl,
-    getImportStatusImportStatusGet.PATH,
-    'get'
+    dagFailureCallbackIngestionProcessDagFailurePost.PATH,
+    'post'
   )
   if (params) {
-    rb.query('dag_id', params.dag_id, {})
-    rb.query('dag_run_id', params.dag_run_id, {})
+    rb.query('integrity_link_id', params.integrity_link_id, {})
+    rb.query('final_table_name', params.final_table_name, {})
   }
 
   return http
@@ -37,9 +42,10 @@ export function getImportStatusImportStatusGet(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<StatusResponse>
+        return r as StrictHttpResponse<any>
       })
     )
 }
 
-getImportStatusImportStatusGet.PATH = '/import/status'
+dagFailureCallbackIngestionProcessDagFailurePost.PATH =
+  '/ingestion/process/dag_failure'

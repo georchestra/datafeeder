@@ -6,7 +6,7 @@ import { ImportType } from '../models/import-type'
 /**
  * Request model for import endpoint
  */
-export interface ImportRequest {
+export interface StagingRequest {
   type: ImportType
-  url?: string | null
+  url: string
 }

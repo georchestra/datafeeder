@@ -7,20 +7,24 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-import { ImportRequest } from '../../models/import-request'
-import { ImportResponse } from '../../models/import-response'
+import { StagingRequest } from '../../models/staging-request'
+import { StagingResponse } from '../../models/staging-response'
 
-export interface CreateImportImportPost$Params {
-  body: ImportRequest
+export interface SubmitStagingIngestionStagingPost$Params {
+  body: StagingRequest
 }
 
-export function createImportImportPost(
+export function submitStagingIngestionStagingPost(
   http: HttpClient,
   rootUrl: string,
-  params: CreateImportImportPost$Params,
+  params: SubmitStagingIngestionStagingPost$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<ImportResponse>> {
-  const rb = new requestBuilders(rootUrl, createImportImportPost.PATH, 'post')
+): Observable<StrictHttpResponse<StagingResponse>> {
+  const rb = new requestBuilders(
+    rootUrl,
+    submitStagingIngestionStagingPost.PATH,
+    'post'
+  )
   if (params) {
     rb.body(params.body, 'application/json')
   }
@@ -32,9 +36,9 @@ export function createImportImportPost(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<ImportResponse>
+        return r as StrictHttpResponse<StagingResponse>
       })
     )
 }
 
-createImportImportPost.PATH = '/import/'
+submitStagingIngestionStagingPost.PATH = '/ingestion/staging/'
