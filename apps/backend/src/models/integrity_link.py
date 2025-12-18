@@ -19,7 +19,7 @@ class IntegrityLink(SQLModel, table=True):
     integrity_owner: str = Field(max_length=256)
     integrity_organization: str
     integrity_transformation: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
-    staging_table_name: Optional[str] = Field(default=None, max_length=63)
+    staging_table_name: str = Field(default=None, max_length=63)
     staging_retrieve_time: Optional[timedelta] = None
     final_table_name: Optional[str] = Field(default=None, max_length=63, unique=True)
     last_retrieval_timestamp: Optional[datetime] = None
