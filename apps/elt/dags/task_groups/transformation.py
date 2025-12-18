@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 configure_logging(logger)
 
 
-def final_transformation_group(
+def process_transformation_group(
     group_id: str = "final_transformation",
     task_id_where_to_get_staging_table_name: str | None = None,
 ):

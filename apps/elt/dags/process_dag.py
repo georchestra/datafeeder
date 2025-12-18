@@ -12,7 +12,7 @@ from airflow.sdk import task
 from callback import call_callback
 from data_manipulation.logging import configure_logging
 from task_groups.ingestion import ingestion_group
-from task_groups.transformation import final_transformation_group
+from task_groups.transformation import process_transformation_group
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -148,13 +148,13 @@ def process_dag(**context: dict[str, Any]) -> None:
 
     # Two separate transformation groups - one for each path
     # Direct mode: will pull staging_table_name from use_staging_table_from_context XCom
-    transform_direct = final_transformation_group(
+    transform_direct = process_transformation_group(
         group_id="transform_direct",
         task_id_where_to_get_staging_table_name="use_staging_table_from_context",
     )()
 
     # Refresh mode: will pull staging_table_name from generate_staging_table_name XCom
-    transform_refresh = final_transformation_group(
+    transform_refresh = process_transformation_group(
         group_id="transform_refresh",
         task_id_where_to_get_staging_table_name="generate_staging_table_name",
     )()
