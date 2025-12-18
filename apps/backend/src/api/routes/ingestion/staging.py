@@ -46,8 +46,8 @@ def _generate_staging_table_name(dag_run_id: str) -> str:
 def submit_staging(
     request: StagingRequest,
     session: SessionDep,
-    sec_username: str = Header(..., alias="sec-username"),
-    sec_org: str = Header(..., alias="sec-org"),
+    sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
+    sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
 ) -> StagingResponse:
     """
     Submit data for staging import.

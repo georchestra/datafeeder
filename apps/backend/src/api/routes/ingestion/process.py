@@ -31,7 +31,7 @@ settings = get_settings()
 def process_staging_data(
     request: ProcessRequest,
     session: SessionDep,
-    sec_username: str = Header(..., alias="sec-username"),
+    sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
 ) -> ProcessResponse:
     """
     Submit staging data for processing.

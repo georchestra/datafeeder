@@ -11,7 +11,6 @@ import { ProcessRequest } from '../../models/process-request'
 import { ProcessResponse } from '../../models/process-response'
 
 export interface ProcessStagingDataIngestionProcessPost$Params {
-  'sec-username': string
   body: ProcessRequest
 }
 
@@ -27,7 +26,6 @@ export function processStagingDataIngestionProcessPost(
     'post'
   )
   if (params) {
-    rb.header('sec-username', params['sec-username'], {})
     rb.body(params.body, 'application/json')
   }
 

@@ -11,8 +11,6 @@ import { StagingRequest } from '../../models/staging-request'
 import { StagingResponse } from '../../models/staging-response'
 
 export interface SubmitStagingIngestionStagingPost$Params {
-  'sec-username': string
-  'sec-org': string
   body: StagingRequest
 }
 
@@ -28,8 +26,6 @@ export function submitStagingIngestionStagingPost(
     'post'
   )
   if (params) {
-    rb.header('sec-username', params['sec-username'], {})
-    rb.header('sec-org', params['sec-org'], {})
     rb.body(params.body, 'application/json')
   }
 
