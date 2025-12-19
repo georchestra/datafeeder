@@ -16,6 +16,7 @@ from src.models import (
 )
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
+from src.services.metadata_service import MetadataService
 
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
 logger = get_logger()
@@ -127,6 +128,26 @@ def dag_success_callback(
     integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    # Create and publish metadata to GeoNetwork
+    try:
+        metadata_service = MetadataService(
+            gn_api_url=f"{settings.georchestra_config.get('geonetwork.target', 'gateway_routes')}srv/api",
+            datadir_path=settings.georchestra_config.datadirpath,
+            credentials=None,
+            verify_tls=False,
+        )
+
+        metadata_id = metadata_service.create_and_publish_metadata(integrity_link)
+        integrity_link.metadata_id = metadata_id
+
+        logger.info(f"Metadata published for IntegrityLink {integrity_link.id}: {metadata_id}")
+
+    except Exception as e:
+        logger.error(
+            f"Failed to publish metadata for IntegrityLink {integrity_link.id}: {e}", exc_info=True
+        )
+        # Continue with IntegrityLink update even if metadata fails (soft failure)
 
     # Update IntegrityLink with final table information
     integrity_link.final_table_name = final_table_name
