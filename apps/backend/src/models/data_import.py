@@ -2,6 +2,8 @@ from enum import Enum
 
 from airflow_client.client.models.dag_run_state import DagRunState
 from pydantic import AnyUrl, BaseModel
+from fastapi import File, UploadFile
+from pydantic import BaseModel
 
 
 class ImportType(str, Enum):
@@ -18,6 +20,7 @@ class StagingRequest(BaseModel):
 
     type: ImportType
     url: AnyUrl
+    file: UploadFile | None = File(None)
 
 
 class TransformationConfig(BaseModel):
