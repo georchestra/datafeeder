@@ -14,6 +14,8 @@
                 version="2.0"
                 exclude-result-prefixes="#all">
 
+  <xsl:import href="inspire/topic_category.xsl"/>
+
   <!--
   Default template to apply MetadataRecordProperties.java properties to a record template adhering to http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd
    -->
@@ -21,8 +23,11 @@
   <!--  <xsl:strip-space elements="*" xmlns="http://www.isotc211.org/2005/gmd" />-->
   <xsl:output indent="yes" standalone="yes" />
 
-  <!-- Whole document used as xsl parameter, see sample_md_properties.xml for an example of its contents -->
-  <xsl:param name="props" />
+  <!-- Properties are embedded in the source document as the first child of the root element -->
+  <xsl:variable name="props" select="//properties" />
+
+  <!-- Suppress the embedded properties element from appearing in the output -->
+  <xsl:template match="properties" />
 
   <xsl:template match="@*|node()">
     <xsl:copy>
@@ -36,6 +41,7 @@
     </gco:CharacterString>
   </xsl:template>
 
+  <!-- Commented out: XSLT 2.0 functions not supported by lxml (XSLT 1.0 only)
   <xsl:template match="//mdb:dateInfo[1]/cit:CI_Date/cit:date/gco:DateTime">
     <gco:DateTime>
       <xsl:value-of select="format-dateTime(current-dateTime(), '[Y0001]-[M01]-[D01]T[h01]:[m01]:00.295346Z')" />
@@ -47,6 +53,7 @@
       <xsl:value-of select="format-dateTime(current-dateTime(), '[Y0001]-[M01]-[D01]T[h01]:[m01]:00.295346Z')" />
     </gco:DateTime>
   </xsl:template>
+  -->
 
   <xsl:template
           match="//mdb:identificationInfo/mri:MD_DataIdentification/mri:citation/cit:CI_Citation/cit:title/gco:CharacterString">
@@ -386,7 +393,6 @@
     that matches an entry in rdf:Description rdf:about="<id>"/skos:prefLabel[text()] in inspire/themes.rdf
   -->
 
-  <xsl:import href="inspire/topic_category.xsl"/>
   <xsl:template match="//mdb:identificationInfo/mri:MD_DataIdentification/mri:topicCategory">
     <xsl:call-template name="inspire_topic_category"/>
   </xsl:template>

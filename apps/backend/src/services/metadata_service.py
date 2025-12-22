@@ -81,10 +81,15 @@ class MetadataService:
 
         # Apply XSLT transformation
         xml_doc = etree.parse(self.template_path)
+        root = xml_doc.getroot()
+
+        # Embed props into the XML document (XSLT parameters can't be node-sets)
+        root.insert(0, props)
+
         xslt_doc = etree.parse(self.xslt_path)
         transform = etree.XSLT(xslt_doc)
 
-        result = transform(xml_doc, props=props)
+        result = transform(xml_doc)
         return etree.tostring(result, encoding="unicode")
 
     def publish_metadata(
