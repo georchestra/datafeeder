@@ -5,7 +5,10 @@ from uuid import uuid4
 from geonetwork import GnApi  # type: ignore[import-untyped]
 from lxml import etree  # type: ignore[import-untyped]
 
+from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
+
+logger = get_logger()
 
 
 class MetadataService:
@@ -109,8 +112,9 @@ class MetadataService:
             metadata=metadata_xml, groupid=group_id, uuidprocessing="GENERATEUUID", publish=publish
         )
 
-        # Extract UUID from response
-        metadata_uuid: str = response.get("uuid") or response.get("id")  # type: ignore[assignment]
+        # Parse JSON response and extract UUID
+        response_data = response.json()
+        metadata_uuid: str = response_data.get("uuid") or response_data.get("id")  # type: ignore[assignment]
         return metadata_uuid
 
     def create_and_publish_metadata(self, integrity_link: IntegrityLink) -> str:

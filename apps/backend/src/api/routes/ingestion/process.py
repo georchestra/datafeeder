@@ -134,7 +134,7 @@ def dag_success_callback(
         metadata_service = MetadataService(
             gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
             datadir_path=settings.DATADIR_PATH,
-            credentials=None,
+            credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
             verify_tls=False,
         )
 

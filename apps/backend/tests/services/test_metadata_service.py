@@ -66,8 +66,12 @@ class TestMetadataService:
         """Test successful metadata publication."""
         expected_uuid = "123e4567-e89b-12d3-a456-426614174000"
 
+        # Mock Response object with json() method
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"uuid": expected_uuid}
+
         mock_api_instance = MagicMock()
-        mock_api_instance.upload_metadata.return_value = {"uuid": expected_uuid}
+        mock_api_instance.upload_metadata.return_value = mock_response
         mock_gn_api.return_value = mock_api_instance
 
         service = MetadataService(
@@ -103,8 +107,12 @@ class TestMetadataService:
         """Test full workflow: generate + publish."""
         expected_uuid = "metadata-uuid-123"
 
+        # Mock Response object with json() method
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"uuid": expected_uuid}
+
         mock_api_instance = MagicMock()
-        mock_api_instance.upload_metadata.return_value = {"uuid": expected_uuid}
+        mock_api_instance.upload_metadata.return_value = mock_response
         mock_gn_api.return_value = mock_api_instance
 
         # Mock XML parsing

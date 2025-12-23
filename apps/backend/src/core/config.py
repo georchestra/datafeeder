@@ -141,6 +141,13 @@ class Settings(BaseSettings):
         default="http://localhost:8080/geonetwork",
         validation_alias=AliasChoices("geonetworkUrl", "GEONETWORK_URL"),
     )
+    GEONETWORK_USERNAME: str = Field(
+        default="testadmin", validation_alias=AliasChoices("geonetworkUser", "GEONETWORK_USERNAME")
+    )
+    GEONETWORK_PASSWORD: str = Field(
+        default="testadmin",
+        validation_alias=AliasChoices("geonetworkPassword", "GEONETWORK_PASSWORD"),
+    )
 
     # Email Configuration
     SMTP_TLS: bool = True
