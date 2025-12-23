@@ -8,10 +8,12 @@ from pydantic.aliases import AliasPath
 from pydantic.fields import FieldInfo
 from pydantic_settings import PydanticBaseSettingsSource
 
+from src.core.paths import get_default_datadir
+
 
 class PropertiesConfigSettingsSource(PydanticBaseSettingsSource):
     def _load_properties(self) -> dict[str, str]:
-        datadirpath: str = os.getenv("DATADIR", "/etc/georchestra") or "/etc/georchestra"
+        datadirpath: str = get_default_datadir()
         encoding = self.config.get("env_file_encoding", "utf-8")
         path = Path(f"{datadirpath}/default.properties")
 

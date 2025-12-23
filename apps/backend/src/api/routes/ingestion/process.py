@@ -132,8 +132,8 @@ def dag_success_callback(
     # Create and publish metadata to GeoNetwork
     try:
         metadata_service = MetadataService(
-            gn_api_url=f"{settings.georchestra_config.get('geonetwork.target', 'gateway_routes')}srv/api",
-            datadir_path=settings.georchestra_config.datadirpath,
+            gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+            datadir_path=settings.DATADIR_PATH,
             credentials=None,
             verify_tls=False,
         )

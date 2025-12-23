@@ -23,6 +23,7 @@ from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, Settings
 from typing_extensions import Self
 
 from src.core.logging import get_logger
+from src.core.paths import get_default_datadir
 from src.plugins.PropertiesConfigSettingsSource import PropertiesConfigSettingsSource
 
 logger = get_logger()
@@ -41,20 +42,21 @@ def parse_cors(v: Any) -> list[str] | str:
 
 class Settings(BaseSettings):
     datakern_config: str = os.getenv("DATAKERN_CONFIG", "")
+    _default_datadir = get_default_datadir()
 
     if not os.path.exists(datakern_config) and not os.path.exists(
-        f"{os.getenv('DATADIR')}/datakern/datakern.env"
+        f"{_default_datadir}/datakern/datakern.env"
     ):
         logger.warning("Configuration file not found!")
         logger.warning("looked for DATAKERN_CONFIG at: %s", os.getenv("DATAKERN_CONFIG", ""))
         logger.warning(
-            "looked for datakern.env at: %s", f"{os.getenv('DATADIR')}/datakern/datakern.env"
+            "looked for datakern.env at: %s", f"{_default_datadir}/datakern/datakern.env"
         )
     else:
         if not os.path.exists(datakern_config) and os.path.exists(
-            f"{os.getenv('DATADIR')}/datakern/datakern.env"
+            f"{_default_datadir}/datakern/datakern.env"
         ):
-            datakern_config = f"{os.getenv('DATADIR')}/datakern/datakern.env"
+            datakern_config = f"{_default_datadir}/datakern/datakern.env"
         logger.info("Loading configuration from %s", datakern_config)
 
     model_config = SettingsConfigDict(
@@ -83,6 +85,7 @@ class Settings(BaseSettings):
     # Project Information
     PROJECT_NAME: str = "DataKern"
     BACKEND_URL: str = "http://localhost:8000"
+    DATADIR_PATH: str = get_default_datadir()
 
     # API Configuration
     API_V1_STR: str = "/api/v1"
