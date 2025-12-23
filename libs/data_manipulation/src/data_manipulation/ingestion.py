@@ -8,17 +8,28 @@ logger = logging.getLogger(__name__)
 
 
 def ingest_data_from_file_into_postgis(
-    file_path: str, table_name: str, engine: Engine, schema: str | None = None
+    file_path: str, table_name: str, engine: Engine, schema: str | None = None, logger_: logging.Logger | None = None
 ) -> None:
     """Ingest data from a file into a PostGIS table."""
+
+    if logger_:
+        logger_.info(f"Ingesting data from file {file_path} into table {table_name}")
+    # raise Exception("Ingest data from file TOTOTO")
+    #TODO: utiliser config logger au lieu de passer en param
 
     try:
         gdf = gpd.read_file(file_path)
         target_schema = schema or "public"
 
+        if logger_:
+            logger_.info(f"Ingesting data from file {file_path} into table {table_name} in schema {target_schema}")
+
         gdf.to_postgis(table_name, engine, if_exists="replace", schema=target_schema)
+
+        # TODO: log success: récupérer le nombre de lignes insérées et le logger
     except Exception as e:
-        logger.error(f"Error ingesting data from file {file_path}: {e}")
+        if logger_:
+            logger_.error(f"Error ingesting data from file {file_path}: {e}")
         raise
 
 

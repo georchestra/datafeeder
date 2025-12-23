@@ -2,7 +2,7 @@ from enum import Enum
 
 from airflow_client.client.models.dag_run_state import DagRunState
 from pydantic import AnyUrl, BaseModel
-from fastapi import File, UploadFile
+from fastapi import File, Form, UploadFile
 from pydantic import BaseModel
 
 
@@ -18,8 +18,8 @@ class ImportType(str, Enum):
 class StagingRequest(BaseModel):
     """Request model for import endpoint"""
 
-    type: ImportType
-    url: AnyUrl
+    type: ImportType = Form(...)
+    url: AnyUrl | None = Form(None)
     file: UploadFile | None = File(None)
 
 
