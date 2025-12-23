@@ -33,6 +33,9 @@ def process_staging_data(
     request: ProcessRequest,
     session: SessionDep,
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
+    sec_email: str = Header("", alias="sec-email", include_in_schema=False),
+    sec_firstname: str = Header("", alias="sec-firstname", include_in_schema=False),
+    sec_lastname: str = Header("", alias="sec-lastname", include_in_schema=False),
 ) -> ProcessResponse:
     """
     Submit staging data for processing.
@@ -76,6 +79,9 @@ def process_staging_data(
     callback_params = {
         "integrity_link_id": str(integrity_link.id),
         "final_table_name": final_table_name,
+        "user_email": sec_email,
+        "user_first_name": sec_firstname,
+        "user_last_name": sec_lastname,
     }
 
     # Build callback URLs
@@ -111,6 +117,9 @@ def dag_success_callback(
     session: SessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
+    user_email: str = Query("", description="User email"),
+    user_first_name: str = Query("", description="User first name"),
+    user_last_name: str = Query("", description="User last name"),
 ) -> None:
     """
     Success callback endpoint called by Airflow DAG on successful completion.
@@ -138,7 +147,12 @@ def dag_success_callback(
             verify_tls=False,
         )
 
-        metadata_id = metadata_service.create_and_publish_metadata(integrity_link)
+        metadata_id = metadata_service.create_and_publish_metadata(
+            integrity_link,
+            user_email=user_email,
+            user_first_name=user_first_name,
+            user_last_name=user_last_name,
+        )
         integrity_link.metadata_id = metadata_id
 
         logger.info(f"Metadata published for IntegrityLink {integrity_link.id}: {metadata_id}")

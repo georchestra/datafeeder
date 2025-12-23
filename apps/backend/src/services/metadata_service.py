@@ -29,11 +29,20 @@ class MetadataService:
         self.template_path = f"{datadir_path}/datakern/metadata_template-19115-3.xml"
         self.xslt_path = f"{datadir_path}/datakern/metadata_transform-19115-3.xsl"
 
-    def generate_metadata(self, integrity_link: IntegrityLink) -> str:
+    def generate_metadata(
+        self,
+        integrity_link: IntegrityLink,
+        user_email: str = "",
+        user_first_name: str = "",
+        user_last_name: str = "",
+    ) -> str:
         """Generate ISO 19115-3 metadata XML from IntegrityLink.
 
         Args:
             integrity_link: IntegrityLink record with data to populate metadata
+            user_email: User email address
+            user_first_name: User first name
+            user_last_name: User last name
 
         Returns:
             Generated metadata XML as string
@@ -50,19 +59,31 @@ class MetadataService:
             props, "abstract"
         ).text = f"Dataset imported via DataKern: {integrity_link.integrity_title or 'Untitled'}"
 
+        # Build individual name from first + last name, fallback to username
+        if user_first_name or user_last_name:
+            individual_name = f"{user_first_name} {user_last_name}".strip()
+        else:
+            individual_name = integrity_link.integrity_owner
+
         # Dataset responsible party (owner)
         dataset_party = etree.SubElement(props, "datasetResponsibleParty")
-        etree.SubElement(dataset_party, "individualName").text = integrity_link.integrity_owner
+        etree.SubElement(dataset_party, "individualName").text = individual_name
         etree.SubElement(
             dataset_party, "organizationName"
         ).text = integrity_link.integrity_organization
+        # Add email if available
+        if user_email:
+            etree.SubElement(dataset_party, "email").text = user_email
 
         # Metadata responsible party (same as dataset owner)
         metadata_party = etree.SubElement(props, "metadataResponsibleParty")
-        etree.SubElement(metadata_party, "individualName").text = integrity_link.integrity_owner
+        etree.SubElement(metadata_party, "individualName").text = individual_name
         etree.SubElement(
             metadata_party, "organizationName"
         ).text = integrity_link.integrity_organization
+        # Add email if available
+        if user_email:
+            etree.SubElement(metadata_party, "email").text = user_email
 
         # Dates
         created_at = integrity_link.created_at or datetime.now(timezone.utc)
@@ -108,23 +129,45 @@ class MetadataService:
         Returns:
             Metadata UUID from GeoNetwork
         """
-        response = self.gn_api.upload_metadata(
-            metadata=metadata_xml, groupid=group_id, uuidprocessing="GENERATEUUID", publish=publish
-        )
+        try:
+            response = self.gn_api.upload_metadata(
+                metadata=metadata_xml,
+                groupid=group_id,
+                uuidprocessing="GENERATEUUID",
+                publish=publish,
+            )
 
-        # Parse JSON response and extract UUID
-        response_data = response.json()
-        metadata_uuid: str = response_data.get("uuid") or response_data.get("id")  # type: ignore[assignment]
+            # Parse JSON response and extract UUID
+            response_data = response.json()
+            metadata_uuid: str = response_data.get("uuid") or response_data.get("id")  # type: ignore[assignment]
+            logger.info(f"Published metadata with UUID: {metadata_uuid}")
+        except Exception as e:
+            logger.error(f"Failed to publish metadata: {e}", exc_info=True)
+            raise
         return metadata_uuid
 
-    def create_and_publish_metadata(self, integrity_link: IntegrityLink) -> str:
+    def create_and_publish_metadata(
+        self,
+        integrity_link: IntegrityLink,
+        user_email: str = "",
+        user_first_name: str = "",
+        user_last_name: str = "",
+    ) -> str:
         """Generate and publish metadata in one operation.
 
         Args:
             integrity_link: IntegrityLink record with data to populate metadata
+            user_email: User email address
+            user_first_name: User first name
+            user_last_name: User last name
 
         Returns:
             Metadata UUID from GeoNetwork
         """
-        metadata_xml = self.generate_metadata(integrity_link)
+        metadata_xml = self.generate_metadata(
+            integrity_link,
+            user_email=user_email,
+            user_first_name=user_first_name,
+            user_last_name=user_last_name,
+        )
         return self.publish_metadata(metadata_xml)
