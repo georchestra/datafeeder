@@ -28,10 +28,10 @@ class AirflowAccessTokenResponse(BaseModel):
 def _request_new_access_token() -> str:
     settings = get_settings()
 
-    url: str = f"{settings.datakern_config.get('airflow_url', 'gateway_routes')}/auth/token"
+    url = f"{settings.AIRFLOW_URL}/auth/token"
     payload = {
-        "username": settings.datakern_config.get("airflow_username"),
-        "password": settings.datakern_config.get("airflow_password"),
+        "username": settings.AIRFLOW_USERNAME,
+        "password": settings.AIRFLOW_PASSWORD,
     }
     headers = {"Content-Type": "application/json"}
 
@@ -57,7 +57,7 @@ def _is_jwt_expired(token: str) -> bool:
 @lru_cache
 def _get_cached_airflow_api_client() -> ApiClient:
     settings = get_settings()
-    config = Configuration(host=settings.datakern_config.get("airflow_url", "gateway_routes"))
+    config = Configuration(host=settings.AIRFLOW_URL)
     config.access_token = _request_new_access_token()
     return ApiClient(configuration=config)
 

@@ -60,7 +60,7 @@ def read_version():
 @app.get("/geonetwork", tags=["Health"])
 def read_geonetwork():
     gnapi: GnApi = GnApi(
-        api_url=f"{get_settings().georchestra_config.get('geonetwork.target', 'gateway_routes')}srv/api",
+        api_url=f"{get_settings().GEONETWORK_URL}srv/api",
         credentials=None,
         verifytls=False,
     )
@@ -71,4 +71,4 @@ if DEBUG:
 
     @app.get("/config", tags=["Health"], response_class=HTMLResponse)
     def read_config():
-        return get_settings().georchestra_config.tostr() + get_settings().tostr()
+        return get_settings().model_dump()

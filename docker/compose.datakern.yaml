@@ -25,7 +25,7 @@ services:
       - ../pyproject.toml:/app/pyproject.toml
       - ../uv.lock:/app/uv.lock
     environment:
-      - GEORCHESTRA_DATADIR=/etc/georchestra
+      - DATADIR=/etc/georchestra
     env_file:
       - .envs-common
       - .envs-ldap

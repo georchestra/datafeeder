@@ -16,6 +16,7 @@ ES_HOST=elasticsearch
 ES_PORT=9200
 RABBITMQ_HOST=rabbitmq
 DATA_API_HOST=data-api
+AIRFLOW_HOST=airflow-apiserver
 
 # needed for geonetwork entrypoint DO NOT REMOVE
 CONSOLE_URL=http://${CONSOLE_HOST}:8080

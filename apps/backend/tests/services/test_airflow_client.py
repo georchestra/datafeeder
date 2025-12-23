@@ -31,41 +31,28 @@ class TestAirflowClient:
     def mock_settings(self) -> Mock:
         """Create mock settings for Airflow connection."""
         settings = Mock()
-        settings.datakern_config.get.return_value = "http://test-airflow.example.com"
+        settings.AIRFLOW_URL = "http://test-airflow.example.com"
         settings.AIRFLOW_USERNAME = "test_user"
         settings.AIRFLOW_PASSWORD = "test_pass"
-
-        def datakern_config_get(key: str, default: str = "") -> str:
-            if key == "AIRFLOW_USERNAME" or key == "airflow_username":
-                return "test_user"
-            elif key == "AIRFLOW_PASSWORD" or key == "airflow_password":
-                return "test_pass"
-            elif key == "airflow_url":
-                return "http://test-airflow.example.com"
-            return default
-
-        settings.datakern_config.get.side_effect = datakern_config_get
         return settings
 
     @pytest.fixture
     def valid_jwt_token(self) -> str:
         """Generate a valid JWT token that expires in 1 hour."""
-        payload: dict[str, object] = {
+        payload = {
             "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "sub": "test_user",
         }
-        encoded: str = jwt.encode(payload, "secret", algorithm="HS256")
-        return encoded
+        return jwt.encode(payload, "secret", algorithm="HS256")
 
     @pytest.fixture
     def expired_jwt_token(self) -> str:
         """Generate an expired JWT token."""
-        payload: dict[str, object] = {
+        payload = {
             "exp": datetime.now(timezone.utc) - timedelta(hours=1),
             "sub": "test_user",
         }
-        encoded: str = jwt.encode(payload, "secret", algorithm="HS256")
-        return encoded
+        return jwt.encode(payload, "secret", algorithm="HS256")
 
     def test_given_valid_credentials_when_requesting_new_token_then_returns_token_successfully(
         self, mock_settings: Mock

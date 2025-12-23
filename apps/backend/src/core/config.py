@@ -1,18 +1,34 @@
-import re
+import logging
+import os
 import secrets
-from configparser import ConfigParser
+import warnings
 from functools import lru_cache
-from itertools import chain
-from os import getenv
-from typing import Any
+from string import Template
+from typing import Annotated, Any, Literal
 
+from data_manipulation.logging import configure_logging
 from pydantic import (
+    AliasChoices,
+    AnyUrl,
+    BeforeValidator,
+    EmailStr,
+    Field,
+    HttpUrl,
     PostgresDsn,
+    computed_field,
+    field_validator,
+    model_validator,
 )
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+from typing_extensions import Self
 
-from .georchestraconfig import GeorchestraConfig
+from src.core.logging import get_logger
+from src.plugins.PropertiesConfigSettingsSource import PropertiesConfigSettingsSource
 
-__all__ = ["DataKernSettings", "get_settings"]
+logger = get_logger()
+configure_logging(logger)
+
+__all__ = ["Settings", "get_settings"]
 
 
 def parse_cors(v: Any) -> list[str] | str:
@@ -23,107 +39,180 @@ def parse_cors(v: Any) -> list[str] | str:
     raise ValueError(v)
 
 
-class DataKernSettings:
-    def __init__(self):
-        self.georchestra_config: GeorchestraConfig = GeorchestraConfig()
-        self.datakern_config: dict[str, Any] = dict()
-        # Project Information
-        self.datakern_config["project_name"] = "DataKern"
+class Settings(BaseSettings):
+    datakern_config: str = os.getenv("DATAKERN_CONFIG", "")
 
-        # API Configuration
-        self.datakern_config["api_v1_str"] = "/api/v1"
-        self.datakern_config["environment"] = "local"  # Can be "local", "staging", "production"
-        self.datakern_config["sentry_dsn"] = None
+    if not os.path.exists(datakern_config) and not os.path.exists(
+        f"{os.getenv('DATADIR')}/datakern/datakern.env"
+    ):
+        logger.warning("Configuration file not found!")
+        logger.warning("looked for DATAKERN_CONFIG at: %s", os.getenv("DATAKERN_CONFIG", ""))
+        logger.warning(
+            "looked for datakern.env at: %s", f"{os.getenv('DATADIR')}/datakern/datakern.env"
+        )
+    else:
+        if not os.path.exists(datakern_config) and os.path.exists(
+            f"{os.getenv('DATADIR')}/datakern/datakern.env"
+        ):
+            datakern_config = f"{os.getenv('DATADIR')}/datakern/datakern.env"
+        logger.info("Loading configuration from %s", datakern_config)
 
-        # Security
-        self.secret_key: str = secrets.token_urlsafe(32)
+    model_config = SettingsConfigDict(
+        # Load .env from workspace root, with defaults from georchestra properties
+        env_file=datakern_config,
+        env_ignore_empty=False,
+        extra="ignore",
+    )
 
-        # Airflow configuration
-        self.datakern_config["airflow_username"] = "airflow"
-        self.datakern_config["airflow_password"] = "airflow"
-        # 60 minutes * 24 hours * 8 days = 8 days
-        self.datakern_config["access_token_expire_minutes"] = 60 * 24 * 8
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            PropertiesConfigSettingsSource(settings_cls),
+            dotenv_settings,
+            init_settings,
+            file_secret_settings,
+        )
 
-        self.datakern_config["backend_cors_origins"] = []
+    # Project Information
+    PROJECT_NAME: str = "DataKern"
+    BACKEND_URL: str = "http://localhost:8000"
 
-        self.datakern_config["email_reset_token_expire_hours"] = 48  # type: ignore[arg-type]
+    # API Configuration
+    API_V1_STR: str = "/api/v1"
+    ENVIRONMENT: Literal["local", "staging", "production"] = "local"
+    SENTRY_DSN: HttpUrl | None = None
 
-        self.read_datakern_config()
+    # Security
+    SECRET_KEY: str = secrets.token_urlsafe(32)
 
-    def read_datakern_config(self):
-        parser = ConfigParser()
-        with open(f"{self.georchestra_config.datadirpath}/datakern/datakern.conf") as lines:
-            lines = chain(("[section]",), lines)  # This line does the trick.
-            parser.read_file(lines)
-        self.datakern_config = parser["section"]  # type: ignore[arg-type]
+    # Airflow configuration
+    AIRFLOW_URL: str = "http://localhost:8081/airflow"
+    AIRFLOW_USERNAME: str = "airflow"
+    AIRFLOW_PASSWORD: str = "airflow"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 60 minutes * 24 hours * 8 days = 8 days
 
+    # CORS Configuration
+    FRONTEND_HOST: str = "http://localhost:5173"
+    BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = []
+
+    # PostgreSQL Database
+    POSTGRES_HOST: str = Field(
+        default="localhost", validation_alias=AliasChoices("pgsqlHost", "POSTGRES_HOST")
+    )
+    POSTGRES_PORT: int = Field(
+        default=5432, validation_alias=AliasChoices("pgsqlPort", "POSTGRES_PORT")
+    )
+    POSTGRES_USER: str = Field(
+        default="georchestra", validation_alias=AliasChoices("pgsqlUser", "POSTGRES_USER")
+    )
+    POSTGRES_PASSWORD: str = Field(
+        default="georchestra", validation_alias=(AliasChoices("pgsqlPassword", "POSTGRES_PASSWORD"))
+    )
+    POSTGRES_DB: str = Field(
+        default="georchestra", validation_alias=(AliasChoices("pgsqlDatabase", "POSTGRES_DB"))
+    )
+
+    # GeoServer
+    GEOSERVER_URL: str = Field(
+        default="http://localhost:8080/geoserver",
+        validation_alias=AliasChoices("geoserverUrl", "GEOSERVER_URL"),
+    )
+    GEOSERVER_USER: str = Field(
+        default="testadmin", validation_alias=AliasChoices("geoserverUser", "GEOSERVER_USER")
+    )
+    GEOSERVER_PASSWORD: str = Field(
+        default="testadmin",
+        validation_alias=AliasChoices("geoserverPassword", "GEOSERVER_PASSWORD"),
+    )
+
+    # Geonetwork
+    GEONETWORK_URL: str = Field(
+        default="http://localhost:8080/geonetwork",
+        validation_alias=AliasChoices("geonetworkUrl", "GEONETWORK_URL"),
+    )
+
+    # Email Configuration
+    SMTP_TLS: bool = True
+    SMTP_SSL: bool = False
+    SMTP_PORT: int = 587
+    SMTP_HOST: str | None = None
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    EMAILS_FROM_EMAIL: EmailStr | None = None
+    EMAILS_FROM_NAME: str | None = None
+    EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
+
+    EMAIL_TEST_USER: EmailStr = "test@example.com"
+    FIRST_SUPERUSER: EmailStr = "admin@example.com"
+    FIRST_SUPERUSER_PASSWORD: str = "changethis"
+
+    ### Validators and computed fields
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
     def all_cors_origins(self) -> list[str]:
-        return [
-            str(origin).rstrip("/")  # type: ignore[arg-type]
-            for origin in self.datakern_config["backend_cors_origins"]  # type: ignore[arg-type]
-        ] + [self.georchestra_config.get("datakern.target", "gateway_routes")]
+        return [str(origin).rstrip("/") for origin in self.BACKEND_CORS_ORIGINS] + [
+            self.FRONTEND_HOST
+        ]
 
-    def sqlalchemy_database_uri(self) -> PostgresDsn:
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
         return PostgresDsn.build(
             scheme="postgresql+psycopg",
-            username=self.georchestra_config.get("pgsqluser", "default"),
-            password=self.georchestra_config.get("pgsqlpassword", "default"),
-            host="127.0.0.1",
-            # host=self.georchestra_config.get("pgsqlhost", "default"),
-            port=int(self.georchestra_config.get("pgsqlport", "default")),
-            path=self.georchestra_config.get("pgsqldatabase", "default"),
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_HOST,
+            port=self.POSTGRES_PORT,
+            path=self.POSTGRES_DB,
         )
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
     def emails_enabled(self) -> bool:
-        return bool(
-            self.georchestra_config.get("smtphost", "default")
-            and self.georchestra_config.get("administratoremail", "default")
-        )
+        return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
 
-    def get(self, key: str) -> str:
-        value: str = self.datakern_config[key]
-        if value:
-            # this is to catch ${ENV_VAR}
-            search_env = re.match("^\\${(.*)}$", value)  # type: ignore[arg-type]
-            # this is for url using env var http://${ENV_VAR}/geonetwork/..etc?params
-            search_env2 = re.match("(.*)\\${(.*)}(.*)", value)  # type: ignore[arg-type]
-            search_env3 = re.match("(.*)\\${(.*):.*}(.*)", value)  # type: ignore[arg-type]
+    @model_validator(mode="after")
+    def _set_default_emails_from(self) -> Self:
+        if not self.EMAILS_FROM_NAME:
+            object.__setattr__(self, "EMAILS_FROM_NAME", self.PROJECT_NAME)
+        return self
 
-            if search_env:
-                if getenv(search_env.group(1)):
-                    value = getenv(search_env.group(1))  # type: ignore[arg-type]
-            elif search_env3:  # type: ignore[arg-type]
-                if getenv(search_env3.group(2)):
-                    value = (
-                        f"{search_env3.group(1)}"
-                        + f"{getenv(search_env3.group(2))}"
-                        + f"{search_env3.group(3)}"
-                    )
-            elif search_env2:
-                if getenv(search_env2.group(2)):
-                    value = (
-                        f"{search_env2.group(1)}"
-                        + f"{getenv(search_env2.group(2))}"
-                        + f"{search_env2.group(3)}"
-                    )
-        return value
-
-    def tostr(self) -> str:
-        str_to_return: str = "\r\n<br>Datakern config: \r\n<br>"
-
-        for key2 in self.datakern_config:
-            str_to_return += "\t&emsp;" + key2 + " : "
-            if self.datakern_config[key2] == self.get(key2):  # type: ignore[arg-type]
-                str_to_return += " \t&emsp;" + f"{self.datakern_config[key2]}" + "\r\n<br> "
+    # Validators
+    def _check_default_secret(self, var_name: str, value: str | None) -> None:
+        if value == "changethis":
+            message = (
+                f'The value of {var_name} is "changethis", '
+                "for security, please change it, at least for deployments."
+            )
+            if self.ENVIRONMENT == "local":
+                warnings.warn(message, stacklevel=1)
             else:
-                str_to_return += (
-                    " \t&emsp;"
-                    + f"{self.datakern_config[key2]}"
-                    + " = "
-                    + f"{self.get(key2)}"  # type: ignore[arg-type]
-                    + "\r\n<br> "
-                )
-        return str_to_return
+                raise ValueError(message)
+
+    @model_validator(mode="after")
+    def _enforce_non_default_secrets(self) -> Self:
+        self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
+        self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
+        self._check_default_secret("FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD)
+        return self
+
+    @field_validator("*", mode="after")
+    @classmethod
+    def expand_env_vars(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            try:
+                v = Template(v).substitute(os.environ)
+            except KeyError as e:
+                logging.error(f"Environment variable {e} not set for value: {v}")
+        return v
 
 
 # Use lru_cache to ensure settings are only loaded once
@@ -131,4 +220,4 @@ class DataKernSettings:
 # https://fastapi.tiangolo.com/advanced/settings/#creating-the-settings-only-once-with-lru-cache
 @lru_cache
 def get_settings():
-    return DataKernSettings()  # type: ignore[arg-type]
+    return Settings()

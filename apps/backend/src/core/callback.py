@@ -15,7 +15,7 @@ def build_callback_url(route: str, query_params: dict[str, str] | None = None) -
     Returns:
         Full URL for the callback endpoint with query parameters
     """
-    base_url = f"{settings.datakern_config.get('backend_url', 'default')}{route}"
+    base_url = f"{settings.BACKEND_URL}{route}"
 
     if query_params:
         query_string = urlencode(query_params)
