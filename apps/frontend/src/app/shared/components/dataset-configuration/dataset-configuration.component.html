@@ -4,9 +4,42 @@
     {{ 'import.configuration.datasetTitle' | translate }}
   </h2>
 
-  <mat-form-field appearance="outline" class="w-full">
-    <input matInput [formControl]="form.controls.title" />
-  </mat-form-field>
+  <form [formGroup]="form" class="space-y-4">
+    <mat-form-field appearance="outline" class="w-full">
+      <input
+        matInput
+        formControlName="title"
+        placeholder="{{
+          'import.configuration.datasetTitlePlaceholder' | translate
+        }}"
+        type="text"
+      />
+      @if (form.controls.title.errors?.['required'] &&
+      form.controls.title.touched) {
+      <mat-error>{{ 'Le titre est requis' | translate }}</mat-error>
+      } @if (form.controls.title.errors?.['minlength'] &&
+      form.controls.title.touched) {
+      <mat-error>{{
+        'Le titre doit contenir au moins 3 caractères' | translate
+      }}</mat-error>
+      } @if (form.controls.title.errors?.['maxlength'] &&
+      form.controls.title.touched) {
+      <mat-error>{{
+        'Le titre ne peut pas dépasser 100 caractères' | translate
+      }}</mat-error>
+      } @if (form.controls.title.errors?.['pattern'] &&
+      form.controls.title.touched) {
+      <mat-error>{{
+        'Le titre ne peut contenir que des lettres, chiffres, espaces, tirets et underscores'
+          | translate
+      }}</mat-error>
+      }
+      <mat-hint>{{
+        'Donnez un nom descriptif à votre jeu de données (3-100 caractères)'
+          | translate
+      }}</mat-hint>
+    </mat-form-field>
+  </form>
 </div>
 } @else {
 <div class="p-6 text-gray-500">

@@ -25,6 +25,7 @@
   "import.dataSource.unknownError": "Une erreur est survenue",
   "import.dataSource.unsupportedSourceType": "Type de source non supporté",
   "import.dataSource.url.patternHint": "L'URL doit commencer par http:// ou https://",
+  "import.dataSource.validate": "Valider le jeu de données",
   "import.dataSource.validation": "Validation en cours...",
   "import.datasetConfiguration.previewTitle": "Aperçu du résultat",
   "import.datasetConfiguration.title": "Paramétrer le jeu de données",

@@ -25,6 +25,7 @@
   "import.dataSource.unknownError": "An unknown error occurred",
   "import.dataSource.unsupportedSourceType": "Unsupported source type",
   "import.dataSource.url.patternHint": "The URL must start with http:// or https://",
+  "import.dataSource.validate": "",
   "import.dataSource.validation": "Validating...",
   "import.datasetConfiguration.previewTitle": "Preview of the result",
   "import.datasetConfiguration.title": "Configure the dataset",

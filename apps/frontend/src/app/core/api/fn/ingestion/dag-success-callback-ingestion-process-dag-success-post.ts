@@ -17,6 +17,21 @@ export interface DagSuccessCallbackIngestionProcessDagSuccessPost$Params {
    * Final table name
    */
   final_table_name: string
+
+  /**
+   * User email
+   */
+  user_email?: string
+
+  /**
+   * User first name
+   */
+  user_first_name?: string
+
+  /**
+   * User last name
+   */
+  user_last_name?: string
 }
 
 export function dagSuccessCallbackIngestionProcessDagSuccessPost(
@@ -33,6 +48,9 @@ export function dagSuccessCallbackIngestionProcessDagSuccessPost(
   if (params) {
     rb.query('integrity_link_id', params.integrity_link_id, {})
     rb.query('final_table_name', params.final_table_name, {})
+    rb.query('user_email', params.user_email, {})
+    rb.query('user_first_name', params.user_first_name, {})
+    rb.query('user_last_name', params.user_last_name, {})
   }
 
   return http

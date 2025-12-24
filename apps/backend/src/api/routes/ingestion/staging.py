@@ -43,7 +43,7 @@ def _generate_staging_table_name(dag_run_id: str, file_name: str | None) -> str:
 
     MAX_TABLE_NAME_LENGTH = 63
     UUID_LENGTH = 36  # Length of UUID with hyphens
-    SANITIZED_DAG_RUN_ID = dag_run_id.replace("-", "_")[:UUID_LENGTH]
+    SANITIZED_DAG_RUN_ID = sanitize_name(dag_run_id.replace("-", "_")[:UUID_LENGTH])
 
     if file_name:
         sanitized_name = sanitize_name(file_name.rsplit(".", 1)[0])[

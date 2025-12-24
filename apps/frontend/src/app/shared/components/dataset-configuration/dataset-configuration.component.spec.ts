@@ -136,4 +136,12 @@ describe('DatasetConfigurationComponent', () => {
     dataSource = component.dataSource()
     expect(dataSource).toEqual(mockPreview.data)
   })
+
+  it('should display title input field', () => {
+    const fixture = TestBed.createComponent(DatasetConfigurationComponent)
+    fixture.detectChanges()
+    const compiled = fixture.nativeElement as HTMLElement
+    expect(compiled.textContent).toContain('Configuration du jeu de données')
+    expect(compiled.textContent).toContain('Titre du jeu de données')
+  })
 })
