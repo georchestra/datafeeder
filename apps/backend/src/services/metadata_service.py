@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 from typing import Any
-from uuid import uuid4
 
 from geonetwork import GnApi  # type: ignore[import-untyped]
 from lxml import etree  # type: ignore[import-untyped]
@@ -50,8 +49,8 @@ class MetadataService:
         # Build properties XML for XSLT transformation
         props = etree.Element("properties")
 
-        # Generate new UUID for metadata
-        etree.SubElement(props, "metadataId").text = str(uuid4())
+        # Use IntegrityLink ID as metadata UUID
+        etree.SubElement(props, "metadataId").text = str(integrity_link.id)
 
         # Core properties from IntegrityLink
         etree.SubElement(props, "title").text = integrity_link.integrity_title or "Untitled Dataset"
@@ -133,7 +132,7 @@ class MetadataService:
             response = self.gn_api.upload_metadata(
                 metadata=metadata_xml,
                 groupid=group_id,
-                uuidprocessing="GENERATEUUID",
+                uuidprocessing="OVERWRITE",
                 publish=publish,
             )
 

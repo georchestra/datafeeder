@@ -63,7 +63,7 @@ class TestMetadataService:
 
     @patch("src.services.metadata_service.GnApi")
     def test_publish_metadata_success(self, mock_gn_api):
-        """Test successful metadata publication."""
+        """Test successful metadata publication uses OVERWRITE."""
         expected_uuid = "123e4567-e89b-12d3-a456-426614174000"
 
         # Mock Response object with json() method
@@ -82,7 +82,12 @@ class TestMetadataService:
         result_uuid = service.publish_metadata("<mock_metadata/>")
 
         assert result_uuid == expected_uuid
-        mock_api_instance.upload_metadata.assert_called_once()
+        mock_api_instance.upload_metadata.assert_called_once_with(
+            metadata="<mock_metadata/>",
+            groupid="100",
+            uuidprocessing="OVERWRITE",
+            publish=True,
+        )
 
     @patch("src.services.metadata_service.GnApi")
     def test_publish_metadata_handles_geonetwork_error(self, mock_gn_api):
