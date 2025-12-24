@@ -63,7 +63,7 @@ class TestMetadataService:
 
     @patch("src.services.metadata_service.GnApi")
     def test_publish_metadata_success(self, mock_gn_api):
-        """Test successful metadata publication uses OVERWRITE."""
+        """Test successful metadata publication uses OVERWRITE and private by default."""
         expected_uuid = "123e4567-e89b-12d3-a456-426614174000"
 
         # Mock Response object with json() method
@@ -86,7 +86,7 @@ class TestMetadataService:
             metadata="<mock_metadata/>",
             groupid="100",
             uuidprocessing="OVERWRITE",
-            publish=True,
+            publish=False,
         )
 
     @patch("src.services.metadata_service.GnApi")

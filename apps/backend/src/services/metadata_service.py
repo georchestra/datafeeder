@@ -116,14 +116,14 @@ class MetadataService:
         return etree.tostring(result, encoding="unicode")
 
     def publish_metadata(
-        self, metadata_xml: str, group_id: str = "100", publish: bool = True
+        self, metadata_xml: str, group_id: str = "100", publish: bool = False
     ) -> str:
         """Publish metadata to GeoNetwork.
 
         Args:
             metadata_xml: ISO 19115-3 metadata XML string
             group_id: GeoNetwork group ID (default: '100' = public)
-            publish: Whether to publish the metadata
+            publish: Whether to publish the metadata publicly (default: False = private, owner only)
 
         Returns:
             Metadata UUID from GeoNetwork
