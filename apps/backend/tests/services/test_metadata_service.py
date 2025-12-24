@@ -11,7 +11,7 @@ from src.services.metadata_service import MetadataService
 
 class TestMetadataService:
     @pytest.fixture
-    def sample_integrity_link(self):
+    def sample_integrity_link(self) -> IntegrityLink:
         """Create sample IntegrityLink for testing."""
         return IntegrityLink(
             id=uuid4(),
@@ -25,7 +25,7 @@ class TestMetadataService:
         )
 
     @patch("src.services.metadata_service.GnApi")
-    def test_metadata_service_initialization(self, mock_gn_api):
+    def test_metadata_service_initialization(self, mock_gn_api: MagicMock) -> None:
         """Test MetadataService initialization."""
         service = MetadataService(
             gn_api_url="http://test.example.com/geonetwork/srv/api",
@@ -40,7 +40,9 @@ class TestMetadataService:
 
     @patch("src.services.metadata_service.etree.parse")
     @patch("src.services.metadata_service.GnApi")
-    def test_generate_metadata(self, mock_gn_api, mock_parse, sample_integrity_link):
+    def test_generate_metadata(
+        self, mock_gn_api: MagicMock, mock_parse: MagicMock, sample_integrity_link: IntegrityLink
+    ) -> None:
         """Test metadata XML generation."""
         service = MetadataService(
             gn_api_url="http://test/api",
@@ -62,7 +64,7 @@ class TestMetadataService:
             assert isinstance(metadata_xml, str)
 
     @patch("src.services.metadata_service.GnApi")
-    def test_publish_metadata_success(self, mock_gn_api):
+    def test_publish_metadata_success(self, mock_gn_api: MagicMock) -> None:
         """Test successful metadata publication uses OVERWRITE and private by default."""
         expected_uuid = "123e4567-e89b-12d3-a456-426614174000"
 
@@ -90,7 +92,7 @@ class TestMetadataService:
         )
 
     @patch("src.services.metadata_service.GnApi")
-    def test_publish_metadata_handles_geonetwork_error(self, mock_gn_api):
+    def test_publish_metadata_handles_geonetwork_error(self, mock_gn_api: MagicMock) -> None:
         """Test error handling when GeoNetwork is unavailable."""
         mock_api_instance = MagicMock()
         mock_api_instance.upload_metadata.side_effect = Exception("Connection refused")
@@ -107,8 +109,8 @@ class TestMetadataService:
     @patch("src.services.metadata_service.etree.parse")
     @patch("src.services.metadata_service.GnApi")
     def test_create_and_publish_metadata_integration(
-        self, mock_gn_api, mock_parse, sample_integrity_link
-    ):
+        self, mock_gn_api: MagicMock, mock_parse: MagicMock, sample_integrity_link: IntegrityLink
+    ) -> None:
         """Test full workflow: generate + publish."""
         expected_uuid = "metadata-uuid-123"
 

@@ -1,8 +1,18 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from geonetwork import GnApi  # type: ignore[import-untyped]
-from lxml import etree  # type: ignore[import-untyped]
+from lxml import etree
+
+if TYPE_CHECKING:
+    from lxml.etree import (
+        XSLT,
+        _Element,  # pyright: ignore[reportPrivateUsage]
+        _ElementTree,  # pyright: ignore[reportPrivateUsage]
+        _XSLTResultTree,  # pyright: ignore[reportPrivateUsage]
+    )
 
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
@@ -24,9 +34,9 @@ class MetadataService:
             credentials: Optional GnApi credentials
             verify_tls: Whether to verify TLS certificates
         """
-        self.gn_api = GnApi(api_url=gn_api_url, credentials=credentials, verifytls=verify_tls)
-        self.template_path = f"{datadir_path}/datakern/metadata_template-19115-3.xml"
-        self.xslt_path = f"{datadir_path}/datakern/metadata_transform-19115-3.xsl"
+        self.gn_api: Any = GnApi(api_url=gn_api_url, credentials=credentials, verifytls=verify_tls)
+        self.template_path: str = f"{datadir_path}/datakern/metadata_template-19115-3.xml"
+        self.xslt_path: str = f"{datadir_path}/datakern/metadata_transform-19115-3.xsl"
 
     def generate_metadata(
         self,
@@ -47,7 +57,7 @@ class MetadataService:
             Generated metadata XML as string
         """
         # Build properties XML for XSLT transformation
-        props = etree.Element("properties")
+        props: _Element = etree.Element("properties")
 
         # Use IntegrityLink ID as metadata UUID
         etree.SubElement(props, "metadataId").text = str(integrity_link.id)
@@ -65,7 +75,7 @@ class MetadataService:
             individual_name = integrity_link.integrity_owner
 
         # Dataset responsible party (owner)
-        dataset_party = etree.SubElement(props, "datasetResponsibleParty")
+        dataset_party: _Element = etree.SubElement(props, "datasetResponsibleParty")
         etree.SubElement(dataset_party, "individualName").text = individual_name
         etree.SubElement(
             dataset_party, "organizationName"
@@ -75,7 +85,7 @@ class MetadataService:
             etree.SubElement(dataset_party, "email").text = user_email
 
         # Metadata responsible party (same as dataset owner)
-        metadata_party = etree.SubElement(props, "metadataResponsibleParty")
+        metadata_party: _Element = etree.SubElement(props, "metadataResponsibleParty")
         etree.SubElement(metadata_party, "individualName").text = individual_name
         etree.SubElement(
             metadata_party, "organizationName"
@@ -94,7 +104,7 @@ class MetadataService:
         )
 
         # Keywords (use title as keyword)
-        keywords = etree.SubElement(props, "keywords")
+        keywords: _Element = etree.SubElement(props, "keywords")
         etree.SubElement(keywords, "keyword").text = integrity_link.integrity_title or "dataset"
 
         # Lineage
@@ -103,17 +113,17 @@ class MetadataService:
         ).text = f"Imported from staging table {integrity_link.staging_table_name}"
 
         # Apply XSLT transformation
-        xml_doc = etree.parse(self.template_path)
-        root = xml_doc.getroot()
+        xml_doc: _ElementTree = etree.parse(self.template_path)
+        root: _Element = xml_doc.getroot()
 
         # Embed props into the XML document (XSLT parameters can't be node-sets)
         root.insert(0, props)
 
-        xslt_doc = etree.parse(self.xslt_path)
-        transform = etree.XSLT(xslt_doc)
+        xslt_doc: _ElementTree = etree.parse(self.xslt_path)
+        transform: XSLT = etree.XSLT(xslt_doc)
 
-        result = transform(xml_doc)
-        return etree.tostring(result, encoding="unicode")
+        result: _XSLTResultTree = transform(xml_doc)
+        return str(etree.tostring(result, encoding="unicode"))
 
     def publish_metadata(
         self, metadata_xml: str, group_id: str = "100", publish: bool = False
@@ -129,7 +139,7 @@ class MetadataService:
             Metadata UUID from GeoNetwork
         """
         try:
-            response = self.gn_api.upload_metadata(
+            response: Any = self.gn_api.upload_metadata(
                 metadata=metadata_xml,
                 groupid=group_id,
                 uuidprocessing="OVERWRITE",
@@ -137,7 +147,7 @@ class MetadataService:
             )
 
             # Parse JSON response and extract UUID
-            response_data = response.json()
+            response_data: Any = response.json()
             metadata_uuid: str = response_data.get("uuid") or response_data.get("id")  # type: ignore[assignment]
             logger.info(f"Published metadata with UUID: {metadata_uuid}")
         except Exception as e:
