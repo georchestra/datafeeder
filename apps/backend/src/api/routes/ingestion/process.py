@@ -16,6 +16,7 @@ from src.models import (
 )
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
+from src.services.console_service import ConsoleService
 from src.services.metadata_service import MetadataService
 
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
@@ -140,6 +141,21 @@ def dag_success_callback(
 
     # Create and publish metadata to GeoNetwork
     try:
+        # Try to get organization email from console API
+        console_service = ConsoleService(settings.CONSOLE_URL)
+        contact_email = console_service.get_organization_email(
+            integrity_link.integrity_organization
+        )
+        # Fall back to user email if organization email not found
+        if not contact_email:
+            contact_email = user_email
+            logger.info(
+                f"Using user email for metadata contact: {user_email} "
+                f"(org email not available for '{integrity_link.integrity_organization}')"
+            )
+        else:
+            logger.info(f"Using organization email for metadata contact: {contact_email}")
+
         metadata_service = MetadataService(
             gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
             datadir_path=settings.DATADIR_PATH,
@@ -149,7 +165,7 @@ def dag_success_callback(
 
         metadata_id = metadata_service.create_and_publish_metadata(
             integrity_link,
-            user_email=user_email,
+            user_email=contact_email,
             user_first_name=user_first_name,
             user_last_name=user_last_name,
         )

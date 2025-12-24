@@ -149,6 +149,12 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("geonetworkPassword", "GEONETWORK_PASSWORD"),
     )
 
+    # Console
+    CONSOLE_URL: str = Field(
+        default="http://localhost:8085/console",
+        validation_alias=AliasChoices("consoleUrl", "CONSOLE_URL"),
+    )
+
     # Email Configuration
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
