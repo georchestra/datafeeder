@@ -32,45 +32,64 @@ body {
   height: 100%;
 }
 
-h1 {
-  font-size: 1.2rem;
-  font-weight: bold;
-}
+// TODO: implement into GN-UI instead of overriding here
+html {
+  /* Material Radio Styling */
+  --mat-radio-label-text-font: Lato;
+  --mat-radio-label-text-line-height: 150%;
+  --mat-radio-label-text-size: 14px;
+  --mat-radio-label-text-tracking: 0;
+  --mat-radio-label-text-weight: 400;
 
-.data-import-wizard {
-  // TODO: implement into GN-UI instead
-  --mat-tab-active-label-text-color: var(--color-secondary);
-  --mat-tab-active-ripple-color: var(--color-secondary);
-  --mat-tab-inactive-ripple-color: var(--color-secondary);
-  --mat-tab-active-focus-label-text-color: var(--color-secondary);
-  --mat-tab-active-hover-label-text-color: var(--color-secondary);
-  --mat-tab-active-focus-indicator-color: var(--color-secondary);
-  --mat-tab-active-hover-indicator-color: var(--color-secondary);
-  --mat-tab-active-indicator-color: var(--color-secondary);
-}
+  .mat-mdc-radio-button.mat-accent {
+    --mat-radio-checked-ripple-color: var(--color-primary);
+    --mat-radio-selected-focus-icon-color: var(--color-primary);
+    --mat-radio-selected-hover-icon-color: var(--color-primary);
+    --mat-radio-selected-icon-color: var(--color-primary);
+    --mat-radio-selected-pressed-icon-color: var(--color-primary);
+  }
 
-/* Data Import Wizard Tab Styling */
-.data-import-wizard .mat-mdc-tab.mdc-tab--active {
-  background-color: var(--color-primary);
-}
-/* Inactive tabs - match panel border */
-.data-import-wizard .mat-mdc-tab:not(.mdc-tab--active) {
-  border: 1px solid var(--color-gray-600);
-  border-radius: 8px 8px 0 0; /* Rounded top corners */
-}
-.data-import-wizard .mat-mdc-tab:first-of-type {
-  border-radius: 8px 0 0 0;
-}
-.data-import-wizard .mat-mdc-tab:last-of-type {
-  border-radius: 0 8px 0 0;
-}
-.mat-mdc-tab-list .mat-mdc-tab.mdc-tab--active {
-  &:active,
-  &:hover,
-  &:focus,
-  & {
-    .mdc-tab__text-label {
-      color: white;
+  /* Material Tabs Styling */
+  .mat-mdc-tab-group {
+    --mat-tab-active-label-text-color: var(--color-secondary);
+    --mat-tab-active-ripple-color: var(--color-secondary);
+    --mat-tab-inactive-ripple-color: var(--color-secondary);
+    --mat-tab-active-focus-label-text-color: var(--color-secondary);
+    --mat-tab-active-hover-label-text-color: var(--color-secondary);
+    --mat-tab-active-focus-indicator-color: var(--color-secondary);
+    --mat-tab-active-hover-indicator-color: var(--color-secondary);
+    --mat-tab-active-indicator-color: var(--color-secondary);
+  }
+
+  .mat-mdc-tab.mdc-tab--active {
+    background-color: var(--color-primary);
+  }
+  /* Inactive tabs - match panel border */
+  .mat-mdc-tab:not(.mdc-tab--active) {
+    border: 1px solid var(--color-gray-600);
+    border-radius: 8px 8px 0 0; /* Rounded top corners */
+  }
+  .mat-mdc-tab:first-of-type {
+    border-radius: 8px 0 0 0;
+  }
+  .mat-mdc-tab:last-of-type {
+    border-radius: 0 8px 0 0;
+  }
+  .mat-mdc-tab-header {
+    --mat-tab-label-text-font: var(--font-family-main);
+    --mat-tab-label-text-size: 19px;
+    --mat-tab-label-text-tracking: 0;
+    --mat-tab-label-text-line-height: 150%;
+    --mat-tab-label-text-weight: 700;
+  }
+  .mat-mdc-tab-list .mat-mdc-tab.mdc-tab--active {
+    &:active,
+    &:hover,
+    &:focus,
+    & {
+      .mdc-tab__text-label {
+        color: white;
+      }
     }
   }
 }
