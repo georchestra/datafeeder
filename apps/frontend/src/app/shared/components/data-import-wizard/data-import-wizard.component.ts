@@ -7,7 +7,7 @@ import {
   provideNgIconsConfig
 } from '@ng-icons/core'
 import { iconoirNumber1Square, iconoirNumber2Square } from '@ng-icons/iconoir'
-import { ButtonComponent } from 'geonetwork-ui'
+import { ButtonComponent, SpinningLoaderComponent } from 'geonetwork-ui'
 import {
   catchError,
   debounceTime,
@@ -52,6 +52,7 @@ export interface ImportWizardData {
     MatTabsModule,
     NgIconComponent,
     ButtonComponent,
+    SpinningLoaderComponent,
     DataSourceSelectorComponent,
     DatasetConfigurationComponent
   ],

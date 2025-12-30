@@ -1,12 +1,18 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { MatIconModule } from '@angular/material/icon'
-import { StatusBadgeComponent } from '../status-badge/status-badge.component'
+import { Component, EventEmitter, Input, Output } from '@angular/core'
+import {
+  NgIconComponent,
+  provideIcons,
+  provideNgIconsConfig
+} from '@ng-icons/core'
+import { iconoirDownload } from '@ng-icons/iconoir'
+import { matAutorenewOutline } from '@ng-icons/material-icons/outline'
+import { StatusType } from '../../types/status-type'
 import {
   EventTypeBadgeComponent,
   EventTypeType
 } from '../event-type-badge/event-type-badge.component'
-import { StatusType } from '../../types/status-type'
+import { StatusBadgeComponent } from '../status-badge/status-badge.component'
 
 export interface Event {
   id: string
@@ -21,12 +27,21 @@ export interface Event {
   selector: 'app-event',
   imports: [
     CommonModule,
-    MatIconModule,
+    NgIconComponent,
     StatusBadgeComponent,
     EventTypeBadgeComponent
   ],
   templateUrl: './event.component.html',
-  styleUrl: './event.component.css'
+  styleUrl: './event.component.css',
+  providers: [
+    provideIcons({
+      iconoirDownload,
+      matAutorenewOutline
+    }),
+    provideNgIconsConfig({
+      size: '1.5em'
+    })
+  ]
 })
 export class EventComponent {
   @Input({ required: true }) event!: Event

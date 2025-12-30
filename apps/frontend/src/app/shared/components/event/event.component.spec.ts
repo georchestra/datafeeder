@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { By } from '@angular/platform-browser'
-import { MatIconModule } from '@angular/material/icon'
 import { CommonModule } from '@angular/common'
 import { EventComponent, Event } from './event.component'
 import { StatusBadgeComponent } from '../status-badge/status-badge.component'
@@ -25,7 +24,6 @@ describe('EventComponent', () => {
         EventComponent,
         StatusBadgeComponent,
         EventTypeBadgeComponent,
-        MatIconModule,
         CommonModule
       ]
     }).compileComponents()
