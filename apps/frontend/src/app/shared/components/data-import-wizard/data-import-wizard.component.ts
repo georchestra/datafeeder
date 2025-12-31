@@ -7,6 +7,7 @@ import {
   provideNgIconsConfig
 } from '@ng-icons/core'
 import { iconoirNumber1Square, iconoirNumber2Square } from '@ng-icons/iconoir'
+import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { ButtonComponent, SpinningLoaderComponent } from 'geonetwork-ui'
 import {
   catchError,
@@ -54,7 +55,8 @@ export interface ImportWizardData {
     ButtonComponent,
     SpinningLoaderComponent,
     DataSourceSelectorComponent,
-    DatasetConfigurationComponent
+    DatasetConfigurationComponent,
+    TranslatePipe
   ],
   templateUrl: './data-import-wizard.component.html',
   styleUrls: ['./data-import-wizard.component.scss'],
@@ -71,6 +73,7 @@ export interface ImportWizardData {
 export class DataImportWizardComponent {
   private http = inject(HttpClient)
   private api = inject(Api)
+  private translate = inject(TranslateService)
 
   selectedTabIndex = signal(0)
   importData = signal<ImportWizardData>({
@@ -159,7 +162,9 @@ export class DataImportWizardComponent {
       this.selectedTabIndex.set(1)
     } catch (error) {
       this.importError.set(
-        error instanceof Error ? error.message : 'Une erreur est survenue'
+        error instanceof Error
+          ? error.message
+          : this.translate.instant('import.dataSource.unknownError')
       )
     } finally {
       this.importing.set(false)
@@ -172,7 +177,7 @@ export class DataImportWizardComponent {
 
     if (source.type === 'url') {
       if (!source.url) {
-        throw new Error('URL manquante')
+        throw new Error(this.translate.instant('import.dataSource.missingUrl'))
       }
 
       return await this.api.invoke(submitStagingIngestionStagingPost, {
@@ -183,10 +188,14 @@ export class DataImportWizardComponent {
       })
     } else if (source.type === 'file') {
       // TODO: implement file upload handling
-      throw new Error('Import par fichier non encore implémenté')
+      throw new Error(
+        this.translate.instant('import.dataSource.fileImportNotImplemented')
+      )
     }
 
-    throw new Error('Type de source non supporté')
+    throw new Error(
+      this.translate.instant('import.dataSource.unsupportedSourceType')
+    )
   }
 
   private async pollImportStatus(
@@ -212,13 +221,20 @@ export class DataImportWizardComponent {
         timeout(MAX_POLL_TIME_MS),
         catchError((error) => {
           if (error.name === 'TimeoutError') {
-            return throwError(() => new Error("Délai d'attente dépassé"))
+            return throwError(
+              () =>
+                new Error(
+                  this.translate.instant('import.dataSource.timeoutError')
+                )
+            )
           }
           return throwError(() => error)
         }),
         switchMap((status: DagRunState) => {
           if (status === ImportStatus.FAILED) {
-            const errorMsg = 'Le traitement a échoué'
+            const errorMsg = this.translate.instant(
+              'import.dataSource.failedError'
+            )
             return throwError(() => new Error(errorMsg))
           }
           return of(status)

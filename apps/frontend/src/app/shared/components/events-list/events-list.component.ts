@@ -1,13 +1,14 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { EventComponent } from '../event/event.component'
+import { Component, EventEmitter, Input, Output } from '@angular/core'
+import { TranslatePipe } from '@ngx-translate/core'
 import type { Event } from '../event/event.component'
+import { EventComponent } from '../event/event.component'
 
 export type { Event }
 
 @Component({
   selector: 'app-events-list',
-  imports: [CommonModule, EventComponent],
+  imports: [CommonModule, EventComponent, TranslatePipe],
   templateUrl: './events-list.component.html',
   styleUrl: './events-list.component.css'
 })

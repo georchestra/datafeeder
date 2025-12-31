@@ -1,12 +1,12 @@
 <div class="space-y-4">
   <h2 class="text-lg font-medium text-gray-900">
-    Choisissez par quel biais vous souhaitez importer votre donnée
+    {{ 'import.dataSource.chooseType' | translate }}
   </h2>
 
   <form [formGroup]="form" class="space-y-4">
     <mat-radio-group formControlName="sourceType">
       <mat-radio-button value="url" class="mb-4">
-        À partir d'une URL
+        {{ 'import.dataSource.chooseType.url' | translate }}
       </mat-radio-button>
     </mat-radio-group>
 
@@ -19,7 +19,9 @@
         type="url"
       />
       @if (form.controls.url.errors?.['pattern']) {
-      <mat-error>URL doit commencer par http:// ou https://</mat-error>
+      <mat-error>{{
+        'import.dataSource.url.patternHint' | translate
+      }}</mat-error>
       }
     </mat-form-field>
     }

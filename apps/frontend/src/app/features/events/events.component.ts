@@ -1,25 +1,25 @@
+import { CommonModule } from '@angular/common'
 import { Component, OnInit, inject, signal } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { CommonModule } from '@angular/common'
-import {
-  EventsListComponent,
-  Event
-} from '../../shared/components/events-list/events-list.component'
+import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../../core/api/api'
-import { getDagRunsAirflowDagsDagIdRunsGet } from '../../core/api/fn/airflow/get-dag-runs-airflow-dags-dag-id-runs-get'
 import { getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet } from '../../core/api/fn/airflow/get-dag-run-logs-airflow-dags-dag-id-runs-dag-run-id-logs-get'
-import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
-
-import { downloadTextBlob } from '../../shared/utils/download.util'
-import { EventTypeType } from '../../shared/components/event-type-badge/event-type-badge.component'
-import { DagRunResponse } from '../../core/api/models/dag-run-response'
+import { getDagRunsAirflowDagsDagIdRunsGet } from '../../core/api/fn/airflow/get-dag-runs-airflow-dags-dag-id-runs-get'
 import { DagRunState } from '../../core/api/models'
+import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
+import { DagRunResponse } from '../../core/api/models/dag-run-response'
+import { EventType } from '../../shared/components/event-type-badge/event-type-badge.component'
+import {
+  Event,
+  EventsListComponent
+} from '../../shared/components/events-list/events-list.component'
+import { downloadTextBlob } from '../../shared/utils/download.util'
 
 const DAG_RUNGS_PAGE_SIZE = 20
 
 @Component({
   selector: 'app-events',
-  imports: [CommonModule, EventsListComponent],
+  imports: [CommonModule, EventsListComponent, TranslatePipe],
   templateUrl: './events.component.html',
   styleUrl: './events.component.css'
 })

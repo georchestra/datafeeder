@@ -7,6 +7,7 @@ import {
 } from '@ng-icons/core'
 import { iconoirDownload } from '@ng-icons/iconoir'
 import { matAutorenewOutline } from '@ng-icons/material-icons/outline'
+import { TranslatePipe } from '@ngx-translate/core'
 import { StatusType } from '../../types/status-type'
 import {
   EventTypeBadgeComponent,
@@ -29,7 +30,8 @@ export interface Event {
     CommonModule,
     NgIconComponent,
     StatusBadgeComponent,
-    EventTypeBadgeComponent
+    EventTypeBadgeComponent,
+    TranslatePipe
   ],
   templateUrl: './event.component.html',
   styleUrl: './event.component.css',
