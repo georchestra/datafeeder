@@ -9,8 +9,6 @@ import { ThemeService } from 'geonetwork-ui'
   styleUrl: './app.css'
 })
 export class App {
-  protected title = 'frontend'
-
   constructor() {
     ThemeService.applyCssVariables(
       '#E30513',
