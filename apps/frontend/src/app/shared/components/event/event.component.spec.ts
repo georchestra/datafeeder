@@ -13,7 +13,7 @@ describe('EventComponent', () => {
     start_date: '2024-01-01T10:00:00Z',
     end_date: '2024-01-01T10:10:00Z',
     duration: 600,
-    type: 'Run manuel',
+    type: 'manual',
     status: 'error'
   }
   const reference = 'DAG-REF-1'

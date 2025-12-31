@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { CommonModule } from '@angular/common'
 
-export type EventTypeType = 'Run manuel' | 'Programmé'
+export type EventType = 'manual' | 'scheduled'
 
 @Component({
   selector: 'app-event-type-badge',
@@ -11,5 +11,5 @@ export type EventTypeType = 'Run manuel' | 'Programmé'
   styleUrl: './event-type-badge.component.css'
 })
 export class EventTypeBadgeComponent {
-  @Input() type!: EventTypeType
+  @Input() type!: EventType
 }

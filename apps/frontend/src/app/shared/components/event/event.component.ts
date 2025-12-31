@@ -10,7 +10,7 @@ import { matAutorenewOutline } from '@ng-icons/material-icons/outline'
 import { StatusType } from '../../types/status-type'
 import {
   EventTypeBadgeComponent,
-  EventTypeType
+  EventType
 } from '../event-type-badge/event-type-badge.component'
 import { StatusBadgeComponent } from '../status-badge/status-badge.component'
 
@@ -19,7 +19,7 @@ export interface Event {
   start_date: string | null
   end_date: string | null
   duration: number | null
-  type: EventTypeType
+  type: EventType
   status: StatusType
 }
 
