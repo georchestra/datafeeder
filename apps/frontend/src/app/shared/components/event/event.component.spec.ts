@@ -14,7 +14,7 @@ describe('EventComponent', () => {
     start_date: '2024-01-01T10:00:00Z',
     end_date: '2024-01-01T10:10:00Z',
     duration: 600,
-    type: 'Run manual',
+    type: 'Run manuel',
     status: 'error'
   }
   const reference = 'DAG-REF-1'
@@ -46,7 +46,7 @@ describe('EventComponent', () => {
     expect(compiled.textContent).toContain('Début')
     expect(compiled.textContent).toContain('Fin')
     expect(compiled.textContent).toContain('Durée')
-    expect(compiled.textContent).toContain('Run manual')
+    expect(compiled.textContent).toContain('Run manuel')
   })
 
   it('should emit downloadLogsClicked when button is clicked', () => {

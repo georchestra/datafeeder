@@ -74,7 +74,7 @@ export class EventsComponent implements OnInit {
   }
 
   private mapRunTypeToEventType(runType: string): EventTypeType {
-    return runType === 'manual' ? 'Run manual' : 'Programmé'
+    return runType === 'manual' ? 'Run manuel' : 'Programmé'
   }
 
   private mapDagStateToEventStatus(
