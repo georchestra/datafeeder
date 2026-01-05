@@ -59,7 +59,10 @@ def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
         HTTPException: If the URL cannot be accessed or has unsupported content type
     """
     try:
-        head_response = requests.head(url)
+        headers = {
+            "Accept": "*/*",
+        }
+        head_response = requests.head(url, headers=headers, allow_redirects=True)
         head_response.raise_for_status()
 
         source_file_name = None
@@ -72,24 +75,26 @@ def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
                 fname_utf8 = re.findall("filename\\*=UTF-8''(.+)", content_disposition)
                 if fname_utf8:
                     source_file_name = fname_utf8[0]
-        
+
         source_file_type = None
         content_type = head_response.headers.get("content-type")
         if content_type:
-            if "application/json+geo" in content_type:
+            if "application/vnd.geo+json" in content_type:
                 source_file_type = FileType.GEOJSON
             elif "text/csv" in content_type:
                 source_file_type = FileType.CSV
             elif "application/zip" in content_type:
                 source_file_type = FileType.SHAPEFILE
             else:
+                logger.error(f"Unsupported content type: {content_type}")
                 raise HTTPException(
                     status_code=400, detail=f"Unsupported content type: {content_type}"
                 )
-        
+
         return source_file_name, source_file_type
 
     except Exception as e:
+        logger.error(f"Error accessing URL {url}: {e}")
         raise HTTPException(status_code=400, detail=f"Error accessing URL: {e}")
 
 
@@ -136,6 +141,7 @@ async def submit_staging(
             # TODO: extract source_file_type and source_file_name
         case ImportType.URL:
             if not url:
+                logger.error("URL is required for URL import type")
                 raise HTTPException(status_code=400, detail="URL is required for URL import type")
 
             source = url
