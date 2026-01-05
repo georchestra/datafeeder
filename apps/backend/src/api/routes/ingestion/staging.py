@@ -76,6 +76,7 @@ async def submit_staging(
     if type == ImportType.FILE:
         if file is None:
             raise HTTPException(status_code=400, detail="File is required")
+        
         source = await upload_file_to_temp(file)
     else:
         source = url
@@ -84,6 +85,9 @@ async def submit_staging(
     integrity_link = IntegrityLink(
         integrity_owner=sec_username,
         integrity_organization=sec_org,
+        source_import_type=type,
+        source_url=url,
+        source_file_type=None,
         staging_table_name=staging_table_name,
     )
     session.add(integrity_link)
@@ -244,13 +248,14 @@ def get_staging_metadata(
     if not staging_table_name:
         raise HTTPException(status_code=500, detail="Staging table name is missing")
 
-    # TODO: generate a user friendly title for the staging data
-    # Notes: use file name if available
-    title = integrity_link.staging_table_name or ""
+    source_import_type = integrity_link.source_import_type
+    if not source_import_type:
+        raise HTTPException(
+            status_code=500, detail="Source import type is missing in IntegrityLink"
+        )
 
-    # TODO: get import_type and file_type from IntegrityLink or another source
-    import_type = ImportType.URL  # Placeholder
-    file_type = None  # Placeholder
+    source_file_name = integrity_link.source_file_name
+    source_file_type = integrity_link.source_file_type
 
     schema = "staging"  # FIXME get it from config
     sql_metadata = MetaData(schema=schema)
@@ -260,9 +265,9 @@ def get_staging_metadata(
     row_count = session.scalar(select(func.count()).select_from(table)) or 0
 
     return StagingMetadataResponse(
-        title=title,
-        import_type=import_type,
-        file_type=file_type,
+        title=source_file_name or "",
+        import_type=source_import_type,
+        file_type=source_file_type,
         columns=columns,
         row_count=row_count,
     )
