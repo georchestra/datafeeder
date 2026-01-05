@@ -1,3 +1,4 @@
+import uuid
 from pathlib import Path
 
 from fastapi import UploadFile
@@ -21,8 +22,6 @@ async def upload_file_to_temp(file: UploadFile) -> str:
 
     original_filename = file.filename or "uploaded_file"
     original_path = Path(original_filename)
-
-    import uuid
 
     unique_id = uuid.uuid4().hex[:8]
     extension = original_path.suffix
