@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from data_manipulation.utils import sanitize_name
@@ -64,7 +64,7 @@ def process_staging_data(
     if not staging_table_name:
         raise HTTPException(status_code=400, detail="Staging table name not found in IntegrityLink")
 
-    dag_run_id = str(uuid4())
+    dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}_manual"
     final_table_name = sanitize_name(request.title) + "_" + dag_run_id.replace("-", "_")[:32]
 
     # Validate the generated table name (defense in depth)
