@@ -4,6 +4,8 @@ import { CommonModule } from '@angular/common'
 import { EventComponent, Event } from './event.component'
 import { StatusBadgeComponent } from '../status-badge/status-badge.component'
 import { EventTypeBadgeComponent } from '../event-type-badge/event-type-badge.component'
+import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 
 describe('EventComponent', () => {
   let fixture: ComponentFixture<EventComponent>
@@ -24,7 +26,17 @@ describe('EventComponent', () => {
         EventComponent,
         StatusBadgeComponent,
         EventTypeBadgeComponent,
-        CommonModule
+        CommonModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'event.duration': 'Duration',
+            'event.end': 'End',
+            'event.start': 'Start',
+            'event.type.manual': 'Manual'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
       ]
     }).compileComponents()
     fixture = TestBed.createComponent(EventComponent)
@@ -41,10 +53,10 @@ describe('EventComponent', () => {
   it('should render reference and event info', () => {
     const compiled = fixture.nativeElement as HTMLElement
     expect(compiled.textContent).toContain(reference)
-    expect(compiled.textContent).toContain('Début')
-    expect(compiled.textContent).toContain('Fin')
-    expect(compiled.textContent).toContain('Durée')
-    expect(compiled.textContent).toContain('Run manuel')
+    expect(compiled.textContent).toContain('Start')
+    expect(compiled.textContent).toContain('End')
+    expect(compiled.textContent).toContain('Duration')
+    expect(compiled.textContent).toContain('Manual')
   })
 
   it('should emit downloadLogsClicked when button is clicked', () => {

@@ -1,17 +1,30 @@
-import { TestBed, fakeAsync, tick } from '@angular/core/testing'
-import { NoopAnimationsModule } from '@angular/platform-browser/animations'
 import { provideHttpClient } from '@angular/common/http'
 import {
   HttpTestingController,
   provideHttpClientTesting
 } from '@angular/common/http/testing'
-import { DataImportWizardComponent } from './data-import-wizard.component'
+import { TestBed, fakeAsync, tick } from '@angular/core/testing'
+import { NoopAnimationsModule } from '@angular/platform-browser/animations'
+import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
+import { TranslateTestingModule } from 'ngx-translate-testing'
 import { ApiConfiguration } from '../../../core/api/api-configuration'
+import { DataImportWizardComponent } from './data-import-wizard.component'
 
 describe('DataImportWizardComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DataImportWizardComponent, NoopAnimationsModule],
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.title': 'Add a dataset',
+            'import.datasetConfiguration.title': 'Configure the dataset'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
       providers: [provideHttpClient(), provideHttpClientTesting()]
     }).compileComponents()
   })
@@ -40,8 +53,8 @@ describe('DataImportWizardComponent', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     fixture.detectChanges()
     const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain('Ajouter un jeu de donnée')
-    expect(compiled.textContent).toContain('Paramétrer le jeu de donnée')
+    expect(compiled.textContent).toContain('Add a dataset')
+    expect(compiled.textContent).toContain('Configure the dataset')
   })
 
   it('should update import data when source changes', () => {
@@ -82,7 +95,17 @@ describe('DataImportWizardComponent - URL Validation', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DataImportWizardComponent, NoopAnimationsModule],
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.validation': 'Validating...'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
       providers: [provideHttpClient(), provideHttpClientTesting()]
     }).compileComponents()
 
@@ -274,7 +297,7 @@ describe('DataImportWizardComponent - URL Validation', () => {
     expect(button.disabled).toBe(true)
   })
 
-  it('should show "Validation..." text when validating', () => {
+  it('should show "Validating..." text when validating', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
@@ -283,7 +306,7 @@ describe('DataImportWizardComponent - URL Validation', () => {
     fixture.detectChanges()
 
     const button = fixture.nativeElement.querySelector('gn-ui-button > button')
-    expect(button.textContent).toContain('Validation...')
+    expect(button.textContent).toContain('Validating...')
   })
 
   it('should handle URL changes after request starts', fakeAsync(() => {
@@ -343,7 +366,20 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DataImportWizardComponent, NoopAnimationsModule],
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.failedError': 'An error occured',
+            'import.dataSource.missingUrl': 'Missing URL',
+            'import.dataSource.processing': 'Processing...',
+            'import.dataSource.sending': 'Sending...'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -573,7 +609,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       // Expected to throw
     }
 
-    expect(component.importError()).toBe('Le traitement a échoué')
+    expect(component.importError()).toBe('An error occured')
     expect(component.selectedTabIndex()).toBe(0)
   })
 
@@ -645,7 +681,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     component.importData.set({ source: { type: 'url', url: '' } })
     await component.onConfigureDataset()
 
-    expect(component.importError()).toContain('URL manquante')
+    expect(component.importError()).toContain('Missing URL')
   })
 
   // Button State Tests
@@ -710,7 +746,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     await promise
   })
 
-  it('should show "Envoi en cours..." text when importing', fakeAsync(() => {
+  it('should show "Sending..." text when importing', fakeAsync(() => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
@@ -722,13 +758,13 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     fixture.detectChanges()
 
     const button = fixture.nativeElement.querySelector('gn-ui-button > button')
-    expect(button.textContent).toContain('Envoi en cours...')
+    expect(button.textContent).toContain('Sending...')
 
     component.importing.set(false)
     tick()
   }))
 
-  it('should show "Traitement en cours..." text when polling', fakeAsync(() => {
+  it('should show "Processing..." text when polling', fakeAsync(() => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
@@ -738,7 +774,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     fixture.detectChanges()
 
     const button = fixture.nativeElement.querySelector('gn-ui-button > button')
-    expect(button.textContent).toContain('Traitement en cours...')
+    expect(button.textContent).toContain('Processing...')
 
     component.polling.set(false)
     tick()
