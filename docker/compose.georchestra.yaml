@@ -10,12 +10,6 @@ volumes:
   geoserver_native_libs:
   geonetwork_datadir:
   esdata:
-  file_storage:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /tmp/files
 
 services:
 
