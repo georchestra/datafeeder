@@ -10,13 +10,12 @@ from src.api.deps import SessionDep
 from src.core.callback import build_callback_url
 from src.core.logging import get_logger
 from src.models import (
-    StagingRequest,
     StagingResponse,
 )
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
-from src.services.files import upload_file_to_temp
+from src.services.files import get_temp_file_url, upload_file_to_temp
 
 # Use uvicorn's logger to get colored output
 logger = get_logger()
@@ -40,7 +39,6 @@ def _generate_staging_table_name(dag_run_id: str) -> str:
     return f"staging_{dag_run_id.replace('-', '_')[:32]}"
 
 
-# curl -v --request POST   --url http://localhost:8080/datakern-backend/ingestion/staging/   --header 'Content-Type: multipart/form-data'   --form 'type=file'   --form 'file=@submarine_cable_geo.json'   --form 'name=myfiletable' --user "testadmin:testadmin"
 @router.post(
     "/",
     response_model=StagingResponse,
@@ -58,6 +56,9 @@ async def submit_staging(
     """
     Submit data for staging import.
 
+    You can test this endpoint using curl:
+        curl -v --request POST   --url http://localhost:8080/datakern-backend/ingestion/staging/   --header 'Content-Type: multipart/form-data'   --form 'type=file'   --form 'file=@submarine_cable_geo.json'   --form 'name=myfiletable' --user "testadmin:testadmin"
+
     Args:
         request: Import configuration including type and optional URL
         sec_username: Username from geOrchestra security headers
@@ -74,7 +75,8 @@ async def submit_staging(
     if type == ImportType.FILE:
         if file is None:
             raise HTTPException(status_code=400, detail="File is required")        
-        source = await upload_file_to_temp(file)
+        file_name = await upload_file_to_temp(file)
+        source = get_temp_file_url(file_name)
     else:
         source = url
 
@@ -104,7 +106,7 @@ async def submit_staging(
     logger.info(f"Success callback URL: {success_callback_url}")
     logger.info(f"Failure callback URL: {failure_callback_url}")
     logger.info(
-        f"Triggering staging_dag with source_type: {type.value.upper()} and source: {url}"
+        f"Triggering staging_dag with source_type: {type.value.upper()} and source: {source}"
     )
 
     try:

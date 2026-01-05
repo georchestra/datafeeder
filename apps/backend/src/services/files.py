@@ -4,24 +4,27 @@ from fastapi import UploadFile
 
 from src.core.config import get_settings
 
-# curl -v --request POST \
-#   --url http://localhost:8080/datakern-backend/import/ \
-#   --header 'Content-Type: multipart/form-data' \
-#   --form 'type=file' \
-#   --form 'file=@my_test_file.json'
+
 async def upload_file_to_temp(file: UploadFile) -> str:
     """Helper to save uploaded file to a temporary location.
+
+    Usage
+    ----------
+     curl -v --request POST \
+        --url http://localhost:8080/datakern-backend/ingestion/staging/ \
+        --header 'Content-Type: multipart/form-data' \
+        --form 'type=file' \
+        --form 'file=@my_test_file.json'
 
     Args:
         file: Uploaded file from the request
 
     Returns:
-        Path to the saved temporary file with scheme (file:// or zip://)
+        The unique file name in the temporary upload directory
     """
     settings = get_settings()
-    tmp_upload_path_str = settings.datakern_config.get("tmp_upload_path", '/tmp/files/')
     
-    tmp_upload_path = Path(tmp_upload_path_str.strip('"\' '))
+    tmp_upload_path = Path(settings.TMP_UPLOAD_PATH)
     tmp_upload_path.mkdir(parents=True, exist_ok=True)
     
     original_filename = file.filename or "uploaded_file"
@@ -53,10 +56,7 @@ async def upload_file_to_temp(file: UploadFile) -> str:
         if not file_path.exists():
             raise IOError(f"File was not created: {file_path}")
         
-        scheme = "zip" if file_is_zip else "file"
-        source = f"{scheme}://{file_path}"
-        
-        return source
+        return unique_filename
         
     except Exception as e:
         if file_path.exists():
@@ -65,3 +65,18 @@ async def upload_file_to_temp(file: UploadFile) -> str:
             except:
                 pass
         raise ValueError(f"Failed to save uploaded file: {str(e)}")
+    
+
+def get_temp_file_url(filename: str) -> str:
+    """Get the backend url to a temporary uploaded file, eg. "http://localhost:8000/files/the_given_filename"
+
+    Args:
+        filename: The unique file name in the temporary upload directory
+
+    Returns:
+        Full url to the temporary uploaded file
+    """
+    settings = get_settings()
+    file_url = settings.BACKEND_URL + "/files/" + filename
+
+    return file_url
