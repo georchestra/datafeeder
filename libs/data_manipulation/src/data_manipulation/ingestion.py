@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import geopandas as gpd
 from sqlalchemy import MetaData, Table, func, select
@@ -8,6 +9,30 @@ from data_manipulation.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
+
+
+def _detect_file_encoding(file_path: str) -> str:
+    """Detect encoding for geospatial files.
+
+    Args:
+        file_path: Path to the file
+
+    Returns:
+        Detected encoding string
+    """
+    path = Path(file_path)
+
+    # Check for .cpg file (encoding file for shapefiles)
+    if path.suffix.lower() == ".shp":
+        cpg_file = path.with_suffix(".cpg")
+        if cpg_file.exists():
+            encoding = cpg_file.read_text().strip()
+            logger.info(f"Found encoding from .cpg file: {encoding}")
+            return encoding
+
+    # For non-shapefile formats (GeoJSON, GeoPackage, etc.), UTF-8 is standard
+    # Default to UTF-8 for modern files
+    return "utf-8"
 
 
 def ingest_data_from_file_into_postgis(
@@ -21,7 +46,21 @@ def ingest_data_from_file_into_postgis(
     logger.info(f"Ingesting data from file {file_path} into table {table_name}")
 
     try:
-        gdf = gpd.read_file(file_path)
+        # Detect encoding (mainly for shapefiles, others default to UTF-8)
+        encoding = _detect_file_encoding(file_path)
+
+        # Try reading with detected encoding
+        try:
+            gdf = gpd.read_file(file_path, encoding=encoding)
+        except (UnicodeDecodeError, LookupError):
+            # Fallback to common encodings if detection fails
+            logger.warning(f"Failed to read with {encoding}, trying latin-1")
+            try:
+                gdf = gpd.read_file(file_path, encoding="latin-1")
+            except (UnicodeDecodeError, LookupError):
+                logger.warning("Failed with latin-1, trying cp1252")
+                gdf = gpd.read_file(file_path, encoding="cp1252")
+
         target_schema = schema or "public"
 
         logger.info(

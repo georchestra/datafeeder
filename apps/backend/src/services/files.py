@@ -44,9 +44,6 @@ async def upload_file_to_temp(file: UploadFile) -> str:
     if file.content_type:
         file_is_zip = file_is_zip or file.content_type == "application/zip"
 
-        # TODO: vérifier zip, semble ne pas marcher
-        # TODO: vérifier shp file
-
     try:
         content = await file.read()
         if not content:
