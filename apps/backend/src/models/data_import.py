@@ -1,9 +1,8 @@
 from enum import Enum
 
 from airflow_client.client.models.dag_run_state import DagRunState
-from pydantic import AnyUrl, BaseModel
 from fastapi import File, Form, UploadFile
-from pydantic import BaseModel
+from pydantic import AnyUrl, BaseModel
 
 
 class ImportType(str, Enum):

@@ -74,7 +74,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                     target_table_name,
                     engine,
                     schema=get_staging_schema(),
-                    logger_=logger # TODO: enlever param logger_
+                    logger_=logger,  # TODO: enlever param logger_
                 )
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from file: {e}")

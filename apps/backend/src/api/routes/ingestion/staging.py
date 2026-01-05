@@ -74,7 +74,7 @@ async def submit_staging(
     # Extract source according to import type
     if type == ImportType.FILE:
         if file is None:
-            raise HTTPException(status_code=400, detail="File is required")        
+            raise HTTPException(status_code=400, detail="File is required")
         file_name = await upload_file_to_temp(file)
         source = get_temp_file_url(file_name)
     else:

@@ -25,7 +25,7 @@ def read_file(filename: str) -> FileResponse:
     """
     settings = get_settings()
     file_path = Path(settings.TMP_UPLOAD_PATH) / filename
-    
+
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail=f"File '{filename}' not found")
 
