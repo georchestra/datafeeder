@@ -56,9 +56,6 @@ async def submit_staging(
     """
     Submit data for staging import.
 
-    You can test this endpoint using curl:
-        curl -v --request POST   --url http://localhost:8080/datakern-backend/ingestion/staging/   --header 'Content-Type: multipart/form-data'   --form 'type=file'   --form 'file=@submarine_cable_geo.json'   --form 'name=myfiletable' --user "testadmin:testadmin"
-
     Args:
         request: Import configuration including type and optional URL
         sec_username: Username from geOrchestra security headers

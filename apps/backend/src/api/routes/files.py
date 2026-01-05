@@ -7,8 +7,6 @@ from src.core.config import get_settings
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
-DEFAULT_FILES_FOLDER = Path("/tmp/files")
-
 
 def read_file(filename: str) -> FileResponse:
     """

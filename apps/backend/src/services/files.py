@@ -8,14 +8,6 @@ from src.core.config import get_settings
 async def upload_file_to_temp(file: UploadFile) -> str:
     """Helper to save uploaded file to a temporary location.
 
-    Usage
-    ----------
-     curl -v --request POST \
-        --url http://localhost:8080/datakern-backend/ingestion/staging/ \
-        --header 'Content-Type: multipart/form-data' \
-        --form 'type=file' \
-        --form 'file=@my_test_file.json'
-
     Args:
         file: Uploaded file from the request
 
