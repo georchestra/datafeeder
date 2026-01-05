@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile
-from sqlalchemy import MetaData, Table
+from sqlalchemy import MetaData, Table, func, select
 
 from src.api.deps import SessionDep
 from src.core.callback import build_callback_url
@@ -12,14 +12,18 @@ from src.core.logging import get_logger
 from src.models import (
     StagingResponse,
 )
-from src.models.data_import import ImportType
+from src.models.data_import import (
+    ColumnMetadata,
+    ImportType,
+    StagingMetadataResponse,
+    StagingPreviewResponse,
+)
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.files import upload_file_to_temp
 
-# Use uvicorn's logger to get colored output
-logger = get_logger()
 router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
+logger = get_logger()
 
 
 def _generate_staging_table_name(dag_run_id: str) -> str:
@@ -214,3 +218,89 @@ def dag_failure_callback(
     # Delete the IntegrityLink
     session.delete(integrity_link)
     session.commit()
+
+
+@router.get("/{integrity_link_id}/metadata")
+def get_staging_metadata(
+    session: SessionDep,
+    integrity_link_id: str,
+) -> StagingMetadataResponse:
+    """
+    Get metadata of the staging table.
+
+    Args:
+        session: Database session (injected)
+        integrity_link_id: IntegrityLink UUID (required)
+
+    Returns:
+        Metadata of the staging table
+    """
+
+    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    if not integrity_link:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    staging_table_name = integrity_link.staging_table_name
+    if not staging_table_name:
+        raise HTTPException(status_code=500, detail="Staging table name is missing")
+
+    # TODO: generate a user friendly title for the staging data
+    # Notes: use file name if available
+    title = integrity_link.staging_table_name or ""
+
+    # TODO: get import_type and file_type from IntegrityLink or another source
+    import_type = ImportType.URL  # Placeholder
+    file_type = None  # Placeholder
+
+    schema = "staging"  # FIXME get it from config
+    sql_metadata = MetaData(schema=schema)
+    table = Table(staging_table_name, sql_metadata, autoload_with=session.get_bind())
+
+    columns = [ColumnMetadata(name=col.name) for col in table.columns]
+    row_count = session.scalar(select(func.count()).select_from(table)) or 0
+
+    return StagingMetadataResponse(
+        title=title,
+        import_type=import_type,
+        file_type=file_type,
+        columns=columns,
+        row_count=row_count,
+    )
+
+
+@router.get("/{integrity_link_id}/preview")
+def get_staging_preview(
+    session: SessionDep,
+    integrity_link_id: str,
+    limit: int = Query(10, description="Number of rows to preview"),
+) -> StagingPreviewResponse:
+    """
+    Get a preview of the data in the staging table.
+
+    Args:
+        session: Database session (injected)
+        integrity_link_id: IntegrityLink UUID (required)
+        limit: Number of rows to preview (optional, default is 10)
+
+    Returns:
+        Preview data from the staging table
+    """
+
+    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    if not integrity_link:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    staging_table_name = integrity_link.staging_table_name
+    if not staging_table_name:
+        raise HTTPException(status_code=500, detail="Staging table name is missing")
+
+    schema = "staging"  # FIXME get it from config
+    metadata = MetaData(schema=schema)
+    table = Table(staging_table_name, metadata, autoload_with=session.get_bind())
+    query = select(table).limit(limit)
+
+    subset = session.execute(query).mappings()  # type: ignore[misc]
+
+    return StagingPreviewResponse(
+        data=[dict(row) for row in subset],
+    )
