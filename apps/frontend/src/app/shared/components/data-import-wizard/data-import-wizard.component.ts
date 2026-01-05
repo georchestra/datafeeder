@@ -1,29 +1,34 @@
-import { Component, signal, effect, inject } from '@angular/core'
 import { HttpClient } from '@angular/common/http'
+import { Component, effect, inject, signal } from '@angular/core'
+import { MatTabsModule } from '@angular/material/tabs'
 import {
-  debounceTime,
-  switchMap,
+  NgIconComponent,
+  provideIcons,
+  provideNgIconsConfig
+} from '@ng-icons/core'
+import { iconoirNumber1Square, iconoirNumber2Square } from '@ng-icons/iconoir'
+import { ButtonComponent, SpinningLoaderComponent } from 'geonetwork-ui'
+import {
   catchError,
-  of,
-  tap,
+  debounceTime,
   interval,
   lastValueFrom,
+  of,
+  switchMap,
   takeWhile,
-  timeout,
-  throwError
+  tap,
+  throwError,
+  timeout
 } from 'rxjs'
 import { Api } from '../../../core/api/api'
 import {
-  submitStagingIngestionStagingPost,
-  getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet
+  getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
+  submitStagingIngestionStagingPost
 } from '../../../core/api/functions'
-import type { StagingResponse, DagRunState } from '../../../core/api/models'
-import { MatTabsModule } from '@angular/material/tabs'
-import { MatIconModule } from '@angular/material/icon'
-import { MatButtonModule } from '@angular/material/button'
+import type { DagRunState, StagingResponse } from '../../../core/api/models'
+import type { SourceData } from '../data-source-selector/data-source-selector.component'
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
-import type { SourceData } from '../data-source-selector/data-source-selector.component'
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 30000
@@ -45,13 +50,23 @@ export interface ImportWizardData {
   selector: 'app-data-import-wizard',
   imports: [
     MatTabsModule,
-    MatIconModule,
-    MatButtonModule,
+    NgIconComponent,
+    ButtonComponent,
+    SpinningLoaderComponent,
     DataSourceSelectorComponent,
     DatasetConfigurationComponent
   ],
   templateUrl: './data-import-wizard.component.html',
-  styleUrls: ['./data-import-wizard.component.scss']
+  styleUrls: ['./data-import-wizard.component.scss'],
+  providers: [
+    provideIcons({
+      iconoirNumber1Square,
+      iconoirNumber2Square
+    }),
+    provideNgIconsConfig({
+      size: '2em'
+    })
+  ]
 })
 export class DataImportWizardComponent {
   private http = inject(HttpClient)
@@ -110,6 +125,15 @@ export class DataImportWizardComponent {
       ...current,
       source: data
     }))
+  }
+
+  cantConfigureDataset() {
+    return (
+      !this.validSource() ||
+      this.validating() ||
+      this.importing() ||
+      this.polling()
+    )
   }
 
   async onConfigureDataset() {

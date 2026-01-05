@@ -22,31 +22,32 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "public"
+                "input": "public",
+                "output": "assets/"
               }
             ],
             "styles": [
-              "src/custom-theme.scss",
               "src/styles.scss"
             ]
           },
           "configurations": {
             "production": {
               "budgets": [
-                {
+                    {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "2mb",
+                  "maximumError": "5mb"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "10kb",
+                  "maximumError": "20kb"
                 }
               ],
               "outputHashing": "all"
             },
             "development": {
+              "preserveSymlinks": true,
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true

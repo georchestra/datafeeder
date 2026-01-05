@@ -1,41 +1,46 @@
-<div class="event flex flex-col gap-2 w-full px-4 pt-4 mb-4 rounded-sm">
+<div
+  class="border border-gray-600 pt-3.5 pr-4 pl-3.5 flex flex-col gap-2.5 w-full bg-gray-100"
+>
   <div class="event-title">
-    <h3 class="font-semibold" [attr.data-event-id]="event.id">
+    <h3
+      class="text-base font-bold text-gray-900"
+      [attr.data-event-id]="event.id"
+    >
       {{ reference }}
     </h3>
   </div>
-  <div class="event-body flex flex-col md:flex-row gap-2 md:gap-6 md:items-end">
-    <app-event-type-badge class="mb-4" [type]="event.type" />
+  <div class="flex flex-col md:flex-row gap-2 md:gap-6 md:items-end">
+    <app-event-type-badge class="mb-2.5" [type]="event.type" />
     <div class="flex gap-2 grow justify-between md:justify-normal">
-      <div class="event__start-date flex flex-col bg-gray-200 p-2 rounded-t-sm">
-        <span class="font-semibold text-gray-600">Début</span>
-        <small>
+      <div class="flex flex-col bg-gray-200 px-3.5 py-1 rounded-t-lg">
+        <span class="text-lg font-bold text-gray-800">Début</span>
+        <p class="text-xs">
           @if (event.start_date) {
           {{ event.start_date | date : 'short' }}
           } @else {
           <span class="mx-[20px]">-</span>
-          }</small
-        >
+          }
+        </p>
       </div>
-      <div class="event__end-date flex flex-col bg-gray-200 p-2 rounded-t-sm">
-        <span class="font-semibold text-gray-600">Fin</span>
-        <small>
+      <div class="flex flex-col bg-gray-200 px-3.5 py-1 rounded-t-lg">
+        <span class="text-lg font-bold text-gray-800">Fin</span>
+        <p class="text-xs">
           @if (event.end_date) {
           {{ event.end_date | date : 'short' }}
           } @else {
           <span class="mx-[20px]">-</span>
           }
-        </small>
+        </p>
       </div>
-      <div class="event__duration flex flex-col bg-gray-200 p-2 rounded-t-sm">
-        <span class="font-semibold text-gray-600">Durée</span>
-        <small
-          >@if (event.duration) {
+      <div class="flex flex-col bg-gray-200 px-3.5 py-1 rounded-t-lg">
+        <span class="text-lg font-bold text-gray-800">Durée</span>
+        <p class="text-xs">
+          @if (event.duration) {
           {{ formatDuration(event.duration) }}
           } @else {
           <span class="mx-[20px]">-</span>
-          }</small
-        >
+          }
+        </p>
       </div>
     </div>
     <div class="flex gap-4 items-center mb-4">
@@ -47,11 +52,11 @@
       >
         <ng-container *ngIf="!downloading; else downloadingTpl">
           Télécharger les logs
-          <mat-icon class="!text-base">download</mat-icon>
+          <ng-icon name="iconoirDownload"></ng-icon>
         </ng-container>
         <ng-template #downloadingTpl>
           Télécharger les logs
-          <mat-icon class="!text-base animate-spin">autorenew</mat-icon>
+          <ng-icon class="animate-spin" name="matAutorenewOutline"></ng-icon>
         </ng-template>
       </button>
       }

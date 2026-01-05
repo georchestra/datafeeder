@@ -2,7 +2,7 @@ name: DataKern CI Frontend
 run-name: 🩺 Frontend quality checks on ${{ github.event_name == 'pull_request' && 'PR' || '🌱' }} ${{ github.event_name == 'pull_request' && github.event.number || github.ref_name }}
 
 env:
-  NODE_VERSION: 22.12.0
+  NODE_VERSION: 22.20.0
   GEONETWORK_VERSION: 4.4.8
   ELASTICSEARCH_VERSION: 8.14.3
 

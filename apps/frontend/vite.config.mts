@@ -1,12 +1,11 @@
 /// <reference types='vitest' />
 import { defineConfig } from 'vite';
-import tailwindcss from '@tailwindcss/vite';
 import angular from '@analogjs/vite-plugin-angular';
 
 export default defineConfig(() => ({
   root: __dirname,
   cacheDir: './node_modules/.vite/frontend',
-  plugins: [angular(), tailwindcss()],
+  plugins: [angular()],
   // Uncomment this if you are using workers.
   // worker: {
   //  plugins: [ nxViteTsPaths() ],

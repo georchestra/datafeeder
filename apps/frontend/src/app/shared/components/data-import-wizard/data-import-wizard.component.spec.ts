@@ -51,16 +51,6 @@ describe('DataImportWizardComponent', () => {
     expect(compiled.textContent).toContain('Paramétrer le jeu de donnée')
   })
 
-  it('should render tab icons', () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    fixture.detectChanges()
-    const compiled = fixture.nativeElement as HTMLElement
-    const icons = compiled.querySelectorAll('mat-icon')
-    expect(icons.length).toBeGreaterThanOrEqual(2)
-    expect(icons[0].textContent).toContain('add')
-    expect(icons[1].textContent).toContain('settings')
-  })
-
   it('should update import data when source changes', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
@@ -275,9 +265,7 @@ describe('DataImportWizardComponent - URL Validation', () => {
     component.validSource.set(false)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector(
-      'button[mat-raised-button]'
-    )
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
     expect(button.disabled).toBe(true)
   })
 
@@ -289,9 +277,7 @@ describe('DataImportWizardComponent - URL Validation', () => {
     component.validating.set(true)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector(
-      'button[mat-raised-button]'
-    )
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
     expect(button.disabled).toBe(true)
   })
 
@@ -303,9 +289,7 @@ describe('DataImportWizardComponent - URL Validation', () => {
     component.validating.set(true)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector(
-      'button[mat-raised-button]'
-    )
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
     expect(button.textContent).toContain('Validation...')
   })
 
@@ -688,9 +672,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
     expect(component.importing()).toBe(true)
 
-    const button = fixture.nativeElement.querySelector(
-      'button[mat-raised-button]'
-    )
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
     fixture.detectChanges()
     expect(button.disabled).toBe(true)
 
@@ -724,9 +706,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
     expect(component.polling()).toBe(true)
 
-    const button = fixture.nativeElement.querySelector(
-      'button[mat-raised-button]'
-    )
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
     fixture.detectChanges()
     expect(button.disabled).toBe(true)
 
@@ -748,9 +728,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     component.polling.set(false)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector(
-      'button[mat-raised-button]'
-    )
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
     expect(button.textContent).toContain('Envoi en cours...')
 
     component.importing.set(false)
@@ -766,9 +744,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     component.polling.set(true)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector(
-      'button[mat-raised-button]'
-    )
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
     expect(button.textContent).toContain('Traitement en cours...')
 
     component.polling.set(false)

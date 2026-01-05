@@ -1,12 +1,13 @@
 import { Component, inject, signal } from '@angular/core'
 import { MatButtonModule } from '@angular/material/button'
 import { MatCheckboxModule } from '@angular/material/checkbox'
+import { CopyTextButtonComponent } from 'geonetwork-ui'
 import { Api } from '../../core/api/api'
 import { readVersionVersionGet } from '../../core/api/functions'
 
 @Component({
   selector: 'app-home',
-  imports: [MatButtonModule, MatCheckboxModule],
+  imports: [MatButtonModule, MatCheckboxModule, CopyTextButtonComponent],
   template: `
     <div class="space-y-4 py-8">
       <h1 class="text-2xl font-bold">DataKern</h1>
@@ -17,6 +18,12 @@ import { readVersionVersionGet } from '../../core/api/functions'
         veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
         commodo consequat.
       </p>
+
+      <gn-ui-copy-text-button
+        [text]="'Lorem ipsum'"
+        [tooltipText]="'Copy lorem ipsum to clipboard'"
+        [displayText]="true"
+      ></gn-ui-copy-text-button>
 
       @if (version()) {
       <div class="rounded-lg bg-blue-50 p-4">
