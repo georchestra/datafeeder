@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from data_manipulation.utils import sanitize_name
+from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import MetaData, Table
 
@@ -65,6 +66,16 @@ def process_staging_data(
 
     dag_run_id = str(uuid4())
     final_table_name = sanitize_name(request.title) + "_" + dag_run_id.replace("-", "_")[:32]
+
+    # Validate the generated table name (defense in depth)
+    try:
+        final_table_name = validate_table_name(final_table_name, context="final")
+    except ValueError as e:
+        logger.error(f"Generated invalid final table name from title '{request.title}': {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Title produces invalid table name: {e}",
+        )
 
     # integrity_transformation = request.config # FIXME: currently not used
 
@@ -216,15 +227,24 @@ def dag_failure_callback(
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
     # Drop the final table if it exists
-    try:
-        schema = "data"  # FIXME get it from config
-        metadata = MetaData(schema=schema)
-        table = Table(final_table_name, metadata)
-        table.drop(session.get_bind(), checkfirst=True)
-        session.commit()
-    except Exception as e:
-        # Log the error but continue with IntegrityLink deletion
-        logger.error(f"Error dropping final table {final_table_name}: {e}")
+    if final_table_name:
+        try:
+            # CRITICAL: Validate table name before using in SQL (defense in depth)
+            from data_manipulation.validators import validate_table_name
+
+            validated_table_name = validate_table_name(final_table_name, context="final")
+
+            schema = "data"  # FIXME get it from config
+            metadata = MetaData(schema=schema)
+            table = Table(validated_table_name, metadata)
+            table.drop(session.get_bind(), checkfirst=True)
+            session.commit()
+        except ValueError as e:
+            # Log validation error but continue with cleanup
+            logger.error(f"Invalid table name in callback: {e}")
+        except Exception as e:
+            # Log the error but continue with IntegrityLink deletion
+            logger.error(f"Error dropping final table {final_table_name}: {e}")
 
     # Mark the integrity link as failed (keep it for auditing purposes)
     # TODO: Add a status field to IntegrityLink model to track failures

@@ -293,18 +293,24 @@ def dag_failure_callback(
     staging_table_name = integrity_link.staging_table_name
 
     # Drop the staging table if it exists
-    try:
-        if not staging_table_name:
-            raise Exception("Staging table name is missing in IntegrityLink")
+    if staging_table_name:
+        try:
+            # CRITICAL: Validate table name before using in SQL (defense in depth)
+            from data_manipulation.validators import validate_table_name
 
-        schema = "staging"  # FIXME get it from config
-        metadata = MetaData(schema=schema)
-        table = Table(staging_table_name, metadata)
-        table.drop(session.get_bind(), checkfirst=True)
-        session.commit()
-    except Exception as e:
-        # Log the error but continue with IntegrityLink deletion
-        logger.error(f"Error dropping staging table {staging_table_name}: {e}")
+            validated_table_name = validate_table_name(staging_table_name, context="staging")
+
+            schema = "staging"  # FIXME get it from config
+            metadata = MetaData(schema=schema)
+            table = Table(validated_table_name, metadata)
+            table.drop(session.get_bind(), checkfirst=True)
+            session.commit()
+        except ValueError as e:
+            # Log validation error but continue with cleanup
+            logger.error(f"Invalid staging table name in database: {e}")
+        except Exception as e:
+            # Log the error but continue with IntegrityLink deletion
+            logger.error(f"Error dropping staging table {staging_table_name}: {e}")
 
     # Delete the IntegrityLink
     session.delete(integrity_link)
