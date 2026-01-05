@@ -46,6 +46,53 @@ def _generate_staging_table_name(dag_run_id: str) -> str:
     return f"staging_{dag_run_id.replace('-', '_')[:32]}"
 
 
+def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
+    """Extract file name and file type from a URL using HEAD request.
+
+    Args:
+        url: The URL to inspect
+
+    Returns:
+        A tuple of (source_file_name, source_file_type)
+
+    Raises:
+        HTTPException: If the URL cannot be accessed or has unsupported content type
+    """
+    try:
+        head_response = requests.head(url)
+        head_response.raise_for_status()
+
+        source_file_name = None
+        content_disposition = head_response.headers.get("content-disposition")
+        if content_disposition:
+            fname = re.findall("filename=(.+)", content_disposition)
+            if fname:
+                source_file_name = fname[0].strip('"')
+            else:
+                fname_utf8 = re.findall("filename\\*=UTF-8''(.+)", content_disposition)
+                if fname_utf8:
+                    source_file_name = fname_utf8[0]
+        
+        source_file_type = None
+        content_type = head_response.headers.get("content-type")
+        if content_type:
+            if "application/json+geo" in content_type:
+                source_file_type = FileType.GEOJSON
+            elif "text/csv" in content_type:
+                source_file_type = FileType.CSV
+            elif "application/zip" in content_type:
+                source_file_type = FileType.SHAPEFILE
+            else:
+                raise HTTPException(
+                    status_code=400, detail=f"Unsupported content type: {content_type}"
+                )
+        
+        return source_file_name, source_file_type
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error accessing URL: {e}")
+
+
 @router.post(
     "/",
     response_model=StagingResponse,
@@ -75,16 +122,18 @@ async def submit_staging(
     dag_run_id = str(uuid4())
     staging_table_name = _generate_staging_table_name(dag_run_id)
 
+    source = None
     source_file_name = None
     source_file_type = None
 
-    # Extract source according to import type
+    # Extract source, source_file_name, and source_file_type according to import type
     match type:
         case ImportType.FILE:
             if file is None:
                 raise HTTPException(status_code=400, detail="File is required")
             
             source = await upload_file_to_temp(file)
+            # TODO: extract source_file_type and source_file_name
         case ImportType.URL:
             if not url:
                 raise HTTPException(status_code=400, detail="URL is required for URL import type")
@@ -120,6 +169,8 @@ async def submit_staging(
 
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Error accessing URL: {e}")
+            
+            source_file_name, source_file_type = _extract_url_metadata(url)
 
         case ImportType.DATABASE | ImportType.API:
             # TODO: implement handling for DATABASE and API import types
