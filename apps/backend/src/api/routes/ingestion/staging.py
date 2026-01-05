@@ -1,7 +1,9 @@
+import re
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
 
+import requests
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile
 from sqlalchemy import MetaData, Table, func, select
@@ -14,6 +16,7 @@ from src.models import (
 )
 from src.models.data_import import (
     ColumnMetadata,
+    FileType,
     ImportType,
     StagingMetadataResponse,
     StagingPreviewResponse,
@@ -72,14 +75,57 @@ async def submit_staging(
     dag_run_id = str(uuid4())
     staging_table_name = _generate_staging_table_name(dag_run_id)
 
+    source_file_name = None
+    source_file_type = None
+
     # Extract source according to import type
-    if type == ImportType.FILE:
-        if file is None:
-            raise HTTPException(status_code=400, detail="File is required")
-        
-        source = await upload_file_to_temp(file)
-    else:
-        source = url
+    match type:
+        case ImportType.FILE:
+            if file is None:
+                raise HTTPException(status_code=400, detail="File is required")
+            
+            source = await upload_file_to_temp(file)
+        case ImportType.URL:
+            if not url:
+                raise HTTPException(status_code=400, detail="URL is required for URL import type")
+
+            source = url
+
+            try:
+                head_response = requests.head(url)
+                head_response.raise_for_status()
+
+                content_disposition = head_response.headers.get("content-disposition")
+                if content_disposition:
+                    fname = re.findall("filename=(.+)", content_disposition)
+                    if fname:
+                        source_file_name = fname[0].strip('"')
+                    else:
+                        fname_utf8 = re.findall("filename\\*=UTF-8''(.+)", content_disposition)
+                        if fname_utf8:
+                            source_file_name = fname_utf8[0]
+                
+                content_type = head_response.headers.get("content-type")
+                if content_type:
+                    if "application/json+geo" in content_type:
+                        source_file_type = FileType.GEOJSON
+                    elif "text/csv" in content_type:
+                        source_file_type = FileType.CSV
+                    elif "application/zip" in content_type:
+                        source_file_type = FileType.SHAPEFILE
+                    else:
+                        raise HTTPException(
+                            status_code=400, detail=f"Unsupported content type: {content_type}"
+                        )
+
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Error accessing URL: {e}")
+
+        case ImportType.DATABASE | ImportType.API:
+            # TODO: implement handling for DATABASE and API import types
+            raise HTTPException(
+                status_code=501, detail=f"Import type {type.value} not implemented yet"
+            )
 
     # Create IntegrityLink immediately
     integrity_link = IntegrityLink(
@@ -87,7 +133,8 @@ async def submit_staging(
         integrity_organization=sec_org,
         source_import_type=type,
         source_url=url,
-        source_file_type=None,
+        source_file_name=source_file_name,
+        source_file_type=source_file_type,
         staging_table_name=staging_table_name,
     )
     session.add(integrity_link)
