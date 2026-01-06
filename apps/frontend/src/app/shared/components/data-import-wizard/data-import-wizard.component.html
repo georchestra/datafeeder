@@ -59,6 +59,7 @@
         [type]="cantConfigureDataset() ? 'outline' : 'primary'"
         [disabled]="cantConfigureDataset()"
         (buttonClick)="onConfigureDataset()"
+        data-test="configure-dataset"
       >
         @if (validating()) { {{ 'import.dataSource.validation' | translate }} }
         @else if (importing()) { {{ 'import.dataSource.sending' | translate }} }

@@ -1,10 +1,14 @@
 import { Component, effect, inject, input, output } from '@angular/core'
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms'
-import { MatFormFieldModule } from '@angular/material/form-field'
-import { MatInputModule } from '@angular/material/input'
 import { MatRadioModule } from '@angular/material/radio'
+import {
+  NgIconComponent,
+  provideIcons,
+  provideNgIconsConfig
+} from '@ng-icons/core'
+import { iconoirAttachment } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
-import { CheckToggleComponent, TextInputComponent } from 'geonetwork-ui'
+import { ButtonComponent, CheckToggleComponent, FileInputComponent, TextInputComponent } from 'geonetwork-ui'
 
 export interface SourceData {
   type: 'url'
@@ -19,13 +23,23 @@ export interface SourceData {
   imports: [
     ReactiveFormsModule,
     MatRadioModule,
-    MatFormFieldModule,
-    MatInputModule,
     TranslatePipe,
+    NgIconComponent,
+    TranslatePipe,
+    ButtonComponent,
     CheckToggleComponent,
-    TextInputComponent
+    TextInputComponent,
+    FileInputComponent
   ],
-  templateUrl: './data-source-selector.component.html'
+  templateUrl: './data-source-selector.component.html',
+  providers: [
+    provideIcons({
+      iconoirAttachment
+    }),
+    provideNgIconsConfig({
+      size: '2em'
+    })
+  ]
 })
 export class DataSourceSelectorComponent {
   private fb = inject(FormBuilder)
@@ -67,5 +81,17 @@ export class DataSourceSelectorComponent {
         password: value.password!
       })
     })
+  }
+
+  handleFileChange(file: globalThis.File | null): void {
+    console.log('File selected:', file)
+  }
+
+  handleUrlChange(url: string): void {
+    this.form.controls.url.setValue(url)
+  }
+
+  removeItem(): void {
+    this.form.controls.url.setValue('')
   }
 }

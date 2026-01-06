@@ -287,7 +287,9 @@ describe('DataImportWizardComponent - URL Validation', () => {
     component.validSource.set(false)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="configure-dataset"] > button'
+    )
     expect(button.disabled).toBe(true)
   })
 
@@ -299,7 +301,9 @@ describe('DataImportWizardComponent - URL Validation', () => {
     component.validating.set(true)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="configure-dataset"] > button'
+    )
     expect(button.disabled).toBe(true)
   })
 
@@ -311,7 +315,9 @@ describe('DataImportWizardComponent - URL Validation', () => {
     component.validating.set(true)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="configure-dataset"] > button'
+    )
     expect(button.textContent).toContain('Validating...')
   })
 
@@ -707,7 +713,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
     expect(component.importing()).toBe(true)
 
-    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="configure-dataset"] > button'
+    )
     fixture.detectChanges()
     expect(button.disabled).toBe(true)
 
@@ -741,7 +749,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
     expect(component.polling()).toBe(true)
 
-    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="configure-dataset"] > button'
+    )
     fixture.detectChanges()
     expect(button.disabled).toBe(true)
 
@@ -763,7 +773,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     component.polling.set(false)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="configure-dataset"] > button'
+    )
     expect(button.textContent).toContain('Sending...')
 
     component.importing.set(false)
@@ -779,7 +791,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     component.polling.set(true)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="configure-dataset"] > button'
+    )
     expect(button.textContent).toContain('Processing...')
 
     component.polling.set(false)

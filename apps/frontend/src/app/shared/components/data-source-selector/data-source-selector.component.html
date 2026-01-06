@@ -1,66 +1,88 @@
-<div class="space-y-4">
-  <h2 class="text-lg font-medium text-gray-900">
+<div class="px-6 py-9 border-gray-600 border-b">
+  <h2 class="mb-4 text-lg font-medium text-gray-900">
     {{ 'import.dataSource.chooseType' | translate }}
   </h2>
 
-  <form [formGroup]="form" class="space-y-4">
+  <form [formGroup]="form">
     <mat-radio-group formControlName="sourceType">
-      <mat-radio-button value="url" class="mb-4">
+      <mat-radio-button value="url">
         {{ 'import.dataSource.chooseType.url' | translate }}
       </mat-radio-button>
     </mat-radio-group>
-
-    @if (form.controls.sourceType.value === 'url') {
-    <mat-form-field appearance="outline" class="w-full">
-      <input
-        matInput
-        formControlName="url"
-        placeholder="https://example"
-        type="url"
-      />
-      @if (form.controls.url.errors?.['pattern']) {
-      <mat-error>{{
-        'import.dataSource.url.patternHint' | translate
-      }}</mat-error>
-      }
-    </mat-form-field>
-
-    <div class="mt-4">
-      <gn-ui-check-toggle
-        [value]="form.get('authEnabled')!.value"
-        (toggled)="form.get('authEnabled')!.setValue($event)"
-        [label]="'import.dataSource.url.enableAuth' | translate"
-        [title]="'import.dataSource.url.enableAuth' | translate"
-        class="mb-3"
-      >
-      </gn-ui-check-toggle>
-
-      @if (form.get('authEnabled')!.value) {
-      <div class="flex flex-wrap gap-4 mt-3">
-        <div class="flex-1 min-w-[300px] max-w-[300px]">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            {{ 'import.dataSource.url.username' | translate }}
-          </label>
-          <gn-ui-text-input
-            [value]="form.get('username')!.value"
-            (valueChange)="form.get('username')!.setValue($event)"
-            placeholder=""
-          ></gn-ui-text-input>
-        </div>
-
-        <div class="flex-1 min-w-[300px] max-w-[300px]">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            {{ 'import.dataSource.url.password' | translate }}
-          </label>
-          <gn-ui-text-input
-            [value]="form.get('password')!.value"
-            (valueChange)="form.get('password')!.setValue($event)"
-            placeholder=""
-          ></gn-ui-text-input>
-        </div>
-      </div>
-      }
-    </div>
-    }
   </form>
 </div>
+
+@if (form.controls.sourceType.value === 'url') {
+<div class="px-9 py-6">
+  <gn-ui-file-input
+    [maxSizeMB]="0"
+    (fileChange)="handleFileChange($event)"
+    (urlChange)="handleUrlChange($event)"
+  ></gn-ui-file-input>
+</div>
+<div class="mt-4">
+  <gn-ui-check-toggle
+    [value]="form.get('authEnabled')!.value"
+    (toggled)="form.get('authEnabled')!.setValue($event)"
+    [label]="'import.dataSource.url.enableAuth' | translate"
+    [title]="'import.dataSource.url.enableAuth' | translate"
+    class="mb-3"
+  >
+  </gn-ui-check-toggle>
+
+  @if (form.get('authEnabled')!.value) {
+  <div class="flex flex-wrap gap-4 mt-3">
+    <div class="flex-1 min-w-[300px] max-w-[300px]">
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        {{ 'import.dataSource.url.username' | translate }}
+      </label>
+      <gn-ui-text-input
+        [value]="form.get('username')!.value"
+        (valueChange)="form.get('username')!.setValue($event)"
+        placeholder=""
+      ></gn-ui-text-input>
+    </div>
+
+    <div class="flex-1 min-w-[300px] max-w-[300px]">
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        {{ 'import.dataSource.url.password' | translate }}
+      </label>
+      <gn-ui-text-input
+        [value]="form.get('password')!.value"
+        (valueChange)="form.get('password')!.setValue($event)"
+        placeholder=""
+      ></gn-ui-text-input>
+    </div>
+  </div>
+  }
+</div>
+}
+
+@if (form.controls.url.value) {
+<div
+  class="px-9 py-6 bg-beige border-gray-600 border-t rounded-b-lg flex items-center"
+>
+  <div class="gn-ui-card bg-white">
+    <div
+      class="bg-beige w-[56px] h-[56px] rounded-[4px] text-primary grid justify-center items-center shrink-0"
+    >
+      <ng-icon name="iconoirAttachment"></ng-icon>
+    </div>
+    <div class="flex flex-col justify-center text-lg font-bold">
+      {{ form.controls.url.value }}
+    </div>
+  </div>
+  <gn-ui-button
+    type="light"
+    style="
+      --gn-ui-button-padding: 0px;
+      --gn-ui-button-width: 24px;
+      --gn-ui-button-height: 24px;
+    "
+    class="ml-[20px]"
+    (buttonClick)="removeItem()"
+    data-test="remove-item"
+    ><span class="material-symbols-outlined gn-ui-icon-medium">close</span>
+  </gn-ui-button>
+</div>
+}

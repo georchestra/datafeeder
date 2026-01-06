@@ -97,6 +97,27 @@ describe('DataSourceSelectorComponent', () => {
     expect(component.form.controls.url.value).toBe('https://initial.com')
   })
 
+  it('should remove the element when clicking on the remove button', () => {
+    const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+    const component = fixture.componentInstance
+
+    fixture.componentRef.setInput('sourceData', {
+      type: 'url',
+      url: 'https://initial.com'
+    })
+    fixture.detectChanges()
+
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="remove-item"] > button'
+    )
+    expect(button).toBeTruthy()
+
+    button.click()
+    fixture.detectChanges()
+
+    expect(component.form.controls.url.value).toBe('')
+  })
+
   describe('Basic Authentication', () => {
     it('should have authEnabled defaulting to false', () => {
       const fixture = TestBed.createComponent(DataSourceSelectorComponent)
