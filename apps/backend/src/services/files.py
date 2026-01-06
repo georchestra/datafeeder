@@ -57,7 +57,7 @@ async def upload_file_to_temp(file: UploadFile) -> str:
 
 
 def get_temp_file_url(filename: str) -> str:
-    """Get the backend url to a temporary uploaded file, eg. "http://localhost:8000/files/the_given_filename"
+    """Get the backend url to a temporary uploaded file, eg. "http://localhost:8000/internal/files/the_given_filename"
 
     Args:
         filename: The unique file name in the temporary upload directory
@@ -66,6 +66,6 @@ def get_temp_file_url(filename: str) -> str:
         Full url to the temporary uploaded file
     """
     settings = get_settings()
-    file_url = settings.BACKEND_URL + "/files/" + filename
+    file_url = settings.BACKEND_URL + "/internal/files/" + filename
 
     return file_url

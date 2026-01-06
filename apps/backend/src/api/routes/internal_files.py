@@ -46,6 +46,7 @@ def get_file(filename: str) -> FileResponse:
         FileResponse with the file content
     """
 
-    # TODO: add security checks only allow airflow to read the file!!!!
+    # NB. This route is used by Airflow to read temporary uploaded files
+    # it is part of the /internal API, only Airflow or internal services should be allowed to access it
 
     return read_file(filename)
