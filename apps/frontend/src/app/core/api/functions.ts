@@ -23,6 +23,8 @@ export type { DagSuccessCallbackIngestionStagingDagSuccessPost$Params as DagSucc
 export { dagSuccessCallbackIngestionStagingDagSuccessPost as dagSuccessCallbackIngestionStagingDagSuccessPost } from './fn/ingestion/dag-success-callback-ingestion-staging-dag-success-post'
 export type { DagFailureCallbackIngestionStagingDagFailurePost$Params as DagFailureCallbackIngestionStagingDagFailurePost$Params } from './fn/ingestion/dag-failure-callback-ingestion-staging-dag-failure-post'
 export { dagFailureCallbackIngestionStagingDagFailurePost as dagFailureCallbackIngestionStagingDagFailurePost } from './fn/ingestion/dag-failure-callback-ingestion-staging-dag-failure-post'
+export type { GetFileInternalFilesFilenameGet$Params as GetFileInternalFilesFilenameGet$Params } from './fn/files/get-file-internal-files-filename-get'
+export { getFileInternalFilesFilenameGet as getFileInternalFilesFilenameGet } from './fn/files/get-file-internal-files-filename-get'
 export type { ReadRootGet$Params as ReadRootGet$Params } from './fn/health/read-root-get'
 export { readRootGet as readRootGet } from './fn/health/read-root-get'
 export type { ReadVersionVersionGet$Params as ReadVersionVersionGet$Params } from './fn/health/read-version-version-get'
