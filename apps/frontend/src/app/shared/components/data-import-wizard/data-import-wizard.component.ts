@@ -85,7 +85,11 @@ export class DataImportWizardComponent {
   importing = signal(false)
   polling = signal(false)
   importError = signal<string | null>(null)
-  dagRunInfo = signal<{ dag_id: string; dag_run_id: string } | null>(null)
+  integrityLinkId = signal<string | null>(null)
+  dagRunInfo = signal<{
+    dag_id: string
+    dag_run_id: string
+  } | null>(null)
 
   constructor() {
     effect((onCleanup) => {
@@ -146,6 +150,7 @@ export class DataImportWizardComponent {
     try {
       const importResponse = await this.createImportRequest()
 
+      this.integrityLinkId.set(importResponse.integrity_link_id)
       this.dagRunInfo.set({
         dag_id: importResponse.dag_id,
         dag_run_id: importResponse.dag_run_id

@@ -1,5 +1,5 @@
 <div class="bg-white flex gap-9 rounded-lg p-7">
-  <div class="flex-1">
+  <div class="flex-1 min-w-0">
     <mat-tab-group
       [(selectedIndex)]="selectedTabIndex"
       class="data-import-wizard"
@@ -31,7 +31,11 @@
         </ng-template>
 
         <div class="p-6 border-gray-600 border-b border-x rounded-b-lg">
-          <app-dataset-configuration />
+          <app-dataset-configuration
+            [integrityLinkId]="
+              selectedTabIndex() === 1 ? integrityLinkId() : undefined
+            "
+          />
         </div>
       </mat-tab>
     </mat-tab-group>
