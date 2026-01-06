@@ -13,7 +13,7 @@ async def upload_file_to_temp(file: UploadFile) -> str:
         file: Uploaded file from the request
 
     Returns:
-        The unique file name in the temporary upload directory
+        The unique file URL in the temporary upload directory
     """
     settings = get_settings()
 
@@ -45,7 +45,7 @@ async def upload_file_to_temp(file: UploadFile) -> str:
         if not file_path.exists():
             raise IOError(f"File was not created: {file_path}")
 
-        return unique_filename
+        return get_temp_file_url(unique_filename)
 
     except Exception as e:
         if file_path.exists():

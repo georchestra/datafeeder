@@ -15,7 +15,7 @@ from src.models import (
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
-from src.services.files import get_temp_file_url, upload_file_to_temp
+from src.services.files import upload_file_to_temp
 
 # Use uvicorn's logger to get colored output
 logger = get_logger()
@@ -72,8 +72,7 @@ async def submit_staging(
     if type == ImportType.FILE:
         if file is None:
             raise HTTPException(status_code=400, detail="File is required")
-        file_name = await upload_file_to_temp(file)
-        source = get_temp_file_url(file_name)
+        source = await upload_file_to_temp(file)
     else:
         source = url
 
