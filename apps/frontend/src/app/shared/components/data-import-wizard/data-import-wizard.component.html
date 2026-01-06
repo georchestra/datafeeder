@@ -42,6 +42,7 @@
   </div>
 
   <div class="flex flex-col items-center gap-2.5 pt-12">
+    @if (selectedTabIndex() === 0) {
     <gn-ui-button
       [type]="cantConfigureDataset() ? 'outline' : 'primary'"
       [disabled]="cantConfigureDataset()"
@@ -59,6 +60,10 @@
         {{ 'import.dataSource.processingMessage' | translate }}
       </p>
     </div>
+    } } @else if (selectedTabIndex() === 1) {
+    <button mat-raised-button color="primary" (click)="onValidateDataset()">
+      Valider le jeu de donnée
+    </button>
     }
   </div>
 </div>

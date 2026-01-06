@@ -177,6 +177,11 @@ export class DataImportWizardComponent {
     }
   }
 
+  onValidateDataset() {
+    // TODO: Submit final dataset configuration
+    console.log('Dataset validation not implemented yet')
+  }
+
   private async createImportRequest(): Promise<StagingResponse> {
     const source = this.importData().source
 
