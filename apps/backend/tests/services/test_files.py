@@ -67,7 +67,7 @@ class TestUploadFileToTemp:
         mock_file_path.write_bytes.assert_called_once_with(b'{"test": "data"}')
 
         # Verify result contains the filename with unique ID
-        assert result.startswith("test_file_")
+        assert result.startswith("http://localhost:8000/internal/files/test_file_")
         assert result.endswith(".json")
 
     @pytest.mark.asyncio
@@ -139,7 +139,7 @@ class TestUploadFileToTemp:
         result = await upload_file_to_temp(file)
 
         # Verify default filename is used
-        assert result.startswith("uploaded_file_")
+        assert result.startswith("http://localhost:8000/internal/files/uploaded_file_")
 
     @pytest.mark.asyncio
     @patch("src.services.files.get_settings")
@@ -255,7 +255,7 @@ class TestGetTempFileUrl:
 
         result = get_temp_file_url(filename)
 
-        assert result == "http://localhost:8000/files/test_file_abc123.json"
+        assert result == "http://localhost:8000/internal/files/test_file_abc123.json"
 
     @patch("src.services.files.get_settings")
     def test_get_temp_file_url_different_backend(self, mock_get_settings: MagicMock) -> None:
@@ -267,7 +267,7 @@ class TestGetTempFileUrl:
 
         result = get_temp_file_url(filename)
 
-        assert result == "https://example.com/api/files/data.csv"
+        assert result == "https://example.com/api/internal/files/data.csv"
 
     @patch("src.services.files.get_settings")
     def test_get_temp_file_url_special_characters(
@@ -280,4 +280,4 @@ class TestGetTempFileUrl:
         result = get_temp_file_url(filename)
 
         # Note: URL encoding is not performed by the function
-        assert result == "http://localhost:8000/files/file with spaces_123.txt"
+        assert result == "http://localhost:8000/internal/files/file with spaces_123.txt"
