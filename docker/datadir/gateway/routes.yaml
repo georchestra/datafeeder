@@ -14,7 +14,7 @@ spring:
       - id: backend
         uri: ${georchestra.gateway.services.backend.target}
         predicates:
-        - Path=/datakern-backend/**
+        - Path=/datakern-backend/**,/openapi.json
         filters:
           - RewritePath=/datakern-backend/(?<segment>.*),/$\{segment}
       - id: frontend

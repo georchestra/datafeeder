@@ -1,0 +1,60 @@
+from datetime import datetime
+
+from airflow import DAG
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+from utils import get_postgres_hook
+
+
+def load_scheduled_integrity_links():
+    sql = """
+        SELECT 
+            id::text,
+            data_id,
+            metadata_id,
+            integrity_title,
+            staging_table_name,
+            final_table_name,
+            schedule,
+            schedule_enabled,
+            integrity_transformation
+        FROM datakern.integrity_link
+        WHERE schedule_enabled = true
+    """
+    return get_postgres_hook().get_pandas_df(sql).to_dict(orient="records")
+
+
+def create_dag(config):
+    dag_id = f"ingestion_{config['id']}"
+    dag = DAG(
+        dag_id=dag_id,
+        start_date=datetime.now(),
+        schedule=config.get("schedule"),
+        tags=[config.get("id", "")],
+        catchup=False,
+    )
+
+    with dag:
+        TriggerDagRunOperator(
+            task_id="trigger_process_dag",
+            trigger_dag_id="process_dag",
+            trigger_run_id=config.get("id", "") + "_{{ ts_nodash }}",
+            conf={
+                "staging_table_name": config.get("staging_table_name"),
+                "final_table_name": config.get("final_table_name"),
+                "integrity_transformation": config.get("integrity_transformation", {}),
+                "metadata_id": config.get("metadata_id"),
+                "success_callback_url": f"http://example.com/success/{config['id']}",
+                "failure_callback_url": f"http://example.com/failure/{config['id']}",
+            },
+            wait_for_completion=True,
+            poke_interval=15,
+        )
+
+    return dag
+
+
+# Create DAGs dynamically
+configs = load_scheduled_integrity_links()
+for config in configs:
+    dag_id = f"ingestion_{config['id']}"
+    globals()[dag_id] = create_dag(config)
