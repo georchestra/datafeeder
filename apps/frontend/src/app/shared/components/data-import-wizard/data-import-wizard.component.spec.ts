@@ -1,11 +1,4 @@
-import {
-  TestBed,
-  fakeAsync,
-  tick,
-  flush,
-  flushMicrotasks,
-  waitForAsync
-} from '@angular/core/testing'
+import { TestBed, fakeAsync, tick } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
 import { provideHttpClient } from '@angular/common/http'
 import {
@@ -434,10 +427,10 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     // Wait for the HTTP request
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
     expect(req.request.method).toBe('POST')
-    expect(req.request.body).toEqual({
-      type: 'url',
-      url: 'https://test.com/data.csv'
-    })
+    expect(req.request.body).toBeInstanceOf(FormData)
+    const formData = req.request.body as FormData
+    expect(formData.get('type')).toBe('url')
+    expect(formData.get('url')).toBe('https://test.com/data.csv')
 
     // Respond to the import request
     req.flush(mockImportResponse)
