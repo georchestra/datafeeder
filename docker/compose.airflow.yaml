@@ -84,7 +84,7 @@ x-airflow-common:
     - ./datadir/datakern/airflow/config:/opt/airflow/config
     - ./datadir/datakern/airflow/plugins:/opt/airflow/plugins
     - ./datadir/datakern/airflow/files:/opt/airflow/files
-    - /tmp/:/tmp/files:rw
+    - /tmp/:/tmp:rw
   user: "${AIRFLOW_UID:-50000}:0"
   extra_hosts:
     - "host.docker.internal:host-gateway"

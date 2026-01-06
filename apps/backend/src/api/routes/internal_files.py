@@ -33,7 +33,7 @@ def read_file(filename: str) -> FileResponse:
 @router.get(
     "/{filename}",
     summary="Read a file from the default folder",
-    description="Retrieve the content of a file from /tmp/files folder.",
+    description="Retrieve the content of a file from /tmp folder.",
 )
 def get_file(filename: str) -> FileResponse:
     """

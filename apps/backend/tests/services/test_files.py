@@ -13,7 +13,7 @@ class TestUploadFileToTemp:
     def mock_settings(self) -> MagicMock:
         """Create mock settings."""
         settings = MagicMock()
-        settings.TMP_UPLOAD_PATH = "/tmp/files"
+        settings.TMP_UPLOAD_PATH = "/tmp"
         settings.BACKEND_URL = "http://localhost:8000"
         return settings
 
