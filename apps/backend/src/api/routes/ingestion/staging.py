@@ -1,19 +1,21 @@
 from datetime import datetime, timezone
+from typing import Optional
 from uuid import UUID, uuid4
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile
 from sqlalchemy import MetaData, Table
 
 from src.api.deps import SessionDep
 from src.core.callback import build_callback_url
 from src.core.logging import get_logger
 from src.models import (
-    StagingRequest,
     StagingResponse,
 )
+from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
+from src.services.files import upload_file_to_temp
 
 # Use uvicorn's logger to get colored output
 logger = get_logger()
@@ -43,9 +45,11 @@ def _generate_staging_table_name(dag_run_id: str) -> str:
     summary="Submit data for staging import",
     description="Submit data for staging import by triggering the Airflow staging DAG.",
 )
-def submit_staging(
-    request: StagingRequest,
+async def submit_staging(
     session: SessionDep,
+    type: ImportType = Form(...),
+    url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
 ) -> StagingResponse:
@@ -63,6 +67,14 @@ def submit_staging(
 
     dag_run_id = str(uuid4())
     staging_table_name = _generate_staging_table_name(dag_run_id)
+
+    # Extract source according to import type
+    if type == ImportType.FILE:
+        if file is None:
+            raise HTTPException(status_code=400, detail="File is required")
+        source = await upload_file_to_temp(file)
+    else:
+        source = url
 
     # Create IntegrityLink immediately
     integrity_link = IntegrityLink(
@@ -90,7 +102,7 @@ def submit_staging(
     logger.info(f"Success callback URL: {success_callback_url}")
     logger.info(f"Failure callback URL: {failure_callback_url}")
     logger.info(
-        f"Triggering staging_dag with source_type: {request.type.value.upper()} and source: {request.url}"
+        f"Triggering staging_dag with source_type: {type.value.upper()} and source: {source}"
     )
 
     try:
@@ -99,8 +111,8 @@ def submit_staging(
             trigger_dag_run_post_body=TriggerDAGRunPostBody(
                 dag_run_id=dag_run_id,
                 conf={
-                    "source": str(request.url),
-                    "source_type": request.type.value.upper(),
+                    "source": str(source),
+                    "source_type": type.value.upper(),
                     "staging_table_name": staging_table_name,
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,

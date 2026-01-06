@@ -37,7 +37,7 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
     catchup=False,
     params={  # type: ignore[arg-type]
         "source": Param(
-            default="/tmp/files/myfile.gpkg",
+            default="/tmp/myfile.gpkg",
             type="string",
             description="Source path or URL",
             minLength=1,

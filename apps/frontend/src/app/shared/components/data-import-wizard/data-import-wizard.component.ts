@@ -168,18 +168,25 @@ export class DataImportWizardComponent {
   }
 
   private async createImportRequest(): Promise<StagingResponse> {
-    const url = this.importData().source.url
+    const source = this.importData().source
 
-    if (!url) {
-      throw new Error('URL manquante')
+    if (source.type === 'url') {
+      if (!source.url) {
+        throw new Error('URL manquante')
+      }
+
+      return await this.api.invoke(submitStagingIngestionStagingPost, {
+        body: {
+          type: 'url',
+          url: source.url
+        }
+      })
+    } else if (source.type === 'file') {
+      // TODO: implement file upload handling
+      throw new Error('Import par fichier non encore implémenté')
     }
 
-    return await this.api.invoke(submitStagingIngestionStagingPost, {
-      body: {
-        type: 'url',
-        url: url
-      }
-    })
+    throw new Error('Type de source non supporté')
   }
 
   private async pollImportStatus(

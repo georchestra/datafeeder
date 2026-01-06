@@ -7,26 +7,23 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-import { BodySubmitStagingIngestionStagingPost } from '../../models/body-submit-staging-ingestion-staging-post'
-import { StagingResponse } from '../../models/staging-response'
-
-export interface SubmitStagingIngestionStagingPost$Params {
-  body: BodySubmitStagingIngestionStagingPost
+export interface GetFileInternalFilesFilenameGet$Params {
+  filename: string
 }
 
-export function submitStagingIngestionStagingPost(
+export function getFileInternalFilesFilenameGet(
   http: HttpClient,
   rootUrl: string,
-  params: SubmitStagingIngestionStagingPost$Params,
+  params: GetFileInternalFilesFilenameGet$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<StagingResponse>> {
+): Observable<StrictHttpResponse<any>> {
   const rb = new requestBuilders(
     rootUrl,
-    submitStagingIngestionStagingPost.PATH,
-    'post'
+    getFileInternalFilesFilenameGet.PATH,
+    'get'
   )
   if (params) {
-    rb.body(params.body, 'multipart/form-data')
+    rb.path('filename', params.filename, {})
   }
 
   return http
@@ -36,9 +33,9 @@ export function submitStagingIngestionStagingPost(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<StagingResponse>
+        return r as StrictHttpResponse<any>
       })
     )
 }
 
-submitStagingIngestionStagingPost.PATH = '/ingestion/staging/'
+getFileInternalFilesFilenameGet.PATH = '/internal/files/{filename}'

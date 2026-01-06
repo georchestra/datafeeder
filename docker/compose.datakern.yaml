@@ -24,6 +24,7 @@ services:
       - ../apps:/app/apps
       - ../pyproject.toml:/app/pyproject.toml
       - ../uv.lock:/app/uv.lock
+      - /tmp/:/tmp:rw
     environment:
       - DATADIR=/etc/georchestra
     env_file:

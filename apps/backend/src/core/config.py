@@ -88,6 +88,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
     SENTRY_DSN: HttpUrl | None = None
+    TMP_UPLOAD_PATH: str = "/tmp/"
 
     # Security
     SECRET_KEY: str = secrets.token_urlsafe(32)

@@ -1,7 +1,7 @@
 from enum import Enum
 
 from airflow_client.client.models.dag_run_state import DagRunState
-from pydantic import AnyUrl, BaseModel
+from pydantic import BaseModel
 
 
 class ImportType(str, Enum):
@@ -11,13 +11,6 @@ class ImportType(str, Enum):
     FILE = "file"
     DATABASE = "database"
     API = "api"
-
-
-class StagingRequest(BaseModel):
-    """Request model for import endpoint"""
-
-    type: ImportType
-    url: AnyUrl
 
 
 class TransformationConfig(BaseModel):
