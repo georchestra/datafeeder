@@ -320,15 +320,7 @@ def get_staging_metadata(
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
     staging_table_name = integrity_link.staging_table_name
-    if not staging_table_name:
-        raise HTTPException(status_code=500, detail="Staging table name is missing")
-
     source_import_type = integrity_link.source_import_type
-    if not source_import_type:
-        raise HTTPException(
-            status_code=500, detail="Source import type is missing in IntegrityLink"
-        )
-
     source_file_name = integrity_link.source_file_name
     source_file_type = integrity_link.source_file_type
 
