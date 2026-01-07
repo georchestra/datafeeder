@@ -2,10 +2,10 @@ import re
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
-from data_manipulation.utils import sanitize_name
 
 import requests
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
+from data_manipulation.utils import sanitize_name
 from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile
 from sqlalchemy import MetaData, Table, func, select
 
@@ -46,7 +46,9 @@ def _generate_staging_table_name(dag_run_id: str, file_name: str | None) -> str:
     SANITIZED_DAG_RUN_ID = dag_run_id.replace("-", "_")[:UUID_LENGTH]
 
     if file_name:
-        sanitized_name = sanitize_name(file_name.rsplit(".", 1)[0])[:MAX_TABLE_NAME_LENGTH - 1 - UUID_LENGTH]
+        sanitized_name = sanitize_name(file_name.rsplit(".", 1)[0])[
+            : MAX_TABLE_NAME_LENGTH - 1 - UUID_LENGTH
+        ]
         return f"{sanitized_name}_{SANITIZED_DAG_RUN_ID}"
 
     return SANITIZED_DAG_RUN_ID
@@ -77,17 +79,21 @@ def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
             fname = re.findall("filename=(.+)", content_disposition)
             if not fname:
                 fname = re.findall("filename\\*=UTF-8''(.+)", content_disposition)
-            
+
             # If filename is found, strip quotes and extract base name without extension
             source_file_name = fname[0].strip('"').rsplit(".", 1)[0]
-            
+
         source_file_type = None
         content_type = head_response.headers.get("content-type")
         if content_type:
             # Extract the MIME type without parameters (e.g., charset)
             mime_type = content_type.split(";")[0].strip().lower()
-            
-            if mime_type in ("application/vnd.geo+json", "application/geo+json", "application/json"):
+
+            if mime_type in (
+                "application/vnd.geo+json",
+                "application/geo+json",
+                "application/json",
+            ):
                 source_file_type = FileType.GEOJSON
             elif mime_type == "text/csv":
                 source_file_type = FileType.CSV
