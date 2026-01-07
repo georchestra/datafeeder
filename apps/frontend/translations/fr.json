@@ -25,6 +25,7 @@
   "import.dataSource.url.patternHint": "L'URL doit commencer par http:// ou https://",
   "import.dataSource.validation": "Validation en cours...",
   "import.datasetConfiguration.title": "Paramétrer le jeu de données",
+  "import.datasetConfiguration.validateDataset": "Valider le jeu de données",
   "status.type.error": "Erreur",
   "status.type.queued": "En attente",
   "status.type.running": "En cours",

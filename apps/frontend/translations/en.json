@@ -25,6 +25,7 @@
   "import.dataSource.url.patternHint": "The URL must start with http:// or https://",
   "import.dataSource.validation": "Validating...",
   "import.datasetConfiguration.title": "Configure the dataset",
+  "import.datasetConfiguration.validateDataset": "Validate the dataset",
   "status.type.error": "Error",
   "status.type.queued": "Queued",
   "status.type.running": "Running",

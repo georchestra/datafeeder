@@ -23,13 +23,21 @@ import {
 } from 'rxjs'
 import { Api } from '../../../core/api/api'
 import {
+  getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet,
+  getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
   submitStagingIngestionStagingPost
 } from '../../../core/api/functions'
-import type { DagRunState, StagingResponse } from '../../../core/api/models'
+import type {
+  DagRunState,
+  StagingResponse,
+  StagingMetadataResponse,
+  StagingPreviewResponse
+} from '../../../core/api/models'
 import type { SourceData } from '../data-source-selector/data-source-selector.component'
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
+import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 30000
@@ -56,7 +64,8 @@ export interface ImportWizardData {
     SpinningLoaderComponent,
     DataSourceSelectorComponent,
     DatasetConfigurationComponent,
-    TranslatePipe
+    TranslatePipe,
+    DatasetPreviewTableComponent
   ],
   templateUrl: './data-import-wizard.component.html',
   styleUrls: ['./data-import-wizard.component.scss'],
@@ -90,6 +99,8 @@ export class DataImportWizardComponent {
     dag_id: string
     dag_run_id: string
   } | null>(null)
+  metadata = signal<StagingMetadataResponse | null>(null)
+  preview = signal<StagingPreviewResponse | null>(null)
 
   constructor() {
     effect((onCleanup) => {
@@ -124,6 +135,16 @@ export class DataImportWizardComponent {
         subscription.unsubscribe()
         this.validating.set(false)
       })
+    })
+
+    // Fetch staging data when tab 2 is selected and integrityLinkId is available
+    effect(() => {
+      const tabIndex = this.selectedTabIndex()
+      const linkId = this.integrityLinkId()
+
+      if (tabIndex === 1 && linkId && !this.metadata() && !this.preview()) {
+        this.fetchStagingData(linkId)
+      }
     })
   }
 
@@ -251,5 +272,30 @@ export class DataImportWizardComponent {
         })
       )
     )
+  }
+
+  private async fetchStagingData(integrityLinkId: string): Promise<void> {
+    try {
+      const [metadata, preview] = await Promise.all([
+        this.api.invoke(
+          getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet,
+          {
+            integrity_link_id: integrityLinkId
+          }
+        ),
+        this.api.invoke(
+          getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
+          {
+            integrity_link_id: integrityLinkId,
+            limit: 10
+          }
+        )
+      ])
+
+      this.metadata.set(metadata)
+      this.preview.set(preview)
+    } catch (error) {
+      console.error('Error fetching staging data:', error)
+    }
   }
 }

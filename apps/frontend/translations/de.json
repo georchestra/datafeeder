@@ -25,6 +25,7 @@
   "import.dataSource.url.patternHint": "",
   "import.dataSource.validation": "",
   "import.datasetConfiguration.title": "",
+  "import.datasetConfiguration.validateDataset": "",
   "status.type.error": "",
   "status.type.queued": "",
   "status.type.running": "",
