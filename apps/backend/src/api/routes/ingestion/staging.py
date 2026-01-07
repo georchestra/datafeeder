@@ -136,7 +136,7 @@ async def submit_staging(
         case ImportType.FILE:
             if file is None:
                 raise HTTPException(status_code=400, detail="File is required")
-            
+
             source = await upload_file_to_temp(file)
             # TODO: extract source_file_type and source_file_name
         case ImportType.URL:
@@ -149,6 +149,7 @@ async def submit_staging(
 
         case ImportType.DATABASE | ImportType.API:
             # TODO: implement handling for DATABASE and API import types
+            logger.error(f"Import type {type.value} not implemented yet")
             raise HTTPException(
                 status_code=501, detail=f"Import type {type.value} not implemented yet"
             )
@@ -208,6 +209,7 @@ async def submit_staging(
             status=dag_run_response.state,
         )
     except Exception as e:
+        logger.error(f"Error triggering Airflow DAG: {e}")
         raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
 
 
