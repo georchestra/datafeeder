@@ -145,37 +145,6 @@ async def submit_staging(
                 raise HTTPException(status_code=400, detail="URL is required for URL import type")
 
             source = url
-
-            try:
-                head_response = requests.head(url)
-                head_response.raise_for_status()
-
-                content_disposition = head_response.headers.get("content-disposition")
-                if content_disposition:
-                    fname = re.findall("filename=(.+)", content_disposition)
-                    if fname:
-                        source_file_name = fname[0].strip('"')
-                    else:
-                        fname_utf8 = re.findall("filename\\*=UTF-8''(.+)", content_disposition)
-                        if fname_utf8:
-                            source_file_name = fname_utf8[0]
-                
-                content_type = head_response.headers.get("content-type")
-                if content_type:
-                    if "application/json+geo" in content_type:
-                        source_file_type = FileType.GEOJSON
-                    elif "text/csv" in content_type:
-                        source_file_type = FileType.CSV
-                    elif "application/zip" in content_type:
-                        source_file_type = FileType.SHAPEFILE
-                    else:
-                        raise HTTPException(
-                            status_code=400, detail=f"Unsupported content type: {content_type}"
-                        )
-
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Error accessing URL: {e}")
-            
             source_file_name, source_file_type = _extract_url_metadata(url)
 
         case ImportType.DATABASE | ImportType.API:
