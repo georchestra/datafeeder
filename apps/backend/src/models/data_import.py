@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 
 from airflow_client.client.models.dag_run_state import DagRunState
 from pydantic import BaseModel
@@ -11,6 +12,14 @@ class ImportType(str, Enum):
     FILE = "file"
     DATABASE = "database"
     API = "api"
+
+
+class FileType(str, Enum):
+    """Supported file types"""
+
+    CSV = "csv"
+    GEOJSON = "geojson"
+    SHAPEFILE = "shapefile"
 
 
 class TransformationConfig(BaseModel):
@@ -51,3 +60,26 @@ class StatusResponse(BaseModel):
     """Response model for status endpoint"""
 
     status: DagRunState
+
+
+class ColumnMetadata(BaseModel):
+    """Metadata for a single column"""
+
+    name: str
+
+
+class StagingMetadataResponse(BaseModel):
+    """Metadata for staging data"""
+
+    title: str
+    import_type: ImportType
+    file_type: FileType | None
+
+    columns: list[ColumnMetadata]
+    row_count: int
+
+
+class StagingPreviewResponse(BaseModel):
+    """Preview data from staging table"""
+
+    data: list[dict[str, Any]]

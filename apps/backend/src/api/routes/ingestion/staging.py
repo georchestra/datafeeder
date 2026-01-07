@@ -1,10 +1,12 @@
+import re
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
 
+import requests
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile
-from sqlalchemy import MetaData, Table
+from sqlalchemy import MetaData, Table, func, select
 
 from src.api.deps import SessionDep
 from src.core.callback import build_callback_url
@@ -12,14 +14,19 @@ from src.core.logging import get_logger
 from src.models import (
     StagingResponse,
 )
-from src.models.data_import import ImportType
+from src.models.data_import import (
+    ColumnMetadata,
+    FileType,
+    ImportType,
+    StagingMetadataResponse,
+    StagingPreviewResponse,
+)
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.files import upload_file_to_temp
 
-# Use uvicorn's logger to get colored output
-logger = get_logger()
 router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
+logger = get_logger()
 
 
 def _generate_staging_table_name(dag_run_id: str) -> str:
@@ -37,6 +44,58 @@ def _generate_staging_table_name(dag_run_id: str) -> str:
 
     # Generate short hash for uniqueness (encode the full URL)
     return f"staging_{dag_run_id.replace('-', '_')[:32]}"
+
+
+def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
+    """Extract file name and file type from a URL using HEAD request.
+
+    Args:
+        url: The URL to inspect
+
+    Returns:
+        A tuple of (source_file_name, source_file_type)
+
+    Raises:
+        HTTPException: If the URL cannot be accessed or has unsupported content type
+    """
+    try:
+        headers = {
+            "Accept": "*/*",
+        }
+        head_response = requests.head(url, headers=headers, allow_redirects=True)
+        head_response.raise_for_status()
+
+        source_file_name = None
+        content_disposition = head_response.headers.get("content-disposition")
+        if content_disposition:
+            fname = re.findall("filename=(.+)", content_disposition)
+            if fname:
+                source_file_name = fname[0].strip('"')
+            else:
+                fname_utf8 = re.findall("filename\\*=UTF-8''(.+)", content_disposition)
+                if fname_utf8:
+                    source_file_name = fname_utf8[0]
+
+        source_file_type = None
+        content_type = head_response.headers.get("content-type")
+        if content_type:
+            if "application/vnd.geo+json" in content_type:
+                source_file_type = FileType.GEOJSON
+            elif "text/csv" in content_type:
+                source_file_type = FileType.CSV
+            elif "application/zip" in content_type:
+                source_file_type = FileType.SHAPEFILE
+            else:
+                logger.error(f"Unsupported content type: {content_type}")
+                raise HTTPException(
+                    status_code=400, detail=f"Unsupported content type: {content_type}"
+                )
+
+        return source_file_name, source_file_type
+
+    except Exception as e:
+        logger.error(f"Error accessing URL {url}: {e}")
+        raise HTTPException(status_code=400, detail=f"Error accessing URL: {e}")
 
 
 @router.post(
@@ -68,18 +127,41 @@ async def submit_staging(
     dag_run_id = str(uuid4())
     staging_table_name = _generate_staging_table_name(dag_run_id)
 
-    # Extract source according to import type
-    if type == ImportType.FILE:
-        if file is None:
-            raise HTTPException(status_code=400, detail="File is required")
-        source = await upload_file_to_temp(file)
-    else:
-        source = url
+    source = None
+    source_file_name = None
+    source_file_type = None
+
+    # Extract source, source_file_name, and source_file_type according to import type
+    match type:
+        case ImportType.FILE:
+            if file is None:
+                raise HTTPException(status_code=400, detail="File is required")
+
+            source = await upload_file_to_temp(file)
+            # TODO: extract source_file_type and source_file_name
+        case ImportType.URL:
+            if not url:
+                logger.error("URL is required for URL import type")
+                raise HTTPException(status_code=400, detail="URL is required for URL import type")
+
+            source = url
+            source_file_name, source_file_type = _extract_url_metadata(url)
+
+        case ImportType.DATABASE | ImportType.API:
+            # TODO: implement handling for DATABASE and API import types
+            logger.error(f"Import type {type.value} not implemented yet")
+            raise HTTPException(
+                status_code=501, detail=f"Import type {type.value} not implemented yet"
+            )
 
     # Create IntegrityLink immediately
     integrity_link = IntegrityLink(
         integrity_owner=sec_username,
         integrity_organization=sec_org,
+        source_import_type=type,
+        source_url=url,
+        source_file_name=source_file_name,
+        source_file_type=source_file_type,
         staging_table_name=staging_table_name,
     )
     session.add(integrity_link)
@@ -127,6 +209,7 @@ async def submit_staging(
             status=dag_run_response.state,
         )
     except Exception as e:
+        logger.error(f"Error triggering Airflow DAG: {e}")
         raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
 
 
@@ -214,3 +297,82 @@ def dag_failure_callback(
     # Delete the IntegrityLink
     session.delete(integrity_link)
     session.commit()
+
+
+@router.get("/{integrity_link_id}/metadata")
+def get_staging_metadata(
+    session: SessionDep,
+    integrity_link_id: str,
+) -> StagingMetadataResponse:
+    """
+    Get metadata of the staging table.
+
+    Args:
+        session: Database session (injected)
+        integrity_link_id: IntegrityLink UUID (required)
+
+    Returns:
+        Metadata of the staging table
+    """
+
+    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    if not integrity_link:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    staging_table_name = integrity_link.staging_table_name
+    source_import_type = integrity_link.source_import_type
+    source_file_name = integrity_link.source_file_name
+    source_file_type = integrity_link.source_file_type
+
+    schema = "staging"  # FIXME get it from config
+    sql_metadata = MetaData(schema=schema)
+    table = Table(staging_table_name, sql_metadata, autoload_with=session.get_bind())
+
+    columns = [ColumnMetadata(name=col.name) for col in table.columns]
+    row_count = session.scalar(select(func.count()).select_from(table)) or 0
+
+    return StagingMetadataResponse(
+        title=source_file_name or "",
+        import_type=source_import_type,
+        file_type=source_file_type,
+        columns=columns,
+        row_count=row_count,
+    )
+
+
+@router.get("/{integrity_link_id}/preview")
+def get_staging_preview(
+    session: SessionDep,
+    integrity_link_id: str,
+    limit: int = Query(10, description="Number of rows to preview"),
+) -> StagingPreviewResponse:
+    """
+    Get a preview of the data in the staging table.
+
+    Args:
+        session: Database session (injected)
+        integrity_link_id: IntegrityLink UUID (required)
+        limit: Number of rows to preview (optional, default is 10)
+
+    Returns:
+        Preview data from the staging table
+    """
+
+    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    if not integrity_link:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    staging_table_name = integrity_link.staging_table_name
+    if not staging_table_name:
+        raise HTTPException(status_code=500, detail="Staging table name is missing")
+
+    schema = "staging"  # FIXME get it from config
+    metadata = MetaData(schema=schema)
+    table = Table(staging_table_name, metadata, autoload_with=session.get_bind())
+    query = select(table).limit(limit)
+
+    subset = session.execute(query).mappings()  # type: ignore[misc]
+
+    return StagingPreviewResponse(
+        data=[dict(row) for row in subset],
+    )

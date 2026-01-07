@@ -20,14 +20,18 @@ CREATE TYPE datakern.rule_value_enum AS ENUM
 
 create table if not exists datakern.integrity_link
 (
-    id                       uuid      DEFAULT gen_random_uuid() PRIMARY KEY,
+    id                       uuid       DEFAULT gen_random_uuid() PRIMARY KEY,
     data_id                  varchar(255)       NULL,
     metadata_id              varchar(255)       NULL,
     integrity_title          text               NULL,
     integrity_owner          varchar(255)       NOT NULL,
     integrity_organization   varchar(255)       NOT NULL,
     integrity_transformation jsonb              NULL,
-    staging_table_name       varchar(63)        NULL,
+    source_import_type       varchar(10)        NOT NULL,
+    source_url               text               NULL,
+    source_file_name         varchar(255)       NULL,
+    source_file_type         varchar(10)        NULL,
+    staging_table_name       varchar(63)        NOT NULL,
     staging_retrieve_time    interval           NULL,
     final_table_name         varchar(63) UNIQUE NULL,
     last_retrieval_timestamp timestamp          NULL,
