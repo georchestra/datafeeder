@@ -75,22 +75,26 @@ def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
         content_disposition = head_response.headers.get("content-disposition")
         if content_disposition:
             fname = re.findall("filename=(.+)", content_disposition)
-            if fname:
-                source_file_name = fname[0].strip('"')
-            else:
-                fname_utf8 = re.findall("filename\\*=UTF-8''(.+)", content_disposition)
-                if fname_utf8:
-                    source_file_name = fname_utf8[0]
-
+            if not fname:
+                fname = re.findall("filename\\*=UTF-8''(.+)", content_disposition)
+            
+            # If filename is found, strip quotes and extract base name without extension
+            source_file_name = fname[0].strip('"').rsplit(".", 1)[0]
+            
         source_file_type = None
         content_type = head_response.headers.get("content-type")
         if content_type:
-            if "application/vnd.geo+json" in content_type:
+            # Extract the MIME type without parameters (e.g., charset)
+            mime_type = content_type.split(";")[0].strip().lower()
+            
+            if mime_type in ("application/vnd.geo+json", "application/geo+json", "application/json"):
                 source_file_type = FileType.GEOJSON
-            elif "text/csv" in content_type:
+            elif mime_type == "text/csv":
                 source_file_type = FileType.CSV
-            elif "application/zip" in content_type:
+            elif mime_type == "application/zip":
                 source_file_type = FileType.SHAPEFILE
+            elif mime_type in ("application/geopackage+sqlite3", "application/x-sqlite3"):
+                source_file_type = FileType.GPKG
             else:
                 logger.error(f"Unsupported content type: {content_type}")
                 raise HTTPException(
