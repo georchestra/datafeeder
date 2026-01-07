@@ -17,11 +17,11 @@ jobs:
             uses: docker/setup-buildx-action@v3
 
           - name: Build database and datakern with Docker Compose
-            run: | 
-              docker compose --profile datakern build datakern-backend datakern-frontend database
+            run: |
+              docker compose --profile datakern build datakern-frontend database
               docker tag datakern-database:latest ghcr.io/camptocamp/datakern/datakern-database:latest
-              docker tag datakern-datakern-backend:latest ghcr.io/camptocamp/datakern/datakern-backend:latest
-              docker tag datakern-datakern-frontend:latest ghcr.io/camptocamp/datakern/datakern-frontend:latest  
+              docker tag datakern-datakern-frontend:latest ghcr.io/camptocamp/datakern/datakern-frontend:latest
+              docker build -f ./apps/backend/Dockerfile -t ghcr.io/camptocamp/datakern/datakern-backend:latest --target production .
 
           - name: Build Airflow
             run: docker build -f ./docker/Dockerfile.airflow -t ghcr.io/camptocamp/datakern/datakern-airflow:latest .
