@@ -2,6 +2,7 @@ import re
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
+from data_manipulation.utils import sanitize_name
 
 import requests
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
@@ -29,21 +30,26 @@ router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 logger = get_logger()
 
 
-def _generate_staging_table_name(dag_run_id: str) -> str:
-    """Generate a unique, readable staging table name from an Airflow DAG run ID.
+def _generate_staging_table_name(dag_run_id: str, file_name: str | None) -> str:
+    """Generate a unique, readable staging table name from an Airflow DAG run ID and optional file name.
 
     Args:
         dag_run_id: The Airflow DAG run ID
+        file_name: The original file name (optional)
 
     Returns:
         A unique staging table name
     """
-    # TODO: could be nice to have more readable names (extract filename if possible)
-    # HttpURL: Head request ?
-    # FileUrl: use path name directly ?
 
-    # Generate short hash for uniqueness (encode the full URL)
-    return f"staging_{dag_run_id.replace('-', '_')[:32]}"
+    MAX_TABLE_NAME_LENGTH = 63
+    UUID_LENGTH = 36  # Length of UUID with hyphens
+    SANITIZED_DAG_RUN_ID = dag_run_id.replace("-", "_")[:UUID_LENGTH]
+
+    if file_name:
+        sanitized_name = sanitize_name(file_name.rsplit(".", 1)[0])[:MAX_TABLE_NAME_LENGTH - 1 - UUID_LENGTH]
+        return f"{sanitized_name}_{SANITIZED_DAG_RUN_ID}"
+
+    return SANITIZED_DAG_RUN_ID
 
 
 def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
@@ -125,7 +131,6 @@ async def submit_staging(
     """
 
     dag_run_id = str(uuid4())
-    staging_table_name = _generate_staging_table_name(dag_run_id)
 
     source = None
     source_file_name = None
@@ -153,6 +158,8 @@ async def submit_staging(
             raise HTTPException(
                 status_code=501, detail=f"Import type {type.value} not implemented yet"
             )
+
+    staging_table_name = _generate_staging_table_name(dag_run_id, source_file_name)
 
     # Create IntegrityLink immediately
     integrity_link = IntegrityLink(
