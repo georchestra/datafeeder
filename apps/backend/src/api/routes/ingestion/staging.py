@@ -25,7 +25,7 @@ from src.models.data_import import (
 )
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
-from src.services.files import upload_file_to_temp
+from src.services.files import delete_temp_file, upload_file_to_temp
 
 router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 logger = get_logger()
@@ -163,7 +163,7 @@ async def submit_staging(
             if file is None:
                 raise HTTPException(status_code=400, detail="File is required")
 
-            source = await upload_file_to_temp(file)
+            source = await upload_file_to_temp(file, rand_id=dag_run_id)
             # TODO: extract source_file_type and source_file_name
         case ImportType.URL:
             if not url:
@@ -205,6 +205,10 @@ async def submit_staging(
         source_password_encrypted=encrypted_password if auth_enabled else None,
         source_auth_enabled=auth_enabled,
         staging_table_name=staging_table_name,
+        source_import_type=None,
+        source_url=source,
+        source_file_name=file.filename if file else None,
+        source_file_type="toto",
     )
     session.add(integrity_link)
     session.commit()
@@ -297,6 +301,13 @@ def dag_success_callback(
     integrity_link.staging_retrieve_time = staging_retrieve_time
     session.commit()
     session.refresh(integrity_link)
+
+    # Remove file from temp folder if applicable
+    try:
+        if integrity_link.source_url:
+            delete_temp_file(integrity_link.source_url)
+    except Exception as e:
+        logger.error(f"Error deleting temp file: {e}")
 
 
 @router.post("/dag_failure")

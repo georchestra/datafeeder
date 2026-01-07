@@ -1,16 +1,18 @@
 import uuid
 from pathlib import Path
+from typing import Optional
 
 from fastapi import UploadFile
 
 from src.core.config import get_settings
 
 
-async def upload_file_to_temp(file: UploadFile) -> str:
+async def upload_file_to_temp(file: UploadFile, rand_id: Optional[str] = None) -> str:
     """Helper to save uploaded file to a temporary location.
 
     Args:
         file: Uploaded file from the request
+        rand_id: Optional random ID to use for the file name, you can give the dag id for instance
 
     Returns:
         The unique file URL in the temporary upload directory
@@ -23,7 +25,7 @@ async def upload_file_to_temp(file: UploadFile) -> str:
     original_filename = file.filename or "uploaded_file"
     original_path = Path(original_filename)
 
-    unique_id = uuid.uuid4().hex[:8]
+    unique_id = rand_id or uuid.uuid4().hex[:8]
     extension = original_path.suffix
     unique_filename = f"{original_path.stem}_{unique_id}{extension}"
 
@@ -69,3 +71,27 @@ def get_temp_file_url(filename: str) -> str:
     file_url = settings.BACKEND_URL + "/internal/files/" + filename
 
     return file_url
+
+
+def delete_temp_file(file_url: str) -> None:
+    """Delete a temporary file from the upload directory.
+
+    Args:
+        file_url: The file URL to delete
+
+    Returns:
+        True if file was deleted, False if file didn't exist
+
+    Raises:
+        Exception: If deletion fails for reasons other than file not existing
+    """
+    settings = get_settings()
+
+    if file_url.startswith(settings.BACKEND_URL + "/internal/files/"):
+        filename = file_url.rsplit("/", 1)[-1]  # Extract the filename from the URL
+        file_path = Path(settings.TMP_UPLOAD_PATH) / filename
+
+        if not file_path.exists():
+            raise IOError(f"Unable to delete: {filename}")
+
+        file_path.unlink()

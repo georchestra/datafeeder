@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import UploadFile
 
-from src.services.files import get_temp_file_url, upload_file_to_temp
+from src.services.files import delete_temp_file, get_temp_file_url, upload_file_to_temp
 
 
 class TestUploadFileToTemp:
@@ -281,3 +281,82 @@ class TestGetTempFileUrl:
 
         # Note: URL encoding is not performed by the function
         assert result == "http://localhost:8000/internal/files/file with spaces_123.txt"
+
+
+class TestDeleteTempFile:
+    """Test cases for delete_temp_file function."""
+
+    @pytest.fixture
+    def mock_settings(self) -> MagicMock:
+        """Create mock settings."""
+        settings = MagicMock()
+        settings.TMP_UPLOAD_PATH = "/tmp"
+        settings.BACKEND_URL = "http://localhost:8000"
+        return settings
+
+    @patch("src.services.files.get_settings")
+    @patch("src.services.files.Path")
+    def test_delete_temp_file_success(
+        self, mock_path: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        """Test successful file deletion."""
+        mock_get_settings.return_value = mock_settings
+
+        # Mock Path behavior
+        mock_tmp_path = MagicMock()
+        mock_file_path = MagicMock()
+        mock_file_path.exists = MagicMock(return_value=True)
+        mock_file_path.unlink = MagicMock()
+        mock_tmp_path.__truediv__ = MagicMock(return_value=mock_file_path)
+
+        mock_path.return_value = mock_tmp_path
+
+        delete_temp_file("http://localhost:8000/internal/files/test_file.json")
+        mock_file_path.exists.assert_called_once()
+        mock_file_path.unlink.assert_called_once()
+
+    @patch("src.services.files.get_settings")
+    @patch("src.services.files.Path")
+    def test_delete_temp_file_not_found(
+        self, mock_path: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        """Test deleting a file that doesn't exist."""
+        mock_get_settings.return_value = mock_settings
+
+        # Mock Path behavior for non-existent file
+        mock_tmp_path = MagicMock()
+        mock_file_path = MagicMock()
+        mock_file_path.exists = MagicMock(return_value=False)
+        mock_file_path.unlink = MagicMock()
+        mock_tmp_path.__truediv__ = MagicMock(return_value=mock_file_path)
+
+        mock_path.return_value = mock_tmp_path
+
+        with pytest.raises(IOError):
+            delete_temp_file("http://localhost:8000/internal/files/nonexistent.json")
+
+        mock_file_path.exists.assert_called_once()
+        mock_file_path.unlink.assert_not_called()
+
+    @patch("src.services.files.get_settings")
+    @patch("src.services.files.Path")
+    def test_delete_temp_file_unlink_error(
+        self, mock_path: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        """Test handling of unlink errors."""
+        mock_get_settings.return_value = mock_settings
+
+        # Mock Path behavior with unlink error
+        mock_tmp_path = MagicMock()
+        mock_file_path = MagicMock()
+        mock_file_path.exists = MagicMock(return_value=True)
+        mock_file_path.unlink = MagicMock(side_effect=PermissionError("Permission denied"))
+        mock_tmp_path.__truediv__ = MagicMock(return_value=mock_file_path)
+
+        mock_path.return_value = mock_tmp_path
+
+        with pytest.raises(PermissionError):
+            delete_temp_file("http://localhost:8000/internal/files/protected_file.json")
+
+        mock_file_path.exists.assert_called_once()
+        mock_file_path.unlink.assert_called_once()
