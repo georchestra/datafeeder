@@ -103,9 +103,6 @@ def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
                 source_file_type = FileType.GPKG
             else:
                 logger.error(f"Unsupported content type: {content_type}")
-                raise HTTPException(
-                    status_code=400, detail=f"Unsupported content type: {content_type}"
-                )
 
         return source_file_name, source_file_type
 
