@@ -11,6 +11,7 @@ from sqlalchemy import MetaData, Table, func, select
 
 from src.api.deps import SessionDep
 from src.core.callback import build_callback_url
+from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
 from src.models import (
     StagingResponse,
@@ -54,11 +55,14 @@ def _generate_staging_table_name(dag_run_id: str, file_name: str | None) -> str:
     return SANITIZED_DAG_RUN_ID
 
 
-def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
+def _extract_url_metadata(url: str, auth_enabled: bool = False, username: str | None = None, password: str | None = None) -> tuple[str | None, FileType | None]:
     """Extract file name and file type from a URL using HEAD request.
 
     Args:
         url: The URL to inspect
+        auth_enabled: Whether to use Basic Auth for the request
+        username: Basic Auth username (if auth_enabled is True)
+        password: Basic Auth password (if auth_enabled is True)
 
     Returns:
         A tuple of (source_file_name, source_file_type)
@@ -70,7 +74,11 @@ def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
         headers = {
             "Accept": "*/*",
         }
-        head_response = requests.head(url, headers=headers, allow_redirects=True)
+        head_response = requests.head(
+            url,
+            headers=headers,
+            allow_redirects=True,
+            auth=(username, password) if auth_enabled and username and password else None,)
         head_response.raise_for_status()
 
         source_file_name = None
@@ -119,6 +127,9 @@ async def submit_staging(
     type: ImportType = Form(...),
     url: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
+    auth_enabled: bool = Form(False),
+    username: Optional[str] = Form(None),
+    password: Optional[str] = Form(None),
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
 ) -> StagingResponse:
@@ -154,7 +165,7 @@ async def submit_staging(
                 raise HTTPException(status_code=400, detail="URL is required for URL import type")
 
             source = url
-            source_file_name, source_file_type = _extract_url_metadata(url)
+            source_file_name, source_file_type = _extract_url_metadata(url, auth_enabled, username, password)
 
         case ImportType.DATABASE | ImportType.API:
             # TODO: implement handling for DATABASE and API import types
@@ -165,6 +176,15 @@ async def submit_staging(
 
     staging_table_name = _generate_staging_table_name(dag_run_id, source_file_name)
 
+    # Encrypt Basic Auth credentials if provided
+    encrypted_password = None
+    if auth_enabled and username and password:
+        try:
+            encrypted_password = encrypt_basic_auth(session.connection(), username, password)
+        except Exception as e:
+            logger.error(f"Failed to encrypt credentials: {e}")
+            raise HTTPException(status_code=500, detail="Failed to encrypt credentials")
+
     # Create IntegrityLink immediately
     integrity_link = IntegrityLink(
         integrity_owner=sec_username,
@@ -173,6 +193,9 @@ async def submit_staging(
         source_url=url,
         source_file_name=source_file_name,
         source_file_type=source_file_type,
+        source_username=username if auth_enabled else None,
+        source_password_encrypted=encrypted_password if auth_enabled else None,
+        source_auth_enabled=auth_enabled,
         staging_table_name=staging_table_name,
     )
     session.add(integrity_link)
@@ -207,6 +230,7 @@ async def submit_staging(
                     "source": str(source),
                     "source_type": type.value.upper(),
                     "staging_table_name": staging_table_name,
+                    "basic_auth_encrypted": encrypted_password if auth_enabled else None,
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,
                 },

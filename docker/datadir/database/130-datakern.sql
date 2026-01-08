@@ -1,55 +1,61 @@
 CREATE SCHEMA IF NOT EXISTS datakern;
+
 CREATE SCHEMA IF NOT EXISTS data;
+
 CREATE SCHEMA IF NOT EXISTS staging;
 
+-- Enable pgcrypto extension for encrypted storage of credentials
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE SEQUENCE datakern.hibernate_sequence;
+
 GRANT ALL ON datakern.hibernate_sequence TO georchestra;
+
 GRANT ALL ON SCHEMA staging TO georchestra;
 
-CREATE TYPE datakern.rule_type_enum AS ENUM
-    (
-        'DATA',
-        'METADATA'
-        );
-
-CREATE TYPE datakern.rule_value_enum AS ENUM
-    (
-        'READ',
-        'WRITE'
-        );
-
-create table if not exists datakern.integrity_link
-(
-    id                       uuid       DEFAULT gen_random_uuid() PRIMARY KEY,
-    data_id                  varchar(255)       NULL,
-    metadata_id              varchar(255)       NULL,
-    integrity_title          text               NULL,
-    integrity_owner          varchar(255)       NOT NULL,
-    integrity_organization   varchar(255)       NOT NULL,
-    integrity_transformation jsonb              NULL,
-    source_import_type       varchar(10)        NOT NULL,
-    source_url               text               NULL,
-    source_file_name         varchar(255)       NULL,
-    source_file_type         varchar(10)        NULL,
-    staging_table_name       varchar(63)        NOT NULL,
-    staging_retrieve_time    interval           NULL,
-    final_table_name         varchar(63) UNIQUE NULL,
-    last_retrieval_timestamp timestamp          NULL,
-    schedule                 varchar(63)        NULL,
-    schedule_enabled         boolean   default false,
-    created_at               timestamp default current_timestamp
+CREATE TYPE datakern.rule_type_enum AS ENUM(
+    'DATA',
+    'METADATA'
 );
 
-comment on column datakern.integrity_link.staging_retrieve_time is
-    'Estimated time taken to retrieve data into staging table. Used to define the minimum interval allowed between two schedules.';
-comment on column datakern.integrity_link.last_retrieval_timestamp is
-    'Timestamp of the last successful retrieval into the final table';
-
-create table if not exists datakern.integrity_link_rules
-(
-    id                serial,
-    integrity_link_id uuid REFERENCES datakern.integrity_link (id) ON DELETE CASCADE,
-    rule_type         datakern.rule_type_enum NOT NULL,
-    rule_value        datakern.rule_value_enum DEFAULT 'READ',
-    group_or_role     varchar(255)            NOT NULL
+CREATE TYPE datakern.rule_value_enum AS ENUM(
+    'READ',
+    'WRITE'
 );
+
+CREATE TABLE IF NOT EXISTS datakern.integrity_link(
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    data_id varchar(255) NULL,
+    metadata_id varchar(255) NULL,
+    integrity_title text NULL,
+    integrity_owner varchar(255) NOT NULL,
+    integrity_organization varchar(255) NOT NULL,
+    integrity_transformation jsonb NULL,
+    source_import_type varchar(10) NOT NULL,
+    source_url text NULL,
+    source_file_name varchar(255) NULL,
+    source_file_type varchar(10) NULL,
+    source_username text NULL,
+    source_password_encrypted text NULL,
+    source_auth_enabled boolean DEFAULT FALSE,
+    staging_table_name varchar(63) NOT NULL,
+    staging_retrieve_time interval NULL,
+    final_table_name varchar(63) UNIQUE NULL,
+    last_retrieval_timestamp timestamp NULL,
+    schedule varchar(63) NULL,
+    schedule_enabled boolean DEFAULT FALSE,
+    created_at timestamp DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON COLUMN datakern.integrity_link.staging_retrieve_time IS 'Estimated time taken to retrieve data into staging table. Used to define the minimum interval allowed between two schedules.';
+
+COMMENT ON COLUMN datakern.integrity_link.last_retrieval_timestamp IS 'Timestamp of the last successful retrieval into the final table';
+
+CREATE TABLE IF NOT EXISTS datakern.integrity_link_rules(
+    id serial,
+    integrity_link_id uuid REFERENCES datakern.integrity_link(id) ON DELETE CASCADE,
+    rule_type datakern.rule_type_enum NOT NULL,
+    rule_value datakern.rule_value_enum DEFAULT 'READ',
+    group_or_role varchar(255) NOT NULL
+);
+

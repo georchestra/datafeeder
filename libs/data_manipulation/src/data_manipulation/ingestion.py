@@ -1,7 +1,9 @@
 import logging
+import tempfile
 from pathlib import Path
 
 import geopandas as gpd
+import requests
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.engine import Engine
 
@@ -10,6 +12,17 @@ from data_manipulation.validators import validate_table_name
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
+
+DEFAULT_SCHEMA = "public"
+
+
+def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
+    metadata = MetaData(schema=schema)
+    table = Table(table_name, metadata, autoload_with=engine)
+    count_query = select(func.count()).select_from(table)
+
+    with engine.connect() as conn:
+        return conn.execute(count_query).scalar() or 0
 
 
 def _detect_file_encoding(file_path: str) -> str:
@@ -40,13 +53,20 @@ def ingest_data_from_file_into_postgis(
     file_path: str,
     table_name: str,
     engine: Engine,
-    schema: str | None = None,
+    schema: str = DEFAULT_SCHEMA,
 ) -> None:
-    """Ingest data from a file into a PostGIS table."""
+    """Ingest data from a file into a PostGIS table.
+
+    Args:
+        file_path: Path to the input file
+        table_name: Target table name in PostGIS
+        engine: SQLAlchemy engine
+        schema: Target schema (default: public)
+    """
     # Validate table name to prevent SQL injection
     validated_table_name = validate_table_name(table_name)
 
-    logger.info(f"Ingesting data from file {file_path} into table {table_name}")
+    logger.info(f"Ingesting data from file {file_path} into table {validated_table_name}")
 
     try:
         # Detect encoding (mainly for shapefiles, others default to UTF-8)
@@ -64,40 +84,63 @@ def ingest_data_from_file_into_postgis(
                 logger.warning("Failed with latin-1, trying cp1252")
                 gdf = gpd.read_file(file_path, encoding="cp1252")
 
-        target_schema = schema or "public"
-
         logger.info(
-            f"Ingesting data from file {file_path} into table {table_name} in schema {target_schema}"
+            f"Ingesting data from file {file_path} into table {validated_table_name} in schema {schema}"
         )
 
-        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=target_schema)
+        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=schema)
 
-        # Query the database to get actual row count
-        metadata = MetaData(schema=target_schema)
-        table = Table(table_name, metadata, autoload_with=engine)
-        count_query = select(func.count()).select_from(table)
-
-        with engine.connect() as conn:
-            row_count = conn.execute(count_query).scalar()
-
-        logger.info(f"Successfully inserted {row_count} rows into {target_schema}.{table_name}")
+        row_count = _get_table_row_count(validated_table_name, engine, schema)
+        logger.info(f"Successfully inserted {row_count} rows into {schema}.{validated_table_name}")
     except Exception as e:
         logger.error(f"Error ingesting data from file {file_path}: {e}")
         raise
 
 
 def ingest_data_from_url_into_postgis(
-    url: str, table_name: str, engine: Engine, schema: str | None = None
+    url: str,
+    table_name: str,
+    engine: Engine,
+    schema: str = DEFAULT_SCHEMA,
+    auth: tuple[str, str] | None = None,
 ) -> None:
-    """Ingest data from a URL into a PostGIS table."""
+    """Ingest data from a URL into a PostGIS table.
+
+    Args:
+        url: URL to download data from
+        table_name: Target table name in PostGIS
+        engine: SQLAlchemy engine
+        schema: Target schema (default: public)
+        auth: Optional tuple of (username, password) for HTTP Basic Authentication
+    """
     # Validate table name to prevent SQL injection
     validated_table_name = validate_table_name(table_name)
 
     try:
-        gdf = gpd.read_file(url)
-        target_schema = schema or "public"
+        if auth:
+            # Download file first (GeoPandas doesn't support Basic Auth natively)
+            logger.info(f"Downloading file from {url} with Basic Authentication")
 
-        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=target_schema)
+            response = requests.get(url, auth=auth, timeout=300)
+            response.raise_for_status()
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_file_path = Path(temp_dir) / Path(url).name
+                with open(temp_file_path, "wb") as temp_file:
+                    temp_file.write(response.content)
+
+                gdf = gpd.read_file(temp_file_path)
+        else:
+            gdf = gpd.read_file(url)
+
+        logger.info(
+            f"Ingesting data from URL {url} into table {validated_table_name} in schema {schema}"
+        )
+
+        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=schema)
+
+        row_count = _get_table_row_count(validated_table_name, engine, schema)
+        logger.info(f"Successfully inserted {row_count} rows into {schema}.{validated_table_name}")
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
         raise
@@ -131,8 +174,7 @@ def read_data_from_postgis(
         gdf = gpd.read_postgis(compiled_query, engine, geom_col="geometry")
         return gdf
     except Exception as e:
-        table_ref = f"{schema or 'public'}.{table_name}"
-        logger.error(f"Error reading data from PostGIS table {table_ref}: {e}")
+        logger.error(f"Error reading data from PostGIS table {schema}.{table_name}: {e}")
         raise
 
 
@@ -157,7 +199,7 @@ def apply_transformations(
 
 
 def write_data_to_postgis(
-    gdf: gpd.GeoDataFrame, table_name: str, engine: Engine, schema: str | None = None
+    gdf: gpd.GeoDataFrame, table_name: str, engine: Engine, schema: str = DEFAULT_SCHEMA
 ) -> None:
     """Write a GeoDataFrame to a final PostGIS table.
 
@@ -171,10 +213,7 @@ def write_data_to_postgis(
     validated_table_name = validate_table_name(table_name)
 
     try:
-        target_schema = schema or "public"
-
-        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=target_schema)
+        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=schema)
     except Exception as e:
-        table_ref = f"{schema or 'public'}.{table_name}"  # type: ignore
-        logger.error(f"Error writing data to PostGIS table {table_ref}: {e}")
+        logger.error(f"Error writing data to PostGIS table {schema}.{validated_table_name}: {e}")
         raise

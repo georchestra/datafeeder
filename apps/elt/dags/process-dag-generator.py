@@ -16,7 +16,11 @@ def load_scheduled_integrity_links():
             final_table_name,
             schedule,
             schedule_enabled,
-            integrity_transformation
+            integrity_transformation,
+            source_url,
+            source_import_type,
+            source_password_encrypted,
+            source_auth_enabled
         FROM datakern.integrity_link
         WHERE schedule_enabled = true
     """
@@ -39,10 +43,13 @@ def create_dag(config):
             trigger_dag_id="process_dag",
             trigger_run_id=config.get("id", "") + "_{{ ts_nodash }}",
             conf={
+                "source": config.get("source_url"),
+                "source_type": config.get("source_import_type", "").upper(),
                 "staging_table_name": config.get("staging_table_name"),
                 "final_table_name": config.get("final_table_name"),
                 "integrity_transformation": config.get("integrity_transformation", {}),
                 "metadata_id": config.get("metadata_id"),
+                "basic_auth_encrypted": config.get("source_password_encrypted", None),
                 "success_callback_url": f"http://example.com/success/{config['id']}",
                 "failure_callback_url": f"http://example.com/failure/{config['id']}",
             },

@@ -41,7 +41,8 @@
 #                                A better way is to build a custom image or extend the official image
 #                                as described in https://airflow.apache.org/docs/docker-stack/build.html.
 #                                Default: ''
-#
+# DATAKERN_ENCRYPTION_KEY      - Encryption key used by DataKern for encrypting sensitive data.
+#                                Default: ''
 # Feel free to modify this file to suit your needs.
 ---
 x-airflow-common:
@@ -76,6 +77,7 @@ x-airflow-common:
     # WARNING: Use _PIP_ADDITIONAL_REQUIREMENTS option ONLY for a quick checks
     # for other purpose (development, test and especially production usage) build/extend Airflow image.
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
+    DATAKERN_ENCRYPTION_KEY: ${ENCRYPTION_KEY:-HELLO}
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
   volumes:
