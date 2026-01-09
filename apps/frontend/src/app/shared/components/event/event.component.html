@@ -1,19 +1,16 @@
 <div
   class="border border-gray-600 pt-3.5 pr-4 pl-3.5 flex flex-col gap-2.5 w-full bg-gray-100"
 >
-  <div class="event-title">
-    <h3
-      class="text-base font-bold text-gray-900"
-      [attr.data-event-id]="event.id"
-    >
-      {{ reference }}
-    </h3>
-  </div>
+  <h2 class="text-base font-bold text-gray-900" [attr.data-event-id]="event.id">
+    {{ reference }}
+  </h2>
   <div class="flex flex-col md:flex-row gap-2 md:gap-6 md:items-end">
     <app-event-type-badge class="mb-2.5" [type]="event.type" />
     <div class="flex gap-2 grow justify-between md:justify-normal">
       <div class="flex flex-col bg-gray-200 px-3.5 py-1 rounded-t-lg">
-        <span class="text-lg font-bold text-gray-800">Début</span>
+        <span class="text-lg font-bold text-gray-800">{{
+          'event.start' | translate
+        }}</span>
         <p class="text-xs">
           @if (event.start_date) {
           {{ event.start_date | date : 'short' }}
@@ -23,7 +20,9 @@
         </p>
       </div>
       <div class="flex flex-col bg-gray-200 px-3.5 py-1 rounded-t-lg">
-        <span class="text-lg font-bold text-gray-800">Fin</span>
+        <span class="text-lg font-bold text-gray-800">{{
+          'event.end' | translate
+        }}</span>
         <p class="text-xs">
           @if (event.end_date) {
           {{ event.end_date | date : 'short' }}
@@ -33,7 +32,9 @@
         </p>
       </div>
       <div class="flex flex-col bg-gray-200 px-3.5 py-1 rounded-t-lg">
-        <span class="text-lg font-bold text-gray-800">Durée</span>
+        <span class="text-lg font-bold text-gray-800">{{
+          'event.duration' | translate
+        }}</span>
         <p class="text-xs">
           @if (event.duration) {
           {{ formatDuration(event.duration) }}
@@ -50,14 +51,12 @@
         (click)="downloadLogs()"
         [disabled]="downloading"
       >
-        <ng-container *ngIf="!downloading; else downloadingTpl">
-          Télécharger les logs
-          <ng-icon name="iconoirDownload"></ng-icon>
-        </ng-container>
-        <ng-template #downloadingTpl>
-          Télécharger les logs
-          <ng-icon class="animate-spin" name="matAutorenewOutline"></ng-icon>
-        </ng-template>
+        {{ 'event.downloadLogs' | translate }}
+        @if (!downloading) {
+        <ng-icon name="iconoirDownload"></ng-icon>
+        } @else {
+        <ng-icon class="animate-spin" name="matAutorenewOutline"></ng-icon>
+        }
       </button>
       }
       <app-status-badge [status]="event.status" />

@@ -1,13 +1,25 @@
-import { TestBed } from '@angular/core/testing'
-import { NoopAnimationsModule } from '@angular/platform-browser/animations'
 import { provideHttpClient } from '@angular/common/http'
 import { provideHttpClientTesting } from '@angular/common/http/testing'
+import { TestBed } from '@angular/core/testing'
+import { NoopAnimationsModule } from '@angular/platform-browser/animations'
+import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
+import { TranslateTestingModule } from 'ngx-translate-testing'
 import { ImportComponent } from './import.component'
 
 describe('ImportComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ImportComponent, NoopAnimationsModule],
+      imports: [
+        ImportComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.title': 'Add a dataset'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
       providers: [provideHttpClient(), provideHttpClientTesting()]
     }).compileComponents()
   })
@@ -21,7 +33,7 @@ describe('ImportComponent', () => {
     const fixture = TestBed.createComponent(ImportComponent)
     fixture.detectChanges()
     const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain('Ajouter un jeu de donnée')
+    expect(compiled.textContent).toContain('Add a dataset')
   })
 
   it('should render data import wizard', () => {

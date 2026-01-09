@@ -7,10 +7,11 @@ import {
 } from '@ng-icons/core'
 import { iconoirDownload } from '@ng-icons/iconoir'
 import { matAutorenewOutline } from '@ng-icons/material-icons/outline'
+import { TranslatePipe } from '@ngx-translate/core'
 import { StatusType } from '../../types/status-type'
 import {
   EventTypeBadgeComponent,
-  EventTypeType
+  EventType
 } from '../event-type-badge/event-type-badge.component'
 import { StatusBadgeComponent } from '../status-badge/status-badge.component'
 
@@ -19,7 +20,7 @@ export interface Event {
   start_date: string | null
   end_date: string | null
   duration: number | null
-  type: EventTypeType
+  type: EventType
   status: StatusType
 }
 
@@ -29,7 +30,8 @@ export interface Event {
     CommonModule,
     NgIconComponent,
     StatusBadgeComponent,
-    EventTypeBadgeComponent
+    EventTypeBadgeComponent,
+    TranslatePipe
   ],
   templateUrl: './event.component.html',
   styleUrl: './event.component.css',

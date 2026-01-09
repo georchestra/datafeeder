@@ -1,6 +1,6 @@
 <div class="flex flex-col gap-2.5">
-  @if (events.length === 0) { No events found } @else { @for (event of events;
-  track event.id) {
+  @if (events.length === 0) { {{ 'events.emptyList' | translate }} } @else {
+  @for (event of events; track event.id) {
   <app-event
     [event]="event"
     [reference]="reference"

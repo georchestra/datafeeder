@@ -1,11 +1,24 @@
 import { TestBed } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
 import { DataSourceSelectorComponent } from './data-source-selector.component'
+import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 
 describe('DataSourceSelectorComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DataSourceSelectorComponent, NoopAnimationsModule]
+      imports: [
+        DataSourceSelectorComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.chooseType':
+              'Choose how you want to import your data'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ]
     }).compileComponents()
   })
 
@@ -20,7 +33,7 @@ describe('DataSourceSelectorComponent', () => {
     fixture.detectChanges()
     const compiled = fixture.nativeElement as HTMLElement
     expect(compiled.textContent).toContain(
-      'Choisissez par quel biais vous souhaitez importer votre donnée'
+      'Choose how you want to import your data'
     )
   })
 

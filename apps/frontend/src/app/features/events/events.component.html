@@ -1,5 +1,7 @@
 <div class="bg-white flex flex-col gap-2.5 rounded-lg px-6 pt-8 pb-16">
-  <h1 class="text-xl font-extrabold text-gray-900">Journal d'évènements</h1>
+  <h1 class="text-xl font-extrabold text-gray-900">
+    {{ 'events.title' | translate }}
+  </h1>
   <app-events-list
     [events]="events()"
     [reference]="reference || ''"

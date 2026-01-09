@@ -1,12 +1,13 @@
+import { provideHttpClient } from '@angular/common/http'
 import {
   ApplicationConfig,
-  provideZonelessChangeDetection,
-  provideBrowserGlobalErrorListeners
+  provideBrowserGlobalErrorListeners,
+  provideZonelessChangeDetection
 } from '@angular/core'
 import { provideRouter } from '@angular/router'
-import { provideHttpClient } from '@angular/common/http'
-import { provideApiConfiguration } from './core/api/api-configuration'
+import { provideI18n, TRANSLATE_DEFAULT_CONFIG } from 'geonetwork-ui'
 import { appRoutes } from './app.routes'
+import { provideApiConfiguration } from './core/api/api-configuration'
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -14,6 +15,7 @@ export const appConfig: ApplicationConfig = {
     provideZonelessChangeDetection(),
     provideRouter(appRoutes),
     provideHttpClient(),
+    provideI18n(TRANSLATE_DEFAULT_CONFIG),
     provideApiConfiguration('/datakern-backend')
   ]
 }

@@ -1,8 +1,9 @@
-import { Component, input, output, effect, inject } from '@angular/core'
+import { Component, effect, inject, input, output } from '@angular/core'
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms'
-import { MatRadioModule } from '@angular/material/radio'
 import { MatFormFieldModule } from '@angular/material/form-field'
 import { MatInputModule } from '@angular/material/input'
+import { MatRadioModule } from '@angular/material/radio'
+import { TranslatePipe } from '@ngx-translate/core'
 
 export interface SourceData {
   type: 'url'
@@ -15,7 +16,8 @@ export interface SourceData {
     ReactiveFormsModule,
     MatRadioModule,
     MatFormFieldModule,
-    MatInputModule
+    MatInputModule,
+    TranslatePipe
   ],
   templateUrl: './data-source-selector.component.html'
 })
