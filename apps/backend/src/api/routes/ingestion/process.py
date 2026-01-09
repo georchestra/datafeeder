@@ -153,6 +153,9 @@ async def dag_success_callback(
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
+    # Initialize layer_urls for metadata generation
+    layer_urls = None
+
     # Publish to GeoServer (workspace, datastore, and layer)
     # This must happen BEFORE GeoNetwork publication
     try:
@@ -195,7 +198,7 @@ async def dag_success_callback(
         # Create layer if final_table_name exists (optional - soft failure)
         if final_table_name:
             try:
-                _layer = await geoserver_service.create_layer(
+                layer_urls = await geoserver_service.create_layer(
                     workspace_name=workspace_name,
                     datastore_name=datastore_name,
                     table_name=final_table_name,
@@ -251,11 +254,13 @@ async def dag_success_callback(
             verify_tls=False,
         )
 
+        # Pass layer URLs to metadata service (only if layer creation succeeded)
         metadata_id = metadata_service.create_and_publish_metadata(
             integrity_link,
             user_email=contact_email,
             user_first_name=user_first_name,
             user_last_name=user_last_name,
+            layer_urls=layer_urls,
         )
         integrity_link.metadata_id = metadata_id
 

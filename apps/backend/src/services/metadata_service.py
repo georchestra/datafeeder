@@ -44,6 +44,7 @@ class MetadataService:
         user_email: str = "",
         user_first_name: str = "",
         user_last_name: str = "",
+        layer_urls: dict[str, Any] | None = None,
     ) -> str:
         """Generate ISO 19115-3 metadata XML from IntegrityLink.
 
@@ -52,6 +53,7 @@ class MetadataService:
             user_email: User email address
             user_first_name: User first name
             user_last_name: User last name
+            layer_urls: Optional dictionary containing WMS/WFS URLs from GeoServer layer
 
         Returns:
             Generated metadata XML as string
@@ -107,6 +109,44 @@ class MetadataService:
         keywords: _Element = etree.SubElement(props, "keywords")
         etree.SubElement(keywords, "keyword").text = integrity_link.integrity_title or "dataset"
 
+        # Build online resources from GeoServer layer URLs
+        if layer_urls and "wms" in layer_urls and "wfs" in layer_urls:
+            wms = layer_urls["wms"]
+            wfs = layer_urls["wfs"]
+            layer_name = layer_urls.get("layer_qualified_name", "")
+
+            online_resources: _Element = etree.SubElement(props, "onlineResources")
+
+            # WMS GetCapabilities
+            resource: _Element = etree.SubElement(online_resources, "onlineResource")
+            etree.SubElement(resource, "linkage").text = wms.get("capabilities", "")
+            etree.SubElement(resource, "protocol").text = "OGC:WMS"
+            etree.SubElement(resource, "name").text = "WMS GetCapabilities"
+            etree.SubElement(resource, "description").text = f"Web Map Service for {layer_name}"
+
+            # WMS GetMap
+            resource = etree.SubElement(online_resources, "onlineResource")
+            etree.SubElement(resource, "linkage").text = wms.get("getmap", "")
+            etree.SubElement(resource, "protocol").text = "OGC:WMS"
+            etree.SubElement(resource, "name").text = "WMS GetMap"
+            etree.SubElement(resource, "description").text = f"View map layer {layer_name}"
+
+            # WFS GetCapabilities
+            resource = etree.SubElement(online_resources, "onlineResource")
+            etree.SubElement(resource, "linkage").text = wfs.get("capabilities", "")
+            etree.SubElement(resource, "protocol").text = "OGC:WFS"
+            etree.SubElement(resource, "name").text = "WFS GetCapabilities"
+            etree.SubElement(resource, "description").text = f"Web Feature Service for {layer_name}"
+
+            # WFS GetFeature
+            resource = etree.SubElement(online_resources, "onlineResource")
+            etree.SubElement(resource, "linkage").text = wfs.get("getfeature", "")
+            etree.SubElement(resource, "protocol").text = "OGC:WFS"
+            etree.SubElement(resource, "name").text = "WFS GetFeature"
+            etree.SubElement(
+                resource, "description"
+            ).text = f"Download vector data for {layer_name}"
+
         # Lineage
         etree.SubElement(
             props, "lineage"
@@ -161,6 +201,7 @@ class MetadataService:
         user_email: str = "",
         user_first_name: str = "",
         user_last_name: str = "",
+        layer_urls: dict[str, Any] | None = None,
     ) -> str:
         """Generate and publish metadata in one operation.
 
@@ -169,6 +210,7 @@ class MetadataService:
             user_email: User email address
             user_first_name: User first name
             user_last_name: User last name
+            layer_urls: Optional dictionary containing WMS/WFS URLs from GeoServer layer
 
         Returns:
             Metadata UUID from GeoNetwork
@@ -178,5 +220,6 @@ class MetadataService:
             user_email=user_email,
             user_first_name=user_first_name,
             user_last_name=user_last_name,
+            layer_urls=layer_urls,
         )
         return self.publish_metadata(metadata_xml)
