@@ -86,14 +86,7 @@ def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
         source_file_type = None
         content_type = head_response.headers.get("content-type")
         if content_type:
-            # Extract the MIME type without parameters (e.g., charset)
-            mime_type = content_type.split(";")[0].strip().lower()
-
-            if mime_type in (
-                "application/vnd.geo+json",
-                "application/geo+json",
-                "application/json",
-            ):
+            if "json" in content_type:
                 source_file_type = FileType.GEOJSON
             elif mime_type == "text/csv":
                 source_file_type = FileType.CSV
