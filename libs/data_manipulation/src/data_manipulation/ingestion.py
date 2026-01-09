@@ -128,7 +128,7 @@ def read_data_from_postgis(
         # Compile the query to SQL string (with literal binds)
         compiled_query = str(query.compile(engine, compile_kwargs={"literal_binds": True}))
 
-        gdf = gpd.read_postgis(compiled_query, engine)
+        gdf = gpd.read_postgis(compiled_query, engine, geom_col="geometry")
         return gdf
     except Exception as e:
         table_ref = f"{schema or 'public'}.{table_name}"

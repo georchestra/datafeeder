@@ -22,6 +22,39 @@ class GeoServerService:
             password=password,
         )
 
+    async def workspace_exists(self, workspace_name: str) -> bool:
+        """
+        Check if a workspace exists in GeoServer.
+
+        Args:
+            workspace_name: Name of the workspace to check
+
+        Returns:
+            True if workspace exists, False otherwise
+        """
+        try:
+            _content, status_code = self.geoserver.get_workspace(workspace_name)
+            return status_code == 200
+        except Exception:
+            return False
+
+    async def datastore_exists(self, workspace_name: str, datastore_name: str) -> bool:
+        """
+        Check if a datastore exists in a workspace.
+
+        Args:
+            workspace_name: Name of the workspace
+            datastore_name: Name of the datastore to check
+
+        Returns:
+            True if datastore exists, False otherwise
+        """
+        try:
+            _content, status_code = self.geoserver.get_pg_datastore(workspace_name, datastore_name)
+            return status_code == 200
+        except Exception:
+            return False
+
     async def create_workspace(
         self,
         workspace_name: str,
