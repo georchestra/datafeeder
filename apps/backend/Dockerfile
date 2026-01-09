@@ -5,9 +5,11 @@
 # ============================================================================
 FROM python:3.12-slim AS base
 
+# Install required dependencies with APT
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    git \
+    git curl && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Install uv
@@ -40,9 +42,6 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY libs/data_manipulation ./libs/data_manipulation
 COPY apps/backend ./apps/backend
-
-RUN apt update && apt install -y git curl && apt clean && \
-    rm -rf /var/lib/apt/lists/*
 
 # Install dependencies from root of workspace (editable for hot-reload)
 RUN uv sync --editable
