@@ -112,6 +112,9 @@ def _extract_url_metadata(
                 source_file_type = FileType.CSV
             elif mime_type in ("application/geopackage+sqlite3", "application/x-sqlite3"):
                 source_file_type = FileType.GPKG
+            elif "application/zip" in content_type:
+                # TODO: could be shapefile or zipped CSV, need better detection
+                source_file_type = FileType.SHAPEFILE
             else:
                 logger.warning(f"Un-detected content type from URL {url}: {mime_type}")
 
@@ -163,8 +166,11 @@ async def submit_staging(
             if file is None:
                 raise HTTPException(status_code=400, detail="File is required")
 
-            source = await upload_file_to_temp(file, rand_id=dag_run_id)
-            # TODO: extract source_file_type and source_file_name
+            source_file_name, source_file_type, file_url = await upload_file_to_temp(
+                file, rand_id=dag_run_id
+            )
+            source = url = file_url
+
         case ImportType.URL:
             if not url:
                 logger.error("URL is required for URL import type")
@@ -205,10 +211,6 @@ async def submit_staging(
         source_password_encrypted=encrypted_password if auth_enabled else None,
         source_auth_enabled=auth_enabled,
         staging_table_name=staging_table_name,
-        source_import_type=None,
-        source_url=source,
-        source_file_name=file.filename if file else None,
-        source_file_type="toto",
     )
     session.add(integrity_link)
     session.commit()

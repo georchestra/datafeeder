@@ -19,8 +19,10 @@ class FileType(str, Enum):
 
     CSV = "csv"
     GEOJSON = "geojson"
+    JSON = "json"
     SHAPEFILE = "shapefile"
     GPKG = "gpkg"
+    ZIP = "zip"
 
 
 class TransformationConfig(BaseModel):

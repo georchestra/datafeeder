@@ -5,9 +5,12 @@ from typing import Optional
 from fastapi import UploadFile
 
 from src.core.config import get_settings
+from src.models.data_import import FileType
 
 
-async def upload_file_to_temp(file: UploadFile, rand_id: Optional[str] = None) -> str:
+async def upload_file_to_temp(
+    file: UploadFile, rand_id: Optional[str] = None
+) -> tuple[str, FileType, str]:
     """Helper to save uploaded file to a temporary location.
 
     Args:
@@ -15,7 +18,7 @@ async def upload_file_to_temp(file: UploadFile, rand_id: Optional[str] = None) -
         rand_id: Optional random ID to use for the file name, you can give the dag id for instance
 
     Returns:
-        The unique file URL in the temporary upload directory
+        A tuple containing (source_file_name, source_file_type, file_url)
     """
     settings = get_settings()
 
@@ -47,7 +50,11 @@ async def upload_file_to_temp(file: UploadFile, rand_id: Optional[str] = None) -
         if not file_path.exists():
             raise IOError(f"File was not created: {file_path}")
 
-        return get_temp_file_url(unique_filename)
+        file_url = get_temp_file_url(unique_filename)
+        source_file_name = unique_filename
+        source_file_type = FileType(extension.lstrip(".").lower())
+
+        return source_file_name, source_file_type, file_url
 
     except Exception as e:
         if file_path.exists():
