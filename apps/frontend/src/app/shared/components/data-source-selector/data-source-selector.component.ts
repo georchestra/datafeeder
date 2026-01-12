@@ -4,10 +4,14 @@ import { MatFormFieldModule } from '@angular/material/form-field'
 import { MatInputModule } from '@angular/material/input'
 import { MatRadioModule } from '@angular/material/radio'
 import { TranslatePipe } from '@ngx-translate/core'
+import { CheckToggleComponent, TextInputComponent } from 'geonetwork-ui'
 
 export interface SourceData {
   type: 'url'
   url: string
+  authEnabled: boolean
+  username: string
+  password: string
 }
 
 @Component({
@@ -17,14 +21,22 @@ export interface SourceData {
     MatRadioModule,
     MatFormFieldModule,
     MatInputModule,
-    TranslatePipe
+    TranslatePipe,
+    CheckToggleComponent,
+    TextInputComponent
   ],
   templateUrl: './data-source-selector.component.html'
 })
 export class DataSourceSelectorComponent {
   private fb = inject(FormBuilder)
 
-  sourceData = input<SourceData>({ type: 'url', url: '' })
+  sourceData = input<SourceData>({
+    type: 'url',
+    url: '',
+    authEnabled: false,
+    username: '',
+    password: ''
+  })
   sourceChanged = output<SourceData>()
 
   form = this.fb.group({
@@ -32,7 +44,10 @@ export class DataSourceSelectorComponent {
     url: this.fb.control('', {
       nonNullable: true,
       validators: [Validators.required, Validators.pattern(/^https?:\/\/.+/)]
-    })
+    }),
+    authEnabled: this.fb.control(false, { nonNullable: true }),
+    username: this.fb.control('', { nonNullable: true }),
+    password: this.fb.control('', { nonNullable: true })
   })
 
   constructor() {
@@ -46,7 +61,10 @@ export class DataSourceSelectorComponent {
     this.form.valueChanges.subscribe((value) => {
       this.sourceChanged.emit({
         type: value.sourceType!,
-        url: value.url!
+        url: value.url!,
+        authEnabled: value.authEnabled!,
+        username: value.username!,
+        password: value.password!
       })
     })
   }

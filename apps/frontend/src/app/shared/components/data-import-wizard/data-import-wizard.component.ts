@@ -89,7 +89,13 @@ export class DataImportWizardComponent {
 
   selectedTabIndex = signal(0)
   importData = signal<ImportWizardData>({
-    source: { type: 'url', url: '' }
+    source: {
+      type: 'url',
+      url: '',
+      authEnabled: false,
+      username: '',
+      password: ''
+    }
   })
 
   validSource = signal(false)
@@ -106,10 +112,10 @@ export class DataImportWizardComponent {
 
   constructor() {
     effect((onCleanup) => {
-      const url = this.importData().source.url
+      const source = this.importData().source
 
       // Basic format validation
-      if (!url || !/^https?:\/\/.+/.test(url)) {
+      if (!source.url || !/^https?:\/\/.+/.test(source.url)) {
         this.validSource.set(false)
         this.validating.set(false)
         return
@@ -118,15 +124,26 @@ export class DataImportWizardComponent {
       // Start validation
       this.validating.set(true)
 
-      const subscription = of(url) // TODO proxify request to avoid CORS issues
+      const subscription = of(source.url) // TODO proxify request to avoid CORS issues
         .pipe(
           debounceTime(300),
           tap(() => this.validating.set(true)),
-          switchMap((url) =>
-            this.http
-              .head(url, { observe: 'response' })
-              .pipe(catchError(() => of(null)))
-          ),
+          switchMap((url) => {
+            const options: any = { observe: 'response', responseType: 'text' }
+
+            if (source.authEnabled && source.username && source.password) {
+              options.withCredentials = true
+
+              const urlObj = new URL(url)
+              urlObj.username = source.username
+              urlObj.password = source.password
+              url = urlObj.toString()
+            }
+
+            return this.http
+              .head(url, options)
+              .pipe(catchError(() => of({ status: 0 } as any)))
+          }),
           tap(() => this.validating.set(false))
         )
         .subscribe((response) => {
@@ -212,7 +229,10 @@ export class DataImportWizardComponent {
       return await this.api.invoke(submitStagingIngestionStagingPost, {
         body: {
           type: 'url',
-          url: source.url
+          url: source.url,
+          username: source.authEnabled ? source.username : null,
+          password: source.authEnabled ? source.password : null,
+          auth_enabled: source.authEnabled
         }
       })
     } else if (source.type === 'file') {

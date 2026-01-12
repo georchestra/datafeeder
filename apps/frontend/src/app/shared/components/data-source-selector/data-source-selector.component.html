@@ -24,6 +24,43 @@
       }}</mat-error>
       }
     </mat-form-field>
+
+    <div class="mt-4">
+      <gn-ui-check-toggle
+        [value]="form.get('authEnabled')!.value"
+        (toggled)="form.get('authEnabled')!.setValue($event)"
+        [label]="'import.dataSource.url.enableAuth' | translate"
+        [title]="'import.dataSource.url.enableAuth' | translate"
+        class="mb-3"
+      >
+      </gn-ui-check-toggle>
+
+      @if (form.get('authEnabled')!.value) {
+      <div class="flex flex-wrap gap-4 mt-3">
+        <div class="flex-1 min-w-[250px]">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            {{ 'import.dataSource.url.username' | translate }}
+          </label>
+          <gn-ui-text-input
+            [value]="form.get('username')!.value"
+            (valueChange)="form.get('username')!.setValue($event)"
+            placeholder=""
+          ></gn-ui-text-input>
+        </div>
+
+        <div class="flex-1 min-w-[250px]">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            {{ 'import.dataSource.url.password' | translate }}
+          </label>
+          <gn-ui-text-input
+            [value]="form.get('password')!.value"
+            (valueChange)="form.get('password')!.setValue($event)"
+            placeholder=""
+          ></gn-ui-text-input>
+        </div>
+      </div>
+      }
+    </div>
     }
   </form>
 </div>
