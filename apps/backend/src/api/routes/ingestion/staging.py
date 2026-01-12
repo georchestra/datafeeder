@@ -97,12 +97,10 @@ def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
                 source_file_type = FileType.GEOJSON
             elif mime_type == "text/csv":
                 source_file_type = FileType.CSV
-            elif mime_type == "application/zip":
-                source_file_type = FileType.SHAPEFILE
             elif mime_type in ("application/geopackage+sqlite3", "application/x-sqlite3"):
                 source_file_type = FileType.GPKG
             else:
-                logger.error(f"Unsupported content type: {content_type}")
+                logger.warning(f"Un-detected content type from URL {url}: {mime_type}")
 
         return source_file_name, source_file_type
 
