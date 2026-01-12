@@ -1,1 +1,15 @@
-<div class="p-4 text-gray-500">Configuration du jeu de donnée - À venir</div>
+@if (metadata()) {
+<div class="px-6 pt-6 pb-6">
+  <h2 class="text-lg font-medium text-gray-900 mb-2">
+    {{ 'import.configuration.datasetTitle' | translate }}
+  </h2>
+
+  <mat-form-field appearance="outline" class="w-full">
+    <input matInput [formControl]="form.controls.title" />
+  </mat-form-field>
+</div>
+} @else {
+<div class="p-6 text-gray-500">
+  {{ 'import.configuration.loading' | translate }}
+</div>
+}

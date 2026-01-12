@@ -1,60 +1,80 @@
-<div class="bg-white flex gap-9 rounded-lg p-7">
-  <div class="flex-1">
-    <mat-tab-group
-      [(selectedIndex)]="selectedTabIndex"
-      class="data-import-wizard"
-    >
-      <mat-tab>
-        <ng-template mat-tab-label>
-          <ng-icon class="mr-2" name="iconoirNumber1Square"></ng-icon>
-          {{ 'import.dataSource.title' | translate }}
-        </ng-template>
-        <div class="p-6 border-gray-600 border-b border-x rounded-b-lg">
-          @if (importError()) {
-          <div class="mb-4 rounded-lg bg-red-50 p-4 border border-red-200">
-            <p class="text-sm font-medium text-red-900">
-              {{ importError() }}
-            </p>
+<div class="bg-white rounded-lg p-7">
+  <div class="flex gap-9">
+    <div class="flex-1 min-w-0">
+      <mat-tab-group
+        [(selectedIndex)]="selectedTabIndex"
+        class="data-import-wizard"
+        animationDuration="0ms"
+      >
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <ng-icon class="mr-2" name="iconoirNumber1Square"></ng-icon>
+            {{ 'import.dataSource.title' | translate }}
+          </ng-template>
+          <div class="p-6 border-gray-600 border-b border-x rounded-b-lg">
+            @if (importError()) {
+            <div class="mb-4 rounded-lg bg-red-50 p-4 border border-red-200">
+              <p class="text-sm font-medium text-red-900">
+                {{ importError() }}
+              </p>
+            </div>
+            }
+
+            <app-data-source-selector
+              [sourceData]="importData().source"
+              (sourceChanged)="onSourceChanged($event)"
+            />
           </div>
-          }
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <ng-icon class="mr-2" name="iconoirNumber2Square"></ng-icon>
+            {{ 'import.datasetConfiguration.title' | translate }}
+          </ng-template>
 
-          <app-data-source-selector
-            [sourceData]="importData().source"
-            (sourceChanged)="onSourceChanged($event)"
-          />
-        </div>
-      </mat-tab>
-      <mat-tab>
-        <ng-template mat-tab-label>
-          <ng-icon class="mr-2" name="iconoirNumber2Square"></ng-icon>
-          {{ 'import.datasetConfiguration.title' | translate }}
-        </ng-template>
-
-        <div class="p-6 border-gray-600 border-b border-x rounded-b-lg">
-          <app-dataset-configuration />
-        </div>
-      </mat-tab>
-    </mat-tab-group>
-  </div>
-
-  <div class="flex flex-col items-center gap-2.5 pt-12">
-    <gn-ui-button
-      [type]="cantConfigureDataset() ? 'outline' : 'primary'"
-      [disabled]="cantConfigureDataset()"
-      (buttonClick)="onConfigureDataset()"
-    >
-      @if (validating()) { {{ 'import.dataSource.validation' | translate }} }
-      @else if (importing()) { {{ 'import.dataSource.sending' | translate }} }
-      @else if (polling()) { {{ 'import.dataSource.processing' | translate }} }
-      @else { {{ 'import.dataSource.next' | translate }} }
-    </gn-ui-button>
-    @if (importing() || polling()) {
-    <div class="flex flex-col items-center gap-1">
-      <gn-ui-spinning-loader></gn-ui-spinning-loader>
-      <p class="text-center">
-        {{ 'import.dataSource.processingMessage' | translate }}
-      </p>
+          <div class="border-gray-600 border-x">
+            <app-dataset-configuration
+              [integrityLinkId]="
+                selectedTabIndex() === 1 ? integrityLinkId() : undefined
+              "
+            />
+          </div>
+        </mat-tab>
+      </mat-tab-group>
     </div>
-    }
+
+    <div class="flex flex-col items-center gap-2.5 pt-1 flex-shrink-0">
+      @if (selectedTabIndex() === 0) {
+      <gn-ui-button
+        [type]="cantConfigureDataset() ? 'outline' : 'primary'"
+        [disabled]="cantConfigureDataset()"
+        (buttonClick)="onConfigureDataset()"
+      >
+        @if (validating()) { {{ 'import.dataSource.validation' | translate }} }
+        @else if (importing()) { {{ 'import.dataSource.sending' | translate }} }
+        @else if (polling()) {
+        {{ 'import.dataSource.processing' | translate }} } @else {
+        {{ 'import.dataSource.next' | translate }} }
+      </gn-ui-button>
+      @if (importing() || polling()) {
+      <div class="flex flex-col items-center gap-1">
+        <gn-ui-spinning-loader></gn-ui-spinning-loader>
+        <p class="text-center">
+          {{ 'import.dataSource.processingMessage' | translate }}
+        </p>
+      </div>
+      } } @else if (selectedTabIndex() === 1) {
+      <gn-ui-button type="primary" (buttonClick)="onValidateDataset()">
+        {{ 'import.datasetConfiguration.validateDataset' | translate }}
+      </gn-ui-button>
+      }
+    </div>
   </div>
+
+  <!-- Preview table below the entire row (only for tab 2) -->
+  @if (selectedTabIndex() === 1) {
+  <div class="border-gray-600 border rounded-tr-lg rounded-b-lg">
+    <app-dataset-preview-table [metadata]="metadata()" [preview]="preview()" />
+  </div>
+  }
 </div>
