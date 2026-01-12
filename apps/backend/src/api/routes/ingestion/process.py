@@ -16,6 +16,8 @@ from src.models import (
 )
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
+from src.services.console_service import ConsoleService
+from src.services.metadata_service import MetadataService
 
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
 logger = get_logger()
@@ -32,6 +34,9 @@ def process_staging_data(
     request: ProcessRequest,
     session: SessionDep,
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
+    sec_email: str = Header("", alias="sec-email", include_in_schema=False),
+    sec_firstname: str = Header("", alias="sec-firstname", include_in_schema=False),
+    sec_lastname: str = Header("", alias="sec-lastname", include_in_schema=False),
 ) -> ProcessResponse:
     """
     Submit staging data for processing.
@@ -75,6 +80,9 @@ def process_staging_data(
     callback_params = {
         "integrity_link_id": str(integrity_link.id),
         "final_table_name": final_table_name,
+        "user_email": sec_email,
+        "user_first_name": sec_firstname,
+        "user_last_name": sec_lastname,
     }
 
     # Build callback URLs
@@ -110,6 +118,9 @@ def dag_success_callback(
     session: SessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
+    user_email: str = Query("", description="User email"),
+    user_first_name: str = Query("", description="User first name"),
+    user_last_name: str = Query("", description="User last name"),
 ) -> None:
     """
     Success callback endpoint called by Airflow DAG on successful completion.
@@ -127,6 +138,46 @@ def dag_success_callback(
     integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    # Create and publish metadata to GeoNetwork
+    try:
+        # Try to get organization email from console API
+        console_service = ConsoleService(settings.CONSOLE_URL)
+        contact_email = console_service.get_organization_email(
+            integrity_link.integrity_organization
+        )
+        # Fall back to user email if organization email not found
+        if not contact_email:
+            contact_email = user_email
+            logger.info(
+                f"Using user email for metadata contact: {user_email} "
+                f"(org email not available for '{integrity_link.integrity_organization}')"
+            )
+        else:
+            logger.info(f"Using organization email for metadata contact: {contact_email}")
+
+        metadata_service = MetadataService(
+            gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+            datadir_path=settings.DATADIR_PATH,
+            credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+            verify_tls=False,
+        )
+
+        metadata_id = metadata_service.create_and_publish_metadata(
+            integrity_link,
+            user_email=contact_email,
+            user_first_name=user_first_name,
+            user_last_name=user_last_name,
+        )
+        integrity_link.metadata_id = metadata_id
+
+        logger.info(f"Metadata published for IntegrityLink {integrity_link.id}: {metadata_id}")
+
+    except Exception as e:
+        logger.error(
+            f"Failed to publish metadata for IntegrityLink {integrity_link.id}: {e}", exc_info=True
+        )
+        # Continue with IntegrityLink update even if metadata fails (soft failure)
 
     # Update IntegrityLink with final table information
     integrity_link.final_table_name = final_table_name

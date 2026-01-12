@@ -103,6 +103,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 10
+    ports:
+      - "8085:8080"
     depends_on:
       ldap:
         condition: service_healthy

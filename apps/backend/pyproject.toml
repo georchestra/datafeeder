@@ -36,6 +36,7 @@ dev = [
     "pytest>0",
     "pytest-asyncio>0",
     "pytest-cov>0",
+    "types-lxml>=2025.11.25",
 ]
 
 [tool.uv.sources]
