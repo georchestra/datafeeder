@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 from lxml import etree
 
+from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.services.metadata_service import MetadataService
 
@@ -22,6 +23,7 @@ class TestMetadataService:
             staging_table_name="staging_test_table",
             created_at=datetime.now(timezone.utc),
             last_retrieval_timestamp=datetime.now(timezone.utc),
+            source_import_type=ImportType.URL,
         )
 
     @patch("src.services.metadata_service.GnApi")

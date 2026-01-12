@@ -48,4 +48,3 @@ georchestra.gateway.services:
   console.target: http://console:8080/
   geoserver.target: http://${GEOSERVER_HOST:geoserver}:8080/
   geonetwork.target: http://${GEONETWORK_HOST:geonetwork}:8080/geonetwork/
-  # geonetwork.target: http://localhost:8080/geonetwork/
