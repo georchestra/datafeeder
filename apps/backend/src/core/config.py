@@ -96,6 +96,7 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = secrets.token_urlsafe(32)
     ENCRYPTION_KEY: str = Field(
+        default="",
         description="Encryption key for storing sensitive data (HTTP Basic Auth credentials)",
     )
 
