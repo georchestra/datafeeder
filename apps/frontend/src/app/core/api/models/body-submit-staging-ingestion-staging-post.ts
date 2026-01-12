@@ -3,7 +3,10 @@
 
 import { ImportType } from '../models/import-type'
 export interface BodySubmitStagingIngestionStagingPost {
+  auth_enabled?: boolean
   file?: Blob | null
+  password?: string | null
   type: ImportType
   url?: string | null
+  username?: string | null
 }
