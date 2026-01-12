@@ -839,7 +839,30 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DataImportWizardComponent, NoopAnimationsModule],
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.failedError': 'An error occurred',
+            'import.dataSource.missingUrl': 'Missing URL',
+            'import.dataSource.processing': 'Processing...',
+            'import.dataSource.sending': 'Sending...',
+            'import.dataSource.validation': 'Validating...',
+            'import.dataSource.timeoutError': 'Timeout error',
+            'import.dataSource.unknownError': 'Unknown error',
+            'import.dataSource.fileImportNotImplemented':
+              'File import not implemented',
+            'import.dataSource.unsupportedSourceType':
+              'Unsupported source type',
+            'import.dataSource.next': 'Configure the dataset',
+            'import.dataSource.validate': 'Validate the dataset',
+            'import.datasetConfiguration.title': 'Configure the dataset'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -1045,13 +1068,8 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     component.selectedTabIndex.set(0)
     fixture.detectChanges()
 
-    const compiled = fixture.nativeElement as HTMLElement
-    const buttons = compiled.querySelectorAll('button[mat-raised-button]')
-    const buttonText = Array.from(buttons)
-      .map((btn) => btn.textContent?.trim())
-      .join(' ')
-
-    expect(buttonText).toContain('Paramétrer le jeu de donnée')
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    expect(button?.textContent?.trim()).toContain('Configure the dataset')
   })
 
   it('should show Tab 2 button when on second tab', () => {
@@ -1062,13 +1080,8 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     component.selectedTabIndex.set(1)
     fixture.detectChanges()
 
-    const compiled = fixture.nativeElement as HTMLElement
-    const buttons = compiled.querySelectorAll('button[mat-raised-button]')
-    const buttonText = Array.from(buttons)
-      .map((btn) => btn.textContent?.trim())
-      .join(' ')
-
-    expect(buttonText).toContain('Valider le jeu de données')
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    expect(button?.textContent?.trim()).toContain('Validate the dataset')
   })
 
   it('should disable validation button when processing', () => {
@@ -1081,14 +1094,11 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     component.processing.set(true)
     fixture.detectChanges()
 
-    const buttons = fixture.nativeElement.querySelectorAll(
-      'button[mat-raised-button]'
-    ) as NodeListOf<HTMLButtonElement>
-    const validationButton = Array.from(buttons).find((btn) =>
-      btn.textContent?.includes('Validation en cours')
-    )
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button > button'
+    ) as HTMLButtonElement
 
-    expect(validationButton?.disabled).toBe(true)
+    expect(button?.disabled).toBe(true)
   })
 
   it('should disable validation button when no integrity_link_id', () => {
@@ -1101,14 +1111,11 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     component.processing.set(false)
     fixture.detectChanges()
 
-    const buttons = fixture.nativeElement.querySelectorAll(
-      'button[mat-raised-button]'
-    ) as NodeListOf<HTMLButtonElement>
-    const validationButton = Array.from(buttons).find((btn) =>
-      btn.textContent?.includes('Valider le jeu de données')
-    )
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button > button'
+    ) as HTMLButtonElement
 
-    expect(validationButton?.disabled).toBe(true)
+    expect(button?.disabled).toBe(true)
   })
 
   it('should enable validation button when has integrity_link_id and not processing', () => {
@@ -1121,17 +1128,14 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     component.processing.set(false)
     fixture.detectChanges()
 
-    const buttons = fixture.nativeElement.querySelectorAll(
-      'button[mat-raised-button]'
-    ) as NodeListOf<HTMLButtonElement>
-    const validationButton = Array.from(buttons).find((btn) =>
-      btn.textContent?.includes('Valider le jeu de données')
-    )
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button > button'
+    ) as HTMLButtonElement
 
-    expect(validationButton?.disabled).toBe(false)
+    expect(button?.disabled).toBe(false)
   })
 
-  it('should show "Validation en cours..." when processing', () => {
+  it('should show "Processing..." when processing', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
@@ -1141,13 +1145,8 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     component.processing.set(true)
     fixture.detectChanges()
 
-    const compiled = fixture.nativeElement as HTMLElement
-    const buttons = compiled.querySelectorAll('button[mat-raised-button]')
-    const buttonText = Array.from(buttons)
-      .map((btn) => btn.textContent?.trim())
-      .join(' ')
-
-    expect(buttonText).toContain('Validation en cours')
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    expect(button?.textContent?.trim()).toContain('Processing')
   })
 
   it('should display validation error in Tab 2', () => {
