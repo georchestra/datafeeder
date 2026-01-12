@@ -4,10 +4,11 @@ import type {
   StagingMetadataResponse,
   StagingPreviewResponse
 } from '../../../core/api/models'
+import { TranslatePipe } from '@ngx-translate/core'
 
 @Component({
   selector: 'app-dataset-preview-table',
-  imports: [MatTableModule],
+  imports: [MatTableModule, TranslatePipe],
   templateUrl: './dataset-preview-table.component.html',
   styleUrls: ['./dataset-preview-table.component.scss']
 })

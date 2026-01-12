@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing'
 import { provideHttpClient } from '@angular/common/http'
 import { provideHttpClientTesting } from '@angular/common/http/testing'
 import { DatasetConfigurationComponent } from './dataset-configuration.component'
+import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import type {
   StagingMetadataResponse,
   StagingPreviewResponse
@@ -10,7 +12,18 @@ import type {
 describe('DatasetConfigurationComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DatasetConfigurationComponent],
+      imports: [
+        DatasetConfigurationComponent,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.configuration.datasetTitle': 'Dataset Title',
+            'import.configuration.loading': 'Loading data...',
+            'import.datasetConfiguration.untitled': 'Untitled'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
       providers: [provideHttpClient(), provideHttpClientTesting()]
     }).compileComponents()
   })
@@ -25,7 +38,7 @@ describe('DatasetConfigurationComponent', () => {
     const fixture = TestBed.createComponent(DatasetConfigurationComponent)
     fixture.detectChanges()
     const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain('Chargement des données...')
+    expect(compiled.textContent).toContain('Loading data...')
   })
 
   it('should display title heading when metadata is loaded', () => {
@@ -41,7 +54,7 @@ describe('DatasetConfigurationComponent', () => {
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain('Titre de la donnée')
+    expect(compiled.textContent).toContain('Dataset Title')
   })
 
   it('should populate form title with metadata title', () => {
@@ -71,7 +84,7 @@ describe('DatasetConfigurationComponent', () => {
     component.metadata.set(mockMetadata)
     fixture.detectChanges()
 
-    expect(component.form.get('title')?.value).toBe('Sans titre')
+    expect(component.form.get('title')?.value).toBe('Untitled')
   })
 
   it('should compute displayed columns based on metadata', () => {

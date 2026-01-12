@@ -19,6 +19,7 @@ import type {
   StagingMetadataResponse,
   StagingPreviewResponse
 } from '../../../core/api/models'
+import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 
 @Component({
   selector: 'app-dataset-configuration',
@@ -26,7 +27,8 @@ import type {
     ReactiveFormsModule,
     MatFormFieldModule,
     MatInputModule,
-    MatTableModule
+    MatTableModule,
+    TranslatePipe
   ],
   templateUrl: './dataset-configuration.component.html',
   styleUrls: ['./dataset-configuration.component.scss']
@@ -34,6 +36,7 @@ import type {
 export class DatasetConfigurationComponent {
   private api = inject(Api)
   private fb = inject(FormBuilder)
+  private translate = inject(TranslateService)
 
   integrityLinkId = input<string | undefined>()
   metadata = signal<StagingMetadataResponse | null>(null)
@@ -65,7 +68,9 @@ export class DatasetConfigurationComponent {
     effect(() => {
       const meta = this.metadata()
       if (meta) {
-        const title = meta.title || 'Sans titre'
+        const title =
+          meta.title ||
+          this.translate.instant('import.datasetConfiguration.untitled')
         this.form.patchValue({ title }, { emitEvent: false })
       }
     })

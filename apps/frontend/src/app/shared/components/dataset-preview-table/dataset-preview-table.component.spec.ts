@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing'
 import { DatasetPreviewTableComponent } from './dataset-preview-table.component'
+import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import type {
   StagingMetadataResponse,
   StagingPreviewResponse
@@ -8,7 +10,17 @@ import type {
 describe('DatasetPreviewTableComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DatasetPreviewTableComponent]
+      imports: [
+        DatasetPreviewTableComponent,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.datasetConfiguration.previewTitle': 'Result Preview',
+            'import.datasetPreviewTable.noDataAvailable': 'No data available'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ]
     }).compileComponents()
   })
 
@@ -38,7 +50,7 @@ describe('DatasetPreviewTableComponent', () => {
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain('Aperçu du résultat')
+    expect(compiled.textContent).toContain('Result Preview')
   })
 
   it('should display empty message when metadata exists but no data', () => {
@@ -54,7 +66,7 @@ describe('DatasetPreviewTableComponent', () => {
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain('Aucune donnée disponible')
+    expect(compiled.textContent).toContain('No data available')
   })
 
   it('should display table with columns and data when both exist', () => {

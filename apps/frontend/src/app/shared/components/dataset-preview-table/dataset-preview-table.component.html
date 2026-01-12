@@ -1,7 +1,7 @@
 @if (metadata()) {
 <div class="py-6">
   <h1 class="mb-2 px-7 text-lg font-semibold text-gray-900">
-    Aperçu du résultat
+    {{ 'import.datasetConfiguration.previewTitle' | translate }}
   </h1>
 
   <div class="mx-7 overflow-x-auto border border-gray-400">
@@ -38,7 +38,9 @@
       ></tr>
     </table>
     } @else {
-    <div class="p-4 text-center text-gray-500">Aucune donnée disponible</div>
+    <div class="p-4 text-center text-gray-500">
+      {{ 'import.datasetPreviewTable.noDataAvailable' | translate }}
+    </div>
     }
   </div>
 </div>
