@@ -72,7 +72,8 @@ COPY libs/data_manipulation ./libs/data_manipulation
 COPY apps/backend ./apps/backend
 
 # Install production dependencies only, from root of workspace
-RUN uv sync --no-dev
+# Install all workspace members (backend and its dependencies) without dev dependencies
+RUN uv sync --no-dev --package datakern-backend
 
 RUN chown -R georchestra_user:georchestra_user /app
 USER georchestra_user
@@ -80,5 +81,5 @@ USER georchestra_user
 WORKDIR /app/apps/backend
 EXPOSE 8000
 
-# Run without reload
-CMD ["uv", "run", "uvicorn", "apps.backend.src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run directly with the venv's uvicorn to avoid re-syncing on every startup
+CMD ["/app/.venv/bin/uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
