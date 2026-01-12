@@ -26,9 +26,7 @@ def encrypt_credentials(
 
     try:
         result = connection.execute(
-            text(
-                "SELECT encode(pgp_sym_encrypt(:credentials, :key), 'base64') AS encrypted"
-            ),
+            text("SELECT encode(pgp_sym_encrypt(:credentials, :key), 'base64') AS encrypted"),
             {"credentials": credentials, "key": encryption_key},
         )
         row = result.fetchone()
@@ -58,9 +56,7 @@ def decrypt_credentials(
     """
     try:
         result = connection.execute(
-            text(
-                "SELECT pgp_sym_decrypt(decode(:encrypted, 'base64'), :key) AS decrypted"
-            ),
+            text("SELECT pgp_sym_decrypt(decode(:encrypted, 'base64'), :key) AS decrypted"),
             {"encrypted": encrypted, "key": encryption_key},
         )
         row = result.fetchone()

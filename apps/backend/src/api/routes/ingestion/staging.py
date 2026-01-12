@@ -55,7 +55,9 @@ def _generate_staging_table_name(dag_run_id: str, file_name: str | None) -> str:
     return SANITIZED_DAG_RUN_ID
 
 
-def _extract_url_metadata(url: str, auth_enabled: bool = False, username: str | None = None, password: str | None = None) -> tuple[str | None, FileType | None]:
+def _extract_url_metadata(
+    url: str, auth_enabled: bool = False, username: str | None = None, password: str | None = None
+) -> tuple[str | None, FileType | None]:
     """Extract file name and file type from a URL using HEAD request.
 
     Args:
@@ -78,7 +80,8 @@ def _extract_url_metadata(url: str, auth_enabled: bool = False, username: str | 
             url,
             headers=headers,
             allow_redirects=True,
-            auth=(username, password) if auth_enabled and username and password else None,)
+            auth=(username, password) if auth_enabled and username and password else None,
+        )
         head_response.raise_for_status()
 
         source_file_name = None
@@ -165,7 +168,9 @@ async def submit_staging(
                 raise HTTPException(status_code=400, detail="URL is required for URL import type")
 
             source = url
-            source_file_name, source_file_type = _extract_url_metadata(url, auth_enabled, username, password)
+            source_file_name, source_file_type = _extract_url_metadata(
+                url, auth_enabled, username, password
+            )
 
         case ImportType.DATABASE | ImportType.API:
             # TODO: implement handling for DATABASE and API import types

@@ -9,9 +9,7 @@ from src.core.logging import get_logger
 logger = get_logger()
 
 
-def encrypt_basic_auth(
-    connection: Connection, username: str, password: str
-) -> str:
+def encrypt_basic_auth(connection: Connection, username: str, password: str) -> str:
     """Encrypt username and password using PostgreSQL's pgp_sym_encrypt.
 
     Args:
@@ -34,9 +32,7 @@ def encrypt_basic_auth(
         raise
 
 
-def decrypt_basic_auth(
-    connection: Connection, encrypted: str
-) -> tuple[str, str]:
+def decrypt_basic_auth(connection: Connection, encrypted: str) -> tuple[str, str]:
     """Decrypt username and password using PostgreSQL's pgp_sym_decrypt.
 
     Args:
