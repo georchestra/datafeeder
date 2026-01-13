@@ -1,11 +1,10 @@
 """Ingestion task group."""
 
 import logging
-import os
 from typing import Any, Literal
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import task, task_group
+from airflow.sdk import Variable, task, task_group
 from data_manipulation.encryption import decrypt_credentials
 from data_manipulation.ingestion import (
     ingest_data_from_file_into_postgis,
@@ -103,10 +102,10 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             basic_auth_encrypted = params.get("basic_auth_encrypted")
             if basic_auth_encrypted:
                 try:
-                    encryption_key = os.environ.get("DATAKERN_ENCRYPTION_KEY")
+                    encryption_key = Variable.get("datakern_encryption_key", default=None)
                     if not encryption_key:
                         raise AirflowException(
-                            "DATAKERN_ENCRYPTION_KEY environment variable is not set"
+                            "Encryption key not found in Airflow Variables under 'datakern_encryption_key'"
                         )
 
                     engine = get_sqlalchemy_engine()
