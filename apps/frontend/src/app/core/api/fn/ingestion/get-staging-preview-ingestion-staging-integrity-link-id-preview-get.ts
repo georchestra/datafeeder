@@ -16,6 +16,21 @@ export interface GetStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet$Para
    * Number of rows to preview
    */
   limit?: number
+
+  /**
+   * CRS/projection (e.g., EPSG:4326)
+   */
+  projection?: string | null
+
+  /**
+   * Latitude column name
+   */
+  x_column?: string | null
+
+  /**
+   * Longitude column name
+   */
+  y_column?: string | null
 }
 
 export function getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet(
@@ -32,6 +47,9 @@ export function getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet(
   if (params) {
     rb.path('integrity_link_id', params.integrity_link_id, {})
     rb.query('limit', params.limit, {})
+    rb.query('projection', params.projection, {})
+    rb.query('x_column', params.x_column, {})
+    rb.query('y_column', params.y_column, {})
   }
 
   return http

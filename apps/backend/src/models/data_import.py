@@ -73,14 +73,27 @@ class ColumnMetadata(BaseModel):
     name: str
 
 
-class StagingMetadataResponse(BaseModel):
+class ForceProjection(BaseModel):
+    """Force projection configuration for coordinate columns"""
+
+    type: str = ""  # e.g., "EPSG:4326"
+    y_column: str | None = None
+    x_column: str | None = None
+
+
+class StagingMetadata(BaseModel):
     """Metadata for staging data"""
 
-    title: str
-    import_type: ImportType
-    file_type: FileType | None
-
     columns: list[ColumnMetadata]
+    title: str
+    file_type: FileType | None
+    force_projection: ForceProjection | None = None
+
+
+class StagingMetadataResponse(StagingMetadata):
+    """Metadata for staging data"""
+
+    import_type: ImportType
     row_count: int
 
 

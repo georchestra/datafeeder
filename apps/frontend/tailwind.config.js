@@ -16,5 +16,8 @@ module.exports = {
       },
     },
   },
+  safelist: [
+    'max-h-14', 'w-48'
+  ],
   plugins: [],
 }

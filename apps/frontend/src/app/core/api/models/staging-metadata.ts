@@ -4,16 +4,13 @@
 import { ColumnMetadata } from '../models/column-metadata'
 import { FileType } from '../models/file-type'
 import { ForceProjection } from '../models/force-projection'
-import { ImportType } from '../models/import-type'
 
 /**
  * Metadata for staging data
  */
-export interface StagingMetadataResponse {
+export interface StagingMetadata {
   columns: Array<ColumnMetadata>
   file_type: FileType | null
   force_projection?: ForceProjection | null
-  import_type: ImportType
-  row_count: number
   title: string
 }

@@ -279,3 +279,8 @@ class Settings(BaseSettings):
 def get_settings():
     logger.debug(Settings().model_dump())
     return Settings()
+
+
+def get_staging_schema() -> str:
+    """Get the staging schema, defaulting to 'staging'."""
+    return "staging"  # FIXME get it from config

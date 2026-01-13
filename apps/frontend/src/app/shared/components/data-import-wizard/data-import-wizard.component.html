@@ -18,40 +18,12 @@
           <div class="border-gray-600 border-b border-x rounded-b-lg">
             @if (importError()) {
             <div class="px-9 py-4 border-gray-600 border-b">
-              <div
-                class="rounded-lg bg-orange-200 p-4 border border-red-600 space-y-2.5"
-              >
-                <div
-                  class="flex items-center justify-between pb-4 border-gray-600 border-b"
-                >
-                  <div class="flex items-center gap-2.5">
-                    <ng-icon
-                      name="iconoirWarningTriangle"
-                      size="1.5em"
-                    ></ng-icon>
-                    <span class="text-lg font-bold">
-                      {{ 'import.dataSource.error' | translate }}
-                    </span>
-                  </div>
-                  <gn-ui-button
-                    type="light"
-                    style="
-                      --gn-ui-button-padding: 0px;
-                      --gn-ui-button-width: 24px;
-                      --gn-ui-button-height: 24px;
-                    "
-                    class="ml-[20px]"
-                    (buttonClick)="importError.set(null)"
-                    data-test="remove-error"
-                    ><span class="material-symbols-outlined gn-ui-icon-medium"
-                      >close</span
-                    >
-                  </gn-ui-button>
-                </div>
-                <p class="text-sm font-medium">
-                  {{ importError() }}
-                </p>
-              </div>
+              <app-alert-box
+                type="warning"
+                [title]="errorTitle()"
+                [message]="importError()"
+                (dismissed)="importError.set(null)"
+              />
             </div>
             }
 
@@ -81,9 +53,7 @@
 
             <app-dataset-configuration
               #datasetConfig
-              [integrityLinkId]="
-                selectedTabIndex() === 1 ? integrityLinkId() : undefined
-              "
+              [metadata]="selectedTabIndex() === 1 ? metadata() : undefined"
               (validated)="onValidateDataset($event)"
             />
           </div>
@@ -159,11 +129,23 @@
 
     <!-- Preview content -->
     @if (isGeographicData()) { @if (previewTabIndex() === 0) {
-    <app-dataset-preview-table [metadata]="metadata()" [preview]="preview()" />
+    <app-dataset-preview-table
+      [metadata]="metadata()"
+      [preview]="preview()"
+      [previewError]="previewError()"
+      [previewLoading]="previewLoading()"
+      (configChanged)="onConfigChanged($event)"
+    />
     } @else {
     <app-dataset-preview-map [geojson]="geojsonData()" />
     } } @else {
-    <app-dataset-preview-table [metadata]="metadata()" [preview]="preview()" />
+    <app-dataset-preview-table
+      [metadata]="metadata()"
+      [preview]="preview()"
+      [previewError]="previewError()"
+      [previewLoading]="previewLoading()"
+      (configChanged)="onConfigChanged($event)"
+    />
     }
   </div>
   }

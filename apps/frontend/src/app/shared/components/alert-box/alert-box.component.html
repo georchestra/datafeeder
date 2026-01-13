@@ -1,0 +1,28 @@
+<div class="rounded-lg p-4 border space-y-2.5" [ngClass]="containerClasses">
+  <div class="flex items-center justify-between pb-4 border-gray-600 border-b">
+    <div class="flex items-center gap-2.5">
+      <ng-icon [name]="iconName" size="1.5em"></ng-icon>
+      <span class="text-lg font-bold">
+        {{ title() }}
+      </span>
+    </div>
+    @if (dismissible()) {
+    <gn-ui-button
+      type="light"
+      style="
+        --gn-ui-button-padding: 0px;
+        --gn-ui-button-width: 24px;
+        --gn-ui-button-height: 24px;
+      "
+      class="ml-[20px]"
+      (buttonClick)="onDismiss()"
+      data-test="dismiss-alert"
+    >
+      <span class="material-symbols-outlined gn-ui-icon-medium">close</span>
+    </gn-ui-button>
+    }
+  </div>
+  <p class="text-sm font-medium">
+    {{ message() }}
+  </p>
+</div>

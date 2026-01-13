@@ -1,7 +1,14 @@
 @if (metadata()) {
 <div class="py-6">
   <div class="mx-7 overflow-x-auto border border-gray-400">
-    @if (dataSource().length > 0) {
+    @if (previewLoading()) {
+    <div class="flex flex-col items-center gap-4 p-8">
+      <gn-ui-spinning-loader></gn-ui-spinning-loader>
+      <p class="text-center text-gray-600">
+        {{ 'import.dataSource.processingMessage' | translate }}
+      </p>
+    </div>
+    } @else if (dataSource().length > 0) {
     <table mat-table [dataSource]="dataSource()" class="w-auto text-sm">
       @for (column of displayedColumns(); track column) {
       <ng-container [matColumnDef]="column">
@@ -35,7 +42,11 @@
     </table>
     } @else {
     <div class="p-4 text-center text-gray-500">
+      @if (previewError()) {
+      {{ 'import.datasetPreviewTable.previewError' | translate }}
+      } @else {
       {{ 'import.datasetPreviewTable.noDataAvailable' | translate }}
+      }
     </div>
     }
   </div>
