@@ -90,6 +90,7 @@ class GeoServerService:
         table_name: str,
         title: str,
         abstract: str,
+        is_geographic: bool = True,
     ) -> dict[str, str | dict[str, str | None] | None]:
         """
         Create a WFS and WMS layer from a database table.
@@ -100,6 +101,7 @@ class GeoServerService:
             table_name: Database table name
             title: Layer title
             abstract: Layer description/abstract
+            is_geographic: Whether the data has valid geometry (defaults to True)
 
         Returns:
             dict: Response with layer information including WMS and WFS URLs
@@ -115,6 +117,7 @@ class GeoServerService:
             table_name=table_name,
             title=title,
             abstract=abstract,
+            is_geographic=is_geographic,
         )
 
         # Build service URLs
