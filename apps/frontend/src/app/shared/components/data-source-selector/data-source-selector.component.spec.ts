@@ -75,7 +75,13 @@ describe('DataSourceSelectorComponent', () => {
     component.sourceChanged.subscribe((value) => (emittedValue = value))
     component.form.controls.url.setValue('https://test.com')
 
-    expect(emittedValue).toEqual({ type: 'url', url: 'https://test.com' })
+    expect(emittedValue).toEqual({
+      type: 'url',
+      url: 'https://test.com',
+      authEnabled: false,
+      username: '',
+      password: ''
+    })
   })
 
   it('should sync input to form', () => {
@@ -89,5 +95,69 @@ describe('DataSourceSelectorComponent', () => {
     fixture.detectChanges()
 
     expect(component.form.controls.url.value).toBe('https://initial.com')
+  })
+
+  describe('Basic Authentication', () => {
+    it('should have authEnabled defaulting to false', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+      expect(component.form.controls.authEnabled.value).toBe(false)
+    })
+
+    it('should have empty username and password by default', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+      expect(component.form.controls.username.value).toBe('')
+      expect(component.form.controls.password.value).toBe('')
+    })
+
+    it('should emit authEnabled when auth is toggled', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+      let emittedValue: any
+
+      component.sourceChanged.subscribe((value) => (emittedValue = value))
+      component.form.controls.authEnabled.setValue(true)
+
+      expect(emittedValue.authEnabled).toBe(true)
+    })
+
+    it('should emit username and password when set', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+      let emittedValue: any
+
+      component.sourceChanged.subscribe((value) => (emittedValue = value))
+      component.form.controls.url.setValue('https://example.com')
+      component.form.controls.authEnabled.setValue(true)
+      component.form.controls.username.setValue('testuser')
+      component.form.controls.password.setValue('testpass')
+
+      expect(emittedValue).toEqual({
+        type: 'url',
+        url: 'https://example.com',
+        authEnabled: true,
+        username: 'testuser',
+        password: 'testpass'
+      })
+    })
+
+    it('should sync auth fields from input', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      fixture.componentRef.setInput('sourceData', {
+        type: 'url',
+        url: 'https://secured.com',
+        authEnabled: true,
+        username: 'admin',
+        password: 'secret'
+      })
+      fixture.detectChanges()
+
+      expect(component.form.controls.authEnabled.value).toBe(true)
+      expect(component.form.controls.username.value).toBe('admin')
+      expect(component.form.controls.password.value).toBe('secret')
+    })
   })
 })

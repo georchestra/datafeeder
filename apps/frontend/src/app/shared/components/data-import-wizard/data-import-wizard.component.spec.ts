@@ -45,7 +45,13 @@ describe('DataImportWizardComponent', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     expect(component.importData()).toEqual({
-      source: { type: 'url', url: '' }
+      source: {
+        type: 'url',
+        url: '',
+        authEnabled: false,
+        username: '',
+        password: ''
+      }
     })
   })
 
