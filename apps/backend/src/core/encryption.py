@@ -1,12 +1,14 @@
 """Encryption utilities for secure storage of credentials using PostgreSQL's pgcrypto extension."""
 
 from data_manipulation.encryption import decrypt_credentials, encrypt_credentials
+from data_manipulation.logging import configure_logging
 from sqlalchemy.engine import Connection
 
 from src.core.config import get_settings
 from src.core.logging import get_logger
 
 logger = get_logger()
+configure_logging(logger)
 
 
 def encrypt_basic_auth(connection: Connection, username: str, password: str) -> str:
