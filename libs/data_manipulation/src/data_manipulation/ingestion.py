@@ -1,3 +1,4 @@
+from urllib.parse import unquote
 import logging
 import tempfile
 from pathlib import Path
@@ -105,27 +106,32 @@ def ingest_data_from_url_into_postgis(
         auth: Optional tuple of (username, password) for HTTP Basic Authentication
     """
     try:
-        if auth:
-            # Download file first (GeoPandas doesn't support Basic Auth natively)
-            logger.info(f"Downloading file from {url} with Basic Authentication")
+        # Download file first (GeoPandas doesn't support Basic Auth natively + better handle file types)
+        logger.info(f"Downloading file from {url} for ingestion")
 
-            response = requests.get(url, auth=auth, timeout=300)
-            response.raise_for_status()
+        response = requests.get(url, auth=auth, timeout=300)
+        response.raise_for_status()
 
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_file_path = Path(temp_dir) / Path(url).name
-                with open(temp_file_path, "wb") as temp_file:
-                    temp_file.write(response.content)
+        content_disposition = response.headers.get("Content-Disposition")
+        filename = None
 
-                gdf = gpd.read_file(temp_file_path)
-        else:
-            gdf = gpd.read_file(url)
+        if content_disposition:
+            # e.g. 'attachment; filename="report.csv"'
+            for part in content_disposition.split(";"):
+                part = part.strip()
+                if part.startswith("filename="):
+                    filename = part.split("=", 1)[1].strip('"')
+                    filename = unquote(filename)
 
-        logger.info(
-            f"Ingesting data from URL {url} into table {table_name} in schema {schema}"
-        )
+            logger.info(f"Extracted filename from Content-Disposition: {filename}")
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_file_path = Path(temp_dir) / (filename or Path(url).name)
+            with open(temp_file_path, "wb") as temp_file:
+                temp_file.write(response.content)
 
-        write_data_to_postgis(gdf, table_name, engine, schema)
+            gdf = gpd.read_file(temp_file_path)
+            write_data_to_postgis(gdf, table_name, engine, schema)
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
         raise
