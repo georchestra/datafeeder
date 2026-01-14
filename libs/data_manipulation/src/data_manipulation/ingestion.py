@@ -3,6 +3,7 @@ import tempfile
 from pathlib import Path
 
 import geopandas as gpd
+import pandas as pd
 import requests
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.engine import Engine
@@ -183,12 +184,12 @@ def apply_transformations(
 
 
 def write_data_to_postgis(
-    gdf: gpd.GeoDataFrame, table_name: str, engine: Engine, schema: str = DEFAULT_SCHEMA
+    gdf: gpd.GeoDataFrame | pd.DataFrame, table_name: str, engine: Engine, schema: str = DEFAULT_SCHEMA
 ) -> None:
-    """Write a GeoDataFrame to a PostGIS table.
+    """Write a GeoDataFrame or DataFrame to a PostGIS table.
 
     Args:
-        gdf: GeoDataFrame to write
+        gdf: GeoDataFrame or DataFrame to write
         table_name: Name of the target table
         engine: SQLAlchemy engine
         schema: PostgreSQL schema name (optional)
@@ -197,41 +198,45 @@ def write_data_to_postgis(
     validate_table_name(table_name)
 
     try:
-        isGeoDataFrame = isinstance(type(gdf), gpd.GeoDataFrame)
+        if not isinstance(gdf, gpd.GeoDataFrame): # DataFrame
+            # Ensure there is no geom column
+            if DEFAULT_GEOMETRY_COLUMN in gdf.columns:
+                logger.warning(
+                    f"DataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column. Dropping it before writing to PostGIS."
+                )
+                gdf = gdf.drop(columns=[DEFAULT_GEOMETRY_COLUMN])
 
-        if isGeoDataFrame:
+            # Write data to PostGIS as a regular table
+            gdf.to_sql(table_name, engine, if_exists="replace", schema=schema, index=False)
+        else: # GeoDataFrame
             # Ensure the geometry column is named 'geom' for PostGIS convention
-            if gdf.active_geometry_name == None:
+            if gdf.active_geometry_name is None:
                 logger.info("GeoDataFrame has no active geometry column set.")
                 
-                # Drop geom column if it exists to avoid issues
+                # Ensure there is no geom column
                 if DEFAULT_GEOMETRY_COLUMN in gdf.columns:
+                    logger.warning(
+                        f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column."
+                        " Dropping it before writing to PostGIS."
+                    )
                     gdf = gdf.drop(columns=[DEFAULT_GEOMETRY_COLUMN])
-                    logger.info(f"Dropped existing '{DEFAULT_GEOMETRY_COLUMN}' column from GeoDataFrame.")
 
-            elif gdf.active_geometry_name == DEFAULT_GEOMETRY_COLUMN:
-                logger.info(f"GeoDataFrame has '{DEFAULT_GEOMETRY_COLUMN}' already as active geometry column.")
+            elif gdf.active_geometry_name is DEFAULT_GEOMETRY_COLUMN:
+                logger.info(f"GeoDataFrame has '{DEFAULT_GEOMETRY_COLUMN}' as active geometry column.")
             else:
                 logger.info(f"GeoDataFrame has '{gdf.active_geometry_name}' as active geometry column.")
 
                 if DEFAULT_GEOMETRY_COLUMN in gdf.columns:
                     logger.warning(
-                        f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column. Overwriting it with the active geometry column."
+                        f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column."
+                        " Overwriting it with the active geometry column."
                     )
 
                 logger.info(f"Renaming active geometry column to '{DEFAULT_GEOMETRY_COLUMN}'")
                 gdf.rename_geometry(DEFAULT_GEOMETRY_COLUMN, inplace=True)
             
             # Write data to PostGIS
-            gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema)
-        else:
-            # Drop geom column if it exists to avoid issues
-            if DEFAULT_GEOMETRY_COLUMN in gdf.columns:
-                gdf = gdf.drop(columns=[DEFAULT_GEOMETRY_COLUMN])
-                logger.info(f"Dropped existing '{DEFAULT_GEOMETRY_COLUMN}' column from DataFrame.")
-            
-            # For non-GeoDataFrame, use to_sql (no geometry handling)
-            gdf.to_sql(table_name, engine, if_exists="replace", schema=schema)
+            gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema, index=False)
 
         # Log the number of inserted rows
         row_count = _get_table_row_count(table_name, engine, schema)
