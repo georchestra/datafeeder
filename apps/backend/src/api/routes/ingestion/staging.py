@@ -342,6 +342,7 @@ def dag_failure_callback(
         try:
             # CRITICAL: Validate table name before using in SQL (defense in depth)
             from data_manipulation.validators import validate_table_name
+
             validate_table_name(staging_table_name, context="staging")
 
             schema = "staging"  # FIXME get it from config

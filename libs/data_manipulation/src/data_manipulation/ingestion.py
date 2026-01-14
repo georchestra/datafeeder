@@ -1,7 +1,7 @@
-from urllib.parse import unquote
 import logging
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote
 
 import geopandas as gpd
 import pandas as pd
@@ -17,6 +17,7 @@ configure_logging(logger)
 
 DEFAULT_SCHEMA = "public"
 DEFAULT_GEOMETRY_COLUMN = "geom"
+
 
 def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
     metadata = MetaData(schema=schema)
@@ -190,7 +191,10 @@ def apply_transformations(
 
 
 def write_data_to_postgis(
-    gdf: gpd.GeoDataFrame | pd.DataFrame, table_name: str, engine: Engine, schema: str = DEFAULT_SCHEMA
+    gdf: gpd.GeoDataFrame | pd.DataFrame,
+    table_name: str,
+    engine: Engine,
+    schema: str = DEFAULT_SCHEMA,
 ) -> None:
     """Write a GeoDataFrame or DataFrame to a PostGIS table.
 
@@ -204,7 +208,7 @@ def write_data_to_postgis(
     validate_table_name(table_name)
 
     try:
-        if not isinstance(gdf, gpd.GeoDataFrame): # DataFrame
+        if not isinstance(gdf, gpd.GeoDataFrame):  # DataFrame
             # Ensure there is no geom column
             if DEFAULT_GEOMETRY_COLUMN in gdf.columns:
                 logger.warning(
@@ -214,7 +218,7 @@ def write_data_to_postgis(
 
             # Write data to PostGIS as a regular table
             gdf.to_sql(table_name, engine, if_exists="replace", schema=schema, index=False)
-        else: # GeoDataFrame
+        else:  # GeoDataFrame
             # Ensure the geometry column is named 'geom' for PostGIS convention
             if gdf.active_geometry_name is None:
                 logger.info("GeoDataFrame has no active geometry column set.")
@@ -228,9 +232,13 @@ def write_data_to_postgis(
                     gdf = gdf.drop(columns=[DEFAULT_GEOMETRY_COLUMN])
 
             elif gdf.active_geometry_name is DEFAULT_GEOMETRY_COLUMN:
-                logger.info(f"GeoDataFrame has '{DEFAULT_GEOMETRY_COLUMN}' as active geometry column.")
+                logger.info(
+                    f"GeoDataFrame has '{DEFAULT_GEOMETRY_COLUMN}' as active geometry column."
+                )
             else:
-                logger.info(f"GeoDataFrame has '{gdf.active_geometry_name}' as active geometry column.")
+                logger.info(
+                    f"GeoDataFrame has '{gdf.active_geometry_name}' as active geometry column."
+                )
 
                 if DEFAULT_GEOMETRY_COLUMN in gdf.columns:
                     logger.warning(
@@ -240,7 +248,7 @@ def write_data_to_postgis(
 
                 logger.info(f"Renaming active geometry column to '{DEFAULT_GEOMETRY_COLUMN}'")
                 gdf.rename_geometry(DEFAULT_GEOMETRY_COLUMN, inplace=True)
-            
+
             # Write data to PostGIS
             gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema, index=False)
 
