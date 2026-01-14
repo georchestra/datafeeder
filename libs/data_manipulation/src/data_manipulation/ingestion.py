@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 configure_logging(logger)
 
 DEFAULT_SCHEMA = "public"
-
+DEFAULT_GEOMETRY_COLUMN = "geom"
 
 def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
     metadata = MetaData(schema=schema)
@@ -63,9 +63,6 @@ def ingest_data_from_file_into_postgis(
         engine: SQLAlchemy engine
         schema: Target schema (default: public)
     """
-    # Validate table name to prevent SQL injection
-    validate_table_name(table_name)
-
     logger.info(f"Ingesting data from file {file_path} into table {table_name}")
 
     try:
@@ -84,14 +81,7 @@ def ingest_data_from_file_into_postgis(
                 logger.warning("Failed with latin-1, trying cp1252")
                 gdf = gpd.read_file(file_path, encoding="cp1252")
 
-        logger.info(
-            f"Ingesting data from file {file_path} into table {table_name} in schema {schema}"
-        )
-
-        gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema)
-
-        row_count = _get_table_row_count(table_name, engine, schema)
-        logger.info(f"Successfully inserted {row_count} rows into {schema}.{table_name}")
+        write_data_to_postgis(gdf, table_name, engine, schema)
     except Exception as e:
         logger.error(f"Error ingesting data from file {file_path}: {e}")
         raise
@@ -113,9 +103,6 @@ def ingest_data_from_url_into_postgis(
         schema: Target schema (default: public)
         auth: Optional tuple of (username, password) for HTTP Basic Authentication
     """
-    # Validate table name to prevent SQL injection
-    validate_table_name(table_name)
-
     try:
         if auth:
             # Download file first (GeoPandas doesn't support Basic Auth natively)
@@ -137,14 +124,7 @@ def ingest_data_from_url_into_postgis(
             f"Ingesting data from URL {url} into table {table_name} in schema {schema}"
         )
 
-        # If geodatframe use to postgis else if dataframe use to sql
-        if isinstance(type(gdf), gpd.GeoDataFrame):
-            gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema)
-        elif isinstance(type(gdf), gpd.pd.DataFrame):
-            gdf.to_sql(table_name, engine, if_exists="replace", schema=schema)
-
-        row_count = _get_table_row_count(table_name, engine, schema)
-        logger.info(f"Successfully inserted {row_count} rows into {schema}.{table_name}")
+        write_data_to_postgis(gdf, table_name, engine, schema)
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
         raise
@@ -175,7 +155,7 @@ def read_data_from_postgis(
         # Compile the query to SQL string (with literal binds)
         compiled_query = str(query.compile(engine, compile_kwargs={"literal_binds": True}))
 
-        gdf = gpd.read_postgis(compiled_query, engine, geom_col="geometry")
+        gdf = gpd.read_postgis(compiled_query, engine, geom_col=DEFAULT_GEOMETRY_COLUMN)
         return gdf
     except Exception as e:
         logger.error(f"Error reading data from PostGIS table {schema}.{table_name}: {e}")
@@ -205,7 +185,7 @@ def apply_transformations(
 def write_data_to_postgis(
     gdf: gpd.GeoDataFrame, table_name: str, engine: Engine, schema: str = DEFAULT_SCHEMA
 ) -> None:
-    """Write a GeoDataFrame to a final PostGIS table.
+    """Write a GeoDataFrame to a PostGIS table.
 
     Args:
         gdf: GeoDataFrame to write
@@ -217,7 +197,45 @@ def write_data_to_postgis(
     validate_table_name(table_name)
 
     try:
-        gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema)
+        isGeoDataFrame = isinstance(type(gdf), gpd.GeoDataFrame)
+
+        if isGeoDataFrame:
+            # Ensure the geometry column is named 'geom' for PostGIS convention
+            if gdf.active_geometry_name == None:
+                logger.info("GeoDataFrame has no active geometry column set.")
+                
+                # Drop geom column if it exists to avoid issues
+                if DEFAULT_GEOMETRY_COLUMN in gdf.columns:
+                    gdf = gdf.drop(columns=[DEFAULT_GEOMETRY_COLUMN])
+                    logger.info(f"Dropped existing '{DEFAULT_GEOMETRY_COLUMN}' column from GeoDataFrame.")
+
+            elif gdf.active_geometry_name == DEFAULT_GEOMETRY_COLUMN:
+                logger.info(f"GeoDataFrame has '{DEFAULT_GEOMETRY_COLUMN}' already as active geometry column.")
+            else:
+                logger.info(f"GeoDataFrame has '{gdf.active_geometry_name}' as active geometry column.")
+
+                if DEFAULT_GEOMETRY_COLUMN in gdf.columns:
+                    logger.warning(
+                        f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column. Overwriting it with the active geometry column."
+                    )
+
+                logger.info(f"Renaming active geometry column to '{DEFAULT_GEOMETRY_COLUMN}'")
+                gdf.rename_geometry(DEFAULT_GEOMETRY_COLUMN, inplace=True)
+            
+            # Write data to PostGIS
+            gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema)
+        else:
+            # Drop geom column if it exists to avoid issues
+            if DEFAULT_GEOMETRY_COLUMN in gdf.columns:
+                gdf = gdf.drop(columns=[DEFAULT_GEOMETRY_COLUMN])
+                logger.info(f"Dropped existing '{DEFAULT_GEOMETRY_COLUMN}' column from DataFrame.")
+            
+            # For non-GeoDataFrame, use to_sql (no geometry handling)
+            gdf.to_sql(table_name, engine, if_exists="replace", schema=schema)
+
+        # Log the number of inserted rows
+        row_count = _get_table_row_count(table_name, engine, schema)
+        logger.info(f"Successfully inserted {row_count} rows into {schema}.{table_name}")
     except Exception as e:
         logger.error(f"Error writing data to PostGIS table {schema}.{table_name}: {e}")
         raise
