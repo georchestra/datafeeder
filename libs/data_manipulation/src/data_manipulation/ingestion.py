@@ -6,6 +6,7 @@ from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.engine import Engine
 
 from data_manipulation.logging import configure_logging
+from data_manipulation.validators import validate_table_name
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -42,6 +43,8 @@ def ingest_data_from_file_into_postgis(
     schema: str | None = None,
 ) -> None:
     """Ingest data from a file into a PostGIS table."""
+    # Validate table name to prevent SQL injection
+    validated_table_name = validate_table_name(table_name)
 
     logger.info(f"Ingesting data from file {file_path} into table {table_name}")
 
@@ -67,7 +70,7 @@ def ingest_data_from_file_into_postgis(
             f"Ingesting data from file {file_path} into table {table_name} in schema {target_schema}"
         )
 
-        gdf.to_postgis(table_name, engine, if_exists="replace", schema=target_schema)
+        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=target_schema)
 
         # Query the database to get actual row count
         metadata = MetaData(schema=target_schema)
@@ -87,12 +90,14 @@ def ingest_data_from_url_into_postgis(
     url: str, table_name: str, engine: Engine, schema: str | None = None
 ) -> None:
     """Ingest data from a URL into a PostGIS table."""
+    # Validate table name to prevent SQL injection
+    validated_table_name = validate_table_name(table_name)
 
     try:
         gdf = gpd.read_file(url)
         target_schema = schema or "public"
 
-        gdf.to_postgis(table_name, engine, if_exists="replace", schema=target_schema)
+        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=target_schema)
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
         raise
@@ -111,16 +116,19 @@ def read_data_from_postgis(
     Returns:
         GeoDataFrame containing the table data
     """
+    # Validate table name to prevent SQL injection
+    validated_table_name = validate_table_name(table_name)
+
     try:
         # Use SQLAlchemy Core to safely construct the query
         metadata = MetaData(schema=schema)
-        table = Table(table_name, metadata, autoload_with=engine)
+        table = Table(validated_table_name, metadata, autoload_with=engine)
         query = select(table)
 
         # Compile the query to SQL string (with literal binds)
         compiled_query = str(query.compile(engine, compile_kwargs={"literal_binds": True}))
 
-        gdf = gpd.read_postgis(compiled_query, engine)
+        gdf = gpd.read_postgis(compiled_query, engine, geom_col="geometry")
         return gdf
     except Exception as e:
         table_ref = f"{schema or 'public'}.{table_name}"
@@ -159,10 +167,13 @@ def write_data_to_postgis(
         engine: SQLAlchemy engine
         schema: PostgreSQL schema name (optional)
     """
+    # Validate table name to prevent SQL injection
+    validated_table_name = validate_table_name(table_name)
+
     try:
         target_schema = schema or "public"
 
-        gdf.to_postgis(table_name, engine, if_exists="replace", schema=target_schema)
+        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=target_schema)
     except Exception as e:
         table_ref = f"{schema or 'public'}.{table_name}"  # type: ignore
         logger.error(f"Error writing data to PostGIS table {table_ref}: {e}")

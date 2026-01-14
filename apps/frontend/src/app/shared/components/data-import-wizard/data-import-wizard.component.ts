@@ -9,6 +9,7 @@ import {
 import { iconoirNumber1Square, iconoirNumber2Square } from '@ng-icons/iconoir'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { ButtonComponent, SpinningLoaderComponent } from 'geonetwork-ui'
+import { Router } from '@angular/router'
 import {
   catchError,
   debounceTime,
@@ -26,7 +27,8 @@ import {
   getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet,
   getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
-  submitStagingIngestionStagingPost
+  submitStagingIngestionStagingPost,
+  processStagingDataIngestionProcessPost
 } from '../../../core/api/functions'
 import type {
   DagRunState,
@@ -83,6 +85,7 @@ export class DataImportWizardComponent {
   private http = inject(HttpClient)
   private api = inject(Api)
   private translate = inject(TranslateService)
+  private router = inject(Router)
 
   selectedTabIndex = signal(0)
   importData = signal<ImportWizardData>({
@@ -94,13 +97,12 @@ export class DataImportWizardComponent {
   importing = signal(false)
   polling = signal(false)
   importError = signal<string | null>(null)
-  integrityLinkId = signal<string | null>(null)
-  dagRunInfo = signal<{
-    dag_id: string
-    dag_run_id: string
-  } | null>(null)
   metadata = signal<StagingMetadataResponse | null>(null)
   preview = signal<StagingPreviewResponse | null>(null)
+  dagRunInfo = signal<{ dag_id: string; dag_run_id: string } | null>(null)
+  integrityLinkId = signal<string | null>(null)
+  processing = signal(false)
+  validationError = signal<string | null>(null)
 
   constructor() {
     effect((onCleanup) => {
@@ -176,6 +178,7 @@ export class DataImportWizardComponent {
         dag_id: importResponse.dag_id,
         dag_run_id: importResponse.dag_run_id
       })
+      this.integrityLinkId.set(importResponse.integrity_link_id)
 
       this.importing.set(false)
       this.polling.set(true)
@@ -196,11 +199,6 @@ export class DataImportWizardComponent {
       this.importing.set(false)
       this.polling.set(false)
     }
-  }
-
-  onValidateDataset() {
-    // TODO: Submit final dataset configuration
-    console.log('Dataset validation not implemented yet')
   }
 
   private async createImportRequest(): Promise<StagingResponse> {
@@ -296,6 +294,31 @@ export class DataImportWizardComponent {
       this.preview.set(preview)
     } catch (error) {
       console.error('Error fetching staging data:', error)
+    }
+  }
+
+  async onValidateDataset(title: string) {
+    this.validationError.set(null)
+    this.processing.set(true)
+
+    try {
+      await this.api.invoke(processStagingDataIngestionProcessPost, {
+        body: {
+          integrity_link_id: this.integrityLinkId()!,
+          title: title
+        }
+      })
+
+      this.processing.set(false)
+      // the route should be able to target with a tag with dag_run_id
+      this.router.navigate(['/events', 'process_dag'])
+    } catch (error) {
+      this.validationError.set(
+        error instanceof Error
+          ? error.message
+          : this.translate.instant('import.dataSource.validationError')
+      )
+      this.processing.set(false)
     }
   }
 }

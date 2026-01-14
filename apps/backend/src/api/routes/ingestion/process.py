@@ -1,14 +1,17 @@
 from datetime import datetime, timezone
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
+from data_manipulation.database import create_schema
 from data_manipulation.utils import sanitize_name
+from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import MetaData, Table
 
 from src.api.deps import SessionDep
 from src.core.callback import build_callback_url
 from src.core.config import get_settings
+from src.core.db import engine
 from src.core.logging import get_logger
 from src.models import (
     ProcessRequest,
@@ -17,6 +20,7 @@ from src.models import (
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.console_service import ConsoleService
+from src.services.geoserver import GeoServerService  # type: ignore[attr-defined]
 from src.services.metadata_service import MetadataService
 
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
@@ -63,8 +67,18 @@ def process_staging_data(
     if not staging_table_name:
         raise HTTPException(status_code=400, detail="Staging table name not found in IntegrityLink")
 
-    dag_run_id = str(uuid4())
-    final_table_name = sanitize_name(request.title) + "_" + dag_run_id.replace("-", "_")[:32]
+    dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}_manual"
+    final_table_name = sanitize_name(request.title)[:30] + "_" + dag_run_id.replace("-", "_")[:32]
+
+    # Validate the generated table name (defense in depth)
+    try:
+        final_table_name = validate_table_name(final_table_name, context="final")
+    except ValueError as e:
+        logger.error(f"Generated invalid final table name from title '{request.title}': {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Title produces invalid table name: {e}",
+        )
 
     # integrity_transformation = request.config # FIXME: currently not used
 
@@ -114,7 +128,7 @@ def process_staging_data(
 
 
 @router.post("/dag_success")
-def dag_success_callback(
+async def dag_success_callback(
     session: SessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
@@ -138,6 +152,88 @@ def dag_success_callback(
     integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    # Initialize layer_urls for metadata generation
+    layer_urls = None
+
+    # Publish to GeoServer (workspace, datastore, and layer)
+    # This must happen BEFORE GeoNetwork publication
+    try:
+        # Get workspace and datastore names from IntegrityLink
+        workspace_name = integrity_link.integrity_organization.lower()
+        datastore_name = f"{workspace_name}_ds"
+
+        # Create database schema first
+        create_schema(engine, workspace_name)
+        logger.info(f"Created/verified PostgreSQL schema: {workspace_name}")
+
+        # Initialize GeoServer service
+        geoserver_service = GeoServerService(
+            base_url=settings.GEOSERVER_URL,
+            username=settings.GEOSERVER_USER,
+            password=settings.GEOSERVER_PASSWORD,
+        )
+
+        # Check if GeoServer workspace and datastore already exist
+        workspace_exists = await geoserver_service.workspace_exists(workspace_name)
+        datastore_exists = await geoserver_service.datastore_exists(workspace_name, datastore_name)
+
+        if not final_table_name:
+            logger.info(
+                f"Skipping layer creation for IntegrityLink {integrity_link.id}: "
+                f"final_table_name not available"
+            )
+            raise Exception("final_table_name is required for GeoServer layer creation")
+
+        if workspace_exists and datastore_exists:
+            logger.info(
+                f"Reusing existing GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
+                f"workspace={workspace_name}, datastore={datastore_name}"
+            )
+        else:
+            # Create GeoServer workspace and datastore
+            _workspace = await geoserver_service.create_workspace(
+                workspace_name=workspace_name,
+                datastore_name=datastore_name,
+                pg_schema="data",  # Point to the schema where Airflow creates final tables
+            )
+            logger.info(
+                f"Created GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
+                f"workspace={workspace_name}, datastore={datastore_name}"
+            )
+
+        try:
+            logger.info(
+                f"Creating GeoServer layer for IntegrityLink {integrity_link.id}: "
+                f"layer={final_table_name}"
+                f"layers_urls={layer_urls}"
+            )
+            layer_urls = await geoserver_service.create_layer(
+                workspace_name=workspace_name,
+                datastore_name=datastore_name,
+                table_name=final_table_name,
+                title=integrity_link.integrity_title or final_table_name,
+                abstract=integrity_link.integrity_title or final_table_name,
+            )
+            logger.info(
+                f"Created GeoServer layer for IntegrityLink {integrity_link.id}: "
+                f"layer={final_table_name}"
+            )
+        except Exception as layer_error:
+            # Log the error but don't fail - workspace/datastore were created successfully
+            logger.warning(
+                f"Failed to create GeoServer layer for IntegrityLink {integrity_link.id}: "
+                f"{str(layer_error)}",
+                exc_info=True,
+            )
+
+    except Exception as e:
+        # Soft failure - log the error but continue with the callback
+        logger.error(
+            f"Failed to publish to GeoServer for IntegrityLink {integrity_link.id}: {e}",
+            exc_info=True,
+        )
+        # Continue with GeoNetwork publication and IntegrityLink update
 
     # Create and publish metadata to GeoNetwork
     try:
@@ -163,11 +259,13 @@ def dag_success_callback(
             verify_tls=False,
         )
 
+        # Pass layer URLs to metadata service (if layer creation succeeded, else None)
         metadata_id = metadata_service.create_and_publish_metadata(
             integrity_link,
             user_email=contact_email,
             user_first_name=user_first_name,
             user_last_name=user_last_name,
+            layer_urls=layer_urls,
         )
         integrity_link.metadata_id = metadata_id
 
@@ -193,7 +291,7 @@ def dag_success_callback(
 
 
 @router.post("/dag_failure")
-def dag_failure_callback(
+async def dag_failure_callback(
     session: SessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(None, description="Final table name (if created)"),
@@ -216,20 +314,29 @@ def dag_failure_callback(
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
     # Drop the final table if it exists
-    try:
-        schema = "data"  # FIXME get it from config
-        metadata = MetaData(schema=schema)
-        table = Table(final_table_name, metadata)
-        table.drop(session.get_bind(), checkfirst=True)
-        session.commit()
-    except Exception as e:
-        # Log the error but continue with IntegrityLink deletion
-        logger.error(f"Error dropping final table {final_table_name}: {e}")
+    if final_table_name:
+        try:
+            # CRITICAL: Validate table name before using in SQL (defense in depth)
+            from data_manipulation.validators import validate_table_name
+
+            validated_table_name = validate_table_name(final_table_name, context="final")
+
+            schema = "data"  # FIXME get it from config
+            metadata = MetaData(schema=schema)
+            table = Table(validated_table_name, metadata)
+            table.drop(session.get_bind(), checkfirst=True)
+            session.commit()
+        except ValueError as e:
+            # Log validation error but continue with cleanup
+            logger.error(f"Invalid table name in callback: {e}")
+        except Exception as e:
+            # Log the error but continue with IntegrityLink deletion
+            logger.error(f"Error dropping final table {final_table_name}: {e}")
 
     # Mark the integrity link as failed (keep it for auditing purposes)
     # TODO: Add a status field to IntegrityLink model to track failures
     # For now, we just log the failure
     logger.error(
         f"Process DAG failure for IntegrityLink {integrity_link.id} | "
-        f"final_table={integrity_link.final_table_name}"
+        f"final_table={final_table_name}"
     )

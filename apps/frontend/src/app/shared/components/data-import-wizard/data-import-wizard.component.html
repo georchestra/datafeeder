@@ -33,10 +33,20 @@
           </ng-template>
 
           <div class="border-gray-600 border-x">
+            @if (validationError()) {
+            <div class="mb-4 rounded-lg bg-red-50 p-4 border border-red-200">
+              <p class="text-sm font-medium text-red-900">
+                {{ validationError() }}
+              </p>
+            </div>
+            }
+
             <app-dataset-configuration
+              #datasetConfig
               [integrityLinkId]="
                 selectedTabIndex() === 1 ? integrityLinkId() : undefined
               "
+              (validated)="onValidateDataset($event)"
             />
           </div>
         </mat-tab>
@@ -56,17 +66,22 @@
         {{ 'import.dataSource.processing' | translate }} } @else {
         {{ 'import.dataSource.next' | translate }} }
       </gn-ui-button>
-      @if (importing() || polling()) {
+      } @else if (selectedTabIndex() === 1) {
+      <gn-ui-button
+        type="primary"
+        [disabled]="processing() || !integrityLinkId()"
+        (buttonClick)="datasetConfig.submitForm()"
+      >
+        @if (processing()) { {{ 'import.dataSource.processing' | translate }} }
+        @else { {{ 'import.dataSource.validate' | translate }} }
+      </gn-ui-button>
+      } @if (importing() || polling()) {
       <div class="flex flex-col items-center gap-1">
         <gn-ui-spinning-loader></gn-ui-spinning-loader>
         <p class="text-center">
           {{ 'import.dataSource.processingMessage' | translate }}
         </p>
       </div>
-      } } @else if (selectedTabIndex() === 1) {
-      <gn-ui-button type="primary" (buttonClick)="onValidateDataset()">
-        {{ 'import.datasetConfiguration.validateDataset' | translate }}
-      </gn-ui-button>
       }
     </div>
   </div>

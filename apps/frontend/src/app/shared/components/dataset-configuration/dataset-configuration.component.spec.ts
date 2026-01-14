@@ -136,4 +136,11 @@ describe('DatasetConfigurationComponent', () => {
     dataSource = component.dataSource()
     expect(dataSource).toEqual(mockPreview.data)
   })
+
+  it('should display loading message', () => {
+    const fixture = TestBed.createComponent(DatasetConfigurationComponent)
+    fixture.detectChanges()
+    const compiled = fixture.nativeElement as HTMLElement
+    expect(compiled.textContent).toContain('Loading data...')
+  })
 })

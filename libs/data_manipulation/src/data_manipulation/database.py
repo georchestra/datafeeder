@@ -2,6 +2,9 @@
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
+from sqlalchemy.schema import CreateSchema
+
+from data_manipulation.validators import validate_schema_name
 
 
 def create_schema(engine: Engine, schema_name: str) -> None:
@@ -13,11 +16,17 @@ def create_schema(engine: Engine, schema_name: str) -> None:
         schema_name: Name of the schema to create
 
     Raises:
+        ValueError: If schema name contains invalid characters
         Exception: If schema creation fails
     """
-    if not schema_exists(engine, schema_name):
+    # Validate schema name to prevent SQL injection (defense in depth)
+    validated_schema_name = validate_schema_name(schema_name)
+
+    if not schema_exists(engine, validated_schema_name):
         with engine.connect() as conn:
-            conn.execute(text(f"CREATE SCHEMA {schema_name}"))
+            # Use SQLAlchemy's DDL construct for safe schema creation
+            # This properly quotes the identifier and prevents SQL injection
+            conn.execute(CreateSchema(validated_schema_name, if_not_exists=True))
             conn.commit()
 
 

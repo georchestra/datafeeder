@@ -818,3 +818,347 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     expect(component.importError()).toBeTruthy()
   })
 })
+
+describe('DataImportWizardComponent - Dataset Validation', () => {
+  let httpMock: HttpTestingController
+
+  // Mock data constants
+  const mockStagingResponse = {
+    dag_id: 'staging-dag-123',
+    dag_run_id: 'staging-run-456',
+    integrity_link_id: 'test-link-789',
+    status: 'queued'
+  }
+
+  const mockProcessResponse = {
+    dag_id: 'process-dag-123',
+    dag_run_id: 'process-run-456',
+    integrity_link_id: 'test-link-789',
+    status: 'queued'
+  }
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.failedError': 'An error occurred',
+            'import.dataSource.missingUrl': 'Missing URL',
+            'import.dataSource.processing': 'Processing...',
+            'import.dataSource.sending': 'Sending...',
+            'import.dataSource.validation': 'Validating...',
+            'import.dataSource.timeoutError': 'Timeout error',
+            'import.dataSource.unknownError': 'Unknown error',
+            'import.dataSource.fileImportNotImplemented':
+              'File import not implemented',
+            'import.dataSource.unsupportedSourceType':
+              'Unsupported source type',
+            'import.dataSource.next': 'Configure the dataset',
+            'import.dataSource.validate': 'Validate the dataset',
+            'import.datasetConfiguration.title': 'Configure the dataset'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: ApiConfiguration,
+          useValue: { rootUrl: 'http://localhost:8000' }
+        }
+      ]
+    }).compileComponents()
+
+    httpMock = TestBed.inject(HttpTestingController)
+  })
+
+  afterEach(() => {
+    // Flush any pending requests before verification
+    const pendingRequests = httpMock.match(() => true)
+    pendingRequests.forEach((req) => {
+      if (!req.cancelled) {
+        req.flush(null, { status: 200, statusText: 'OK' })
+      }
+    })
+    httpMock.verify()
+  })
+
+  // State Initialization Tests
+  it('should start with integrityLinkId as null', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    expect(component.integrityLinkId()).toBe(null)
+  })
+
+  it('should start with processing as false', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    expect(component.processing()).toBe(false)
+  })
+
+  it('should start with validationError as null', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    expect(component.validationError()).toBe(null)
+  })
+
+  // Store integrity_link_id from staging response
+  it('should store integrity_link_id from staging response', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.importData.set({
+      source: { type: 'url', url: 'https://test.com/data.csv' }
+    })
+    component.validSource.set(true)
+    const promise = component.onConfigureDataset()
+
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
+    req.flush(mockStagingResponse)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    expect(component.integrityLinkId()).toBe('test-link-789')
+
+    // Complete status polling
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    const statusReq = httpMock.expectOne((r) =>
+      r.url.includes(
+        '/airflow/dags/staging-dag-123/runs/staging-run-456/status'
+      )
+    )
+    statusReq.flush('success')
+    await promise
+  })
+
+  // Successful Validation Flow Tests
+  it('should call POST /ingestion/process with correct data', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    // Set integrity link ID (as if staging completed)
+    component.integrityLinkId.set('test-link-789')
+
+    // Start validation
+    const promise = component.onValidateDataset('Test Dataset Title')
+
+    // Expect the correct API call
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/process/')
+    expect(req.request.method).toBe('POST')
+    expect(req.request.body).toEqual({
+      integrity_link_id: 'test-link-789',
+      title: 'Test Dataset Title'
+    })
+
+    // Respond to the request
+    req.flush(mockProcessResponse)
+    await promise
+  })
+
+  it('should navigate to /events/process_dag on success', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    // Get the router
+    const router = (component as any).router
+    const navigateSpy = vi.spyOn(router, 'navigate')
+
+    component.integrityLinkId.set('test-link-789')
+    const promise = component.onValidateDataset('Test Dataset')
+
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/process/')
+    req.flush(mockProcessResponse)
+    await promise
+
+    expect(navigateSpy).toHaveBeenCalledWith(['/events', 'process_dag'])
+  })
+
+  it('should set processing flag during validation', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkId.set('test-link-789')
+
+    // Before validation
+    expect(component.processing()).toBe(false)
+
+    const promise = component.onValidateDataset('Test Dataset')
+
+    // During validation
+    expect(component.processing()).toBe(true)
+
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/process/')
+    req.flush(mockProcessResponse)
+    await promise
+
+    // After validation
+    expect(component.processing()).toBe(false)
+  })
+
+  it('should clear validationError before starting validation', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkId.set('test-link-789')
+    component.validationError.set('Previous error')
+
+    const promise = component.onValidateDataset('Test Dataset')
+
+    expect(component.validationError()).toBe(null)
+
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/process/')
+    req.flush(mockProcessResponse)
+    await promise
+  })
+
+  // Error Handling Tests
+  it('should display error on validation request failure', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkId.set('test-link-789')
+    const promise = component.onValidateDataset('Test Dataset')
+
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/process/')
+    req.error(new ProgressEvent('Network error'), {
+      status: 500,
+      statusText: 'Server Error'
+    })
+
+    await promise
+
+    expect(component.validationError()).toBeTruthy()
+    expect(component.processing()).toBe(false)
+  })
+
+  it('should reset processing flag on error', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkId.set('test-link-789')
+    const promise = component.onValidateDataset('Test Dataset')
+
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/process/')
+    req.flush(
+      { error: 'Something went wrong' },
+      { status: 400, statusText: 'Bad Request' }
+    )
+
+    await promise
+
+    expect(component.processing()).toBe(false)
+  })
+
+  // Button State Tests
+  it('should show Tab 1 button when on first tab', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(0)
+    fixture.detectChanges()
+
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    expect(button?.textContent?.trim()).toContain('Configure the dataset')
+  })
+
+  it('should show Tab 2 button when on second tab', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    fixture.detectChanges()
+
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    expect(button?.textContent?.trim()).toContain('Validate the dataset')
+  })
+
+  it('should disable validation button when processing', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.integrityLinkId.set('test-link-789')
+    component.processing.set(true)
+    fixture.detectChanges()
+
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button > button'
+    ) as HTMLButtonElement
+
+    expect(button?.disabled).toBe(true)
+  })
+
+  it('should disable validation button when no integrity_link_id', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.integrityLinkId.set(null)
+    component.processing.set(false)
+    fixture.detectChanges()
+
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button > button'
+    ) as HTMLButtonElement
+
+    expect(button?.disabled).toBe(true)
+  })
+
+  it('should enable validation button when has integrity_link_id and not processing', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.integrityLinkId.set('test-link-789')
+    component.processing.set(false)
+    fixture.detectChanges()
+
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button > button'
+    ) as HTMLButtonElement
+
+    expect(button?.disabled).toBe(false)
+  })
+
+  it('should show "Processing..." when processing', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.integrityLinkId.set('test-link-789')
+    component.processing.set(true)
+    fixture.detectChanges()
+
+    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    expect(button?.textContent?.trim()).toContain('Processing')
+  })
+
+  it('should display validation error in Tab 2', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.validationError.set('Network error occurred')
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    expect(compiled.textContent).toContain('Network error occurred')
+  })
+})

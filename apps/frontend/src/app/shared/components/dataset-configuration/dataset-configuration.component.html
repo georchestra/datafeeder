@@ -4,12 +4,47 @@
     {{ 'import.configuration.datasetTitle' | translate }}
   </h2>
 
-  <mat-form-field appearance="outline" class="w-full">
-    <input matInput [formControl]="form.controls.title" />
-  </mat-form-field>
+  <form [formGroup]="form" class="space-y-4">
+    <mat-form-field appearance="outline" class="w-full">
+      <input
+        matInput
+        formControlName="title"
+        placeholder="{{
+          'import.configuration.datasetTitlePlaceholder' | translate
+        }}"
+        type="text"
+      />
+      @if (form.controls.title.errors?.['required'] &&
+      form.controls.title.touched) {
+      <mat-error>{{
+        'import.configuration.requiredTitle' | translate
+      }}</mat-error>
+      } @if (form.controls.title.errors?.['minlength'] &&
+      form.controls.title.touched) {
+      <mat-error>{{
+        'import.configuration.minLengthTitle' | translate
+      }}</mat-error>
+      } @if (form.controls.title.errors?.['maxlength'] &&
+      form.controls.title.touched) {
+      <mat-error>{{
+        'import.configuration.maxLengthTitle' | translate
+      }}</mat-error>
+      } @if (form.controls.title.errors?.['pattern'] &&
+      form.controls.title.touched) {
+      <mat-error>{{
+        'import.configuration.patternTitle' | translate
+      }}</mat-error>
+      }
+      <mat-hint>{{
+        'import.configuration.datasetTitleHint' | translate
+      }}</mat-hint>
+    </mat-form-field>
+  </form>
 </div>
 } @else {
+
 <div class="p-6 text-gray-500">
   {{ 'import.configuration.loading' | translate }}
 </div>
+
 }

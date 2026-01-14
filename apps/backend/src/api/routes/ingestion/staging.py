@@ -43,7 +43,7 @@ def _generate_staging_table_name(dag_run_id: str, file_name: str | None) -> str:
 
     MAX_TABLE_NAME_LENGTH = 63
     UUID_LENGTH = 36  # Length of UUID with hyphens
-    SANITIZED_DAG_RUN_ID = dag_run_id.replace("-", "_")[:UUID_LENGTH]
+    SANITIZED_DAG_RUN_ID = sanitize_name(dag_run_id.replace("-", "_")[:UUID_LENGTH])
 
     if file_name:
         sanitized_name = sanitize_name(file_name.rsplit(".", 1)[0])[
@@ -88,7 +88,6 @@ def _extract_url_metadata(url: str) -> tuple[str | None, FileType | None]:
         if content_type:
             # Extract the MIME type without parameters (e.g., charset)
             mime_type = content_type.split(";")[0].strip().lower()
-
             if mime_type in (
                 "application/vnd.geo+json",
                 "application/geo+json",
@@ -293,18 +292,24 @@ def dag_failure_callback(
     staging_table_name = integrity_link.staging_table_name
 
     # Drop the staging table if it exists
-    try:
-        if not staging_table_name:
-            raise Exception("Staging table name is missing in IntegrityLink")
+    if staging_table_name:
+        try:
+            # CRITICAL: Validate table name before using in SQL (defense in depth)
+            from data_manipulation.validators import validate_table_name
 
-        schema = "staging"  # FIXME get it from config
-        metadata = MetaData(schema=schema)
-        table = Table(staging_table_name, metadata)
-        table.drop(session.get_bind(), checkfirst=True)
-        session.commit()
-    except Exception as e:
-        # Log the error but continue with IntegrityLink deletion
-        logger.error(f"Error dropping staging table {staging_table_name}: {e}")
+            validated_table_name = validate_table_name(staging_table_name, context="staging")
+
+            schema = "staging"  # FIXME get it from config
+            metadata = MetaData(schema=schema)
+            table = Table(validated_table_name, metadata)
+            table.drop(session.get_bind(), checkfirst=True)
+            session.commit()
+        except ValueError as e:
+            # Log validation error but continue with cleanup
+            logger.error(f"Invalid staging table name in database: {e}")
+        except Exception as e:
+            # Log the error but continue with IntegrityLink deletion
+            logger.error(f"Error dropping staging table {staging_table_name}: {e}")
 
     # Delete the IntegrityLink
     session.delete(integrity_link)

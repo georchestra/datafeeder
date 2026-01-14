@@ -4,9 +4,10 @@ import {
   signal,
   effect,
   inject,
-  computed
+  computed,
+  output
 } from '@angular/core'
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms'
 import { MatFormFieldModule } from '@angular/material/form-field'
 import { MatInputModule } from '@angular/material/input'
 import { MatTableModule } from '@angular/material/table'
@@ -38,6 +39,20 @@ export class DatasetConfigurationComponent {
   private fb = inject(FormBuilder)
   private translate = inject(TranslateService)
 
+  validated = output<string>()
+
+  form = this.fb.group({
+    title: this.fb.control('', {
+      nonNullable: true,
+      validators: [
+        Validators.required,
+        Validators.minLength(3),
+        Validators.maxLength(100),
+        Validators.pattern(/^[\w\s-]+$/)
+      ]
+    })
+  })
+
   integrityLinkId = input<string | undefined>()
   metadata = signal<StagingMetadataResponse | null>(null)
   preview = signal<StagingPreviewResponse | null>(null)
@@ -50,10 +65,6 @@ export class DatasetConfigurationComponent {
   dataSource = computed(() => {
     const data = this.preview()?.data || []
     return data
-  })
-
-  form = this.fb.group({
-    title: this.fb.control('', { nonNullable: true })
   })
 
   constructor() {
@@ -98,6 +109,14 @@ export class DatasetConfigurationComponent {
       this.preview.set(preview)
     } catch (error) {
       console.error('Error fetching staging data:', error)
+    }
+  }
+
+  submitForm() {
+    if (this.form.valid) {
+      this.validated.emit(this.form.value.title!)
+    } else {
+      this.form.markAllAsTouched()
     }
   }
 }
