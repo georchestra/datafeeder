@@ -72,7 +72,7 @@ def process_staging_data(
 
     # Validate the generated table name (defense in depth)
     try:
-        final_table_name = validate_table_name(final_table_name, context="final")
+        validate_table_name(final_table_name, context="final")
     except ValueError as e:
         logger.error(f"Generated invalid final table name from title '{request.title}': {e}")
         raise HTTPException(
@@ -318,12 +318,11 @@ async def dag_failure_callback(
         try:
             # CRITICAL: Validate table name before using in SQL (defense in depth)
             from data_manipulation.validators import validate_table_name
-
-            validated_table_name = validate_table_name(final_table_name, context="final")
+            validate_table_name(final_table_name, context="final")
 
             schema = "data"  # FIXME get it from config
             metadata = MetaData(schema=schema)
-            table = Table(validated_table_name, metadata)
+            table = Table(final_table_name, metadata)
             table.drop(session.get_bind(), checkfirst=True)
             session.commit()
         except ValueError as e:

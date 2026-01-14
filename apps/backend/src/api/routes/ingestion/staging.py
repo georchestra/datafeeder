@@ -342,12 +342,11 @@ def dag_failure_callback(
         try:
             # CRITICAL: Validate table name before using in SQL (defense in depth)
             from data_manipulation.validators import validate_table_name
-
-            validated_table_name = validate_table_name(staging_table_name, context="staging")
+            validate_table_name(staging_table_name, context="staging")
 
             schema = "staging"  # FIXME get it from config
             metadata = MetaData(schema=schema)
-            table = Table(validated_table_name, metadata)
+            table = Table(staging_table_name, metadata)
             table.drop(session.get_bind(), checkfirst=True)
             session.commit()
         except ValueError as e:

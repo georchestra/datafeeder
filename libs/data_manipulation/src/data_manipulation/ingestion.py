@@ -64,9 +64,9 @@ def ingest_data_from_file_into_postgis(
         schema: Target schema (default: public)
     """
     # Validate table name to prevent SQL injection
-    validated_table_name = validate_table_name(table_name)
+    validate_table_name(table_name)
 
-    logger.info(f"Ingesting data from file {file_path} into table {validated_table_name}")
+    logger.info(f"Ingesting data from file {file_path} into table {table_name}")
 
     try:
         # Detect encoding (mainly for shapefiles, others default to UTF-8)
@@ -85,13 +85,13 @@ def ingest_data_from_file_into_postgis(
                 gdf = gpd.read_file(file_path, encoding="cp1252")
 
         logger.info(
-            f"Ingesting data from file {file_path} into table {validated_table_name} in schema {schema}"
+            f"Ingesting data from file {file_path} into table {table_name} in schema {schema}"
         )
 
-        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=schema)
+        gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema)
 
-        row_count = _get_table_row_count(validated_table_name, engine, schema)
-        logger.info(f"Successfully inserted {row_count} rows into {schema}.{validated_table_name}")
+        row_count = _get_table_row_count(table_name, engine, schema)
+        logger.info(f"Successfully inserted {row_count} rows into {schema}.{table_name}")
     except Exception as e:
         logger.error(f"Error ingesting data from file {file_path}: {e}")
         raise
@@ -114,7 +114,7 @@ def ingest_data_from_url_into_postgis(
         auth: Optional tuple of (username, password) for HTTP Basic Authentication
     """
     # Validate table name to prevent SQL injection
-    validated_table_name = validate_table_name(table_name)
+    validate_table_name(table_name)
 
     try:
         if auth:
@@ -134,17 +134,17 @@ def ingest_data_from_url_into_postgis(
             gdf = gpd.read_file(url)
 
         logger.info(
-            f"Ingesting data from URL {url} into table {validated_table_name} in schema {schema}"
+            f"Ingesting data from URL {url} into table {table_name} in schema {schema}"
         )
 
         # If geodatframe use to postgis else if dataframe use to sql
         if isinstance(type(gdf), gpd.GeoDataFrame):
-            gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=schema)
+            gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema)
         elif isinstance(type(gdf), gpd.pd.DataFrame):
-            gdf.to_sql(validated_table_name, engine, if_exists="replace", schema=schema)
+            gdf.to_sql(table_name, engine, if_exists="replace", schema=schema)
 
-        row_count = _get_table_row_count(validated_table_name, engine, schema)
-        logger.info(f"Successfully inserted {row_count} rows into {schema}.{validated_table_name}")
+        row_count = _get_table_row_count(table_name, engine, schema)
+        logger.info(f"Successfully inserted {row_count} rows into {schema}.{table_name}")
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
         raise
@@ -164,12 +164,12 @@ def read_data_from_postgis(
         GeoDataFrame containing the table data
     """
     # Validate table name to prevent SQL injection
-    validated_table_name = validate_table_name(table_name)
+    validate_table_name(table_name)
 
     try:
         # Use SQLAlchemy Core to safely construct the query
         metadata = MetaData(schema=schema)
-        table = Table(validated_table_name, metadata, autoload_with=engine)
+        table = Table(table_name, metadata, autoload_with=engine)
         query = select(table)
 
         # Compile the query to SQL string (with literal binds)
@@ -214,10 +214,10 @@ def write_data_to_postgis(
         schema: PostgreSQL schema name (optional)
     """
     # Validate table name to prevent SQL injection
-    validated_table_name = validate_table_name(table_name)
+    validate_table_name(table_name)
 
     try:
-        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=schema)
+        gdf.to_postgis(table_name, engine, if_exists="replace", schema=schema)
     except Exception as e:
-        logger.error(f"Error writing data to PostGIS table {schema}.{validated_table_name}: {e}")
+        logger.error(f"Error writing data to PostGIS table {schema}.{table_name}: {e}")
         raise
