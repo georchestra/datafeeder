@@ -22,7 +22,7 @@ marker('input.file.orInputUrl')
 
 export interface SourceData {
   type: 'url' | 'file'
-  file?: File
+  file?: globalThis.File
   url?: string
   authEnabled: boolean
   username?: string
@@ -61,7 +61,7 @@ export class DataSourceSelectorComponent {
     radio: this.fb.control<'file'>('file'),
     source: this.fb.group({
       type: this.fb.control<'file' | 'url'>('file'),
-      file: this.fb.control<File | null>(null),
+      file: this.fb.control<globalThis.File | null>(null),
       url: this.fb.control<string | null>(null),
       authEnabled: this.fb.control<boolean>(false, { nonNullable: true }),
       username: this.fb.control<string | null>(null),
@@ -83,7 +83,7 @@ export class DataSourceSelectorComponent {
     })
   }
 
-  handleFileChange(file: File | null): void {
+  handleFileChange(file: globalThis.File | null): void {
     this.form.controls.source.setValue({
       type: 'file',
       file: file,
