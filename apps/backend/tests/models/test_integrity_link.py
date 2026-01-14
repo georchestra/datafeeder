@@ -8,6 +8,7 @@ which is how FastAPI creates model instances from request data.
 import pytest
 from pydantic import ValidationError
 
+from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 
 
@@ -22,6 +23,7 @@ class TestIntegrityLinkValidators:
                 "integrity_organization": "testorg",
                 "staging_table_name": "staging_abc123",
                 "final_table_name": "final_xyz789",
+                "source_import_type": ImportType.URL,
             }
         )
         assert link.staging_table_name == "staging_abc123"
@@ -77,6 +79,7 @@ class TestIntegrityLinkValidators:
                 "integrity_organization": "testorg",
                 "staging_table_name": "staging_test",
                 "final_table_name": None,
+                "source_import_type": ImportType.URL,
             }
         )
         assert link.final_table_name is None
@@ -131,6 +134,7 @@ class TestIntegrityLinkValidators:
                 "integrity_owner": "testuser",
                 "integrity_organization": "validorg",
                 "staging_table_name": "staging_test",
+                "source_import_type": ImportType.URL,
             }
         )
         assert link.integrity_organization == "validorg"

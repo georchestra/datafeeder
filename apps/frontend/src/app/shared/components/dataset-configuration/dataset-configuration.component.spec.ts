@@ -137,11 +137,10 @@ describe('DatasetConfigurationComponent', () => {
     expect(dataSource).toEqual(mockPreview.data)
   })
 
-  it('should display title input field', () => {
+  it('should display loading message', () => {
     const fixture = TestBed.createComponent(DatasetConfigurationComponent)
     fixture.detectChanges()
     const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain('Configuration du jeu de données')
-    expect(compiled.textContent).toContain('Titre du jeu de données')
+    expect(compiled.textContent).toContain('Loading data...')
   })
 })

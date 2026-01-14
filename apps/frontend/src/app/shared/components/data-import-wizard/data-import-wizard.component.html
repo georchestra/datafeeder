@@ -62,10 +62,11 @@
       >
         @if (validating()) { {{ 'import.dataSource.validation' | translate }} }
         @else if (importing()) { {{ 'import.dataSource.sending' | translate }} }
-        @else if (polling()) { {{ 'import.dataSource.processing' | translate }} }
-        @else { {{ 'import.dataSource.next' | translate }} }
+        @else if (polling()) {
+        {{ 'import.dataSource.processing' | translate }} } @else {
+        {{ 'import.dataSource.next' | translate }} }
       </gn-ui-button>
-        } @else if (selectedTabIndex() === 1) {
+      } @else if (selectedTabIndex() === 1) {
       <gn-ui-button
         type="primary"
         [disabled]="processing() || !integrityLinkId()"

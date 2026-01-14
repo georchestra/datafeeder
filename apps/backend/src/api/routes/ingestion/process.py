@@ -178,6 +178,13 @@ async def dag_success_callback(
         workspace_exists = await geoserver_service.workspace_exists(workspace_name)
         datastore_exists = await geoserver_service.datastore_exists(workspace_name, datastore_name)
 
+        if not final_table_name:
+            logger.info(
+                f"Skipping layer creation for IntegrityLink {integrity_link.id}: "
+                f"final_table_name not available"
+            )
+            raise Exception("final_table_name is required for GeoServer layer creation")
+
         if workspace_exists and datastore_exists:
             logger.info(
                 f"Reusing existing GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
@@ -195,31 +202,29 @@ async def dag_success_callback(
                 f"workspace={workspace_name}, datastore={datastore_name}"
             )
 
-        # Create layer if final_table_name exists (optional - soft failure)
-        if final_table_name:
-            try:
-                layer_urls = await geoserver_service.create_layer(
-                    workspace_name=workspace_name,
-                    datastore_name=datastore_name,
-                    table_name=final_table_name,
-                    title=integrity_link.integrity_title or final_table_name,
-                    abstract=integrity_link.integrity_title or final_table_name,
-                )
-                logger.info(
-                    f"Created GeoServer layer for IntegrityLink {integrity_link.id}: "
-                    f"layer={final_table_name}"
-                )
-            except Exception as layer_error:
-                # Log the error but don't fail - workspace/datastore were created successfully
-                logger.warning(
-                    f"Failed to create GeoServer layer for IntegrityLink {integrity_link.id}: "
-                    f"{str(layer_error)}",
-                    exc_info=True,
-                )
-        else:
+        try:
             logger.info(
-                f"Skipping layer creation for IntegrityLink {integrity_link.id}: "
-                f"final_table_name not available"
+                f"Creating GeoServer layer for IntegrityLink {integrity_link.id}: "
+                f"layer={final_table_name}"
+                f"layers_urls={layer_urls}"
+            )
+            layer_urls = await geoserver_service.create_layer(
+                workspace_name=workspace_name,
+                datastore_name=datastore_name,
+                table_name=final_table_name,
+                title=integrity_link.integrity_title or final_table_name,
+                abstract=integrity_link.integrity_title or final_table_name,
+            )
+            logger.info(
+                f"Created GeoServer layer for IntegrityLink {integrity_link.id}: "
+                f"layer={final_table_name}"
+            )
+        except Exception as layer_error:
+            # Log the error but don't fail - workspace/datastore were created successfully
+            logger.warning(
+                f"Failed to create GeoServer layer for IntegrityLink {integrity_link.id}: "
+                f"{str(layer_error)}",
+                exc_info=True,
             )
 
     except Exception as e:
@@ -254,7 +259,7 @@ async def dag_success_callback(
             verify_tls=False,
         )
 
-        # Pass layer URLs to metadata service (only if layer creation succeeded)
+        # Pass layer URLs to metadata service (if layer creation succeeded, else None)
         metadata_id = metadata_service.create_and_publish_metadata(
             integrity_link,
             user_email=contact_email,

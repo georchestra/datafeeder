@@ -16,7 +16,9 @@
       />
       @if (form.controls.title.errors?.['required'] &&
       form.controls.title.touched) {
-      <mat-error>{{ 'import.configuration.requiredTitle' | translate }}</mat-error>
+      <mat-error>{{
+        'import.configuration.requiredTitle' | translate
+      }}</mat-error>
       } @if (form.controls.title.errors?.['minlength'] &&
       form.controls.title.touched) {
       <mat-error>{{
@@ -30,17 +32,14 @@
       } @if (form.controls.title.errors?.['pattern'] &&
       form.controls.title.touched) {
       <mat-error>{{
-        'import.configuration.patternTitle'
-          | translate
+        'import.configuration.patternTitle' | translate
       }}</mat-error>
       }
       <mat-hint>{{
-        'import.configuration.datasetTitleHint'
-          | translate
+        'import.configuration.datasetTitleHint' | translate
       }}</mat-hint>
     </mat-form-field>
   </form>
-
 </div>
 } @else {
 

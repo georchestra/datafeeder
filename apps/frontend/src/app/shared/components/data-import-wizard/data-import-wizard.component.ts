@@ -314,7 +314,9 @@ export class DataImportWizardComponent {
       this.router.navigate(['/events', 'process_dag'])
     } catch (error) {
       this.validationError.set(
-        error instanceof Error ? error.message : 'Erreur lors de la validation'
+        error instanceof Error
+          ? error.message
+          : this.translate.instant('import.dataSource.validationError')
       )
       this.processing.set(false)
     }
