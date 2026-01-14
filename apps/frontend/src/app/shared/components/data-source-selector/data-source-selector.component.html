@@ -4,61 +4,60 @@
   </h2>
 
   <form [formGroup]="form">
-    <mat-radio-group formControlName="sourceType">
-      <mat-radio-button value="url">
-        {{ 'import.dataSource.chooseType.url' | translate }}
+    <mat-radio-group formControlName="radio">
+      <mat-radio-button value="file">
+        {{ 'import.dataSource.chooseType.file' | translate }}
       </mat-radio-button>
     </mat-radio-group>
   </form>
 </div>
 
-@if (form.controls.sourceType.value === 'url') {
+@if (form.controls.radio.value === 'file') {
 <div class="px-9 py-6">
   <gn-ui-file-input
     [maxSizeMB]="0"
     (fileChange)="handleFileChange($event)"
     (urlChange)="handleUrlChange($event)"
   ></gn-ui-file-input>
-</div>
-<div class="mt-4">
-  <gn-ui-check-toggle
-    [value]="form.get('authEnabled')!.value"
-    (toggled)="form.get('authEnabled')!.setValue($event)"
-    [label]="'import.dataSource.url.enableAuth' | translate"
-    [title]="'import.dataSource.url.enableAuth' | translate"
-    class="mb-3"
-  >
-  </gn-ui-check-toggle>
+  <div class="mt-4">
+    <gn-ui-check-toggle
+      [value]="form.get('source.authEnabled')!.value"
+      (toggled)="form.get('source.authEnabled')!.setValue($event)"
+      [label]="'import.dataSource.url.enableAuth' | translate"
+      [title]="'import.dataSource.url.enableAuth' | translate"
+      class="mb-3"
+    >
+    </gn-ui-check-toggle>
 
-  @if (form.get('authEnabled')!.value) {
-  <div class="flex flex-wrap gap-4 mt-3">
-    <div class="flex-1 min-w-[300px] max-w-[300px]">
-      <label class="block text-sm font-medium text-gray-700 mb-2">
-        {{ 'import.dataSource.url.username' | translate }}
-      </label>
-      <gn-ui-text-input
-        [value]="form.get('username')!.value"
-        (valueChange)="form.get('username')!.setValue($event)"
-        placeholder=""
-      ></gn-ui-text-input>
-    </div>
+    @if (form.get('source.authEnabled')!.value) {
+    <div class="flex flex-wrap gap-4 mt-3">
+      <div class="flex-1 min-w-[300px] max-w-[300px]">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          {{ 'import.dataSource.url.username' | translate }}
+        </label>
+        <gn-ui-text-input
+          [value]="form.get('source.username')!.value"
+          (valueChange)="form.get('source.username')!.setValue($event)"
+          placeholder=""
+        ></gn-ui-text-input>
+      </div>
 
-    <div class="flex-1 min-w-[300px] max-w-[300px]">
-      <label class="block text-sm font-medium text-gray-700 mb-2">
-        {{ 'import.dataSource.url.password' | translate }}
-      </label>
-      <gn-ui-text-input
-        [value]="form.get('password')!.value"
-        (valueChange)="form.get('password')!.setValue($event)"
-        placeholder=""
-      ></gn-ui-text-input>
+      <div class="flex-1 min-w-[300px] max-w-[300px]">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          {{ 'import.dataSource.url.password' | translate }}
+        </label>
+        <gn-ui-text-input
+          [value]="form.get('source.password')!.value"
+          (valueChange)="form.get('source.password')!.setValue($event)"
+          placeholder=""
+        ></gn-ui-text-input>
+      </div>
     </div>
+    }
   </div>
-  }
 </div>
-}
-
-@if (form.controls.url.value) {
+} @if (form.controls.source.controls.file.value ||
+form.controls.source.controls.url.value) {
 <div
   class="px-9 py-6 bg-beige border-gray-600 border-t rounded-b-lg flex items-center"
 >
@@ -69,7 +68,10 @@
       <ng-icon name="iconoirAttachment"></ng-icon>
     </div>
     <div class="flex flex-col justify-center text-lg font-bold">
-      {{ form.controls.url.value }}
+      {{
+        form.controls.source.controls.file.value?.name ||
+          form.controls.source.controls.url.value
+      }}
     </div>
   </div>
   <gn-ui-button

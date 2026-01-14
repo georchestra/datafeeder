@@ -1,6 +1,7 @@
-import { Component, effect, inject, input, output } from '@angular/core'
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms'
+import { Component, inject, output } from '@angular/core'
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { MatRadioModule } from '@angular/material/radio'
+import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import {
   NgIconComponent,
   provideIcons,
@@ -8,14 +9,24 @@ import {
 } from '@ng-icons/core'
 import { iconoirAttachment } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
-import { ButtonComponent, CheckToggleComponent, FileInputComponent, TextInputComponent } from 'geonetwork-ui'
+import {
+  ButtonComponent,
+  CheckToggleComponent,
+  FileInputComponent,
+  TextInputComponent
+} from 'geonetwork-ui'
+
+marker('input.file.selectFileLabel')
+marker('input.file.dropFileLabel')
+marker('input.file.orInputUrl')
 
 export interface SourceData {
-  type: 'url'
-  url: string
+  type: 'url' | 'file'
+  file?: File
+  url?: string
   authEnabled: boolean
-  username: string
-  password: string
+  username?: string
+  password?: string
 }
 
 @Component({
@@ -44,54 +55,61 @@ export interface SourceData {
 export class DataSourceSelectorComponent {
   private fb = inject(FormBuilder)
 
-  sourceData = input<SourceData>({
-    type: 'url',
-    url: '',
-    authEnabled: false,
-    username: '',
-    password: ''
-  })
   sourceChanged = output<SourceData>()
 
   form = this.fb.group({
-    sourceType: this.fb.control<'url'>('url', { nonNullable: true }),
-    url: this.fb.control('', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.pattern(/^https?:\/\/.+/)]
-    }),
-    authEnabled: this.fb.control(false, { nonNullable: true }),
-    username: this.fb.control('', { nonNullable: true }),
-    password: this.fb.control('', { nonNullable: true })
+    radio: this.fb.control<'file'>('file'),
+    source: this.fb.group({
+      type: this.fb.control<'file' | 'url'>('file'),
+      file: this.fb.control<File | null>(null),
+      url: this.fb.control<string | null>(null),
+      authEnabled: this.fb.control<boolean>(false, { nonNullable: true }),
+      username: this.fb.control<string | null>(null),
+      password: this.fb.control<string | null>(null)
+    })
   })
 
   constructor() {
-    // Sync input to form
-    effect(() => {
-      const data = this.sourceData()
-      this.form.patchValue(data, { emitEvent: false })
-    })
-
     // Emit form changes
-    this.form.valueChanges.subscribe((value) => {
+    this.form.controls.source.valueChanges.subscribe((value) => {
       this.sourceChanged.emit({
-        type: value.sourceType!,
-        url: value.url!,
-        authEnabled: value.authEnabled!,
-        username: value.username!,
-        password: value.password!
+        type: value.type,
+        file: value.file,
+        url: value.url,
+        authEnabled: value.authEnabled,
+        username: value.username,
+        password: value.password
       })
     })
   }
 
-  handleFileChange(file: globalThis.File | null): void {
-    console.log('File selected:', file)
+  handleFileChange(file: File | null): void {
+    this.form.controls.source.setValue({
+      type: 'file',
+      file: file,
+      url: null,
+      authEnabled: false,
+      username: null,
+      password: null
+    })
   }
 
   handleUrlChange(url: string): void {
-    this.form.controls.url.setValue(url)
+    this.form.controls.source.patchValue({
+      type: 'url',
+      file: null,
+      url: url
+    })
   }
 
   removeItem(): void {
-    this.form.controls.url.setValue('')
+    this.form.controls.source.setValue({
+      type: 'file',
+      file: null,
+      url: null,
+      authEnabled: false,
+      username: null,
+      password: null
+    })
   }
 }

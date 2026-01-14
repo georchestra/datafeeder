@@ -1,6 +1,6 @@
 <div class="bg-white rounded-lg p-7">
-  <div class="flex gap-9">
-    <div class="flex-1 min-w-0">
+  <div class="flex">
+    <div class="basis-3/4">
       <mat-tab-group
         [(selectedIndex)]="selectedTabIndex"
         class="data-import-wizard"
@@ -8,27 +8,65 @@
       >
         <mat-tab>
           <ng-template mat-tab-label>
-            <ng-icon class="mr-2" name="iconoirNumber1Square"></ng-icon>
+            <ng-icon
+              class="mr-2"
+              name="iconoirNumber1Square"
+              size="2em"
+            ></ng-icon>
             {{ 'import.dataSource.title' | translate }}
           </ng-template>
-          <div class="p-6 border-gray-600 border-b border-x rounded-b-lg">
+          <div class="border-gray-600 border-b border-x rounded-b-lg">
             @if (importError()) {
-            <div class="mb-4 rounded-lg bg-red-50 p-4 border border-red-200">
-              <p class="text-sm font-medium text-red-900">
-                {{ importError() }}
-              </p>
+            <div class="px-9 py-4 border-gray-600 border-b">
+              <div
+                class="rounded-lg bg-orange-200 p-4 border border-red-600 space-y-2.5"
+              >
+                <div
+                  class="flex items-center justify-between pb-4 border-gray-600 border-b"
+                >
+                  <div class="flex items-center gap-2.5">
+                    <ng-icon
+                      name="iconoirWarningTriangle"
+                      size="1.5em"
+                    ></ng-icon>
+                    <span class="text-lg font-bold">
+                      {{ 'import.dataSource.error' | translate }}
+                    </span>
+                  </div>
+                  <gn-ui-button
+                    type="light"
+                    style="
+                      --gn-ui-button-padding: 0px;
+                      --gn-ui-button-width: 24px;
+                      --gn-ui-button-height: 24px;
+                    "
+                    class="ml-[20px]"
+                    (buttonClick)="importError.set(null)"
+                    data-test="remove-error"
+                    ><span class="material-symbols-outlined gn-ui-icon-medium"
+                      >close</span
+                    >
+                  </gn-ui-button>
+                </div>
+                <p class="text-sm font-medium">
+                  {{ importError() }}
+                </p>
+              </div>
             </div>
             }
 
             <app-data-source-selector
-              [sourceData]="importData().source"
               (sourceChanged)="onSourceChanged($event)"
             />
           </div>
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
-            <ng-icon class="mr-2" name="iconoirNumber2Square"></ng-icon>
+            <ng-icon
+              class="mr-2"
+              name="iconoirNumber2Square"
+              size="2em"
+            ></ng-icon>
             {{ 'import.datasetConfiguration.title' | translate }}
           </ng-template>
 
@@ -53,7 +91,9 @@
       </mat-tab-group>
     </div>
 
-    <div class="flex flex-col items-center gap-2.5 pt-1 flex-shrink-0">
+    <div
+      class="basis-1/4 flex flex-col items-center gap-2.5 pt-1 flex-shrink-0"
+    >
       @if (selectedTabIndex() === 0) {
       <gn-ui-button
         [type]="cantConfigureDataset() ? 'outline' : 'primary'"
@@ -61,8 +101,7 @@
         (buttonClick)="onConfigureDataset()"
         data-test="configure-dataset"
       >
-        @if (validating()) { {{ 'import.dataSource.validation' | translate }} }
-        @else if (importing()) { {{ 'import.dataSource.sending' | translate }} }
+        @if (importing()) { {{ 'import.dataSource.sending' | translate }} }
         @else if (polling()) {
         {{ 'import.dataSource.processing' | translate }} } @else {
         {{ 'import.dataSource.next' | translate }} }
@@ -72,6 +111,7 @@
         type="primary"
         [disabled]="processing() || !integrityLinkId()"
         (buttonClick)="datasetConfig.submitForm()"
+        data-test="validate-dataset"
       >
         @if (processing()) { {{ 'import.dataSource.processing' | translate }} }
         @else { {{ 'import.dataSource.validate' | translate }} }

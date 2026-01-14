@@ -35,44 +35,12 @@ describe('DataImportWizardComponent', () => {
     expect(component).toBeTruthy()
   })
 
-  it('should initialize with first tab selected', () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    expect(component.selectedTabIndex()).toBe(0)
-  })
-
-  it('should initialize with empty source data', () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    expect(component.importData()).toEqual({
-      source: {
-        type: 'url',
-        url: '',
-        authEnabled: false,
-        username: '',
-        password: ''
-      }
-    })
-  })
-
   it('should render both tab labels', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     fixture.detectChanges()
     const compiled = fixture.nativeElement as HTMLElement
     expect(compiled.textContent).toContain('Add a dataset')
     expect(compiled.textContent).toContain('Configure the dataset')
-  })
-
-  it('should update import data when source changes', () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-
-    component.onSourceChanged({ type: 'url', url: 'https://test.com' })
-
-    expect(component.importData().source).toEqual({
-      type: 'url',
-      url: 'https://test.com'
-    })
   })
 
   it('should render data source selector in first tab', () => {
@@ -94,269 +62,66 @@ describe('DataImportWizardComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement
     expect(compiled.querySelector('app-dataset-configuration')).toBeTruthy()
   })
-})
 
-describe('DataImportWizardComponent - URL Validation', () => {
-  let httpMock: HttpTestingController
-
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [
-        DataImportWizardComponent,
-        NoopAnimationsModule,
-        TranslateTestingModule.withTranslations({
-          en: {
-            'import.dataSource.validation': 'Validating...'
-          }
-        })
-          .withDefaultLanguage('en')
-          .withCompiler(new TranslateMessageFormatCompiler())
-      ],
-      providers: [provideHttpClient(), provideHttpClientTesting()]
-    }).compileComponents()
-
-    httpMock = TestBed.inject(HttpTestingController)
+  it('should initialize with first tab selected', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    expect(component.selectedTabIndex()).toBe(0)
   })
 
-  afterEach(() => {
-    // Flush any non-cancelled pending requests before verification
-    const pendingRequests = httpMock.match(() => true)
-    pendingRequests.forEach((req) => {
-      if (!req.cancelled) {
-        req.flush(null, { status: 200, statusText: 'OK' })
-      }
-    })
-    httpMock.verify() // Ensure no outstanding requests
+  it('should initialize with null import data', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    expect(component.importData()).toBeNull()
   })
 
-  it('should start with validSource as false', () => {
+  it('should start with valid source as falsy', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
-    expect(component.validSource()).toBe(false)
+    expect(component.validSource()).toBeFalsy()
   })
 
-  it('should start with validating as false', () => {
+  it('should update import data when source changes', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
-    expect(component.validating()).toBe(false)
-  })
-
-  it('should keep validSource false for invalid URL format', fakeAsync(() => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-
-    component.onSourceChanged({ type: 'url', url: 'invalid-url' })
-    tick(300)
-
-    expect(component.validSource()).toBe(false)
-    expect(component.validating()).toBe(false)
-  }))
-
-  it('should keep validSource false for empty URL', fakeAsync(() => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-
-    component.onSourceChanged({ type: 'url', url: '' })
-    tick(300)
-
-    expect(component.validSource()).toBe(false)
-    expect(component.validating()).toBe(false)
-  }))
-
-  it('should set validSource true for URL with 200 response', fakeAsync(() => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges() // Initialize component
-
-    component.onSourceChanged({ type: 'url', url: 'https://test.com/data.csv' })
-    fixture.detectChanges() // Trigger effect
-    tick(300) // Wait for debounce
-
-    const req = httpMock.expectOne('https://test.com/data.csv')
-    expect(req.request.method).toBe('HEAD')
-    req.flush(null, { status: 200, statusText: 'OK' })
-    tick() // Process response
-
-    expect(component.validSource()).toBe(true)
-    expect(component.validating()).toBe(false)
-  }))
-
-  it('should set validSource false for URL with 404 response', fakeAsync(() => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges() // Initialize component
 
     component.onSourceChanged({
       type: 'url',
-      url: 'https://test.com/missing.csv'
+      url: 'https://test.com',
+      authEnabled: false
     })
-    fixture.detectChanges() // Trigger effect
-    tick(300) // Wait for debounce
 
-    const req = httpMock.expectOne('https://test.com/missing.csv')
-    expect(req.request.method).toBe('HEAD')
-    req.flush(null, { status: 404, statusText: 'Not Found' })
-    tick() // Process response
-
-    expect(component.validSource()).toBe(false)
-    expect(component.validating()).toBe(false)
-  }))
-
-  it('should set validSource false on HTTP error', fakeAsync(() => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges() // Initialize component
-
-    component.onSourceChanged({
+    expect(component.importData().source).toEqual({
       type: 'url',
-      url: 'https://test.com/error.csv'
+      url: 'https://test.com',
+      authEnabled: false
     })
-    fixture.detectChanges() // Trigger effect
-    tick(300) // Wait for debounce
-
-    const req = httpMock.expectOne('https://test.com/error.csv')
-    req.error(new ProgressEvent('Network error'))
-    tick() // Process error
-
-    expect(component.validSource()).toBe(false)
-    expect(component.validating()).toBe(false)
-  }))
-
-  it('should debounce requests by 300ms', fakeAsync(() => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges() // Initialize component
-
-    // First change
-    component.onSourceChanged({
-      type: 'url',
-      url: 'https://test.com/data1.csv'
-    })
-    fixture.detectChanges()
-    tick(100)
-
-    // Second change before debounce completes
-    component.onSourceChanged({
-      type: 'url',
-      url: 'https://test.com/data2.csv'
-    })
-    fixture.detectChanges()
-    tick(100)
-
-    // Third change before debounce completes
-    component.onSourceChanged({
-      type: 'url',
-      url: 'https://test.com/data3.csv'
-    })
-    fixture.detectChanges()
-    tick(300)
-
-    // Only the last URL should trigger a request
-    const req = httpMock.expectOne('https://test.com/data3.csv')
-    req.flush(null, { status: 200, statusText: 'OK' })
-    tick() // Process response
-
-    expect(component.validSource()).toBe(true)
-  }))
-
-  it('should set validating true during HTTP request', fakeAsync(() => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges() // Initialize component
-
-    component.onSourceChanged({ type: 'url', url: 'https://test.com/data.csv' })
-    fixture.detectChanges() // Trigger effect
-    tick(300) // Wait for debounce
-
-    // Before response, validating should be true
-    expect(component.validating()).toBe(true)
-
-    const req = httpMock.expectOne('https://test.com/data.csv')
-    req.flush(null, { status: 200, statusText: 'OK' })
-    tick() // Process response
-
-    // After response, validating should be false
-    expect(component.validating()).toBe(false)
-  }))
-
-  it('should disable button when validSource is false', () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges()
-
-    component.validSource.set(false)
-    fixture.detectChanges()
-
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="configure-dataset"] > button'
-    )
-    expect(button.disabled).toBe(true)
   })
 
-  it('should disable button when validating is true', () => {
+  it('should get truthy valid source only when source file or url is provided', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
-    fixture.detectChanges()
 
-    component.validating.set(true)
-    fixture.detectChanges()
+    component.onSourceChanged({
+      type: 'file',
+      file: new File([], 'test.csv'),
+      authEnabled: false
+    })
 
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="configure-dataset"] > button'
-    )
-    expect(button.disabled).toBe(true)
-  })
+    expect(component.validSource()).toBeTruthy()
 
-  it('should show "Validating..." text when validating', () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges()
-
-    component.validating.set(true)
-    fixture.detectChanges()
-
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="configure-dataset"] > button'
-    )
-    expect(button.textContent).toContain('Validating...')
-  })
-
-  it('should handle URL changes after request starts', fakeAsync(() => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges() // Initialize component
-
-    // Start first validation
     component.onSourceChanged({
       type: 'url',
-      url: 'https://test.com/data1.csv'
+      url: 'https://test.com',
+      authEnabled: false
     })
-    fixture.detectChanges()
-    tick(300) // First request is now pending
 
-    // Change URL while first request is pending
-    component.onSourceChanged({
-      type: 'url',
-      url: 'https://test.com/data2.csv'
-    })
-    fixture.detectChanges()
-    tick(300) // Second request is now pending
+    expect(component.validSource()).toBeTruthy()
 
-    // Both requests are in the mock
-    const requests = httpMock.match(() => true)
-    expect(requests.length).toBe(2)
+    component.onSourceChanged({ type: 'file', authEnabled: false })
 
-    // Respond to non-cancelled requests only
-    requests.forEach((req) => {
-      if (!req.cancelled) {
-        req.flush(null, { status: 200, statusText: 'OK' })
-      }
-    })
-    tick() // Process responses
-
-    // The final validSource should be true from the last request
-    expect(component.validSource()).toBe(true)
-  }))
+    expect(component.validSource()).toBeFalsy()
+  })
 })
 
 describe('DataImportWizardComponent - Import and Status Polling', () => {
@@ -442,16 +207,59 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
   })
 
   // Successful Import Flow Tests
-  it('should call POST /import with correct URL', async () => {
+  it('should call POST /import with correct URL - file source', async () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    // Set URL and mark as valid (bypass validation effect)
+    // Set file
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'file',
+        file: new File([], 'test.csv'),
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
+
+    // Start the async operation
+    const promise = component.onConfigureDataset()
+
+    // Wait for the HTTP request
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
+    expect(req.request.method).toBe('POST')
+    expect(req.request.body).toBeInstanceOf(FormData)
+    const formData = req.request.body as FormData
+    expect(formData.get('type')).toBe('file')
+    expect(formData.get('url')).toBe(null)
+    expect(formData.get('file')).toBeInstanceOf(File)
+
+    // Respond to the import request
+    req.flush(mockImportResponse)
+
+    // Wait for the status polling request
+    await new Promise((resolve) => setTimeout(resolve, 600)) // Wait for poll interval
+    const statusReq = httpMock.expectOne((r) =>
+      r.url.includes('/airflow/dags/test-dag-123/runs/test-run-456/status')
+    )
+    statusReq.flush(mockStatusFinished)
+
+    // Wait for the promise to complete
+    await promise
+  })
+
+  it('should call POST /import with correct URL - url source', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    // Set URL
+    component.importData.set({
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
+    })
 
     // Start the async operation
     const promise = component.onConfigureDataset()
@@ -462,6 +270,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     expect(req.request.body).toBeInstanceOf(FormData)
     const formData = req.request.body as FormData
     expect(formData.get('type')).toBe('url')
+    expect(formData.get('file')).toBe(null)
     expect(formData.get('url')).toBe('https://test.com/data.csv')
 
     // Respond to the import request
@@ -484,9 +293,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     fixture.detectChanges()
 
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
     const promise = component.onConfigureDataset()
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
@@ -513,9 +325,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     fixture.detectChanges()
 
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
     const promise = component.onConfigureDataset()
 
     httpMock
@@ -537,9 +352,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     fixture.detectChanges()
 
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
     const promise = component.onConfigureDataset()
 
     httpMock
@@ -572,9 +390,13 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     fixture.detectChanges()
 
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
+
     const promise = component.onConfigureDataset()
 
     httpMock
@@ -602,9 +424,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     fixture.detectChanges()
 
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
 
     try {
       const promise = component.onConfigureDataset()
@@ -625,15 +450,47 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     expect(component.selectedTabIndex()).toBe(0)
   })
 
-  it('should display error on import request failure', async () => {
+  it('should display error when the backend returns an error', async () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
 
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
+
+    try {
+      const promise = component.onConfigureDataset()
+      const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
+      req.flush(
+        { detail: 'Invalid URL format provided' },
+        { status: 400, statusText: 'Bad Request' }
+      )
+      await promise
+    } catch (error) {
+      // Expected to throw
+    }
+
+    expect(component.importError()).toBe('Invalid URL format provided')
+    expect(component.selectedTabIndex()).toBe(0)
+  })
+
+  it('should display unknown error on other errors', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.importData.set({
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
+    })
 
     try {
       const promise = component.onConfigureDataset()
@@ -645,7 +502,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     }
 
     expect(component.importError()).toBeTruthy()
-    expect(component.polling()).toBe(false)
+    expect(component.selectedTabIndex()).toBe(0)
   })
 
   // Skip this test as it requires waiting 30+ seconds for RxJS timeout to trigger
@@ -656,9 +513,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     fixture.detectChanges()
 
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
 
     try {
       const promise = component.onConfigureDataset()
@@ -681,7 +541,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       // Expected to timeout
     }
 
-    expect(component.importError() || '').toContain("Délai d'attente dépassé")
+    expect(component.importError()).toContain("Délai d'attente dépassé")
     expect(component.selectedTabIndex()).toBe(0)
   })
 
@@ -690,10 +550,65 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.importData.set({ source: { type: 'url', url: '' } })
+    component.importData.set({
+      source: { type: 'url', url: '', authEnabled: false }
+    })
+    // The button should be disabled, but we call the method directly to test error handling
     await component.onConfigureDataset()
 
     expect(component.importError()).toContain('Missing URL')
+  })
+
+  it('should clear previous error on new source change', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.importError.set('Previous error')
+
+    component.onSourceChanged({
+      type: 'url',
+      url: 'https://test.com',
+      authEnabled: false
+    })
+
+    expect(component.importError()).toBeNull()
+  })
+
+  it('should clear previous error on configure dataset', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.importError.set('Previous error')
+
+    component.importData.set({
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
+    })
+    component.onConfigureDataset()
+
+    expect(component.importError()).toBeNull()
+  })
+
+  it('should clear error when clicking on error remove button', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.importError.set('Some error')
+    fixture.detectChanges()
+
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="remove-error"] > button'
+    )
+
+    button.click()
+    fixture.detectChanges()
+
+    expect(component.importError()).toBeNull()
   })
 
   // Button State Tests
@@ -703,9 +618,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     fixture.detectChanges()
 
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
     fixture.detectChanges()
 
     const promise = component.onConfigureDataset()
@@ -735,9 +653,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     fixture.detectChanges()
 
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
     fixture.detectChanges()
 
     const promise = component.onConfigureDataset()
@@ -767,8 +688,6 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.validSource.set(true)
-    component.validating.set(false)
     component.importing.set(true)
     component.polling.set(false)
     fixture.detectChanges()
@@ -787,7 +706,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.validSource.set(true)
+    component.importing.set(false)
     component.polling.set(true)
     fixture.detectChanges()
 
@@ -807,9 +726,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     fixture.detectChanges()
 
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
     const promise = component.onConfigureDataset()
 
     httpMock
@@ -830,7 +752,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.importData.set({ source: { type: 'url', url: '' } })
+    component.importData.set({
+      source: { type: 'url', url: '', authEnabled: false }
+    })
     await component.onConfigureDataset()
 
     expect(component.importing()).toBe(false)
@@ -933,9 +857,12 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     fixture.detectChanges()
 
     component.importData.set({
-      source: { type: 'url', url: 'https://test.com/data.csv' }
+      source: {
+        type: 'url',
+        url: 'https://test.com/data.csv',
+        authEnabled: false
+      }
     })
-    component.validSource.set(true)
     const promise = component.onConfigureDataset()
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
@@ -1088,7 +1015,9 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     component.selectedTabIndex.set(0)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="configure-dataset"] > button'
+    )
     expect(button?.textContent?.trim()).toContain('Configure the dataset')
   })
 
@@ -1100,7 +1029,9 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     component.selectedTabIndex.set(1)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="validate-dataset"] > button'
+    )
     expect(button?.textContent?.trim()).toContain('Validate the dataset')
   })
 
@@ -1115,7 +1046,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     fixture.detectChanges()
 
     const button = fixture.nativeElement.querySelector(
-      'gn-ui-button > button'
+      'gn-ui-button[data-test="validate-dataset"] > button'
     ) as HTMLButtonElement
 
     expect(button?.disabled).toBe(true)
@@ -1132,7 +1063,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     fixture.detectChanges()
 
     const button = fixture.nativeElement.querySelector(
-      'gn-ui-button > button'
+      'gn-ui-button[data-test="validate-dataset"] > button'
     ) as HTMLButtonElement
 
     expect(button?.disabled).toBe(true)
@@ -1149,7 +1080,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     fixture.detectChanges()
 
     const button = fixture.nativeElement.querySelector(
-      'gn-ui-button > button'
+      'gn-ui-button[data-test="validate-dataset"] > button'
     ) as HTMLButtonElement
 
     expect(button?.disabled).toBe(false)
@@ -1165,7 +1096,9 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     component.processing.set(true)
     fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector('gn-ui-button > button')
+    const button = fixture.nativeElement.querySelector(
+      'gn-ui-button[data-test="validate-dataset"] > button'
+    )
     expect(button?.textContent?.trim()).toContain('Processing')
   })
 

@@ -1,24 +1,23 @@
-import { HttpClient } from '@angular/common/http'
-import { Component, effect, inject, signal } from '@angular/core'
+import { HttpClient, HttpErrorResponse } from '@angular/common/http'
+import { Component, computed, effect, inject, signal } from '@angular/core'
 import { MatTabsModule } from '@angular/material/tabs'
+import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import {
-  NgIconComponent,
-  provideIcons,
-  provideNgIconsConfig
-} from '@ng-icons/core'
-import { iconoirNumber1Square, iconoirNumber2Square } from '@ng-icons/iconoir'
+  iconoirNumber1Square,
+  iconoirNumber2Square,
+  iconoirWarningTriangle,
+  iconoirXmark
+} from '@ng-icons/iconoir'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { ButtonComponent, SpinningLoaderComponent } from 'geonetwork-ui'
 import { Router } from '@angular/router'
 import {
   catchError,
-  debounceTime,
   interval,
   lastValueFrom,
   of,
   switchMap,
   takeWhile,
-  tap,
   throwError,
   timeout
 } from 'rxjs'
@@ -74,10 +73,9 @@ export interface ImportWizardData {
   providers: [
     provideIcons({
       iconoirNumber1Square,
-      iconoirNumber2Square
-    }),
-    provideNgIconsConfig({
-      size: '2em'
+      iconoirNumber2Square,
+      iconoirWarningTriangle,
+      iconoirXmark
     })
   ]
 })
@@ -88,18 +86,8 @@ export class DataImportWizardComponent {
   private router = inject(Router)
 
   selectedTabIndex = signal(0)
-  importData = signal<ImportWizardData>({
-    source: {
-      type: 'url',
-      url: '',
-      authEnabled: false,
-      username: '',
-      password: ''
-    }
-  })
+  importData = signal<ImportWizardData>(null)
 
-  validSource = signal(false)
-  validating = signal(false)
   importing = signal(false)
   polling = signal(false)
   importError = signal<string | null>(null)
@@ -111,51 +99,6 @@ export class DataImportWizardComponent {
   validationError = signal<string | null>(null)
 
   constructor() {
-    effect((onCleanup) => {
-      const source = this.importData().source
-
-      // Basic format validation
-      if (!source.url || !/^https?:\/\/.+/.test(source.url)) {
-        this.validSource.set(false)
-        this.validating.set(false)
-        return
-      }
-
-      // Start validation
-      this.validating.set(true)
-
-      const subscription = of(source.url) // TODO proxify request to avoid CORS issues
-        .pipe(
-          debounceTime(300),
-          tap(() => this.validating.set(true)),
-          switchMap((url) => {
-            const options: any = { observe: 'response', responseType: 'text' }
-
-            if (source.authEnabled && source.username && source.password) {
-              options.withCredentials = true
-
-              const urlObj = new URL(url)
-              urlObj.username = source.username
-              urlObj.password = source.password
-              url = urlObj.toString()
-            }
-
-            return this.http
-              .head(url, options)
-              .pipe(catchError(() => of({ status: 0 } as any)))
-          }),
-          tap(() => this.validating.set(false))
-        )
-        .subscribe((response) => {
-          this.validSource.set(response?.status === 200)
-        })
-
-      onCleanup(() => {
-        subscription.unsubscribe()
-        this.validating.set(false)
-      })
-    })
-
     // Fetch staging data when tab 2 is selected and integrityLinkId is available
     effect(() => {
       const tabIndex = this.selectedTabIndex()
@@ -167,7 +110,12 @@ export class DataImportWizardComponent {
     })
   }
 
+  validSource = computed(() => {
+    return this.importData()?.source.file || this.importData()?.source.url
+  })
+
   onSourceChanged(data: SourceData) {
+    this.importError.set(null)
     this.importData.update((current) => ({
       ...current,
       source: data
@@ -175,12 +123,7 @@ export class DataImportWizardComponent {
   }
 
   cantConfigureDataset() {
-    return (
-      !this.validSource() ||
-      this.validating() ||
-      this.importing() ||
-      this.polling()
-    )
+    return !this.validSource() || this.importing() || this.polling()
   }
 
   async onConfigureDataset() {
@@ -207,11 +150,15 @@ export class DataImportWizardComponent {
 
       this.selectedTabIndex.set(1)
     } catch (error) {
-      this.importError.set(
-        error instanceof Error
-          ? error.message
-          : this.translate.instant('import.dataSource.unknownError')
-      )
+      if (error instanceof Error && error.message) {
+        this.importError.set(error.message)
+      } else if (error instanceof HttpErrorResponse && error.error?.detail) {
+        this.importError.set(error.error.detail)
+      } else {
+        this.importError.set(
+          this.translate.instant('import.dataSource.unknownError')
+        )
+      }
     } finally {
       this.importing.set(false)
       this.polling.set(false)
@@ -221,7 +168,18 @@ export class DataImportWizardComponent {
   private async createImportRequest(): Promise<StagingResponse> {
     const source = this.importData().source
 
-    if (source.type === 'url') {
+    if (source.type === 'file') {
+      if (!source.file) {
+        throw new Error(this.translate.instant('import.dataSource.missingFile'))
+      }
+
+      return await this.api.invoke(submitStagingIngestionStagingPost, {
+        body: {
+          type: 'file',
+          file: source.file
+        }
+      })
+    } else if (source.type === 'url') {
       if (!source.url) {
         throw new Error(this.translate.instant('import.dataSource.missingUrl'))
       }
@@ -235,11 +193,6 @@ export class DataImportWizardComponent {
           auth_enabled: source.authEnabled
         }
       })
-    } else if (source.type === 'file') {
-      // TODO: implement file upload handling
-      throw new Error(
-        this.translate.instant('import.dataSource.fileImportNotImplemented')
-      )
     }
 
     throw new Error(
