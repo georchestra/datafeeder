@@ -1,6 +1,6 @@
 insert into datakern.integrity_link (data_id, metadata_id, integrity_title, integrity_owner, integrity_organization, source_import_type, staging_table_name, final_table_name, schedule, schedule_enabled, integrity_transformation)
 values
-    ('distributeurs', null, 'Distributeurs de documents d''urbanisme', 'admin', 'ADMIN', 'url', 'distributeurs', 'doc_urba', '*/1 * * * *', true, '{}');
+    ('distributeurs', null, 'Distributeurs de documents d''urbanisme', 'admin', 'ADMIN', 'url', 'distributeurs', 'doc_urba', '*/10 * * * *', true, '{}');
 
 
 create table if not exists staging.distributeurs

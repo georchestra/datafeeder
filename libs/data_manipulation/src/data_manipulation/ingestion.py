@@ -137,7 +137,11 @@ def ingest_data_from_url_into_postgis(
             f"Ingesting data from URL {url} into table {validated_table_name} in schema {schema}"
         )
 
-        gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=schema)
+        # If geodatframe use to postgis else if dataframe use to sql
+        if isinstance(type(gdf), gpd.GeoDataFrame):
+            gdf.to_postgis(validated_table_name, engine, if_exists="replace", schema=schema)
+        elif isinstance(type(gdf), gpd.pd.DataFrame):
+            gdf.to_sql(validated_table_name, engine, if_exists="replace", schema=schema)
 
         row_count = _get_table_row_count(validated_table_name, engine, schema)
         logger.info(f"Successfully inserted {row_count} rows into {schema}.{validated_table_name}")

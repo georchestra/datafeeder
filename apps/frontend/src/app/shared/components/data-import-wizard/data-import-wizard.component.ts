@@ -42,7 +42,7 @@ import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
 
 const POLL_INTERVAL_MS = 500
-const MAX_POLL_TIME_MS = 30000
+const MAX_POLL_TIME_MS = 120000
 
 /* eslint-disable no-unused-vars */
 const enum ImportStatus {

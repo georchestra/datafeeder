@@ -77,6 +77,10 @@ class PropertiesConfigSettingsSource(PydanticBaseSettingsSource):
                 try:
                     d[key] = Template(field_value).substitute(os.environ)
                 except KeyError:
-                    print("Error substituting env vars in field:", field_name)
+                    print(
+                        "Couldn't substitute env vars for",
+                        field_name,
+                        "set in default.properties, surely missing? Fallback to other sources.",
+                    )
 
         return d

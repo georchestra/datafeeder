@@ -1,6 +1,14 @@
 """Utility functions for data manipulation."""
 
+import logging
 import re
+
+import requests
+
+from data_manipulation.logging import configure_logging
+
+logger = logging.getLogger(__name__)
+configure_logging(logger)
 
 
 def sanitize_name(name: str) -> str:
@@ -53,3 +61,24 @@ def sanitize_name(name: str) -> str:
         sanitized = f"layer_{sanitized}"
 
     return sanitized
+
+
+def resolve_url(url: str) -> str:
+    """
+    Check if a URL is 3xx redirection. If so, return location.
+
+    Args:
+        url: The URL to check
+    Returns:
+        str: The final URL after redirection or the original URL if no redirection
+    """
+    try:
+        response = requests.head(url, allow_redirects=False, timeout=10)
+        if 300 <= response.status_code < 400:
+            location = response.headers.get("Location")
+            logger.info("URL %s redirected to %s", url, location)
+            if location:
+                return location
+        return url
+    except requests.RequestException as e:
+        raise ValueError(f"Error checking URL {url}: {e}") from e

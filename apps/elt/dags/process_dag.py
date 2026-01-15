@@ -5,10 +5,9 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from airflow.decorators import dag
 from airflow.exceptions import AirflowException
 from airflow.models import Param
-from airflow.sdk import task
+from airflow.sdk import dag, task
 from callback import call_callback
 from data_manipulation.logging import configure_logging
 from task_groups.ingestion import ingestion_group

@@ -91,8 +91,11 @@ def _extract_url_metadata(
             if not fname:
                 fname = re.findall("filename\\*=UTF-8''(.+)", content_disposition)
 
+            if not fname:
+                logger.warning(f"Filename not found in content-disposition for URL {url}")
             # If filename is found, strip quotes and extract base name without extension
-            source_file_name = fname[0].strip('"').rsplit(".", 1)[0]
+            else:
+                source_file_name = fname[0].strip('"').rsplit(".", 1)[0]
 
         source_file_type = None
         content_type = head_response.headers.get("content-type")

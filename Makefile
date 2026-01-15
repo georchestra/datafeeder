@@ -47,10 +47,6 @@ down: ## Stop all services using Docker Compose
 down-v: ## Stop all services and remove volumes using Docker Compose
 	docker compose down -v
 
-reload-airflow-deps: build-libs ## Reload Airflow DAG processor with updated dependencies
-	docker compose down airflow-dag-processor && \
-	docker compose up -d --build --wait airflow-dag-processor
-
 run-backend: install-python ## Run the backend application
 	cd apps/backend && \
 	DATAKERN_CONFIG="$(CURDIR)/apps/backend/datakern.env" uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs
