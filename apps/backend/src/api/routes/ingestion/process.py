@@ -208,6 +208,7 @@ async def dag_success_callback(
                 f"layer={final_table_name}"
                 f"layers_urls={layer_urls}"
             )
+
             # Use SQLAlchemy Core to safely construct the query
             metadata = MetaData(schema="data")
             table = Table(final_table_name, metadata, autoload_with=engine)
@@ -219,9 +220,10 @@ async def dag_success_callback(
                 table_name=final_table_name,
                 title=integrity_link.integrity_title or final_table_name,
                 abstract=integrity_link.integrity_title or final_table_name,
-                is_geographic=is_geographic
+                is_geographic=is_geographic,
             )
             integrity_link.data_id = workspace_name + ":" + final_table_name
+
             logger.info(
                 f"Data published to GeoServer for IntegrityLink {integrity_link.id}: {integrity_link.data_id} | "
                 f"WMS URL={layer_urls.wms.capabilities}, "
