@@ -140,7 +140,7 @@ def ingest_data_from_url_into_postgis(
 
 def read_data_from_postgis(
     table_name: str, engine: Engine, schema: str | None = None
-) -> gpd.GeoDataFrame:
+) -> gpd.GeoDataFrame | pd.DataFrame:
     """Read data from a PostGIS table.
 
     Args:
@@ -149,7 +149,7 @@ def read_data_from_postgis(
         schema: PostgreSQL schema name (optional)
 
     Returns:
-        GeoDataFrame containing the table data
+        GeoDataFrame or DataFrame containing the table data
     """
     # Validate table name to prevent SQL injection
     validate_table_name(table_name)
@@ -163,8 +163,10 @@ def read_data_from_postgis(
         # Compile the query to SQL string (with literal binds)
         compiled_query = str(query.compile(engine, compile_kwargs={"literal_binds": True}))
 
-        gdf = gpd.read_postgis(compiled_query, engine, geom_col=DEFAULT_GEOMETRY_COLUMN)
-        return gdf
+        if DEFAULT_GEOMETRY_COLUMN not in table.c:
+            return pd.read_sql(compiled_query, engine)
+        else:
+            return gpd.read_postgis(compiled_query, engine, geom_col=DEFAULT_GEOMETRY_COLUMN)
     except Exception as e:
         logger.error(f"Error reading data from PostGIS table {schema}.{table_name}: {e}")
         raise
@@ -214,7 +216,7 @@ def write_data_to_postgis(
                 logger.warning(
                     f"DataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column. Dropping it before writing to PostGIS."
                 )
-                gdf = gdf.drop(columns=[DEFAULT_GEOMETRY_COLUMN])
+                gdf.drop(columns=[DEFAULT_GEOMETRY_COLUMN], inplace=True)
 
             # Write data to PostGIS as a regular table
             gdf.to_sql(table_name, engine, if_exists="replace", schema=schema, index=False)
@@ -229,7 +231,7 @@ def write_data_to_postgis(
                         f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column."
                         " Dropping it before writing to PostGIS."
                     )
-                    gdf = gdf.drop(columns=[DEFAULT_GEOMETRY_COLUMN])
+                    gdf.drop(columns=[DEFAULT_GEOMETRY_COLUMN], inplace=True)
 
             elif gdf.active_geometry_name is DEFAULT_GEOMETRY_COLUMN:
                 logger.info(
