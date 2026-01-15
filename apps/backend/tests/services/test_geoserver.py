@@ -111,6 +111,7 @@ class TestGeoServerService:
             table_name=table_name,
             title=title,
             abstract=abstract,
+            is_geographic=True,
         )
 
         # Verify return value structure
