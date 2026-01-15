@@ -125,7 +125,7 @@ def ingest_data_from_url_into_postgis(
                     filename = unquote(filename)
 
             logger.info(f"Extracted filename from Content-Disposition: {filename}")
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_file_path = Path(temp_dir) / (filename or Path(url).name)
             with open(temp_file_path, "wb") as temp_file:
@@ -222,7 +222,7 @@ def write_data_to_postgis(
             # Ensure the geometry column is named 'geom' for PostGIS convention
             if gdf.active_geometry_name is None:
                 logger.info("GeoDataFrame has no active geometry column set.")
-                
+
                 # Ensure there is no geom column
                 if DEFAULT_GEOMETRY_COLUMN in gdf.columns:
                     logger.warning(

@@ -288,14 +288,14 @@ class TestCreateLayer:
             # Get the serialized payload to verify the fake bounds
             feature_type_dict = feature_type_arg.post_payload()
             feature_type_data = feature_type_dict["featureType"]
-            
+
             # Verify basic properties
             assert feature_type_data["name"] == table_name
             assert feature_type_data["nativeName"] == table_name
             assert feature_type_data["title"] == title
             assert feature_type_data["abstract"] == abstract
             assert feature_type_data["srs"] == f"EPSG:{epsg}"
-            
+
             # Verify the native bounding box has fake bounds
             native_bbox = feature_type_data["nativeBoundingBox"]
             assert native_bbox["minx"] == 0
@@ -304,7 +304,7 @@ class TestCreateLayer:
             assert native_bbox["maxy"] == -1
             assert native_bbox["crs"]["$"] == f"EPSG:{epsg}"
             assert native_bbox["crs"]["@class"] == "projected"
-            
+
             # Verify the lat/lon bounding box has fake bounds
             latlon_bbox = feature_type_data["latLonBoundingBox"]
             assert latlon_bbox["minx"] == -1
