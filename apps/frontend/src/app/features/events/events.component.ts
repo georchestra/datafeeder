@@ -4,7 +4,6 @@ import { ActivatedRoute } from '@angular/router'
 import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../../core/api/api'
 import { getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet } from '../../core/api/fn/airflow/get-dag-run-logs-airflow-dags-dag-id-runs-dag-run-id-logs-get'
-import { getDagRunsAirflowDagsDagIdRunsGet } from '../../core/api/fn/airflow/get-dag-runs-airflow-dags-dag-id-runs-get'
 import { DagRunState } from '../../core/api/models'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
 import { DagRunResponse } from '../../core/api/models/dag-run-response'
@@ -14,6 +13,7 @@ import {
   EventsListComponent
 } from '../../shared/components/events-list/events-list.component'
 import { downloadTextBlob } from '../../shared/utils/download.util'
+import { getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet } from '../../core/api/functions'
 
 const DAG_RUNGS_PAGE_SIZE = 20
 
@@ -27,23 +27,24 @@ export class EventsComponent implements OnInit {
   private route = inject(ActivatedRoute)
   private api = inject(Api)
 
-  reference: string | null = null
+  intlink_id: string | null = null
   events = signal<Event[]>([])
   downloadingEventId = signal<string | null>(null)
 
   ngOnInit(): void {
-    this.reference = this.route.snapshot.paramMap.get('reference')
-    if (this.reference) {
-      this.loadDagRuns(this.reference)
+    this.intlink_id = this.route.snapshot.paramMap.get('intlink_id')
+    if (this.intlink_id) {
+      this.loadDagRuns(this.intlink_id)
     }
   }
 
-  private async loadDagRuns(dagId: string): Promise<void> {
+  private async loadDagRuns(intlinkId: string): Promise<void> {
     try {
       const response: DagRunCollectionResponse = await this.api.invoke(
-        getDagRunsAirflowDagsDagIdRunsGet,
+        getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
         {
-          dag_id: dagId,
+          dag_id: 'process_dag',
+          intlink_id: intlinkId,
           limit: DAG_RUNGS_PAGE_SIZE
         }
       )

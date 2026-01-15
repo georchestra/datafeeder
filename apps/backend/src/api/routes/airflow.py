@@ -20,8 +20,11 @@ def get_dag_runs(dag_id: str, limit: int = 20) -> DAGRunCollectionResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
 
+
 @router.get("/dags/{dag_id}/runs/{intlink_id}")
-def get_dag_run_by_intlink(dag_id: str, intlink_id: str, limit: int = 20) -> DAGRunCollectionResponse:
+def get_dag_run_by_intlink(
+    dag_id: str, intlink_id: str, limit: int = 20
+) -> DAGRunCollectionResponse:
     try:
         dag_runs = get_dag_run_api().get_dag_runs(dag_id, run_id_pattern=f"{intlink_id}_%")
         return dag_runs

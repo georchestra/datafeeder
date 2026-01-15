@@ -283,8 +283,7 @@ export class DataImportWizardComponent {
       })
 
       this.processing.set(false)
-      // the route should be able to target with a tag with dag_run_id
-      this.router.navigate(['/events', 'process_dag'])
+      this.router.navigate(['/events', this.integrityLinkId()])
     } catch (error) {
       this.validationError.set(
         error instanceof Error
