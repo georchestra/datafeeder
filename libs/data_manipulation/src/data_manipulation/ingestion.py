@@ -11,6 +11,7 @@ from sqlalchemy.engine import Engine
 
 from data_manipulation.logging import configure_logging
 from data_manipulation.validators import validate_table_name
+from data_manipulation.utils import resolve_url
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -110,7 +111,8 @@ def ingest_data_from_url_into_postgis(
         # Download file first (GeoPandas doesn't support Basic Auth natively + better handle file types)
         logger.info(f"Downloading file from {url} for ingestion")
 
-        response = requests.get(url, auth=auth, timeout=300)
+        resolved_url = resolve_url(url)
+        response = requests.get(resolved_url, auth=auth, timeout=300)
         response.raise_for_status()
 
         content_disposition = response.headers.get("Content-Disposition")
@@ -127,14 +129,14 @@ def ingest_data_from_url_into_postgis(
             logger.info(f"Extracted filename from Content-Disposition: {filename}")
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_file_path = Path(temp_dir) / (filename or Path(url).name)
+            temp_file_path = Path(temp_dir) / (filename or Path(resolved_url).name)
             with open(temp_file_path, "wb") as temp_file:
                 temp_file.write(response.content)
 
             data = gpd.read_file(temp_file_path)
             write_data_to_postgis(data, table_name, engine, schema)
     except Exception as e:
-        logger.error(f"Error ingesting data from URL {url}: {e}")
+        logger.error(f"Error ingesting data from URL {resolved_url}: {e}")
         raise
 
 
