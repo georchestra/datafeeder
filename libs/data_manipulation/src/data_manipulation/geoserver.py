@@ -3,8 +3,17 @@
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
 from geoservercloud.models.featuretype import FeatureType
 from geoservercloud.services import RestService
+from pydantic import BaseModel
 
 from data_manipulation.utils import sanitize_name
+
+
+class WorkspaceCreationResult(BaseModel):
+    """Result of workspace creation."""
+
+    workspace: str
+    datastore: str
+    pg_schema: str
 
 
 def create_workspace(
@@ -14,7 +23,7 @@ def create_workspace(
     jndi_reference: str,
     pg_schema: str | None,
     description: str | None = None,
-) -> dict[str, str]:
+) -> WorkspaceCreationResult:
     """
     Create a workspace and JNDI datastore in GeoServer.
 
@@ -27,7 +36,7 @@ def create_workspace(
         description: Description for the datastore
 
     Returns:
-        dict: Dictionary with workspace, datastore, and schema names
+        WorkspaceCreationResult: Result with workspace, datastore, and schema names
 
     Raises:
         Exception: If workspace or datastore creation fails
@@ -51,11 +60,11 @@ def create_workspace(
         description=description,
     )
 
-    return {
-        "workspace": workspace_name,
-        "datastore": datastore_name,
-        "schema": pg_schema,
-    }
+    return WorkspaceCreationResult(
+        workspace=workspace_name,
+        datastore=datastore_name,
+        pg_schema=pg_schema,
+    )
 
 
 def create_layer(

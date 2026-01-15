@@ -1,3 +1,4 @@
+from data_manipulation.geoserver import WorkspaceCreationResult
 from data_manipulation.geoserver import (
     create_layer as dm_create_layer,
 )
@@ -5,6 +6,34 @@ from data_manipulation.geoserver import (
     create_workspace as dm_create_workspace,
 )
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
+from pydantic import BaseModel
+
+
+class WMSUrls(BaseModel):
+    """WMS service URLs."""
+
+    capabilities: str
+    getmap: str
+    legend: str
+
+
+class WFSUrls(BaseModel):
+    """WFS service URLs."""
+
+    capabilities: str
+    getfeature: str
+
+
+class LayerCreationResult(BaseModel):
+    """Result of layer creation."""
+
+    workspace: str
+    datastore: str
+    layer: str
+    layer_qualified_name: str
+    table: str
+    wms: WMSUrls
+    wfs: WFSUrls
 
 
 class GeoServerService:
@@ -61,7 +90,7 @@ class GeoServerService:
         datastore_name: str,
         jndi_reference: str = "jdbc/datakern",
         pg_schema: str | None = None,
-    ) -> dict[str, str]:
+    ) -> WorkspaceCreationResult:
         """
         Create a workspace and optionally a JNDI datastore in GeoServer.
 
@@ -72,7 +101,7 @@ class GeoServerService:
             pg_schema: PostgreSQL schema name (defaults to workspace_name if None)
 
         Returns:
-            dict: Response with workspace and datastore information
+            WorkspaceCreationResult: Response with workspace and datastore information
         """
         return dm_create_workspace(
             geoserver=self.geoserver,
@@ -91,7 +120,7 @@ class GeoServerService:
         title: str,
         abstract: str,
         is_geographic: bool = True,
-    ) -> dict[str, str | dict[str, str | None] | None]:
+    ) -> LayerCreationResult:
         """
         Create a WFS and WMS layer from a database table.
 
@@ -104,7 +133,7 @@ class GeoServerService:
             is_geographic: Whether the data has valid geometry (defaults to True)
 
         Returns:
-            dict: Response with layer information including WMS and WFS URLs
+            LayerCreationResult: Response with layer information including WMS and WFS URLs
 
         Raises:
             Exception: If the table doesn't exist in the database or GeoServer fails to create the layer
@@ -143,19 +172,19 @@ class GeoServerService:
         # WFS GetFeature URL for the specific layer
         wfs_getfeature_url = f"{base_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames={layer_qualified_name}"
 
-        return {
-            "workspace": workspace_name,
-            "datastore": datastore_name,
-            "layer": table_name,
-            "layer_qualified_name": layer_qualified_name,
-            "table": table_name,
-            "wms": {
-                "capabilities": wms_capabilities_url,
-                "getmap": wms_getmap_url,
-                "legend": wms_legend_url,
-            },
-            "wfs": {
-                "capabilities": wfs_capabilities_url,
-                "getfeature": wfs_getfeature_url,
-            },
-        }
+        return LayerCreationResult(
+            workspace=workspace_name,
+            datastore=datastore_name,
+            layer=table_name,
+            layer_qualified_name=layer_qualified_name,
+            table=table_name,
+            wms=WMSUrls(
+                capabilities=wms_capabilities_url,
+                getmap=wms_getmap_url,
+                legend=wms_legend_url,
+            ),
+            wfs=WFSUrls(
+                capabilities=wfs_capabilities_url,
+                getfeature=wfs_getfeature_url,
+            ),
+        )

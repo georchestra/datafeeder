@@ -115,46 +115,26 @@ class TestGeoServerService:
         )
 
         # Verify return value structure
-        assert result["workspace"] == workspace_name
-        assert result["datastore"] == datastore_name
-        assert result["layer"] == table_name
-        assert result["table"] == table_name
-        assert result["layer_qualified_name"] == f"{workspace_name}:{table_name}"
+        assert result.workspace == workspace_name
+        assert result.datastore == datastore_name
+        assert result.layer == table_name
+        assert result.table == table_name
+        assert result.layer_qualified_name == f"{workspace_name}:{table_name}"
 
         # Verify WMS URLs
-        assert result["wms"] is not None
-        assert "capabilities" in result["wms"]
-        assert "getmap" in result["wms"]
-        assert "legend" in result["wms"]
-        wms = result["wms"]
-        wms_capabilities_val = ""
-        wms_getmap_val = ""
-        if isinstance(wms, dict):
-            cap = wms.get("capabilities", "")
-            gm = wms.get("getmap", "")
-            if isinstance(cap, str):
-                wms_capabilities_val = cap
-            if isinstance(gm, str):
-                wms_getmap_val = gm
-        assert str(workspace_name) in wms_capabilities_val
-        assert str(table_name) in wms_getmap_val
+        assert result.wms is not None
+        assert result.wms.capabilities is not None
+        assert result.wms.getmap is not None
+        assert result.wms.legend is not None
+        assert str(workspace_name) in result.wms.capabilities
+        assert str(table_name) in result.wms.getmap
 
         # Verify WFS URLs
-        assert result["wfs"] is not None
-        assert "capabilities" in result["wfs"]
-        assert "getfeature" in result["wfs"]
-        wfs = result["wfs"]
-        capabilities_val = ""
-        getfeature_val = ""
-        if isinstance(wfs, dict):
-            cap = wfs.get("capabilities", "")
-            gf = wfs.get("getfeature", "")
-            if isinstance(cap, str):
-                capabilities_val = cap
-            if isinstance(gf, str):
-                getfeature_val = gf
-        assert str(workspace_name) in capabilities_val
-        assert str(table_name) in getfeature_val
+        assert result.wfs is not None
+        assert result.wfs.capabilities is not None
+        assert result.wfs.getfeature is not None
+        assert str(workspace_name) in result.wfs.capabilities
+        assert str(table_name) in result.wfs.getfeature
 
     @pytest.mark.asyncio
     @patch("src.services.geoserver.dm_create_layer")

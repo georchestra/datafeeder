@@ -265,7 +265,7 @@ async def dag_success_callback(
             user_email=contact_email,
             user_first_name=user_first_name,
             user_last_name=user_last_name,
-            layer_urls=layer_urls,
+            layer_urls=layer_urls.model_dump() if layer_urls else None,
         )
         integrity_link.metadata_id = metadata_id
 
