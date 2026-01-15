@@ -28,6 +28,9 @@ class IntegrityLink(SQLModel, table=True):
     source_url: Optional[str] = None
     source_file_name: Optional[str] = None
     source_file_type: Optional[FileType] = None
+    source_username: Optional[str] = None
+    source_password_encrypted: Optional[str] = None
+    source_auth_enabled: bool = Field(default=False)
     staging_table_name: str = Field(max_length=63)
     staging_retrieve_time: Optional[timedelta] = None
     final_table_name: Optional[str] = Field(default=None, max_length=63, unique=True)

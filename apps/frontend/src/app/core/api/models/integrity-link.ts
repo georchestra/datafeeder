@@ -18,10 +18,13 @@ export interface IntegrityLink {
   metadata_id?: string | null
   schedule?: string | null
   schedule_enabled?: boolean
+  source_auth_enabled?: boolean
   source_file_name?: string | null
   source_file_type?: FileType | null
   source_import_type: ImportType
+  source_password_encrypted?: string | null
   source_url?: string | null
+  source_username?: string | null
   staging_retrieve_time?: string | null
   staging_table_name: string
 }

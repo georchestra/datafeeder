@@ -95,6 +95,10 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str = secrets.token_urlsafe(32)
+    ENCRYPTION_KEY: str = Field(
+        default="",
+        description="Encryption key for storing sensitive data (HTTP Basic Auth credentials)",
+    )
 
     # Airflow configuration
     AIRFLOW_URL: str = "http://localhost:8081/airflow"
@@ -219,6 +223,7 @@ class Settings(BaseSettings):
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
         self._check_default_secret("FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD)
+        self._check_default_secret("ENCRYPTION_KEY", self.ENCRYPTION_KEY)
         return self
 
     @field_validator("*", mode="after")

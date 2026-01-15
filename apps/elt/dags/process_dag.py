@@ -83,6 +83,11 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             description="URL to call on failure (optional)",
             minLength=1,
         ),
+        "basic_auth_encrypted": Param(
+            default=None,
+            type=["null", "string"],
+            description="Encrypted Basic Auth credentials (base64-encoded pgp_sym_encrypt result)",
+        ),
     },
     on_success_callback=_dag_success_callback,
     on_failure_callback=_dag_failure_callback,

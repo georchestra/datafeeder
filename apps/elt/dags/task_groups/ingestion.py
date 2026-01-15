@@ -4,7 +4,8 @@ import logging
 from typing import Any, Literal
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import task, task_group
+from airflow.sdk import Variable, task, task_group
+from data_manipulation.encryption import decrypt_credentials
 from data_manipulation.ingestion import (
     ingest_data_from_file_into_postgis,
     ingest_data_from_url_into_postgis,
@@ -96,14 +97,38 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             if not target_table_name:
                 raise AirflowException("staging_table_name is not provided")
 
+            # Decrypt Basic Auth credentials if provided
+            auth = None
+            basic_auth_encrypted = params.get("basic_auth_encrypted")
+            if basic_auth_encrypted:
+                try:
+                    encryption_key = Variable.get("datakern_encryption_key", default=None)
+                    if not encryption_key:
+                        raise AirflowException(
+                            "Encryption key not found in Airflow Variables under 'datakern_encryption_key'"
+                        )
+
+                    engine = get_sqlalchemy_engine()
+
+                    with engine.connect() as conn:
+                        username, password = decrypt_credentials(
+                            conn, basic_auth_encrypted, encryption_key
+                        )
+                        auth = (username, password)
+                        logger.info("Successfully decrypted Basic Auth credentials")
+                except Exception as e:
+                    logger.error(f"Failed to decrypt Basic Auth credentials: {e}")
+                    raise AirflowException(f"Failed to decrypt credentials: {e}")
+
             engine = get_sqlalchemy_engine()
 
             try:
                 ingest_data_from_url_into_postgis(
                     params.get("source", ""),
-                    params.get("staging_table_name", ""),
+                    target_table_name,
                     engine,
                     schema=get_staging_schema(),
+                    auth=auth,
                 )
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from URL: {e}")
