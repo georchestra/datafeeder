@@ -1,6 +1,6 @@
 """Tests for GeoServer utilities in data_manipulation library."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -232,3 +232,83 @@ class TestCreateLayer:
         # Verify the error message contains the original error
         assert original_error in str(exc_info.value)
         assert table_name in str(exc_info.value)
+
+    def test_create_layer_non_geographic_success(self, mock_geoserver: MagicMock) -> None:
+        """Test successful layer creation for non-geographic data with fake bounds."""
+        from data_manipulation.geoserver import (
+            create_layer,  # type: ignore[reportUnknownVariableType]
+        )
+
+        workspace_name = "test_workspace"
+        datastore_name = "test_datastore"
+        table_name = "test_table"
+        title = "Test Non-Geographic Layer"
+        abstract = "Test non-geographic layer description"
+        epsg = 2154
+
+        mock_geoserver.url = "http://localhost:8080/geoserver"
+        mock_geoserver.auth = ("admin", "geoserver")
+
+        with patch("data_manipulation.geoserver.RestService") as mock_rest_service_class:
+            mock_rest_service_instance = MagicMock()
+            mock_rest_service_class.return_value = mock_rest_service_instance
+
+            create_layer(
+                geoserver=mock_geoserver,
+                workspace_name=workspace_name,
+                datastore_name=datastore_name,
+                table_name=table_name,
+                title=title,
+                abstract=abstract,
+                epsg=epsg,
+                is_geographic=False,
+            )
+
+            # Verify that geoserver.create_feature_type was NOT called
+            mock_geoserver.create_feature_type.assert_not_called()
+
+            # Verify that RestService was instantiated with correct parameters
+            mock_rest_service_class.assert_called_once_with(
+                url=mock_geoserver.url,
+                auth=mock_geoserver.auth,
+            )
+
+            # Verify that RestService.create_feature_type was called
+            mock_rest_service_instance.create_feature_type.assert_called_once()
+
+            # Get the FeatureType object that was passed to create_feature_type
+            call_args = mock_rest_service_instance.create_feature_type.call_args
+            feature_type_arg = call_args[0][0]
+
+            # Verify that a FeatureType was passed
+            from geoservercloud.models.featuretype import FeatureType
+
+            assert isinstance(feature_type_arg, FeatureType)
+
+            # Get the serialized payload to verify the fake bounds
+            feature_type_dict = feature_type_arg.post_payload()
+            feature_type_data = feature_type_dict["featureType"]
+            
+            # Verify basic properties
+            assert feature_type_data["name"] == table_name
+            assert feature_type_data["nativeName"] == table_name
+            assert feature_type_data["title"] == title
+            assert feature_type_data["abstract"] == abstract
+            assert feature_type_data["srs"] == f"EPSG:{epsg}"
+            
+            # Verify the native bounding box has fake bounds
+            native_bbox = feature_type_data["nativeBoundingBox"]
+            assert native_bbox["minx"] == 0
+            assert native_bbox["miny"] == 0
+            assert native_bbox["maxx"] == -1
+            assert native_bbox["maxy"] == -1
+            assert native_bbox["crs"]["$"] == f"EPSG:{epsg}"
+            assert native_bbox["crs"]["@class"] == "projected"
+            
+            # Verify the lat/lon bounding box has fake bounds
+            latlon_bbox = feature_type_data["latLonBoundingBox"]
+            assert latlon_bbox["minx"] == -1
+            assert latlon_bbox["miny"] == -1
+            assert latlon_bbox["maxx"] == 0
+            assert latlon_bbox["maxy"] == 0
+            assert latlon_bbox["crs"] == f"EPSG:{epsg}"
