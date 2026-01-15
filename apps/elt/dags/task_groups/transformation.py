@@ -71,25 +71,25 @@ def process_transformation_group(
 
             try:
                 logger.info(f"Reading data from {staging_schema}.{staging_table_name}")
-                gdf = read_data_from_postgis(
+                data = read_data_from_postgis(
                     table_name=staging_table_name,
                     engine=engine,
                     schema=staging_schema,
                 )
-                logger.info(f"Successfully read {len(gdf)} rows from staging")
+                logger.info(f"Successfully read {len(data)} rows from staging")
 
                 logger.info(f"Applying transformations with config: {transformation_config}")
-                transformed_gdf = apply_transformations(gdf, transformation_config)
-                logger.info(f"Transformations applied to {len(transformed_gdf)} rows")
+                transformed_data = apply_transformations(data, transformation_config)
+                logger.info(f"Transformations applied to {len(transformed_data)} rows")
 
                 logger.info(f"Writing data to {final_schema}.{final_table_name}")
                 write_data_to_postgis(
-                    gdf=transformed_gdf,
+                    data=transformed_data,
                     table_name=final_table_name,
                     engine=engine,
                     schema=final_schema,
                 )
-                logger.info(f"Successfully wrote {len(transformed_gdf)} rows to final table")
+                logger.info(f"Successfully wrote {len(transformed_data)} rows to final table")
 
             except Exception as e:
                 raise AirflowException(f"Failed to transform and load data: {e}")
