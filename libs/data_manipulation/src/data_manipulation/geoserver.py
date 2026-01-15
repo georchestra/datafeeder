@@ -3,12 +3,12 @@
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
 from geoservercloud.models.featuretype import FeatureType
 from geoservercloud.services import RestService
-from pydantic import BaseModel
+from pydantic import BaseModel  # type: ignore[import-untyped]
 
 from data_manipulation.utils import sanitize_name
 
 
-class WorkspaceCreationResult(BaseModel):
+class WorkspaceCreationResult(BaseModel):  # type: ignore[misc]
     """Result of workspace creation."""
 
     workspace: str
