@@ -7,7 +7,7 @@ services:
       context: ../apps/frontend
       dockerfile: Dockerfile
     ports:
-      - "8001:8080"
+      - "8001:80"
 
   datakern-backend:
     profiles:
