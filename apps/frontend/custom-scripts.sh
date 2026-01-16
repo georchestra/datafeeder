@@ -9,8 +9,3 @@ else
   run-parts ${CUSTOM_SCRIPTS_DIRECTORY}/
   echo "[INFO] End executing custom scripts"
 fi
-
-echo "[INFO] Custom entrypoint complete, calling nginx entrypoint for template processing"
-
-# Call nginx's entrypoint which processes templates, then nginx
-exec /docker-entrypoint.sh "$@"
