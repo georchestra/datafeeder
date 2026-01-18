@@ -63,6 +63,18 @@ async def upload_file_to_temp(
             except Exception:
                 pass
         raise ValueError(f"Failed to save uploaded file: {str(e)}")
+    
+    
+def get_temp_file_dir_path() -> str:
+    """Get the temporary upload directory path.
+
+    Returns:
+        The temporary upload directory path
+    """
+    settings = get_settings()
+    temp_file_folder = settings.BACKEND_URL + "/internal/files/"
+
+    return temp_file_folder
 
 
 def get_temp_file_url(filename: str) -> str:
@@ -74,8 +86,7 @@ def get_temp_file_url(filename: str) -> str:
     Returns:
         Full url to the temporary uploaded file
     """
-    settings = get_settings()
-    file_url = settings.BACKEND_URL + "/internal/files/" + filename
+    file_url = get_temp_file_dir_path() + filename
 
     return file_url
 
@@ -94,7 +105,7 @@ def delete_temp_file(file_url: str) -> None:
     """
     settings = get_settings()
 
-    if file_url.startswith(settings.BACKEND_URL + "/internal/files/"):
+    if file_url.startswith(get_temp_file_dir_path()):
         filename = file_url.rsplit("/", 1)[-1]  # Extract the filename from the URL
         file_path = Path(settings.TMP_UPLOAD_PATH) / filename
 

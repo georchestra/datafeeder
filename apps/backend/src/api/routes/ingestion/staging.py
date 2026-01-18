@@ -169,7 +169,8 @@ async def submit_staging(
             source_file_name, source_file_type, file_url = await upload_file_to_temp(
                 file, rand_id=dag_run_id
             )
-            source = url = file_url
+            source = file_url
+            url = file_url
 
         case ImportType.URL:
             if not url:
