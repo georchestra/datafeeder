@@ -11,7 +11,7 @@ from data_manipulation import (
     write_data_to_postgis,
 )
 from data_manipulation.logging import configure_logging
-from utils import get_final_schema, get_sqlalchemy_engine, get_staging_schema
+from utils import get_data_sql_engine, get_final_schema, get_staging_schema
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -65,7 +65,7 @@ def process_transformation_group(
             if not final_table_name:
                 raise AirflowException("final_table_name is required and cannot be empty")
 
-            engine = get_sqlalchemy_engine()
+            engine = get_data_sql_engine()
             final_schema = get_final_schema()
             staging_schema = get_staging_schema()
 
