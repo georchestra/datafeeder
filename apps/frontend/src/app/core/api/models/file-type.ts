@@ -4,4 +4,4 @@
 /**
  * Supported file types
  */
-export type FileType = 'csv' | 'geojson' | 'shapefile' | 'gpkg'
+export type FileType = 'csv' | 'geojson' | 'json' | 'shapefile' | 'gpkg' | 'zip'

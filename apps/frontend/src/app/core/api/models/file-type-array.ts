@@ -6,4 +6,11 @@ import { FileType } from './file-type'
 /**
  * Each possible value of `FileType`
  */
-export const FILE_TYPE: FileType[] = ['csv', 'geojson', 'shapefile', 'gpkg']
+export const FILE_TYPE: FileType[] = [
+  'csv',
+  'geojson',
+  'json',
+  'shapefile',
+  'gpkg',
+  'zip'
+]
