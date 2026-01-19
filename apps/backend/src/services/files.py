@@ -63,8 +63,8 @@ async def upload_file_to_temp(
             except Exception:
                 pass
         raise ValueError(f"Failed to save uploaded file: {str(e)}")
-    
-    
+
+
 def get_temp_file_dir_path() -> str:
     """Get the temporary upload directory path.
 
