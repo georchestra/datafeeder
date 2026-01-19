@@ -1,3 +1,4 @@
 {
-  "CONN_POSTGIS": "postgresql://georchestra:georchestra@database/georchestra"
+  "DATA_PG": "postgresql://georchestra:georchestra@database/georchestra",
+  "DATAKERN_PG": "postgresql://georchestra:georchestra@database/georchestra"
 }

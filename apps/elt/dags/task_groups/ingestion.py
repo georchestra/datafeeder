@@ -11,7 +11,7 @@ from data_manipulation.ingestion import (
     ingest_data_from_url_into_postgis,
 )
 from data_manipulation.logging import configure_logging
-from utils import get_sqlalchemy_engine, get_staging_schema
+from utils import get_data_sql_engine, get_staging_schema
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -67,7 +67,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             if not target_table_name:
                 raise AirflowException("staging_table_name is not provided")
 
-            engine = get_sqlalchemy_engine()
+            engine = get_data_sql_engine()
 
             try:
                 ingest_data_from_file_into_postgis(
@@ -108,7 +108,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                             "Encryption key not found in Airflow Variables under 'datakern_encryption_key'"
                         )
 
-                    engine = get_sqlalchemy_engine()
+                    engine = get_data_sql_engine()
 
                     with engine.connect() as conn:
                         username, password = decrypt_credentials(
@@ -120,7 +120,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                     logger.error(f"Failed to decrypt Basic Auth credentials: {e}")
                     raise AirflowException(f"Failed to decrypt credentials: {e}")
 
-            engine = get_sqlalchemy_engine()
+            engine = get_data_sql_engine()
 
             try:
                 ingest_data_from_url_into_postgis(
