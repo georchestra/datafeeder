@@ -25,7 +25,7 @@ from src.models.data_import import (
 )
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
-from src.services.files import upload_file_to_temp
+from src.services.files import delete_temp_file, upload_file_to_temp
 
 router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 logger = get_logger()
@@ -112,6 +112,9 @@ def _extract_url_metadata(
                 source_file_type = FileType.CSV
             elif mime_type in ("application/geopackage+sqlite3", "application/x-sqlite3"):
                 source_file_type = FileType.GPKG
+            elif "application/zip" in content_type:
+                # TODO: could be shapefile or zipped CSV, need better detection
+                source_file_type = FileType.SHAPEFILE
             else:
                 logger.warning(f"Un-detected content type from URL {url}: {mime_type}")
 
@@ -163,8 +166,12 @@ async def submit_staging(
             if file is None:
                 raise HTTPException(status_code=400, detail="File is required")
 
-            source = await upload_file_to_temp(file)
-            # TODO: extract source_file_type and source_file_name
+            source_file_name, source_file_type, file_url = await upload_file_to_temp(
+                file, rand_id=dag_run_id
+            )
+            source = file_url
+            url = file_url
+
         case ImportType.URL:
             if not url:
                 logger.error("URL is required for URL import type")
@@ -297,6 +304,13 @@ def dag_success_callback(
     integrity_link.staging_retrieve_time = staging_retrieve_time
     session.commit()
     session.refresh(integrity_link)
+
+    # Remove file from temp folder if applicable
+    try:
+        if integrity_link.source_url:
+            delete_temp_file(integrity_link.source_url)
+    except Exception as e:
+        logger.error(f"Error deleting temp file: {e}")
 
 
 @router.post("/dag_failure")
