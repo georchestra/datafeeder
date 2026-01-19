@@ -3,15 +3,14 @@ from airflow.sdk import Variable
 from sqlalchemy.engine import Engine
 
 
-def get_postgres_hook() -> PostgresHook:
+def get_datakern_pg_hook() -> PostgresHook:
     """Create and return a PostgresHook using Airflow Connection."""
-    return PostgresHook("CONN_POSTGIS")
+    return PostgresHook("DATAKERN_PG")
 
 
-def get_sqlalchemy_engine() -> Engine:
+def get_data_sql_engine() -> Engine:
     """Get SQLAlchemy engine from PostgresHook."""
-    hook = get_postgres_hook()
-    return hook.get_sqlalchemy_engine()
+    return PostgresHook("DATA_PG").get_data_sql_engine()
 
 
 def get_final_schema() -> str:

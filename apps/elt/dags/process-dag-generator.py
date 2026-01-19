@@ -2,7 +2,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
-from utils import get_postgres_hook
+from utils import get_datakern_pg_hook
 
 
 def load_scheduled_integrity_links():
@@ -24,7 +24,7 @@ def load_scheduled_integrity_links():
         FROM datakern.integrity_link
         WHERE schedule_enabled = true
     """
-    return get_postgres_hook().get_pandas_df(sql).to_dict(orient="records")
+    return get_datakern_pg_hook().get_pandas_df(sql).to_dict(orient="records")
 
 
 def create_dag(config):
