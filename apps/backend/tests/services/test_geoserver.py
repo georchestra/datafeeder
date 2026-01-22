@@ -16,6 +16,7 @@ class TestGeoServerService:
                 base_url="http://test.example.com/geoserver",
                 username="testuser",
                 password="testpass",
+                public_url="http://test.example.com/geoserver",
             )
             service.geoserver = MagicMock()
             return service
@@ -166,6 +167,7 @@ class TestGeoServerService:
                 base_url="http://custom.example.com/geoserver",
                 username="customuser",
                 password="custompass",
+                public_url="http://custom.example.com/geoserver",
             )
 
             mock_gs_cloud.assert_called_once_with(

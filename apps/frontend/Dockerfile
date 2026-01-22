@@ -13,9 +13,11 @@ RUN npm run build --deploy-url=/datakern/ && ls -la dist/
 FROM nginxinc/nginx-unprivileged:1.27-alpine
 
 ENV CUSTOM_SCRIPTS_DIRECTORY=""
+ENV ENABLE_GEORCHESTRA_HEADER="false"
 
 COPY --from=builder --chown=nginx /app/dist/@datakern/frontend/browser /app/datakern
 COPY nginx-default.conf.template /etc/nginx/conf.d/default.conf
 COPY --chmod=755 ./custom-scripts.sh /docker-entrypoint.d/custom-scripts.sh
+COPY --chmod=755 ./georchestra-header.sh /docker-entrypoint.d/georchestra-header.sh
 
 CMD ["nginx", "-g", "daemon off;"]

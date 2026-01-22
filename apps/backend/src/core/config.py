@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         return (
             PropertiesConfigSettingsSource(settings_cls),
+            env_settings,
             dotenv_settings,
             init_settings,
             file_secret_settings,
@@ -85,6 +86,7 @@ class Settings(BaseSettings):
     # Project Information
     PROJECT_NAME: str = "DataKern"
     BACKEND_URL: str = "http://localhost:8000"
+    DATA_PUBLIC_URL: str = "http://localhost:8080/geoserver"
     DATADIR_PATH: str = get_default_datadir()
 
     # API Configuration
@@ -111,21 +113,27 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = []
 
     # PostgreSQL Database
-    POSTGRES_HOST: str = Field(
+    POSTGRES_DATAKERN_HOST: str = Field(
         default="localhost", validation_alias=AliasChoices("pgsqlHost", "POSTGRES_HOST")
     )
-    POSTGRES_PORT: int = Field(
+    POSTGRES_DATAKERN_PORT: int = Field(
         default=5432, validation_alias=AliasChoices("pgsqlPort", "POSTGRES_PORT")
     )
-    POSTGRES_USER: str = Field(
+    POSTGRES_DATAKERN_USER: str = Field(
         default="georchestra", validation_alias=AliasChoices("pgsqlUser", "POSTGRES_USER")
     )
-    POSTGRES_PASSWORD: str = Field(
+    POSTGRES_DATAKERN_PASSWORD: str = Field(
         default="georchestra", validation_alias=(AliasChoices("pgsqlPassword", "POSTGRES_PASSWORD"))
     )
-    POSTGRES_DB: str = Field(
+    POSTGRES_DATAKERN_DB: str = Field(
         default="georchestra", validation_alias=(AliasChoices("pgsqlDatabase", "POSTGRES_DB"))
     )
+
+    POSTGRES_DATA_HOST: str | None = None
+    POSTGRES_DATA_PORT: int | None = None
+    POSTGRES_DATA_USER: str | None = None
+    POSTGRES_DATA_PASSWORD: str | None = None
+    POSTGRES_DATA_DB: str | None = None
 
     # GeoServer
     GEOSERVER_URL: str = Field(
@@ -185,14 +193,26 @@ class Settings(BaseSettings):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
+    def POSTGRES_DATAKERN_URI(self) -> PostgresDsn:
         return PostgresDsn.build(
             scheme="postgresql+psycopg",
-            username=self.POSTGRES_USER,
-            password=self.POSTGRES_PASSWORD,
-            host=self.POSTGRES_HOST,
-            port=self.POSTGRES_PORT,
-            path=self.POSTGRES_DB,
+            username=self.POSTGRES_DATAKERN_USER,
+            password=self.POSTGRES_DATAKERN_PASSWORD,
+            host=self.POSTGRES_DATAKERN_HOST,
+            port=self.POSTGRES_DATAKERN_PORT,
+            path=self.POSTGRES_DATAKERN_DB,
+        )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def POSTGRES_DATA_URI(self) -> PostgresDsn:
+        return PostgresDsn.build(
+            scheme="postgresql+psycopg",
+            username=self.POSTGRES_DATA_USER,
+            password=self.POSTGRES_DATA_PASSWORD,
+            host=self.POSTGRES_DATA_HOST,
+            port=self.POSTGRES_DATA_PORT,
+            path=self.POSTGRES_DATA_DB,
         )
 
     @computed_field  # type: ignore[prop-decorator]
@@ -204,6 +224,21 @@ class Settings(BaseSettings):
     def _set_default_emails_from(self) -> Self:
         if not self.EMAILS_FROM_NAME:
             object.__setattr__(self, "EMAILS_FROM_NAME", self.PROJECT_NAME)
+        return self
+
+    @model_validator(mode="after")
+    def _set_data_db_defaults(self) -> Self:
+        """Set POSTGRES_DATA_* fields to POSTGRES_DATAKERN_* values if not provided."""
+        if self.POSTGRES_DATA_HOST is None:
+            object.__setattr__(self, "POSTGRES_DATA_HOST", self.POSTGRES_DATAKERN_HOST)
+        if self.POSTGRES_DATA_PORT is None:
+            object.__setattr__(self, "POSTGRES_DATA_PORT", self.POSTGRES_DATAKERN_PORT)
+        if self.POSTGRES_DATA_USER is None:
+            object.__setattr__(self, "POSTGRES_DATA_USER", self.POSTGRES_DATAKERN_USER)
+        if self.POSTGRES_DATA_PASSWORD is None:
+            object.__setattr__(self, "POSTGRES_DATA_PASSWORD", self.POSTGRES_DATAKERN_PASSWORD)
+        if self.POSTGRES_DATA_DB is None:
+            object.__setattr__(self, "POSTGRES_DATA_DB", self.POSTGRES_DATAKERN_DB)
         return self
 
     # Validators
@@ -221,7 +256,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Self:
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
-        self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
+        self._check_default_secret("POSTGRES_DATAKERN_PASSWORD", self.POSTGRES_DATAKERN_PASSWORD)
         self._check_default_secret("FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD)
         self._check_default_secret("ENCRYPTION_KEY", self.ENCRYPTION_KEY)
         return self
@@ -242,4 +277,5 @@ class Settings(BaseSettings):
 # https://fastapi.tiangolo.com/advanced/settings/#creating-the-settings-only-once-with-lru-cache
 @lru_cache
 def get_settings():
+    logger.debug(Settings().model_dump())
     return Settings()

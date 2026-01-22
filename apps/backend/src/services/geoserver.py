@@ -44,12 +44,14 @@ class GeoServerService:
         base_url: str,  # e.g., "http://localhost:8080/geoserver"
         username: str,  # e.g., "admin"
         password: str,  # e.g., "admin"
+        public_url: str,
     ):
         self.geoserver = GeoServerCloud(
             url=base_url,
             user=username,
             password=password,
         )
+        self.public_url = public_url
 
     async def workspace_exists(self, workspace_name: str) -> bool:
         """
@@ -150,27 +152,22 @@ class GeoServerService:
         )
 
         # Build service URLs
-        base_url = self.geoserver.url.rstrip("/")
         layer_qualified_name = f"{workspace_name}:{table_name}"
 
         # WMS GetCapabilities URL for the workspace
-        wms_capabilities_url = (
-            f"{base_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities"
-        )
+        wms_capabilities_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities"
 
         # WMS GetMap URL for the specific layer
-        wms_getmap_url = f"{base_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}"
+        wms_getmap_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}"
 
         # WMS GetLegendGraphic URL for the layer
-        wms_legend_url = f"{base_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetLegendGraphic&layer={layer_qualified_name}&format=image/png"
+        wms_legend_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetLegendGraphic&layer={layer_qualified_name}&format=image/png"
 
         # WFS GetCapabilities URL for the workspace
-        wfs_capabilities_url = (
-            f"{base_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities"
-        )
+        wfs_capabilities_url = f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities"
 
         # WFS GetFeature URL for the specific layer
-        wfs_getfeature_url = f"{base_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames={layer_qualified_name}"
+        wfs_getfeature_url = f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames={layer_qualified_name}"
 
         return LayerCreationResult(
             workspace=workspace_name,

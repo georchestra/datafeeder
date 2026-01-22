@@ -8,10 +8,10 @@ from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import MetaData, Table
 
-from src.api.deps import SessionDep
+from src.api.deps import DatakernSessionDep, DataSessionDep
 from src.core.callback import build_callback_url
 from src.core.config import get_settings
-from src.core.db import engine
+from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.models import (
     ProcessRequest,
@@ -36,7 +36,7 @@ settings = get_settings()
 )
 def process_staging_data(
     request: ProcessRequest,
-    session: SessionDep,
+    session: DatakernSessionDep,
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_email: str = Header("", alias="sec-email", include_in_schema=False),
     sec_firstname: str = Header("", alias="sec-firstname", include_in_schema=False),
@@ -129,7 +129,7 @@ def process_staging_data(
 
 @router.post("/dag_success")
 async def dag_success_callback(
-    session: SessionDep,
+    session: DatakernSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
     user_email: str = Query("", description="User email"),
@@ -164,7 +164,7 @@ async def dag_success_callback(
         datastore_name = f"{workspace_name}_ds"
 
         # Create database schema first
-        create_schema(engine, workspace_name)
+        create_schema(data_engine, workspace_name)
         logger.info(f"Created/verified PostgreSQL schema: {workspace_name}")
 
         # Initialize GeoServer service
@@ -172,6 +172,7 @@ async def dag_success_callback(
             base_url=settings.GEOSERVER_URL,
             username=settings.GEOSERVER_USER,
             password=settings.GEOSERVER_PASSWORD,
+            public_url=settings.DATA_PUBLIC_URL,
         )
 
         # Check if GeoServer workspace and datastore already exist
@@ -211,7 +212,7 @@ async def dag_success_callback(
 
             # Use SQLAlchemy Core to safely construct the query
             metadata = MetaData(schema="data")
-            table = Table(final_table_name, metadata, autoload_with=engine)
+            table = Table(final_table_name, metadata, autoload_with=data_engine)
             is_geographic = "geom" in table.c
 
             layer_urls = await geoserver_service.create_layer(
@@ -302,7 +303,8 @@ async def dag_success_callback(
 
 @router.post("/dag_failure")
 async def dag_failure_callback(
-    session: SessionDep,
+    data_session: DataSessionDep,
+    datakern_session: DatakernSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(None, description="Final table name (if created)"),
 ) -> None:
@@ -311,7 +313,8 @@ async def dag_failure_callback(
     Drops the final table if it exists and marks the IntegrityLink as failed.
 
     Args:
-        session: Database session (injected)
+        data_session: Data database session (injected)
+        datakern_session: Datakern database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         final_table_name: Final table name (optional, in case it was partially created)
 
@@ -319,7 +322,7 @@ async def dag_failure_callback(
         Success message with cleanup details
     """
     # Query existing IntegrityLink
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
@@ -334,8 +337,8 @@ async def dag_failure_callback(
             schema = "data"  # FIXME get it from config
             metadata = MetaData(schema=schema)
             table = Table(final_table_name, metadata)
-            table.drop(session.get_bind(), checkfirst=True)
-            session.commit()
+            table.drop(data_session.get_bind(), checkfirst=True)
+            data_session.commit()
         except ValueError as e:
             # Log validation error but continue with cleanup
             logger.error(f"Invalid table name in callback: {e}")

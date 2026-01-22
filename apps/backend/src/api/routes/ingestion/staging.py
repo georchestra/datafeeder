@@ -9,7 +9,7 @@ from data_manipulation.utils import sanitize_name
 from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile
 from sqlalchemy import MetaData, Table, func, select
 
-from src.api.deps import SessionDep
+from src.api.deps import DatakernSessionDep, DataSessionDep
 from src.core.callback import build_callback_url
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
@@ -132,7 +132,7 @@ def _extract_url_metadata(
     description="Submit data for staging import by triggering the Airflow staging DAG.",
 )
 async def submit_staging(
-    session: SessionDep,
+    session: DatakernSessionDep,
     type: ImportType = Form(...),
     url: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
@@ -265,7 +265,7 @@ async def submit_staging(
 
 @router.post("/dag_success")
 def dag_success_callback(
-    session: SessionDep,
+    session: DatakernSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
 ) -> None:
     """
@@ -315,7 +315,8 @@ def dag_success_callback(
 
 @router.post("/dag_failure")
 def dag_failure_callback(
-    session: SessionDep,
+    datakern_session: DatakernSessionDep,
+    data_session: DataSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
 ) -> None:
     """
@@ -323,14 +324,15 @@ def dag_failure_callback(
     Deletes the IntegrityLink and drops the staging table.
 
     Args:
-        session: Database session (injected)
+        datakern_session: Datakern database session (injected)
+        data_session: Data database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
 
     Returns:
         Success message with cleanup details
     """
     # Query existing IntegrityLink
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
@@ -348,8 +350,8 @@ def dag_failure_callback(
             schema = "staging"  # FIXME get it from config
             metadata = MetaData(schema=schema)
             table = Table(staging_table_name, metadata)
-            table.drop(session.get_bind(), checkfirst=True)
-            session.commit()
+            table.drop(data_session.get_bind(), checkfirst=True)
+            data_session.commit()
         except ValueError as e:
             # Log validation error but continue with cleanup
             logger.error(f"Invalid staging table name in database: {e}")
@@ -358,27 +360,29 @@ def dag_failure_callback(
             logger.error(f"Error dropping staging table {staging_table_name}: {e}")
 
     # Delete the IntegrityLink
-    session.delete(integrity_link)
-    session.commit()
+    datakern_session.delete(integrity_link)
+    datakern_session.commit()
 
 
 @router.get("/{integrity_link_id}/metadata")
 def get_staging_metadata(
-    session: SessionDep,
+    data_session: DataSessionDep,
+    datakern_session: DatakernSessionDep,
     integrity_link_id: str,
 ) -> StagingMetadataResponse:
     """
     Get metadata of the staging table.
 
     Args:
-        session: Database session (injected)
+        data_session: Data database session (injected)
+        datakern_session: Datakern database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
 
     Returns:
         Metadata of the staging table
     """
 
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
@@ -389,10 +393,10 @@ def get_staging_metadata(
 
     schema = "staging"  # FIXME get it from config
     sql_metadata = MetaData(schema=schema)
-    table = Table(staging_table_name, sql_metadata, autoload_with=session.get_bind())
+    table = Table(staging_table_name, sql_metadata, autoload_with=data_session.get_bind())
 
     columns = [ColumnMetadata(name=col.name) for col in table.columns]
-    row_count = session.scalar(select(func.count()).select_from(table)) or 0
+    row_count = data_session.scalar(select(func.count()).select_from(table)) or 0
 
     return StagingMetadataResponse(
         title=source_file_name or "",
@@ -405,7 +409,8 @@ def get_staging_metadata(
 
 @router.get("/{integrity_link_id}/preview")
 def get_staging_preview(
-    session: SessionDep,
+    data_session: DataSessionDep,
+    datakern_session: DatakernSessionDep,
     integrity_link_id: str,
     limit: int = Query(10, description="Number of rows to preview"),
 ) -> StagingPreviewResponse:
@@ -413,7 +418,8 @@ def get_staging_preview(
     Get a preview of the data in the staging table.
 
     Args:
-        session: Database session (injected)
+        data_session: Data database session (injected)
+        datakern_session: Datakern database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         limit: Number of rows to preview (optional, default is 10)
 
@@ -421,7 +427,7 @@ def get_staging_preview(
         Preview data from the staging table
     """
 
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
@@ -431,10 +437,10 @@ def get_staging_preview(
 
     schema = "staging"  # FIXME get it from config
     metadata = MetaData(schema=schema)
-    table = Table(staging_table_name, metadata, autoload_with=session.get_bind())
+    table = Table(staging_table_name, metadata, autoload_with=data_session.get_bind())
     query = select(table).limit(limit)
 
-    subset = session.execute(query).mappings()  # type: ignore[misc]
+    subset = data_session.execute(query).mappings()  # type: ignore[misc]
 
     return StagingPreviewResponse(
         data=[dict(row) for row in subset],

@@ -10,22 +10,28 @@ from sqlmodel import Session
 
 from src.core import security
 from src.core.config import get_settings
-from src.core.db import engine
+from src.core.db import data_engine, datakern_engine
 from src.models import TokenPayload, User
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{get_settings().API_V1_STR}/login/access-token")
 
 
-def get_db() -> Generator[Session, None, None]:
-    with Session(engine) as session:
+def get_datakern_db() -> Generator[Session, None, None]:
+    with Session(datakern_engine) as session:
         yield session
 
 
-SessionDep = Annotated[Session, Depends(get_db)]
+def get_data_db() -> Generator[Session, None, None]:
+    with Session(data_engine) as session:
+        yield session
+
+
+DatakernSessionDep = Annotated[Session, Depends(get_datakern_db)]
+DataSessionDep = Annotated[Session, Depends(get_data_db)]
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
 
 
-def get_current_user(session: SessionDep, token: TokenDep) -> User:
+def get_current_user(session: DatakernSessionDep, token: TokenDep) -> User:
     try:
         payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=[security.ALGORITHM])  # type: ignore[arg-type]
         token_data = TokenPayload(**payload)
