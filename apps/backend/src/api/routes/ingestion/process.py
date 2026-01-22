@@ -72,7 +72,7 @@ def process_staging_data(
 
     # Validate the generated table name (defense in depth)
     try:
-        final_table_name = validate_table_name(final_table_name, context="final")
+        validate_table_name(final_table_name, context="final")
     except ValueError as e:
         logger.error(f"Generated invalid final table name from title '{request.title}': {e}")
         raise HTTPException(
@@ -208,16 +208,26 @@ async def dag_success_callback(
                 f"layer={final_table_name}"
                 f"layers_urls={layer_urls}"
             )
+
+            # Use SQLAlchemy Core to safely construct the query
+            metadata = MetaData(schema="data")
+            table = Table(final_table_name, metadata, autoload_with=engine)
+            is_geographic = "geom" in table.c
+
             layer_urls = await geoserver_service.create_layer(
                 workspace_name=workspace_name,
                 datastore_name=datastore_name,
                 table_name=final_table_name,
                 title=integrity_link.integrity_title or final_table_name,
                 abstract=integrity_link.integrity_title or final_table_name,
+                is_geographic=is_geographic,
             )
+            integrity_link.data_id = workspace_name + ":" + final_table_name
+
             logger.info(
-                f"Created GeoServer layer for IntegrityLink {integrity_link.id}: "
-                f"layer={final_table_name}"
+                f"Data published to GeoServer for IntegrityLink {integrity_link.id}: {integrity_link.data_id} | "
+                f"WMS URL={layer_urls.wms.capabilities}, "
+                f"WFS URL={layer_urls.wfs.capabilities}"
             )
         except Exception as layer_error:
             # Log the error but don't fail - workspace/datastore were created successfully
@@ -265,7 +275,7 @@ async def dag_success_callback(
             user_email=contact_email,
             user_first_name=user_first_name,
             user_last_name=user_last_name,
-            layer_urls=layer_urls,
+            layer_urls=layer_urls.model_dump() if layer_urls else None,
         )
         integrity_link.metadata_id = metadata_id
 
@@ -319,11 +329,11 @@ async def dag_failure_callback(
             # CRITICAL: Validate table name before using in SQL (defense in depth)
             from data_manipulation.validators import validate_table_name
 
-            validated_table_name = validate_table_name(final_table_name, context="final")
+            validate_table_name(final_table_name, context="final")
 
             schema = "data"  # FIXME get it from config
             metadata = MetaData(schema=schema)
-            table = Table(validated_table_name, metadata)
+            table = Table(final_table_name, metadata)
             table.drop(session.get_bind(), checkfirst=True)
             session.commit()
         except ValueError as e:
