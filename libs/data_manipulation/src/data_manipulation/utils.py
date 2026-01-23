@@ -47,6 +47,8 @@ def sanitize_name(name: str) -> str:
     sanitized = "".join(c for c in sanitized if not unicodedata.combining(c))
     # Replace spaces with underscores
     sanitized = sanitized.replace(" ", "_")
+    # Replace hyphens with underscores
+    sanitized = sanitized.replace("-", "_")
     # Keep only alphanumeric characters, underscores, and hyphens
     sanitized = re.sub(r"[^a-zA-Z0-9_-]", "", sanitized)
 

@@ -31,28 +31,13 @@ router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 logger = get_logger()
 
 
-def _generate_staging_table_name(dag_run_id: str, file_name: str | None) -> str:
-    """Generate a unique, readable staging table name from an Airflow DAG run ID and optional file name.
-
-    Args:
-        dag_run_id: The Airflow DAG run ID
-        file_name: The original file name (optional)
+def _generate_staging_table_name() -> str:
+    """Generate a unique, readable staging table name.
 
     Returns:
-        A unique staging table name
+        A unique uuid staging table name
     """
-
-    MAX_TABLE_NAME_LENGTH = 63
-    UUID_LENGTH = 36  # Length of UUID with hyphens
-    SANITIZED_DAG_RUN_ID = sanitize_name(dag_run_id.replace("-", "_")[:UUID_LENGTH])
-
-    if file_name:
-        sanitized_name = sanitize_name(file_name.rsplit(".", 1)[0])[
-            : MAX_TABLE_NAME_LENGTH - 1 - UUID_LENGTH
-        ]
-        return f"{sanitized_name}_{SANITIZED_DAG_RUN_ID}"
-
-    return SANITIZED_DAG_RUN_ID
+    return sanitize_name(str(uuid4()))
 
 
 def _extract_url_metadata(
@@ -189,7 +174,7 @@ async def submit_staging(
                 status_code=501, detail=f"Import type {type.value} not implemented yet"
             )
 
-    staging_table_name = _generate_staging_table_name(dag_run_id, source_file_name)
+    staging_table_name = _generate_staging_table_name()
 
     # Encrypt Basic Auth credentials if provided
     encrypted_password = None
