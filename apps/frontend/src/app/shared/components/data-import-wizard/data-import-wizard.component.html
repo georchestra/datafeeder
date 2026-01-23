@@ -127,10 +127,43 @@
     </div>
   </div>
 
-  <!-- Preview table below the entire row (only for tab 2) -->
+  <!-- Preview section (only for tab 2) -->
   @if (selectedTabIndex() === 1) {
   <div class="border-gray-600 border rounded-tr-lg rounded-b-lg">
+    <!-- Preview header with toggle buttons -->
+    <div
+      class="flex items-center justify-between px-6 py-4 "
+    >
+      <h1 class="mb-2 px-2 text-lg font-semibold text-gray-900">
+        {{ 'import.datasetConfiguration.previewTitle' | translate }}
+      </h1>
+      @if (isGeographicData()) {
+      <mat-button-toggle-group
+        [value]="previewTabIndex()"
+        (change)="previewTabIndex.set($event.value)"
+        class="preview-toggle-group"
+        [hideSingleSelectionIndicator]="true"
+      >
+        <mat-button-toggle [value]="0" class="preview-toggle">
+          <ng-icon name="iconoirTable" size="1.25em" class="mr-1.5"></ng-icon>
+          {{ 'import.datasetPreview.tableTab' | translate }}
+        </mat-button-toggle>
+        <mat-button-toggle [value]="1" class="preview-toggle">
+          <ng-icon name="iconoirMap" size="1.25em" class="mr-1.5"></ng-icon>
+          {{ 'import.datasetPreview.mapTab' | translate }}
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+      }
+    </div>
+
+    <!-- Preview content -->
+    @if (isGeographicData()) { @if (previewTabIndex() === 0) {
     <app-dataset-preview-table [metadata]="metadata()" [preview]="preview()" />
+    } @else {
+    <app-dataset-preview-map [geojson]="geojsonData()" />
+    } } @else {
+    <app-dataset-preview-table [metadata]="metadata()" [preview]="preview()" />
+    }
   </div>
   }
 </div>

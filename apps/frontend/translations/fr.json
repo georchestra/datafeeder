@@ -39,6 +39,8 @@
   "import.datasetConfiguration.previewTitle": "Aperçu du résultat",
   "import.datasetConfiguration.title": "Paramétrer le jeu de données",
   "import.datasetConfiguration.untitled": "Sans titre",
+  "import.datasetPreview.mapTab": "Carte",
+  "import.datasetPreview.tableTab": "Tableau",
   "import.datasetPreviewTable.noDataAvailable": "Aucune donnée disponible",
   "input.file.dropFileLabel": "ou déplacez le ici",
   "input.file.orInputUrl": "Ou importez un fichier à partir d'un lien",
