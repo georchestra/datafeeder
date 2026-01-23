@@ -1,4 +1,4 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http'
+import { HttpErrorResponse } from '@angular/common/http'
 import { Component, computed, effect, inject, signal } from '@angular/core'
 import { MatButtonToggleModule } from '@angular/material/button-toggle'
 import { MatTabsModule } from '@angular/material/tabs'
@@ -88,7 +88,6 @@ export interface ImportWizardData {
   ]
 })
 export class DataImportWizardComponent {
-  private http = inject(HttpClient)
   private api = inject(Api)
   private translate = inject(TranslateService)
   private router = inject(Router)
@@ -165,6 +164,7 @@ export class DataImportWizardComponent {
       )
 
       this.selectedTabIndex.set(1)
+      this.previewTabIndex.set(0)
     } catch (error) {
       if (error instanceof Error && error.message) {
         this.importError.set(error.message)
