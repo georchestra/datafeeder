@@ -34,7 +34,7 @@ def sanitize_name(name: str) -> str:
         >>> sanitize_name("Org@123 #Test!")
         'org123_test'
         >>> sanitize_name("test--layer__name")
-        'test-layer_name'
+        'test_layer_name'
         >>> sanitize_name("123_dataset")
         'layer_123_dataset'
         >>> sanitize_name("_MyOrg_")
@@ -45,24 +45,24 @@ def sanitize_name(name: str) -> str:
     # Normalize and remove accents
     sanitized = unicodedata.normalize("NFKD", name)
     sanitized = "".join(c for c in sanitized if not unicodedata.combining(c))
-    # Replace spaces with underscores
+    # Replace spaces & hyphens with underscores
     sanitized = sanitized.replace(" ", "_")
     # Replace hyphens with underscores
     sanitized = sanitized.replace("-", "_")
     # Keep only alphanumeric characters, underscores, and hyphens
-    sanitized = re.sub(r"[^a-zA-Z0-9_-]", "", sanitized)
+    sanitized = re.sub(r"[^a-zA-Z0-9_]", "", sanitized)
 
     # Convert to lowercase
     sanitized = sanitized.lower()
 
-    # Remove leading/trailing underscores or hyphens
-    sanitized = sanitized.strip("_-")
+    # Remove leading/trailing underscores
+    sanitized = sanitized.strip("_")
 
     # Ensure name doesn't start with a number
     if sanitized and sanitized[0].isdigit():
         sanitized = f"layer_{sanitized}"
 
-    return sanitized
+    return sanitized[:63]
 
 
 def resolve_url(url: str) -> str:

@@ -4,7 +4,7 @@
   </h1>
   <app-events-list
     [events]="events()"
-    [reference]="reference || ''"
+    [reference]="intlink_id || ''"
     [downloadingEventId]="downloadingEventId()"
     (downloadLogsClicked)="onDownloadLogsClicked($event)"
   />

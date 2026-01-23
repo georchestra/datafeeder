@@ -19,7 +19,7 @@ export const appRoutes: Route[] = [
           )
       },
       {
-        path: 'events/:reference',
+        path: 'events/:intlink_id',
         loadComponent: () =>
           import('./features/events/events.component').then(
             (m) => m.EventsComponent
