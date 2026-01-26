@@ -1,10 +1,17 @@
 """Database management utilities."""
 
-from sqlalchemy import text
+import logging
+
+from sqlalchemy import MetaData, Table, text
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.schema import CreateSchema
 
+from data_manipulation.logging import configure_logging
 from data_manipulation.validators import validate_schema_name
+
+logger = logging.getLogger(__name__)
+configure_logging(logger)
 
 
 def create_schema(engine: Engine, schema_name: str) -> None:
@@ -49,3 +56,39 @@ def schema_exists(engine: Engine, schema_name: str) -> bool:
             {"schema_name": schema_name},
         )
         return result.fetchone() is not None
+
+
+def get_available_table_name(engine: Engine, schema_name: str, base_table_name: str) -> str | None:
+    """
+    Get an available table name by appending a numeric suffix if needed.
+
+    Args:
+        engine: SQLAlchemy engine instance
+        schema_name: Schema where the table will be created
+        base_table_name: Desired base name for the table)
+    Returns:
+        str: Available table name
+    """
+
+    final_table_name = base_table_name
+    counter = 1
+    max_attempts = 20
+    while counter < max_attempts:
+        try:
+            metadata = MetaData(schema=schema_name)
+            Table(final_table_name, metadata, autoload_with=engine)
+            suffix = f"_{counter}"
+            truncate_length = (
+                53 - len(suffix)
+            )  # PostgreSQL max table name length is 63 but index sometimes append _geometry so we leave some buffer
+            final_table_name = final_table_name[:truncate_length] + suffix
+            counter += 1
+            logger.info("Final table name exists, trying new name: %s", final_table_name)
+        except NoSuchTableError:
+            logger.info("Final table name available: %s", final_table_name)
+            break
+    else:
+        # Reached max attempts
+        final_table_name = None
+
+    return final_table_name

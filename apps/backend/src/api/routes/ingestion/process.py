@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
-from data_manipulation.database import create_schema
+from data_manipulation.database import create_schema, get_available_table_name
 from data_manipulation.utils import sanitize_name
 from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
@@ -68,7 +68,14 @@ def process_staging_data(
         raise HTTPException(status_code=400, detail="Staging table name not found in IntegrityLink")
 
     dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}_manual"
-    final_table_name = sanitize_name(request.title)[:30] + "_" + dag_run_id.replace("-", "_")[:32]
+    final_table_name = get_available_table_name(
+        data_engine, "data", sanitize_name(request.title)[:53]
+    )
+    if not final_table_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not generate unique final table name",
+        )
 
     # Validate the generated table name (defense in depth)
     try:
