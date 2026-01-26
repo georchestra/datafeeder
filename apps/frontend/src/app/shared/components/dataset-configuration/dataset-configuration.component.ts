@@ -47,8 +47,7 @@ export class DatasetConfigurationComponent {
       validators: [
         Validators.required,
         Validators.minLength(3),
-        Validators.maxLength(100),
-        Validators.pattern(/^[\w\s-]+$/)
+        Validators.maxLength(100)
       ]
     })
   })

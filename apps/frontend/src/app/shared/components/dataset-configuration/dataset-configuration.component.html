@@ -29,15 +29,7 @@
       <mat-error>{{
         'import.configuration.maxLengthTitle' | translate
       }}</mat-error>
-      } @if (form.controls.title.errors?.['pattern'] &&
-      form.controls.title.touched) {
-      <mat-error>{{
-        'import.configuration.patternTitle' | translate
-      }}</mat-error>
       }
-      <mat-hint>{{
-        'import.configuration.datasetTitleHint' | translate
-      }}</mat-hint>
     </mat-form-field>
   </form>
 </div>
