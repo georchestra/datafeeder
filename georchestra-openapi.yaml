@@ -1,0 +1,1275 @@
+openapi: "3.1.0"
+info:
+  title: "georchestra API"
+  description: "georchestra API"
+  version: "1.0.0"
+servers:
+  - url: "https://georchestra"
+paths:
+  /:
+    get:
+      summary: "GET "
+      operationId: "root"
+      responses:
+        "200":
+          description: "OK"
+    put:
+      summary: "PUT "
+      operationId: "root"
+      responses:
+        "200":
+          description: "OK"
+    post:
+      summary: "POST "
+      operationId: "root"
+      responses:
+        "200":
+          description: "OK"
+    delete:
+      summary: "DELETE "
+      operationId: "root"
+      responses:
+        "200":
+          description: "OK"
+    options:
+      summary: "OPTIONS "
+      operationId: "root"
+      responses:
+        "200":
+          description: "OK"
+    head:
+      summary: "HEAD "
+      operationId: "root"
+      responses:
+        "200":
+          description: "OK"
+    patch:
+      summary: "PATCH "
+      operationId: "root"
+      responses:
+        "200":
+          description: "OK"
+    trace:
+      summary: "TRACE "
+      operationId: "root"
+      responses:
+        "200":
+          description: "OK"
+  /manager/:
+    get:
+      summary: "GET manager/"
+      operationId: "consoleHome"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    put:
+      summary: "PUT manager/"
+      operationId: "consoleHome"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    post:
+      summary: "POST manager/"
+      operationId: "consoleHome"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    delete:
+      summary: "DELETE manager/"
+      operationId: "consoleHome"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    options:
+      summary: "OPTIONS manager/"
+      operationId: "consoleHome"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    head:
+      summary: "HEAD manager/"
+      operationId: "consoleHome"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    patch:
+      summary: "PATCH manager/"
+      operationId: "consoleHome"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    trace:
+      summary: "TRACE manager/"
+      operationId: "consoleHome"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+  /public/area.geojson:
+    get:
+      summary: "GET public/area.geojson"
+      operationId: "serveArea"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: "string"
+  /{recipient}/sendEmail:
+    post:
+      summary: "POST {recipient}/sendEmail"
+      operationId: "sendEmail"
+      parameters:
+        - name: "recipient"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+        - name: "subject"
+          in: "query"
+          required: true
+          schema:
+            type: "string"
+        - name: "content"
+          in: "query"
+          required: true
+          schema:
+            type: "string"
+        - name: "attachments"
+          in: "query"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+  /emailProxy:
+    post:
+      summary: "POST emailProxy"
+      operationId: "emailProxy"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: "string"
+        required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "string"
+  /{recipient}/emails:
+    get:
+      summary: "GET {recipient}/emails"
+      operationId: "emailsList"
+      parameters:
+        - name: "recipient"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=UTF-8:
+              schema:
+                type: "string"
+  /attachments:
+    get:
+      summary: "GET attachments"
+      operationId: "attachments"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=UTF-8:
+              schema:
+                type: "string"
+  /emailTemplates:
+    get:
+      summary: "GET emailTemplates"
+      operationId: "emailTemplates"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=UTF-8:
+              schema:
+                type: "string"
+  /private/admin_logs/{target}/{limit}/{page}:
+    get:
+      summary: "GET private/admin_logs/{target}/{limit}/{page}"
+      operationId: "find"
+      parameters:
+        - name: "target"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+        - name: "limit"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+            format: "int32"
+        - name: "page"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+            format: "int32"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/AdminLogEntry"
+  /private/admin_logs/{limit}/{page}:
+    get:
+      summary: "GET private/admin_logs/{limit}/{page}"
+      operationId: "find"
+      parameters:
+        - name: "limit"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+            format: "int32"
+        - name: "page"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+            format: "int32"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/AdminLogEntry"
+  /private/orgs/{commonName}:
+    put:
+      summary: "PUT private/orgs/{commonName}"
+      operationId: "updateOrgInfos"
+      parameters:
+        - name: "commonName"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/Org"
+    delete:
+      summary: "DELETE private/orgs/{commonName}"
+      operationId: "deleteOrg"
+      parameters:
+        - name: "commonName"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+  /private/orgs:
+    post:
+      summary: "POST private/orgs"
+      operationId: "createOrg"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/Org"
+    get:
+      summary: "GET private/orgs"
+      operationId: "findAll"
+      parameters:
+        - name: "logos"
+          in: "query"
+          required: false
+          schema:
+            type: "boolean"
+            default: "true"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Org"
+  /private/orgs/{cn}:
+    get:
+      summary: "GET private/orgs/{cn}"
+      operationId: "getOrgInfos"
+      parameters:
+        - name: "cn"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/Org"
+  /private/orgs/uoi/{orgUniqueId}:
+    get:
+      summary: "GET private/orgs/uoi/{orgUniqueId}"
+      operationId: "getOrgInfosFromUniqueOrgId"
+      parameters:
+        - name: "orgUniqueId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/Org"
+  /public/orgs/requiredFields:
+    get:
+      summary: "GET public/orgs/requiredFields"
+      operationId: "getRequiredFieldsForOrgCreation"
+      responses:
+        "200":
+          description: "OK"
+  /public/orgs/orgTypeValues:
+    get:
+      summary: "GET public/orgs/orgTypeValues"
+      operationId: "getOrganisationTypePossibleValues"
+      responses:
+        "200":
+          description: "OK"
+  /public/orgs/areaConfig.json:
+    get:
+      summary: "GET public/orgs/areaConfig.json"
+      operationId: "getAreaConfig"
+      responses:
+        "200":
+          description: "OK"
+  /private/orgsTypeDistribution.{format}:
+    get:
+      summary: "GET private/orgsTypeDistribution.{format}"
+      operationId: "orgTypeDistribution"
+      parameters:
+        - name: "format"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+  /private/roles/{cn}:
+    put:
+      summary: "PUT private/roles/{cn}"
+      operationId: "update"
+      parameters:
+        - name: "cn"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+    delete:
+      summary: "DELETE private/roles/{cn}"
+      operationId: "delete"
+      parameters:
+        - name: "cn"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+    get:
+      summary: "GET private/roles/{cn}"
+      operationId: "findByCN"
+      parameters:
+        - name: "cn"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/Role"
+  /private/roles:
+    post:
+      summary: "POST private/roles"
+      operationId: "create"
+      responses:
+        "200":
+          description: "OK"
+    get:
+      summary: "GET private/roles"
+      operationId: "findAll"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Role"
+  /private/roles_users:
+    post:
+      summary: "POST private/roles_users"
+      operationId: "updateUsers"
+      responses:
+        "200":
+          description: "OK"
+  /private/roles_orgs:
+    post:
+      summary: "POST private/roles_orgs"
+      operationId: "updateOrgs"
+      responses:
+        "200":
+          description: "OK"
+  /private/export/users.csv:
+    post:
+      summary: "POST private/export/users.csv"
+      operationId: "getUsersAsCsv"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: "string"
+        required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            text/csv; charset=utf-8:
+              schema:
+                type: "string"
+  /private/export/users.vcf:
+    post:
+      summary: "POST private/export/users.vcf"
+      operationId: "getUsersAsVcard"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: "string"
+        required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            text/x-vcard; charset=utf-8:
+              schema:
+                type: "string"
+  /account/gdpr/download:
+    get:
+      summary: "GET account/gdpr/download"
+      operationId: "downloadUserData"
+      responses:
+        "200":
+          description: "OK"
+  /account/areaofcompetence:
+    get:
+      summary: "GET account/areaofcompetence"
+      operationId: "getCurrentUserAreaOfCompetence"
+      responses:
+        "200":
+          description: "OK"
+  /private/users/{uid}:
+    put:
+      summary: "PUT private/users/{uid}"
+      operationId: "update"
+      parameters:
+        - name: "uid"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/Account"
+    delete:
+      summary: "DELETE private/users/{uid}"
+      operationId: "delete"
+      parameters:
+        - name: "uid"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+    get:
+      summary: "GET private/users/{uid}"
+      operationId: "findByUid"
+      parameters:
+        - name: "uid"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/Account"
+  /private/users:
+    post:
+      summary: "POST private/users"
+      operationId: "create"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/Account"
+    get:
+      summary: "GET private/users"
+      operationId: "findAll"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/SimpleAccount"
+  /account/gdpr/delete:
+    post:
+      summary: "POST account/gdpr/delete"
+      operationId: "deleteCurrentUserAndGDPRData"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletedUserDataInfo"
+  /private/users/profile:
+    get:
+      summary: "GET private/users/profile"
+      operationId: "myProfile"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "string"
+  /public/users/requiredFields:
+    get:
+      summary: "GET public/users/requiredFields"
+      operationId: "getUserCreationRequiredFields"
+      responses:
+        "200":
+          description: "OK"
+  /private/platform/infos:
+    get:
+      summary: "GET private/platform/infos"
+      operationId: "getPlatformInfos"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "string"
+  /private/delegation/{uid}:
+    post:
+      summary: "POST private/delegation/{uid}"
+      operationId: "add"
+      parameters:
+        - name: "uid"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "string"
+    delete:
+      summary: "DELETE private/delegation/{uid}"
+      operationId: "delete"
+      parameters:
+        - name: "uid"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "string"
+    get:
+      summary: "GET private/delegation/{uid}"
+      operationId: "findByUid"
+      parameters:
+        - name: "uid"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "string"
+  /private/delegation/delegations:
+    get:
+      summary: "GET private/delegation/delegations"
+      operationId: "findAll"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json; charset=utf-8:
+              schema:
+                type: "string"
+  /account/new:
+    post:
+      summary: "POST account/new"
+      operationId: "create"
+      parameters:
+        - name: "orgCities"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+            default: ""
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    get:
+      summary: "GET account/new"
+      operationId: "setupForm"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+  /account/changeEmail:
+    post:
+      summary: "POST account/changeEmail"
+      operationId: "changeEmail"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    get:
+      summary: "GET account/changeEmail"
+      operationId: "setupForm"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+  /account/validateEmail:
+    get:
+      summary: "GET account/validateEmail"
+      operationId: "validateEmail"
+      parameters:
+        - name: "token"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+  /account/changePassword:
+    post:
+      summary: "POST account/changePassword"
+      operationId: "changePassword"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    get:
+      summary: "GET account/changePassword"
+      operationId: "setupForm"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+  /account/orgdetails:
+    post:
+      summary: "POST account/orgdetails"
+      operationId: "edit"
+      parameters:
+        - name: "logo"
+          in: "query"
+          required: true
+          schema:
+            type: "string"
+            format: "binary"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    get:
+      summary: "GET account/orgdetails"
+      operationId: "setupForm"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+  /account/userdetails:
+    post:
+      summary: "POST account/userdetails"
+      operationId: "edit"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    get:
+      summary: "GET account/userdetails"
+      operationId: "setupForm"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+  /account/passwordRecovery:
+    post:
+      summary: "POST account/passwordRecovery"
+      operationId: "generateToken"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    get:
+      summary: "GET account/passwordRecovery"
+      operationId: "setupForm"
+      parameters:
+        - name: "email"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+  /account/newPassword:
+    post:
+      summary: "POST account/newPassword"
+      operationId: "newPassword"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+    get:
+      summary: "GET account/newPassword"
+      operationId: "setupForm"
+      parameters:
+        - name: "token"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "string"
+  /internal/users:
+    get:
+      summary: "GET internal/users"
+      operationId: "findUsers"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/GeorchestraUser"
+  /internal/users/id/{id}:
+    get:
+      summary: "GET internal/users/id/{id}"
+      operationId: "findUserById"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/GeorchestraUser"
+  /internal/users/username/{name}:
+    get:
+      summary: "GET internal/users/username/{name}"
+      operationId: "findUserByUsername"
+      parameters:
+        - name: "name"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/GeorchestraUser"
+  /internal/organizations:
+    get:
+      summary: "GET internal/organizations"
+      operationId: "findOrganizations"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Organization"
+  /internal/organizations/id/{id}:
+    get:
+      summary: "GET internal/organizations/id/{id}"
+      operationId: "findOrganizationById"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Organization"
+  /internal/organizations/shortname/{name}:
+    get:
+      summary: "GET internal/organizations/shortname/{name}"
+      operationId: "findOrganizationByShortName"
+      parameters:
+        - name: "name"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Organization"
+  /internal/organizations/id/{id}/logo:
+    get:
+      summary: "GET internal/organizations/id/{id}/logo"
+      operationId: "getOrganizationLogo"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/octet-stream:
+              schema:
+                type: "array"
+                items:
+                  type: "string"
+                  format: "byte"
+  /internal/roles:
+    get:
+      summary: "GET internal/roles"
+      operationId: "findRoles"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Role"
+  /internal/roles/name/{name}:
+    get:
+      summary: "GET internal/roles/name/{name}"
+      operationId: "findRoleByName"
+      parameters:
+        - name: "name"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Role"
+components:
+  schemas:
+    AdminLogEntry:
+      type: "object"
+      properties:
+        admin:
+          type: "string"
+          nullable: true
+        target:
+          type: "string"
+          nullable: true
+        type:
+          type: "string"
+          nullable: true
+          enum:
+            - "ACCOUNT_MODERATION"
+            - "SYSTEM_ROLE_CHANGE"
+            - "OTHER_ROLE_CHANGE"
+            - "LDAP_ATTRIBUTE_CHANGE"
+            - "CUSTOM_ROLE_ADDED"
+            - "CUSTOM_ROLE_REMOVED"
+            - "EMAIL_SENT"
+            - "EMAIL_RECOVERY_SENT"
+            - "EMAIL_CHANGE_EMAIL_SENT"
+            - "ORG_ATTRIBUTE_CHANGED"
+            - "ORG_CREATED"
+            - "ORG_DELETED"
+            - "PENDING_ORG_ACCEPTED"
+            - "PENDING_ORG_CREATED"
+            - "PENDING_ORG_REFUSED"
+            - "PENDING_USER_ACCEPTED"
+            - "PENDING_USER_CREATED"
+            - "PENDING_USER_REFUSED"
+            - "ROLE_CREATED"
+            - "ROLE_DELETED"
+            - "SYSTEM_ROLE_REMOVED"
+            - "SYSTEM_ROLE_ADDED"
+            - "USER_ATTRIBUTE_CHANGED"
+            - "USER_CREATED"
+            - "USER_DELETED"
+            - "USER_PASSWORD_CHANGED"
+            - "USER_EMAIL_CHANGED"
+            - "OAUTH2_USER_CREATED"
+        changed:
+          type: "string"
+          nullable: true
+    Org:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          nullable: true
+        name:
+          type: "string"
+          nullable: true
+        shortName:
+          type: "string"
+          nullable: true
+        cities:
+          type: "array"
+          nullable: true
+          items:
+            type: "string"
+        members:
+          type: "array"
+          nullable: true
+          items:
+            type: "string"
+    Role:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          nullable: true
+        name:
+          type: "string"
+          nullable: true
+        description:
+          type: "string"
+          nullable: true
+        lastUpdated:
+          type: "string"
+          nullable: true
+        members:
+          type: "array"
+          nullable: true
+          items:
+            type: "string"
+    Account:
+      type: "object"
+      properties: { }
+    DeletedUserDataInfo:
+      type: "object"
+      properties:
+        account:
+          type: "string"
+        metadata:
+          type: "integer"
+          format: "int32"
+          nullable: true
+        ogcStats:
+          type: "integer"
+          format: "int32"
+          nullable: true
+      required:
+        - "account"
+    SimpleAccount:
+      type: "object"
+      properties:
+        uid:
+          type: "string"
+          nullable: true
+        givenName:
+          type: "string"
+          nullable: true
+        sn:
+          type: "string"
+          nullable: true
+        org:
+          type: "string"
+          nullable: true
+        orgId:
+          type: "string"
+          nullable: true
+        mail:
+          type: "string"
+          nullable: true
+        pending:
+          type: "boolean"
+          nullable: true
+        privacyPolicyAgreementDate:
+          type: "string"
+          format: "date"
+          nullable: true
+    GeorchestraUser:
+      type: "object"
+      properties:
+        username:
+          type: "string"
+          nullable: true
+        roles:
+          type: "array"
+          nullable: true
+          items:
+            type: "string"
+        organization:
+          type: "string"
+          nullable: true
+        id:
+          type: "string"
+          nullable: true
+        lastUpdated:
+          type: "string"
+          nullable: true
+        firstName:
+          type: "string"
+          nullable: true
+        lastName:
+          type: "string"
+          nullable: true
+        email:
+          type: "string"
+          nullable: true
+        postalAddress:
+          type: "string"
+          nullable: true
+        telephoneNumber:
+          type: "string"
+          nullable: true
+        title:
+          type: "string"
+          nullable: true
+        notes:
+          type: "string"
+          nullable: true
+        ldapWarn:
+          type: "boolean"
+          nullable: true
+        ldapRemainingDays:
+          type: "string"
+          nullable: true
+        oAuth2Provider:
+          type: "string"
+          nullable: true
+        oAuth2Uid:
+          type: "string"
+          nullable: true
+        oAuth2OrgId:
+          type: "string"
+          nullable: true
+        isExternalAuth:
+          type: "boolean"
+          nullable: true
+    Organization:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          nullable: true
+        shortName:
+          type: "string"
+          nullable: true
+        name:
+          type: "string"
+          nullable: true
+        linkage:
+          type: "string"
+          nullable: true
+        postalAddress:
+          type: "string"
+          nullable: true
+        category:
+          type: "string"
+          nullable: true
+        description:
+          type: "string"
+          nullable: true
+        notes:
+          type: "string"
+          nullable: true
+        mail:
+          type: "string"
+          nullable: true
+        orgUniqueId:
+          type: "string"
+          nullable: true
+        lastUpdated:
+          type: "string"
+          nullable: true
+        members:
+          type: "array"
+          nullable: true
+          items:
+            type: "string"

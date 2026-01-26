@@ -11,10 +11,8 @@ class TestConsoleService:
         """Test successful organization email retrieval."""
         # Mock API response
         mock_response = MagicMock()
-        mock_response.json.return_value = [
-            {"shortName": "org1", "mail": "org1@example.com"},
-            {"shortName": "org2", "mail": "org2@example.com"},
-        ]
+        mock_response.json.return_value = {"shortName": "org1", "mail": "org1@example.com"}
+
         mock_get.return_value = mock_response
 
         service = ConsoleService("http://console.example.com")
@@ -22,7 +20,7 @@ class TestConsoleService:
 
         assert email == "org1@example.com"
         mock_get.assert_called_once_with(
-            "http://console.example.com/internal/organizations", timeout=5.0
+            "http://console.example.com/internal/organizations/shortname/org1", timeout=5.0
         )
 
     @patch("src.services.console_service.httpx.get")

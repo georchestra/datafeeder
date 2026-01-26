@@ -29,23 +29,17 @@ class ConsoleService:
         """
         try:
             # Query console API for organizations
-            url = f"{self.console_url}/internal/organizations"
+            url = f"{self.console_url}/internal/organizations/shortname/{org_short_name}"
             response = httpx.get(url, timeout=5.0)
             response.raise_for_status()
 
-            organizations: list[dict[str, Any]] = response.json()
+            organization: dict[str, Any] = response.json()
 
-            # Find organization matching the short name
-            for org in organizations:
-                if org.get("shortName") == org_short_name:
-                    org_email = org.get("mail")
-                    if org_email:  # Only return if email is defined
-                        logger.info(f"Found organization email for '{org_short_name}': {org_email}")
-                        return str(org_email)
-                    logger.warning(f"Organization '{org_short_name}' found but email not defined")
-                    return None
-
-            logger.warning(f"Organization '{org_short_name}' not found in console API")
+            org_email = organization.get("mail")
+            if org_email:  # Only return if email is defined
+                logger.info(f"Found organization email for '{org_short_name}': {org_email}")
+                return str(org_email)
+            logger.warning(f"Organization '{org_short_name}' found but email not defined")
             return None
 
         except Exception as e:
