@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -96,3 +97,33 @@ class StagingPreviewResponse(BaseModel):
         default=False,
         description="Indicates if the staging table contains geometry data",
     )
+
+
+class IntegrityLinkListItem(BaseModel):
+    """Response model for integrity link in list view (excludes sensitive fields)."""
+
+    id: str
+    integrity_title: str | None
+    integrity_owner: str
+    integrity_organization: str
+    source_import_type: ImportType
+    source_file_name: str | None
+    source_file_type: FileType | None
+    source_url: str | None
+    source_auth_enabled: bool
+    staging_table_name: str
+    final_table_name: str | None
+    metadata_id: str | None
+    data_id: str | None
+    created_at: datetime | None
+    last_retrieval_timestamp: datetime | None
+    schedule: str | None
+    schedule_enabled: bool
+
+
+class IntegrityLinkListResponse(BaseModel):
+    """Response for integrity links list with lazy loading support."""
+
+    items: list[IntegrityLinkListItem]
+    has_more: bool  # True if there are more items to load
+    offset: int  # Current offset (for next request: offset + BATCH_SIZE)
