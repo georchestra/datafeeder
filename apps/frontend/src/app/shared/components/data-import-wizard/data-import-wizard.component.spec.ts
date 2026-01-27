@@ -1115,3 +1115,236 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     expect(compiled.textContent).toContain('Network error occurred')
   })
 })
+
+describe('DataImportWizardComponent - Preview Toggle', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.title': 'Add a dataset',
+            'import.datasetConfiguration.title': 'Configure the dataset',
+            'import.datasetConfiguration.previewTitle': 'Preview of the result',
+            'import.datasetPreview.tableTab': 'Table',
+            'import.datasetPreview.mapTab': 'Map'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
+      providers: [provideHttpClient(), provideHttpClientTesting()]
+    }).compileComponents()
+  })
+
+  it('should initialize previewTabIndex to 0', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    expect(component.previewTabIndex()).toBe(0)
+  })
+
+  it('should compute isGeographicData as false when preview is null', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.preview.set(null)
+    expect(component.isGeographicData()).toBe(false)
+  })
+
+  it('should compute isGeographicData as false when is_geographic is false', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.preview.set({
+      data: [],
+      is_geographic: false,
+      geojson: null
+    })
+    expect(component.isGeographicData()).toBe(false)
+  })
+
+  it('should compute isGeographicData as false when geojson is null', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.preview.set({
+      data: [],
+      is_geographic: true,
+      geojson: null
+    })
+    expect(component.isGeographicData()).toBe(false)
+  })
+
+  it('should compute isGeographicData as true when is_geographic is true and geojson exists', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.preview.set({
+      data: [],
+      is_geographic: true,
+      geojson: { type: 'FeatureCollection', features: [] }
+    })
+    expect(component.isGeographicData()).toBe(true)
+  })
+
+  it('should compute geojsonData from preview', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    const mockGeojson = { type: 'FeatureCollection' as const, features: [] }
+    component.preview.set({
+      data: [],
+      is_geographic: true,
+      geojson: mockGeojson
+    })
+    expect(component.geojsonData()).toEqual(mockGeojson)
+  })
+
+  it('should compute geojsonData as null when preview is null', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.preview.set(null)
+    expect(component.geojsonData()).toBeNull()
+  })
+
+  it('should render preview toggle buttons when on tab 2', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    fixture.detectChanges()
+
+    const toggleGroup = fixture.nativeElement.querySelector(
+      'mat-button-toggle-group'
+    )
+    expect(toggleGroup).toBeTruthy()
+  })
+
+  it('should render Table and Map toggle buttons', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    expect(compiled.textContent).toContain('Table')
+    expect(compiled.textContent).toContain('Map')
+  })
+
+  it('should disable Map toggle when not geographic data', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.preview.set({
+      data: [],
+      is_geographic: false,
+      geojson: null
+    })
+    fixture.detectChanges()
+
+    // Get all mat-button-toggle elements - the Map toggle is the second one
+    const toggles = fixture.nativeElement.querySelectorAll('mat-button-toggle')
+    const mapToggle = toggles[1]
+    expect(mapToggle?.classList.contains('mat-button-toggle-disabled')).toBe(
+      true
+    )
+  })
+
+  it('should enable Map toggle when geographic data is present', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.preview.set({
+      data: [],
+      is_geographic: true,
+      geojson: { type: 'FeatureCollection', features: [] }
+    })
+    fixture.detectChanges()
+
+    // Get all mat-button-toggle elements - the Map toggle is the second one
+    const toggles = fixture.nativeElement.querySelectorAll('mat-button-toggle')
+    const mapToggle = toggles[1]
+    expect(mapToggle?.classList.contains('mat-button-toggle-disabled')).toBe(
+      false
+    )
+  })
+
+  it('should show dataset-preview-table when previewTabIndex is 0', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.previewTabIndex.set(0)
+    component.preview.set({
+      data: [],
+      is_geographic: true,
+      geojson: { type: 'FeatureCollection', features: [] }
+    })
+    fixture.detectChanges()
+
+    expect(
+      fixture.nativeElement.querySelector('app-dataset-preview-table')
+    ).toBeTruthy()
+    expect(
+      fixture.nativeElement.querySelector('app-dataset-preview-map')
+    ).toBeFalsy()
+  })
+
+  it('should show dataset-preview-map when previewTabIndex is 1 and geographic', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.previewTabIndex.set(1)
+    component.preview.set({
+      data: [],
+      is_geographic: true,
+      geojson: { type: 'FeatureCollection', features: [] }
+    })
+    fixture.detectChanges()
+
+    expect(
+      fixture.nativeElement.querySelector('app-dataset-preview-map')
+    ).toBeTruthy()
+    expect(
+      fixture.nativeElement.querySelector('app-dataset-preview-table')
+    ).toBeFalsy()
+  })
+
+  it('should always show table when not geographic data', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.previewTabIndex.set(1) // Even though set to 1
+    component.preview.set({
+      data: [],
+      is_geographic: false,
+      geojson: null
+    })
+    fixture.detectChanges()
+
+    // Should still show table since not geographic
+    expect(
+      fixture.nativeElement.querySelector('app-dataset-preview-table')
+    ).toBeTruthy()
+  })
+
+  it('should render preview title', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    expect(compiled.textContent).toContain('Preview of the result')
+  })
+})

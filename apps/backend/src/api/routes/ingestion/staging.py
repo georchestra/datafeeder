@@ -1,13 +1,16 @@
+import json
 import re
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID, uuid4
 
 import requests
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from data_manipulation.utils import sanitize_name
 from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile
-from sqlalchemy import MetaData, Table, func, select
+from geojson_pydantic import Feature, FeatureCollection
+from geojson_pydantic.geometries import Geometry
+from sqlalchemy import ColumnElement, MetaData, Table, func, select
 
 from src.api.deps import DatakernSessionDep, DataSessionDep
 from src.core.callback import build_callback_url
@@ -29,6 +32,8 @@ from src.services.files import delete_temp_file, upload_file_to_temp
 
 router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 logger = get_logger()
+
+GEOMETRY_COLUMN = "geom"
 
 
 def _generate_staging_table_name() -> str:
@@ -423,10 +428,56 @@ def get_staging_preview(
     schema = "staging"  # FIXME get it from config
     metadata = MetaData(schema=schema)
     table = Table(staging_table_name, metadata, autoload_with=data_session.get_bind())
-    query = select(table).limit(limit)
 
-    subset = data_session.execute(query).mappings()  # type: ignore[misc]
+    is_geographic = GEOMETRY_COLUMN in table.c
+
+    if is_geographic:
+        # Build columns with ST_AsGeoJSON for geometry
+        columns: list[ColumnElement[Any]] = []
+        for col in table.c:
+            if col.name == GEOMETRY_COLUMN:
+                columns.append(func.ST_AsGeoJSON(col).label("geom_geojson"))
+            else:
+                columns.append(col)
+
+        query = select(*columns).limit(limit)
+        rows = [dict(r) for r in data_session.execute(query).mappings()]  # type: ignore[misc]
+
+        # Build typed GeoJSON FeatureCollection using geojson-pydantic
+        features: list[Feature[Geometry, dict[str, Any]]] = []
+        data: list[dict[str, Any]] = []
+
+        for row in rows:
+            geom_str = row.pop("geom_geojson", None)
+            try:
+                geom = json.loads(geom_str) if geom_str else None
+            except (json.JSONDecodeError, TypeError):
+                geom = None
+
+            features.append(
+                Feature(
+                    type="Feature",
+                    geometry=geom,
+                    properties=dict(row),
+                )
+            )
+
+            # Format for table display
+            data.append(
+                {
+                    **row,
+                    GEOMETRY_COLUMN: f"[{geom['type']}]" if geom else None,
+                }
+            )
+
+        geojson = FeatureCollection(type="FeatureCollection", features=features)
+    else:
+        query = select(table).limit(limit)
+        data = [dict(r) for r in data_session.execute(query).mappings()]  # type: ignore[misc]
+        geojson = None
 
     return StagingPreviewResponse(
-        data=[dict(row) for row in subset],
+        data=data,
+        geojson=geojson,
+        is_geographic=is_geographic,
     )

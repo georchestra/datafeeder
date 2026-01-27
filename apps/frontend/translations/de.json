@@ -37,6 +37,8 @@
   "import.datasetConfiguration.previewTitle": "",
   "import.datasetConfiguration.title": "",
   "import.datasetConfiguration.untitled": "",
+  "import.datasetPreview.mapTab": "Karte",
+  "import.datasetPreview.tableTab": "Tabelle",
   "import.datasetPreviewTable.noDataAvailable": "",
   "input.file.dropFileLabel": "",
   "input.file.orInputUrl": "",

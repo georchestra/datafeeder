@@ -2,7 +2,9 @@ from enum import Enum
 from typing import Any
 
 from airflow_client.client.models.dag_run_state import DagRunState
-from pydantic import BaseModel
+from geojson_pydantic import Feature, FeatureCollection
+from geojson_pydantic.geometries import Geometry
+from pydantic import BaseModel, Field
 
 
 class ImportType(str, Enum):
@@ -86,3 +88,11 @@ class StagingPreviewResponse(BaseModel):
     """Preview data from staging table"""
 
     data: list[dict[str, Any]]
+    geojson: FeatureCollection[Feature[Geometry, dict[str, Any]]] | None = Field(
+        default=None,
+        description="GeoJSON FeatureCollection, only present for geographic data",
+    )
+    is_geographic: bool = Field(
+        default=False,
+        description="Indicates if the staging table contains geometry data",
+    )

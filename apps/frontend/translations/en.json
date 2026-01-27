@@ -37,6 +37,8 @@
   "import.datasetConfiguration.previewTitle": "Preview of the result",
   "import.datasetConfiguration.title": "Configure the dataset",
   "import.datasetConfiguration.untitled": "Untitled",
+  "import.datasetPreview.mapTab": "Map",
+  "import.datasetPreview.tableTab": "Table",
   "import.datasetPreviewTable.noDataAvailable": "No data available",
   "input.file.dropFileLabel": "or drop it here",
   "input.file.orInputUrl": "Or import a file from a link",

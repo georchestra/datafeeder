@@ -1,10 +1,13 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http'
+import { HttpErrorResponse } from '@angular/common/http'
 import { Component, computed, effect, inject, signal } from '@angular/core'
+import { MatButtonToggleModule } from '@angular/material/button-toggle'
 import { MatTabsModule } from '@angular/material/tabs'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import {
+  iconoirMap,
   iconoirNumber1Square,
   iconoirNumber2Square,
+  iconoirTable,
   iconoirWarningTriangle,
   iconoirXmark
 } from '@ng-icons/iconoir'
@@ -39,6 +42,7 @@ import type { SourceData } from '../data-source-selector/data-source-selector.co
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
+import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 120000
@@ -59,6 +63,7 @@ export interface ImportWizardData {
 @Component({
   selector: 'app-data-import-wizard',
   imports: [
+    MatButtonToggleModule,
     MatTabsModule,
     NgIconComponent,
     ButtonComponent,
@@ -66,21 +71,23 @@ export interface ImportWizardData {
     DataSourceSelectorComponent,
     DatasetConfigurationComponent,
     TranslatePipe,
-    DatasetPreviewTableComponent
+    DatasetPreviewTableComponent,
+    DatasetPreviewMapComponent
   ],
   templateUrl: './data-import-wizard.component.html',
   styleUrls: ['./data-import-wizard.component.scss'],
   providers: [
     provideIcons({
+      iconoirMap,
       iconoirNumber1Square,
       iconoirNumber2Square,
+      iconoirTable,
       iconoirWarningTriangle,
       iconoirXmark
     })
   ]
 })
 export class DataImportWizardComponent {
-  private http = inject(HttpClient)
   private api = inject(Api)
   private translate = inject(TranslateService)
   private router = inject(Router)
@@ -97,6 +104,14 @@ export class DataImportWizardComponent {
   integrityLinkId = signal<string | null>(null)
   processing = signal(false)
   validationError = signal<string | null>(null)
+  previewTabIndex = signal(0)
+
+  isGeographicData = computed(() => {
+    const preview = this.preview()
+    return preview?.is_geographic === true && preview?.geojson != null
+  })
+
+  geojsonData = computed(() => this.preview()?.geojson ?? null)
 
   constructor() {
     // Fetch staging data when tab 2 is selected and integrityLinkId is available
@@ -149,6 +164,7 @@ export class DataImportWizardComponent {
       )
 
       this.selectedTabIndex.set(1)
+      this.previewTabIndex.set(0)
     } catch (error) {
       if (error instanceof Error && error.message) {
         this.importError.set(error.message)
