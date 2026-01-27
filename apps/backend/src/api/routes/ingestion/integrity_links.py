@@ -67,28 +67,7 @@ def list_integrity_links(
     )
 
     return IntegrityLinkListResponse(
-        items=[
-            IntegrityLinkListItem(
-                id=str(link.id),
-                integrity_title=link.integrity_title,
-                integrity_owner=link.integrity_owner,
-                integrity_organization=link.integrity_organization,
-                source_import_type=link.source_import_type,
-                source_file_name=link.source_file_name,
-                source_file_type=link.source_file_type,
-                source_url=link.source_url,
-                source_auth_enabled=link.source_auth_enabled,
-                staging_table_name=link.staging_table_name,
-                final_table_name=link.final_table_name,
-                metadata_id=link.metadata_id,
-                data_id=link.data_id,
-                created_at=link.created_at,
-                last_retrieval_timestamp=link.last_retrieval_timestamp,
-                schedule=link.schedule,
-                schedule_enabled=link.schedule_enabled,
-            )
-            for link in items
-        ],
+        items=[IntegrityLinkListItem.model_validate(link) for link in items],
         has_more=has_more,
         offset=offset,
     )
