@@ -6,53 +6,10 @@ from uuid import uuid4
 
 import pytest
 
-from src.api.routes.ingestion.integrity_links import BATCH_SIZE, has_administrator_role
+from src.api.routes.ingestion.integrity_links import BATCH_SIZE
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
-
-
-class TestHasAdministratorRole:
-    """Test the has_administrator_role helper function."""
-
-    def test_empty_roles_returns_false(self) -> None:
-        """Test that empty roles string returns False."""
-        assert has_administrator_role("") is False
-
-    def test_none_like_roles_returns_false(self) -> None:
-        """Test that whitespace-only roles return False."""
-        assert has_administrator_role("   ") is False
-        assert has_administrator_role(";") is False
-        assert has_administrator_role(";;;") is False
-
-    def test_administrator_role_found(self) -> None:
-        """Test that ADMINISTRATOR role is detected."""
-        assert has_administrator_role("ADMINISTRATOR") is True
-        assert has_administrator_role("IMPORT;ADMINISTRATOR") is True
-        assert has_administrator_role("ADMINISTRATOR;IMPORT;USER") is True
-
-    def test_administrator_role_case_insensitive(self) -> None:
-        """Test that role check is case-insensitive."""
-        assert has_administrator_role("administrator") is True
-        assert has_administrator_role("Administrator") is True
-        assert has_administrator_role("IMPORT;administrator;USER") is True
-
-    def test_administrator_role_with_whitespace(self) -> None:
-        """Test that roles with extra whitespace are handled."""
-        assert has_administrator_role(" ADMINISTRATOR ") is True
-        assert has_administrator_role("IMPORT; ADMINISTRATOR ;USER") is True
-        assert has_administrator_role("  IMPORT  ;  ADMINISTRATOR  ") is True
-
-    def test_non_administrator_roles(self) -> None:
-        """Test that non-administrator roles return False."""
-        assert has_administrator_role("IMPORT") is False
-        assert has_administrator_role("USER") is False
-        assert has_administrator_role("IMPORT;USER;SUPERUSER") is False
-
-    def test_partial_match_not_detected(self) -> None:
-        """Test that partial matches are not detected as administrator."""
-        assert has_administrator_role("ADMINISTRATORX") is False
-        assert has_administrator_role("XADMINISTRATOR") is False
-        assert has_administrator_role("SUPER_ADMINISTRATOR") is False
+from src.services.georchestra import GeorchestraContext
 
 
 class TestListIntegrityLinks:
@@ -85,6 +42,16 @@ class TestListIntegrityLinks:
             links.append(link)
         return links
 
+    def _create_geo_ctx(self, username: str, roles: set[str] | None = None) -> GeorchestraContext:
+        """Create a GeorchestraContext for testing."""
+        return GeorchestraContext(
+            username=username,
+            roles=roles or set(),
+            email="",
+            firstname="",
+            lastname="",
+        )
+
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_normal_user_sees_only_own_links(
         self,
@@ -103,10 +70,11 @@ class TestListIntegrityLinks:
         mock_exec_result.all.return_value = user0_links
         mock_session.exec.return_value = mock_exec_result
 
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT", "USER"})
+
         response = list_integrity_links(
             session=mock_session,
-            sec_username="user0",
-            sec_roles="IMPORT;USER",
+            geo_ctx=geo_ctx,
             offset=0,
         )
 
@@ -129,10 +97,11 @@ class TestListIntegrityLinks:
         mock_exec_result.all.return_value = sample_integrity_links
         mock_session.exec.return_value = mock_exec_result
 
+        geo_ctx = self._create_geo_ctx("admin", {"IMPORT", "ADMINISTRATOR", "USER"})
+
         response = list_integrity_links(
             session=mock_session,
-            sec_username="admin",
-            sec_roles="IMPORT;ADMINISTRATOR;USER",
+            geo_ctx=geo_ctx,
             offset=0,
         )
 
@@ -165,10 +134,11 @@ class TestListIntegrityLinks:
         mock_exec_result.all.return_value = links  # Returns BATCH_SIZE + 1 items
         mock_session.exec.return_value = mock_exec_result
 
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
         response = list_integrity_links(
             session=mock_session,
-            sec_username="user0",
-            sec_roles="IMPORT",
+            geo_ctx=geo_ctx,
             offset=0,
         )
 
@@ -202,10 +172,11 @@ class TestListIntegrityLinks:
         mock_exec_result.all.return_value = links
         mock_session.exec.return_value = mock_exec_result
 
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
         response = list_integrity_links(
             session=mock_session,
-            sec_username="user0",
-            sec_roles="IMPORT",
+            geo_ctx=geo_ctx,
             offset=0,
         )
 
@@ -221,10 +192,11 @@ class TestListIntegrityLinks:
         mock_exec_result.all.return_value = []
         mock_session.exec.return_value = mock_exec_result
 
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
         response = list_integrity_links(
             session=mock_session,
-            sec_username="user0",
-            sec_roles="IMPORT",
+            geo_ctx=geo_ctx,
             offset=200,
         )
 
@@ -258,10 +230,11 @@ class TestListIntegrityLinks:
         mock_exec_result.all.return_value = [link]
         mock_session.exec.return_value = mock_exec_result
 
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
         response = list_integrity_links(
             session=mock_session,
-            sec_username="user0",
-            sec_roles="IMPORT",
+            geo_ctx=geo_ctx,
             offset=0,
         )
 
@@ -289,10 +262,11 @@ class TestListIntegrityLinks:
         mock_exec_result.all.return_value = []
         mock_session.exec.return_value = mock_exec_result
 
+        geo_ctx = self._create_geo_ctx("newuser", {"IMPORT"})
+
         response = list_integrity_links(
             session=mock_session,
-            sec_username="newuser",
-            sec_roles="IMPORT",
+            geo_ctx=geo_ctx,
             offset=0,
         )
 
@@ -314,10 +288,11 @@ class TestListIntegrityLinks:
         mock_exec_result.all.return_value = sample_integrity_links[:1]
         mock_session.exec.return_value = mock_exec_result
 
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
         response = list_integrity_links(
             session=mock_session,
-            sec_username="user0",
-            sec_roles="IMPORT",
+            geo_ctx=geo_ctx,
             offset=0,
         )
 
