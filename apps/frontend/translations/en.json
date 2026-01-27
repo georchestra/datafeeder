@@ -1,5 +1,11 @@
 {
+  "common.loading": "Loading...",
   "dk.title": "DataKern english title",
+  "integrityLinks.creation": "Creation",
+  "integrityLinks.dashboard": "Data Dashboard",
+  "integrityLinks.emptyList": "No integrity links found",
+  "integrityLinks.owner": "Owner",
+  "integrityLinks.title": "Title",
   "dk.tooltip.url.copy": "Copy URL",
   "event.downloadLogs": "Download the logs",
   "event.duration": "Duration",
