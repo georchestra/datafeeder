@@ -4,6 +4,7 @@
   "integrityLinks.creation": "Creation",
   "integrityLinks.dashboard": "Data Dashboard",
   "integrityLinks.emptyList": "No integrity links found",
+  "integrityLinks.loadMore": "Load more",
   "integrityLinks.owner": "Owner",
   "integrityLinks.title": "Title",
   "dk.tooltip.url.copy": "Copy URL",

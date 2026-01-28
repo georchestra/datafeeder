@@ -17,22 +17,37 @@ export class IntegrityLinkListComponent {
 
   integrityLinks = signal<IntegrityLinkListItem[]>([])
   loading = signal<boolean>(true)
+  hasMore = signal<boolean>(false)
+  loadingMore = signal<boolean>(false)
 
   constructor() {
     this.loadIntegrityLinks()
   }
 
-  private async loadIntegrityLinks(): Promise<void> {
+  private async loadIntegrityLinks(append = false): Promise<void> {
     try {
+      const offset = append ? this.integrityLinks().length : 0
       const response = await this.api.invoke(
-        listIntegrityLinksIngestionIntegrityLinksGet
+        listIntegrityLinksIngestionIntegrityLinksGet,
+        { offset }
       )
-      this.integrityLinks.set(response.items)
+      if (append) {
+        this.integrityLinks.update((items) => [...items, ...response.items])
+      } else {
+        this.integrityLinks.set(response.items)
+      }
+      this.hasMore.set(response.has_more)
     } catch (error) {
       console.error('Failed to load integrity links:', error)
     } finally {
       this.loading.set(false)
+      this.loadingMore.set(false)
     }
+  }
+
+  loadMore(): void {
+    this.loadingMore.set(true)
+    this.loadIntegrityLinks(true)
   }
 
   onRowClick(id: string): void {

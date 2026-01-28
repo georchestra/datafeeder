@@ -1,5 +1,12 @@
 {
+  "common.loading": "",
   "dk.title": "DataKern deutscher Titel",
+  "integrityLinks.creation": "",
+  "integrityLinks.dashboard": "",
+  "integrityLinks.emptyList": "",
+  "integrityLinks.loadMore": "",
+  "integrityLinks.owner": "",
+  "integrityLinks.title": "",
   "dk.tooltip.url.copy": " Nützlicher Tooltip-Text",
   "event.downloadLogs": "",
   "event.duration": "",
