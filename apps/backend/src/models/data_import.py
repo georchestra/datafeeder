@@ -6,7 +6,7 @@ from uuid import UUID
 from airflow_client.client.models.dag_run_state import DagRunState
 from geojson_pydantic import Feature, FeatureCollection
 from geojson_pydantic.geometries import Geometry
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ImportType(str, Enum):
