@@ -533,23 +533,23 @@ def get_staging_preview(
 
         # Convert geometry to WKT for tabular display if GeoDataFrame
         # otherwise you cannot convert to data row to be sent to the frontend
-        if isinstance(transformed_data, gpd.GeoDataFrame) and "geometry" in transformed_data.columns:
+        if (
+            isinstance(transformed_data, gpd.GeoDataFrame)
+            and "geometry" in transformed_data.columns
+        ):
             is_geographic = True
             # Create a copy for tabular data without geometry column
             table_data = transformed_data.drop(columns=["geometry"])
             data = table_data.to_dict(orient="records")  # type: ignore[misc]
-            
-            # Create GeoJSON for map display
+
+            # Create GeoJSON for map display, force to EPSG:4326
             map_gdf = transformed_data.copy()
-            if projection and projection != "EPSG:4326":
-                try:
-                    if map_gdf.crs and map_gdf.crs.to_string() != "EPSG:4326":
-                        map_gdf = map_gdf.to_crs("EPSG:4326")
-                        logger.info(
-                            f"Reprojected data from {map_gdf.crs} to EPSG:4326 for map display"
-                        )
-                except Exception as crs_error:
-                    logger.warning(f"Could not reproject to EPSG:4326: {crs_error}")
+            try:
+                if map_gdf.crs and map_gdf.crs.to_string() != "EPSG:4326":
+                    map_gdf = map_gdf.to_crs("EPSG:4326")
+                    logger.info(f"Reprojected data from {map_gdf.crs} to EPSG:4326 for map display")
+            except Exception as crs_error:
+                logger.warning(f"Could not reproject to EPSG:4326: {crs_error}")
 
             geojson_str = map_gdf.to_json()  # type: ignore[misc]
             geojson_data = json.loads(geojson_str) if geojson_str else None

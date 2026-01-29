@@ -247,8 +247,10 @@ export class DataImportWizardComponent implements OnInit {
         importResponse.dag_id,
         importResponse.dag_run_id
       )
-    } catch (error) {
+
+      this.selectedTabIndex.set(1)
       this.previewTabIndex.set(0)
+    } catch (error) {
 
       if (error instanceof Error && error.message) {
         this.importError.set(error.message)
@@ -413,6 +415,9 @@ export class DataImportWizardComponent implements OnInit {
     } catch (error) {
       // Refresh metadata in case of projection or columns errors
       await this.refreshPreview(integrityLinkId)
+
+      // Back to table view on error
+      this.previewTabIndex.set(0)
 
       const errorMessage =
         error instanceof HttpErrorResponse
