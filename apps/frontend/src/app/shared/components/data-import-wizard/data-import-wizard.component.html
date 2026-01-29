@@ -51,8 +51,8 @@
             </div>
             }
 
-            <app-dataset-configuration
-              #datasetConfig
+            <app-dataset-title
+              #titleConfig
               [metadata]="selectedTabIndex() === 1 ? metadata() : undefined"
               (validated)="onValidateDataset($event)"
             />
@@ -80,7 +80,7 @@
       <gn-ui-button
         type="primary"
         [disabled]="processing() || !integrityLinkId()"
-        (buttonClick)="datasetConfig.submitForm()"
+        (buttonClick)="titleConfig.submitForm()"
         data-test="validate-dataset"
       >
         @if (processing()) { {{ 'import.dataSource.processing' | translate }} }
@@ -126,6 +126,14 @@
         </mat-button-toggle>
       </mat-button-toggle-group>
     </div>
+
+    <app-dataset-configuration
+      [metadata]="metadata()"
+      [preview]="preview()"
+      [previewError]="previewError()"
+      [previewLoading]="previewLoading()"
+      (configChanged)="onConfigChanged($event)"
+    />
 
     <!-- Preview content -->
     @if (isGeographicData()) { @if (previewTabIndex() === 0) {

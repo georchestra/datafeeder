@@ -1,5 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http'
-import { Component, computed, effect, inject, signal, OnInit } from '@angular/core'
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+  OnInit,
+  ChangeDetectorRef
+} from '@angular/core'
 import { MatButtonToggleModule } from '@angular/material/button-toggle'
 import { MatTabsModule } from '@angular/material/tabs'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
@@ -42,6 +50,7 @@ import type {
 } from '../../../core/api/models'
 import type { SourceData } from '../data-source-selector/data-source-selector.component'
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
+import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
@@ -77,6 +86,7 @@ export interface ImportWizardData {
     ButtonComponent,
     SpinningLoaderComponent,
     DataSourceSelectorComponent,
+    DatasetTitleComponent,
     DatasetConfigurationComponent,
     TranslatePipe,
     DatasetPreviewTableComponent,
@@ -182,6 +192,7 @@ export class DataImportWizardComponent implements OnInit {
     const linkId = this.integrityLinkId()
     if (linkId) {
       try {
+        console.log('fsefes')
         const metadata = await this.submitConfigStagingData(
           linkId,
           config.projection,
@@ -236,10 +247,9 @@ export class DataImportWizardComponent implements OnInit {
         importResponse.dag_id,
         importResponse.dag_run_id
       )
-
-      this.selectedTabIndex.set(1)
-      this.previewTabIndex.set(0)
     } catch (error) {
+      this.previewTabIndex.set(0)
+
       if (error instanceof Error && error.message) {
         this.importError.set(error.message)
       } else if (error instanceof HttpErrorResponse && error.error?.detail) {
@@ -401,6 +411,9 @@ export class DataImportWizardComponent implements OnInit {
       this.preview.update(() => preview)
       this.previewError.set(null)
     } catch (error) {
+      // Refresh metadata in case of projection or columns errors
+      await this.refreshPreview(integrityLinkId)
+
       const errorMessage =
         error instanceof HttpErrorResponse
           ? error.error?.detail || error.message

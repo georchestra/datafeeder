@@ -1,7 +1,7 @@
 import json
 import re
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Optional
 from uuid import UUID, uuid4
 
 import geopandas as gpd
@@ -12,7 +12,7 @@ from data_manipulation import apply_transformations
 from data_manipulation.logging import configure_logging
 from data_manipulation.utils import sanitize_name
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
-from sqlalchemy import ColumnElement, MetaData, Table, func, select
+from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.orm.attributes import flag_modified
 
 from src.api.deps import DatakernSessionDep, DataSessionDep
@@ -512,10 +512,10 @@ def get_staging_preview(
 
     schema = get_staging_schema()
     metadata = MetaData(schema=schema)
-    table = Table(staging_table_name, metadata, autoload_with=data_session.get_bind())    
+    table = Table(staging_table_name, metadata, autoload_with=data_session.get_bind())
     query = select(table).limit(limit)
-    
-    subset = data_session.execute(query).mappings() # type: ignore[misc]
+
+    subset = data_session.execute(query).mappings()  # type: ignore[misc]
     staging_data = [dict(row) for row in subset]
 
     transformation_config: dict[str, str | object | None] = {
@@ -526,34 +526,43 @@ def get_staging_preview(
 
     try:
         transformed_data = apply_transformations(pd.DataFrame(staging_data), transformation_config)
-        
-        data = [] # tabular data
+
+        data = []  # tabular data
         geojson_data = None
         is_geographic = False
 
-        data = transformed_data.to_dict(orient="records") # type: ignore[misc]
-        
-        if isinstance(transformed_data, gpd.GeoDataFrame):
-            is_geographic = True         
-            map_gdf = transformed_data.copy()
+        # Convert geometry to WKT for tabular display if GeoDataFrame
+        # otherwise you cannot convert to data row to be sent to the frontend
+        if isinstance(transformed_data, gpd.GeoDataFrame) and "geometry" in transformed_data.columns:
+            is_geographic = True
+            # Create a copy for tabular data without geometry column
+            table_data = transformed_data.drop(columns=["geometry"])
+            data = table_data.to_dict(orient="records")  # type: ignore[misc]
             
+            # Create GeoJSON for map display
+            map_gdf = transformed_data.copy()
             if projection and projection != "EPSG:4326":
                 try:
                     if map_gdf.crs and map_gdf.crs.to_string() != "EPSG:4326":
                         map_gdf = map_gdf.to_crs("EPSG:4326")
-                        logger.info(f"Reprojected data from {map_gdf.crs} to EPSG:4326 for map display")
+                        logger.info(
+                            f"Reprojected data from {map_gdf.crs} to EPSG:4326 for map display"
+                        )
                 except Exception as crs_error:
                     logger.warning(f"Could not reproject to EPSG:4326: {crs_error}")
-            
-            geojson_str = map_gdf.to_json() # type: ignore[misc]
+
+            geojson_str = map_gdf.to_json()  # type: ignore[misc]
             geojson_data = json.loads(geojson_str) if geojson_str else None
-            
+        else:
+            # Regular DataFrame, no geometry conversion needed
+            data = transformed_data.to_dict(orient="records")  # type: ignore[misc]
+
         return StagingPreviewResponse(
-            data=data, # type: ignore[misc]
+            data=data,  # type: ignore[misc]
             geojson=geojson_data,
             is_geographic=is_geographic,
         )
-        
+
     except Exception as e:
         logger.error(f"Error applying transformations for preview: {e}")
         raise HTTPException(status_code=500, detail=f"{e}")

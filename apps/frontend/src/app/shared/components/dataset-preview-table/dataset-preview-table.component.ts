@@ -13,31 +13,13 @@ import type {
   StagingPreviewResponse
 } from '../../../core/api/models'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
-import {
-  DropdownSelectorComponent,
-  ButtonComponent,
-  DropdownChoice,
-  SpinningLoaderComponent
-} from 'geonetwork-ui'
-import {
-  NgIconComponent,
-  provideIcons,
-  provideNgIconsConfig
-} from '@ng-icons/core'
+import { DropdownChoice, SpinningLoaderComponent } from 'geonetwork-ui'
+import { provideIcons, provideNgIconsConfig } from '@ng-icons/core'
 import { iconoirDataTransferBoth } from '@ng-icons/iconoir'
-import { AlertBoxComponent } from '../alert-box/alert-box.component'
 
 @Component({
   selector: 'app-dataset-preview-table',
-  imports: [
-    NgIconComponent,
-    MatTableModule,
-    TranslatePipe,
-    DropdownSelectorComponent,
-    ButtonComponent,
-    AlertBoxComponent,
-    SpinningLoaderComponent
-  ],
+  imports: [MatTableModule, TranslatePipe, SpinningLoaderComponent],
   templateUrl: './dataset-preview-table.component.html',
   styleUrls: ['./dataset-preview-table.component.scss'],
   providers: [

@@ -1,42 +1,63 @@
-@if (metadata()) {
-<div class="px-6 pt-6 pb-6">
-  <h2 class="text-lg font-medium text-gray-900 mb-2">
-    {{ 'import.configuration.datasetTitle' | translate }}
-  </h2>
+<div class="mx-7 my-4 flex w-full max-w-full">
+  <div class="flex gap-3 border-gray-300">
+    <div class="flex flex-col">
+      <span>{{ 'import.datasetPreview.proj' | translate }}</span>
+      <div class="w-48">
+        <gn-ui-dropdown-selector
+          [title]="''"
+          [showTitle]="false"
+          [choices]="projections"
+          [selected]="selectedProjection()"
+          (selectValue)="selectProjection($any($event))"
+        ></gn-ui-dropdown-selector>
+      </div>
+    </div>
+  </div>
 
-  <form [formGroup]="form" class="space-y-4">
-    <mat-form-field appearance="outline" class="w-full">
-      <input
-        matInput
-        formControlName="title"
-        placeholder="{{
-          'import.configuration.datasetTitlePlaceholder' | translate
-        }}"
-        type="text"
-      />
-      @if (form.controls.title.errors?.['required'] &&
-      form.controls.title.touched) {
-      <mat-error>{{
-        'import.configuration.requiredTitle' | translate
-      }}</mat-error>
-      } @if (form.controls.title.errors?.['minlength'] &&
-      form.controls.title.touched) {
-      <mat-error>{{
-        'import.configuration.minLengthTitle' | translate
-      }}</mat-error>
-      } @if (form.controls.title.errors?.['maxlength'] &&
-      form.controls.title.touched) {
-      <mat-error>{{
-        'import.configuration.maxLengthTitle' | translate
-      }}</mat-error>
-      }
-    </mat-form-field>
-  </form>
+  @if (metadata()?.file_type === 'csv') {
+  <div class="border-l-[1px] pl-6 ml-6 flex gap-3 align-bottom items-end">
+    <div class="flex flex-col">
+      <span>{{ 'import.datasetPreview.latX' | translate }}</span>
+      <div class="w-48">
+        <gn-ui-dropdown-selector
+          [title]="''"
+          [showTitle]="false"
+          [choices]="columns()"
+          [selected]="selectedXCol()"
+          (selectValue)="selectXCol($any($event))"
+        ></gn-ui-dropdown-selector>
+      </div>
+    </div>
+    <gn-ui-button
+      [extraClass]="'max-w-14 w-14 max-h-10 h-10 my-[1px]'"
+      type="secondary"
+      (buttonClick)="onSwitchXY()"
+    >
+      <ng-icon class="rotate-90" name="iconoirDataTransferBoth"></ng-icon>
+    </gn-ui-button>
+    <div class="flex flex-col">
+      <span>{{ 'import.datasetPreview.longY' | translate }}</span>
+      <div class="w-48">
+        <gn-ui-dropdown-selector
+          [title]="''"
+          [showTitle]="false"
+          [choices]="columns()"
+          [selected]="selectedYCol()"
+          (selectValue)="selectYCol($any($event))"
+        ></gn-ui-dropdown-selector>
+      </div>
+    </div>
+  </div>
+  }
 </div>
-} @else {
 
-<div class="p-6 text-gray-500">
-  {{ 'import.configuration.loading' | translate }}
+@if (showError()) {
+<div class="mx-7 mt-5">
+  <app-alert-box
+    type="warning"
+    [title]="errorTitle()"
+    [message]="previewError()!"
+    (dismissed)="showError.set(false)"
+  />
 </div>
-
 }
