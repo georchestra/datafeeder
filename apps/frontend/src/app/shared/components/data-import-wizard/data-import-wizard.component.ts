@@ -393,7 +393,9 @@ export class DataImportWizardComponent implements OnInit {
     integrityLinkId: string,
     projection?: string,
     colX?: string,
-    colY?: string
+    colY?: string,
+    retryCount: number = 0,
+    isRetry: boolean = false
   ): Promise<void> {
     this.previewLoading.set(true)
     try {
@@ -412,16 +414,26 @@ export class DataImportWizardComponent implements OnInit {
       this.previewError.set(null)
     } catch (error) {
       // Refresh metadata in case of projection or columns errors
-      await this.refreshPreview(integrityLinkId)
+      // Retry only once without projection/columns to recover
+      if (!isRetry && retryCount < 1) {
+        await this.refreshPreview(
+          integrityLinkId,
+          undefined,
+          undefined,
+          undefined,
+          retryCount + 1,
+          true
+        )
 
-      // Back to table view on error
-      this.previewTabIndex.set(0)
+        // Back to table view on error
+        this.previewTabIndex.set(0)
 
-      const errorMessage =
-        error instanceof HttpErrorResponse
-          ? error.error?.detail || error.message
-          : 'import.dataSource.unknownError'
-      this.previewError.set(this.translate.instant(errorMessage))
+        const errorMessage =
+          error instanceof HttpErrorResponse
+            ? error.error?.detail || error.message
+            : 'import.dataSource.unknownError'
+        this.previewError.set(this.translate.instant(errorMessage))
+      }
     } finally {
       this.previewLoading.set(false)
     }
