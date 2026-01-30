@@ -5,8 +5,7 @@ import {
   effect,
   inject,
   signal,
-  OnInit,
-  ChangeDetectorRef
+  OnInit
 } from '@angular/core'
 import { MatButtonToggleModule } from '@angular/material/button-toggle'
 import { MatTabsModule } from '@angular/material/tabs'
@@ -163,9 +162,9 @@ export class DataImportWizardComponent implements OnInit {
           const metadata = await this.refreshMetadata(linkId)
           await this.refreshPreview(
             linkId,
-            metadata.force_projection?.type,
-            metadata.force_projection?.x_column,
-            metadata.force_projection?.y_column
+            metadata?.force_projection?.type,
+            metadata?.force_projection?.x_column,
+            metadata?.force_projection?.y_column
           )
         }
       }
@@ -251,7 +250,6 @@ export class DataImportWizardComponent implements OnInit {
       this.selectedTabIndex.set(1)
       this.previewTabIndex.set(0)
     } catch (error) {
-
       if (error instanceof Error && error.message) {
         this.importError.set(error.message)
       } else if (error instanceof HttpErrorResponse && error.error?.detail) {

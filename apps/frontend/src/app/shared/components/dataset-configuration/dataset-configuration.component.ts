@@ -20,7 +20,6 @@ import type {
 import {
   DropdownSelectorComponent,
   ButtonComponent,
-  SpinningLoaderComponent,
   DropdownChoice
 } from 'geonetwork-ui'
 import {
@@ -43,8 +42,7 @@ import { AlertBoxComponent } from '../alert-box/alert-box.component'
     NgIconComponent,
     DropdownSelectorComponent,
     ButtonComponent,
-    AlertBoxComponent,
-    SpinningLoaderComponent
+    AlertBoxComponent
   ],
   templateUrl: './dataset-configuration.component.html',
   styleUrls: ['./dataset-configuration.component.scss'],

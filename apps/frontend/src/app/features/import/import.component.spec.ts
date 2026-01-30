@@ -2,8 +2,10 @@ import { provideHttpClient } from '@angular/common/http'
 import { provideHttpClientTesting } from '@angular/common/http/testing'
 import { TestBed } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
+import { provideRouter } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
+import { ApiConfiguration } from '../../core/api/api-configuration'
 import { ImportComponent } from './import.component'
 
 describe('ImportComponent', () => {
@@ -20,7 +22,15 @@ describe('ImportComponent', () => {
           .withDefaultLanguage('en')
           .withCompiler(new TranslateMessageFormatCompiler())
       ],
-      providers: [provideHttpClient(), provideHttpClientTesting()]
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: ApiConfiguration,
+          useValue: { rootUrl: 'http://localhost:8000' }
+        }
+      ]
     }).compileComponents()
   })
 
