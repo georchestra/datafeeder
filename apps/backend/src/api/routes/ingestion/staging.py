@@ -1,7 +1,7 @@
 import json
 import re
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID, uuid4
 
 import geopandas as gpd
@@ -13,6 +13,7 @@ from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
 from data_manipulation.utils import sanitize_name
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
+from shapely.geometry.base import BaseGeometry
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -539,17 +540,15 @@ def get_staging_preview(
             is_geographic = True
 
             geometry_cols: list[str] = []
-            for col in transformed_data.columns:
-                if not transformed_data[col].empty:
-                    sample = transformed_data[col].iloc[0]
-                    # Vérifier si c'est une géométrie Shapely
-                    from shapely.geometry.base import BaseGeometry
+            for col in transformed_data.columns:  # type: ignore[misc]
+                if not transformed_data[col].empty:  # type: ignore[misc]
+                    sample_item = transformed_data[col].iloc[0]
+                    sample: Any = sample_item  # type: ignore[misc]
 
                     if isinstance(sample, BaseGeometry):
-                        geometry_cols.append(col)
-                    # Vérification alternative
-                    elif hasattr(sample, "wkt"):
-                        geometry_cols.append(col)
+                        geometry_cols.append(col)  # type: ignore[misc]
+                    elif hasattr(sample_item, "wkt"):  # type: ignore[misc]
+                        geometry_cols.append(col)  # type: ignore[misc]
 
             logger.info(f"Found geometry columns: {geometry_cols}")
 

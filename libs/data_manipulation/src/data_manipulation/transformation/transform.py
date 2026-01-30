@@ -27,7 +27,7 @@ def _parse_geometry(geom_value: str):
         return None
 
     # Check if it's WKB hex (starts with hex digits)
-    if isinstance(geom_value, str) and all(c in "0123456789ABCDEFabcdef" for c in geom_value):
+    if all(c in "0123456789ABCDEFabcdef" for c in geom_value):
         try:
             return wkb.loads(geom_value, hex=True)
         except Exception:

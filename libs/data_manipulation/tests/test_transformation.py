@@ -27,7 +27,7 @@ def test_apply_projection_basic():
     result = apply_projection(gdf, "EPSG:3857")
 
     assert isinstance(result, gpd.GeoDataFrame)
-    assert result.crs.to_string() == "EPSG:3857"
+    assert result.crs.to_string() == "EPSG:3857"  # type: ignore[misc]
     assert len(result) == 2
 
 
@@ -35,7 +35,9 @@ def test_apply_transformations_with_geometry():
     """Test apply_transformations with geometry creation"""
     df = pd.DataFrame({"lon": [1.0, 2.0], "lat": [48.0, 49.0], "name": ["Paris", "Lyon"]})
 
-    config = {"force_projection": {"type": "EPSG:4326", "x_column": "lon", "y_column": "lat"}}
+    config: dict[str, str | object | None] = {
+        "force_projection": {"type": "EPSG:4326", "x_column": "lon", "y_column": "lat"}
+    }
 
     result = apply_transformations(df, config)
 
@@ -48,7 +50,7 @@ def test_apply_transformations_with_encoding():
     """Test apply_transformations with encoding"""
     df = pd.DataFrame({"text": ["café", "élève"], "number": [1, 2]})
 
-    config = {"encoding": "utf-8"}
+    config: dict[str, str | object | None] = {"encoding": "utf-8"}
 
     result = apply_transformations(df, config)
 
@@ -101,10 +103,10 @@ def test_apply_projection_coordinate_change():
 
     # Coordinates should be different after reprojection
     original_coords = (2.3522, 48.8566)
-    new_coords = (result.geometry.iloc[0].x, result.geometry.iloc[0].y)
+    new_coords = (result.geometry.iloc[0].x, result.geometry.iloc[0].y)  # type: ignore[misc]
 
     assert new_coords != original_coords
-    assert result.crs.to_string() == "EPSG:3857"
+    assert result.crs.to_string() == "EPSG:3857"  # type: ignore[misc]
 
 
 def test_apply_projection_multiple_points():
@@ -116,7 +118,7 @@ def test_apply_projection_multiple_points():
 
     assert isinstance(result, gpd.GeoDataFrame)
     assert len(result) == 4
-    assert result.crs.to_string() == "EPSG:3857"
+    assert result.crs.to_string() == "EPSG:3857"  # type: ignore[misc]
     assert all(result.geometry.is_valid)
 
 
@@ -131,7 +133,7 @@ def test_apply_transformations_geometry_and_encoding():
         "encoding": "utf-8",
     }
 
-    result = apply_transformations(df, config)
+    result = apply_transformations(df, config)  # type: ignore[misc]
 
     assert isinstance(result, gpd.GeoDataFrame)
     assert "geometry" in result.columns
