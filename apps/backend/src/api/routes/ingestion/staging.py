@@ -9,6 +9,7 @@ import pandas as pd
 import requests
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from data_manipulation import apply_transformations
+from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
 from data_manipulation.utils import sanitize_name
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
@@ -18,6 +19,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from src.api.deps import DatakernSessionDep, DataSessionDep
 from src.core.callback import build_callback_url
 from src.core.config import get_staging_schema
+from src.core.db import datakern_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
 from src.models import (
@@ -39,10 +41,9 @@ from src.services.files import delete_temp_file, upload_file_to_temp
 logger = get_logger()
 configure_logging(logger)
 
-
 router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 
-GEOMETRY_COLUMN = "geom"
+DEFAULT_GEOMETRY_COLUMN = "geom"
 
 
 def _generate_staging_table_name() -> str:
@@ -510,22 +511,23 @@ def get_staging_preview(
     if not staging_table_name:
         raise HTTPException(status_code=500, detail="Staging table name is missing")
 
-    schema = get_staging_schema()
-    metadata = MetaData(schema=schema)
-    table = Table(staging_table_name, metadata, autoload_with=data_session.get_bind())
-    query = select(table).limit(limit)
-
-    subset = data_session.execute(query).mappings()  # type: ignore[misc]
-    staging_data = [dict(row) for row in subset]
-
     transformation_config: dict[str, str | object | None] = {
         "projection": projection,
         "x_column": x_column,
         "y_column": y_column,
     }
 
+    schema = get_staging_schema()  # FIXME
+    engine = datakern_engine
+    staging_data = read_data_from_postgis(staging_table_name, engine, schema, limit)
+
+    if isinstance(staging_data, gpd.GeoDataFrame):
+        df_for_transform = staging_data
+    else:
+        df_for_transform = pd.DataFrame(staging_data)
+
     try:
-        transformed_data = apply_transformations(pd.DataFrame(staging_data), transformation_config)
+        transformed_data = apply_transformations(df_for_transform, transformation_config)
 
         data = []  # tabular data
         geojson_data = None
@@ -533,13 +535,35 @@ def get_staging_preview(
 
         # Convert geometry to WKT for tabular display if GeoDataFrame
         # otherwise you cannot convert to data row to be sent to the frontend
-        if (
-            isinstance(transformed_data, gpd.GeoDataFrame)
-            and "geometry" in transformed_data.columns
-        ):
+        if isinstance(transformed_data, gpd.GeoDataFrame):
             is_geographic = True
+
+            geometry_cols: list[str] = []
+            for col in transformed_data.columns:
+                if not transformed_data[col].empty:
+                    sample = transformed_data[col].iloc[0]
+                    # Vérifier si c'est une géométrie Shapely
+                    from shapely.geometry.base import BaseGeometry
+
+                    if isinstance(sample, BaseGeometry):
+                        geometry_cols.append(col)
+                    # Vérification alternative
+                    elif hasattr(sample, "wkt"):
+                        geometry_cols.append(col)
+
+            logger.info(f"Found geometry columns: {geometry_cols}")
+
+            table_data: gpd.GeoDataFrame | pd.DataFrame = transformed_data.copy()
+
+            if "geom" in geometry_cols:
+                table_data["geom"] = table_data["geom"].apply(  # type: ignore[misc]
+                    lambda geom: geom.wkt if geom is not None else None  # type: ignore[misc]
+                )
+
+                geometry_cols.remove("geom")
+
             # Create a copy for tabular data without geometry column
-            table_data = transformed_data.drop(columns=["geometry"])
+            table_data = table_data.drop(columns=geometry_cols, errors="ignore")
             data = table_data.to_dict(orient="records")  # type: ignore[misc]
 
             # Create GeoJSON for map display, force to EPSG:4326

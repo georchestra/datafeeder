@@ -27,6 +27,8 @@ router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
 logger = get_logger()
 settings = get_settings()
 
+DEFAULT_GEOMETRY_COLUMN = "geom"
+
 
 @router.post(
     "/",
@@ -220,7 +222,7 @@ async def dag_success_callback(
             # Use SQLAlchemy Core to safely construct the query
             metadata = MetaData(schema="data")
             table = Table(final_table_name, metadata, autoload_with=data_engine)
-            is_geographic = "geom" in table.c
+            is_geographic = DEFAULT_GEOMETRY_COLUMN in table.c
 
             layer_urls = await geoserver_service.create_layer(
                 workspace_name=workspace_name,

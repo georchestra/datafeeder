@@ -159,7 +159,7 @@ def ingest_data_from_url_into_postgis(
 
 
 def read_data_from_postgis(
-    table_name: str, engine: Engine, schema: str | None = None
+    table_name: str, engine: Engine, schema: str | None = None, limit: int | None = None
 ) -> gpd.GeoDataFrame | pd.DataFrame:
     """Read data from a PostGIS table.
 
@@ -179,6 +179,9 @@ def read_data_from_postgis(
         metadata = MetaData(schema=schema)
         table = Table(table_name, metadata, autoload_with=engine)
         query = select(table)
+
+        if limit is not None and limit > 0:
+            query = query.limit(limit)
 
         # Compile the query to SQL string (with literal binds)
         compiled_query = str(query.compile(engine, compile_kwargs={"literal_binds": True}))
