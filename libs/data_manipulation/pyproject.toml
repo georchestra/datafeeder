@@ -17,7 +17,7 @@ requires-python = "==3.12.*"
 # To allow hot reload in local development, please replicate below dependencies in Dockerfile.airflow inside airflow-dev image
 dependencies = [
     "geoalchemy2==0.18.1",
-    "geopandas==1.1.1",
+    "geopandas==1.1.2",
     "geoservercloud",
     "sqlalchemy==2.0.44",
 ]
