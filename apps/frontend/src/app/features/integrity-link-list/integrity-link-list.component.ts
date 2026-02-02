@@ -1,15 +1,22 @@
 import { Component, inject, signal } from '@angular/core'
 import { DatePipe } from '@angular/common'
 import { Router } from '@angular/router'
+import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../../core/api/api'
 import { listIntegrityLinksIngestionIntegrityLinksGet } from '../../core/api/functions'
 import { IntegrityLinkListItem } from '../../core/api/models'
+import { iconoirPlusSquare } from '@ng-icons/iconoir'
 
 @Component({
   selector: 'app-integrity-link-list',
-  imports: [DatePipe, TranslatePipe],
-  templateUrl: './integrity-link-list.component.html'
+  imports: [DatePipe, TranslatePipe, NgIconComponent],
+  templateUrl: './integrity-link-list.component.html',
+  providers: [
+    provideIcons({
+      iconoirPlusSquare
+    })
+  ]
 })
 export class IntegrityLinkListComponent {
   private api = inject(Api)
