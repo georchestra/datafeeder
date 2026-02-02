@@ -9,7 +9,9 @@ export const appRoutes: Route[] = [
       {
         path: '',
         loadComponent: () =>
-          import('./features/home/home.component').then((m) => m.HomeComponent)
+          import(
+            './features/integrity-link-list/integrity-link-list.component'
+          ).then((m) => m.IntegrityLinkListComponent)
       },
       {
         path: 'import',

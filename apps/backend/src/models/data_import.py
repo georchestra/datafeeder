@@ -1,10 +1,12 @@
+from datetime import datetime
 from enum import Enum
 from typing import Any
+from uuid import UUID
 
 from airflow_client.client.models.dag_run_state import DagRunState
 from geojson_pydantic import Feature, FeatureCollection
 from geojson_pydantic.geometries import Geometry
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ImportType(str, Enum):
@@ -96,3 +98,41 @@ class StagingPreviewResponse(BaseModel):
         default=False,
         description="Indicates if the staging table contains geometry data",
     )
+
+
+class IntegrityLinkListItem(BaseModel):
+    """Response model for integrity link in list view (excludes sensitive fields)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    integrity_title: str | None
+    integrity_owner: str
+    integrity_organization: str
+    source_import_type: ImportType
+    source_file_name: str | None
+    source_file_type: FileType | None
+    source_url: str | None
+    source_auth_enabled: bool
+    staging_table_name: str
+    final_table_name: str | None
+    metadata_id: str | None
+    data_id: str | None
+    created_at: datetime | None
+    last_retrieval_timestamp: datetime | None
+    schedule: str | None
+    schedule_enabled: bool
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def convert_uuid_to_str(cls, v: UUID | str | None) -> str:
+        """Convert UUID to string for serialization."""
+        return str(v) if v is not None else ""
+
+
+class IntegrityLinkListResponse(BaseModel):
+    """Response for integrity links list with lazy loading support."""
+
+    items: list[IntegrityLinkListItem]
+    has_more: bool  # True if there are more items to load
+    offset: int  # Current offset (for next request: offset + BATCH_SIZE)

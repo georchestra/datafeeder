@@ -12,6 +12,7 @@ from src.core import security
 from src.core.config import get_settings
 from src.core.db import data_engine, datakern_engine
 from src.models import TokenPayload, User
+from src.services.georchestra import GeorchestraContext, get_georchestra_context
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{get_settings().API_V1_STR}/login/access-token")
 
@@ -29,6 +30,7 @@ def get_data_db() -> Generator[Session, None, None]:
 DatakernSessionDep = Annotated[Session, Depends(get_datakern_db)]
 DataSessionDep = Annotated[Session, Depends(get_data_db)]
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
+GeorchestraContextDep = Annotated[GeorchestraContext, Depends(get_georchestra_context)]
 
 
 def get_current_user(session: DatakernSessionDep, token: TokenDep) -> User:

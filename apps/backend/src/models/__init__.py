@@ -1,4 +1,6 @@
 from src.models.data_import import (
+    IntegrityLinkListItem,
+    IntegrityLinkListResponse,
     ProcessRequest,
     ProcessResponse,
     StagingResponse,
@@ -9,6 +11,8 @@ from src.models.user import TokenPayload, User
 
 __all__ = [
     "IntegrityLink",
+    "IntegrityLinkListItem",
+    "IntegrityLinkListResponse",
     "TokenPayload",
     "User",
     "ProcessRequest",

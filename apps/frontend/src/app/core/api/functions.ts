@@ -27,6 +27,8 @@ export type { GetStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet$Param
 export { getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet as getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet } from './fn/ingestion/get-staging-metadata-ingestion-staging-integrity-link-id-metadata-get'
 export type { GetStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet$Params as GetStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet$Params } from './fn/ingestion/get-staging-preview-ingestion-staging-integrity-link-id-preview-get'
 export { getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet as getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet } from './fn/ingestion/get-staging-preview-ingestion-staging-integrity-link-id-preview-get'
+export type { ListIntegrityLinksIngestionIntegrityLinksGet$Params as ListIntegrityLinksIngestionIntegrityLinksGet$Params } from './fn/ingestion/list-integrity-links-ingestion-integrity-links-get'
+export { listIntegrityLinksIngestionIntegrityLinksGet as listIntegrityLinksIngestionIntegrityLinksGet } from './fn/ingestion/list-integrity-links-ingestion-integrity-links-get'
 export type { GetFileInternalFilesFilenameGet$Params as GetFileInternalFilesFilenameGet$Params } from './fn/files/get-file-internal-files-filename-get'
 export { getFileInternalFilesFilenameGet as getFileInternalFilesFilenameGet } from './fn/files/get-file-internal-files-filename-get'
 export type { ReadRootGet$Params as ReadRootGet$Params } from './fn/health/read-root-get'

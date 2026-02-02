@@ -1,0 +1,64 @@
+<div class="py-8">
+  <div class="rounded-lg bg-white p-7">
+    <h1 class="mb-6 text-2xl font-bold text-gray-2">
+      {{ 'integrityLinks.dashboard' | translate }}
+    </h1>
+
+    @if (loading()) {
+    <p class="text-gray-500">{{ 'common.loading' | translate }}</p>
+    } @else if (integrityLinks().length === 0) {
+    <p class="text-gray-500">{{ 'integrityLinks.emptyList' | translate }}</p>
+    } @else {
+    <!-- Header -->
+    <div class="-mx-7 mb-2 flex border-t border-gray-200 px-7 pt-3">
+      <div class="pl-2 w-28 pr-4 text-sm font-semibold text-gray-2">
+        {{ 'integrityLinks.creation' | translate }}
+      </div>
+      <div class="flex-1 pr-4 text-sm font-semibold text-gray-2">
+        {{ 'integrityLinks.title' | translate }}
+      </div>
+      <div class="w-48 text-sm font-semibold text-gray-2">
+        {{ 'integrityLinks.owner' | translate }}
+      </div>
+    </div>
+
+    <!-- Rows -->
+    <div class="flex flex-col gap-2">
+      @for (link of integrityLinks(); track link.id) {
+      <div
+        class="flex cursor-pointer rounded-md bg-beige py-3 transition-colors hover:bg-gray-100"
+        (click)="onRowClick(link.id)"
+      >
+        <div class="pl-2 w-28 pr-4 text-sm text-gray-600">
+          {{ link.created_at | date : 'dd/MM/yyyy' }}
+        </div>
+        <div class="flex-1 pr-4 text-sm text-gray-600">
+          {{ link.integrity_title }}
+        </div>
+        <div class="w-48 text-sm text-gray-600">
+          {{ link.integrity_owner }}
+        </div>
+      </div>
+      }
+    </div>
+
+    <!-- Load More Button -->
+    @if (hasMore()) {
+    <div class="mt-4 flex justify-center">
+      <button
+        type="button"
+        class="flex items-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+        [disabled]="loadingMore()"
+        (click)="loadMore()"
+      >
+        @if (loadingMore()) {
+        {{ 'common.loading' | translate }}
+        } @else {
+        <ng-icon name="iconoirPlus" size="1.25em"></ng-icon>
+        {{ 'integrityLinks.loadMore' | translate }}
+        }
+      </button>
+    </div>
+    } }
+  </div>
+</div>
