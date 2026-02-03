@@ -528,6 +528,18 @@ def get_staging_preview(
     try:
         transformed_data = apply_transformations(df_for_transform, transformation_config)
 
+        # Convert all non-JSON-serializable types to string (datetime, Timestamp, etc.)
+        for col in transformed_data.columns:
+            if transformed_data[col].dtype == "object":
+                # Check if column contains datetime-like objects
+                try:
+                    if pd.api.types.is_datetime64_any_dtype(transformed_data[col]):
+                        transformed_data[col] = transformed_data[col].astype(str)  # type: ignore[misc]
+                except Exception:
+                    pass
+            elif pd.api.types.is_datetime64_any_dtype(transformed_data[col]):
+                transformed_data[col] = transformed_data[col].astype(str)  # type: ignore[misc]
+
         data = []  # tabular data
         geojson_data = None
         is_geographic = False
@@ -552,6 +564,7 @@ def get_staging_preview(
 
             # Create GeoJSON for map display first, force to EPSG:4326
             map_gdf = transformed_data.copy()
+
             try:
                 if map_gdf.crs and map_gdf.crs.to_string() != "EPSG:4326":
                     map_gdf = map_gdf.to_crs("EPSG:4326")

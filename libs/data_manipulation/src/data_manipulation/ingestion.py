@@ -40,6 +40,10 @@ def _detect_file_encoding(file_path: str) -> str:
     file_path_to_read = file_path
     path = Path(file_path)
 
+    # GeoJSON must be UTF-8 according to RFC 7946
+    if path.suffix.lower() in (".geojson", ".json"):
+        return "utf-8"
+
     # Check for .cpg file (encoding file for shapefiles)
     if path.suffix.lower() == ".shp":
         cpg_file = path.with_suffix(".cpg")
