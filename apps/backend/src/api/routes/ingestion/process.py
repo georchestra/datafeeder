@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.database import create_schema, get_available_table_name
 from data_manipulation.utils import sanitize_name
 from data_manipulation.validators import validate_table_name
@@ -26,8 +27,6 @@ from src.services.metadata_service import MetadataService
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
 logger = get_logger()
 settings = get_settings()
-
-DEFAULT_GEOMETRY_COLUMN = "geom"
 
 
 @router.post(

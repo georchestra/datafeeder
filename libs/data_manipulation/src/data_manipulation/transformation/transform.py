@@ -4,6 +4,7 @@ import geopandas as gpd
 import pandas as pd
 from shapely import wkb, wkt
 
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.transformation.transform_encoding import apply_encoding
 from data_manipulation.transformation.transform_geom_point import create_geometries_from_columns
 from data_manipulation.transformation.transform_projection import apply_projection
@@ -11,7 +12,6 @@ from data_manipulation.transformation.transform_projection import apply_projecti
 logger = logging.getLogger(__name__)
 
 DEFAULT_CRS = "EPSG:4326"
-DEFAULT_GEOMETRY_COLUMN = "geom"  # FIXME: should be centralized, in config?
 
 
 def _parse_geometry(geom_value: str):

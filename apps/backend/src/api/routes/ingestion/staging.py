@@ -44,8 +44,6 @@ configure_logging(logger)
 
 router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 
-DEFAULT_GEOMETRY_COLUMN = "geom"
-
 
 def _generate_staging_table_name() -> str:
     """Generate a unique, readable staging table name.

@@ -10,13 +10,13 @@ import requests
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.engine import Engine
 
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.utils import resolve_url
 from data_manipulation.validators import validate_table_name
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_SCHEMA = "public"
-DEFAULT_GEOMETRY_COLUMN = "geom"
 
 
 def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
