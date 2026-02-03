@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
 from uuid import UUID
@@ -136,3 +136,30 @@ class IntegrityLinkListResponse(BaseModel):
     items: list[IntegrityLinkListItem]
     has_more: bool  # True if there are more items to load
     offset: int  # Current offset (for next request: offset + BATCH_SIZE)
+
+
+class IntegrityLinkResponse(BaseModel):
+    """Response model for IntegrityLink entity."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    data_id: str | None
+    metadata_id: str | None
+    integrity_title: str | None
+    integrity_owner: str
+    integrity_organization: str
+    integrity_transformation: dict[str, Any] | None = None
+    source_import_type: ImportType
+    source_url: str | None
+    source_file_name: str | None
+    source_file_type: FileType | None
+    source_username: str | None
+    source_auth_enabled: bool
+    staging_table_name: str
+    staging_retrieve_time: timedelta | None
+    final_table_name: str | None
+    last_retrieval_timestamp: datetime | None
+    schedule: str | None
+    schedule_enabled: bool
+    created_at: datetime | None
