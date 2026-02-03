@@ -552,20 +552,7 @@ def get_staging_preview(
 
             logger.info(f"Found geometry columns: {geometry_cols}")
 
-            table_data: gpd.GeoDataFrame | pd.DataFrame = transformed_data.copy()
-
-            if "geom" in geometry_cols:
-                table_data["geom"] = table_data["geom"].apply(  # type: ignore[misc]
-                    lambda geom: geom.wkt if geom is not None else None  # type: ignore[misc]
-                )
-
-                geometry_cols.remove("geom")
-
-            # Create a copy for tabular data without geometry column
-            table_data = table_data.drop(columns=geometry_cols, errors="ignore")
-            data = table_data.to_dict(orient="records")  # type: ignore[misc]
-
-            # Create GeoJSON for map display, force to EPSG:4326
+            # Create GeoJSON for map display first, force to EPSG:4326
             map_gdf = transformed_data.copy()
             try:
                 if map_gdf.crs and map_gdf.crs.to_string() != "EPSG:4326":
@@ -573,6 +560,18 @@ def get_staging_preview(
                     logger.info(f"Reprojected data from {map_gdf.crs} to EPSG:4326 for map display")
             except Exception as crs_error:
                 logger.warning(f"Could not reproject to EPSG:4326: {crs_error}")
+
+            # Now modify transformed_data directly for tabular display
+            if "geom" in geometry_cols:
+                transformed_data["geom"] = transformed_data["geom"].apply(  # type: ignore[misc]
+                    lambda geom: geom.wkt if geom is not None else None  # type: ignore[misc]
+                )
+
+                geometry_cols.remove("geom")
+
+            # Drop geometry columns for tabular data
+            table_data = transformed_data.drop(columns=geometry_cols, errors="ignore")
+            data = table_data.to_dict(orient="records")  # type: ignore[misc]
 
             geojson_str = map_gdf.to_json()  # type: ignore[misc]
             geojson_data = json.loads(geojson_str) if geojson_str else None
