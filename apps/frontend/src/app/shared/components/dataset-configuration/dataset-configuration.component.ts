@@ -83,7 +83,9 @@ export class DatasetConfigurationComponent {
     effect(() => {
       const meta = this.metadata()
       if (meta) {
-        this.selectedProjection.set(meta.force_projection?.type || DEFAULT_PROJECTION)
+        this.selectedProjection.set(
+          meta.force_projection?.type || DEFAULT_PROJECTION
+        )
         this.selectedXCol.set(meta.force_projection?.x_column || '')
         this.selectedYCol.set(meta.force_projection?.y_column || '')
       }

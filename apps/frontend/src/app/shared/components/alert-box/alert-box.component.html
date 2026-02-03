@@ -9,14 +9,10 @@
     @if (dismissible()) {
     <gn-ui-button
       type="light"
-      style="
-        --gn-ui-button-padding: 0px;
-        --gn-ui-button-width: 24px;
-        --gn-ui-button-height: 24px;
-      "
       class="ml-[20px]"
       (buttonClick)="onDismiss()"
       data-test="dismiss-alert"
+      [extraClass]="'p-0 w-6 h-6'"
     >
       <span class="material-symbols-outlined gn-ui-icon-medium">close</span>
     </gn-ui-button>
