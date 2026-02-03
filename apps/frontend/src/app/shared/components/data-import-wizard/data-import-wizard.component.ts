@@ -191,7 +191,6 @@ export class DataImportWizardComponent implements OnInit {
     const linkId = this.integrityLinkId()
     if (linkId) {
       try {
-        console.log('fsefes')
         const metadata = await this.submitConfigStagingData(
           linkId,
           config.projection,

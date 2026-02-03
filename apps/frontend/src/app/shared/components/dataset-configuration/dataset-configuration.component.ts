@@ -30,6 +30,8 @@ import {
 import { iconoirDataTransferBoth } from '@ng-icons/iconoir'
 import { AlertBoxComponent } from '../alert-box/alert-box.component'
 
+const DEFAULT_PROJECTION = 'EPSG:4326'
+
 @Component({
   selector: 'app-dataset-configuration',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -81,7 +83,7 @@ export class DatasetConfigurationComponent {
     effect(() => {
       const meta = this.metadata()
       if (meta) {
-        this.selectedProjection.set(meta.force_projection?.type || '')
+        this.selectedProjection.set(meta.force_projection?.type || DEFAULT_PROJECTION)
         this.selectedXCol.set(meta.force_projection?.x_column || '')
         this.selectedYCol.set(meta.force_projection?.y_column || '')
       }
@@ -101,7 +103,6 @@ export class DatasetConfigurationComponent {
   })
 
   projections: DropdownChoice[] = [
-    { value: '-1', label: '-' }, // keep -1 because gn-ui does not select ''...
     { value: 'EPSG:4326', label: 'WGS 84' },
     { value: 'EPSG:3857', label: 'Web Mercator' }
     // TODO: Add more projections as needed, from config
