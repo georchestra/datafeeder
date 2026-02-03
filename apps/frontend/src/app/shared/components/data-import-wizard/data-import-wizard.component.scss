@@ -30,3 +30,10 @@
     line-height: 36px;
   }
 }
+::ng-deep .gn-ui-card {
+  overflow: hidden;
+  .flex-col {
+    min-width: 0;
+    word-break: break-all;
+  }
+}
