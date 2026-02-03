@@ -5,6 +5,7 @@ import {
 } from '@angular/common/http/testing'
 import { TestBed, fakeAsync, tick } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
+import { provideRouter } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { ApiConfiguration } from '../../../core/api/api-configuration'
@@ -25,7 +26,11 @@ describe('DataImportWizardComponent', () => {
           .withDefaultLanguage('en')
           .withCompiler(new TranslateMessageFormatCompiler())
       ],
-      providers: [provideHttpClient(), provideHttpClientTesting()]
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([])
+      ]
     }).compileComponents()
   })
 
@@ -43,9 +48,10 @@ describe('DataImportWizardComponent', () => {
     expect(compiled.textContent).toContain('Configure the dataset')
   })
 
-  it('should render data source selector in first tab', () => {
+  it('should render data source selector in first tab', async () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     fixture.detectChanges()
+    await fixture.whenStable()
     const compiled = fixture.nativeElement as HTMLElement
     expect(compiled.querySelector('app-data-source-selector')).toBeTruthy()
   })
@@ -160,6 +166,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideRouter([]),
         {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
@@ -594,23 +601,6 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     expect(component.importError()).toBeNull()
   })
 
-  it('should clear error when clicking on error remove button', () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-
-    component.importError.set('Some error')
-    fixture.detectChanges()
-
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="remove-error"] > button'
-    )
-
-    button.click()
-    fixture.detectChanges()
-
-    expect(component.importError()).toBeNull()
-  })
-
   // Button State Tests
   it('should disable button during import', async () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
@@ -809,6 +799,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
       ],
       providers: [
         provideHttpClient(),
+        provideRouter([]),
         provideHttpClientTesting(),
         {
           provide: ApiConfiguration,
@@ -1134,7 +1125,15 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
           .withDefaultLanguage('en')
           .withCompiler(new TranslateMessageFormatCompiler())
       ],
-      providers: [provideHttpClient(), provideHttpClientTesting()]
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: ApiConfiguration,
+          useValue: { rootUrl: 'http://localhost:8000' }
+        }
+      ]
     }).compileComponents()
   })
 

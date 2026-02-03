@@ -51,7 +51,7 @@ async def upload_file_to_temp(
             raise IOError(f"File was not created: {file_path}")
 
         file_url = get_temp_file_url(unique_filename)
-        source_file_name = unique_filename
+        source_file_name = f"{original_path.stem}{extension}"
         source_file_type = FileType(extension.lstrip(".").lower())
 
         return source_file_name, source_file_type, file_url

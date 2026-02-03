@@ -10,8 +10,8 @@ from pandas import DataFrame
 from shapely.geometry import Point
 from sqlalchemy.engine import Engine
 
+from data_manipulation import apply_transformations
 from data_manipulation.ingestion import (
-    apply_transformations,
     ingest_data_from_file_into_postgis,
     ingest_data_from_url_into_postgis,
     read_data_from_postgis,

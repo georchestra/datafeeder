@@ -68,10 +68,10 @@ class TestUploadFileToTemp:
         mock_file_path.write_bytes.assert_called_once_with(b'{"test": "data"}')
 
         # Verify result contains the filename with unique ID
-        assert source_file_name.startswith("test_file_")
+        assert source_file_name.startswith("test_file")
         assert source_file_name.endswith(".json")
         assert source_file_type == FileType.JSON
-        assert file_url.startswith("http://localhost:8000/internal/files/test_file_")
+        assert file_url.startswith("http://localhost:8000/internal/files/test_file")
         assert file_url.endswith(".json")
 
     @pytest.mark.asyncio
@@ -145,10 +145,10 @@ class TestUploadFileToTemp:
         source_file_name, source_file_type, file_url = await upload_file_to_temp(file)
 
         # Verify default filename is used with extension
-        assert source_file_name.startswith("uploaded_file_")
+        assert source_file_name.startswith("uploaded_file")
         assert source_file_name.endswith(".csv")
         assert source_file_type == FileType.CSV
-        assert file_url.startswith("http://localhost:8000/internal/files/uploaded_file_")
+        assert file_url.startswith("http://localhost:8000/internal/files/uploaded_file")
 
     @pytest.mark.asyncio
     @patch("src.services.files.get_settings")

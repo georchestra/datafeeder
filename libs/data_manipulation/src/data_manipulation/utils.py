@@ -2,8 +2,11 @@
 
 import logging
 import re
+from typing import Union
 
 import requests
+from geopandas import GeoDataFrame
+from pandas import DataFrame
 
 from data_manipulation.logging import configure_logging
 
@@ -84,3 +87,8 @@ def resolve_url(url: str) -> str:
         return url
     except requests.RequestException as e:
         raise ValueError(f"Error checking URL {url}: {e}") from e
+
+
+def is_geo_dataframe(df: Union[GeoDataFrame, DataFrame]) -> bool:
+    """Check if a dataframe is a GeoDataFrame."""
+    return isinstance(df, GeoDataFrame)

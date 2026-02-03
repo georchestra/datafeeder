@@ -1,60 +1,98 @@
 import {
   Component,
   input,
-  signal,
   effect,
   inject,
-  computed,
-  output
+  output,
+  ChangeDetectionStrategy,
+  signal,
+  computed
 } from '@angular/core'
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms'
+import { ReactiveFormsModule } from '@angular/forms'
 import { MatFormFieldModule } from '@angular/material/form-field'
 import { MatInputModule } from '@angular/material/input'
 import { MatTableModule } from '@angular/material/table'
-import { Api } from '../../../core/api/api'
-import {
-  getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet,
-  getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet
-} from '../../../core/api/functions'
+import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import type {
   StagingMetadataResponse,
   StagingPreviewResponse
 } from '../../../core/api/models'
-import { TranslatePipe, TranslateService } from '@ngx-translate/core'
+import {
+  DropdownSelectorComponent,
+  ButtonComponent,
+  DropdownChoice
+} from 'geonetwork-ui'
+import {
+  NgIconComponent,
+  provideIcons,
+  provideNgIconsConfig
+} from '@ng-icons/core'
+import { iconoirDataTransferBoth } from '@ng-icons/iconoir'
+import { AlertBoxComponent } from '../alert-box/alert-box.component'
+
+const DEFAULT_PROJECTION = 'EPSG:4326'
 
 @Component({
   selector: 'app-dataset-configuration',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
     MatFormFieldModule,
     MatInputModule,
     MatTableModule,
-    TranslatePipe
+    TranslatePipe,
+    NgIconComponent,
+    DropdownSelectorComponent,
+    ButtonComponent,
+    AlertBoxComponent
   ],
   templateUrl: './dataset-configuration.component.html',
-  styleUrls: ['./dataset-configuration.component.scss']
+  styleUrls: ['./dataset-configuration.component.scss'],
+  providers: [
+    provideIcons({
+      iconoirDataTransferBoth
+    }),
+    provideNgIconsConfig({
+      size: '2em'
+    })
+  ]
 })
 export class DatasetConfigurationComponent {
-  private api = inject(Api)
-  private fb = inject(FormBuilder)
   private translate = inject(TranslateService)
 
-  validated = output<string>()
+  metadata = input<StagingMetadataResponse | null>(null)
+  preview = input<StagingPreviewResponse | null>(null)
+  previewError = input<string | null>(null)
+  previewLoading = input<boolean>(false)
 
-  form = this.fb.group({
-    title: this.fb.control('', {
-      nonNullable: true,
-      validators: [
-        Validators.required,
-        Validators.minLength(3),
-        Validators.maxLength(100)
-      ]
+  configChanged = output<{
+    projection: string
+    colX: string
+    colY: string
+  }>()
+
+  selectedProjection = signal<string>('')
+  selectedXCol = signal<string>('')
+  selectedYCol = signal<string>('')
+  showError = signal<boolean>(false)
+
+  errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
+
+  constructor() {
+    // Initialize selected values from metadata when it loads
+    effect(() => {
+      const meta = this.metadata()
+      if (meta) {
+        this.selectedProjection.set(
+          meta.force_projection?.type || DEFAULT_PROJECTION
+        )
+        this.selectedXCol.set(meta.force_projection?.x_column || '')
+        this.selectedYCol.set(meta.force_projection?.y_column || '')
+      }
     })
-  })
 
-  integrityLinkId = input<string | undefined>()
-  metadata = signal<StagingMetadataResponse | null>(null)
-  preview = signal<StagingPreviewResponse | null>(null)
+    effect(() => this.showError.set(!!this.previewError()))
+  }
 
   displayedColumns = computed(() => {
     const meta = this.metadata()
@@ -66,56 +104,60 @@ export class DatasetConfigurationComponent {
     return data
   })
 
-  constructor() {
-    effect(() => {
-      const linkId = this.integrityLinkId()
-      if (!linkId) return
+  projections: DropdownChoice[] = [
+    { value: 'EPSG:4326', label: 'WGS 84' },
+    { value: 'EPSG:3857', label: 'Web Mercator' }
+    // TODO: Add more projections as needed, from config
+  ]
 
-      this.fetchData(linkId)
-    })
+  columns = computed<DropdownChoice[]>(() => {
+    const meta = this.metadata()
+    if (!meta?.columns) {
+      return [{ value: '', label: '-' }]
+    }
+    return [
+      { value: '', label: '-' },
+      ...meta.columns.map((col) => ({
+        value: col.name,
+        label: col.name
+      }))
+    ]
+  })
 
-    // Sync metadata title to form when loaded
-    effect(() => {
-      const meta = this.metadata()
-      if (meta) {
-        const title =
-          meta.title ||
-          this.translate.instant('import.datasetConfiguration.untitled')
-        this.form.patchValue({ title }, { emitEvent: false })
-      }
+  private emitConfigChanged() {
+    const projection = this.selectedProjection()
+    const colX = this.selectedXCol()
+    const colY = this.selectedYCol()
+
+    this.configChanged.emit({
+      projection,
+      colX,
+      colY
     })
   }
 
-  private async fetchData(integrityLinkId: string): Promise<void> {
-    try {
-      const [metadata, preview] = await Promise.all([
-        this.api.invoke(
-          getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet,
-          {
-            integrity_link_id: integrityLinkId
-          }
-        ),
-        this.api.invoke(
-          getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
-          {
-            integrity_link_id: integrityLinkId,
-            limit: 10
-          }
-        )
-      ])
+  onSwitchXY() {
+    const currentLat = this.selectedXCol()
+    const currentLong = this.selectedYCol()
 
-      this.metadata.set(metadata)
-      this.preview.set(preview)
-    } catch (error) {
-      console.error('Error fetching staging data:', error)
-    }
+    this.selectedXCol.set(currentLong)
+    this.selectedYCol.set(currentLat)
+
+    this.emitConfigChanged()
   }
 
-  submitForm() {
-    if (this.form.valid) {
-      this.validated.emit(this.form.value.title!)
-    } else {
-      this.form.markAllAsTouched()
-    }
+  selectYCol(col: string) {
+    this.selectedYCol.set(col)
+    this.emitConfigChanged()
+  }
+
+  selectXCol(col: string) {
+    this.selectedXCol.set(col)
+    this.emitConfigChanged()
+  }
+
+  selectProjection(projection: string) {
+    this.selectedProjection.set(projection)
+    this.emitConfigChanged()
   }
 }

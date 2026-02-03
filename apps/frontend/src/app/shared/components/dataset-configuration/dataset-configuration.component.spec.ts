@@ -1,146 +1,145 @@
-import { TestBed } from '@angular/core/testing'
-import { provideHttpClient } from '@angular/common/http'
-import { provideHttpClientTesting } from '@angular/common/http/testing'
+import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { DatasetConfigurationComponent } from './dataset-configuration.component'
-import { TranslateTestingModule } from 'ngx-translate-testing'
-import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
-import type {
-  StagingMetadataResponse,
-  StagingPreviewResponse
-} from '../../../core/api/models'
+import { TranslateModule } from '@ngx-translate/core'
+import type { StagingMetadataResponse } from '../../../core/api/models'
 
 describe('DatasetConfigurationComponent', () => {
+  let component: DatasetConfigurationComponent
+  let fixture: ComponentFixture<DatasetConfigurationComponent>
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [
-        DatasetConfigurationComponent,
-        TranslateTestingModule.withTranslations({
-          en: {
-            'import.configuration.datasetTitle': 'Dataset Title',
-            'import.configuration.loading': 'Loading data...',
-            'import.datasetConfiguration.untitled': 'Untitled'
-          }
-        })
-          .withDefaultLanguage('en')
-          .withCompiler(new TranslateMessageFormatCompiler())
-      ],
-      providers: [provideHttpClient(), provideHttpClientTesting()]
+      imports: [DatasetConfigurationComponent, TranslateModule.forRoot()]
     }).compileComponents()
+
+    fixture = TestBed.createComponent(DatasetConfigurationComponent)
+    component = fixture.componentInstance
+    fixture.detectChanges()
   })
 
   it('should create', () => {
-    const fixture = TestBed.createComponent(DatasetConfigurationComponent)
-    const component = fixture.componentInstance
     expect(component).toBeTruthy()
   })
 
-  it('should display loading text when no metadata', () => {
-    const fixture = TestBed.createComponent(DatasetConfigurationComponent)
-    fixture.detectChanges()
-    const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain('Loading data...')
+  it('should initialize with empty signals', () => {
+    expect(component.selectedProjection()).toBe('')
+    expect(component.selectedXCol()).toBe('')
+    expect(component.selectedYCol()).toBe('')
+    expect(component.showError()).toBe(false)
   })
 
-  it('should display title heading when metadata is loaded', () => {
-    const fixture = TestBed.createComponent(DatasetConfigurationComponent)
-    const component = fixture.componentInstance
+  it('should emit config when selecting projection', () => {
+    const spy = vi.fn()
+    component.configChanged.subscribe(spy)
 
-    const mockMetadata: StagingMetadataResponse = {
-      title: 'Test Dataset',
-      columns: [{ name: 'col1', type: 'string' }]
-    }
+    component.selectProjection('EPSG:4326')
 
-    component.metadata.set(mockMetadata)
-    fixture.detectChanges()
-
-    const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain('Dataset Title')
+    expect(component.selectedProjection()).toBe('EPSG:4326')
+    expect(spy).toHaveBeenCalledWith({
+      projection: 'EPSG:4326',
+      colX: '',
+      colY: ''
+    })
   })
 
-  it('should populate form title with metadata title', () => {
-    const fixture = TestBed.createComponent(DatasetConfigurationComponent)
-    const component = fixture.componentInstance
+  it('should emit config when selecting X column', () => {
+    const spy = vi.fn()
+    component.configChanged.subscribe(spy)
 
-    const mockMetadata: StagingMetadataResponse = {
-      title: 'My Test Dataset',
-      columns: [{ name: 'col1', type: 'string' }]
-    }
+    component.selectXCol('longitude')
 
-    component.metadata.set(mockMetadata)
-    fixture.detectChanges()
-
-    expect(component.form.get('title')?.value).toBe('My Test Dataset')
+    expect(component.selectedXCol()).toBe('longitude')
+    expect(spy).toHaveBeenCalledWith({
+      projection: '',
+      colX: 'longitude',
+      colY: ''
+    })
   })
 
-  it('should use default title when metadata has no title', () => {
-    const fixture = TestBed.createComponent(DatasetConfigurationComponent)
-    const component = fixture.componentInstance
+  it('should emit config when selecting Y column', () => {
+    const spy = vi.fn()
+    component.configChanged.subscribe(spy)
 
-    const mockMetadata: StagingMetadataResponse = {
-      title: '',
-      columns: [{ name: 'col1', type: 'string' }]
-    }
+    component.selectYCol('latitude')
 
-    component.metadata.set(mockMetadata)
-    fixture.detectChanges()
-
-    expect(component.form.get('title')?.value).toBe('Untitled')
+    expect(component.selectedYCol()).toBe('latitude')
+    expect(spy).toHaveBeenCalledWith({
+      projection: '',
+      colX: '',
+      colY: 'latitude'
+    })
   })
 
-  it('should compute displayed columns based on metadata', () => {
-    const fixture = TestBed.createComponent(DatasetConfigurationComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges()
+  it('should switch X and Y columns', () => {
+    const spy = vi.fn()
+    component.configChanged.subscribe(spy)
 
-    // Should be empty when no metadata
-    let displayedColumns = component.displayedColumns()
-    expect(displayedColumns).toEqual([])
+    component.selectedXCol.set('lon')
+    component.selectedYCol.set('lat')
 
-    // Should display columns when metadata is set
-    const mockMetadata: StagingMetadataResponse = {
-      title: 'Test Dataset',
+    component.onSwitchXY()
+
+    expect(component.selectedXCol()).toBe('lat')
+    expect(component.selectedYCol()).toBe('lon')
+    expect(spy).toHaveBeenCalled()
+  })
+
+  it('should compute columns from metadata', () => {
+    const metadata: StagingMetadataResponse = {
       columns: [
-        { name: 'firstName', type: 'string' },
-        { name: 'lastName', type: 'string' },
-        { name: 'age', type: 'integer' }
-      ]
+        { name: 'id', type: 'integer' },
+        { name: 'name', type: 'text' }
+      ],
+      force_projection: null
     }
 
-    component.metadata.set(mockMetadata)
+    fixture.componentRef.setInput('metadata', metadata)
     fixture.detectChanges()
 
-    displayedColumns = component.displayedColumns()
-    expect(displayedColumns).toEqual(['firstName', 'lastName', 'age'])
+    const columns = component.columns()
+    expect(columns.length).toBe(3) // '-' + 2 columns
+    expect(columns[1].value).toBe('id')
+    expect(columns[2].value).toBe('name')
   })
 
-  it('should manage datasource with preview data', () => {
-    const fixture = TestBed.createComponent(DatasetConfigurationComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges()
-
-    // Should be empty when no preview data
-    let dataSource = component.dataSource()
-    expect(dataSource).toEqual([])
-
-    // Should populate datasource with preview data
-    const mockPreview: StagingPreviewResponse = {
-      data: [
-        { firstName: 'John', lastName: 'Doe', age: 30 },
-        { firstName: 'Jane', lastName: 'Smith', age: 28 }
-      ]
+  it('should compute displayed columns from metadata', () => {
+    const metadata: StagingMetadataResponse = {
+      columns: [
+        { name: 'col1', type: 'text' },
+        { name: 'col2', type: 'integer' }
+      ],
+      force_projection: null
     }
 
-    component.preview.set(mockPreview)
+    fixture.componentRef.setInput('metadata', metadata)
     fixture.detectChanges()
 
-    dataSource = component.dataSource()
-    expect(dataSource).toEqual(mockPreview.data)
+    const displayedColumns = component.displayedColumns()
+    expect(displayedColumns).toEqual(['col1', 'col2'])
   })
 
-  it('should display loading message', () => {
-    const fixture = TestBed.createComponent(DatasetConfigurationComponent)
+  it('should show error when previewError is set', () => {
+    fixture.componentRef.setInput('previewError', 'An error occurred')
     fixture.detectChanges()
-    const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain('Loading data...')
+
+    expect(component.showError()).toBe(true)
+  })
+
+  it('should initialize from metadata force_projection', () => {
+    const metadata: StagingMetadataResponse = {
+      columns: [],
+      force_projection: {
+        type: 'EPSG:4326',
+        x_column: 'lon',
+        y_column: 'lat'
+      }
+    }
+
+    fixture.componentRef.setInput('metadata', metadata)
+    fixture.detectChanges()
+
+    expect(component.selectedProjection()).toBe('EPSG:4326')
+    expect(component.selectedXCol()).toBe('lon')
+    expect(component.selectedYCol()).toBe('lat')
   })
 })

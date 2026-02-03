@@ -5,7 +5,11 @@
 
   .mat-button-toggle {
     background-color: white;
-    color: var(--color-gray-700);
+    color: var(--color-gray-900);
+
+    & > button:disabled {
+      color: var(--color-gray-400);
+    }
   }
 
   .mat-button-toggle-checked {

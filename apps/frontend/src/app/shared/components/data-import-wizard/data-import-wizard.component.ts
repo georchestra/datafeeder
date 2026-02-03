@@ -1,8 +1,16 @@
 import { HttpErrorResponse } from '@angular/common/http'
-import { Component, computed, effect, inject, signal } from '@angular/core'
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+  OnInit
+} from '@angular/core'
 import { MatButtonToggleModule } from '@angular/material/button-toggle'
 import { MatTabsModule } from '@angular/material/tabs'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
+import { Router, ActivatedRoute } from '@angular/router'
 import {
   iconoirMap,
   iconoirNumber1Square,
@@ -13,7 +21,6 @@ import {
 } from '@ng-icons/iconoir'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { ButtonComponent, SpinningLoaderComponent } from 'geonetwork-ui'
-import { Router } from '@angular/router'
 import {
   catchError,
   interval,
@@ -24,13 +31,15 @@ import {
   throwError,
   timeout
 } from 'rxjs'
+import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import { Api } from '../../../core/api/api'
 import {
   getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet,
   getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
   submitStagingIngestionStagingPost,
-  processStagingDataIngestionProcessPost
+  processStagingDataIngestionProcessPost,
+  editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut
 } from '../../../core/api/functions'
 import type {
   DagRunState,
@@ -40,9 +49,16 @@ import type {
 } from '../../../core/api/models'
 import type { SourceData } from '../data-source-selector/data-source-selector.component'
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
+import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
+import { AlertBoxComponent } from '../alert-box/alert-box.component'
+
+marker('import.dataSource.error')
+marker('i18nerror.transformation.geometry_creation_failed')
+marker('i18nerror.transformation.columns_both_required')
+marker('i18nerror.transformation.projection_application_failed')
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 120000
@@ -69,10 +85,12 @@ export interface ImportWizardData {
     ButtonComponent,
     SpinningLoaderComponent,
     DataSourceSelectorComponent,
+    DatasetTitleComponent,
     DatasetConfigurationComponent,
     TranslatePipe,
     DatasetPreviewTableComponent,
-    DatasetPreviewMapComponent
+    DatasetPreviewMapComponent,
+    AlertBoxComponent
   ],
   templateUrl: './data-import-wizard.component.html',
   styleUrls: ['./data-import-wizard.component.scss'],
@@ -87,10 +105,11 @@ export interface ImportWizardData {
     })
   ]
 })
-export class DataImportWizardComponent {
+export class DataImportWizardComponent implements OnInit {
   private api = inject(Api)
   private translate = inject(TranslateService)
   private router = inject(Router)
+  private route = inject(ActivatedRoute)
 
   selectedTabIndex = signal(0)
   importData = signal<ImportWizardData>(null)
@@ -100,6 +119,8 @@ export class DataImportWizardComponent {
   importError = signal<string | null>(null)
   metadata = signal<StagingMetadataResponse | null>(null)
   preview = signal<StagingPreviewResponse | null>(null)
+  previewError = signal<string | null>(null)
+  previewLoading = signal<boolean>(false)
   dagRunInfo = signal<{ dag_id: string; dag_run_id: string } | null>(null)
   integrityLinkId = signal<string | null>(null)
   processing = signal(false)
@@ -113,14 +134,47 @@ export class DataImportWizardComponent {
 
   geojsonData = computed(() => this.preview()?.geojson ?? null)
 
+  errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
+
+  ngOnInit() {
+    const linkId = this.route.snapshot.queryParamMap.get('linkId')
+    if (linkId) {
+      this.integrityLinkId.set(linkId)
+      this.selectedTabIndex.set(1)
+    }
+  }
+
   constructor() {
-    // Fetch staging data when tab 2 is selected and integrityLinkId is available
-    effect(() => {
+    effect(async () => {
       const tabIndex = this.selectedTabIndex()
       const linkId = this.integrityLinkId()
 
-      if (tabIndex === 1 && linkId && !this.metadata() && !this.preview()) {
-        this.fetchStagingData(linkId)
+      if (tabIndex === 1 && linkId) {
+        // Update URL with linkId parameter
+        // eg. /datakern/import?linkId=40e4aa31-022b-484f-bcb8-93423d1c726f
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { linkId },
+          queryParamsHandling: 'merge'
+        })
+
+        if (!this.metadata() && !this.preview()) {
+          const metadata = await this.refreshMetadata(linkId)
+          await this.refreshPreview(
+            linkId,
+            metadata?.force_projection?.type,
+            metadata?.force_projection?.x_column,
+            metadata?.force_projection?.y_column
+          )
+        }
+      }
+
+      if (tabIndex === 0) {
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { linkId: null },
+          queryParamsHandling: 'merge'
+        })
       }
     })
   }
@@ -128,6 +182,33 @@ export class DataImportWizardComponent {
   validSource = computed(() => {
     return this.importData()?.source.file || this.importData()?.source.url
   })
+
+  async onConfigChanged(config: {
+    projection: string
+    colX: string
+    colY: string
+  }) {
+    const linkId = this.integrityLinkId()
+    if (linkId) {
+      try {
+        const metadata = await this.submitConfigStagingData(
+          linkId,
+          config.projection,
+          config.colX,
+          config.colY
+        )
+        await this.refreshPreview(
+          linkId,
+          config.projection,
+          config.colX,
+          config.colY
+        )
+        this.metadata.update(() => metadata)
+      } catch (error) {
+        console.error('Error submitting configuration:', error)
+      }
+    }
+  }
 
   onSourceChanged(data: SourceData) {
     this.importError.set(null)
@@ -144,6 +225,8 @@ export class DataImportWizardComponent {
   async onConfigureDataset() {
     this.importError.set(null)
     this.importing.set(true)
+    this.metadata.update(() => null)
+    this.preview.update(() => null)
 
     try {
       const importResponse = await this.createImportRequest()
@@ -169,7 +252,7 @@ export class DataImportWizardComponent {
       if (error instanceof Error && error.message) {
         this.importError.set(error.message)
       } else if (error instanceof HttpErrorResponse && error.error?.detail) {
-        this.importError.set(error.error.detail)
+        this.importError.set(this.translate.instant(error.error.detail))
       } else {
         this.importError.set(
           this.translate.instant('import.dataSource.unknownError')
@@ -261,28 +344,97 @@ export class DataImportWizardComponent {
     )
   }
 
-  private async fetchStagingData(integrityLinkId: string): Promise<void> {
-    try {
-      const [metadata, preview] = await Promise.all([
-        this.api.invoke(
-          getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet,
-          {
-            integrity_link_id: integrityLinkId
-          }
-        ),
-        this.api.invoke(
-          getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
-          {
-            integrity_link_id: integrityLinkId,
-            limit: 10
-          }
-        )
-      ])
+  private submitConfigStagingData(
+    integrityLinkId: string,
+    projection?: string,
+    colX?: string,
+    colY?: string
+  ): Promise<StagingMetadataResponse> {
+    const metadata = this.metadata()
+    if (!metadata) return
 
-      this.metadata.set(metadata)
-      this.preview.set(preview)
+    const force_projection = {
+      type: projection,
+      x_column: colX,
+      y_column: colY
+    }
+
+    return this.api.invoke(
+      editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut,
+      {
+        integrity_link_id: integrityLinkId,
+        body: {
+          columns: metadata.columns || [],
+          title: metadata.title,
+          file_type: metadata.file_type,
+          force_projection
+        }
+      }
+    )
+  }
+
+  private async refreshMetadata(
+    integrityLinkId: string
+  ): Promise<StagingMetadataResponse> {
+    const metadata = await this.api.invoke(
+      getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet,
+      {
+        integrity_link_id: integrityLinkId
+      }
+    )
+
+    this.metadata.update(() => metadata)
+
+    return metadata
+  }
+
+  private async refreshPreview(
+    integrityLinkId: string,
+    projection?: string,
+    colX?: string,
+    colY?: string,
+    retryCount: number = 0,
+    isRetry: boolean = false
+  ): Promise<void> {
+    this.previewLoading.set(true)
+    try {
+      const preview = await this.api.invoke(
+        getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
+        {
+          integrity_link_id: integrityLinkId,
+          limit: 10,
+          projection: projection || null,
+          x_column: colX || null,
+          y_column: colY || null
+        }
+      )
+
+      this.preview.update(() => preview)
+      this.previewError.set(null)
     } catch (error) {
-      console.error('Error fetching staging data:', error)
+      // Refresh metadata in case of projection or columns errors
+      // Retry only once without projection/columns to recover
+      if (!isRetry && retryCount < 1) {
+        await this.refreshPreview(
+          integrityLinkId,
+          undefined,
+          undefined,
+          undefined,
+          retryCount + 1,
+          true
+        )
+
+        // Back to table view on error
+        this.previewTabIndex.set(0)
+
+        const errorMessage =
+          error instanceof HttpErrorResponse
+            ? error.error?.detail || error.message
+            : 'import.dataSource.unknownError'
+        this.previewError.set(this.translate.instant(errorMessage))
+      }
+    } finally {
+      this.previewLoading.set(false)
     }
   }
 

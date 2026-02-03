@@ -3,21 +3,20 @@ import tempfile
 from pathlib import Path
 from urllib.parse import unquote
 
+import chardet
 import geopandas as gpd
 import pandas as pd
 import requests
 from sqlalchemy import MetaData, Table, func, select, text
 from sqlalchemy.engine import Engine
 
-from data_manipulation.logging import configure_logging
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.utils import resolve_url
 from data_manipulation.validators import validate_schema_name, validate_table_name
 
 logger = logging.getLogger(__name__)
-configure_logging(logger)
 
 DEFAULT_SCHEMA = "public"
-DEFAULT_GEOMETRY_COLUMN = "geom"
 
 
 def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
@@ -38,19 +37,46 @@ def _detect_file_encoding(file_path: str) -> str:
     Returns:
         Detected encoding string
     """
+    file_path_to_read = file_path
     path = Path(file_path)
+
+    # GeoJSON must be UTF-8 according to RFC 7946
+    if path.suffix.lower() in (".geojson", ".json"):
+        return "utf-8"
 
     # Check for .cpg file (encoding file for shapefiles)
     if path.suffix.lower() == ".shp":
         cpg_file = path.with_suffix(".cpg")
         if cpg_file.exists():
-            encoding = cpg_file.read_text().strip()
-            logger.info(f"Found encoding from .cpg file: {encoding}")
-            return encoding
+            file_path_to_read = str(cpg_file)
 
-    # For non-shapefile formats (GeoJSON, GeoPackage, etc.), UTF-8 is standard
-    # Default to UTF-8 for modern files
-    return "utf-8"
+    try:
+        with open(file_path_to_read, "rb") as f:
+            encoding = chardet.detect(f.read())["encoding"]
+    except Exception as e:
+        logger.warning(f"Failed to detect encoding for {file_path_to_read}: {e}")
+        encoding = None
+
+    return encoding or "utf-8"
+
+
+def _read_file_encoded(file_path: str) -> gpd.GeoDataFrame | pd.DataFrame:
+    """Read a geospatial file with the specified encoding.
+
+    Args:
+        file_path: Path to the file
+        encoding: Encoding to use
+
+    Returns:
+        GeoDataFrame or DataFrame with the file data
+    """
+    # Detect encoding (mainly for shapefiles, others default to UTF-8)
+    encoding = _detect_file_encoding(file_path)
+
+    # Reading with detected encoding
+    data = gpd.read_file(file_path, encoding=encoding)  # type: ignore[arg-type]
+
+    return data
 
 
 def ingest_data_from_file_into_postgis(
@@ -70,22 +96,9 @@ def ingest_data_from_file_into_postgis(
     logger.info(f"Ingesting data from file {file_path} into table {table_name}")
 
     try:
-        # Detect encoding (mainly for shapefiles, others default to UTF-8)
-        encoding = _detect_file_encoding(file_path)
-
-        # Try reading with detected encoding
-        try:
-            data = gpd.read_file(file_path, encoding=encoding)
-        except (UnicodeDecodeError, LookupError):
-            # Fallback to common encodings if detection fails
-            logger.warning(f"Failed to read with {encoding}, trying latin-1")
-            try:
-                data = gpd.read_file(file_path, encoding="latin-1")
-            except (UnicodeDecodeError, LookupError):
-                logger.warning("Failed with latin-1, trying cp1252")
-                data = gpd.read_file(file_path, encoding="cp1252")
-
-        write_data_to_postgis(data, table_name, engine, schema)
+        # Read data with encoding handling, use the url function,
+        # the path to the file is always an url, even for local files
+        ingest_data_from_url_into_postgis(file_path, table_name, engine, schema)
     except Exception as e:
         logger.error(f"Error ingesting data from file {file_path}: {e}")
         raise
@@ -109,7 +122,7 @@ def ingest_data_from_url_into_postgis(
     """
     try:
         # Download file first (GeoPandas doesn't support Basic Auth natively + better handle file types)
-        logger.info(f"Downloading file from {url} for ingestion")
+        logger.info(f"Ingesting data from url {url} into table {table_name}")
 
         resolved_url = resolve_url(url)
         response = requests.get(resolved_url, auth=auth, timeout=300)
@@ -133,7 +146,7 @@ def ingest_data_from_url_into_postgis(
             with open(temp_file_path, "wb") as temp_file:
                 temp_file.write(response.content)
 
-            data = gpd.read_file(temp_file_path)
+            data = _read_file_encoded(str(temp_file_path))
             write_data_to_postgis(data, table_name, engine, schema)
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
@@ -141,7 +154,7 @@ def ingest_data_from_url_into_postgis(
 
 
 def read_data_from_postgis(
-    table_name: str, engine: Engine, schema: str | None = None
+    table_name: str, engine: Engine, schema: str | None = None, limit: int | None = None
 ) -> gpd.GeoDataFrame | pd.DataFrame:
     """Read data from a PostGIS table.
 
@@ -164,6 +177,9 @@ def read_data_from_postgis(
         table = Table(table_name, metadata, autoload_with=engine)
         query = select(table)
 
+        if limit is not None and limit > 0:
+            query = query.limit(limit)
+
         # Compile the query to SQL string (with literal binds)
         compiled_query = str(query.compile(engine, compile_kwargs={"literal_binds": True}))
 
@@ -174,26 +190,6 @@ def read_data_from_postgis(
     except Exception as e:
         logger.error(f"Error reading data from PostGIS table {schema}.{table_name}: {e}")
         raise
-
-
-def apply_transformations(
-    data: gpd.GeoDataFrame | pd.DataFrame, transformation_config: dict[str, object]
-) -> gpd.GeoDataFrame | pd.DataFrame:
-    """Apply transformations to a GeoDataFrame or a DataFrame.
-
-    Args:
-        data: Input GeoDataFrame or DataFrame
-        transformation_config: JSON configuration for transformations
-
-    Returns:
-        Transformed GeoDataFrame or DataFrame
-
-    Note:
-        For now, this function returns the GeoDataFrame without any transformation.
-        TODO: Implement transformation logic based on transformation_config.
-    """
-
-    return data
 
 
 def write_data_to_postgis(

@@ -6,4 +6,4 @@ from functools import lru_cache
 def get_logger() -> logging.Logger:
     """Get a cached logger instance for the application."""
 
-    return logging.getLogger("uvicorn.error")
+    return logging.getLogger("uvicorn")

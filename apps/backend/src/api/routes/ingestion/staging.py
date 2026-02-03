@@ -4,16 +4,23 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
+import geopandas as gpd
+import pandas as pd
 import requests
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
+from data_manipulation import apply_transformations
+from data_manipulation.ingestion import read_data_from_postgis
+from data_manipulation.logging import configure_logging
 from data_manipulation.utils import sanitize_name
-from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile
-from geojson_pydantic import Feature, FeatureCollection
-from geojson_pydantic.geometries import Geometry
-from sqlalchemy import ColumnElement, MetaData, Table, func, select
+from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
+from shapely.geometry.base import BaseGeometry
+from sqlalchemy import MetaData, Table, func, select
+from sqlalchemy.orm.attributes import flag_modified
 
 from src.api.deps import DatakernSessionDep, DataSessionDep
 from src.core.callback import build_callback_url
+from src.core.config import get_staging_schema
+from src.core.db import datakern_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
 from src.models import (
@@ -22,7 +29,9 @@ from src.models import (
 from src.models.data_import import (
     ColumnMetadata,
     FileType,
+    ForceProjection,
     ImportType,
+    StagingMetadata,
     StagingMetadataResponse,
     StagingPreviewResponse,
 )
@@ -30,10 +39,10 @@ from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.files import delete_temp_file, upload_file_to_temp
 
-router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 logger = get_logger()
+configure_logging(logger)
 
-GEOMETRY_COLUMN = "geom"
+router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 
 
 def _generate_staging_table_name() -> str:
@@ -98,7 +107,7 @@ def _extract_url_metadata(
                 "application/json",
             ):
                 source_file_type = FileType.GEOJSON
-            elif mime_type == "text/csv":
+            elif mime_type in ("text/csv", "application/csv"):
                 source_file_type = FileType.CSV
             elif mime_type in ("application/geopackage+sqlite3", "application/x-sqlite3"):
                 source_file_type = FileType.GPKG
@@ -337,7 +346,7 @@ def dag_failure_callback(
 
             validate_table_name(staging_table_name, context="staging")
 
-            schema = "staging"  # FIXME get it from config
+            schema = get_staging_schema()
             metadata = MetaData(schema=schema)
             table = Table(staging_table_name, metadata)
             table.drop(data_session.get_bind(), checkfirst=True)
@@ -380,8 +389,13 @@ def get_staging_metadata(
     source_import_type = integrity_link.source_import_type
     source_file_name = integrity_link.source_file_name
     source_file_type = integrity_link.source_file_type
+    force_projection_data = (
+        integrity_link.integrity_transformation.get("force_projection")
+        if integrity_link.integrity_transformation
+        else None
+    )
 
-    schema = "staging"  # FIXME get it from config
+    schema = get_staging_schema()
     sql_metadata = MetaData(schema=schema)
     table = Table(staging_table_name, sql_metadata, autoload_with=data_session.get_bind())
 
@@ -394,6 +408,68 @@ def get_staging_metadata(
         file_type=source_file_type,
         columns=columns,
         row_count=row_count,
+        force_projection=ForceProjection(**force_projection_data)
+        if force_projection_data
+        else None,
+    )
+
+
+@router.put("/{integrity_link_id}/metadata")
+def edit_staging_metadata(
+    session: DatakernSessionDep,
+    integrity_link_id: str,
+    config: StagingMetadata = Body(
+        ...,
+        description="Staging configuration including columns, file type, projection, and title",
+    ),
+) -> StagingMetadataResponse:
+    """
+    Configure staging data endpoint called by frontend to update IntegrityLink
+    with any additional configuration before finalizing the import.
+
+    Args:
+        session: Database session (injected)
+        integrity_link_id: IntegrityLink UUID (required)
+        config: Staging configuration with columns, file_type, force_projection, and title
+
+    Returns:
+        Success message with updated IntegrityLink details
+    """
+    # Query existing IntegrityLink
+    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    if not integrity_link:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    # Initialize integrity_transformation if it doesn't exist
+    if not integrity_link.integrity_transformation:
+        integrity_link.integrity_transformation = {}
+
+    if config.title:
+        integrity_link.source_file_name = config.title
+
+    if config.file_type:
+        integrity_link.source_file_type = config.file_type
+
+    if config.columns:
+        integrity_link.integrity_transformation["columns"] = [
+            col.model_dump() for col in config.columns
+        ]
+
+    if config.force_projection:
+        integrity_link.integrity_transformation["force_projection"] = (
+            config.force_projection.model_dump()
+        )
+
+    # Force SQLAlchemy to detect changes in the JSON column
+    flag_modified(integrity_link, "integrity_transformation")
+
+    session.commit()
+    session.refresh(integrity_link)
+
+    return get_staging_metadata(
+        data_session=session,
+        datakern_session=session,
+        integrity_link_id=integrity_link_id,
     )
 
 
@@ -403,18 +479,27 @@ def get_staging_preview(
     datakern_session: DatakernSessionDep,
     integrity_link_id: str,
     limit: int = Query(10, description="Number of rows to preview"),
+    projection: Optional[str] = Query(None, description="CRS/projection (e.g., EPSG:4326)"),
+    x_column: Optional[str] = Query(None, description="Latitude column name"),
+    y_column: Optional[str] = Query(None, description="Longitude column name"),
 ) -> StagingPreviewResponse:
     """
-    Get a preview of the data in the staging table.
+    Get a preview of the data in the staging table, with optional coordinate transformations.
+    Returns both tabular data (for table display) and GeoJSON (for map display).
+
+    The parameters projection, x_column, y_column correspond to the attributes of ForceProjection.
 
     Args:
         data_session: Data database session (injected)
         datakern_session: Datakern database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         limit: Number of rows to preview (optional, default is 10)
+        projection: CRS/projection (optional, e.g., "EPSG:4326")
+        x_column: Latitude column name from StagingMetadata (optional)
+        y_column: Longitude column name from StagingMetadata (optional)
 
     Returns:
-        Preview data from the staging table
+        Preview data from the staging table, transformed based on parameters
     """
 
     integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
@@ -425,59 +510,92 @@ def get_staging_preview(
     if not staging_table_name:
         raise HTTPException(status_code=500, detail="Staging table name is missing")
 
-    schema = "staging"  # FIXME get it from config
-    metadata = MetaData(schema=schema)
-    table = Table(staging_table_name, metadata, autoload_with=data_session.get_bind())
+    transformation_config: dict[str, str | object | None] = {
+        "projection": projection,
+        "x_column": x_column,
+        "y_column": y_column,
+    }
 
-    is_geographic = GEOMETRY_COLUMN in table.c
+    schema = get_staging_schema()
+    engine = datakern_engine
+    staging_data = read_data_from_postgis(staging_table_name, engine, schema, limit)
 
-    if is_geographic:
-        # Build columns with ST_AsGeoJSON for geometry
-        columns: list[ColumnElement[Any]] = []
-        for col in table.c:
-            if col.name == GEOMETRY_COLUMN:
-                columns.append(func.ST_AsGeoJSON(col).label("geom_geojson"))
-            else:
-                columns.append(col)
-
-        query = select(*columns).limit(limit)
-        rows = [dict(r) for r in data_session.execute(query).mappings()]  # type: ignore[misc]
-
-        # Build typed GeoJSON FeatureCollection using geojson-pydantic
-        features: list[Feature[Geometry, dict[str, Any]]] = []
-        data: list[dict[str, Any]] = []
-
-        for row in rows:
-            geom_str = row.pop("geom_geojson", None)
-            try:
-                geom = json.loads(geom_str) if geom_str else None
-            except (json.JSONDecodeError, TypeError):
-                geom = None
-
-            features.append(
-                Feature(
-                    type="Feature",
-                    geometry=geom,
-                    properties=dict(row),
-                )
-            )
-
-            # Format for table display
-            data.append(
-                {
-                    **row,
-                    GEOMETRY_COLUMN: f"[{geom['type']}]" if geom else None,
-                }
-            )
-
-        geojson = FeatureCollection(type="FeatureCollection", features=features)
+    if isinstance(staging_data, gpd.GeoDataFrame):
+        df_for_transform = staging_data
     else:
-        query = select(table).limit(limit)
-        data = [dict(r) for r in data_session.execute(query).mappings()]  # type: ignore[misc]
-        geojson = None
+        df_for_transform = pd.DataFrame(staging_data)
 
-    return StagingPreviewResponse(
-        data=data,
-        geojson=geojson,
-        is_geographic=is_geographic,
-    )
+    try:
+        transformed_data = apply_transformations(df_for_transform, transformation_config)
+
+        # Convert all non-JSON-serializable types to string (datetime, Timestamp, etc.)
+        for col in transformed_data.columns:
+            if transformed_data[col].dtype == "object":
+                # Check if column contains datetime-like objects
+                try:
+                    if pd.api.types.is_datetime64_any_dtype(transformed_data[col]):
+                        transformed_data[col] = transformed_data[col].astype(str)  # type: ignore[misc]
+                except Exception:
+                    pass
+            elif pd.api.types.is_datetime64_any_dtype(transformed_data[col]):
+                transformed_data[col] = transformed_data[col].astype(str)  # type: ignore[misc]
+
+        data = []  # tabular data
+        geojson_data = None
+        is_geographic = False
+
+        # Convert geometry to WKT for tabular display if GeoDataFrame
+        # otherwise you cannot convert to data row to be sent to the frontend
+        if isinstance(transformed_data, gpd.GeoDataFrame):
+            is_geographic = True
+
+            geometry_cols: list[str] = []
+            for col in transformed_data.columns:  # type: ignore[misc]
+                if not transformed_data[col].empty:  # type: ignore[misc]
+                    sample_item = transformed_data[col].iloc[0]
+                    sample: Any = sample_item  # type: ignore[misc]
+
+                    if isinstance(sample, BaseGeometry):
+                        geometry_cols.append(col)  # type: ignore[misc]
+                    elif hasattr(sample_item, "wkt"):  # type: ignore[misc]
+                        geometry_cols.append(col)  # type: ignore[misc]
+
+            logger.info(f"Found geometry columns: {geometry_cols}")
+
+            # Create GeoJSON for map display first, force to EPSG:4326
+            map_gdf = transformed_data.copy()
+
+            try:
+                if map_gdf.crs and map_gdf.crs.to_string() != "EPSG:4326":
+                    map_gdf = map_gdf.to_crs("EPSG:4326")
+                    logger.info(f"Reprojected data from {map_gdf.crs} to EPSG:4326 for map display")
+            except Exception as crs_error:
+                logger.warning(f"Could not reproject to EPSG:4326: {crs_error}")
+
+            # Now modify transformed_data directly for tabular display
+            if "geom" in geometry_cols:
+                transformed_data["geom"] = transformed_data["geom"].apply(  # type: ignore[misc]
+                    lambda geom: geom.wkt if geom is not None else None  # type: ignore[misc]
+                )
+
+                geometry_cols.remove("geom")
+
+            # Drop geometry columns for tabular data
+            table_data = transformed_data.drop(columns=geometry_cols, errors="ignore")
+            data = table_data.to_dict(orient="records")  # type: ignore[misc]
+
+            geojson_str = map_gdf.to_json()  # type: ignore[misc]
+            geojson_data = json.loads(geojson_str) if geojson_str else None
+        else:
+            # Regular DataFrame, no geometry conversion needed
+            data = transformed_data.to_dict(orient="records")  # type: ignore[misc]
+
+        return StagingPreviewResponse(
+            data=data,  # type: ignore[misc]
+            geojson=geojson_data,
+            is_geographic=is_geographic,
+        )
+
+    except Exception as e:
+        logger.error(f"Error applying transformations for preview: {e}")
+        raise HTTPException(status_code=500, detail=f"{e}")

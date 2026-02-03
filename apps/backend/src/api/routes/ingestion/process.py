@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.database import create_schema, get_available_table_name
 from data_manipulation.utils import sanitize_name
 from data_manipulation.validators import validate_table_name
@@ -220,7 +221,7 @@ async def dag_success_callback(
             # Use SQLAlchemy Core to safely construct the query
             metadata = MetaData(schema="data")
             table = Table(final_table_name, metadata, autoload_with=data_engine)
-            is_geographic = "geom" in table.c
+            is_geographic = DEFAULT_GEOMETRY_COLUMN in table.c
 
             layer_urls = await geoserver_service.create_layer(
                 workspace_name=workspace_name,

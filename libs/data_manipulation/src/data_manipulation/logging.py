@@ -25,8 +25,9 @@ def configure_logging(parent_logger: logging.Logger) -> None:
         >>> task_logger = logging.getLogger("airflow.task")
         >>> configure_logging(task_logger)
     """
-    # Get the data_manipulation logger
-    data_manipulation_logger = logging.getLogger(__name__)
+    # Get the root package logger using __package__ (e.g., "data_manipulation")
+    # This will configure all submodule loggers (data_manipulation.ingestion, etc.)
+    data_manipulation_logger = logging.getLogger(__package__)
 
     # Set the same level as the parent logger
     data_manipulation_logger.setLevel(parent_logger.level)
