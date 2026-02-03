@@ -142,7 +142,8 @@ def apply_transformations(
     if not isinstance(df, gpd.GeoDataFrame) and DEFAULT_GEOMETRY_COLUMN in df.columns:
         df = _convert_geom_column_to_geodataframe(df, projection_str)
 
-    # Apply projection transformation if specified
+    # Create geometries from columns if specified
+    # and apply projection transformation
     df = _apply_projection_transformation(
         df,
         projection_str,

@@ -518,7 +518,7 @@ def get_staging_preview(
         "y_column": y_column,
     }
 
-    schema = get_staging_schema()  # FIXME
+    schema = get_staging_schema()
     engine = datakern_engine
     staging_data = read_data_from_postgis(staging_table_name, engine, schema, limit)
 
