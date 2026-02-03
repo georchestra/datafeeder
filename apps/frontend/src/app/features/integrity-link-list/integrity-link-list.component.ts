@@ -6,7 +6,7 @@ import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../../core/api/api'
 import { listIntegrityLinksIngestionIntegrityLinksGet } from '../../core/api/functions'
 import { IntegrityLinkListItem } from '../../core/api/models'
-import { iconoirPlusSquare } from '@ng-icons/iconoir'
+import { iconoirPlus } from '@ng-icons/iconoir'
 
 @Component({
   selector: 'app-integrity-link-list',
@@ -14,7 +14,7 @@ import { iconoirPlusSquare } from '@ng-icons/iconoir'
   templateUrl: './integrity-link-list.component.html',
   providers: [
     provideIcons({
-      iconoirPlusSquare
+      iconoirPlus
     })
   ]
 })
