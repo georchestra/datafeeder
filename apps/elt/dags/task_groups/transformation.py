@@ -88,6 +88,7 @@ def process_transformation_group(
                     table_name=final_table_name,
                     engine=engine,
                     schema=final_schema,
+                    create_id=True,
                 )
                 logger.info(f"Successfully wrote {len(transformed_data)} rows to final table")
 

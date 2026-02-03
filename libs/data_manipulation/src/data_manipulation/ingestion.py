@@ -6,12 +6,12 @@ from urllib.parse import unquote
 import geopandas as gpd
 import pandas as pd
 import requests
-from sqlalchemy import MetaData, Table, func, select
+from sqlalchemy import MetaData, Table, func, select, text
 from sqlalchemy.engine import Engine
 
 from data_manipulation.logging import configure_logging
 from data_manipulation.utils import resolve_url
-from data_manipulation.validators import validate_table_name
+from data_manipulation.validators import validate_schema_name, validate_table_name
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -153,8 +153,10 @@ def read_data_from_postgis(
     Returns:
         GeoDataFrame or DataFrame containing the table data
     """
-    # Validate table name to prevent SQL injection
+    # Validate identifiers to prevent SQL injection
     validate_table_name(table_name)
+    if schema:
+        validate_schema_name(schema)
 
     try:
         # Use SQLAlchemy Core to safely construct the query
@@ -199,6 +201,7 @@ def write_data_to_postgis(
     table_name: str,
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
+    create_id: bool = False,
 ) -> None:
     """Write a GeoDataFrame or DataFrame to a PostGIS table.
 
@@ -207,9 +210,11 @@ def write_data_to_postgis(
         table_name: Name of the target table
         engine: SQLAlchemy engine
         schema: PostgreSQL schema name (optional)
+        create_id: If True, add a 'datakern_id' UUID column as primary key
     """
-    # Validate table name to prevent SQL injection
+    # Validate identifiers to prevent SQL injection
     validate_table_name(table_name)
+    validate_schema_name(schema)
 
     try:
         if not isinstance(data, gpd.GeoDataFrame):  # DataFrame
@@ -255,6 +260,20 @@ def write_data_to_postgis(
 
             # Write data to PostGIS
             data.to_postgis(table_name, engine, if_exists="replace", schema=schema, index=False)
+
+        if create_id:
+            with engine.connect() as conn:
+                conn.execute(
+                    text(
+                        f'ALTER TABLE "{schema}"."{table_name}" '
+                        f"ADD COLUMN datakern_id UUID DEFAULT gen_random_uuid() NOT NULL"
+                    )
+                )
+                conn.execute(
+                    text(f'ALTER TABLE "{schema}"."{table_name}" ADD PRIMARY KEY (datakern_id)')
+                )
+                conn.commit()
+            logger.info(f"Added 'datakern_id' UUID primary key column to {schema}.{table_name}")
 
         # Log the number of inserted rows
         row_count = _get_table_row_count(table_name, engine, schema)
