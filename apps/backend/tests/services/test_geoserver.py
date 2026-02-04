@@ -113,6 +113,7 @@ class TestGeoServerService:
             title=title,
             abstract=abstract,
             is_geographic=True,
+            bbox = ''
         )
 
         # Verify return value structure
