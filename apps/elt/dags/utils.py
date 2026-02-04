@@ -19,6 +19,7 @@ def get_datakern_sql_engine() -> Engine:
     """Get SQLAlchemy engine for DataKern from PostgresHook."""
     return get_datakern_pg_hook().get_sqlalchemy_engine()
 
+
 def get_final_schema() -> str:
     """Get the final schema from Airflow Variable, defaulting to 'data'."""
     return Variable.get("final_schema", "data")

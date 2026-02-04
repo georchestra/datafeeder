@@ -11,7 +11,7 @@ from data_manipulation.ingestion import (
     ingest_data_from_url_into_postgis,
 )
 from data_manipulation.logging import configure_logging
-from utils import get_data_sql_engine, get_staging_schema, get_datakern_sql_engine
+from utils import get_data_sql_engine, get_datakern_sql_engine, get_staging_schema
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
