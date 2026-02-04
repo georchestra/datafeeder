@@ -8,6 +8,7 @@ from data_manipulation.utils import sanitize_name
 from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import MetaData, Table
+from sqlalchemy import select, func
 
 from src.api.deps import DatakernSessionDep, DataSessionDep
 from src.core.callback import build_callback_url
@@ -137,7 +138,8 @@ def process_staging_data(
 
 @router.post("/dag_success")
 async def dag_success_callback(
-    session: DatakernSessionDep,
+    datakern_session: DatakernSessionDep,
+    data_session: DataSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
     user_email: str = Query("", description="User email"),
@@ -157,7 +159,7 @@ async def dag_success_callback(
         Success message with updated IntegrityLink details
     """
     # Query existing IntegrityLink
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
@@ -222,6 +224,11 @@ async def dag_success_callback(
             metadata = MetaData(schema="data")
             table = Table(final_table_name, metadata, autoload_with=data_engine)
             is_geographic = DEFAULT_GEOMETRY_COLUMN in table.c
+            bbox = None
+            if is_geographic:
+                stmt = select(func.ST_Extent(table.c[DEFAULT_GEOMETRY_COLUMN]))
+                row = data_session.exec(stmt).one_or_none()
+                bbox = (row[0] if row and row[0] is not None else None)
 
             layer_urls = await geoserver_service.create_layer(
                 workspace_name=workspace_name,
@@ -230,6 +237,7 @@ async def dag_success_callback(
                 title=integrity_link.integrity_title or final_table_name,
                 abstract=integrity_link.integrity_title or final_table_name,
                 is_geographic=is_geographic,
+                bbox=bbox
             )
             integrity_link.data_id = workspace_name + ":" + final_table_name
 
@@ -302,8 +310,8 @@ async def dag_success_callback(
     integrity_link.final_table_name = final_table_name
     integrity_link.last_retrieval_timestamp = datetime.now(timezone.utc)
 
-    session.commit()
-    session.refresh(integrity_link)
+    datakern_session.commit()
+    datakern_session.refresh(integrity_link)
 
     logger.info(
         f"Process DAG success for IntegrityLink {integrity_link.id} | "
