@@ -20,7 +20,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from src.api.deps import DatakernSessionDep, DataSessionDep
 from src.core.callback import build_callback_url
 from src.core.config import get_staging_schema
-from src.core.db import datakern_engine
+from src.core.db import data_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
 from src.models import (
@@ -517,7 +517,7 @@ def get_staging_preview(
     }
 
     schema = get_staging_schema()
-    engine = datakern_engine
+    engine = data_engine
     staging_data = read_data_from_postgis(staging_table_name, engine, schema, limit)
 
     if isinstance(staging_data, gpd.GeoDataFrame):
