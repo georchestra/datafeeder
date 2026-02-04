@@ -1,12 +1,13 @@
 """GeoServer layer creation utilities."""
 
+import re
+
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
 from geoservercloud.models.featuretype import FeatureType
 from geoservercloud.services import RestService
 from pydantic import BaseModel  # type: ignore[import-untyped]
 
 from data_manipulation.utils import sanitize_name
-import re
 
 
 class WorkspaceCreationResult(BaseModel):  # type: ignore[misc]
@@ -77,7 +78,7 @@ def create_layer(
     abstract: str | None = None,
     epsg: int = 4326,
     is_geographic: bool = True,
-    bbox: str | None = None,
+    bbox: str = "",
 ) -> None:
     """
     Create a feature type (layer) in GeoServer from a database table.
@@ -112,7 +113,10 @@ def create_layer(
 
     try:
         if is_geographic:
-            m = re.match(r'BOX\(\s*([-\d\.eE]+)\s+([-\d\.\.eE]+)\s*,\s*([-\d\.eE]+)\s+([-\d\.eE]+)\s*\)', bbox)
+            m = re.match(
+                r"BOX\(\s*([-\d\.eE]+)\s+([-\d\.\.eE]+)\s*,\s*([-\d\.eE]+)\s+([-\d\.eE]+)\s*\)",
+                bbox,
+            )
             if not m:
                 raise ValueError("Invalid BOX WKT")
 

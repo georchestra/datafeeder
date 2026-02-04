@@ -122,7 +122,7 @@ class GeoServerService:
         title: str,
         abstract: str,
         is_geographic: bool = True,
-        bbox: str = None,
+        bbox: str = "",
     ) -> LayerCreationResult:
         """
         Create a WFS and WMS layer from a database table.
@@ -150,7 +150,7 @@ class GeoServerService:
             title=title,
             abstract=abstract,
             is_geographic=is_geographic,
-            bbox=bbox
+            bbox=bbox,
         )
 
         # Build service URLs
