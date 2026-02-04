@@ -236,7 +236,7 @@ def write_data_to_postgis(
                     )
                     data.drop(columns=[DEFAULT_GEOMETRY_COLUMN], inplace=True)
 
-            elif data.active_geometry_name is DEFAULT_GEOMETRY_COLUMN:
+            elif data.active_geometry_name == DEFAULT_GEOMETRY_COLUMN:
                 logger.info(
                     f"GeoDataFrame has '{DEFAULT_GEOMETRY_COLUMN}' as active geometry column."
                 )
@@ -250,9 +250,9 @@ def write_data_to_postgis(
                         f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column."
                         " Overwriting it with the active geometry column."
                     )
-
-                logger.info(f"Renaming active geometry column to '{DEFAULT_GEOMETRY_COLUMN}'")
-                data.rename_geometry(DEFAULT_GEOMETRY_COLUMN, inplace=True)
+                else:
+                    logger.info(f"Renaming active geometry column to '{DEFAULT_GEOMETRY_COLUMN}'")
+                    data.rename_geometry(DEFAULT_GEOMETRY_COLUMN, inplace=True)
 
             # Write data to PostGIS
             data.to_postgis(table_name, engine, if_exists="replace", schema=schema, index=False)
