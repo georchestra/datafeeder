@@ -21,6 +21,13 @@ export const appRoutes: Route[] = [
           )
       },
       {
+        path: 'edit/:intlink_id',
+        loadComponent: () =>
+          import('./features/metadata/metadata.component').then(
+            (m) => m.MetadataComponent
+          )
+      },
+      {
         path: 'events/:intlink_id',
         loadComponent: () =>
           import('./features/events/events.component').then(

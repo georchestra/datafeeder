@@ -288,7 +288,7 @@ async def dag_success_callback(
             user_last_name=user_last_name,
             layer_urls=layer_urls.model_dump() if layer_urls else None,
         )
-        integrity_link.metadata_id = metadata_id
+        integrity_link.metadata_id = str(integrity_link.id)
 
         logger.info(f"Metadata published for IntegrityLink {integrity_link.id}: {metadata_id}")
 
