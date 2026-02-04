@@ -11,7 +11,7 @@ from data_manipulation.ingestion import (
     ingest_data_from_url_into_postgis,
 )
 from data_manipulation.logging import configure_logging
-from utils import get_data_sql_engine, get_staging_schema
+from utils import get_data_sql_engine, get_staging_schema, get_datakern_sql_engine
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -108,7 +108,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                             "Encryption key not found in Airflow Variables under 'datakern_encryption_key'"
                         )
 
-                    engine = get_data_sql_engine()
+                    engine = get_datakern_sql_engine()
 
                     with engine.connect() as conn:
                         username, password = decrypt_credentials(
