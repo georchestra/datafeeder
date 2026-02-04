@@ -62,6 +62,8 @@ def create_dag(config):
 
 # Create DAGs dynamically
 configs = load_scheduled_integrity_links()
+# Warning: Aiflow may throw psycopg2.errors.UndefinedTable: relation "datakern.integrity_link" does not exist
+# if there's no scheduled integrity links.
 for config in configs:
     dag_id = f"ingestion_{config['id']}"
     globals()[dag_id] = create_dag(config)
