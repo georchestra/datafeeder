@@ -29,7 +29,8 @@ export class MetadataComponent implements OnInit {
   isRecordLoaded = toSignal(this.editor.record$.pipe(map((record) => !!record)))
 
   ngOnInit(): void {
-    this.intlink_id = this.route.snapshot.paramMap.get('intlink_id')
+    this.intlink_id =
+      this.route.parent?.snapshot.paramMap.get('intlink_id') ?? null
     if (this.intlink_id) {
       this.loadMetadata(this.intlink_id)
     }

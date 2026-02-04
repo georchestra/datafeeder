@@ -32,7 +32,8 @@ export class EventsComponent implements OnInit {
   downloadingEventId = signal<string | null>(null)
 
   ngOnInit(): void {
-    this.intlink_id = this.route.snapshot.paramMap.get('intlink_id')
+    this.intlink_id =
+      this.route.parent?.snapshot.paramMap.get('intlink_id') ?? null
     if (this.intlink_id) {
       this.loadDagRuns(this.intlink_id)
     }

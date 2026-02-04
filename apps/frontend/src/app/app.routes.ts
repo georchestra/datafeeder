@@ -21,18 +21,28 @@ export const appRoutes: Route[] = [
           )
       },
       {
-        path: 'edit/:intlink_id',
+        path: ':intlink_id',
         loadComponent: () =>
-          import('./features/metadata/metadata.component').then(
-            (m) => m.MetadataComponent
-          )
-      },
-      {
-        path: 'events/:intlink_id',
-        loadComponent: () =>
-          import('./features/events/events.component').then(
-            (m) => m.EventsComponent
-          )
+          import('./layout/intlink-layout.component').then(
+            (m) => m.IntlinkLayoutComponent
+          ),
+        children: [
+          {
+            path: 'edit',
+            loadComponent: () =>
+              import('./features/metadata/metadata.component').then(
+                (m) => m.MetadataComponent
+              )
+          },
+          {
+            path: 'events',
+            loadComponent: () =>
+              import('./features/events/events.component').then(
+                (m) => m.EventsComponent
+              )
+          },
+          { path: '', redirectTo: 'edit', pathMatch: 'full' }
+        ]
       }
     ]
   }
