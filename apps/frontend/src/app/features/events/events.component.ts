@@ -98,7 +98,7 @@ export class EventsComponent implements OnInit {
     try {
       const logs = await this.api.invoke(
         getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet,
-        { dag_id: "process_dag", dag_run_id: dag_run_id }
+        { dag_id: 'process_dag', dag_run_id: dag_run_id }
       )
       downloadTextBlob(logs, `logs_${dag_id}_${dag_run_id}.txt`)
       this.downloadingEventId.set(null)
