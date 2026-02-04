@@ -18,33 +18,27 @@ class ConsoleService:
         """
         self.console_url = console_url
 
-    def get_organization_email(self, org_short_name: str) -> str | None:
-        """Fetch organization email from geOrchestra console API.
+    def get_organization(self, org_short_name: str) -> dict[str, Any] | None:
+        """Fetch organization from geOrchestra console API.
 
         Args:
             org_short_name: Organization short name to match
 
         Returns:
-            Organization email if found and defined, None otherwise
+            Organization dict if found, None otherwise
         """
         try:
-            # Query console API for organizations
             url = f"{self.console_url}/internal/organizations/shortname/{org_short_name}"
             response = httpx.get(url, timeout=5.0)
             response.raise_for_status()
 
             organization: dict[str, Any] = response.json()
-
-            org_email = organization.get("mail")
-            if org_email:  # Only return if email is defined
-                logger.info(f"Found organization email for '{org_short_name}': {org_email}")
-                return str(org_email)
-            logger.warning(f"Organization '{org_short_name}' found but email not defined")
-            return None
+            logger.info(f"Found organization for '{org_short_name}': {organization.get('name')}")
+            return organization
 
         except Exception as e:
             logger.warning(
-                f"Failed to fetch organization email from console API: {e}",
+                f"Failed to fetch organization from console API: {e}",
                 exc_info=True,
             )
             return None

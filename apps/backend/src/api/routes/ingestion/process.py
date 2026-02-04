@@ -256,20 +256,22 @@ async def dag_success_callback(
 
     # Create and publish metadata to GeoNetwork
     try:
-        # Try to get organization email from console API
+        # Try to get organization from console API
         console_service = ConsoleService(settings.CONSOLE_URL)
-        contact_email = console_service.get_organization_email(
-            integrity_link.integrity_organization
-        )
-        # Fall back to user email if organization email not found
-        if not contact_email:
-            contact_email = user_email
-            logger.info(
-                f"Using user email for metadata contact: {user_email} "
-                f"(org email not available for '{integrity_link.integrity_organization}')"
-            )
+        organization = console_service.get_organization(integrity_link.integrity_organization)
+
+        if organization:
+            # Use org email, fall back to user email
+            contact_email = organization.get("mail") or user_email
+            # Use org name to replace user first/last name
+            org_name = organization.get("name")
+            if org_name:
+                user_first_name = org_name
+                user_last_name = ""
+                logger.info(f"Using organization name for metadata contact: {org_name}")
         else:
-            logger.info(f"Using organization email for metadata contact: {contact_email}")
+            contact_email = user_email
+            logger.info("Organization not found, using user info for metadata contact")
 
         metadata_service = MetadataService(
             gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
