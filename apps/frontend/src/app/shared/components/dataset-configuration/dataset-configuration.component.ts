@@ -29,6 +29,7 @@ import {
 } from '@ng-icons/core'
 import { iconoirDataTransferBoth } from '@ng-icons/iconoir'
 import { AlertBoxComponent } from '../alert-box/alert-box.component'
+import { SettingsService } from '../../../core/settings/settings.service'
 
 const DEFAULT_PROJECTION = 'EPSG:4326'
 
@@ -59,6 +60,7 @@ const DEFAULT_PROJECTION = 'EPSG:4326'
 })
 export class DatasetConfigurationComponent {
   private translate = inject(TranslateService)
+  private settingsService = inject(SettingsService)
 
   metadata = input<StagingMetadataResponse | null>(null)
   preview = input<StagingPreviewResponse | null>(null)
@@ -104,11 +106,15 @@ export class DatasetConfigurationComponent {
     return data
   })
 
-  projections: DropdownChoice[] = [
-    { value: 'EPSG:4326', label: 'WGS 84' },
-    { value: 'EPSG:3857', label: 'Web Mercator' }
-    // TODO: Add more projections as needed, from config
-  ]
+  projections = computed<DropdownChoice[]>(() => {
+    const settings = this.settingsService.currentSettings()
+    const projectionsFromSettings = settings?.projections || []
+
+    return projectionsFromSettings.map((p) => ({
+      value: p.value,
+      label: p.label
+    }))
+  })
 
   columns = computed<DropdownChoice[]>(() => {
     const meta = this.metadata()

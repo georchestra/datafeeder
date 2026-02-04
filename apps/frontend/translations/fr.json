@@ -151,7 +151,7 @@
   "import.dataSource.chooseType": "Choisissez par quel biais vous souhaitez importer votre donnée",
   "import.dataSource.chooseType.file": "A partir d'un fichier local ou distant",
   "import.dataSource.error": "Erreur",
-  "import.dataSource.failedError": "Le traitement a échoué",
+  "import.dataSource.failedError": "<strong>Une erreur s'est produite lors du traitement de votre fichier.</strong><br><br>Veuillez vérifier que votre fichier respecte les exigences suivantes :<br><ul style='margin: 8px 0; padding-left: 20px;'><li><strong>Formats acceptés :</strong> Shapefile (.zip), CSV (.csv), GeoJSON (.geojson, .json)</li><li><strong>Shapefile :</strong> Doit être une archive ZIP contenant au minimum les fichiers .shp, .shx, .dbf, et doit inclure un fichier .prj avec les informations de projection</li><li><strong>CSV :</strong> Doit contenir des colonnes avec des données de coordonnées (latitude/longitude ou X/Y)</li><li><strong>GeoJSON :</strong> Doit utiliser l'encodage UTF-8 et respecter la spécification GeoJSON standard (RFC 7946)</li></ul>Si le problème persiste, veuillez contacter le support.",
   "import.dataSource.missingFile": "Fichier manquant",
   "import.dataSource.missingUrl": "URL manquante",
   "import.dataSource.next": "Paramétrer le jeu de données",

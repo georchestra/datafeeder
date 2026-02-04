@@ -8,7 +8,7 @@
         <gn-ui-dropdown-selector
           [title]="''"
           [showTitle]="false"
-          [choices]="projections"
+          [choices]="projections()"
           [selected]="selectedProjection()"
           (selectValue)="selectProjection($any($event))"
         ></gn-ui-dropdown-selector>
