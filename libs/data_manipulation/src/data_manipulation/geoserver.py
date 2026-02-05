@@ -1,13 +1,11 @@
 """GeoServer layer creation utilities."""
 
-import re
-
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
 from geoservercloud.models.featuretype import FeatureType
 from geoservercloud.services import RestService
 from pydantic import BaseModel  # type: ignore[import-untyped]
 
-from data_manipulation.utils import sanitize_name
+from data_manipulation.utils import compute_bbox_from_postgis_stextent_string, sanitize_name
 
 
 class WorkspaceCreationResult(BaseModel):  # type: ignore[misc]
@@ -112,47 +110,26 @@ def create_layer(
         abstract = table_name
 
     try:
+        native_bounding_box = {
+            "minx": 0.0,
+            "miny": 0.0,
+            "maxx": -1.0,
+            "maxy": -1.0,
+            "crs": {"$": f"EPSG:{epsg}", "@class": "projected"},
+        }
+        lat_lon_bounding_box = {
+            "minx": -1.0,
+            "miny": -1.0,
+            "maxx": 0.0,
+            "maxy": 0.0,
+            "crs": f"EPSG:{epsg}",
+        }
         if is_geographic:
-            m = re.match(
-                r"BOX\(\s*([-\d\.eE]+)\s+([-\d\.\.eE]+)\s*,\s*([-\d\.eE]+)\s+([-\d\.eE]+)\s*\)",
-                bbox,
-            )
-            if not m:
-                raise ValueError("Invalid BOX WKT")
-
-            minx, miny, maxx, maxy = map(float, m.groups())
-            native_bounding_box = {
-                "minx": minx,
-                "miny": miny,
-                "maxx": maxx,
-                "maxy": maxy,
-                "crs": {"$": f"EPSG:{epsg}", "@class": "projected"},
-            }
-
-            lat_lon_bounding_box = {
-                "minx": minx,
-                "miny": miny,
-                "maxx": maxx,
-                "maxy": maxy,
-                "crs": f"EPSG:{epsg}",
-            }
-        else:
-            # For non-geographic data, manually set fake bounds
-            native_bounding_box = {
-                "minx": 0,
-                "miny": 0,
-                "maxx": -1,
-                "maxy": -1,
-                "crs": {"$": f"EPSG:{epsg}", "@class": "projected"},
-            }
-
-            lat_lon_bounding_box = {
-                "minx": -1,
-                "miny": -1,
-                "maxx": 0,
-                "maxy": 0,
-                "crs": f"EPSG:{epsg}",
-            }
+            parsed_bbox = compute_bbox_from_postgis_stextent_string(bbox)
+            native_bounding_box["minx"] = lat_lon_bounding_box["minx"] = parsed_bbox["minx"]
+            native_bounding_box["miny"] = lat_lon_bounding_box["miny"] = parsed_bbox["miny"]
+            native_bounding_box["maxx"] = lat_lon_bounding_box["maxx"] = parsed_bbox["maxx"]
+            native_bounding_box["maxy"] = lat_lon_bounding_box["maxy"] = parsed_bbox["maxy"]
 
         feature_type = FeatureType(
             name=table_name,

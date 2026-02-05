@@ -92,3 +92,15 @@ def resolve_url(url: str) -> str:
 def is_geo_dataframe(df: Union[GeoDataFrame, DataFrame]) -> bool:
     """Check if a dataframe is a GeoDataFrame."""
     return isinstance(df, GeoDataFrame)
+
+
+def compute_bbox_from_postgis_stextent_string(str_bbox: str) -> dict[str, float]:
+    m = re.match(
+        r"BOX\(\s*([-\d\.eE]+)\s+([-\d\.\.eE]+)\s*,\s*([-\d\.eE]+)\s+([-\d\.eE]+)\s*\)",
+        str_bbox,
+    )
+    if not m:
+        raise ValueError("Invalid BOX WKT")
+
+    minx, miny, maxx, maxy = map(float, m.groups())
+    return {"minx": minx, "miny": miny, "maxx": maxx, "maxy": maxy}
