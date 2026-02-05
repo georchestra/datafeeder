@@ -5,6 +5,7 @@ from data_manipulation.ingestion import (
     write_data_to_postgis,
 )
 from data_manipulation.logging import configure_logging
+from data_manipulation.models import ColumnConfig, ForceProjection, IntegrityTransformation
 from data_manipulation.transformation.transform import apply_transformations
 
 __all__ = [
@@ -15,6 +16,9 @@ __all__ = [
     "apply_transformations",
     "write_data_to_postgis",
     "configure_logging",
+    "ColumnConfig",
+    "ForceProjection",
+    "IntegrityTransformation",
 ]
 
 

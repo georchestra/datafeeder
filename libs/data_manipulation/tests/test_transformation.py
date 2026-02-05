@@ -2,6 +2,7 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point
 
+from data_manipulation.models import ForceProjection, IntegrityTransformation
 from data_manipulation.transformation.transform import apply_transformations
 from data_manipulation.transformation.transform_encoding import apply_encoding
 from data_manipulation.transformation.transform_projection import apply_projection
@@ -35,9 +36,9 @@ def test_apply_transformations_with_geometry():
     """Test apply_transformations with geometry creation"""
     df = pd.DataFrame({"lon": [1.0, 2.0], "lat": [48.0, 49.0], "name": ["Paris", "Lyon"]})
 
-    config: dict[str, str | object | None] = {
-        "force_projection": {"type": "EPSG:4326", "x_column": "lon", "y_column": "lat"}
-    }
+    config = IntegrityTransformation(
+        force_projection=ForceProjection(type="EPSG:4326", x_column="lon", y_column="lat")
+    )
 
     result = apply_transformations(df, config)
 
@@ -50,7 +51,7 @@ def test_apply_transformations_with_encoding():
     """Test apply_transformations with encoding"""
     df = pd.DataFrame({"text": ["café", "élève"], "number": [1, 2]})
 
-    config: dict[str, str | object | None] = {"encoding": "utf-8"}
+    config = IntegrityTransformation()
 
     result = apply_transformations(df, config)
 
@@ -62,7 +63,7 @@ def test_apply_transformations_empty_config():
     """Test apply_transformations with empty config returns unchanged data"""
     df = pd.DataFrame({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
 
-    result = apply_transformations(df, {})
+    result = apply_transformations(df, IntegrityTransformation())
 
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 3
@@ -128,12 +129,11 @@ def test_apply_transformations_geometry_and_encoding():
         {"lon": [2.3522, 4.8357], "lat": [48.8566, 45.7640], "city": ["Paris", "Lyon"]}
     )
 
-    config = {
-        "force_projection": {"type": "EPSG:4326", "x_column": "lon", "y_column": "lat"},
-        "encoding": "utf-8",
-    }
+    config = IntegrityTransformation(
+        force_projection=ForceProjection(type="EPSG:4326", x_column="lon", y_column="lat")
+    )
 
-    result = apply_transformations(df, config)  # type: ignore[misc]
+    result = apply_transformations(df, config)
 
     assert isinstance(result, gpd.GeoDataFrame)
     assert "geometry" in result.columns

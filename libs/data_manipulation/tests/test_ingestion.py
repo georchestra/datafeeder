@@ -10,7 +10,7 @@ from pandas import DataFrame
 from shapely.geometry import Point
 from sqlalchemy.engine import Engine
 
-from data_manipulation import apply_transformations
+from data_manipulation import IntegrityTransformation, apply_transformations
 from data_manipulation.ingestion import (
     ingest_data_from_file_into_postgis,
     ingest_data_from_url_into_postgis,
@@ -424,7 +424,7 @@ class TestApplyTransformations:
         """Test that apply_transformations currently returns data unchanged."""
 
         gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        transformation_config: dict[str, object] = {"operation": "filter", "condition": "col1 > 1"}
+        transformation_config = IntegrityTransformation()
 
         result = apply_transformations(gdf, transformation_config)
 
