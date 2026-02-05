@@ -416,7 +416,8 @@ def get_staging_metadata(
 
 @router.put("/{integrity_link_id}/metadata")
 def edit_staging_metadata(
-    session: DatakernSessionDep,
+    data_session: DataSessionDep,
+    datakern_session: DatakernSessionDep,
     integrity_link_id: str,
     config: StagingMetadata = Body(
         ...,
@@ -436,7 +437,7 @@ def edit_staging_metadata(
         Success message with updated IntegrityLink details
     """
     # Query existing IntegrityLink
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
@@ -463,12 +464,12 @@ def edit_staging_metadata(
     # Force SQLAlchemy to detect changes in the JSON column
     flag_modified(integrity_link, "integrity_transformation")
 
-    session.commit()
-    session.refresh(integrity_link)
+    datakern_session.commit()
+    datakern_session.refresh(integrity_link)
 
     return get_staging_metadata(
-        data_session=session,
-        datakern_session=session,
+        data_session=data_session,
+        datakern_session=datakern_session,
         integrity_link_id=integrity_link_id,
     )
 
