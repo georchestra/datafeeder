@@ -6,7 +6,6 @@ from shapely import wkb, wkt
 
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.models import IntegrityTransformation
-from data_manipulation.transformation.transform_encoding import apply_encoding
 from data_manipulation.transformation.transform_geom_point import create_geometries_from_columns
 from data_manipulation.transformation.transform_projection import apply_projection
 
@@ -135,19 +134,12 @@ def apply_transformations(
         x_column = force_projection.x_column
         projection = force_projection.type
 
-    encoding = None
-
     # Convert projection to string if necessary
     if isinstance(projection, str):
         projection_str = projection
     else:
         projection_str = str(projection) if projection is not None else DEFAULT_CRS
         logger.info(f"Default projection set to {projection_str}")
-
-    # Apply encoding transformation if specified
-    # The encoding is done during staging ingestion for now
-    if encoding and isinstance(encoding, str):
-        df = apply_encoding(df, encoding)
 
     # Check if DataFrame has a 'geom' column and convert to GeoDataFrame
     if not isinstance(df, gpd.GeoDataFrame) and DEFAULT_GEOMETRY_COLUMN in df.columns:

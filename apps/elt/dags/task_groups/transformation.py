@@ -49,7 +49,9 @@ def process_transformation_group(
             transformation_dict: dict[str, Any] = params.get("integrity_transformation", {})
             transformation_config = IntegrityTransformation(**transformation_dict)
 
-            logger.info(f"Final transformation with config: {transformation_dict} for {final_table_name}")
+            logger.info(
+                f"Final transformation with config: {transformation_dict} for {final_table_name}"
+            )
 
             # Get staging_table_name from XCom or params
             staging_table_name = None

@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from airflow import DAG
-
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from utils import get_datakern_pg_hook
 
