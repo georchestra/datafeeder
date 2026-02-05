@@ -111,10 +111,10 @@ def create_layer(
 
     try:
         native_bounding_box = {
-            "minx": 0.0,
-            "miny": 0.0,
-            "maxx": -1.0,
-            "maxy": -1.0,
+            "minx": -1.0,
+            "miny": -1.0,
+            "maxx": 0.0,
+            "maxy": 0.0,
             "crs": {"$": f"EPSG:{epsg}", "@class": "projected"},
         }
         lat_lon_bounding_box = {
