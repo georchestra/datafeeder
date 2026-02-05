@@ -6,6 +6,7 @@ from typing import Any
 from airflow.exceptions import AirflowException
 from airflow.sdk import task, task_group
 from data_manipulation import (
+    IntegrityTransformation,
     apply_transformations,
     read_data_from_postgis,
     write_data_to_postgis,
@@ -45,7 +46,10 @@ def process_transformation_group(
             ti = context["ti"]
 
             final_table_name = params.get("final_table_name")
-            transformation_config = params.get("integrity_transformation", {})
+            transformation_dict: dict[str, Any] = params.get("integrity_transformation", {})
+            transformation_config = IntegrityTransformation(**transformation_dict)
+
+            logger.info(f"Final transformation with config: {transformation_dict} for {final_table_name}")
 
             # Get staging_table_name from XCom or params
             staging_table_name = None

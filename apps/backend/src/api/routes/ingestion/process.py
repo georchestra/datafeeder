@@ -119,6 +119,7 @@ def process_staging_data(
                 conf={
                     "staging_table_name": staging_table_name,
                     "final_table_name": final_table_name,
+                    "integrity_transformation": integrity_link.integrity_transformation or {},
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,
                 },

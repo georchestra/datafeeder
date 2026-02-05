@@ -5,6 +5,7 @@ import pandas as pd
 from shapely import wkb, wkt
 
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
+from data_manipulation.models import IntegrityTransformation
 from data_manipulation.transformation.transform_encoding import apply_encoding
 from data_manipulation.transformation.transform_geom_point import create_geometries_from_columns
 from data_manipulation.transformation.transform_projection import apply_projection
@@ -108,23 +109,33 @@ def _apply_projection_transformation(
 
 
 def apply_transformations(
-    df: gpd.GeoDataFrame | pd.DataFrame, transformation_config: dict[str, str | object | None]
+    df: gpd.GeoDataFrame | pd.DataFrame, transformation_config: IntegrityTransformation
 ) -> gpd.GeoDataFrame | pd.DataFrame:
     """Apply transformations to a GeoDataFrame or a DataFrame.
 
     Args:
-        data: Input GeoDataFrame or DataFrame
-        transformation_config: JSON configuration for transformations
+        df: Input GeoDataFrame or DataFrame
+        transformation_config: IntegrityTransformation model containing:
+            - columns: Optional list of column configurations
+            - force_projection: Optional ForceProjection with type, x_column, y_column
 
     Returns:
         Transformed GeoDataFrame or DataFrame
     """
     logger.info(f"Applying transformations with config: {transformation_config}")
 
-    encoding = transformation_config.get("encoding")
-    y_column = transformation_config.get("y_column")
-    x_column = transformation_config.get("x_column")
-    projection = transformation_config.get("projection")
+    y_column = None
+    x_column = None
+    projection = None
+
+    # Extract force_projection config
+    force_projection = transformation_config.force_projection
+    if force_projection:
+        y_column = force_projection.y_column
+        x_column = force_projection.x_column
+        projection = force_projection.type
+
+    encoding = None
 
     # Convert projection to string if necessary
     if isinstance(projection, str):
