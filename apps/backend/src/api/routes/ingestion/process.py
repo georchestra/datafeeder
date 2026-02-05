@@ -137,7 +137,7 @@ def process_staging_data(
 
 @router.post("/dag_success")
 async def dag_success_callback(
-    session: DatakernSessionDep,
+    datakern_session: DatakernSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
     user_email: str = Query("", description="User email"),
@@ -157,7 +157,7 @@ async def dag_success_callback(
         Success message with updated IntegrityLink details
     """
     # Query existing IntegrityLink
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
@@ -302,8 +302,8 @@ async def dag_success_callback(
     integrity_link.final_table_name = final_table_name
     integrity_link.last_retrieval_timestamp = datetime.now(timezone.utc)
 
-    session.commit()
-    session.refresh(integrity_link)
+    datakern_session.commit()
+    datakern_session.refresh(integrity_link)
 
     logger.info(
         f"Process DAG success for IntegrityLink {integrity_link.id} | "
