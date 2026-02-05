@@ -5,32 +5,32 @@
     <div class="flex flex-col gap-1">
       <a
         [routerLink]="['edit']"
-        routerLinkActive="bg-secondary-lightest text-secondary font-semibold"
-        class="rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+        routerLinkActive="bg-secondary-lightest font-semibold"
+        class="rounded-md px-3 py-2 text-base text-secondary"
       >
         {{ 'sidebar.metadataSheet' | translate }}
       </a>
       <span
-        class="cursor-not-allowed rounded-md px-3 py-2 text-sm text-gray-400"
+        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
       >
         {{ 'sidebar.accessRights' | translate }}
       </span>
       <span
-        class="cursor-not-allowed rounded-md px-3 py-2 text-sm text-gray-400"
+        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
       >
         {{ 'sidebar.recurrencePlanning' | translate }}
       </span>
       <a
         [routerLink]="['events']"
-        routerLinkActive="bg-secondary-lightest text-secondary font-semibold"
-        class="rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+        routerLinkActive="bg-secondary-lightest font-semibold"
+        class="rounded-md px-3 py-2 text-base text-secondary"
       >
         {{ 'sidebar.eventsAndStatuses' | translate }}
       </a>
       <hr class="my-2 border-gray-200" />
       <a
         [routerLink]="['/']"
-        class="rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+        class="rounded-md px-3 py-2 text-base text-secondary"
       >
         {{ 'integrityLinks.dashboard' | translate }}
       </a>
@@ -39,7 +39,7 @@
       <button
         type="button"
         disabled
-        class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-400 cursor-not-allowed"
+        class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-base text-gray-400 cursor-not-allowed"
       >
         <ng-icon name="iconoirRefreshCircle" size="1.25em"></ng-icon>
         {{ 'sidebar.reconfigureDataset' | translate }}
