@@ -242,8 +242,9 @@ async def dag_success_callback(
 
             logger.info(
                 f"Data published to GeoServer for IntegrityLink {integrity_link.id}: {integrity_link.data_id} | "
-                f"WMS URL={layer_urls.wms.capabilities}, "
-                f"WFS URL={layer_urls.wfs.capabilities}"
+                f"WMS URL={layer_urls.wms.capabilities if is_geographic and layer_urls.wms else None}, "
+                f"WFS URL={layer_urls.wfs.capabilities}, "
+                f"OGC Features={layer_urls.ogcfeatures}, "
             )
         except Exception as layer_error:
             # Log the error but don't fail - workspace/datastore were created successfully
