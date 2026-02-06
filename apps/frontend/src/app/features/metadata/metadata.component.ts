@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { Component, OnInit, inject } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute } from '@angular/router'
 import {
   EditorFacade,
@@ -25,7 +26,7 @@ export class MetadataComponent implements OnInit {
 
   intlink_id: string | null = null
 
-  isRecordLoaded$ = this.editor.record$.pipe(map((record) => !!record))
+  isRecordLoaded = toSignal(this.editor.record$.pipe(map((record) => !!record)))
 
   ngOnInit(): void {
     this.intlink_id = this.route.snapshot.paramMap.get('intlink_id')
