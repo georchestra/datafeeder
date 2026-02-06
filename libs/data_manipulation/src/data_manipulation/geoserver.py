@@ -5,7 +5,7 @@ from geoservercloud.models.featuretype import FeatureType
 from geoservercloud.services import RestService
 from pydantic import BaseModel  # type: ignore[import-untyped]
 
-from data_manipulation.utils import sanitize_name
+from data_manipulation.utils import compute_bbox_from_postgis_stextent_string, sanitize_name
 
 
 class WorkspaceCreationResult(BaseModel):  # type: ignore[misc]
@@ -76,6 +76,7 @@ def create_layer(
     abstract: str | None = None,
     epsg: int = 4326,
     is_geographic: bool = True,
+    bbox: str = "",
 ) -> None:
     """
     Create a feature type (layer) in GeoServer from a database table.
@@ -109,51 +110,45 @@ def create_layer(
         abstract = table_name
 
     try:
+        native_bounding_box = {
+            "minx": -1.0,
+            "miny": -1.0,
+            "maxx": 0.0,
+            "maxy": 0.0,
+            "crs": {"$": f"EPSG:{epsg}", "@class": "projected"},
+        }
+        lat_lon_bounding_box = {
+            "minx": -1.0,
+            "miny": -1.0,
+            "maxx": 0.0,
+            "maxy": 0.0,
+            "crs": f"EPSG:{epsg}",
+        }
         if is_geographic:
-            geoserver.create_feature_type(  # type: ignore[misc]
-                layer_name=table_name,
-                workspace_name=workspace_name,
-                datastore_name=datastore_name,
-                title=title,
-                abstract=abstract,
-                epsg=epsg,
-            )
-        else:
-            # For non-geographic data, manually set fake bounds
-            native_bounding_box = {
-                "minx": 0,
-                "miny": 0,
-                "maxx": -1,
-                "maxy": -1,
-                "crs": {"$": f"EPSG:{epsg}", "@class": "projected"},
-            }
+            parsed_bbox = compute_bbox_from_postgis_stextent_string(bbox)
+            native_bounding_box["minx"] = lat_lon_bounding_box["minx"] = parsed_bbox["minx"]
+            native_bounding_box["miny"] = lat_lon_bounding_box["miny"] = parsed_bbox["miny"]
+            native_bounding_box["maxx"] = lat_lon_bounding_box["maxx"] = parsed_bbox["maxx"]
+            native_bounding_box["maxy"] = lat_lon_bounding_box["maxy"] = parsed_bbox["maxy"]
 
-            lat_lon_bounding_box = {
-                "minx": -1,
-                "miny": -1,
-                "maxx": 0,
-                "maxy": 0,
-                "crs": f"EPSG:{epsg}",
-            }
+        feature_type = FeatureType(
+            name=table_name,
+            native_name=table_name,
+            workspace_name=workspace_name,
+            store_name=datastore_name,
+            title=title,
+            abstract=abstract,
+            srs=f"EPSG:{epsg}",
+            epsg_code=epsg,
+            native_bounding_box=native_bounding_box,
+            lat_lon_bounding_box=lat_lon_bounding_box,
+        )
 
-            feature_type = FeatureType(
-                name=table_name,
-                native_name=table_name,
-                workspace_name=workspace_name,
-                store_name=datastore_name,
-                title=title,
-                abstract=abstract,
-                srs=f"EPSG:{epsg}",
-                epsg_code=epsg,
-                native_bounding_box=native_bounding_box,
-                lat_lon_bounding_box=lat_lon_bounding_box,
-            )
-
-            rest_service = RestService(
-                url=geoserver.url,  # type: ignore[reportUnknownMemberType]
-                auth=geoserver.auth,  # type: ignore[reportUnknownMemberType]
-            )
-            rest_service.create_feature_type(feature_type)
+        rest_service = RestService(
+            url=geoserver.url,  # type: ignore[reportUnknownMemberType]
+            auth=geoserver.auth,  # type: ignore[reportUnknownMemberType]
+        )
+        rest_service.create_feature_type(feature_type)
 
     except Exception as e:
         error_msg = str(e)

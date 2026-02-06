@@ -109,13 +109,15 @@ class MetadataService:
         keywords: _Element = etree.SubElement(props, "keywords")
         etree.SubElement(keywords, "keyword").text = integrity_link.integrity_title or "dataset"
 
-        # Build online resources from GeoServer layer URLs
-        if layer_urls and "wms" in layer_urls and "wfs" in layer_urls:
-            wms = layer_urls["wms"]
-            wfs = layer_urls["wfs"]
+        layer_name = ""
+        online_resources: _Element = etree.SubElement(props, "onlineResources")
+
+        if layer_urls:
             layer_name = layer_urls.get("layer_qualified_name", "")
 
-            online_resources: _Element = etree.SubElement(props, "onlineResources")
+        # Build online resources from GeoServer layer URLs
+        if layer_urls and "wms" in layer_urls and layer_urls["wms"]:
+            wms = layer_urls["wms"]
 
             # WMS GetCapabilities
             resource: _Element = etree.SubElement(online_resources, "onlineResource")
@@ -130,7 +132,8 @@ class MetadataService:
             etree.SubElement(resource, "protocol").text = "OGC:WMS"
             etree.SubElement(resource, "name").text = "WMS GetMap"
             etree.SubElement(resource, "description").text = f"View map layer {layer_name}"
-
+        if layer_urls and "wfs" in layer_urls:
+            wfs = layer_urls["wfs"]
             # WFS GetCapabilities
             resource = etree.SubElement(online_resources, "onlineResource")
             etree.SubElement(resource, "linkage").text = wfs.get("capabilities", "")
@@ -143,6 +146,17 @@ class MetadataService:
             etree.SubElement(resource, "linkage").text = wfs.get("getfeature", "")
             etree.SubElement(resource, "protocol").text = "OGC:WFS"
             etree.SubElement(resource, "name").text = "WFS GetFeature"
+            etree.SubElement(
+                resource, "description"
+            ).text = f"Download vector data for {layer_name}"
+
+        if layer_urls and "ogcfeatures" in layer_urls:
+            ogcfeatures = layer_urls["ogcfeatures"]
+
+            resource = etree.SubElement(online_resources, "onlineResource")
+            etree.SubElement(resource, "linkage").text = ogcfeatures
+            etree.SubElement(resource, "protocol").text = "OGC API Features"
+            etree.SubElement(resource, "name").text = layer_name
             etree.SubElement(
                 resource, "description"
             ).text = f"Download vector data for {layer_name}"

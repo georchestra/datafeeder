@@ -19,6 +19,7 @@ dependencies = [
     "geoalchemy2==0.18.1",
     "geopandas==1.1.2",
     "geoservercloud",
+    "pydantic>=2.12.5",
     "sqlalchemy==2.0.44",
 ]
 

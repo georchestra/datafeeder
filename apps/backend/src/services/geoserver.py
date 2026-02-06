@@ -32,8 +32,9 @@ class LayerCreationResult(BaseModel):
     layer: str
     layer_qualified_name: str
     table: str
-    wms: WMSUrls
+    wms: WMSUrls | None
     wfs: WFSUrls
+    ogcfeatures: str
 
 
 class GeoServerService:
@@ -122,6 +123,7 @@ class GeoServerService:
         title: str,
         abstract: str,
         is_geographic: bool = True,
+        bbox: str = "",
     ) -> LayerCreationResult:
         """
         Create a WFS and WMS layer from a database table.
@@ -149,19 +151,28 @@ class GeoServerService:
             title=title,
             abstract=abstract,
             is_geographic=is_geographic,
+            bbox=bbox,
         )
 
         # Build service URLs
         layer_qualified_name = f"{workspace_name}:{table_name}"
 
-        # WMS GetCapabilities URL for the workspace
-        wms_capabilities_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities"
+        wms = None
+        if is_geographic:
+            # WMS GetCapabilities URL for the workspace
+            wms_capabilities_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities"
 
-        # WMS GetMap URL for the specific layer
-        wms_getmap_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}"
+            # WMS GetMap URL for the specific layer
+            wms_getmap_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}"
 
-        # WMS GetLegendGraphic URL for the layer
-        wms_legend_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetLegendGraphic&layer={layer_qualified_name}&format=image/png"
+            # WMS GetLegendGraphic URL for the layer
+            wms_legend_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetLegendGraphic&layer={layer_qualified_name}&format=image/png"
+
+            wms = WMSUrls(
+                capabilities=wms_capabilities_url,
+                getmap=wms_getmap_url,
+                legend=wms_legend_url,
+            )
 
         # WFS GetCapabilities URL for the workspace
         wfs_capabilities_url = f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities"
@@ -169,19 +180,21 @@ class GeoServerService:
         # WFS GetFeature URL for the specific layer
         wfs_getfeature_url = f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames={layer_qualified_name}"
 
+        # OGC Features URL for the layer
+        ogcfeatures_url = (
+            f"{self.public_url}/ogc/features/v1/collections/{layer_qualified_name}?f=json"
+        )
+
         return LayerCreationResult(
             workspace=workspace_name,
             datastore=datastore_name,
             layer=table_name,
             layer_qualified_name=layer_qualified_name,
             table=table_name,
-            wms=WMSUrls(
-                capabilities=wms_capabilities_url,
-                getmap=wms_getmap_url,
-                legend=wms_legend_url,
-            ),
+            wms=wms,
             wfs=WFSUrls(
                 capabilities=wfs_capabilities_url,
                 getfeature=wfs_getfeature_url,
             ),
+            ogcfeatures=ogcfeatures_url,
         )

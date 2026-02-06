@@ -70,25 +70,19 @@ def get_available_table_name(engine: Engine, schema_name: str, base_table_name: 
         str: Available table name
     """
 
-    final_table_name = base_table_name
-    counter = 1
     max_attempts = 20
-    while counter < max_attempts:
+
+    for counter in range(max_attempts):
+        if counter == 0:
+            final_table_name = base_table_name
+        else:
+            suffix = f"_{counter}"
+            truncate_length = 53 - len(suffix)
+            final_table_name = base_table_name[:truncate_length] + suffix
         try:
             metadata = MetaData(schema=schema_name)
             Table(final_table_name, metadata, autoload_with=engine)
-            suffix = f"_{counter}"
-            truncate_length = (
-                53 - len(suffix)
-            )  # PostgreSQL max table name length is 63 but index sometimes append _geometry so we leave some buffer
-            final_table_name = final_table_name[:truncate_length] + suffix
-            counter += 1
-            logger.info("Final table name exists, trying new name: %s", final_table_name)
+            logger.info("Table name exists, trying new name: %s", final_table_name)
         except NoSuchTableError:
             logger.info("Final table name available: %s", final_table_name)
-            break
-    else:
-        # Reached max attempts
-        final_table_name = None
-
-    return final_table_name
+            return final_table_name

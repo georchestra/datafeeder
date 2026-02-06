@@ -8,9 +8,10 @@ import geopandas as gpd
 import pandas as pd
 import requests
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
-from data_manipulation import apply_transformations
+from data_manipulation import IntegrityTransformation, apply_transformations
 from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
+from data_manipulation.models import ForceProjection
 from data_manipulation.utils import sanitize_name
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
 from shapely.geometry.base import BaseGeometry
@@ -29,7 +30,6 @@ from src.models import (
 from src.models.data_import import (
     ColumnMetadata,
     FileType,
-    ForceProjection,
     ImportType,
     StagingMetadata,
     StagingMetadataResponse,
@@ -408,15 +408,14 @@ def get_staging_metadata(
         file_type=source_file_type,
         columns=columns,
         row_count=row_count,
-        force_projection=ForceProjection(**force_projection_data)
-        if force_projection_data
-        else None,
+        force_projection=force_projection_data,
     )
 
 
 @router.put("/{integrity_link_id}/metadata")
 def edit_staging_metadata(
-    session: DatakernSessionDep,
+    data_session: DataSessionDep,
+    datakern_session: DatakernSessionDep,
     integrity_link_id: str,
     config: StagingMetadata = Body(
         ...,
@@ -436,7 +435,7 @@ def edit_staging_metadata(
         Success message with updated IntegrityLink details
     """
     # Query existing IntegrityLink
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
@@ -463,12 +462,12 @@ def edit_staging_metadata(
     # Force SQLAlchemy to detect changes in the JSON column
     flag_modified(integrity_link, "integrity_transformation")
 
-    session.commit()
-    session.refresh(integrity_link)
+    datakern_session.commit()
+    datakern_session.refresh(integrity_link)
 
     return get_staging_metadata(
-        data_session=session,
-        datakern_session=session,
+        data_session=data_session,
+        datakern_session=datakern_session,
         integrity_link_id=integrity_link_id,
     )
 
@@ -510,11 +509,15 @@ def get_staging_preview(
     if not staging_table_name:
         raise HTTPException(status_code=500, detail="Staging table name is missing")
 
-    transformation_config: dict[str, str | object | None] = {
-        "projection": projection,
-        "x_column": x_column,
-        "y_column": y_column,
-    }
+    transformation_config = IntegrityTransformation(
+        force_projection=ForceProjection(
+            type=projection or "",
+            x_column=x_column,
+            y_column=y_column,
+        )
+        if projection or x_column or y_column
+        else None
+    )
 
     schema = get_staging_schema()
     engine = data_engine

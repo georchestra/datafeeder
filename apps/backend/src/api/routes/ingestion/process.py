@@ -7,7 +7,7 @@ from data_manipulation.database import create_schema, get_available_table_name
 from data_manipulation.utils import sanitize_name
 from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
-from sqlalchemy import MetaData, Table
+from sqlalchemy import MetaData, Table, func, select
 
 from src.api.deps import DatakernSessionDep, DataSessionDep
 from src.core.callback import build_callback_url
@@ -119,6 +119,7 @@ def process_staging_data(
                 conf={
                     "staging_table_name": staging_table_name,
                     "final_table_name": final_table_name,
+                    "integrity_transformation": integrity_link.integrity_transformation or {},
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,
                 },
@@ -222,6 +223,12 @@ async def dag_success_callback(
             metadata = MetaData(schema="data")
             table = Table(final_table_name, metadata, autoload_with=data_engine)
             is_geographic = DEFAULT_GEOMETRY_COLUMN in table.c
+            bbox = ""
+            if is_geographic:
+                stmt = select(func.ST_Extent(table.c[DEFAULT_GEOMETRY_COLUMN]))
+                with data_engine.connect() as conn:
+                    result = conn.execute(stmt).scalar_one_or_none()
+                bbox = str(result) if result else ""
 
             layer_urls = await geoserver_service.create_layer(
                 workspace_name=workspace_name,
@@ -230,13 +237,15 @@ async def dag_success_callback(
                 title=integrity_link.integrity_title or final_table_name,
                 abstract=integrity_link.integrity_title or final_table_name,
                 is_geographic=is_geographic,
+                bbox=bbox,
             )
             integrity_link.data_id = workspace_name + ":" + final_table_name
 
             logger.info(
                 f"Data published to GeoServer for IntegrityLink {integrity_link.id}: {integrity_link.data_id} | "
-                f"WMS URL={layer_urls.wms.capabilities}, "
-                f"WFS URL={layer_urls.wfs.capabilities}"
+                f"WMS URL={layer_urls.wms.capabilities if is_geographic and layer_urls.wms else None}, "
+                f"WFS URL={layer_urls.wfs.capabilities}, "
+                f"OGC Features={layer_urls.ogcfeatures}, "
             )
         except Exception as layer_error:
             # Log the error but don't fail - workspace/datastore were created successfully
