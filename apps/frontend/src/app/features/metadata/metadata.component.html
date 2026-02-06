@@ -1,3 +1,51 @@
-@if(isRecordLoaded()) {
-<gn-ui-record-form></gn-ui-record-form>
-}
+<div class="px-9 pt-1 pb-6">
+  <div class="w-full flex gap-2" data-test="pageSelectorButtons">
+    @for ( page of pages(); track page; let index = $index ) {
+    <gn-ui-button
+      class="basis-1/3"
+      (buttonClick)="pageSectionClickHandler(index)"
+      [type]="(isCurrentPage(index) | async) ? 'primary' : 'outline'"
+      extraClass="border-none rounded-lg w-full"
+      style="--gn-ui-button-padding: 17px 20px 17px 20px"
+    >
+      <div
+        class="w-full flex items-center justify-start text-medium font-bold"
+        [class]="(isCurrentPage(index) | async) ? '' : 'text-secondary-darker'"
+      >
+        <ng-icon
+          class="mr-2"
+          [name]="'iconoirNumber' + (index + 1) + 'Square'"
+          size="1.9em"
+        ></ng-icon>
+        {{ page.labelKey | translate }}
+      </div>
+    </gn-ui-button>
+    }
+  </div>
+
+  @if(isRecordLoaded()) {
+  <div class="py-6">
+    <gn-ui-record-form></gn-ui-record-form>
+  </div>
+  }
+  <div
+    data-test="previousNextPageButtons"
+    class="mt-auto flex flex-row justify-between"
+  >
+    @if((currentPage$ | async) !== 0) {
+    <gn-ui-button
+      type="outline"
+      (buttonClick)="previousPageButtonHandler()"
+      translate
+    >
+      {{ 'editor.record.form.bottomButtons.previous' | translate }}
+    </gn-ui-button>
+    } @else {
+    <div></div>
+    } @if ((isLastPage$ | async) === false) {
+    <gn-ui-button type="primary" (buttonClick)="nextPageButtonHandler()">
+      <span translate>editor.record.form.bottomButtons.next</span>
+    </gn-ui-button>
+    }
+  </div>
+</div>
