@@ -577,6 +577,7 @@ dependencies = [
     { name = "geoalchemy2" },
     { name = "geopandas" },
     { name = "geoservercloud" },
+    { name = "pydantic" },
     { name = "sqlalchemy" },
 ]
 
@@ -593,6 +594,7 @@ requires-dist = [
     { name = "geoalchemy2", specifier = "==0.18.1" },
     { name = "geopandas", specifier = "==1.1.2" },
     { name = "geoservercloud" },
+    { name = "pydantic", specifier = ">=2.12.5" },
     { name = "sqlalchemy", specifier = "==2.0.44" },
 ]
 
