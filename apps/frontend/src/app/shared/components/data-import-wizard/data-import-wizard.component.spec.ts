@@ -914,7 +914,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     req.flush(mockProcessResponse)
     await promise
 
-    expect(navigateSpy).toHaveBeenCalledWith(['/events', 'test-link-789'])
+    expect(navigateSpy).toHaveBeenCalledWith(['test-link-789', 'events'])
   })
 
   it('should set processing flag during validation', async () => {

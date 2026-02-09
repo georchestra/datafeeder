@@ -63,6 +63,7 @@ html {
 
   .mat-mdc-tab.mdc-tab--active {
     background-color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
   }
   /* Inactive tabs - match panel border */
   .mat-mdc-tab:not(.mdc-tab--active) {
