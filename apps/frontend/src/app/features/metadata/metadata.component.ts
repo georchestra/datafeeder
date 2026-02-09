@@ -1,15 +1,20 @@
 import { CommonModule } from '@angular/common'
 import { Component, OnInit, inject } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute } from '@angular/router'
-import { EditorFacade, RecordsRepositoryInterface } from 'geonetwork-ui'
-import { map, take } from 'rxjs'
+import {
+  EditorFacade,
+  RecordFormComponent,
+  RecordsRepositoryInterface
+} from 'geonetwork-ui'
+import { map, take, tap } from 'rxjs'
 import { Api } from '../../core/api/api'
 import { getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet } from '../../core/api/functions'
 import { IntegrityLinkResponse } from '../../core/api/models'
 
 @Component({
   selector: 'app-metadata',
-  imports: [CommonModule],
+  imports: [CommonModule, RecordFormComponent],
   templateUrl: './metadata.component.html',
   styleUrl: './metadata.component.css'
 })
@@ -21,9 +26,7 @@ export class MetadataComponent implements OnInit {
 
   intlink_id: string | null = null
 
-  recordTitle$ = this.editor.record$.pipe(
-    map((record) => record?.title || 'No record loaded')
-  )
+  isRecordLoaded = toSignal(this.editor.record$.pipe(map((record) => !!record)))
 
   ngOnInit(): void {
     this.intlink_id = this.route.snapshot.paramMap.get('intlink_id')
@@ -45,9 +48,11 @@ export class MetadataComponent implements OnInit {
         .openRecordForEdition(response.metadata_id)
         .pipe(
           take(1),
-          map(([currentRecord, currentRecordSource]) =>
+          tap(([currentRecord, currentRecordSource]) => {
             this.editor.openRecord(currentRecord, currentRecordSource)
-          )
+            // TODO: remove when navigation between pages is implemented
+            this.editor.setCurrentPage(0)
+          })
         )
         .subscribe()
     } catch (error) {
