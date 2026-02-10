@@ -298,6 +298,156 @@ describe('IntegrityLinkListComponent', () => {
     })
   })
 
+  describe('Search', () => {
+    it('should trigger debounced API call with search param', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      // Initial load
+      const initialReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      initialReq.flush({
+        items: [createMockItem('1')],
+        has_more: false,
+        offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      // Trigger search
+      component.onSearchInput('test')
+
+      // Wait for debounce (300ms)
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const searchReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0&search=test'
+      )
+      expect(searchReq.request.method).toBe('GET')
+      expect(searchReq.request.params.get('search')).toBe('test')
+
+      searchReq.flush({
+        items: [createMockItem('1')],
+        has_more: false,
+        offset: 0
+      })
+    })
+
+    it('should reset search and reload when clearSearch is called', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      // Initial load
+      const initialReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      initialReq.flush({
+        items: [createMockItem('1')],
+        has_more: false,
+        offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      // Set a search first
+      component.onSearchInput('test')
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const searchReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0&search=test'
+      )
+      searchReq.flush({
+        items: [createMockItem('1')],
+        has_more: false,
+        offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      // Clear search
+      component.clearSearch()
+
+      expect(component.searchQuery()).toBe('')
+
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const clearReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      expect(clearReq.request.params.has('search')).toBe(false)
+
+      clearReq.flush({
+        items: [createMockItem('1'), createMockItem('2')],
+        has_more: false,
+        offset: 0
+      })
+    })
+
+    it('should include search param when loading more', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      // Initial load
+      const initialReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      initialReq.flush({
+        items: [createMockItem('1')],
+        has_more: true,
+        offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      // Set search
+      component.onSearchInput('test')
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const searchReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0&search=test'
+      )
+      searchReq.flush({
+        items: [createMockItem('a')],
+        has_more: true,
+        offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      // Load more with search active
+      component.loadMore()
+
+      const loadMoreReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=1&search=test'
+      )
+      expect(loadMoreReq.request.params.get('offset')).toBe('1')
+      expect(loadMoreReq.request.params.get('search')).toBe('test')
+
+      loadMoreReq.flush({
+        items: [createMockItem('b')],
+        has_more: false,
+        offset: 1
+      })
+    })
+
+    it('should not include search param when search is empty', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      const req = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      expect(req.request.params.has('search')).toBe(false)
+
+      req.flush({
+        items: [createMockItem('1')],
+        has_more: false,
+        offset: 0
+      })
+    })
+  })
+
   describe('Error Handling', () => {
     it('should set loading flags to false even on API error', async () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)
