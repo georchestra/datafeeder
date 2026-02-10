@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common'
-import { Component, effect, inject } from '@angular/core'
+import { Component, effect, inject, OnInit } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import {
@@ -10,6 +10,7 @@ import {
 import { TranslateDirective, TranslatePipe } from '@ngx-translate/core'
 import {
   ButtonComponent,
+  DEFAULT_CONFIGURATION,
   EditorFacade,
   RecordFormComponent,
   RecordsRepositoryInterface
@@ -38,7 +39,7 @@ import { IntegrityLinkStore } from '../../layout/integrity-link.store'
     })
   ]
 })
-export class MetadataComponent {
+export class MetadataComponent implements OnInit {
   private recordsRepository = inject(RecordsRepositoryInterface)
   protected editor = inject(EditorFacade)
   readonly store = inject(IntegrityLinkStore)
@@ -62,6 +63,15 @@ export class MetadataComponent {
         this.loadMetadata(integrityLink.metadata_id)
       }
     })
+  }
+
+  ngOnInit(): void {
+    const customConfig = DEFAULT_CONFIGURATION
+    // Keep only the ANNEXES_SECTION in the resources page
+    customConfig.pages[1].sections = [
+      DEFAULT_CONFIGURATION.pages[1].sections[1]
+    ]
+    this.editor.setConfiguration(customConfig)
   }
 
   private loadMetadata(metadataId: string): void {
