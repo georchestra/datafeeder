@@ -49,10 +49,11 @@ def create_workspace(
     if pg_schema is None:
         pg_schema = workspace_name
 
-    if geoserver.get_workspace(workspace_name)[1] != 200:
-        # Create workspace
-        geoserver.create_workspace(workspace_name)  # type: ignore[reportUnknownMemberType]
+    # Create workspace
+    geoserver.create_workspace(workspace_name)  # type: ignore[reportUnknownMemberType]
 
+    # Retrieve namespace URI for the workspace because ite must match datastore one
+    # So if the workspace already exists, we get the correct namespace URI instead of assuming it follows a pattern
     namespace = geoserver.rest_service.rest_client.get(f"/rest/namespaces/{workspace_name}").json()[
         "namespace"
     ]["uri"]
