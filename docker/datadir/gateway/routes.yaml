@@ -21,6 +21,9 @@ spring:
         uri: ${georchestra.gateway.services.frontend.target}
         predicates:
         - Path=/datakern/**
+        filters:
+        # https://github.com/spring-cloud/spring-cloud-gateway/issues/1748
+        - RewritePath=/datakern,/datakern/
       - id: airflow
         uri: ${georchestra.gateway.services.airflow.target}
         predicates:
