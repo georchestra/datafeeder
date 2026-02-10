@@ -14,6 +14,11 @@ export interface ListIntegrityLinksIngestionIntegrityLinksGet$Params {
    * Number of items to skip (for lazy loading)
    */
   offset?: number
+
+  /**
+   * Filter by integrity title (case-insensitive)
+   */
+  search?: string | null
 }
 
 export function listIntegrityLinksIngestionIntegrityLinksGet(
@@ -29,6 +34,7 @@ export function listIntegrityLinksIngestionIntegrityLinksGet(
   )
   if (params) {
     rb.query('offset', params.offset, {})
+    rb.query('search', params.search, {})
   }
 
   return http
