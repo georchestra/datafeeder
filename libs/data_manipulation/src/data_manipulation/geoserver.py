@@ -1,6 +1,7 @@
 """GeoServer layer creation utilities."""
 
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
+from geoservercloud.models.datastore import PostGisDataStore
 from geoservercloud.models.featuretype import FeatureType
 from geoservercloud.services import RestService
 from pydantic import BaseModel  # type: ignore[import-untyped]
@@ -51,14 +52,27 @@ def create_workspace(
     # Create workspace
     geoserver.create_workspace(workspace_name)  # type: ignore[reportUnknownMemberType]
 
+    # Retrieve namespace URI for the workspace because it must match datastore one
+    # So if the workspace already exists before calling geoserver.create_workspace,
+    #   we get the correct namespace URI instead of assuming it follows a pattern
+    namespace = geoserver.rest_service.rest_client.get(f"/rest/namespaces/{workspace_name}").json()[
+        "namespace"
+    ]["uri"]
     # Create JNDI datastore
-    geoserver.create_jndi_datastore(  # type: ignore[reportUnknownMemberType]
-        workspace_name=workspace_name,
-        datastore_name=datastore_name,
-        jndi_reference=jndi_reference,
-        pg_schema=pg_schema,
+    datastore = PostGisDataStore(
+        workspace_name,
+        datastore_name,
+        connection_parameters={
+            "dbtype": "postgis",
+            "jndiReferenceName": jndi_reference,
+            "schema": pg_schema,
+            "namespace": namespace,
+            "Expose primary keys": "true",
+        },
+        type="PostGIS (JNDI)",
         description=description,
     )
+    geoserver.rest_service.create_jndi_datastore(workspace_name=workspace_name, datastore=datastore)
 
     return WorkspaceCreationResult(
         workspace=workspace_name,
