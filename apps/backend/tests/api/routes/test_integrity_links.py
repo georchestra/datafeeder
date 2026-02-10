@@ -275,6 +275,126 @@ class TestListIntegrityLinks:
         assert response.offset == 0
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_search_parameter_filters_by_title(
+        self, mock_logger: MagicMock, mock_session: MagicMock
+    ) -> None:
+        """Test that the search parameter filters results by integrity_title."""
+        from src.api.routes.ingestion.integrity_links import list_integrity_links
+
+        matching_link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="My Dataset Import",
+            integrity_owner="user0",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            source_auth_enabled=False,
+            staging_table_name="staging_test",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = [matching_link]
+        mock_session.exec.return_value = mock_exec_result
+
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
+        response = list_integrity_links(
+            session=mock_session,
+            geo_ctx=geo_ctx,
+            offset=0,
+            search="Dataset",
+        )
+
+        assert len(response.items) == 1
+        assert response.items[0].integrity_title == "My Dataset Import"
+
+        # Verify the query passed to session.exec contains an ilike filter
+        executed_query = mock_session.exec.call_args[0][0]
+        query_str = str(executed_query)
+        assert "ilike" in query_str.lower() or "LIKE" in query_str
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_search_with_pagination(self, mock_logger: MagicMock, mock_session: MagicMock) -> None:
+        """Test that search works correctly with pagination."""
+        from src.api.routes.ingestion.integrity_links import list_integrity_links
+
+        # Simulate BATCH_SIZE + 1 results (has_more = True)
+        links = [
+            IntegrityLink(
+                id=uuid4(),
+                integrity_title=f"Matching Link {i}",
+                integrity_owner="user0",
+                integrity_organization="testorg",
+                source_import_type=ImportType.URL,
+                source_auth_enabled=False,
+                staging_table_name=f"staging_test_{i}",
+                created_at=datetime.now(timezone.utc),
+                schedule_enabled=False,
+            )
+            for i in range(BATCH_SIZE + 1)
+        ]
+
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = links
+        mock_session.exec.return_value = mock_exec_result
+
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
+        response = list_integrity_links(
+            session=mock_session,
+            geo_ctx=geo_ctx,
+            offset=50,
+            search="Matching",
+        )
+
+        assert response.has_more is True
+        assert len(response.items) == BATCH_SIZE
+        assert response.offset == 50
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_search_empty_string_ignored(
+        self, mock_logger: MagicMock, mock_session: MagicMock
+    ) -> None:
+        """Test that an empty search string does not add a filter."""
+        from src.api.routes.ingestion.integrity_links import list_integrity_links
+
+        links = [
+            IntegrityLink(
+                id=uuid4(),
+                integrity_title="Any Link",
+                integrity_owner="user0",
+                integrity_organization="testorg",
+                source_import_type=ImportType.URL,
+                source_auth_enabled=False,
+                staging_table_name="staging_test",
+                created_at=datetime.now(timezone.utc),
+                schedule_enabled=False,
+            )
+        ]
+
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = links
+        mock_session.exec.return_value = mock_exec_result
+
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
+        # Empty string should be treated as no filter
+        response = list_integrity_links(
+            session=mock_session,
+            geo_ctx=geo_ctx,
+            offset=0,
+            search="",
+        )
+
+        assert len(response.items) == 1
+
+        # Verify no ilike filter was added
+        executed_query = mock_session.exec.call_args[0][0]
+        query_str = str(executed_query)
+        assert "ilike" not in query_str.lower() and "LIKE" not in query_str
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_response_model_structure(
         self,
         mock_logger: MagicMock,
