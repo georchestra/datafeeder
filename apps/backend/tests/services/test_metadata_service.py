@@ -141,3 +141,99 @@ class TestMetadataService:
             result_uuid = service.create_and_publish_metadata(sample_integrity_link)
 
             assert result_uuid == expected_uuid
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_set_record_ownership_success(self, mock_gn_api: MagicMock) -> None:
+        """Test successful ownership assignment."""
+        mock_session = MagicMock()
+        mock_api_instance = MagicMock()
+        mock_api_instance.session = mock_session
+        mock_api_instance.api_url = "http://test/api"
+        mock_gn_api.return_value = mock_api_instance
+
+        # Mock users response
+        users_response = MagicMock()
+        users_response.json.return_value = [
+            {"id": 1, "username": "admin"},
+            {"id": 42, "username": "testuser"},
+        ]
+
+        # Mock groups response
+        groups_response = MagicMock()
+        groups_response.json.return_value = [
+            {"id": 10, "name": "sample"},
+            {"id": 20, "name": "Test Org"},
+        ]
+
+        # Mock ownership response
+        ownership_response = MagicMock()
+
+        mock_session.get.side_effect = [users_response, groups_response]
+        mock_session.put.return_value = ownership_response
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+        )
+
+        service.set_record_ownership("some-uuid", "testuser", "test org")
+
+        # Verify the PUT call with correct IDs
+        mock_session.put.assert_called_once_with(
+            "http://test/api/records/some-uuid/ownership",
+            params={"groupIdentifier": 20, "userIdentifier": 42},
+        )
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_set_record_ownership_user_not_found(self, mock_gn_api: MagicMock) -> None:
+        """Test ownership skipped when user not found."""
+        mock_session = MagicMock()
+        mock_api_instance = MagicMock()
+        mock_api_instance.session = mock_session
+        mock_api_instance.api_url = "http://test/api"
+        mock_gn_api.return_value = mock_api_instance
+
+        users_response = MagicMock()
+        users_response.json.return_value = [{"id": 1, "username": "admin"}]
+
+        groups_response = MagicMock()
+        groups_response.json.return_value = [{"id": 10, "name": "Test Org"}]
+
+        mock_session.get.side_effect = [users_response, groups_response]
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+        )
+
+        # Should not raise, just warn and skip
+        service.set_record_ownership("some-uuid", "unknown_user", "Test Org")
+
+        # PUT should never be called
+        mock_session.put.assert_not_called()
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_set_record_ownership_group_not_found(self, mock_gn_api: MagicMock) -> None:
+        """Test ownership skipped when group not found."""
+        mock_session = MagicMock()
+        mock_api_instance = MagicMock()
+        mock_api_instance.session = mock_session
+        mock_api_instance.api_url = "http://test/api"
+        mock_gn_api.return_value = mock_api_instance
+
+        users_response = MagicMock()
+        users_response.json.return_value = [{"id": 42, "username": "testuser"}]
+
+        groups_response = MagicMock()
+        groups_response.json.return_value = [{"id": 10, "name": "Other Org"}]
+
+        mock_session.get.side_effect = [users_response, groups_response]
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+        )
+
+        service.set_record_ownership("some-uuid", "testuser", "Missing Org")
+
+        mock_session.put.assert_not_called()

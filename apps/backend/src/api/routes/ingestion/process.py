@@ -301,6 +301,21 @@ async def dag_success_callback(
 
         logger.info(f"Metadata published for IntegrityLink {integrity_link.id}: {metadata_id}")
 
+        # Set correct ownership on the published metadata
+        try:
+            metadata_service.set_record_ownership(
+                metadata_uuid=str(integrity_link.id),
+                username=integrity_link.integrity_owner,
+                group_name=integrity_link.integrity_organization,
+            )
+        except Exception as ownership_error:
+            logger.warning(
+                "Failed to set metadata ownership for IntegrityLink %s: %s",
+                integrity_link.id,
+                ownership_error,
+                exc_info=True,
+            )
+
     except Exception as e:
         logger.error(
             f"Failed to publish metadata for IntegrityLink {integrity_link.id}: {e}", exc_info=True
