@@ -52,8 +52,9 @@ def create_workspace(
     # Create workspace
     geoserver.create_workspace(workspace_name)  # type: ignore[reportUnknownMemberType]
 
-    # Retrieve namespace URI for the workspace because ite must match datastore one
-    # So if the workspace already exists, we get the correct namespace URI instead of assuming it follows a pattern
+    # Retrieve namespace URI for the workspace because it must match datastore one
+    # So if the workspace already exists before calling geoserver.create_workspace,
+    #   we get the correct namespace URI instead of assuming it follows a pattern
     namespace = geoserver.rest_service.rest_client.get(f"/rest/namespaces/{workspace_name}").json()[
         "namespace"
     ]["uri"]
