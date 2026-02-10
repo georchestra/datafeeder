@@ -1,7 +1,9 @@
-<div class="mx-7 my-4 flex w-full max-w-full">
+<div class="px-6 py-4 flex w-full max-w-full">
   <div class="flex gap-3 border-gray-300">
     <div class="flex flex-col">
-      <span>{{ 'import.datasetPreview.proj' | translate }}</span>
+      <span class="text-lg font-medium text-gray-900 mb-2">
+        {{ 'import.datasetPreview.proj' | translate }}
+      </span>
       <div class="w-48">
         <gn-ui-dropdown-selector
           [title]="''"
@@ -17,7 +19,9 @@
   @if (metadata()?.file_type === 'csv') {
   <div class="border-l-[1px] pl-6 ml-6 flex gap-3 align-bottom items-end">
     <div class="flex flex-col">
-      <span>{{ 'import.datasetPreview.latX' | translate }}</span>
+      <span class="text-lg font-medium text-gray-900 mb-2">
+        {{ 'import.datasetPreview.latX' | translate }}
+      </span>
       <div class="w-48">
         <gn-ui-dropdown-selector
           [title]="''"
@@ -36,7 +40,9 @@
       <ng-icon class="rotate-90" name="iconoirDataTransferBoth"></ng-icon>
     </gn-ui-button>
     <div class="flex flex-col">
-      <span>{{ 'import.datasetPreview.longY' | translate }}</span>
+      <span class="text-lg font-medium text-gray-900 mb-2">
+        {{ 'import.datasetPreview.longY' | translate }}
+      </span>
       <div class="w-48">
         <gn-ui-dropdown-selector
           [title]="''"
