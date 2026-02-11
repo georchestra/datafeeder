@@ -90,6 +90,7 @@ class StagingMetadata(BaseModel):
     title: str
     file_type: FileType | None
     force_projection: ForceProjection | None = None
+    original_projection: str | None = None
 
 
 class StagingMetadataResponse(StagingMetadata):

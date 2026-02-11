@@ -155,6 +155,7 @@
   "import.dataSource.missingFile": "Missing file",
   "import.dataSource.missingUrl": "Missing URL",
   "import.dataSource.next": "Configure the dataset",
+  "import.dataSource.originalProjection": "original",
   "import.dataSource.processing": "Processing...",
   "import.dataSource.processingMessage": "The dataset is being processed",
   "import.dataSource.sending": "Sending...",

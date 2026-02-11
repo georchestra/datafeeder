@@ -82,9 +82,41 @@ export class DatasetConfigurationComponent {
     () => this.metadata()?.columns.map((col) => col.name) || []
   )
   dataSource = computed(() => this.preview()?.data || [])
-  projections = computed<DropdownChoice[]>(
-    () => this.settingsService.currentSettings()?.projections || []
-  )
+  projections = computed<DropdownChoice[]>(() => {
+    const settingsProjections =
+      this.settingsService.currentSettings()?.projections || []
+    const originalProjection = this.metadata()?.original_projection
+
+    if (!originalProjection) {
+      return settingsProjections
+    }
+
+    // Check if original projection already exists in settings projections
+    const exists = settingsProjections.some(
+      (proj) => proj.value === originalProjection
+    )
+
+    if (exists) {
+      // Move original projection to first position
+      return [
+        settingsProjections.find((proj) => proj.value === originalProjection)!,
+        ...settingsProjections.filter(
+          (proj) => proj.value !== originalProjection
+        )
+      ]
+    }
+
+    // Add original projection at the beginning
+    return [
+      {
+        value: originalProjection,
+        label: `${originalProjection} (${this.translate.instant(
+          'import.dataSource.originalProjection'
+        )})`
+      },
+      ...settingsProjections
+    ]
+  })
   columns = computed<DropdownChoice[]>(() => {
     const meta = this.metadata()
     if (!meta?.columns) {
@@ -100,14 +132,20 @@ export class DatasetConfigurationComponent {
   })
 
   constructor() {
-    // Initialize selected values from metadata when it loads
+    // Initialize selected values from metadata when it loads (only if not already set)
     effect(() => {
       const meta = this.metadata()
-      if (meta) {
+      if (meta && !this.selectedProjection()) {
         this.selectedProjection.set(
-          meta.force_projection?.type || DEFAULT_PROJECTION
+          meta.original_projection ||
+            meta.force_projection?.type ||
+            DEFAULT_PROJECTION
         )
+      }
+      if (meta && !this.selectedXCol()) {
         this.selectedXCol.set(meta.force_projection?.x_column || '')
+      }
+      if (meta && !this.selectedYCol()) {
         this.selectedYCol.set(meta.force_projection?.y_column || '')
       }
     })

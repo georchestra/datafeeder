@@ -11,7 +11,7 @@ from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRun
 from data_manipulation import IntegrityTransformation, apply_transformations
 from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
-from data_manipulation.models import ForceProjection
+from data_manipulation.models import ForceProjection as DataManipulationForceProjection
 from data_manipulation.utils import sanitize_name
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
 from shapely.geometry.base import BaseGeometry
@@ -30,6 +30,7 @@ from src.models import (
 from src.models.data_import import (
     ColumnMetadata,
     FileType,
+    ForceProjection,
     ImportType,
     StagingMetadata,
     StagingMetadataResponse,
@@ -402,13 +403,30 @@ def get_staging_metadata(
     columns = [ColumnMetadata(name=col.name) for col in table.columns]
     row_count = data_session.scalar(select(func.count()).select_from(table)) or 0
 
+    # Detect original projection if data is geographic
+    original_projection = None
+    try:
+        sample_data = read_data_from_postgis(
+            staging_table_name,
+            data_session.get_bind(),
+            schema,
+            limit=1,  # type: ignore
+        )
+        if isinstance(sample_data, gpd.GeoDataFrame) and sample_data.crs is not None:
+            original_projection = sample_data.crs.to_string()
+    except Exception as e:
+        logger.warning(f"Could not detect original projection: {e}")
+
     return StagingMetadataResponse(
         title=source_file_name or "",
         import_type=source_import_type,
         file_type=source_file_type,
         columns=columns,
         row_count=row_count,
-        force_projection=force_projection_data,
+        force_projection=ForceProjection(**force_projection_data)
+        if force_projection_data
+        else None,
+        original_projection=original_projection,
     )
 
 
@@ -510,7 +528,7 @@ def get_staging_preview(
         raise HTTPException(status_code=500, detail="Staging table name is missing")
 
     transformation_config = IntegrityTransformation(
-        force_projection=ForceProjection(
+        force_projection=DataManipulationForceProjection(
             type=projection or "",
             x_column=x_column,
             y_column=y_column,

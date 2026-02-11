@@ -12,5 +12,6 @@ export interface StagingMetadata {
   columns: Array<ColumnMetadata>
   file_type: FileType | null
   force_projection?: ForceProjection | null
+  original_projection?: string | null
   title: string
 }

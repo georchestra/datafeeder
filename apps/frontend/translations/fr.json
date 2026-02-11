@@ -155,6 +155,7 @@
   "import.dataSource.missingFile": "Fichier manquant",
   "import.dataSource.missingUrl": "URL manquante",
   "import.dataSource.next": "Paramétrer le jeu de données",
+  "import.dataSource.originalProjection": "originale",
   "import.dataSource.processing": "Traitement en cours...",
   "import.dataSource.processingMessage": "Le jeu de données est en cours de traitement",
   "import.dataSource.sending": "Envoi en cours...",
