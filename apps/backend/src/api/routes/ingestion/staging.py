@@ -408,9 +408,9 @@ def get_staging_metadata(
     try:
         sample_data = read_data_from_postgis(
             staging_table_name,
-            data_session.get_bind(),
+            data_session.get_bind(),  # type: ignore
             schema,
-            limit=1,  # type: ignore
+            limit=1,
         )
         if isinstance(sample_data, gpd.GeoDataFrame) and sample_data.crs is not None:
             original_projection = sample_data.crs.to_string()
