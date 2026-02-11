@@ -294,7 +294,7 @@ describe('IntegrityLinkListComponent', () => {
       // Trigger row click
       component.onRowClick('test-id-123')
 
-      expect(navigateSpy).toHaveBeenCalledWith(['/edit', 'test-id-123'])
+      expect(navigateSpy).toHaveBeenCalledWith(['/', 'test-id-123', 'edit'])
     })
   })
 

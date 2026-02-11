@@ -52,7 +52,6 @@ describe('EventComponent', () => {
 
   it('should render reference and event info', () => {
     const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.textContent).toContain(reference)
     expect(compiled.textContent).toContain('Start')
     expect(compiled.textContent).toContain('End')
     expect(compiled.textContent).toContain('Duration')

@@ -1,0 +1,53 @@
+<div class="flex h-screen">
+  <nav
+    class="flex shrink-0 flex-col justify-between border-r border-gray-200 bg-white px-4 py-6 w-64 overflow-y-auto"
+  >
+    <div class="flex flex-col gap-1">
+      <a
+        [routerLink]="['edit']"
+        routerLinkActive="bg-secondary-active font-semibold"
+        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+      >
+        {{ 'sidebar.metadataSheet' | translate }}
+      </a>
+      <span
+        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+      >
+        {{ 'sidebar.accessRights' | translate }}
+      </span>
+      <span
+        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+      >
+        {{ 'sidebar.recurrencePlanning' | translate }}
+      </span>
+      <a
+        [routerLink]="['events']"
+        routerLinkActive="bg-secondary-active font-semibold"
+        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+      >
+        {{ 'sidebar.eventsAndStatuses' | translate }}
+      </a>
+      <hr class="my-2 border-gray-200" />
+      <a
+        [routerLink]="['/']"
+        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+      >
+        {{ 'integrityLinks.dashboard' | translate }}
+      </a>
+    </div>
+    <div>
+      <button
+        type="button"
+        disabled
+        class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-base text-gray-400 cursor-not-allowed hover:bg-secondary-hover"
+      >
+        <ng-icon name="iconoirRefreshCircle" size="1.25em"></ng-icon>
+        {{ 'sidebar.reconfigureDataset' | translate }}
+      </button>
+    </div>
+  </nav>
+
+  <div class="flex-grow overflow-auto px-11 pt-5">
+    <router-outlet></router-outlet>
+  </div>
+</div>

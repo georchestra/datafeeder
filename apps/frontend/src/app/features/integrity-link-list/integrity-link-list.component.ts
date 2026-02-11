@@ -58,6 +58,6 @@ export class IntegrityLinkListComponent {
   }
 
   onRowClick(id: string): void {
-    this.router.navigate(['/edit', id])
+    this.router.navigate(['/', id, 'edit'])
   }
 }
