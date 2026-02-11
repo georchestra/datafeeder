@@ -1,6 +1,9 @@
 <div class="bg-white flex flex-col gap-2.5 rounded-lg px-6 pt-8 pb-16">
-  <h1 class="text-xl font-extrabold text-gray-900">
-    {{ 'events.title' | translate }} {{ integrity_link()?.integrity_title }}
+  <h1 class="text-xl font-bold text-gray-900">
+    {{ 'events.title' | translate }}
+    <span class="text-black font-extrabold">{{
+      integrity_link()?.integrity_title
+    }}</span>
   </h1>
   <app-events-list
     [events]="events()"
