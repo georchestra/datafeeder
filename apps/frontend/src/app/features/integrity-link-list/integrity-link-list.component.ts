@@ -1,6 +1,5 @@
 import { Component, inject, signal } from '@angular/core'
 import { DatePipe } from '@angular/common'
-import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import { TranslatePipe } from '@ngx-translate/core'
@@ -9,19 +8,18 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { Api } from '../../core/api/api'
 import { listIntegrityLinksIngestionIntegrityLinksGet } from '../../core/api/functions'
 import { IntegrityLinkListItem } from '../../core/api/models'
-import { iconoirPlus, iconoirSearch, iconoirXmark } from '@ng-icons/iconoir'
+import { iconoirPlus } from '@ng-icons/iconoir'
+import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 
 const DEBOUNCE_TIME = 300
 
 @Component({
   selector: 'app-integrity-link-list',
-  imports: [DatePipe, FormsModule, TranslatePipe, NgIconComponent],
+  imports: [DatePipe, TranslatePipe, NgIconComponent, SearchInputComponent],
   templateUrl: './integrity-link-list.component.html',
   providers: [
     provideIcons({
-      iconoirPlus,
-      iconoirSearch,
-      iconoirXmark
+      iconoirPlus
     })
   ]
 })
