@@ -237,3 +237,55 @@ class MetadataService:
             layer_urls=layer_urls,
         )
         return self.publish_metadata(metadata_xml)
+
+    def set_record_ownership(self, metadata_uuid: str, username: str, group_name: str) -> None:
+        """Set ownership of a GeoNetwork metadata record.
+
+        Queries all GN users/groups to find IDs by name, then sets ownership.
+
+        Args:
+            metadata_uuid: UUID of the published metadata record
+            username: Owner username to match in GeoNetwork
+            group_name: Group name to match in GeoNetwork
+        """
+        session = self.gn_api.session
+
+        # 1. Find user ID by username
+        resp = session.get(f"{self.gn_api.api_url}/users")
+        resp.raise_for_status()
+        users = resp.json()
+        user_id = next((u["id"] for u in users if u["username"] == username), None)
+
+        # 2. Find group ID by name (case-insensitive)
+        resp = session.get(f"{self.gn_api.api_url}/groups")
+        resp.raise_for_status()
+        groups = resp.json()
+        group_id = next(
+            (g["id"] for g in groups if g["name"].lower() == group_name.lower()),
+            None,
+        )
+
+        if user_id is None or group_id is None:
+            logger.warning(
+                "Cannot set ownership: user '%s' (id=%s) and/or group '%s' (id=%s) not found in GeoNetwork",
+                username,
+                user_id,
+                group_name,
+                group_id,
+            )
+            return
+
+        # 3. Set ownership
+        resp = session.put(
+            f"{self.gn_api.api_url}/records/{metadata_uuid}/ownership",
+            params={"groupIdentifier": group_id, "userIdentifier": user_id},
+        )
+        resp.raise_for_status()
+        logger.info(
+            "Set metadata %s ownership to user=%s (id=%s), group=%s (id=%s)",
+            metadata_uuid,
+            username,
+            user_id,
+            group_name,
+            group_id,
+        )
