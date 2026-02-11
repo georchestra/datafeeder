@@ -77,8 +77,27 @@ export class DatasetConfigurationComponent {
   selectedXCol = signal<string>('')
   selectedYCol = signal<string>('')
   showError = signal<boolean>(false)
-
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
+  displayedColumns = computed(
+    () => this.metadata()?.columns.map((col) => col.name) || []
+  )
+  dataSource = computed(() => this.preview()?.data || [])
+  projections = computed<DropdownChoice[]>(
+    () => this.settingsService.currentSettings()?.projections || []
+  )
+  columns = computed<DropdownChoice[]>(() => {
+    const meta = this.metadata()
+    if (!meta?.columns) {
+      return [{ value: '', label: '-' }]
+    }
+    return [
+      { value: '', label: '-' },
+      ...meta.columns.map((col) => ({
+        value: col.name,
+        label: col.name
+      }))
+    ]
+  })
 
   constructor() {
     // Initialize selected values from metadata when it loads
@@ -95,40 +114,6 @@ export class DatasetConfigurationComponent {
 
     effect(() => this.showError.set(!!this.previewError()))
   }
-
-  displayedColumns = computed(() => {
-    const meta = this.metadata()
-    return meta?.columns.map((col) => col.name) || []
-  })
-
-  dataSource = computed(() => {
-    const data = this.preview()?.data || []
-    return data
-  })
-
-  projections = computed<DropdownChoice[]>(() => {
-    const settings = this.settingsService.currentSettings()
-    const projectionsFromSettings = settings?.projections || []
-
-    return projectionsFromSettings.map((p) => ({
-      value: p.value,
-      label: p.label
-    }))
-  })
-
-  columns = computed<DropdownChoice[]>(() => {
-    const meta = this.metadata()
-    if (!meta?.columns) {
-      return [{ value: '', label: '-' }]
-    }
-    return [
-      { value: '', label: '-' },
-      ...meta.columns.map((col) => ({
-        value: col.name,
-        label: col.name
-      }))
-    ]
-  })
 
   private emitConfigChanged() {
     const projection = this.selectedProjection()
