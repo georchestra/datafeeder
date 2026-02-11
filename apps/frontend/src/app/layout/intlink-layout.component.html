@@ -10,11 +10,13 @@
       >
         {{ 'sidebar.metadataSheet' | translate }}
       </a>
-      <span
-        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+      <a
+        [routerLink]="['authorizations']"
+        routerLinkActive="bg-secondary-active font-semibold"
+        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
       >
         {{ 'sidebar.accessRights' | translate }}
-      </span>
+      </a>
       <span
         class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
       >

@@ -41,6 +41,13 @@ export const appRoutes: Route[] = [
                 (m) => m.EventsComponent
               )
           },
+          {
+            path: 'authorizations',
+            loadComponent: () =>
+              import('./features/authorizations/authorizations.component').then(
+                (m) => m.AuthorizationsComponent
+              )
+          },
           { path: '', redirectTo: 'edit', pathMatch: 'full' }
         ]
       }
