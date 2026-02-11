@@ -23,6 +23,7 @@ def list_integrity_links(
     session: DatakernSessionDep,
     geo_ctx: GeorchestraContextDep,
     offset: int = Query(0, ge=0, description="Number of items to skip (for lazy loading)"),
+    search: str | None = Query(None, description="Filter by integrity title (case-insensitive)"),
 ) -> IntegrityLinkListResponse:
     """
     List integrity links with role-based access control.
@@ -47,6 +48,9 @@ def list_integrity_links(
         # Non-admins only see their own integrity links
         query = query.where(IntegrityLink.integrity_owner == geo_ctx.username)
 
+    if search:
+        query = query.where(IntegrityLink.integrity_title.ilike(f"%{search}%"))  # type: ignore[union-attr]
+
     # Order by created_at descending (newest first)
     query = query.order_by(IntegrityLink.created_at.desc())  # type: ignore[union-attr]
 
@@ -63,7 +67,7 @@ def list_integrity_links(
 
     logger.info(
         f"Listed {len(items)} integrity links for user '{geo_ctx.username}' "
-        f"(admin={is_admin}, offset={offset}, has_more={has_more})"
+        f"(admin={is_admin}, offset={offset}, has_more={has_more}, search={search!r})"
     )
 
     return IntegrityLinkListResponse(
