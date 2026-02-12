@@ -4,13 +4,18 @@ import {
   computed,
   inject,
   input,
+  output,
   signal
 } from '@angular/core'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { DropdownSelectorComponent, DropdownChoice } from 'geonetwork-ui'
 import { Api } from '../../core/api/api'
-import { listGroupsMetadataGroupsGet } from '../../core/api/functions'
-import { GroupItem, IntegrityLinkRule } from '../../core/api/models'
+import {
+  deleteIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesRuleIdDelete,
+  listGroupsMetadataGroupsGet,
+  upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut
+} from '../../core/api/functions'
+import { GroupItem, IntegrityLinkRule, RuleType } from '../../core/api/models'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 
 @Component({
@@ -22,7 +27,10 @@ export class GeonetworkAuthorizationsComponent implements OnInit {
   private api = inject(Api)
   private translate = inject(TranslateService)
 
+  intlinkId = input.required<string>()
+  ruleType = input.required<RuleType>()
   rules = input<IntegrityLinkRule[]>([])
+  rulesChanged = output<void>()
   groups = signal<GroupItem[]>([])
   searchQuery = signal('')
   filteredGroups = computed(() => {
@@ -51,7 +59,7 @@ export class GeonetworkAuthorizationsComponent implements OnInit {
   }
 
   getRuleValue(group: GroupItem): string {
-    const rule = this.rules().find((r) => r.group_or_role === group.label)
+    const rule = this.rules().find((r) => r.group_or_role === group.id)
     return rule?.rule_value ?? 'NONE'
   }
 
@@ -63,9 +71,33 @@ export class GeonetworkAuthorizationsComponent implements OnInit {
     this.searchQuery.set('')
   }
 
-  // eslint-disable-next-line no-unused-vars
-  onRuleChange(group: GroupItem, value: string): void {
-    // Save logic deferred — backend CRUD endpoints don't exist yet
+  async onRuleChange(group: GroupItem, value: string): Promise<void> {
+    const existingRule = this.rules().find((r) => r.group_or_role === group.id)
+
+    if (value === 'NONE') {
+      if (existingRule?.id != null) {
+        await this.api.invoke(
+          deleteIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesRuleIdDelete,
+          {
+            integrity_link_id: this.intlinkId(),
+            rule_id: existingRule.id
+          }
+        )
+      }
+    } else {
+      await this.api.invoke(
+        upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut,
+        {
+          integrity_link_id: this.intlinkId(),
+          body: {
+            group_or_role: group.id,
+            rule_type: this.ruleType(),
+            rule_value: value as 'READ' | 'WRITE'
+          }
+        }
+      )
+    }
+    this.rulesChanged.emit()
   }
 
   private async loadGroups(): Promise<void> {

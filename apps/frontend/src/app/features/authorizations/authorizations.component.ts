@@ -45,7 +45,7 @@ export class AuthorizationsComponent implements OnInit {
     this.integrityLink.set(metadata)
   }
 
-  private async loadRules(id: string): Promise<void> {
+  async loadRules(id: string): Promise<void> {
     const rules = await this.api.invoke(
       listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet,
       { integrity_link_id: id }

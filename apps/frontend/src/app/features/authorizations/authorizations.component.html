@@ -10,7 +10,14 @@
       <h2 class="text-xl font-bold text-gray-900 mb-4">
         {{ 'authorizations.geonetwork' | translate }}
       </h2>
-      <app-geonetwork-authorizations [rules]="metadataRules()" />
+      @if (intlinkId) {
+      <app-geonetwork-authorizations
+        [intlinkId]="intlinkId"
+        ruleType="METADATA"
+        [rules]="metadataRules()"
+        (rulesChanged)="loadRules(intlinkId)"
+      />
+      }
     </div>
     <div class="rounded-lg border border-gray-300 p-6">
       <h2 class="text-xl font-bold text-gray-900">
