@@ -138,7 +138,7 @@
   "event.type.manual": "Manuel",
   "event.type.scheduled": "Planifié",
   "events.emptyList": "Aucun évènement à afficher",
-  "authorizations.geonetwork": "Autorisations GeoNetwork",
+  "authorizations.geonetwork": "Organisations GeoNetwork",
   "authorizations.geonetwork.search": "Rechercher une organisation répertoriée sur GeoNetwork",
   "authorizations.ruleValue.none": "Pas de droits",
   "authorizations.ruleValue.read": "Lecture",
