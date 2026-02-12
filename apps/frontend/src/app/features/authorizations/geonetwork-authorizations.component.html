@@ -3,6 +3,7 @@
     class="mb-2"
     [placeholder]="'authorizations.geonetwork.search' | translate"
     [value]="searchQuery()"
+    [fullWidth]="true"
     (valueChange)="onSearchInput($event)"
     (clear)="clearSearch()"
   />

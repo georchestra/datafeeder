@@ -15,6 +15,7 @@ import { iconoirSearch, iconoirXmark } from '@ng-icons/iconoir'
   ]
 })
 export class SearchInputComponent {
+  fullWidth = input(false)
   placeholder = input('')
   value = input('')
 
