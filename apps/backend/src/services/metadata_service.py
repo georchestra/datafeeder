@@ -123,32 +123,28 @@ class MetadataService:
             resource: _Element = etree.SubElement(online_resources, "onlineResource")
             etree.SubElement(resource, "linkage").text = wms.get("capabilities", "")
             etree.SubElement(resource, "protocol").text = "OGC:WMS"
-            etree.SubElement(resource, "name").text = "WMS GetCapabilities"
-            etree.SubElement(resource, "description").text = f"Web Map Service for {layer_name}"
+            etree.SubElement(resource, "name").text = layer_name
+            etree.SubElement(resource, "description").text = "WMS GetCapabilities"
 
             # WMS GetMap
             resource = etree.SubElement(online_resources, "onlineResource")
             etree.SubElement(resource, "linkage").text = wms.get("getmap", "")
             etree.SubElement(resource, "protocol").text = "OGC:WMS"
-            etree.SubElement(resource, "name").text = "WMS GetMap"
-            etree.SubElement(resource, "description").text = f"View map layer {layer_name}"
+            etree.SubElement(resource, "name").text = layer_name
+            etree.SubElement(resource, "description").text = "WMS GetMap"
+
         if layer_urls and "wfs" in layer_urls:
             wfs = layer_urls["wfs"]
+
             # WFS GetCapabilities
             resource = etree.SubElement(online_resources, "onlineResource")
             etree.SubElement(resource, "linkage").text = wfs.get("capabilities", "")
             etree.SubElement(resource, "protocol").text = "OGC:WFS"
-            etree.SubElement(resource, "name").text = "WFS GetCapabilities"
-            etree.SubElement(resource, "description").text = f"Web Feature Service for {layer_name}"
+            etree.SubElement(resource, "name").text = layer_name
+            etree.SubElement(resource, "description").text = "WFS GetCapabilities"
 
             # WFS GetFeature
-            resource = etree.SubElement(online_resources, "onlineResource")
-            etree.SubElement(resource, "linkage").text = wfs.get("getfeature", "")
-            etree.SubElement(resource, "protocol").text = "OGC:WFS"
-            etree.SubElement(resource, "name").text = "WFS GetFeature"
-            etree.SubElement(
-                resource, "description"
-            ).text = f"Download vector data for {layer_name}"
+            # ignore GetFeature for now
 
         if layer_urls and "ogcfeatures" in layer_urls:
             ogcfeatures = layer_urls["ogcfeatures"]
@@ -157,9 +153,7 @@ class MetadataService:
             etree.SubElement(resource, "linkage").text = ogcfeatures
             etree.SubElement(resource, "protocol").text = "OGC API Features"
             etree.SubElement(resource, "name").text = layer_name
-            etree.SubElement(
-                resource, "description"
-            ).text = f"Download vector data for {layer_name}"
+            etree.SubElement(resource, "description").text = "OGC API Features"
 
         # Lineage
         etree.SubElement(
