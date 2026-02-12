@@ -7,9 +7,10 @@
   </h1>
   <div class="grid grid-cols-2 gap-6">
     <div class="rounded-lg border border-gray-300 p-6">
-      <h2 class="text-xl font-bold text-gray-900">
+      <h2 class="text-xl font-bold text-gray-900 mb-4">
         {{ 'authorizations.geonetwork' | translate }}
       </h2>
+      <app-geonetwork-authorizations [rules]="metadataRules()" />
     </div>
     <div class="rounded-lg border border-gray-300 p-6">
       <h2 class="text-xl font-bold text-gray-900">
