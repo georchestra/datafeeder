@@ -16,7 +16,8 @@ import { GeonetworkAuthorizationsComponent } from './geonetwork-authorizations.c
 @Component({
   selector: 'app-authorizations',
   imports: [TranslatePipe, GeonetworkAuthorizationsComponent],
-  templateUrl: './authorizations.component.html'
+  templateUrl: './authorizations.component.html',
+  host: { class: 'flex-1 min-h-0 flex flex-col' }
 })
 export class AuthorizationsComponent implements OnInit {
   private route = inject(ActivatedRoute)
