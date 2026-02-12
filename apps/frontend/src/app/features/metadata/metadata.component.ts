@@ -16,7 +16,8 @@ import { IntegrityLinkResponse } from '../../core/api/models'
   selector: 'app-metadata',
   imports: [CommonModule, RecordFormComponent],
   templateUrl: './metadata.component.html',
-  styleUrl: './metadata.component.css'
+  styleUrl: './metadata.component.css',
+  host: { class: 'flex-1 min-h-0 flex flex-col overflow-y-auto' }
 })
 export class MetadataComponent implements OnInit {
   private route = inject(ActivatedRoute)
