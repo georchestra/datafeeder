@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, input, signal } from '@angular/core'
+import { TranslateService } from '@ngx-translate/core'
 import { DropdownSelectorComponent, DropdownChoice } from 'geonetwork-ui'
 import { Api } from '../../core/api/api'
 import { listGroupsMetadataGroupsGet } from '../../core/api/functions'
@@ -11,14 +12,24 @@ import { GroupItem, IntegrityLinkRule } from '../../core/api/models'
 })
 export class GeonetworkAuthorizationsComponent implements OnInit {
   private api = inject(Api)
+  private translate = inject(TranslateService)
 
   rules = input<IntegrityLinkRule[]>([])
   groups = signal<GroupItem[]>([])
 
   ruleChoices: DropdownChoice[] = [
-    { value: 'NONE', label: 'None' },
-    { value: 'READ', label: 'Read' },
-    { value: 'WRITE', label: 'Write' }
+    {
+      value: 'NONE',
+      label: this.translate.instant('authorizations.ruleValue.none')
+    },
+    {
+      value: 'READ',
+      label: this.translate.instant('authorizations.ruleValue.read')
+    },
+    {
+      value: 'WRITE',
+      label: this.translate.instant('authorizations.ruleValue.write')
+    }
   ]
 
   ngOnInit(): void {
