@@ -1,12 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import select
 
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep
 from src.models.data_import import IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
-from src.models.integrity_link_rule import IntegrityLinkRule
+from src.models.integrity_link_rule import IntegrityLinkRule, UpsertRuleRequest
 
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
 
@@ -58,3 +58,70 @@ def list_integrity_link_rules(
         IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
     )
     return list(session.exec(statement).all())
+
+
+@router.put(
+    "/{integrity_link_id}/rules",
+    response_model=IntegrityLinkRule,
+    summary="Create or update a rule for an IntegrityLink",
+)
+def upsert_integrity_link_rule(
+    session: DatakernSessionDep,
+    georchestra_context: GeorchestraContextDep,
+    integrity_link_id: str,
+    body: UpsertRuleRequest,
+) -> IntegrityLinkRule:
+    """Create or update a rule for a given IntegrityLink."""
+    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    if not integrity_link:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    statement = select(IntegrityLinkRule).where(
+        IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id),
+        IntegrityLinkRule.group_or_role == body.group_or_role,
+        IntegrityLinkRule.rule_type == body.rule_type,
+    )
+    existing_rule = session.exec(statement).first()
+
+    if existing_rule:
+        existing_rule.rule_value = body.rule_value
+        session.add(existing_rule)
+        session.commit()
+        session.refresh(existing_rule)
+        return existing_rule
+
+    new_rule = IntegrityLinkRule(
+        integrity_link_id=UUID(integrity_link_id),
+        group_or_role=body.group_or_role,
+        rule_type=body.rule_type,
+        rule_value=body.rule_value,
+    )
+    session.add(new_rule)
+    session.commit()
+    session.refresh(new_rule)
+    return new_rule
+
+
+@router.delete(
+    "/{integrity_link_id}/rules/{rule_id}",
+    status_code=204,
+    summary="Delete a rule from an IntegrityLink",
+)
+def delete_integrity_link_rule(
+    session: DatakernSessionDep,
+    georchestra_context: GeorchestraContextDep,
+    integrity_link_id: str,
+    rule_id: int,
+) -> Response:
+    """Delete a rule from a given IntegrityLink."""
+    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    if not integrity_link:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    rule = session.get(IntegrityLinkRule, rule_id)
+    if not rule or rule.integrity_link_id != UUID(integrity_link_id):
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    session.delete(rule)
+    session.commit()
+    return Response(status_code=204)

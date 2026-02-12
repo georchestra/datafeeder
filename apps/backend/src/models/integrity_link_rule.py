@@ -2,6 +2,7 @@ from enum import Enum
 from typing import ClassVar, Optional
 from uuid import UUID
 
+from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
 
 
@@ -26,3 +27,9 @@ class IntegrityLinkRule(SQLModel, table=True):
     rule_type: RuleType
     rule_value: RuleValue = Field(default=RuleValue.READ)
     group_or_role: str = Field(max_length=255)
+
+
+class UpsertRuleRequest(BaseModel):
+    group_or_role: str
+    rule_type: RuleType
+    rule_value: RuleValue
