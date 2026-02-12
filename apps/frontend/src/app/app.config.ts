@@ -3,7 +3,9 @@ import {
   ApplicationConfig,
   importProvidersFrom,
   provideBrowserGlobalErrorListeners,
-  provideZonelessChangeDetection
+  provideZonelessChangeDetection,
+  provideAppInitializer,
+  inject
 } from '@angular/core'
 import { provideRouter } from '@angular/router'
 import {
@@ -17,6 +19,7 @@ import { appRoutes } from './app.routes'
 import { provideApiConfiguration } from './core/api/api-configuration'
 import { StoreModule } from '@ngrx/store'
 import { EffectsModule } from '@ngrx/effects'
+import { SettingsService } from './core/settings/settings.service'
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -41,6 +44,10 @@ export const appConfig: ApplicationConfig = {
     ),
     importProvidersFrom(EffectsModule.forRoot()),
     importProvidersFrom(FeatureEditorModule),
-    provideApiConfiguration('/datakern-backend')
+    provideApiConfiguration('/datakern-backend'),
+    provideAppInitializer(() => {
+      const settingsService = inject(SettingsService)
+      return settingsService.loadSettings()
+    })
   ]
 }

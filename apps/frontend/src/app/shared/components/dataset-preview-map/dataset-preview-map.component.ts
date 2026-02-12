@@ -33,9 +33,42 @@ export class DatasetPreviewMapComponent {
 
     const view = await createViewFromLayer(layer)
 
+    // Validate extent for EPSG:4326, otherwhise the map will not render
+    const validView = this.validateExtent(view)
+
     this.mapContext.set({
       layers: [layer],
-      view: view ?? null
+      view: validView ?? null
     })
+  }
+
+  private validateExtent(view: any): any {
+    if (!view?.extent) {
+      return view
+    }
+
+    const [minX, minY, maxX, maxY] = view.extent
+
+    const isValidExtent =
+      minX >= -180 &&
+      minX <= 180 &&
+      maxX >= -180 &&
+      maxX <= 180 &&
+      minY >= -90 &&
+      minY <= 90 &&
+      maxY >= -90 &&
+      maxY <= 90 &&
+      minX < maxX &&
+      minY < maxY
+
+    if (!isValidExtent) {
+      const viewWithoutExtent = { ...view }
+      delete viewWithoutExtent.extent
+      return Object.keys(viewWithoutExtent).length > 0
+        ? viewWithoutExtent
+        : null
+    }
+
+    return view
   }
 }

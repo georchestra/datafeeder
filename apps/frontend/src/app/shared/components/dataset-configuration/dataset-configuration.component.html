@@ -8,7 +8,7 @@
         <gn-ui-dropdown-selector
           [title]="''"
           [showTitle]="false"
-          [choices]="projections"
+          [choices]="projections()"
           [selected]="selectedProjection()"
           (selectValue)="selectProjection($any($event))"
         ></gn-ui-dropdown-selector>
@@ -58,7 +58,7 @@
 </div>
 
 @if (showError()) {
-<div class="mx-7 mt-5">
+<div class="mx-7 my-5">
   <app-alert-box
     type="warning"
     [title]="errorTitle()"

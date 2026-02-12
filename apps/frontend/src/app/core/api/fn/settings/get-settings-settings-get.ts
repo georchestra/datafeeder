@@ -7,23 +7,18 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface ProxyGeonetworkGeonetworkPathPatch_4$Params {
-  path: string
-}
+import { SettingsResponse } from '../../models/settings-response'
 
-export function proxyGeonetworkGeonetworkPathPatch_4(
+export interface GetSettingsSettingsGet$Params {}
+
+export function getSettingsSettingsGet(
   http: HttpClient,
   rootUrl: string,
-  params: ProxyGeonetworkGeonetworkPathPatch_4$Params,
+  params?: GetSettingsSettingsGet$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<any>> {
-  const rb = new requestBuilders(
-    rootUrl,
-    proxyGeonetworkGeonetworkPathPatch_4.PATH,
-    'options'
-  )
+): Observable<StrictHttpResponse<SettingsResponse>> {
+  const rb = new requestBuilders(rootUrl, getSettingsSettingsGet.PATH, 'get')
   if (params) {
-    rb.path('path', params.path, {})
   }
 
   return http
@@ -33,9 +28,9 @@ export function proxyGeonetworkGeonetworkPathPatch_4(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<any>
+        return r as StrictHttpResponse<SettingsResponse>
       })
     )
 }
 
-proxyGeonetworkGeonetworkPathPatch_4.PATH = '/geonetwork/{path}'
+getSettingsSettingsGet.PATH = '/settings/'

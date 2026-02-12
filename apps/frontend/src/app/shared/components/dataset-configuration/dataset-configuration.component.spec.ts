@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
+import { provideHttpClient } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing'
 import { DatasetConfigurationComponent } from './dataset-configuration.component'
 import { TranslateModule } from '@ngx-translate/core'
+import { provideApiConfiguration } from '../../../core/api/api-configuration'
 import type { StagingMetadataResponse } from '../../../core/api/models'
 
 describe('DatasetConfigurationComponent', () => {
@@ -9,7 +12,12 @@ describe('DatasetConfigurationComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DatasetConfigurationComponent, TranslateModule.forRoot()]
+      imports: [DatasetConfigurationComponent, TranslateModule.forRoot()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideApiConfiguration('/test')
+      ]
     }).compileComponents()
 
     fixture = TestBed.createComponent(DatasetConfigurationComponent)

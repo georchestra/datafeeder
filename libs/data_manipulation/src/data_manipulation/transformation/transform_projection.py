@@ -20,7 +20,7 @@ def apply_projection(
     """
     try:
         logger.info(f"Applying projection {projection} to geometries")
-        gdf.set_crs(projection, inplace=True)
+        gdf.set_crs(projection, inplace=True, allow_override=True)
     except Exception as e:
         logger.warning(f"Failed to set CRS to {projection}: {e}")
         raise e

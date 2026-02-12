@@ -95,6 +95,12 @@ class Settings(BaseSettings):
     SENTRY_DSN: HttpUrl | None = None
     TMP_UPLOAD_PATH: str = "/tmp/"
 
+    # Projections Configuration, used by frontend
+    PROJECTIONS: str = Field(
+        default='[{"value": "EPSG:4326", "label": "WGS 84"}, {"value": "EPSG:3857", "label": "Web Mercator"}]',
+        description="JSON string of available projections for the frontend",
+    )
+
     # Security
     SECRET_KEY: str = secrets.token_urlsafe(32)
     ENCRYPTION_KEY: str = Field(

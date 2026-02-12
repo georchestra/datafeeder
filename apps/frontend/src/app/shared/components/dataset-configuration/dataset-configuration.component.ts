@@ -29,6 +29,7 @@ import {
 } from '@ng-icons/core'
 import { iconoirDataTransferBoth } from '@ng-icons/iconoir'
 import { AlertBoxComponent } from '../alert-box/alert-box.component'
+import { SettingsService } from '../../../core/settings/settings.service'
 
 const DEFAULT_PROJECTION = 'EPSG:4326'
 
@@ -59,6 +60,7 @@ const DEFAULT_PROJECTION = 'EPSG:4326'
 })
 export class DatasetConfigurationComponent {
   private translate = inject(TranslateService)
+  private settingsService = inject(SettingsService)
 
   metadata = input<StagingMetadataResponse | null>(null)
   preview = input<StagingPreviewResponse | null>(null)
@@ -75,41 +77,46 @@ export class DatasetConfigurationComponent {
   selectedXCol = signal<string>('')
   selectedYCol = signal<string>('')
   showError = signal<boolean>(false)
-
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
+  displayedColumns = computed(
+    () => this.metadata()?.columns.map((col) => col.name) || []
+  )
+  dataSource = computed(() => this.preview()?.data || [])
+  projections = computed<DropdownChoice[]>(() => {
+    const settingsProjections =
+      this.settingsService.currentSettings()?.projections || []
+    const originalProjection = this.metadata()?.original_projection
 
-  constructor() {
-    // Initialize selected values from metadata when it loads
-    effect(() => {
-      const meta = this.metadata()
-      if (meta) {
-        this.selectedProjection.set(
-          meta.force_projection?.type || DEFAULT_PROJECTION
+    if (!originalProjection) {
+      return settingsProjections
+    }
+
+    // Check if original projection already exists in settings projections
+    const exists = settingsProjections.some(
+      (proj) => proj.value === originalProjection
+    )
+
+    if (exists) {
+      // Move original projection to first position
+      return [
+        settingsProjections.find((proj) => proj.value === originalProjection)!,
+        ...settingsProjections.filter(
+          (proj) => proj.value !== originalProjection
         )
-        this.selectedXCol.set(meta.force_projection?.x_column || '')
-        this.selectedYCol.set(meta.force_projection?.y_column || '')
-      }
-    })
+      ]
+    }
 
-    effect(() => this.showError.set(!!this.previewError()))
-  }
-
-  displayedColumns = computed(() => {
-    const meta = this.metadata()
-    return meta?.columns.map((col) => col.name) || []
+    // Add original projection at the beginning
+    return [
+      {
+        value: originalProjection,
+        label: `${originalProjection} (${this.translate.instant(
+          'import.dataSource.originalProjection'
+        )})`
+      },
+      ...settingsProjections
+    ]
   })
-
-  dataSource = computed(() => {
-    const data = this.preview()?.data || []
-    return data
-  })
-
-  projections: DropdownChoice[] = [
-    { value: 'EPSG:4326', label: 'WGS 84' },
-    { value: 'EPSG:3857', label: 'Web Mercator' }
-    // TODO: Add more projections as needed, from config
-  ]
-
   columns = computed<DropdownChoice[]>(() => {
     const meta = this.metadata()
     if (!meta?.columns) {
@@ -123,6 +130,28 @@ export class DatasetConfigurationComponent {
       }))
     ]
   })
+
+  constructor() {
+    // Initialize selected values from metadata when it loads (only if not already set)
+    effect(() => {
+      const meta = this.metadata()
+      if (meta && !this.selectedProjection()) {
+        this.selectedProjection.set(
+          meta.original_projection ||
+            meta.force_projection?.type ||
+            DEFAULT_PROJECTION
+        )
+      }
+      if (meta && !this.selectedXCol()) {
+        this.selectedXCol.set(meta.force_projection?.x_column || '')
+      }
+      if (meta && !this.selectedYCol()) {
+        this.selectedYCol.set(meta.force_projection?.y_column || '')
+      }
+    })
+
+    effect(() => this.showError.set(!!this.previewError()))
+  }
 
   private emitConfigChanged() {
     const projection = this.selectedProjection()

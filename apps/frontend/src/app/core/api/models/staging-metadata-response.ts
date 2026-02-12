@@ -14,6 +14,7 @@ export interface StagingMetadataResponse {
   file_type: FileType | null
   force_projection?: ForceProjection | null
   import_type: ImportType
+  original_projection?: string | null
   row_count: number
   title: string
 }
