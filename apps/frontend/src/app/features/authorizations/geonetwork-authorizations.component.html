@@ -1,8 +1,14 @@
 <div class="flex flex-col gap-2">
-  @for (group of groups(); track group.id) {
-  <div class="flex items-center justify-between rounded-md bg-beige px-4 py-3">
-    <span class="text-sm font-medium text-gray-2">{{ group.label }}</span>
-    <div class="w-36">
+  <app-search-input
+    [placeholder]="'authorizations.geonetwork.search' | translate"
+    [value]="searchQuery()"
+    (valueChange)="onSearchInput($event)"
+    (clear)="clearSearch()"
+  />
+  @for (group of filteredGroups(); track group.id) {
+  <div class="flex items-center justify-between rounded-md bg-beige px-4 py-2">
+    <span class="font-medium text-gray-2">{{ group.label }}</span>
+    <div class="w-40">
       <gn-ui-dropdown-selector
         [choices]="ruleChoices"
         [selected]="getRuleValue(group)"

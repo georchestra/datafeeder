@@ -1,13 +1,21 @@
-import { Component, OnInit, inject, input, signal } from '@angular/core'
-import { TranslateService } from '@ngx-translate/core'
+import {
+  Component,
+  OnInit,
+  computed,
+  inject,
+  input,
+  signal
+} from '@angular/core'
+import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { DropdownSelectorComponent, DropdownChoice } from 'geonetwork-ui'
 import { Api } from '../../core/api/api'
 import { listGroupsMetadataGroupsGet } from '../../core/api/functions'
 import { GroupItem, IntegrityLinkRule } from '../../core/api/models'
+import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 
 @Component({
   selector: 'app-geonetwork-authorizations',
-  imports: [DropdownSelectorComponent],
+  imports: [DropdownSelectorComponent, SearchInputComponent, TranslatePipe],
   templateUrl: './geonetwork-authorizations.component.html'
 })
 export class GeonetworkAuthorizationsComponent implements OnInit {
@@ -16,6 +24,12 @@ export class GeonetworkAuthorizationsComponent implements OnInit {
 
   rules = input<IntegrityLinkRule[]>([])
   groups = signal<GroupItem[]>([])
+  searchQuery = signal('')
+  filteredGroups = computed(() => {
+    const query = this.searchQuery().toLowerCase()
+    if (!query) return this.groups()
+    return this.groups().filter((g) => g.label.toLowerCase().includes(query))
+  })
 
   ruleChoices: DropdownChoice[] = [
     {
@@ -39,6 +53,14 @@ export class GeonetworkAuthorizationsComponent implements OnInit {
   getRuleValue(group: GroupItem): string {
     const rule = this.rules().find((r) => r.group_or_role === group.label)
     return rule?.rule_value ?? 'NONE'
+  }
+
+  onSearchInput(value: string): void {
+    this.searchQuery.set(value)
+  }
+
+  clearSearch(): void {
+    this.searchQuery.set('')
   }
 
   // eslint-disable-next-line no-unused-vars

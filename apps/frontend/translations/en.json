@@ -139,6 +139,7 @@
   "event.type.scheduled": "Scheduled",
   "events.emptyList": "No events to display",
   "authorizations.geonetwork": "GeoNetwork authorizations",
+  "authorizations.geonetwork.search": "Search for an organization listed on GeoNetwork",
   "authorizations.ruleValue.none": "No access",
   "authorizations.ruleValue.read": "Read",
   "authorizations.ruleValue.write": "Write",
