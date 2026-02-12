@@ -54,7 +54,7 @@ class TestUpsertIntegrityLinkRule:
             rule_value=RuleValue.READ,
         )
 
-        result = upsert_integrity_link_rule(
+        upsert_integrity_link_rule(
             session=mock_session,
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
