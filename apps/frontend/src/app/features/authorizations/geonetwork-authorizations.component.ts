@@ -36,7 +36,9 @@ export class GeonetworkAuthorizationsComponent implements OnInit {
   filteredGroups = computed(() => {
     const query = this.searchQuery().toLowerCase()
     if (!query) return this.groups()
-    return this.groups().filter((g) => g.label.toLowerCase().includes(query))
+    return this.groups()
+      .filter((g) => g.label.toLowerCase().includes(query))
+      .sort((a, b) => a.label.localeCompare(b.label))
   })
 
   ruleChoices: DropdownChoice[] = [
