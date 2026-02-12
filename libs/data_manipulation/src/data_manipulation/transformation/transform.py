@@ -138,8 +138,19 @@ def apply_transformations(
     if isinstance(projection, str):
         projection_str = projection
     else:
-        projection_str = str(projection) if projection is not None else DEFAULT_CRS
-        logger.info(f"Default projection set to {projection_str}")
+        # Priority: 1) Use specified projection, 2) Use existing GeoDataFrame CRS, 3) Default to EPSG:4326
+        if projection is not None:
+            projection_str = str(projection)
+        if isinstance(df, gpd.GeoDataFrame) and df.crs is not None:
+            projection_str = df.crs.to_string()
+            logger.info(
+                f"No projection specified, keeping existing GeoDataFrame CRS: {projection_str}"
+            )
+        else:
+            projection_str = DEFAULT_CRS
+            logger.info(f"No projection specified, defaulting to {DEFAULT_CRS}")
+
+    logger.info(f"Projection set to {projection_str}")
 
     # Check if DataFrame has a 'geom' column and convert to GeoDataFrame
     if not isinstance(df, gpd.GeoDataFrame) and DEFAULT_GEOMETRY_COLUMN in df.columns:
