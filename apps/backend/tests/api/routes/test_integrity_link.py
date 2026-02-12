@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import HTTPException
 
+from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import (
     IntegrityLinkRule,
@@ -41,7 +42,13 @@ class TestUpsertIntegrityLinkRule:
         from src.api.routes.ingestion.integrity_link import upsert_integrity_link_rule
 
         # IntegrityLink exists
-        mock_session.get.return_value = IntegrityLink(id=UUID(integrity_link_id))
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+        )
 
         # No existing rule found
         mock_exec_result = MagicMock()
@@ -73,7 +80,13 @@ class TestUpsertIntegrityLinkRule:
     def test_update_existing_rule(self, mock_session: MagicMock, integrity_link_id: str) -> None:
         from src.api.routes.ingestion.integrity_link import upsert_integrity_link_rule
 
-        mock_session.get.return_value = IntegrityLink(id=UUID(integrity_link_id))
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+        )
 
         existing_rule = IntegrityLinkRule(
             id=42,
@@ -141,7 +154,13 @@ class TestDeleteIntegrityLinkRule:
         from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
 
         mock_session.get.side_effect = [
-            IntegrityLink(id=UUID(integrity_link_id)),  # first call: integrity_link
+            IntegrityLink(
+                id=UUID(integrity_link_id),
+                integrity_owner="testuser",
+                integrity_organization="testorg",
+                source_import_type=ImportType.URL,
+                staging_table_name="staging_test",
+            ),  # first call: integrity_link
             IntegrityLinkRule(
                 id=7,
                 integrity_link_id=UUID(integrity_link_id),
@@ -182,7 +201,13 @@ class TestDeleteIntegrityLinkRule:
         from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
 
         mock_session.get.side_effect = [
-            IntegrityLink(id=UUID(integrity_link_id)),  # integrity_link exists
+            IntegrityLink(
+                id=UUID(integrity_link_id),
+                integrity_owner="testuser",
+                integrity_organization="testorg",
+                source_import_type=ImportType.URL,
+                staging_table_name="staging_test",
+            ),  # integrity_link exists
             None,  # rule not found
         ]
 
@@ -204,7 +229,13 @@ class TestDeleteIntegrityLinkRule:
 
         other_link_id = uuid4()
         mock_session.get.side_effect = [
-            IntegrityLink(id=UUID(integrity_link_id)),  # integrity_link exists
+            IntegrityLink(
+                id=UUID(integrity_link_id),
+                integrity_owner="testuser",
+                integrity_organization="testorg",
+                source_import_type=ImportType.URL,
+                staging_table_name="staging_test",
+            ),  # integrity_link exists
             IntegrityLinkRule(
                 id=7,
                 integrity_link_id=other_link_id,  # belongs to a different link
