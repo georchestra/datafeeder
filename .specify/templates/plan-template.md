@@ -29,9 +29,24 @@
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-[Gates determined based on constitution file]
+**Refer to `.specify/memory/constitution.md` for complete principles. Key checks for DataKern:**
+
+- [ ] **API-First**: Does this feature require new API endpoints? If yes, are they designed before UI implementation?
+- [ ] **Component Independence**: Does this feature maintain clear boundaries? Can backend/frontend/ELT operate independently?
+- [ ] **Shared Libraries**: Is common logic properly extracted to `libs/data_manipulation` to avoid duplication?
+- [ ] **Testing**: Are test requirements defined? (pytest for Python, vitest/Cypress for frontend, integration tests for contracts)
+- [ ] **Code Quality**: Will code follow Ruff/Pyright standards (Python) or ESLint/Prettier (TypeScript)?
+- [ ] **Angular Architecture** (frontend only): Are components atomic with smart/presentational separation? Size ≤200 lines? Using NgRx for state? OnPush change detection?
+- [ ] **Containerization**: Can this feature run in Docker containers? Are environment variables properly externalized?
+- [ ] **Security**: Does this feature respect geOrchestra authentication? Are integrity_link records maintained for traceability?
+- [ ] **Documentation**: Will API endpoints be documented in OpenAPI? Will component README be updated?
+- [ ] **Versioning**: Does this introduce breaking changes? If yes, is API versioning considered?
+
+**Violations requiring justification** (if any):
+
+[Document any principle violations with rationale and simpler alternative rejected]
 
 ## Project Structure
 
@@ -48,6 +63,7 @@ specs/[###-feature]/
 ```
 
 ### Source Code (repository root)
+
 <!--
   ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
   for this feature. Delete unused options and expand the chosen structure with
@@ -98,7 +114,7 @@ directories captured above]
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| Violation                  | Why Needed         | Simpler Alternative Rejected Because |
+| -------------------------- | ------------------ | ------------------------------------ |
+| [e.g., 4th project]        | [current need]     | [why 3 projects insufficient]        |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient]  |
