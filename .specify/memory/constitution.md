@@ -2,28 +2,26 @@
 
 <!--
 Sync Impact Report:
-- Version: 1.0.0 → 1.1.0 (MINOR: Added Angular-specific frontend architecture guidance)
+- Version: 1.1.0 → 1.2.0 (MINOR: Added Functional Vision section)
 - Ratification: 2026-02-13
 - Last Amendment: 2026-02-13
-- Modified principles:
-  * VI. Component Architecture → VI. Angular Frontend Component Architecture (expanded with Angular 20 specifics)
-    - Added smart vs presentational component patterns
-    - Added NgRx state management requirements
-    - Added Angular-specific rules (OnPush, lifecycle hooks, signals, style guide)
-    - Added geonetwork-ui integration guidance
-    - Added TypeScript + HTML + SCSS size limits
-  * VII. Minimal Comments Standard (renumbered, added rationale)
-  * VIII-IX. Renumbered remaining principles for consistency
-- Added sections: N/A (expansion of existing section VI)
+- Modified principles: None
+- Added sections:
+  * "Functional Vision" — new top-level section between Core Principles
+    and Security & Authentication describing the two main user scenarios
+    (dataset creation via ingestion tunnel, dataset modification via
+    dashboard), the supported data source types, metadata editing,
+    access rights management, harvesting recurrence, and event journal.
 - Removed sections: None
-- Section numbering corrected: I-IX now sequential
 - Templates requiring updates:
-  ✅ constitution-template.md (used as base)
-  ✅ plan-template.md (updated Angular architecture checkpoint in constitution checks)
-  ✅ spec-template.md (reviewed - generic structure aligns with principles)
-  ✅ tasks-template.md (reviewed - structure supports modular development)
-  ✅ agent-file-template.md (reviewed - will auto-populate from plans)
-- Follow-up TODOs: None - all templates aligned
+  ✅ plan-template.md (reviewed — constitution checks already cover
+     API-first and component independence; functional vision is
+     descriptive context, no new gate needed)
+  ✅ spec-template.md (reviewed — user story template naturally
+     accommodates the two scenarios described in functional vision)
+  ✅ tasks-template.md (reviewed — task phases support the
+     ingestion tunnel / data-publisher module split)
+- Follow-up TODOs: None — all templates aligned
 -->
 
 ## Core Principles
@@ -107,6 +105,118 @@ All services MUST be containerized using Docker with docker-compose orchestratio
 
 **Rationale**: Eliminates "works on my machine" issues, simplifies onboarding, ensures production-like testing, and standardizes deployment.
 
+## Functional Vision
+
+DataKern delivers a complete data-ingestion and lifecycle-management
+module for the geOrchestra platform. At the end of the ingestion
+process a dataset MUST be referenced in the platform catalogue,
+diffused via platform services, and available for consultation,
+download, and preview according to defined access rules. Users and
+administrators MUST be able to revisit any published dataset at any
+time to modify source configuration, recurrence, and metadata.
+
+### Functional Architecture
+
+The application is composed of two functional modules:
+
+1. **Ingestion Tunnel** — guided workflow for connecting a data
+   source, previewing and transforming the data, and triggering
+   initial ingestion.
+2. **Data Publisher** — dashboard and editor for managing existing
+   datasets (metadata, access rights, harvesting recurrence, event
+   journal).
+
+### User Scenario 1: Creating a Dataset from a Data Source
+
+1. The user accesses the ingestion module via the "Import" menu
+   entry. The module MUST retain the platform header bar so that
+   navigation to other modules remains available at all times.
+2. The user selects a source type. The platform MUST support at
+   minimum:
+   - Local file upload
+   - Remote file via HTTP
+   - Remote file via FTP
+   - OGC service or OGC API
+   - Table from a pre-configured PostgreSQL database
+3. The user MAY provide access credentials (basic auth) if required
+   and MAY test connectivity before proceeding.
+4. Optionally, the user MAY skip source configuration entirely and
+   proceed directly to metadata editing.
+5. Upon successful source validation the system displays a tabular
+   preview of a data extract. The user MAY:
+   - Configure the dataset title
+   - Set a harvesting recurrence
+   - Override encoding and projection
+   - Select or exclude columns
+   - Apply simple row filters (exact match, starts-with, contains)
+   - Rename columns
+6. If the data contains a geographic component, the user MAY toggle
+   to a cartographic preview to verify projection accuracy and
+   correct it if needed.
+7. After source configuration the user enters the metadata editor
+   (leaving the ingestion tunnel).
+
+### User Scenario 2: Modifying an Existing Dataset
+
+1. The user accesses "My Data" from the main menu and sees a
+   dashboard listing all datasets they have published or have
+   editing rights on, with a search field for quick retrieval.
+2. From the dashboard (or from the dataset detail view) the user
+   MAY navigate to:
+   - Metadata editing
+   - Access rights management
+   - Harvesting recurrence configuration
+   - Source (re)configuration (reopens the ingestion tunnel with
+     pre-filled values)
+3. The user MAY create a metadata record without associating a
+   data source immediately.
+4. Deleting a dataset (with confirmation) is irreversible and MUST
+   remove the source configuration, associated data services, and
+   all metadata simultaneously.
+
+### Metadata Editing
+
+When editing metadata (either after source configuration in the
+ingestion tunnel or from the data dashboard), the user accesses the
+metadata editor which MUST offer a progressive form with at least
+these fields: Title, Description, Preview, Keywords, Themes,
+Temporal extent, Spatial extent, Supplementary resources, Access &
+use conditions, Data & metadata contacts.
+
+The user MAY save work-in-progress without publishing, or publish
+the dataset and its descriptive information at any time.
+
+### Access Rights Management
+
+By default, a newly ingested dataset MUST be visible only to its
+author (metadata) and accessible via data services only to platform
+administrators. The access-rights tab MUST allow:
+
+- **Metadata**: grant read or write access to specific user groups;
+  optionally make metadata publicly accessible.
+- **Data**: grant read or write access to specific roles; optionally
+  open data access to everyone (open data).
+
+### Harvesting Recurrence
+
+The recurrence tab MUST allow the user to:
+
+- Trigger an immediate harvest
+- Modify the update frequency
+- Suspend harvesting (last data preserved, updates paused)
+
+### Event Journal
+
+The event-journal tab MUST display the date and status of recent
+harvest runs for the dataset. When an error occurs during retrieval
+or transformation, the type and detail of the error MUST be shown so
+that the user can diagnose or escalate the issue.
+
+**Rationale**: Codifying the functional vision in the constitution
+ensures that all contributors share a common understanding of what
+DataKern delivers to end users and that design decisions stay aligned
+with the intended user experience.
+
 ## Security & Authentication
 
 DataKern integrates with geOrchestra's security infrastructure via a gateway that handles authentication and authorization. The Backend MUST respect user identity and organization context provided by the gateway. Users MUST only access resources belonging to their organization unless they have administrator privileges. All sensitive configuration MUST be externalized via environment variables or properties files (never committed to version control).
@@ -154,4 +264,4 @@ Version changes follow semantic versioning:
 
 All team members MUST review this constitution during onboarding and revisit it when making architectural decisions.
 
-**Version**: 1.1.0 | **Ratified**: 2026-02-13 | **Last Amended**: 2026-02-13
+**Version**: 1.2.0 | **Ratified**: 2026-02-13 | **Last Amended**: 2026-02-13
