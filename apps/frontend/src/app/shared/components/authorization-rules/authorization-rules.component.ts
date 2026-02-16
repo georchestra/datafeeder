@@ -58,14 +58,6 @@ export class AuthorizationRulesComponent {
     return rule?.rule_value ?? 'NONE'
   }
 
-  onSearchInput(value: string): void {
-    this.searchQuery.set(value)
-  }
-
-  clearSearch(): void {
-    this.searchQuery.set('')
-  }
-
   onDropdownChange(group: GroupItem, value: string): void {
     this.ruleChange.emit({ group, value })
   }

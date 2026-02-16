@@ -86,17 +86,17 @@ describe('AuthorizationRulesComponent', () => {
 
     it('should filter groups case-insensitively by label', () => {
       const { component } = createComponent()
-      component.onSearchInput('admin')
+      component.searchQuery.set('admin')
       expect(component.filteredGroups().length).toBe(1)
       expect(component.filteredGroups()[0].label).toBe('Administrators')
     })
 
     it('should reset to all groups when clearSearch is called', () => {
       const { component } = createComponent()
-      component.onSearchInput('editor')
+      component.searchQuery.set('editor')
       expect(component.filteredGroups().length).toBe(1)
 
-      component.clearSearch()
+      component.searchQuery.set('')
       expect(component.searchQuery()).toBe('')
       expect(component.filteredGroups().length).toBe(3)
     })

@@ -6,9 +6,7 @@
       </h1>
       <app-search-input
         [placeholder]="'integrityLinks.search' | translate"
-        [value]="searchQuery()"
-        (valueChange)="onSearchInput($event)"
-        (clear)="clearSearch()"
+        [(value)]="searchQuery"
       />
     </div>
 

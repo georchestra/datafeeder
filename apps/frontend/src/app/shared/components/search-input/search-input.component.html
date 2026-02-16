@@ -9,14 +9,14 @@
     class="rounded-md border border-gray-300 py-2 pl-10 pr-10 text-sm focus:border-gray-600 focus:outline-none hover:bg-beige"
     [class.w-full]="fullWidth()"
     [placeholder]="placeholder()"
-    [ngModel]="value()"
-    (ngModelChange)="valueChange.emit($event)"
+    [value]="value()"
+    (input)="value.set($any($event.target).value)"
   />
   @if (value()) {
   <button
     type="button"
     class="absolute right-2 top-[1.35em] -translate-y-1/2 text-gray-400 hover:text-gray-600"
-    (click)="clear.emit()"
+    (click)="value.set('')"
   >
     <ng-icon class="text-primary" name="iconoirXmark" size="1.25em"></ng-icon>
   </button>

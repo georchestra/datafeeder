@@ -2,10 +2,8 @@
   <app-search-input
     class="mb-2"
     [placeholder]="searchPlaceholder()"
-    [value]="searchQuery()"
+    [(value)]="searchQuery"
     [fullWidth]="true"
-    (valueChange)="onSearchInput($event)"
-    (clear)="clearSearch()"
   />
   <div class="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2">
     @for (group of filteredGroups(); track group.id) {
