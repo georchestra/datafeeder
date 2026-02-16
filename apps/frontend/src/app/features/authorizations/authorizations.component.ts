@@ -5,6 +5,7 @@ import { Api } from '../../core/api/api'
 import {
   deleteIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesRuleIdDelete,
   getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet,
+  listGroupsDataGroupsGet,
   listGroupsMetadataGroupsGet,
   listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet,
   upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut
@@ -30,13 +31,18 @@ export class AuthorizationsComponent implements OnInit {
   private route = inject(ActivatedRoute)
   private api = inject(Api)
   private readonly metadataRuleType: RuleType = 'METADATA'
+  private readonly dataRuleType: RuleType = 'DATA'
 
   intlinkId = this.route.parent?.snapshot.paramMap.get('intlink_id') ?? null
   integrityLink = signal<IntegrityLinkResponse | null>(null)
   rules = signal<IntegrityLinkRule[]>([])
   geonetworkGroups = signal<GroupItem[]>([])
+  geoserverGroups = signal<GroupItem[]>([])
   metadataRules = computed(() =>
     this.rules().filter((r) => r.rule_type === this.metadataRuleType)
+  )
+  dataRules = computed(() =>
+    this.rules().filter((r) => r.rule_type === this.dataRuleType)
   )
 
   ngOnInit(): void {
@@ -44,13 +50,25 @@ export class AuthorizationsComponent implements OnInit {
       this.loadIntegrityLink(this.intlinkId)
       this.loadRules(this.intlinkId)
       this.loadGeonetworkGroups()
+      this.loadGeoserverGroups()
     }
   }
 
   async onMetadataRuleChange(event: RuleChangeEvent): Promise<void> {
+    await this.handleRuleChange(event, this.metadataRuleType)
+  }
+
+  async onDataRuleChange(event: RuleChangeEvent): Promise<void> {
+    await this.handleRuleChange(event, this.dataRuleType)
+  }
+
+  private async handleRuleChange(
+    event: RuleChangeEvent,
+    ruleType: RuleType
+  ): Promise<void> {
     if (!this.intlinkId) return
     const existingRule = this.rules().find(
-      (r) => r.group_or_role === event.group.id
+      (r) => r.group_or_role === event.group.id && r.rule_type === ruleType
     )
 
     if (event.value === 'NONE') {
@@ -70,7 +88,7 @@ export class AuthorizationsComponent implements OnInit {
           integrity_link_id: this.intlinkId,
           body: {
             group_or_role: event.group.id,
-            rule_type: this.metadataRuleType,
+            rule_type: ruleType,
             rule_value: event.value as 'READ' | 'WRITE'
           }
         }
@@ -98,5 +116,10 @@ export class AuthorizationsComponent implements OnInit {
   private async loadGeonetworkGroups(): Promise<void> {
     const groups = await this.api.invoke(listGroupsMetadataGroupsGet)
     this.geonetworkGroups.set(groups)
+  }
+
+  private async loadGeoserverGroups(): Promise<void> {
+    const groups = await this.api.invoke(listGroupsDataGroupsGet)
+    this.geoserverGroups.set(groups)
   }
 }

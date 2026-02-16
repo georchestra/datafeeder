@@ -144,6 +144,7 @@
   "authorizations.ruleValue.read": "Read",
   "authorizations.ruleValue.write": "Write",
   "authorizations.geoserver": "GeoServer authorizations",
+  "authorizations.geoserver.search": "Search for a role listed on GeoServer",
   "authorizations.title": "Authorizations",
   "events.title": "Events log for",
   "i18nerror.transformation.columns_both_required": "Both X and Y columns are required for geometry creation",
