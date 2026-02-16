@@ -1,21 +1,15 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core'
-import { ActivatedRoute } from '@angular/router'
 import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../../core/api/api'
 import {
   deleteIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesRuleIdDelete,
-  getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet,
   listGroupsDataGroupsGet,
   listGroupsMetadataGroupsGet,
   listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet,
   upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut
 } from '../../core/api/functions'
-import {
-  GroupItem,
-  IntegrityLinkResponse,
-  IntegrityLinkRule,
-  RuleType
-} from '../../core/api/models'
+import { GroupItem, IntegrityLinkRule, RuleType } from '../../core/api/models'
+import { IntegrityLinkStore } from '../../layout/integrity-link.store'
 import {
   AuthorizationRulesComponent,
   RuleChangeEvent
@@ -28,13 +22,12 @@ import {
   host: { class: 'flex-1 min-h-0 flex flex-col' }
 })
 export class AuthorizationsComponent implements OnInit {
-  private route = inject(ActivatedRoute)
   private api = inject(Api)
+  readonly store = inject(IntegrityLinkStore)
   private readonly metadataRuleType: RuleType = 'METADATA'
   private readonly dataRuleType: RuleType = 'DATA'
 
-  intlinkId = this.route.parent?.snapshot.paramMap.get('intlink_id') ?? null
-  integrityLink = signal<IntegrityLinkResponse | null>(null)
+  intlinkId = this.store.intlinkId()
   rules = signal<IntegrityLinkRule[]>([])
   geonetworkGroups = signal<GroupItem[]>([])
   geoserverGroups = signal<GroupItem[]>([])
@@ -47,7 +40,6 @@ export class AuthorizationsComponent implements OnInit {
 
   ngOnInit(): void {
     if (this.intlinkId) {
-      this.loadIntegrityLink(this.intlinkId)
       this.loadRules(this.intlinkId)
       this.loadGeonetworkGroups()
       this.loadGeoserverGroups()
@@ -95,14 +87,6 @@ export class AuthorizationsComponent implements OnInit {
       )
     }
     await this.loadRules(this.intlinkId)
-  }
-
-  private async loadIntegrityLink(id: string): Promise<void> {
-    const metadata = await this.api.invoke(
-      getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet,
-      { integrity_link_id: id }
-    )
-    this.integrityLink.set(metadata)
   }
 
   private async loadRules(id: string): Promise<void> {

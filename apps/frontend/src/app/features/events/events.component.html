@@ -2,7 +2,7 @@
   <h1 class="text-xl font-bold text-gray-900 mb-4">
     {{ 'events.title' | translate }}
     <span class="text-black font-extrabold">{{
-      integrity_link()?.integrity_title
+      store.integrityLink()?.integrity_title
     }}</span>
   </h1>
   <app-events-list

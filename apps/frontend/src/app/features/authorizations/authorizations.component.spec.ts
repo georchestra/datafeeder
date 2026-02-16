@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing'
-import { ActivatedRoute, convertToParamMap } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { Api } from '../../core/api/api'
@@ -11,6 +10,7 @@ import {
   upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut
 } from '../../core/api/functions'
 import { GroupItem, IntegrityLinkRule } from '../../core/api/models'
+import { IntegrityLinkStore } from '../../layout/integrity-link.store'
 import { AuthorizationsComponent } from './authorizations.component'
 
 describe('AuthorizationsComponent', () => {
@@ -43,6 +43,7 @@ describe('AuthorizationsComponent', () => {
   ]
 
   let apiInvokeSpy: ReturnType<typeof vi.fn>
+  let store: IntegrityLinkStore
 
   const createComponent = () => {
     const fixture = TestBed.createComponent(AuthorizationsComponent)
@@ -85,22 +86,20 @@ describe('AuthorizationsComponent', () => {
           .withCompiler(new TranslateMessageFormatCompiler())
       ],
       providers: [
-        {
-          provide: ActivatedRoute,
-          useValue: {
-            parent: {
-              snapshot: {
-                paramMap: convertToParamMap({ intlink_id: intlinkId })
-              }
-            }
-          }
-        },
+        IntegrityLinkStore,
         {
           provide: Api,
           useValue: { invoke: apiInvokeSpy }
         }
       ]
     }).compileComponents()
+
+    store = TestBed.inject(IntegrityLinkStore)
+    store.intlinkId.set(intlinkId)
+    store.integrityLink.set({
+      integrity_link_id: intlinkId,
+      integrity_title: 'Test Link'
+    } as any)
   })
 
   it('should load geoserver groups on init', async () => {
