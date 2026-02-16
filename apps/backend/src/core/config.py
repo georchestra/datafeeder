@@ -182,7 +182,7 @@ class Settings(BaseSettings):
 
     # Data groups (for GeoServer authorization UI)
     DATA_FETCH_GROUPS_URL: str = "http://localhost:8080/console/internal/roles"
-    DATA_GROUPS_IDENTIFIER: str = "name"
+    DATA_GROUPS_IDENTIFIER: str = "id"
     DATA_GROUPS_LABEL: str = "name"
     DATA_FETCH_GROUPS_USERNAME: str = ""
     DATA_FETCH_GROUPS_PASSWORD: str = ""
