@@ -1,4 +1,4 @@
-@if (mapContext()) {
+@if (mapContext() && !hasExtentError()) {
 <div class="pb-6 px-6 h-[468px] w-full">
   <gn-ui-map-container [context]="mapContext()" />
 </div>

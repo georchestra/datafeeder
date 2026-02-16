@@ -144,8 +144,20 @@
       [previewLoading]="previewLoading()"
       (configChanged)="onConfigChanged($event)"
     />
-    } @else {
-    <app-dataset-preview-map [geojson]="geojsonData()" />
+    } @else { @if (previewErrorExtent()) {
+    <div class="px-6 pb-4">
+      <app-alert-box
+        type="warning"
+        [title]="errorTitle()"
+        [message]="previewErrorExtent()"
+        (dismissed)="previewErrorExtent.set(null)"
+      />
+    </div>
+    }
+    <app-dataset-preview-map
+      [geojson]="geojsonData()"
+      [(hasExtentError)]="hasExtentError"
+    />
     } } @else {
     <app-dataset-preview-table
       [metadata]="metadata()"
