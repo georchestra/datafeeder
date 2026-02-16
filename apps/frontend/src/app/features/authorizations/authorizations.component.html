@@ -11,12 +11,12 @@
         {{ 'authorizations.geonetwork' | translate }}
       </h2>
       @if (intlinkId) {
-      <app-geonetwork-authorizations
+      <app-authorization-rules
         class="flex-1 min-h-0 flex flex-col"
-        [intlinkId]="intlinkId"
-        ruleType="METADATA"
+        [groups]="geonetworkGroups()"
         [rules]="metadataRules()"
-        (rulesChanged)="loadRules(intlinkId)"
+        [searchPlaceholder]="'authorizations.geonetwork.search' | translate"
+        (ruleChange)="onMetadataRuleChange($event)"
       />
       }
     </div>

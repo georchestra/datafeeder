@@ -1,7 +1,7 @@
 <div class="flex flex-1 min-h-0 flex-col gap-2">
   <app-search-input
     class="mb-2"
-    [placeholder]="'authorizations.geonetwork.search' | translate"
+    [placeholder]="searchPlaceholder()"
     [value]="searchQuery()"
     [fullWidth]="true"
     (valueChange)="onSearchInput($event)"
@@ -19,7 +19,7 @@
           [selected]="getRuleValue(group)"
           [showTitle]="false"
           [title]="''"
-          (selectValue)="onRuleChange(group, $any($event))"
+          (selectValue)="onDropdownChange(group, $any($event))"
         />
       </div>
     </div>
