@@ -142,7 +142,6 @@
       [preview]="preview()"
       [previewError]="previewError()"
       [previewLoading]="previewLoading()"
-      (configChanged)="onConfigChanged($event)"
     />
     } @else { @if (previewErrorExtent()) {
     <div class="px-6 pb-4">
@@ -164,7 +163,6 @@
       [preview]="preview()"
       [previewError]="previewError()"
       [previewLoading]="previewLoading()"
-      (configChanged)="onConfigChanged($event)"
     />
     }
   </div>

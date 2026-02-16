@@ -31,8 +31,8 @@ describe('DatasetConfigurationComponent', () => {
 
   it('should initialize with empty signals', () => {
     expect(component.selectedProjection()).toBe('')
-    expect(component.selectedXCol()).toBe('')
-    expect(component.selectedYCol()).toBe('')
+    expect(component.selectedXCol()).toBe(null)
+    expect(component.selectedYCol()).toBe(null)
     expect(component.showError()).toBe(false)
   })
 

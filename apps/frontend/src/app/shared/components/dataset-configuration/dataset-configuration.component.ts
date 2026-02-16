@@ -74,8 +74,8 @@ export class DatasetConfigurationComponent {
   }>()
 
   selectedProjection = signal<string>('')
-  selectedXCol = signal<string>('')
-  selectedYCol = signal<string>('')
+  selectedXCol = signal<string | null>(null)
+  selectedYCol = signal<string | null>(null)
   showError = signal<boolean>(false)
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
   displayedColumns = computed(
@@ -142,10 +142,10 @@ export class DatasetConfigurationComponent {
             DEFAULT_PROJECTION
         )
       }
-      if (meta && !this.selectedXCol()) {
+      if (meta && this.selectedXCol() === null) {
         this.selectedXCol.set(meta.force_projection?.x_column || '')
       }
-      if (meta && !this.selectedYCol()) {
+      if (meta && this.selectedYCol() === null) {
         this.selectedYCol.set(meta.force_projection?.y_column || '')
       }
     })
@@ -155,8 +155,8 @@ export class DatasetConfigurationComponent {
 
   private emitConfigChanged() {
     const projection = this.selectedProjection()
-    const colX = this.selectedXCol()
-    const colY = this.selectedYCol()
+    const colX = this.selectedXCol() ?? ''
+    const colY = this.selectedYCol() ?? ''
 
     this.configChanged.emit({
       projection,
@@ -166,8 +166,8 @@ export class DatasetConfigurationComponent {
   }
 
   onSwitchXY() {
-    const currentLat = this.selectedXCol()
-    const currentLong = this.selectedYCol()
+    const currentLat = this.selectedXCol() ?? ''
+    const currentLong = this.selectedYCol() ?? ''
 
     this.selectedXCol.set(currentLong)
     this.selectedYCol.set(currentLat)
