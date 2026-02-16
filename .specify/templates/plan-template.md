@@ -36,9 +36,11 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 - [ ] **API-First**: Does this feature require new API endpoints? If yes, are they designed before UI implementation?
 - [ ] **Component Independence**: Does this feature maintain clear boundaries? Can backend/frontend/ELT operate independently?
 - [ ] **Shared Libraries**: Is common logic properly extracted to `libs/data_manipulation` to avoid duplication?
+- [ ] **Architecture Structure**: Does this follow documented patterns? Backend: API → Services → Models/Core layering? Frontend: core/shared/features separation?
 - [ ] **Testing**: Are test requirements defined? (pytest for Python, vitest/Cypress for frontend, integration tests for contracts)
 - [ ] **Code Quality**: Will code follow Ruff/Pyright standards (Python) or ESLint/Prettier (TypeScript)?
 - [ ] **Angular Architecture** (frontend only): Are components atomic with smart/presentational separation? Size ≤200 lines? Using NgRx for state? OnPush change detection?
+- [ ] **Design Compliance** (frontend only): Does this reference Figma mockups? Will UI match designs (layout, spacing, colors, typography)? Using Figma MCP for implementation?
 - [ ] **Containerization**: Can this feature run in Docker containers? Are environment variables properly externalized?
 - [ ] **Security**: Does this feature respect geOrchestra authentication? Are integrity_link records maintained for traceability?
 - [ ] **Documentation**: Will API endpoints be documented in OpenAPI? Will component README be updated?

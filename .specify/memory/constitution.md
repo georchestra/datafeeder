@@ -2,25 +2,26 @@
 
 <!--
 Sync Impact Report:
-- Version: 1.1.0 → 1.2.0 (MINOR: Added Functional Vision section)
+- Version: 1.3.0 → 1.4.0 (MINOR: Added Design System & UI Mockups section)
 - Ratification: 2026-02-13
-- Last Amendment: 2026-02-13
+- Last Amendment: 2026-02-16
 - Modified principles: None
 - Added sections:
-  * "Functional Vision" — new top-level section between Core Principles
-    and Security & Authentication describing the two main user scenarios
-    (dataset creation via ingestion tunnel, dataset modification via
-    dashboard), the supported data source types, metadata editing,
-    access rights management, harvesting recurrence, and event journal.
+  * "Design System & UI Mockups" — new top-level section documenting:
+    - Official Figma design file URL (ingestion-données)
+    - Figma MCP tool usage for implementation
+    - Design workflow (before/during/after implementation)
+    - Design compliance requirements and deviation policy
+    - Design token management (colors, spacing, typography)
+    - Rationale for design-driven development
 - Removed sections: None
 - Templates requiring updates:
-  ✅ plan-template.md (reviewed — constitution checks already cover
-     API-first and component independence; functional vision is
-     descriptive context, no new gate needed)
-  ✅ spec-template.md (reviewed — user story template naturally
-     accommodates the two scenarios described in functional vision)
-  ✅ tasks-template.md (reviewed — task phases support the
-     ingestion tunnel / data-publisher module split)
+  ✅ plan-template.md (updated — added Design Compliance checkpoint
+     to constitution checks for frontend features)
+  ✅ spec-template.md (reviewed — user scenarios can reference
+     Figma screens for acceptance criteria)
+  ✅ tasks-template.md (reviewed — implementation tasks can include
+     "Extract component specs from Figma using MCP")
 - Follow-up TODOs: None — all templates aligned
 -->
 
@@ -217,6 +218,126 @@ ensures that all contributors share a common understanding of what
 DataKern delivers to end users and that design decisions stay aligned
 with the intended user experience.
 
+## Application Architecture
+
+This section documents the mandatory code structure for both backend and frontend applications. All new features MUST respect these architectural patterns to maintain consistency and enable team scalability.
+
+### Backend Architecture (`apps/backend`)
+
+The backend follows a **layered architecture** with clear separation between API routes, business logic, data models, and infrastructure concerns.
+
+**Directory Structure**:
+
+```
+apps/backend/src/
+├── main.py                    # FastAPI application entry point
+├── api/                       # API layer (routes, dependencies)
+│   ├── main.py               # Router registration
+│   ├── deps.py               # Reusable dependencies (DB sessions, auth context)
+│   ├── internal.py           # Internal/admin routes
+│   └── routes/               # Feature-based route modules
+│       ├── ingestion/        # Ingestion-related endpoints
+│       │   ├── integrity_link.py    # Single integrity link operations
+│       │   ├── integrity_links.py   # List/query operations
+│       │   ├── staging.py           # Staging DAG triggers
+│       │   └── process.py           # Processing DAG triggers
+│       ├── airflow.py        # Airflow API proxy endpoints
+│       ├── geonetwork.py     # GeoNetwork integration
+│       ├── settings.py       # Settings/configuration endpoints
+│       ├── internal_files.py # File management
+│       └── utils.py          # Route utilities
+├── models/                    # SQLModel data models (ORM + Pydantic)
+│   ├── integrity_link.py     # IntegrityLink model
+│   ├── data_import.py        # DataImport model
+│   └── user.py               # User/context models
+├── services/                  # Business logic layer
+│   ├── airflow_client.py     # Airflow API client
+│   ├── airflow_logs.py       # Airflow log retrieval
+│   ├── geoserver.py          # GeoServer client
+│   ├── metadata_service.py   # Metadata management
+│   ├── georchestra.py        # geOrchestra integration
+│   ├── console_service.py    # Console API client
+│   ├── settings_service.py   # Settings management
+│   └── files.py              # File handling service
+├── core/                      # Infrastructure/cross-cutting concerns
+│   ├── config.py             # Application configuration
+│   ├── db.py                 # Database session management
+│   ├── security.py           # Authentication/authorization
+│   ├── encryption.py         # Encryption utilities
+│   ├── logging.py            # Logging configuration
+│   ├── paths.py              # Path constants
+│   └── callback.py           # Callback handling
+├── plugins/                   # Extension mechanisms
+│   └── PropertiesConfigSettingsSource.py  # Custom config source
+└── tests/                     # Test suite (mirrors src structure)
+    ├── api/                  # API route tests
+    ├── models/               # Model tests
+    └── services/             # Service tests
+```
+
+**Layering Rules (Backend)**:
+
+1. **API Layer** (`api/`) - MUST only handle HTTP concerns: request validation, response formatting, dependency injection, error handling. Business logic MUST be delegated to services.
+2. **Service Layer** (`services/`) - MUST contain all business logic, external service integration, and orchestration. Services MUST be framework-agnostic (no FastAPI dependencies).
+3. **Model Layer** (`models/`) - MUST define data structures using SQLModel (combines Pydantic + SQLAlchemy). Models serve as both ORM entities and API schemas.
+4. **Core Layer** (`core/`) - MUST provide infrastructure: configuration, database sessions, security context, logging. These are cross-cutting concerns available to all layers.
+5. **Plugins** (`plugins/`) - MUST extend framework functionality without modifying core code.
+
+**Dependency Flow**: API → Services → Models/Core (downward only; no circular dependencies)
+
+**File Organization**:
+
+- Group related endpoints by feature/domain in `api/routes/`
+- One service file per external system or business domain
+- Keep route files focused: 1-2 related endpoints per file for complex operations, grouped endpoints for CRUD
+
+### Frontend Architecture (`apps/frontend`)
+
+The frontend follows **Angular feature-module architecture** with strict separation between core infrastructure, shared utilities, and feature-specific code.
+
+**Directory Structure**:
+
+```
+apps/frontend/src/
+├── main.ts                    # Application bootstrap
+├── index.html                 # HTML entry point
+├── styles.scss               # Global styles
+├── app/
+│   ├── app.ts                # Root component
+│   ├── app.routes.ts         # Application routing configuration
+│   ├── app.config.ts         # Application-level providers and configuration
+│   ├── core/                 # Core module (singleton services, app-wide concerns)
+│   │   ├── api/              # Generated API client (ng-openapi-gen)
+│   │   ├── auth/             # Authentication services
+│   │   ├── layout/           # Global layout components (header, navigation)
+│   │   └── settings/         # Application settings service
+│   ├── shared/               # Shared module (reusable components, pipes, directives)
+│   │   ├── components/       # Presentation components (buttons, forms, tables)
+│   │   ├── directives/       # Reusable directives
+│   │   ├── pipes/            # Reusable pipes (transforms)
+│   │   ├── types/            # TypeScript interfaces/types
+│   │   └── utils/            # Utility functions
+│   ├── features/             # Feature modules (domain-specific functionality)
+│   │   ├── import/           # Ingestion tunnel feature
+│   │   ├── integrity-link-list/  # Dataset list/dashboard feature
+│   │   ├── metadata/         # Metadata editor feature
+│   │   └── events/           # Event journal feature
+│   └── layout/               # Layout orchestration
+└── translations/             # i18n JSON files (en, fr, de, etc.)
+```
+
+**Module Rules (Frontend)**:
+
+1. **Core Module** (`app/core/`) - MUST contain singleton services, authentication, global layout, and app-wide state. MUST be imported once in `app.config.ts`. Components here are NOT feature-specific.
+2. **Shared Module** (`app/shared/`) - MUST contain reusable presentational components, pipes, directives, and utilities. MUST NOT contain feature-specific logic or services. Can be imported by any feature module.
+3. **Feature Modules** (`app/features/`) - MUST be self-contained with their own routing, components, services, and state. Features SHOULD communicate via services or store, not direct component coupling.
+4. **Layout** (`app/layout/`) - MUST handle page layout composition (header, sidebar, content area orchestration).
+
+**Naming Conventions**:
+
+- Presentational components: `*.component.ts`
+- Services: `*.service.ts`
+
 ## Security & Authentication
 
 DataKern integrates with geOrchestra's security infrastructure via a gateway that handles authentication and authorization. The Backend MUST respect user identity and organization context provided by the gateway. Users MUST only access resources belonging to their organization unless they have administrator privileges. All sensitive configuration MUST be externalized via environment variables or properties files (never committed to version control).
@@ -247,6 +368,41 @@ All components MUST include a README with: purpose, setup instructions, API docu
 
 **Rationale**: Reduces onboarding friction, serves as living documentation, enables self-service, and captures architectural knowledge.
 
+## Design System & UI Mockups
+
+All frontend user interface development MUST reference the official Figma design mockups to ensure visual consistency and alignment with UX specifications. The design file serves as the single source of truth for visual design, component specifications, user flows, and interaction patterns.
+
+**Design Resources**:
+
+- **Figma Design File**: [DataKern - Ingestion données](https://www.figma.com/design/IwMxmE9G9D9StF2QLlR1uE/ingestion-donn%C3%A9es)
+  - **Note**: This design file contains all UI components and screens organized by code sprints, allowing developers to reference the appropriate sprint section when implementing features
+- **Implementation Tool**: Figma MCP (Model Context Protocol) - Use Figma MCP tools to extract component specifications, styles, and assets directly from the design file during implementation
+
+**Design Workflow**:
+
+1. **Before Implementation**: Review relevant Figma screens/components for the feature being developed
+2. **During Implementation**: Use Figma MCP to:
+   - Extract component structure and properties
+   - Generate code scaffolding aligned with designs
+   - Retrieve design tokens (colors, spacing, typography)
+   - Export assets (icons, images) at correct resolutions
+3. **After Implementation**: Verify UI implementation matches Figma designs (spacing, colors, typography, interactions)
+
+**Design Compliance Requirements**:
+
+- Frontend features MUST match Figma mockups for layout, spacing, colors, and typography
+- Deviations from designs MUST be justified (technical constraints, accessibility improvements) and documented
+- New UI components not present in Figma SHOULD follow established design patterns from existing components
+- Design feedback loops: if implementation reveals design issues, flag them for designer review before proceeding with workarounds
+
+**Design Tokens**:
+
+- Colors, spacing, typography, and other design tokens SHOULD be extracted from Figma and centralized in the codebase
+- Use Tailwind CSS configuration to align utility classes with Figma design tokens
+- Maintain consistency between Figma styles and CSS variables/Tailwind config
+
+**Rationale**: Referencing official design mockups ensures visual consistency, reduces implementation ambiguity, improves collaboration between designers and developers, and maintains a professional user experience. The Figma MCP tool bridges design and code, reducing manual translation errors and accelerating development.
+
 ## Governance
 
 This constitution supersedes all other development practices and conventions. All code reviews, pull requests, and architectural decisions MUST verify compliance with these principles. Violations require explicit justification and team consensus. Amendments to this constitution require:
@@ -264,4 +420,4 @@ Version changes follow semantic versioning:
 
 All team members MUST review this constitution during onboarding and revisit it when making architectural decisions.
 
-**Version**: 1.2.0 | **Ratified**: 2026-02-13 | **Last Amended**: 2026-02-13
+**Version**: 1.4.0 | **Ratified**: 2026-02-13 | **Last Amended**: 2026-02-16
