@@ -10,7 +10,7 @@
   <div class="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2">
     @for (group of filteredGroups(); track group.id) {
     <div
-      class="flex items-center justify-between rounded-md bg-beige px-4 py-2"
+      class="flex items-center justify-between rounded-md bg-beige px-4 py-1"
     >
       <span class="font-medium text-gray-2">{{ group.label }}</span>
       <div class="w-40">
@@ -19,6 +19,7 @@
           [selected]="getRuleValue(group)"
           [showTitle]="false"
           [title]="''"
+          [extraBtnClass]="'bg-secondary-hover border-transparent py-1'"
           (selectValue)="onDropdownChange(group, $any($event))"
         />
       </div>

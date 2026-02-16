@@ -140,7 +140,7 @@
   "events.emptyList": "Aucun évènement à afficher",
   "authorizations.geonetwork": "Organisations GeoNetwork",
   "authorizations.geonetwork.search": "Rechercher une organisation répertoriée sur GeoNetwork",
-  "authorizations.ruleValue.none": "Pas de droits",
+  "authorizations.ruleValue.none": "Pas de droit",
   "authorizations.ruleValue.read": "Lecture",
   "authorizations.ruleValue.write": "Écriture",
   "authorizations.geoserver": "Rôles GeoServer",
