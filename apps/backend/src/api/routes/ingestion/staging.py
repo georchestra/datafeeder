@@ -231,7 +231,6 @@ async def submit_staging(
         source_file_type=source_file_type,
         source_username=username if auth_enabled else None,
         source_password_encrypted=encrypted_password if auth_enabled else None,
-        source_auth_enabled=auth_enabled,
         staging_table_name=staging_table_name,
     )
     session.add(integrity_link)

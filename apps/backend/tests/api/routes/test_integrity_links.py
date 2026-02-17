@@ -33,7 +33,6 @@ class TestListIntegrityLinks:
                 integrity_organization="testorg",
                 source_import_type=ImportType.URL,
                 source_url=f"http://example.com/{i}",
-                source_auth_enabled=False,
                 staging_table_name=f"staging_test_{i}",
                 final_table_name=f"final_test_{i}" if i % 2 == 0 else None,
                 created_at=datetime.now(timezone.utc),
@@ -122,7 +121,6 @@ class TestListIntegrityLinks:
                 integrity_owner="user0",
                 integrity_organization="testorg",
                 source_import_type=ImportType.URL,
-                source_auth_enabled=False,
                 staging_table_name=f"staging_test_{i}",
                 created_at=datetime.now(timezone.utc),
                 schedule_enabled=False,
@@ -160,7 +158,6 @@ class TestListIntegrityLinks:
                 integrity_owner="user0",
                 integrity_organization="testorg",
                 source_import_type=ImportType.URL,
-                source_auth_enabled=False,
                 staging_table_name=f"staging_test_{i}",
                 created_at=datetime.now(timezone.utc),
                 schedule_enabled=False,
@@ -218,7 +215,6 @@ class TestListIntegrityLinks:
             source_import_type=ImportType.URL,
             source_username="secret_user",
             source_password_encrypted="encrypted_password",
-            source_auth_enabled=True,
             staging_table_name="staging_test",
             staging_retrieve_time=None,
             integrity_transformation={"key": "value"},
@@ -287,7 +283,6 @@ class TestListIntegrityLinks:
             integrity_owner="user0",
             integrity_organization="testorg",
             source_import_type=ImportType.URL,
-            source_auth_enabled=False,
             staging_table_name="staging_test",
             created_at=datetime.now(timezone.utc),
             schedule_enabled=False,
@@ -327,7 +322,6 @@ class TestListIntegrityLinks:
                 integrity_owner="user0",
                 integrity_organization="testorg",
                 source_import_type=ImportType.URL,
-                source_auth_enabled=False,
                 staging_table_name=f"staging_test_{i}",
                 created_at=datetime.now(timezone.utc),
                 schedule_enabled=False,
@@ -366,7 +360,6 @@ class TestListIntegrityLinks:
                 integrity_owner="user0",
                 integrity_organization="testorg",
                 source_import_type=ImportType.URL,
-                source_auth_enabled=False,
                 staging_table_name="staging_test",
                 created_at=datetime.now(timezone.utc),
                 schedule_enabled=False,
@@ -431,7 +424,6 @@ class TestListIntegrityLinks:
         assert hasattr(item, "source_file_name")
         assert hasattr(item, "source_file_type")
         assert hasattr(item, "source_url")
-        assert hasattr(item, "source_auth_enabled")
         assert hasattr(item, "staging_table_name")
         assert hasattr(item, "final_table_name")
         assert hasattr(item, "metadata_id")

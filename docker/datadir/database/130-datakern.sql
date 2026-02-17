@@ -37,7 +37,6 @@ CREATE TABLE IF NOT EXISTS datakern.integrity_link(
     source_file_type varchar(10) NULL,
     source_username text NULL,
     source_password_encrypted text NULL,
-    source_auth_enabled boolean DEFAULT FALSE,
     staging_table_name varchar(63) NOT NULL,
     staging_retrieve_time interval NULL,
     final_table_name varchar(63) UNIQUE NULL,

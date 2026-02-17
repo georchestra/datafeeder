@@ -22,7 +22,6 @@ export interface IntegrityLinkResponse {
   metadata_id: string | null
   schedule: string | null
   schedule_enabled: boolean
-  source_auth_enabled: boolean
   source_file_name: string | null
   source_file_type: FileType | null
   source_import_type: ImportType

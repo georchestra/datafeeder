@@ -19,8 +19,7 @@ def load_scheduled_integrity_links():
             integrity_transformation,
             source_url,
             source_import_type,
-            source_password_encrypted,
-            source_auth_enabled
+            source_password_encrypted
         FROM datakern.integrity_link
         WHERE schedule_enabled = true
     """

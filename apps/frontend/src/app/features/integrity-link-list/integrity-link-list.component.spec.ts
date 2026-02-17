@@ -26,7 +26,6 @@ describe('IntegrityLinkListComponent', () => {
     source_url: 'https://example.com/data.csv',
     source_file_name: null,
     source_file_type: null,
-    source_auth_enabled: false,
     created_at: '2024-01-01T00:00:00Z',
     last_retrieval_timestamp: null,
     schedule: null,

@@ -128,7 +128,6 @@ class IntegrityLinkListItem(BaseModel):
     source_file_name: str | None
     source_file_type: FileType | None
     source_url: str | None
-    source_auth_enabled: bool
     staging_table_name: str
     final_table_name: str | None
     metadata_id: str | None
@@ -170,7 +169,6 @@ class IntegrityLinkResponse(BaseModel):
     source_file_name: str | None
     source_file_type: FileType | None
     source_username: str | None
-    source_auth_enabled: bool
     staging_table_name: str
     staging_retrieve_time: timedelta | None
     final_table_name: str | None
