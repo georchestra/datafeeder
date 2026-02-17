@@ -7,20 +7,20 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface ProxyGeonetworkGeonetworkPathDelete_5$Params {
+export interface ProxyGeonetworkGeonetworkPathGet_3$Params {
   path: string
 }
 
-export function proxyGeonetworkGeonetworkPathDelete_5(
+export function proxyGeonetworkGeonetworkPathGet_3(
   http: HttpClient,
   rootUrl: string,
-  params: ProxyGeonetworkGeonetworkPathDelete_5$Params,
+  params: ProxyGeonetworkGeonetworkPathGet_3$Params,
   context?: HttpContext
 ): Observable<StrictHttpResponse<any>> {
   const rb = new requestBuilders(
     rootUrl,
-    proxyGeonetworkGeonetworkPathDelete_5.PATH,
-    'patch'
+    proxyGeonetworkGeonetworkPathGet_3.PATH,
+    'delete'
   )
   if (params) {
     rb.path('path', params.path, {})
@@ -38,4 +38,4 @@ export function proxyGeonetworkGeonetworkPathDelete_5(
     )
 }
 
-proxyGeonetworkGeonetworkPathDelete_5.PATH = '/geonetwork/{path}'
+proxyGeonetworkGeonetworkPathGet_3.PATH = '/geonetwork/{path}'

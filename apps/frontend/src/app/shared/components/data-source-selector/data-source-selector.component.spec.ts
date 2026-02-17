@@ -54,6 +54,9 @@ describe('DataSourceSelectorComponent', () => {
     expect(emittedValue).toEqual({
       type: 'file',
       file: null,
+      ftpHost: null,
+      ftpPort: null,
+      ftpPath: null,
       url: 'https://test.com',
       authEnabled: false,
       username: null,
@@ -138,6 +141,9 @@ describe('DataSourceSelectorComponent', () => {
       expect(emittedValue).toEqual({
         type: 'url',
         file: null,
+        ftpHost: null,
+        ftpPort: null,
+        ftpPath: null,
         url: 'https://example.com',
         authEnabled: true,
         username: 'testuser',

@@ -16,6 +16,7 @@ class ImportType(str, Enum):
     FILE = "file"
     DATABASE = "database"
     API = "api"
+    FTP = "ftp"
 
 
 class FileType(str, Enum):

@@ -15,18 +15,31 @@ import {
   FileInputComponent,
   TextInputComponent
 } from 'geonetwork-ui'
+import {
+  DataSourceFtpComponent,
+  type FTPData
+} from '../data-source-ftp/data-source-ftp.component'
 
 marker('input.file.selectFileLabel')
 marker('input.file.dropFileLabel')
 marker('input.file.orInputUrl')
+marker('import.dataSource.chooseType.ftp')
+marker('import.dataSource.ftp.host')
+marker('import.dataSource.ftp.port')
+marker('import.dataSource.ftp.username')
+marker('import.dataSource.ftp.password')
+marker('import.dataSource.ftp.path')
 
 export interface SourceData {
-  type: 'url' | 'file'
+  type: 'url' | 'file' | 'ftp'
   file?: globalThis.File
   url?: string
   authEnabled: boolean
   username?: string
   password?: string
+  ftpHost?: string
+  ftpPort?: number
+  ftpPath?: string
 }
 
 @Component({
@@ -40,7 +53,8 @@ export interface SourceData {
     ButtonComponent,
     CheckToggleComponent,
     TextInputComponent,
-    FileInputComponent
+    FileInputComponent,
+    DataSourceFtpComponent
   ],
   templateUrl: './data-source-selector.component.html',
   providers: [
@@ -58,19 +72,21 @@ export class DataSourceSelectorComponent {
   sourceChanged = output<SourceData>()
 
   form = this.fb.group({
-    radio: this.fb.control<'file'>('file'),
+    radio: this.fb.control<'file' | 'ftp'>('file'),
     source: this.fb.group({
-      type: this.fb.control<'file' | 'url'>('file'),
+      type: this.fb.control<'file' | 'url' | 'ftp'>('file'),
       file: this.fb.control<globalThis.File | null>(null),
       url: this.fb.control<string | null>(null),
       authEnabled: this.fb.control<boolean>(false, { nonNullable: true }),
       username: this.fb.control<string | null>(null),
-      password: this.fb.control<string | null>(null)
+      password: this.fb.control<string | null>(null),
+      ftpHost: this.fb.control<string | null>(null),
+      ftpPort: this.fb.control<number | null>(null),
+      ftpPath: this.fb.control<string | null>(null)
     })
   })
 
   constructor() {
-    // Emit form changes
     this.form.controls.source.valueChanges.subscribe((value) => {
       this.sourceChanged.emit({
         type: value.type,
@@ -78,38 +94,56 @@ export class DataSourceSelectorComponent {
         url: value.url,
         authEnabled: value.authEnabled,
         username: value.username,
-        password: value.password
+        password: value.password,
+        ftpHost: value.ftpHost,
+        ftpPort: value.ftpPort,
+        ftpPath: value.ftpPath
       })
     })
   }
 
   handleFileChange(file: globalThis.File | null): void {
-    this.form.controls.source.setValue({
-      type: 'file',
-      file: file,
-      url: null,
-      authEnabled: false,
-      username: null,
-      password: null
-    })
+    this.form.controls.source.patchValue({ file })
   }
 
   handleUrlChange(url: string): void {
     this.form.controls.source.patchValue({
       type: 'url',
-      file: null,
-      url: url
+      url
     })
   }
 
-  removeItem(): void {
+  resetSource(): void {
     this.form.controls.source.setValue({
       type: 'file',
       file: null,
       url: null,
       authEnabled: false,
       username: null,
-      password: null
+      password: null,
+      ftpHost: null,
+      ftpPort: null,
+      ftpPath: null
+    })
+  }
+
+  removeItem(): void {
+    this.form.controls.radio.setValue('file')
+    this.resetSource()
+  }
+
+  handleRadioChange(type: 'file' | 'ftp'): void {
+    this.resetSource()
+    this.form.controls.source.patchValue({ type })
+  }
+
+  handleFtpDataChange(data: FTPData): void {
+    this.form.controls.source.patchValue({
+      ftpHost: data.host,
+      ftpPort: data.port,
+      username: data.username,
+      password: data.password,
+      ftpPath: data.path
     })
   }
 }

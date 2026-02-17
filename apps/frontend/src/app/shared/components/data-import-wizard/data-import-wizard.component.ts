@@ -192,8 +192,25 @@ export class DataImportWizardComponent implements OnInit {
     })
   }
 
+  validFtp(source: SourceData): boolean {
+    return (
+      !!source.ftpHost &&
+      !!source.ftpPort &&
+      !!source.ftpPath &&
+      !!source.username &&
+      !!source.password
+    )
+  }
+
   validSource = computed(() => {
-    return this.importData()?.source.file || this.importData()?.source.url
+    const source = this.importData()?.source
+    if (!source) return false
+
+    return (
+      (source.type === 'file' && !!source.file) ||
+      (source.type === 'url' && !!source.url) ||
+      (source.type === 'ftp' && this.validFtp(source))
+    )
   })
 
   async onConfigChanged(config: {
@@ -303,6 +320,21 @@ export class DataImportWizardComponent implements OnInit {
           username: source.authEnabled ? source.username : null,
           password: source.authEnabled ? source.password : null,
           auth_enabled: source.authEnabled
+        }
+      })
+    } else if (source.type === 'ftp') {
+      if (!this.validFtp(source)) {
+        throw new Error(this.translate.instant('import.dataSource.missingUrl'))
+      }
+
+      return await this.api.invoke(submitStagingIngestionStagingPost, {
+        body: {
+          type: 'ftp',
+          ftp_host: source.ftpHost,
+          ftp_port: source.ftpPort,
+          ftp_path: source.ftpPath,
+          username: source.username,
+          password: source.password
         }
       })
     }

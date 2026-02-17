@@ -139,6 +139,9 @@ async def submit_staging(
     auth_enabled: bool = Form(False),
     username: Optional[str] = Form(None),
     password: Optional[str] = Form(None),
+    ftp_host: Optional[str] = Form(None),
+    ftp_port: Optional[int] = Form(None),
+    ftp_path: Optional[str] = Form(None),
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
 ) -> StagingResponse:
@@ -181,6 +184,24 @@ async def submit_staging(
             source_file_name, source_file_type = _extract_url_metadata(
                 url, auth_enabled, username, password
             )
+
+        case ImportType.FTP:
+            if not ftp_host or not ftp_port or not ftp_path or not username or not password:
+                logger.error(
+                    "FTP host, port, path, username and password are required for FTP import type"
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail="FTP host, port, path, username and password are required for FTP import type",
+                )
+
+            # Construct FTP URL
+            source = f"ftp://{ftp_host}:{ftp_port}/{ftp_path}"
+            url = source
+            source_file_name = ftp_path.rsplit("/", 1)[-1]
+
+            # Force encrypted credentials for FTP since they are required
+            auth_enabled = True
 
         case ImportType.DATABASE | ImportType.API:
             # TODO: implement handling for DATABASE and API import types

@@ -6,4 +6,10 @@ import { ImportType } from './import-type'
 /**
  * Each possible value of `ImportType`
  */
-export const IMPORT_TYPE: ImportType[] = ['url', 'file', 'database', 'api']
+export const IMPORT_TYPE: ImportType[] = [
+  'url',
+  'file',
+  'database',
+  'api',
+  'ftp'
+]
