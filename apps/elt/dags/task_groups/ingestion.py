@@ -102,8 +102,8 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
 
             # Decrypt Basic Auth credentials if provided
             auth = None
-            basic_auth_encrypted = params.get("basic_auth_encrypted")
-            if basic_auth_encrypted:
+            encrypted_credentials = params.get("encrypted_credentials")
+            if encrypted_credentials:
                 try:
                     encryption_key = Variable.get("datakern_encryption_key", default=None)
                     if not encryption_key:
@@ -115,7 +115,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
 
                     with engine.connect() as conn:
                         username, password = decrypt_credentials(
-                            conn, basic_auth_encrypted, encryption_key
+                            conn, encrypted_credentials, encryption_key
                         )
                         auth = (username, password)
                         logger.info("Successfully decrypted Basic Auth credentials")
@@ -156,8 +156,8 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
 
             # Decrypt Ftp credentials if provided
             auth = None
-            basic_auth_encrypted = params.get("basic_auth_encrypted")
-            if basic_auth_encrypted:
+            encrypted_credentials = params.get("encrypted_credentials")
+            if encrypted_credentials:
                 try:
                     encryption_key = Variable.get("datakern_encryption_key", default=None)
                     if not encryption_key:
@@ -169,7 +169,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
 
                     with engine.connect() as conn:
                         username, password = decrypt_credentials(
-                            conn, basic_auth_encrypted, encryption_key
+                            conn, encrypted_credentials, encryption_key
                         )
                         auth = (username, password)
                         logger.info("Successfully decrypted Ftp credentials")

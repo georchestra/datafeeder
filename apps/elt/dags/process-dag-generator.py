@@ -49,7 +49,7 @@ def create_dag(config):
                 "final_table_name": config.get("final_table_name"),
                 "integrity_transformation": config.get("integrity_transformation", {}),
                 "metadata_id": config.get("metadata_id"),
-                "basic_auth_encrypted": config.get("source_password_encrypted", None),
+                "encrypted_credentials": config.get("source_password_encrypted", None),
                 "success_callback_url": f"http://example.com/success/{config['id']}",
                 "failure_callback_url": f"http://example.com/failure/{config['id']}",
             },

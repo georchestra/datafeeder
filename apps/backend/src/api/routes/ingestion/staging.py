@@ -266,7 +266,7 @@ async def submit_staging(
                     "source": str(source),
                     "source_type": type.value.upper(),
                     "staging_table_name": staging_table_name,
-                    "basic_auth_encrypted": encrypted_password if auth_enabled else None,
+                    "encrypted_credentials": encrypted_password if auth_enabled else None,
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,
                 },
