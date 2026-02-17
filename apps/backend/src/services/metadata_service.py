@@ -115,6 +115,15 @@ class MetadataService:
         if layer_urls:
             layer_name = layer_urls.get("layer_qualified_name", "")
 
+        if layer_urls and "ogcfeatures" in layer_urls:
+            ogcfeatures = layer_urls["ogcfeatures"]
+
+            resource = etree.SubElement(online_resources, "onlineResource")
+            etree.SubElement(resource, "linkage").text = ogcfeatures
+            etree.SubElement(resource, "protocol").text = "OGC API Features"
+            etree.SubElement(resource, "name").text = layer_name
+            etree.SubElement(resource, "description").text = "OGC API Features"
+
         # Build online resources from GeoServer layer URLs
         if layer_urls and "wms" in layer_urls and layer_urls["wms"]:
             wms = layer_urls["wms"]
@@ -145,15 +154,6 @@ class MetadataService:
 
             # WFS GetFeature
             # ignore GetFeature for now
-
-        if layer_urls and "ogcfeatures" in layer_urls:
-            ogcfeatures = layer_urls["ogcfeatures"]
-
-            resource = etree.SubElement(online_resources, "onlineResource")
-            etree.SubElement(resource, "linkage").text = ogcfeatures
-            etree.SubElement(resource, "protocol").text = "OGC API Features"
-            etree.SubElement(resource, "name").text = layer_name
-            etree.SubElement(resource, "description").text = "OGC API Features"
 
         # Lineage
         etree.SubElement(
