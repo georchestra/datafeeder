@@ -8,6 +8,7 @@ from src.models.data_import import (
     StatusResponse,
 )
 from src.models.integrity_link import IntegrityLink
+from src.models.integrity_link_rule import IntegrityLinkRule, RuleType, RuleValue
 from src.models.user import TokenPayload, User
 
 __all__ = [
@@ -15,6 +16,9 @@ __all__ = [
     "IntegrityLinkListItem",
     "IntegrityLinkListResponse",
     "IntegrityLinkResponse",
+    "IntegrityLinkRule",
+    "RuleType",
+    "RuleValue",
     "TokenPayload",
     "User",
     "ProcessRequest",

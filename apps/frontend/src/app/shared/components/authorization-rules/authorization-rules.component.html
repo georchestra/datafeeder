@@ -1,0 +1,27 @@
+<div class="flex flex-1 min-h-0 flex-col gap-2">
+  <app-search-input
+    class="mb-2"
+    [placeholder]="searchPlaceholder()"
+    [(value)]="searchQuery"
+    [fullWidth]="true"
+  />
+  <div class="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2">
+    @for (group of filteredGroups(); track group.id) {
+    <div
+      class="flex items-center justify-between rounded-md bg-beige px-4 py-1"
+    >
+      <span class="font-medium text-gray-2">{{ group.label }}</span>
+      <div class="w-40">
+        <gn-ui-dropdown-selector
+          [choices]="ruleChoices"
+          [selected]="getRuleValue(group)"
+          [showTitle]="false"
+          [title]="''"
+          [extraBtnClass]="'bg-secondary-hover border-transparent py-1'"
+          (selectValue)="onDropdownChange(group, $any($event))"
+        />
+      </div>
+    </div>
+    }
+  </div>
+</div>

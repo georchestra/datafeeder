@@ -316,7 +316,8 @@ describe('IntegrityLinkListComponent', () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
 
       // Trigger search
-      component.onSearchInput('test')
+      component.searchQuery.set('test')
+      fixture.detectChanges()
 
       // Wait for debounce (300ms)
       await new Promise((resolve) => setTimeout(resolve, 350))
@@ -351,7 +352,8 @@ describe('IntegrityLinkListComponent', () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
 
       // Set a search first
-      component.onSearchInput('test')
+      component.searchQuery.set('test')
+      fixture.detectChanges()
       await new Promise((resolve) => setTimeout(resolve, 350))
 
       const searchReq = httpMock.expectOne(
@@ -366,7 +368,8 @@ describe('IntegrityLinkListComponent', () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
 
       // Clear search
-      component.clearSearch()
+      component.searchQuery.set('')
+      fixture.detectChanges()
 
       expect(component.searchQuery()).toBe('')
 
@@ -401,7 +404,8 @@ describe('IntegrityLinkListComponent', () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
 
       // Set search
-      component.onSearchInput('test')
+      component.searchQuery.set('test')
+      fixture.detectChanges()
       await new Promise((resolve) => setTimeout(resolve, 350))
 
       const searchReq = httpMock.expectOne(

@@ -1,52 +1,41 @@
 import { CommonModule } from '@angular/common'
-import { Component, OnInit, inject } from '@angular/core'
+import { Component, effect, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { ActivatedRoute } from '@angular/router'
 import {
   EditorFacade,
   RecordFormComponent,
   RecordsRepositoryInterface
 } from 'geonetwork-ui'
 import { map, take, tap } from 'rxjs'
-import { Api } from '../../core/api/api'
-import { getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet } from '../../core/api/functions'
-import { IntegrityLinkResponse } from '../../core/api/models'
+import { IntegrityLinkStore } from '../../layout/integrity-link.store'
 
 @Component({
   selector: 'app-metadata',
   imports: [CommonModule, RecordFormComponent],
   templateUrl: './metadata.component.html',
-  styleUrl: './metadata.component.css'
+  styleUrl: './metadata.component.css',
+  host: { class: 'flex-1 min-h-0 flex flex-col overflow-y-auto' }
 })
-export class MetadataComponent implements OnInit {
-  private route = inject(ActivatedRoute)
-  private api = inject(Api)
+export class MetadataComponent {
   private recordsRepository = inject(RecordsRepositoryInterface)
   protected editor = inject(EditorFacade)
-
-  intlink_id: string | null = null
+  readonly store = inject(IntegrityLinkStore)
 
   isRecordLoaded = toSignal(this.editor.record$.pipe(map((record) => !!record)))
 
-  ngOnInit(): void {
-    this.intlink_id =
-      this.route.parent?.snapshot.paramMap.get('intlink_id') ?? null
-    if (this.intlink_id) {
-      this.loadMetadata(this.intlink_id)
-    }
+  constructor() {
+    effect(() => {
+      const integrityLink = this.store.integrityLink()
+      if (integrityLink) {
+        this.loadMetadata(integrityLink.metadata_id)
+      }
+    })
   }
 
-  private async loadMetadata(intlink_id: string): Promise<void> {
+  private loadMetadata(metadataId: string): void {
     try {
-      const response: IntegrityLinkResponse = await this.api.invoke(
-        getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet,
-        {
-          integrity_link_id: intlink_id
-        }
-      )
-
       this.recordsRepository
-        .openRecordForEdition(response.metadata_id)
+        .openRecordForEdition(metadataId)
         .pipe(
           take(1),
           tap(([currentRecord, currentRecordSource]) => {

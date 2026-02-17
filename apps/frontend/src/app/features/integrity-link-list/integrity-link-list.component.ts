@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core'
+import { Component, effect, inject, signal } from '@angular/core'
 import { DatePipe } from '@angular/common'
 import { Router } from '@angular/router'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
@@ -36,6 +36,9 @@ export class IntegrityLinkListComponent {
   private searchSubject = new Subject<string>()
 
   constructor() {
+    effect(() => {
+      this.searchSubject.next(this.searchQuery())
+    })
     this.searchSubject
       .pipe(
         debounceTime(DEBOUNCE_TIME),
@@ -47,16 +50,6 @@ export class IntegrityLinkListComponent {
         this.loadIntegrityLinks()
       })
     this.loadIntegrityLinks()
-  }
-
-  onSearchInput(value: string): void {
-    this.searchQuery.set(value)
-    this.searchSubject.next(value)
-  }
-
-  clearSearch(): void {
-    this.searchQuery.set('')
-    this.searchSubject.next('')
   }
 
   private async loadIntegrityLinks(append = false): Promise<void> {

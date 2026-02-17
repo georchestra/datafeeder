@@ -173,6 +173,20 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("consoleUrl", "CONSOLE_URL"),
     )
 
+    # Metadata groups (for authorization UI)
+    METADATA_FETCH_GROUPS_URL: str = "http://localhost:8080/console/internal/organizations"
+    METADATA_GROUPS_IDENTIFIER: str = "id"
+    METADATA_GROUPS_LABEL: str = "name"
+    METADATA_FETCH_GROUPS_USERNAME: str = ""
+    METADATA_FETCH_GROUPS_PASSWORD: str = ""
+
+    # Data groups (for GeoServer authorization UI)
+    DATA_FETCH_GROUPS_URL: str = "http://localhost:8080/console/internal/roles"
+    DATA_GROUPS_IDENTIFIER: str = "id"
+    DATA_GROUPS_LABEL: str = "name"
+    DATA_FETCH_GROUPS_USERNAME: str = ""
+    DATA_FETCH_GROUPS_PASSWORD: str = ""
+
     # Email Configuration
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False

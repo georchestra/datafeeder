@@ -7,23 +7,22 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface ProxyGeonetworkGeonetworkPathOptions_2$Params {
-  path: string
-}
+import { GroupItem } from '../../models/group-item'
 
-export function proxyGeonetworkGeonetworkPathOptions_2(
+export interface ListGroupsMetadataGroupsGet$Params {}
+
+export function listGroupsMetadataGroupsGet(
   http: HttpClient,
   rootUrl: string,
-  params: ProxyGeonetworkGeonetworkPathOptions_2$Params,
+  params?: ListGroupsMetadataGroupsGet$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<any>> {
+): Observable<StrictHttpResponse<Array<GroupItem>>> {
   const rb = new requestBuilders(
     rootUrl,
-    proxyGeonetworkGeonetworkPathOptions_2.PATH,
-    'post'
+    listGroupsMetadataGroupsGet.PATH,
+    'get'
   )
   if (params) {
-    rb.path('path', params.path, {})
   }
 
   return http
@@ -33,9 +32,9 @@ export function proxyGeonetworkGeonetworkPathOptions_2(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<any>
+        return r as StrictHttpResponse<Array<GroupItem>>
       })
     )
 }
 
-proxyGeonetworkGeonetworkPathOptions_2.PATH = '/geonetwork/{path}'
+listGroupsMetadataGroupsGet.PATH = '/metadata/groups/'
