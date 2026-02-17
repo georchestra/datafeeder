@@ -7,23 +7,18 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface ProxyGeonetworkGeonetworkPathPatch_5$Params {
-  path: string
-}
+import { GroupItem } from '../../models/group-item'
 
-export function proxyGeonetworkGeonetworkPathPatch_5(
+export interface ListGroupsDataGroupsGet$Params {}
+
+export function listGroupsDataGroupsGet(
   http: HttpClient,
   rootUrl: string,
-  params: ProxyGeonetworkGeonetworkPathPatch_5$Params,
+  params?: ListGroupsDataGroupsGet$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<any>> {
-  const rb = new requestBuilders(
-    rootUrl,
-    proxyGeonetworkGeonetworkPathPatch_5.PATH,
-    'patch'
-  )
+): Observable<StrictHttpResponse<Array<GroupItem>>> {
+  const rb = new requestBuilders(rootUrl, listGroupsDataGroupsGet.PATH, 'get')
   if (params) {
-    rb.path('path', params.path, {})
   }
 
   return http
@@ -33,9 +28,9 @@ export function proxyGeonetworkGeonetworkPathPatch_5(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<any>
+        return r as StrictHttpResponse<Array<GroupItem>>
       })
     )
 }
 
-proxyGeonetworkGeonetworkPathPatch_5.PATH = '/geonetwork/{path}'
+listGroupsDataGroupsGet.PATH = '/data/groups/'

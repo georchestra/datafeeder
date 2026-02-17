@@ -59,3 +59,7 @@ CREATE TABLE IF NOT EXISTS datakern.integrity_link_rules(
     group_or_role varchar(255) NOT NULL
 );
 
+ALTER TABLE datakern.integrity_link_rules
+    ADD CONSTRAINT uq_integrity_link_rules_link_type_group
+    UNIQUE (integrity_link_id, rule_type, group_or_role);
+

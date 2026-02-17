@@ -1,22 +1,19 @@
 import { CommonModule } from '@angular/common'
 import { Component, OnInit, inject, signal } from '@angular/core'
-import { ActivatedRoute } from '@angular/router'
 import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../../core/api/api'
 import { getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet } from '../../core/api/fn/airflow/get-dag-run-logs-airflow-dags-dag-id-runs-dag-run-id-logs-get'
-import { DagRunState, IntegrityLinkResponse } from '../../core/api/models'
+import { DagRunState } from '../../core/api/models'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
 import { DagRunResponse } from '../../core/api/models/dag-run-response'
+import { IntegrityLinkStore } from '../../layout/integrity-link.store'
 import { EventType } from '../../shared/components/event-type-badge/event-type-badge.component'
 import {
   Event,
   EventsListComponent
 } from '../../shared/components/events-list/events-list.component'
 import { downloadTextBlob } from '../../shared/utils/download.util'
-import {
-  getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
-  getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet
-} from '../../core/api/functions'
+import { getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet } from '../../core/api/functions'
 
 const DAG_RUNGS_PAGE_SIZE = 20
 
@@ -27,20 +24,16 @@ const DAG_RUNGS_PAGE_SIZE = 20
   styleUrl: './events.component.css'
 })
 export class EventsComponent implements OnInit {
-  private route = inject(ActivatedRoute)
   private api = inject(Api)
+  readonly store = inject(IntegrityLinkStore)
 
-  intlink_id: string | null = null
+  intlink_id = this.store.intlinkId()
   events = signal<Event[]>([])
   downloadingEventId = signal<string | null>(null)
-  integrity_link = signal<IntegrityLinkResponse | null>(null)
 
   ngOnInit(): void {
-    this.intlink_id =
-      this.route.parent?.snapshot.paramMap.get('intlink_id') ?? null
     if (this.intlink_id) {
       this.loadDagRuns(this.intlink_id)
-      this.loadIntegrityLink(this.intlink_id)
     }
   }
 
@@ -111,15 +104,5 @@ export class EventsComponent implements OnInit {
     } catch (error) {
       console.error('Failed to fetch event logs:', error)
     }
-  }
-
-  private async loadIntegrityLink(integrityLinkId: string): Promise<void> {
-    const metadata = await this.api.invoke(
-      getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet,
-      {
-        integrity_link_id: integrityLinkId
-      }
-    )
-    this.integrity_link.update(() => metadata)
   }
 }
