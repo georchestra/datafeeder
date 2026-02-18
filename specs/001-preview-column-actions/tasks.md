@@ -20,6 +20,7 @@
 - Git commit after each phase with a descriptive message
 - Pause for manual review after each phase
 - Remove all speckit implementation comments at the end
+- Use skills if needed (.agents/skills)
 
 ---
 
