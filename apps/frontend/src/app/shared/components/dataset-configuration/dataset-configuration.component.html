@@ -27,7 +27,7 @@
           [title]="''"
           [showTitle]="false"
           [choices]="columns()"
-          [selected]="selectedXCol()"
+          [selected]="selectedXCol() ?? ''"
           (selectValue)="selectXCol($any($event))"
         ></gn-ui-dropdown-selector>
       </div>
@@ -48,7 +48,7 @@
           [title]="''"
           [showTitle]="false"
           [choices]="columns()"
-          [selected]="selectedYCol()"
+          [selected]="selectedYCol() ?? ''"
           (selectValue)="selectYCol($any($event))"
         ></gn-ui-dropdown-selector>
       </div>

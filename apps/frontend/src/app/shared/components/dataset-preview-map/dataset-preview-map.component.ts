@@ -1,4 +1,4 @@
-import { Component, effect, input, signal } from '@angular/core'
+import { Component, effect, input, model, signal } from '@angular/core'
 import { MapContainerComponent } from 'geonetwork-ui'
 import type { MapContext, MapContextLayerGeojson } from '@geospatial-sdk/core'
 import { createViewFromLayer } from '@geospatial-sdk/core'
@@ -13,12 +13,14 @@ import type { FeatureCollection } from 'geojson'
 export class DatasetPreviewMapComponent {
   geojson = input<FeatureCollection | null>(null)
   mapContext = signal<MapContext | null>(null)
+  hasExtentError = model<boolean>(false)
 
   constructor() {
     effect(() => {
       const data = this.geojson()
       if (!data?.features?.length) {
         this.mapContext.set(null)
+        this.hasExtentError.set(false)
         return
       }
       this.buildMapContext(data)
@@ -44,6 +46,7 @@ export class DatasetPreviewMapComponent {
 
   private validateExtent(view: any): any {
     if (!view?.extent) {
+      this.hasExtentError.set(false)
       return view
     }
 
@@ -62,6 +65,7 @@ export class DatasetPreviewMapComponent {
       minY < maxY
 
     if (!isValidExtent) {
+      this.hasExtentError.set(true)
       const viewWithoutExtent = { ...view }
       delete viewWithoutExtent.extent
       return Object.keys(viewWithoutExtent).length > 0
@@ -69,6 +73,7 @@ export class DatasetPreviewMapComponent {
         : null
     }
 
+    this.hasExtentError.set(false)
     return view
   }
 }

@@ -56,6 +56,7 @@ import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-previ
 import { AlertBoxComponent } from '../alert-box/alert-box.component'
 
 marker('import.dataSource.error')
+marker('import.dataSource.error.extent')
 marker('i18nerror.transformation.geometry_creation_failed')
 marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
@@ -120,12 +121,14 @@ export class DataImportWizardComponent implements OnInit {
   metadata = signal<StagingMetadataResponse | null>(null)
   preview = signal<StagingPreviewResponse | null>(null)
   previewError = signal<string | null>(null)
+  previewErrorExtent = signal<string | null>(null)
   previewLoading = signal<boolean>(false)
   dagRunInfo = signal<{ dag_id: string; dag_run_id: string } | null>(null)
   integrityLinkId = signal<string | null>(null)
   processing = signal(false)
   validationError = signal<string | null>(null)
   previewTabIndex = signal(0)
+  hasExtentError = signal(false)
 
   isGeographicData = computed(() => {
     const preview = this.preview()
@@ -175,6 +178,16 @@ export class DataImportWizardComponent implements OnInit {
           queryParams: { linkId: null },
           queryParamsHandling: 'merge'
         })
+      }
+    })
+
+    effect(() => {
+      if (this.hasExtentError()) {
+        this.previewErrorExtent.set(
+          this.translate.instant('import.dataSource.error.extent')
+        )
+      } else {
+        this.previewErrorExtent.set(null)
       }
     })
   }
