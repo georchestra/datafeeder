@@ -8,6 +8,7 @@ from airflow.sdk import Variable, task, task_group
 from data_manipulation.encryption import decrypt_credentials
 from data_manipulation.ingestion import (
     ingest_data_from_file_into_postgis,
+    ingest_data_from_ftp_into_postgis,
     ingest_data_from_url_into_postgis,
 )
 from data_manipulation.logging import configure_logging
@@ -46,6 +47,8 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                     return f"{group_id}.file_ingest_step"
                 case "URL":
                     return f"{group_id}.url_ingest_step"
+                case "FTP":
+                    return f"{group_id}.ftp_ingest_step"
                 case _:
                     raise AirflowException(f"Unsupported source_type: {source_type}")
 
@@ -99,8 +102,8 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
 
             # Decrypt Basic Auth credentials if provided
             auth = None
-            basic_auth_encrypted = params.get("basic_auth_encrypted")
-            if basic_auth_encrypted:
+            encrypted_credentials = params.get("encrypted_credentials")
+            if encrypted_credentials:
                 try:
                     encryption_key = Variable.get("datakern_encryption_key", default=None)
                     if not encryption_key:
@@ -112,7 +115,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
 
                     with engine.connect() as conn:
                         username, password = decrypt_credentials(
-                            conn, basic_auth_encrypted, encryption_key
+                            conn, encrypted_credentials, encryption_key
                         )
                         auth = (username, password)
                         logger.info("Successfully decrypted Basic Auth credentials")
@@ -133,6 +136,57 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from URL: {e}")
 
-        do_branching() >> [file_ingest_step(), url_ingest_step()]
+        @task(task_id="ftp_ingest_step")
+        def ftp_ingest_step(**context: dict[str, Any]) -> None:
+            params = context.get("params", {})
+            ti = context.get("ti")
+
+            # Try to get staging_table_name from params first (staging_dag case)
+            target_table_name = params.get("staging_table_name")
+
+            # If not in params, try XCom from generate_staging_table_name (process_dag scheduled case)
+            if not target_table_name and ti:
+                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
+                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
+            else:
+                logger.info(f"Using staging_table_name from params: {target_table_name}")
+
+            if not target_table_name:
+                raise AirflowException("staging_table_name is not provided")
+
+            # Decrypt Ftp credentials if provided
+            auth = None
+            encrypted_credentials = params.get("encrypted_credentials")
+            if encrypted_credentials:
+                try:
+                    encryption_key = Variable.get("datakern_encryption_key", default=None)
+                    if not encryption_key:
+                        raise AirflowException(
+                            "Encryption key not found in Airflow Variables under 'datakern_encryption_key'"
+                        )
+
+                    engine = get_datakern_sql_engine()
+
+                    with engine.connect() as conn:
+                        username, password = decrypt_credentials(
+                            conn, encrypted_credentials, encryption_key
+                        )
+                        auth = (username, password)
+                        logger.info("Successfully decrypted Ftp credentials")
+                except Exception as e:
+                    logger.error(f"Failed to decrypt Ftp credentials: {e}")
+                    raise AirflowException(f"Failed to decrypt credentials: {e}")
+
+            try:
+                engine = get_data_sql_engine()
+                schema = get_staging_schema()
+
+                ingest_data_from_ftp_into_postgis(
+                    params.get("source", ""), target_table_name, engine, schema, auth
+                )
+            except Exception as e:
+                raise AirflowException(f"Failed to ingest data from FTP: {e}")
+
+        do_branching() >> [file_ingest_step(), ftp_ingest_step(), url_ingest_step()]
 
     return _ingestion_impl

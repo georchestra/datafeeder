@@ -194,6 +194,8 @@
   "input.image.delete": "",
   "input.image.displayAltTextInput": "",
   "input.image.displayUrlInput": "",
+  "input.password.hide": "",
+  "input.password.show": "",
   "integrityLinks.creation": "",
   "integrityLinks.dashboard": "",
   "integrityLinks.emptyList": "",

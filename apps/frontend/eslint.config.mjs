@@ -25,6 +25,8 @@ export default tseslint.config(
         URL: 'readonly',
         FileReader: 'readonly',
         navigator: 'readonly',
+        Event: 'readonly',
+        HTMLInputElement: 'readonly',
       },
     },
     rules: {

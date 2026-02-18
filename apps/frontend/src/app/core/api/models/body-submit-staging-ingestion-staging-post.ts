@@ -5,6 +5,9 @@ import { ImportType } from '../models/import-type'
 export interface BodySubmitStagingIngestionStagingPost {
   auth_enabled?: boolean
   file?: Blob | null
+  ftp_host?: string | null
+  ftp_path?: string | null
+  ftp_port?: number | null
   password?: string | null
   type: ImportType
   url?: string | null

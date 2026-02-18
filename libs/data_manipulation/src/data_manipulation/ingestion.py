@@ -1,7 +1,9 @@
 import logging
 import tempfile
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.error import URLError
+from urllib.parse import quote, unquote, urlparse
+from urllib.request import urlretrieve
 
 import chardet
 import geopandas as gpd
@@ -104,6 +106,89 @@ def ingest_data_from_file_into_postgis(
         raise
 
 
+def ingest_data_from_ftp_into_postgis(
+    url: str,
+    table_name: str,
+    engine: Engine,
+    schema: str = DEFAULT_SCHEMA,
+    auth: tuple[str, str] | None = None,
+) -> None:
+    """Ingest data from an FTP URL into a PostGIS table.
+
+    Args:
+        url: FTP URL to download data from
+        table_name: Target table name in PostGIS
+        engine: SQLAlchemy engine
+        schema: Target schema (default: public)
+        auth: Optional tuple of (username, password) for FTP authentication
+    """
+    logger.info(f"Ingesting data from FTP {url} into table {table_name}")
+
+    parsed_url = urlparse(url)
+
+    # Build FTP URL with credentials if provided
+    if auth:
+        username, password = auth
+
+        # URL-encode username and password to handle special characters
+        encoded_username = quote(username, safe="")
+        encoded_password = quote(password, safe="")
+
+        # Reconstruct URL with credentials
+        netloc_with_auth = f"{encoded_username}:{encoded_password}@{parsed_url.netloc}"
+        ftp_url_with_auth = f"{parsed_url.scheme}://{netloc_with_auth}{parsed_url.path}"
+    else:
+        ftp_url_with_auth = url
+
+    # --------
+    # WARNING: don't log ftp_url_with_auth as it may contain sensitive credentials
+    # --------
+
+    # Extract filename from path
+    filename = Path(parsed_url.path).name
+
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_file_path = Path(temp_dir) / filename
+
+            # Download FTP file using urlretrieve
+            urlretrieve(ftp_url_with_auth, temp_file_path)
+
+            data = _read_file_encoded(str(temp_file_path))
+            write_data_to_postgis(data, table_name, engine, schema)
+
+    # TODO: handle error for frontend
+    except URLError as e:
+        # --------
+        # WARNING: don't log ftp_url_with_auth as it may contain sensitive credentials
+        # --------
+
+        # Handle FTP-specific errors
+        error_msg = str(e.reason) if hasattr(e, "reason") else str(e)
+
+        if "530" in error_msg or "Login incorrect" in error_msg:
+            logger.error(f"FTP authentication failed for {url}: {error_msg}")
+            raise Exception("FTP authentication failed: Invalid username or password")
+        elif "550" in error_msg or "No such file" in error_msg:
+            logger.error(f"FTP file not found: {url}")
+            raise Exception(f"FTP file not found: {parsed_url.path}")
+        elif "timed out" in error_msg.lower() or "timeout" in error_msg.lower():
+            logger.error(f"FTP connection timeout for {url}: {error_msg}")
+            raise Exception(f"FTP connection timeout: Unable to reach server {parsed_url.netloc}")
+        elif "Connection refused" in error_msg:
+            logger.error(f"FTP connection refused for {url}: {error_msg}")
+            raise Exception(f"FTP connection refused: Server {parsed_url.netloc} is not accessible")
+        else:
+            logger.error(f"FTP error for {url}: {error_msg}")
+            raise Exception(f"FTP error: {error_msg}")
+    except OSError as e:
+        logger.error(f"Network error while accessing FTP {url}: {e}")
+        raise Exception(f"Network error: Unable to connect to FTP server {parsed_url.netloc}")
+    except Exception as e:
+        logger.error(f"Error ingesting data from FTP {url}: {e}")
+        raise
+
+
 def ingest_data_from_url_into_postgis(
     url: str,
     table_name: str,
@@ -114,40 +199,48 @@ def ingest_data_from_url_into_postgis(
     """Ingest data from a URL into a PostGIS table.
 
     Args:
-        url: URL to download data from
+        url: URL to download data from (supports HTTP, HTTPS, and FTP)
         table_name: Target table name in PostGIS
         engine: SQLAlchemy engine
         schema: Target schema (default: public)
-        auth: Optional tuple of (username, password) for HTTP Basic Authentication
+        auth: Optional tuple of (username, password) for HTTP Basic Authentication or FTP
     """
     try:
         # Download file first (GeoPandas doesn't support Basic Auth natively + better handle file types)
         logger.info(f"Ingesting data from url {url} into table {table_name}")
 
-        resolved_url = resolve_url(url)
-        response = requests.get(resolved_url, auth=auth, timeout=300)
-        response.raise_for_status()
+        parsed_url = urlparse(url)
 
-        content_disposition = response.headers.get("Content-Disposition")
-        filename = None
+        # Handle FTP URLs separately
+        if parsed_url.scheme == "ftp":
+            ingest_data_from_ftp_into_postgis(url, table_name, engine, schema, auth)
+        else:
+            # Use requests for HTTP/HTTPS URLs
+            resolved_url = resolve_url(url)
+            response = requests.get(resolved_url, auth=auth, timeout=300)
+            response.raise_for_status()
+            content = response.content
 
-        if content_disposition:
-            # e.g. 'attachment; filename="report.csv"'
-            for part in content_disposition.split(";"):
-                part = part.strip()
-                if part.startswith("filename="):
-                    filename = part.split("=", 1)[1].strip('"')
-                    filename = unquote(filename)
+            content_disposition = response.headers.get("Content-Disposition")
+            filename = None
 
-            logger.info(f"Extracted filename from Content-Disposition: {filename}")
+            if content_disposition:
+                # e.g. 'attachment; filename="report.csv"'
+                for part in content_disposition.split(";"):
+                    part = part.strip()
+                    if part.startswith("filename="):
+                        filename = part.split("=", 1)[1].strip('"')
+                        filename = unquote(filename)
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_file_path = Path(temp_dir) / (filename or Path(resolved_url).name)
-            with open(temp_file_path, "wb") as temp_file:
-                temp_file.write(response.content)
+                logger.info(f"Extracted filename from Content-Disposition: {filename}")
 
-            data = _read_file_encoded(str(temp_file_path))
-            write_data_to_postgis(data, table_name, engine, schema)
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_file_path = Path(temp_dir) / (filename or Path(resolved_url).name)
+                with open(temp_file_path, "wb") as temp_file:
+                    temp_file.write(content)
+
+                data = _read_file_encoded(str(temp_file_path))
+                write_data_to_postgis(data, table_name, engine, schema)
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
         raise

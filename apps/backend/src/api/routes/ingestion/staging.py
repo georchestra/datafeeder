@@ -55,6 +55,34 @@ def _generate_staging_table_name() -> str:
     return sanitize_name(str(uuid4()))
 
 
+def _extract_filetype(filename: str) -> FileType | None:
+    """Extract file type from filename extension.
+
+    Args:
+        filename: The filename or path to extract the type from
+
+    Returns:
+        The FileType enum value or None if extension is not recognized
+    """
+    if not filename:
+        return None
+
+    # Extract extension and convert to lowercase
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    # Map extensions to FileType
+    extension_map = {
+        "csv": FileType.CSV,
+        "geojson": FileType.GEOJSON,
+        "json": FileType.JSON,
+        "shp": FileType.SHAPEFILE,
+        "gpkg": FileType.GPKG,
+        "zip": FileType.ZIP,
+    }
+
+    return extension_map.get(extension)
+
+
 def _extract_url_metadata(
     url: str, auth_enabled: bool = False, username: str | None = None, password: str | None = None
 ) -> tuple[str | None, FileType | None]:
@@ -139,6 +167,9 @@ async def submit_staging(
     auth_enabled: bool = Form(False),
     username: Optional[str] = Form(None),
     password: Optional[str] = Form(None),
+    ftp_host: Optional[str] = Form(None),
+    ftp_port: Optional[int] = Form(None),
+    ftp_path: Optional[str] = Form(None),
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
 ) -> StagingResponse:
@@ -159,6 +190,10 @@ async def submit_staging(
     source = None
     source_file_name = None
     source_file_type = None
+
+    url = url.strip() if url else None
+    username = username.strip() if username else None
+    password = password.strip() if password else None
 
     # Extract source, source_file_name, and source_file_type according to import type
     match type:
@@ -181,6 +216,28 @@ async def submit_staging(
             source_file_name, source_file_type = _extract_url_metadata(
                 url, auth_enabled, username, password
             )
+
+        case ImportType.FTP:
+            ftp_host = ftp_host.strip() if ftp_host else None
+            ftp_path = ftp_path.strip() if ftp_path else None
+
+            if not ftp_host or not ftp_port or not ftp_path or not username or not password:
+                logger.error(
+                    "FTP host, port, path, username and password are required for FTP import type"
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail="FTP host, port, path, username and password are required for FTP import type",
+                )
+
+            # Construct FTP URL
+            source = f"ftp://{ftp_host}:{ftp_port}/{ftp_path}"
+            url = source
+            source_file_name = ftp_path.rsplit("/", 1)[-1]
+            source_file_type = _extract_filetype(source_file_name)
+
+            # Force encrypted credentials for FTP since they are required
+            auth_enabled = True
 
         case ImportType.DATABASE | ImportType.API:
             # TODO: implement handling for DATABASE and API import types
@@ -210,7 +267,6 @@ async def submit_staging(
         source_file_type=source_file_type,
         source_username=username if auth_enabled else None,
         source_password_encrypted=encrypted_password if auth_enabled else None,
-        source_auth_enabled=auth_enabled,
         staging_table_name=staging_table_name,
     )
     session.add(integrity_link)
@@ -245,7 +301,7 @@ async def submit_staging(
                     "source": str(source),
                     "source_type": type.value.upper(),
                     "staging_table_name": staging_table_name,
-                    "basic_auth_encrypted": encrypted_password if auth_enabled else None,
+                    "encrypted_credentials": encrypted_password if auth_enabled else None,
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,
                 },

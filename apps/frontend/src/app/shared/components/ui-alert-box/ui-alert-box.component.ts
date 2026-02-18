@@ -12,10 +12,10 @@ import { ButtonComponent } from 'geonetwork-ui'
 export type AlertType = 'error' | 'warning' | 'info' | 'success'
 
 @Component({
-  selector: 'app-alert-box',
+  selector: 'app-ui-alert-box',
   imports: [NgClass, NgIconComponent, ButtonComponent],
-  templateUrl: './alert-box.component.html',
-  styleUrls: ['./alert-box.component.scss'],
+  templateUrl: './ui-alert-box.component.html',
+  styleUrls: ['./ui-alert-box.component.scss'],
   providers: [
     provideIcons({
       iconoirWarningTriangle,
@@ -25,7 +25,7 @@ export type AlertType = 'error' | 'warning' | 'info' | 'success'
     })
   ]
 })
-export class AlertBoxComponent {
+export class UiAlertBoxComponent {
   type = input<AlertType>('error')
   title = input<string>('')
   message = input<string>('')
@@ -49,6 +49,16 @@ export class AlertBoxComponent {
       warning: 'bg-orange-200 border-red-600',
       info: 'bg-blue-50 border-blue-600',
       success: 'bg-green-50 border-green-600'
+    }
+    return classes[this.type()]
+  }
+
+  get iconClasses(): string {
+    const classes: Record<AlertType, string> = {
+      error: 'text-red-600',
+      warning: 'text-red-600',
+      info: 'text-blue-600',
+      success: 'text-green-600'
     }
     return classes[this.type()]
   }

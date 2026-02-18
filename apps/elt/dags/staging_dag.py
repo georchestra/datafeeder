@@ -45,8 +45,8 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
         "source_type": Param(
             default="FILE",
             type="string",
-            enum=["URL", "FILE"],
-            description="FTP, URL, OGC WFS, FILE",
+            enum=["FILE", "URL", "FTP", "DATABASE", "API"],
+            description="FTP, URL, OGC WFS, FILE, DATABASE, API",
         ),
         "staging_table_name": Param(
             default="my_table",
@@ -66,10 +66,10 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             description="URL to call on failure",
             minLength=1,
         ),
-        "basic_auth_encrypted": Param(
+        "encrypted_credentials": Param(
             default=None,
             type=["null", "string"],
-            description="Encrypted Basic Auth credentials (base64-encoded pgp_sym_encrypt result)",
+            description="Encrypted credentials (base64-encoded pgp_sym_encrypt result)",
         ),
     },
     on_success_callback=_dag_success_callback,

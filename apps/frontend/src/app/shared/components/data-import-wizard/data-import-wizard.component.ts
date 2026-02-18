@@ -53,7 +53,7 @@ import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
-import { AlertBoxComponent } from '../alert-box/alert-box.component'
+import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 
 marker('import.dataSource.error')
 marker('import.dataSource.error.extent')
@@ -91,7 +91,7 @@ export interface ImportWizardData {
     TranslatePipe,
     DatasetPreviewTableComponent,
     DatasetPreviewMapComponent,
-    AlertBoxComponent
+    UiAlertBoxComponent
   ],
   templateUrl: './data-import-wizard.component.html',
   styleUrls: ['./data-import-wizard.component.scss'],
@@ -192,8 +192,25 @@ export class DataImportWizardComponent implements OnInit {
     })
   }
 
+  validFtp(source: SourceData): boolean {
+    return (
+      !!source.ftpHost &&
+      !!source.ftpPort &&
+      !!source.ftpPath &&
+      !!source.username &&
+      !!source.password
+    )
+  }
+
   validSource = computed(() => {
-    return this.importData()?.source.file || this.importData()?.source.url
+    const source = this.importData()?.source
+    if (!source) return false
+
+    return (
+      (source.type === 'file' && !!source.file) ||
+      (source.type === 'url' && !!source.url) ||
+      (source.type === 'ftp' && this.validFtp(source))
+    )
   })
 
   async onConfigChanged(config: {
@@ -300,9 +317,24 @@ export class DataImportWizardComponent implements OnInit {
         body: {
           type: 'url',
           url: source.url,
-          username: source.authEnabled ? source.username : null,
-          password: source.authEnabled ? source.password : null,
+          username: source.authEnabled ? source.username.trim() : null,
+          password: source.authEnabled ? source.password.trim() : null,
           auth_enabled: source.authEnabled
+        }
+      })
+    } else if (source.type === 'ftp') {
+      if (!this.validFtp(source)) {
+        throw new Error(this.translate.instant('import.dataSource.missingUrl'))
+      }
+
+      return await this.api.invoke(submitStagingIngestionStagingPost, {
+        body: {
+          type: 'ftp',
+          ftp_host: source.ftpHost.trim(),
+          ftp_port: source.ftpPort,
+          ftp_path: source.ftpPath.trim(),
+          username: source.username.trim(),
+          password: source.password.trim()
         }
       })
     }
