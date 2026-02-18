@@ -117,17 +117,19 @@ class ColumnConfig(BaseModel):
 
 ---
 
-## R7: Raw Preview Fallback for Error Recovery
+## R7: Raw Preview Fallback for Error Recovery (FR-019 Clarification)
 
-**Decision**: Add `raw: bool = Query(False)` parameter to GET preview. When `raw=true`, skip all transformations and return the original staging data. When `raw=false` (default), read saved config from DB and apply transformations.
+**Decision**: Add `raw: bool = Query(False)` parameter to GET preview. When `raw=true`, skip all transformations and return the original staging data. When `raw=false` (default), read saved config from DB and apply transformations. **FR-019 is implemented as raw data fallback** (not a revert to previous config state).
 
-**Rationale**: If the user's configuration breaks the preview (wrong projection, invalid type cast, etc.), the frontend needs a way to still display the original data alongside error messages so the user can debug their configuration. This is explicitly described in the user prompt as "critical".
+**Rationale**: If the user's configuration breaks the preview (wrong projection, invalid type cast, etc.), the frontend shows the raw (untransformed) staging data as fallback. This is simpler and more reliable than caching the previous successful preview state, because the PUT has already persisted the new config. The raw fallback allows the user to see the original data and fix their configuration.
 
 **Error handling flow**:
 1. Frontend calls GET preview (default `raw=false`)
 2. If backend returns error (500), frontend calls GET preview with `raw=true`
 3. Frontend displays raw data + error message from failed transformed preview
 4. User can fix configuration and retry
+
+**Note on FR-019**: The spec says "revenir à l'état précédant la requête" — interpreted as showing raw data (the baseline before any transformations) rather than caching the previous transformed preview. The PUT has already persisted the new config, so a true "revert" would require either rolling back the PUT or caching the previous response. The raw fallback approach is simpler and provides a consistent recovery path.
 
 ---
 

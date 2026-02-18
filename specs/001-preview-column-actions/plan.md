@@ -40,7 +40,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 ## Constitution Check (Post-Design)
 
-- [x] **API-First**: Contracts defined in `contracts/staging-api.yaml`. PUT metadata accepts `StagingMetadata` with extended `ColumnConfig`. GET preview uses `raw` query param.
+- [x] **API-First**: Contracts defined in `contracts/staging-api.yaml`. PUT metadata accepts `StagingMetadata` with extended `ColumnConfig`; backend builds `TransformationConfiguration` from it for persistence. GET preview uses `raw` query param. PUT returns clear error messages for column name validation (empty/duplicate) displayed via `alert-box-component`.
 - [x] **Shared Libraries**: `apply_transformations` extended with column actions in `data_manipulation`. Both preview and process DAG share the same code path.
 - [x] **Architecture Structure**: Backend follows API → Models/Core layering. No new service layer needed — transformation logic is in `data_manipulation`. Frontend follows shared/components pattern.
 - [x] **Angular Architecture**: 3 new presentational components (ColumnHeader, ColumnActionMenu, ColumnFilterForm). All ≤200 lines. OnPush change detection. Signals for state.

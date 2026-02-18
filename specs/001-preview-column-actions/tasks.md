@@ -39,7 +39,7 @@
 
 - [ ] T002 Extend transformation models with `FilterOperator`, `CastType`, `ColumnFilter` enums/models and update `ColumnConfig` with `original_name`, `new_name`, `excluded`, `cast_type`, `filter` fields in `libs/data_manipulation/src/data_manipulation/models.py`
 - [ ] T003 Update public exports to include `FilterOperator`, `CastType`, `ColumnFilter` in `libs/data_manipulation/src/data_manipulation/__init__.py`
-- [ ] T004 Create column transformation functions (`apply_column_filters`, `exclude_columns`, `rename_columns`, `cast_column_types`) in `libs/data_manipulation/src/data_manipulation/transformation/transform_columns.py`
+- [ ] T004 Create column transformation functions (`apply_column_filters`, `exclude_columns`, `rename_columns`, `cast_column_types`) in `libs/data_manipulation/src/data_manipulation/transformation/transform_columns.py`. All filter comparisons operate on the string representation of column values (`df[col].astype(str)`)
 - [ ] T005 Update `apply_transformations` to call column action functions (filter → exclude → rename → cast) before projection in `libs/data_manipulation/src/data_manipulation/transformation/transform.py`
 - [ ] T006 [P] Write unit tests for `apply_column_filters` (exactly, contains, starts_with operators; cumulative filters across columns; no matching rows returns empty; filter on excluded column ignored) in `libs/data_manipulation/tests/test_column_actions.py`
 - [ ] T007 [P] Write unit tests for `exclude_columns`, `rename_columns`, `cast_column_types` (exclude drops columns; rename changes column names; cast converts types boolean/numeric/text/date; invalid cast raises error) in `libs/data_manipulation/tests/test_column_actions.py`
@@ -57,12 +57,12 @@
 
 - [ ] T009 Update backend Pydantic models: replace `ColumnMetadata` with extended `ColumnConfig` (matching data_manipulation schema), add `FilterOperator`, `CastType`, `ColumnFilter` models, update `StagingMetadata` to use new `ColumnConfig` in `apps/backend/src/models/data_import.py`
 - [ ] T010 Add explicit Pydantic model type annotation for `integrity_transformation` field documentation in `apps/backend/src/models/integrity_link.py`
-- [ ] T011 Refactor PUT metadata endpoint to persist full transformation configuration (columns with rename/exclude/cast/filter + force_projection) to `integrity_link.integrity_transformation` on each call in `apps/backend/src/api/routes/ingestion/staging.py`
+- [ ] T011 Refactor PUT metadata endpoint to persist full transformation configuration (columns with rename/exclude/cast/filter + force_projection) to `integrity_link.integrity_transformation` on each call. Build a `TransformationConfiguration` from the `StagingMetadata` request body fields and serialize it to the DB. Return a clear error message (suitable for frontend alert-box display) when column name validation fails (empty or duplicate names) in `apps/backend/src/api/routes/ingestion/staging.py`
 - [ ] T012 Refactor GET preview endpoint: remove `projection`, `x_column`, `y_column` query parameters; add `raw: bool = Query(False)` parameter; when `raw=false` read saved config from DB and apply transformations, when `raw=true` return original staging data in `apps/backend/src/api/routes/ingestion/staging.py`
 - [ ] T013 Update GET metadata endpoint to include saved column configurations from `integrity_transformation` in the response in `apps/backend/src/api/routes/ingestion/staging.py`
 - [ ] T014 Regenerate frontend API client by running `npm run generate-api` in `apps/frontend/` after downloading updated `openapi.json` from backend
 
-**Checkpoint**: Backend endpoints work with new schema. `uv run pytest apps/backend/tests/` passes. Frontend API client regenerated. Manual test: PUT metadata with column config → GET preview returns transformed data; GET preview with `raw=true` returns original data.
+**Checkpoint**: Backend endpoints work with new schema. Frontend API client regenerated. Manual test: PUT metadata with column config → GET preview returns transformed data; GET preview with `raw=true` returns original data. PUT with empty/duplicate column name returns clear error message.
 
 ---
 
@@ -102,10 +102,10 @@
 
 ### Implementation for US1
 
-- [ ] T024 [US1] Add inline editable name input (text field visible by default) to `ColumnHeaderComponent` with name validation (empty, duplicate) in `apps/frontend/src/app/shared/components/column-header/column-header.component.ts`
-- [ ] T025 [US1] Implement rename debounce (400ms via `debounceTime`) and wire rename events to column config update → PUT metadata → GET preview in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`
+- [ ] T024 [US1] Add inline editable name input (text field visible by default) to `ColumnHeaderComponent` with name validation (empty, duplicate). Display validation errors using `alert-box-component` (same pattern as other validation errors in the wizard) in `apps/frontend/src/app/shared/components/column-header/column-header.component.ts`
+- [ ] T025 [US1] Implement rename debounce (400ms via `debounceTime`) and wire rename events to column config update → PUT metadata → GET preview. On PUT error (e.g. duplicate/empty name), display the backend error message in the alert-box in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`
 
-**Checkpoint**: Column names are editable inline. Debounced rename triggers preview refresh. Empty/duplicate names are rejected with validation feedback.
+**Checkpoint**: Column names are editable inline. Debounced rename triggers preview refresh. Empty/duplicate names are rejected with alert-box error message from backend.
 
 ---
 
@@ -122,7 +122,7 @@
 
 ### Implementation for US2
 
-- [ ] T028 [US2] Add "remove" action handler to `ColumnActionMenuComponent` and implement greyed-out column state (Tailwind `opacity-50` + `pointer-events-none` on data cells) in `apps/frontend/src/app/shared/components/dataset-preview-table/dataset-preview-table.component.ts`
+- [ ] T028 [US2] Add "remove" action handler to `ColumnActionMenuComponent` and implement greyed-out column state (Tailwind `opacity-50` + `pointer-events-none` on data cells). Handle edge case where all columns are excluded: display a warning message in the preview area (FR edge case EC3) in `apps/frontend/src/app/shared/components/dataset-preview-table/dataset-preview-table.component.ts`
 - [ ] T029 [US2] Implement restore icon replacing action button when column is excluded, disable inline name editing for excluded columns in `apps/frontend/src/app/shared/components/column-header/column-header.component.ts`
 - [ ] T030 [US2] Wire remove/restore events to column config update (`excluded: true/false`) → PUT metadata → GET preview in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`
 

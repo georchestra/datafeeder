@@ -186,15 +186,6 @@ components:
           nullable: true
           description: Latitude/Y coordinate column name
 
-    ColumnMetadata:
-      type: object
-      required:
-        - name
-      properties:
-        name:
-          type: string
-          description: Column name from the staging table schema
-
     StagingMetadata:
       type: object
       required:
@@ -222,10 +213,6 @@ components:
         force_projection:
           $ref: "#/components/schemas/ForceProjection"
           nullable: true
-        original_projection:
-          type: string
-          nullable: true
-          description: Original CRS detected from the data (read-only, informational)
 
     StagingMetadataResponse:
       allOf:
@@ -245,6 +232,10 @@ components:
             row_count:
               type: integer
               description: Total number of rows in the staging table
+            original_projection:
+              type: string
+              nullable: true
+              description: Original CRS detected from the data (read-only, informational)
 
     StagingPreviewResponse:
       type: object

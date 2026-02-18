@@ -61,14 +61,16 @@ Top-level transformation configuration. Stored in `IntegrityLink.integrity_trans
 
 ### 4. TransformationConfiguration (new — backend `data_import.py`)
 
-Backend Pydantic model for the PUT metadata request body. Mirrors `IntegrityTransformation` structure but lives in the backend as the API-facing schema.
+Backend Pydantic model built from the `StagingMetadata` request body. Extracts the transformation-relevant fields (`columns`, `force_projection`) from the full metadata and persists them to `integrity_link.integrity_transformation`. This is what both the backend preview and the ELT process DAG deserialize and pass to `apply_transformations`.
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
 | `columns` | `list[ColumnConfig] \| None` | Optional | Column configurations (backend-side model) |
 | `force_projection` | `ForceProjection \| None` | Optional | Projection config |
 
-This model replaces the current `StagingMetadata` body for the PUT metadata endpoint (which mixes config with display fields like `title`, `file_type`).
+**Relationship to StagingMetadata**: `StagingMetadata` is the PUT request body (contains `title`, `file_type`, `columns`, `force_projection`). `TransformationConfiguration` is constructed from the `columns` and `force_projection` fields of `StagingMetadata` before being serialized to the DB. They are not the same model — `StagingMetadata` is API-facing, `TransformationConfiguration` is persistence-facing.
+
+**Note**: `original_projection` is informational and read-only — it lives in `StagingMetadataResponse` only, never in `StagingMetadata` (the request body).
 
 ---
 
