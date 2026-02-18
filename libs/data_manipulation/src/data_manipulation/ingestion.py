@@ -1,9 +1,8 @@
 import logging
 import tempfile
 from pathlib import Path
-from urllib.parse import quote
 from urllib.error import URLError
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 from urllib.request import urlretrieve
 
 import chardet
@@ -132,8 +131,8 @@ def ingest_data_from_ftp_into_postgis(
         username, password = auth
 
         # URL-encode username and password to handle special characters
-        encoded_username = quote(username, safe='')
-        encoded_password = quote(password, safe='')
+        encoded_username = quote(username, safe="")
+        encoded_password = quote(password, safe="")
 
         # Reconstruct URL with credentials
         netloc_with_auth = f"{encoded_username}:{encoded_password}@{parsed_url.netloc}"
