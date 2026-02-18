@@ -18,7 +18,7 @@
           <div class="border-gray-600 border-b border-x rounded-b-lg">
             @if (importError()) {
             <div class="px-9 py-4 border-gray-600 border-b">
-              <app-alert-box
+              <app-ui-alert-box
                 type="warning"
                 [title]="errorTitle()"
                 [message]="importError()"
@@ -145,7 +145,7 @@
     />
     } @else { @if (previewErrorExtent()) {
     <div class="px-6 pb-4">
-      <app-alert-box
+      <app-ui-alert-box
         type="warning"
         [title]="errorTitle()"
         [message]="previewErrorExtent()"

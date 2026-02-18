@@ -200,6 +200,8 @@
   "input.image.delete": "",
   "input.image.displayAltTextInput": "",
   "input.image.displayUrlInput": "",
+  "input.password.hide": "Hide password",
+  "input.password.show": "Show password",
   "integrityLinks.creation": "Creation",
   "integrityLinks.dashboard": "Data Dashboard",
   "integrityLinks.emptyList": "No integrity links found",

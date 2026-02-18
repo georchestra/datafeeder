@@ -19,6 +19,7 @@ import {
   DataSourceFtpComponent,
   type FTPData
 } from '../data-source-ftp/data-source-ftp.component'
+import { UiInputPasswordComponent } from '../ui-input-password/ui-input-password.component'
 
 marker('input.file.selectFileLabel')
 marker('input.file.dropFileLabel')
@@ -54,7 +55,8 @@ export interface SourceData {
     CheckToggleComponent,
     TextInputComponent,
     FileInputComponent,
-    DataSourceFtpComponent
+    DataSourceFtpComponent,
+    UiInputPasswordComponent
   ],
   templateUrl: './data-source-selector.component.html',
   providers: [

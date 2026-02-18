@@ -53,7 +53,7 @@ import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
-import { AlertBoxComponent } from '../alert-box/alert-box.component'
+import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 
 marker('import.dataSource.error')
 marker('import.dataSource.error.extent')
@@ -91,7 +91,7 @@ export interface ImportWizardData {
     TranslatePipe,
     DatasetPreviewTableComponent,
     DatasetPreviewMapComponent,
-    AlertBoxComponent
+    UiAlertBoxComponent
   ],
   templateUrl: './data-import-wizard.component.html',
   styleUrls: ['./data-import-wizard.component.scss'],

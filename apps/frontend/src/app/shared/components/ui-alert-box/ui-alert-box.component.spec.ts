@@ -1,16 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
-import { AlertBoxComponent } from './alert-box.component'
+import { UiAlertBoxComponent } from './ui-alert-box.component'
 
-describe('AlertBoxComponent', () => {
-  let component: AlertBoxComponent
-  let fixture: ComponentFixture<AlertBoxComponent>
+describe('UiAlertBoxComponent', () => {
+  let component: UiAlertBoxComponent
+  let fixture: ComponentFixture<UiAlertBoxComponent>
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AlertBoxComponent]
+      imports: [UiAlertBoxComponent]
     }).compileComponents()
 
-    fixture = TestBed.createComponent(AlertBoxComponent)
+    fixture = TestBed.createComponent(UiAlertBoxComponent)
     component = fixture.componentInstance
     fixture.detectChanges()
   })

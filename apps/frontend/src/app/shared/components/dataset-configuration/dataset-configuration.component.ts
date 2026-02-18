@@ -28,7 +28,7 @@ import {
   provideNgIconsConfig
 } from '@ng-icons/core'
 import { iconoirDataTransferBoth } from '@ng-icons/iconoir'
-import { AlertBoxComponent } from '../alert-box/alert-box.component'
+import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 import { SettingsService } from '../../../core/settings/settings.service'
 
 const DEFAULT_PROJECTION = 'EPSG:4326'
@@ -45,7 +45,7 @@ const DEFAULT_PROJECTION = 'EPSG:4326'
     NgIconComponent,
     DropdownSelectorComponent,
     ButtonComponent,
-    AlertBoxComponent
+    UiAlertBoxComponent
   ],
   templateUrl: './dataset-configuration.component.html',
   styleUrls: ['./dataset-configuration.component.scss'],

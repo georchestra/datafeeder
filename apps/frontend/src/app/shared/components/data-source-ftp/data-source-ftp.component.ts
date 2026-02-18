@@ -2,6 +2,7 @@ import { Component, inject, output } from '@angular/core'
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { TranslatePipe } from '@ngx-translate/core'
 import { TextInputComponent } from 'geonetwork-ui'
+import { UiInputPasswordComponent } from '../ui-input-password/ui-input-password.component'
 
 export interface FTPData {
   host: string
@@ -13,7 +14,12 @@ export interface FTPData {
 
 @Component({
   selector: 'app-data-source-ftp',
-  imports: [ReactiveFormsModule, TranslatePipe, TextInputComponent],
+  imports: [
+    ReactiveFormsModule,
+    TranslatePipe,
+    TextInputComponent,
+    UiInputPasswordComponent
+  ],
   templateUrl: './data-source-ftp.component.html',
   styleUrls: ['./data-source-ftp.component.scss']
 })
