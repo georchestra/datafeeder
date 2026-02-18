@@ -52,8 +52,15 @@ export class EventsComponent implements OnInit {
         response.dag_runs
           .map((dagRun) => this.transformDagRunToEvent(dagRun))
           .sort((a, b) => {
+            // Events without start_date come first
             if (!a.start_date && b.start_date) return -1
             if (a.start_date && !b.start_date) return 1
+
+            // Both have dates - sort by date (most recent first)
+            if (a.start_date && b.start_date) {
+              return new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+            }
+
             return 0
           })
       )
