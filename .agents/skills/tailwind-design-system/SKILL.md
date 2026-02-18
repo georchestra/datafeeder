@@ -1,6 +1,7 @@
 ---
 name: tailwind-design-system
 description: Build scalable design systems with Tailwind CSS v4, design tokens, component libraries, and responsive patterns. Use when creating component libraries, implementing design systems, or standardizing UI patterns.
+triggers: Tailwind, Tailwind CSS, Tailwind v4, design system, design tokens, component library, @theme, @import tailwindcss, utility classes, responsive design, dark mode, OKLCH, CSS variables, Tailwind config
 ---
 
 # Tailwind Design System (v4)

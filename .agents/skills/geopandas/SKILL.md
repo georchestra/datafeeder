@@ -3,6 +3,7 @@ name: geopandas
 description: Open source project to make working with geospatial data in python easier. Extends the datatypes used by pandas to allow spatial operations on geometric types. Built on top of Shapely, Fiona, and Pyproj. Use for reading and writing spatial formats (Shapefile, GeoJSON, GeoPackage, KML), performing spatial joins, coordinate system transformations (reprojecting), geometric analysis (buffers, centroids, convex hulls), thematic mapping (Choropleth maps), calculating spatial relationships (contains, overlaps, touches, within), working with OpenStreetMap data or satellite-derived vector data.
 version: 0.14
 license: BSD-3-Clause
+triggers: GeoPandas, GeoDataFrame, geospatial, spatial data, Shapely, GeoJSON, Shapefile, GeoPackage, CRS, coordinate system, reprojection, spatial join, polygon, geometry, buffer, centroid, geographic data, PostGIS, gpd.read_file, gdf.to_crs
 ---
 
 # GeoPandas - Geospatial Data Analysis

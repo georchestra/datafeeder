@@ -1,6 +1,7 @@
 ---
 name: implement-design
 description: Translates Figma designs into production-ready code with 1:1 visual fidelity. Use when implementing UI from Figma files, when user mentions "implement design", "generate code", "implement component", "build Figma design", provides Figma URLs, or asks to build components matching Figma specs. Requires Figma MCP server connection.
+triggers: Figma, implement design, Figma design, Figma component, Figma URL, design to code, Figma MCP, design system, design tokens, figma.com/design, component from design, pixel perfect, visual fidelity
 metadata:
   mcp-server: figma, figma-desktop
 ---

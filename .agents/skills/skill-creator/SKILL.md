@@ -2,6 +2,7 @@
 name: skill-creator
 description: Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations.
 license: Complete terms in LICENSE.txt
+triggers: create skill, new skill, skill template, SKILL.md, update skill, skill metadata, skill frontmatter, skill workflow, skill creator, write skill, skill format
 ---
 
 # Skill Creator

@@ -1,6 +1,7 @@
 ---
 name: angular-datakern
 description: Build Angular 20 applications following DataKern architecture patterns. Use when working with Angular components, services, or features in apps/frontend/. Covers standalone components, zoneless change detection, signals, NgRx state management, Tailwind CSS styling, atomic design principles, smart/presentational component separation, i18n with ngx-translate, and Vitest testing. Essential for implementing UI features, creating components, managing state, or maintaining frontend code in the DataKern project.
+triggers: Angular, Angular 20, Angular component, Angular service, standalone component, Angular signals, NgRx, change detection, apps/frontend, ngx-translate, Angular i18n, Vitest Angular, smart component, presentational component, Angular routing
 ---
 
 # Angular DataKern Development

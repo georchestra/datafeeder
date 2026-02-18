@@ -1,6 +1,7 @@
 ---
 name: airflow-datakern
 description: Build Apache Airflow 3.x DAGs following DataKern project patterns. Use when creating DAGs with TaskAPI decorators (@dag, @task, @task_group), implementing task groups as factory functions, setting up success/failure callbacks to external APIs, dynamic DAG generation from database, branching workflows, XCom communication, PostgreSQL integration with hooks, or working with apps/elt/dags codebase. Follows Python 3.12, ruff formatting (100 char lines), data_manipulation library integration.
+triggers: Airflow, Apache Airflow, DAG, task group, @dag, @task, @task_group, Airflow callback, XCom, Airflow PostgreSQL, TaskAPI, Airflow 3, apps/elt/dags, staging_dag, process_dag, Airflow scheduler
 ---
 
 # Airflow DataKern
