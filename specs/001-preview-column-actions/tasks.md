@@ -25,9 +25,25 @@
 
 ## Phase 1: Setup
 
-**Purpose**: Verify the development environment is ready
+**Purpose**: Verify the development environment is ready and all tooling works.
 
-- [ ] T001 Verify dev environment: ensure `make up-full` runs, backend serves at localhost:8000, frontend at localhost:4200, and `uv run pytest` passes for both `libs/data_manipulation` and `apps/backend`
+### Infrastructure
+
+- [ ] T001a Start the full stack with `make up-full` (builds libs, starts all services including GeoServer/GeoNetwork). Verify gateway at http://localhost:8080/ (credentials: `testadmin/testadmin`), frontend at http://localhost:8080/datakern/, backend API docs at http://localhost:8080/datakern-backend/docs, Airflow at http://localhost:8080/airflow (credentials: `airflow/airflow`)
+
+### Python (backend + data_manipulation + ELT)
+
+- [ ] T001b Run Python tests: `make test-libs` (data_manipulation) and `make test-backend` (backend) — both must pass
+- [ ] T001c Run Python linting and formatting checks: `make check-all-python` (runs `ruff check .`, `ruff format . --check`, `pyright .` across the monorepo workspace including backend, data_manipulation, and ELT)
+- [ ] T001d Verify Python auto-fix commands work: `make fix-all-python` (runs `ruff check . --fix`, `ruff format .`)
+
+### Frontend
+
+- [ ] T001e Run frontend tests: `cd apps/frontend && npm run test:ut:ci` (vitest single run)
+- [ ] T001f Run frontend lint and format check: `cd apps/frontend && npm run lint && npm run format:check`
+- [ ] T001g Verify frontend format fix: `cd apps/frontend && npm run format`
+
+**Checkpoint**: All services accessible via gateway URLs. All Python tests pass. All frontend tests pass. Linting/formatting checks pass for both Python and frontend.
 
 ---
 
