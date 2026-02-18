@@ -237,3 +237,124 @@ class TestMetadataService:
         service.set_record_ownership("some-uuid", "testuser", "Missing Org")
 
         mock_session.put.assert_not_called()
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_set_record_ownership_user_groups_mode(self, mock_gn_api: MagicMock) -> None:
+        """Test org_based_sync=False uses user's first non-system group."""
+        mock_session = MagicMock()
+        mock_api_instance = MagicMock()
+        mock_api_instance.session = mock_session
+        mock_api_instance.api_url = "http://test/api"
+        mock_gn_api.return_value = mock_api_instance
+
+        # Mock users response
+        users_response = MagicMock()
+        users_response.json.return_value = [{"id": 42, "username": "testuser"}]
+
+        # Mock user groups response (GN 4.x format)
+        user_groups_response = MagicMock()
+        user_groups_response.json.return_value = [
+            {"id": {"groupId": 1, "userId": 42}, "profile": "RegisteredUser"},
+            {"id": {"groupId": 15, "userId": 42}, "profile": "Editor"},
+            {"id": {"groupId": 20, "userId": 42}, "profile": "Editor"},
+        ]
+
+        ownership_response = MagicMock()
+
+        mock_session.get.side_effect = [users_response, user_groups_response]
+        mock_session.put.return_value = ownership_response
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+            org_based_sync=False,
+        )
+
+        # group_name param is ignored in user-groups mode
+        service.set_record_ownership("some-uuid", "testuser", "Ignored Org")
+
+        mock_session.put.assert_called_once_with(
+            "http://test/api/records/some-uuid/ownership",
+            params={"groupIdentifier": 15, "userIdentifier": 42},
+        )
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_set_record_ownership_user_groups_fallback(self, mock_gn_api: MagicMock) -> None:
+        """Test org_based_sync=False falls back to default group when user has only system groups."""
+        mock_session = MagicMock()
+        mock_api_instance = MagicMock()
+        mock_api_instance.session = mock_session
+        mock_api_instance.api_url = "http://test/api"
+        mock_gn_api.return_value = mock_api_instance
+
+        # Mock users response
+        users_response = MagicMock()
+        users_response.json.return_value = [{"id": 42, "username": "testuser"}]
+
+        # Mock user groups: only system groups (id <= 2)
+        user_groups_response = MagicMock()
+        user_groups_response.json.return_value = [
+            {"id": {"groupId": 0, "userId": 42}, "profile": "RegisteredUser"},
+            {"id": {"groupId": 2, "userId": 42}, "profile": "RegisteredUser"},
+        ]
+
+        # Mock fallback: GET /api/groups returns the default group
+        groups_response = MagicMock()
+        groups_response.json.return_value = [
+            {"id": 10, "name": "sample"},
+            {"id": 20, "name": "Other Org"},
+        ]
+
+        ownership_response = MagicMock()
+
+        mock_session.get.side_effect = [users_response, user_groups_response, groups_response]
+        mock_session.put.return_value = ownership_response
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+            org_based_sync=False,
+            metadata_default_group_name="sample",
+        )
+
+        service.set_record_ownership("some-uuid", "testuser", "Ignored Org")
+
+        # Should fall back to "sample" group (id=10)
+        mock_session.put.assert_called_once_with(
+            "http://test/api/records/some-uuid/ownership",
+            params={"groupIdentifier": 10, "userIdentifier": 42},
+        )
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_set_record_ownership_user_groups_no_fallback(self, mock_gn_api: MagicMock) -> None:
+        """Test org_based_sync=False with no groups and default group not found → PUT not called."""
+        mock_session = MagicMock()
+        mock_api_instance = MagicMock()
+        mock_api_instance.session = mock_session
+        mock_api_instance.api_url = "http://test/api"
+        mock_gn_api.return_value = mock_api_instance
+
+        # Mock users response
+        users_response = MagicMock()
+        users_response.json.return_value = [{"id": 42, "username": "testuser"}]
+
+        # Mock user groups: empty
+        user_groups_response = MagicMock()
+        user_groups_response.json.return_value = []
+
+        # Mock fallback: default group not found
+        groups_response = MagicMock()
+        groups_response.json.return_value = [{"id": 20, "name": "Other Org"}]
+
+        mock_session.get.side_effect = [users_response, user_groups_response, groups_response]
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+            org_based_sync=False,
+            metadata_default_group_name="nonexistent",
+        )
+
+        service.set_record_ownership("some-uuid", "testuser", "Ignored Org")
+
+        mock_session.put.assert_not_called()

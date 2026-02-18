@@ -24,7 +24,13 @@ class MetadataService:
     """Service to generate and publish ISO 19115-3 metadata to GeoNetwork."""
 
     def __init__(
-        self, gn_api_url: str, datadir_path: str, credentials: Any = None, verify_tls: bool = False
+        self,
+        gn_api_url: str,
+        datadir_path: str,
+        credentials: Any = None,
+        verify_tls: bool = False,
+        org_based_sync: bool = True,
+        metadata_default_group_name: str = "sample",
     ):
         """Initialize with GeoNetwork API client and paths to metadata files.
 
@@ -33,10 +39,14 @@ class MetadataService:
             datadir_path: Path to datadir (e.g., /etc/georchestra)
             credentials: Optional GnApi credentials
             verify_tls: Whether to verify TLS certificates
+            org_based_sync: If True, resolve group by org name; if False, use user's GN memberships
+            metadata_default_group_name: Fallback group name when user has no non-system groups
         """
         self.gn_api: Any = GnApi(api_url=gn_api_url, credentials=credentials, verifytls=verify_tls)
         self.template_path: str = f"{datadir_path}/datakern/metadata_template-19115-3.xml"
         self.xslt_path: str = f"{datadir_path}/datakern/metadata_transform-19115-3.xsl"
+        self.org_based_sync: bool = org_based_sync
+        self.metadata_default_group_name: str = metadata_default_group_name
 
     def generate_metadata(
         self,
@@ -235,12 +245,15 @@ class MetadataService:
     def set_record_ownership(self, metadata_uuid: str, username: str, group_name: str) -> None:
         """Set ownership of a GeoNetwork metadata record.
 
-        Queries all GN users/groups to find IDs by name, then sets ownership.
+        Resolves user and group IDs, then sets ownership via GeoNetwork API.
+        Group resolution strategy depends on ``self.org_based_sync``:
+        - True  → match *group_name* against all GN groups (org-based sync)
+        - False → use the user's own GN group memberships, with fallback
 
         Args:
             metadata_uuid: UUID of the published metadata record
             username: Owner username to match in GeoNetwork
-            group_name: Group name to match in GeoNetwork
+            group_name: Group name to match in GeoNetwork (used only when org_based_sync=True)
         """
         session = self.gn_api.session
 
@@ -250,22 +263,24 @@ class MetadataService:
         users = resp.json()
         user_id = next((u["id"] for u in users if u["username"] == username), None)
 
-        # 2. Find group ID by name (case-insensitive)
-        resp = session.get(f"{self.gn_api.api_url}/groups")
-        resp.raise_for_status()
-        groups = resp.json()
-        group_id = next(
-            (g["id"] for g in groups if g["name"].lower() == group_name.lower()),
-            None,
-        )
-
-        if user_id is None or group_id is None:
+        if user_id is None:
             logger.warning(
-                "Cannot set ownership: user '%s' (id=%s) and/or group '%s' (id=%s) not found in GeoNetwork",
+                "Cannot set ownership: user '%s' not found in GeoNetwork",
                 username,
-                user_id,
-                group_name,
-                group_id,
+            )
+            return
+
+        # 2. Resolve group ID based on sync strategy
+        if self.org_based_sync:
+            group_id = self._resolve_group_by_org_name(session, group_name)
+        else:
+            group_id = self._resolve_group_from_user(session, user_id)
+
+        if group_id is None:
+            logger.warning(
+                "Cannot set ownership: no group resolved for user '%s' (strategy=%s)",
+                username,
+                "org-based" if self.org_based_sync else "user-groups",
             )
             return
 
@@ -276,10 +291,67 @@ class MetadataService:
         )
         resp.raise_for_status()
         logger.info(
-            "Set metadata %s ownership to user=%s (id=%s), group=%s (id=%s)",
+            "Set metadata %s ownership to user=%s (id=%s), group_id=%s",
             metadata_uuid,
             username,
             user_id,
-            group_name,
             group_id,
         )
+
+    def _resolve_group_by_org_name(self, session: Any, group_name: str) -> int | None:
+        """Resolve a GeoNetwork group ID by matching organization name.
+
+        Args:
+            session: Authenticated HTTP session
+            group_name: Organization/group name to look up (case-insensitive)
+
+        Returns:
+            Group ID or None if not found
+        """
+        logger.info(
+            "Resolving group by organization name '%s' (org-based sync)",
+            group_name,
+        )
+        resp = session.get(f"{self.gn_api.api_url}/groups")
+        resp.raise_for_status()
+        groups = resp.json()
+        return next(
+            (g["id"] for g in groups if g["name"].lower() == group_name.lower()),
+            None,
+        )
+
+    def _resolve_group_from_user(self, session: Any, user_id: int) -> int | None:
+        """Resolve a GeoNetwork group from the user's own memberships.
+
+        Fetches the user's group memberships, filters out system groups
+        (id <= 2: intranet, guest, all), and returns the first non-system group.
+        Falls back to ``self.metadata_default_group_name`` via org-name lookup.
+
+        Args:
+            session: Authenticated HTTP session
+            user_id: GeoNetwork user ID
+
+        Returns:
+            Group ID or None if no suitable group found
+        """
+        logger.info(
+            "Resolving group from user %s memberships (user-groups sync)",
+            user_id,
+        )
+        resp = session.get(f"{self.gn_api.api_url}/users/{user_id}/groups")
+        resp.raise_for_status()
+        memberships = resp.json()
+
+        # Filter out system groups (groupId <= 2)
+        non_system = [g["id"]["groupId"] for g in memberships if g["id"]["groupId"] > 2]
+
+        if non_system:
+            return non_system[0]
+
+        # Fallback: resolve by default group name
+        logger.info(
+            "User %s has no non-system groups, falling back to default group '%s'",
+            user_id,
+            self.metadata_default_group_name,
+        )
+        return self._resolve_group_by_org_name(session, self.metadata_default_group_name)
