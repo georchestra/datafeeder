@@ -1,5 +1,13 @@
 import { CommonModule } from '@angular/common'
-import { Component, EventEmitter, Input, Output, OnInit, DestroyRef, inject } from '@angular/core'
+import {
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+  OnInit,
+  DestroyRef,
+  inject
+} from '@angular/core'
 import { TranslatePipe } from '@ngx-translate/core'
 import { interval } from 'rxjs'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'

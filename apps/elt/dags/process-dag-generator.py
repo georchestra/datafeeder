@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from airflow import DAG
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
@@ -35,7 +35,7 @@ def create_dag(config):
         catchup=False,
     )
 
-    dag_run_id = f"{config.get("id")}_{int(datetime.now(timezone.utc).timestamp())}"
+    dag_run_id = f"{config.get('id')}_{int(datetime.now(timezone.utc).timestamp())}"
     with dag:
         TriggerDagRunOperator(
             task_id="trigger_process_dag",

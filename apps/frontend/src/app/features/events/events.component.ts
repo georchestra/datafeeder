@@ -58,7 +58,10 @@ export class EventsComponent implements OnInit {
 
             // Both have dates - sort by date (most recent first)
             if (a.start_date && b.start_date) {
-              return new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+              return (
+                new Date(b.start_date).getTime() -
+                new Date(a.start_date).getTime()
+              )
             }
 
             return 0
