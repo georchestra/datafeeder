@@ -163,6 +163,10 @@ async def submit_staging(
     source_file_name = None
     source_file_type = None
 
+    url = url.strip() if url else None
+    username = username.strip() if username else None
+    password = password.strip() if password else None
+
     # Extract source, source_file_name, and source_file_type according to import type
     match type:
         case ImportType.FILE:
@@ -186,6 +190,9 @@ async def submit_staging(
             )
 
         case ImportType.FTP:
+            ftp_host = ftp_host.strip() if ftp_host else None
+            ftp_path = ftp_path.strip() if ftp_path else None
+
             if not ftp_host or not ftp_port or not ftp_path or not username or not password:
                 logger.error(
                     "FTP host, port, path, username and password are required for FTP import type"

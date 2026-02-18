@@ -317,8 +317,8 @@ export class DataImportWizardComponent implements OnInit {
         body: {
           type: 'url',
           url: source.url,
-          username: source.authEnabled ? source.username : null,
-          password: source.authEnabled ? source.password : null,
+          username: source.authEnabled ? source.username.trim() : null,
+          password: source.authEnabled ? source.password.trim() : null,
           auth_enabled: source.authEnabled
         }
       })
@@ -330,11 +330,11 @@ export class DataImportWizardComponent implements OnInit {
       return await this.api.invoke(submitStagingIngestionStagingPost, {
         body: {
           type: 'ftp',
-          ftp_host: source.ftpHost,
+          ftp_host: source.ftpHost.trim(),
           ftp_port: source.ftpPort,
-          ftp_path: source.ftpPath,
-          username: source.username,
-          password: source.password
+          ftp_path: source.ftpPath.trim(),
+          username: source.username.trim(),
+          password: source.password.trim()
         }
       })
     }

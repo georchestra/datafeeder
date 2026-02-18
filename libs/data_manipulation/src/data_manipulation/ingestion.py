@@ -1,6 +1,7 @@
 import logging
 import tempfile
 from pathlib import Path
+from urllib.parse import quote
 from urllib.error import URLError
 from urllib.parse import unquote, urlparse
 from urllib.request import urlretrieve
@@ -130,11 +131,19 @@ def ingest_data_from_ftp_into_postgis(
     if auth:
         username, password = auth
 
+        # URL-encode username and password to handle special characters
+        encoded_username = quote(username, safe='')
+        encoded_password = quote(password, safe='')
+
         # Reconstruct URL with credentials
-        netloc_with_auth = f"{username}:{password}@{parsed_url.netloc}"
+        netloc_with_auth = f"{encoded_username}:{encoded_password}@{parsed_url.netloc}"
         ftp_url_with_auth = f"{parsed_url.scheme}://{netloc_with_auth}{parsed_url.path}"
     else:
         ftp_url_with_auth = url
+
+    # --------
+    # WARNING: don't log ftp_url_with_auth as it may contain sensitive credentials
+    # --------
 
     # Extract filename from path
     filename = Path(parsed_url.path).name
@@ -149,7 +158,12 @@ def ingest_data_from_ftp_into_postgis(
             data = _read_file_encoded(str(temp_file_path))
             write_data_to_postgis(data, table_name, engine, schema)
 
+    # TODO: handle error for frontend
     except URLError as e:
+        # --------
+        # WARNING: don't log ftp_url_with_auth as it may contain sensitive credentials
+        # --------
+
         # Handle FTP-specific errors
         error_msg = str(e.reason) if hasattr(e, "reason") else str(e)
 
