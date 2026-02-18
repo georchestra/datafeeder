@@ -13,6 +13,7 @@ from sqlalchemy.engine import Engine
 from data_manipulation import IntegrityTransformation, apply_transformations
 from data_manipulation.ingestion import (
     ingest_data_from_file_into_postgis,
+    ingest_data_from_ftp_into_postgis,
     ingest_data_from_url_into_postgis,
     read_data_from_postgis,
     write_data_to_postgis,
@@ -255,6 +256,148 @@ class TestIngestDataFromUrlIntoPostgis:
         with pytest.raises(requests.exceptions.ConnectionError):
             ingest_data_from_url_into_postgis(
                 "http://example.com/data.geojson", "test_table", mock_engine, "public"
+            )
+
+
+class TestIngestDataFromFtpIntoPostgis:
+    """Test cases for ingest_data_from_ftp_into_postgis function."""
+
+    @pytest.fixture
+    def mock_engine(self) -> Mock:
+        """Create a mock SQLAlchemy engine."""
+        return Mock(spec=Engine)
+
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion._read_file_encoded")
+    @patch("data_manipulation.ingestion.urlretrieve")
+    def test_ingest_from_ftp_success(
+        self,
+        mock_urlretrieve: Mock,
+        mock_read_file: Mock,
+        mock_write_data: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """Test successful ingestion from FTP."""
+
+        # Mock the GeoDataFrame
+        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
+        mock_read_file.return_value = mock_gdf
+
+        ingest_data_from_ftp_into_postgis(
+            "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
+        )
+
+        mock_urlretrieve.assert_called_once()
+        # Verify URL without auth is passed
+        assert "ftp://example.com/data.geojson" in str(mock_urlretrieve.call_args[0][0])
+        mock_read_file.assert_called_once()
+        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
+
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion._read_file_encoded")
+    @patch("data_manipulation.ingestion.urlretrieve")
+    def test_ingest_from_ftp_with_auth(
+        self,
+        mock_urlretrieve: Mock,
+        mock_read_file: Mock,
+        mock_write_data: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """Test ingestion from FTP with authentication."""
+
+        # Mock the GeoDataFrame
+        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
+        mock_read_file.return_value = mock_gdf
+
+        auth = ("username", "password")
+        ingest_data_from_ftp_into_postgis(
+            "ftp://example.com/data.geojson", "test_table", mock_engine, "public", auth=auth
+        )
+
+        mock_urlretrieve.assert_called_once()
+        # Verify credentials are encoded in URL
+        called_url = str(mock_urlretrieve.call_args[0][0])
+        assert "username" in called_url
+        assert "password" in called_url
+        assert "@example.com" in called_url
+
+    @patch("data_manipulation.ingestion.urlretrieve")
+    def test_ingest_from_ftp_auth_failed(
+        self,
+        mock_urlretrieve: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """Test ingestion from FTP raises exception on authentication failure."""
+        from urllib.error import URLError
+
+        mock_urlretrieve.side_effect = URLError("530 Login incorrect")
+
+        with pytest.raises(Exception, match="FTP authentication failed"):
+            ingest_data_from_ftp_into_postgis(
+                "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
+            )
+
+    @patch("data_manipulation.ingestion.urlretrieve")
+    def test_ingest_from_ftp_file_not_found(
+        self,
+        mock_urlretrieve: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """Test ingestion from FTP raises exception when file not found."""
+        from urllib.error import URLError
+
+        mock_urlretrieve.side_effect = URLError("550 No such file")
+
+        with pytest.raises(Exception, match="FTP file not found"):
+            ingest_data_from_ftp_into_postgis(
+                "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
+            )
+
+    @patch("data_manipulation.ingestion.urlretrieve")
+    def test_ingest_from_ftp_timeout(
+        self,
+        mock_urlretrieve: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """Test ingestion from FTP raises exception on connection timeout."""
+        from urllib.error import URLError
+
+        mock_urlretrieve.side_effect = URLError("Connection timed out")
+
+        with pytest.raises(Exception, match="FTP connection timeout"):
+            ingest_data_from_ftp_into_postgis(
+                "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
+            )
+
+    @patch("data_manipulation.ingestion.urlretrieve")
+    def test_ingest_from_ftp_connection_refused(
+        self,
+        mock_urlretrieve: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """Test ingestion from FTP raises exception when connection is refused."""
+        from urllib.error import URLError
+
+        mock_urlretrieve.side_effect = URLError("Connection refused")
+
+        with pytest.raises(Exception, match="FTP connection refused"):
+            ingest_data_from_ftp_into_postgis(
+                "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
+            )
+
+    @patch("data_manipulation.ingestion.urlretrieve")
+    def test_ingest_from_ftp_network_error(
+        self,
+        mock_urlretrieve: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """Test ingestion from FTP raises exception on network error."""
+
+        mock_urlretrieve.side_effect = OSError("Network unreachable")
+
+        with pytest.raises(Exception, match="Network error"):
+            ingest_data_from_ftp_into_postgis(
+                "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
             )
 
 
