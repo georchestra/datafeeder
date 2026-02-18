@@ -55,6 +55,34 @@ def _generate_staging_table_name() -> str:
     return sanitize_name(str(uuid4()))
 
 
+def _extract_filetype(filename: str) -> FileType | None:
+    """Extract file type from filename extension.
+
+    Args:
+        filename: The filename or path to extract the type from
+
+    Returns:
+        The FileType enum value or None if extension is not recognized
+    """
+    if not filename:
+        return None
+
+    # Extract extension and convert to lowercase
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    # Map extensions to FileType
+    extension_map = {
+        "csv": FileType.CSV,
+        "geojson": FileType.GEOJSON,
+        "json": FileType.JSON,
+        "shp": FileType.SHAPEFILE,
+        "gpkg": FileType.GPKG,
+        "zip": FileType.ZIP,
+    }
+
+    return extension_map.get(extension)
+
+
 def _extract_url_metadata(
     url: str, auth_enabled: bool = False, username: str | None = None, password: str | None = None
 ) -> tuple[str | None, FileType | None]:
@@ -206,6 +234,7 @@ async def submit_staging(
             source = f"ftp://{ftp_host}:{ftp_port}/{ftp_path}"
             url = source
             source_file_name = ftp_path.rsplit("/", 1)[-1]
+            source_file_type = _extract_filetype(source_file_name)
 
             # Force encrypted credentials for FTP since they are required
             auth_enabled = True
