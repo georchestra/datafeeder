@@ -68,13 +68,13 @@ export class EventsComponent implements OnInit {
       start_date: dagRun.start_date || null,
       end_date: dagRun.end_date || null,
       duration: dagRun.duration || null,
-      type: this.mapRunTypeToEventType(dagRun.run_type),
+      type: this.mapRunTypeToEventType(dagRun.dag_run_id),
       status: this.mapDagStateToEventStatus(dagRun.state)
     }
   }
 
   private mapRunTypeToEventType(runType: string): EventType {
-    return runType === 'manual' ? 'manual' : 'scheduled'
+    return runType.includes('_manual') ? 'manual' : 'scheduled'
   }
 
   private mapDagStateToEventStatus(
