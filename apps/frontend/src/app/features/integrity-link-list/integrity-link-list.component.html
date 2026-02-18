@@ -5,8 +5,10 @@
         {{ 'integrityLinks.dashboard' | translate }}
       </h1>
       <app-search-input
+        class="w-[350px]"
         [placeholder]="'integrityLinks.search' | translate"
         [(value)]="searchQuery"
+        [fullWidth]="true"
       />
     </div>
 
