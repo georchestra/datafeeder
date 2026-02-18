@@ -204,7 +204,7 @@
   "input.password.show": "Afficher le mot de passe",
   "integrityLinks.creation": "Création",
   "integrityLinks.dashboard": "Dashboard des données",
-  "integrityLinks.emptyList": "Aucun lien d'intégrité trouvé",
+  "integrityLinks.emptyList": "Aucun jeu de données trouvé",
   "integrityLinks.loadMore": "Charger plus",
   "integrityLinks.noResults": "Aucun résultat trouvé",
   "integrityLinks.owner": "Propriétaire",
