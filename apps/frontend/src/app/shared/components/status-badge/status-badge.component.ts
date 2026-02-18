@@ -1,11 +1,11 @@
 import { Component, Input } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { StatusType } from '../../types/status-type'
-import { TranslateDirective } from '@ngx-translate/core'
+import { TranslatePipe } from '@ngx-translate/core'
 
 @Component({
   selector: 'app-status-badge',
-  imports: [CommonModule, TranslateDirective],
+  imports: [CommonModule, TranslatePipe],
   templateUrl: './status-badge.component.html',
   styleUrl: './status-badge.component.css'
 })

@@ -105,4 +105,10 @@ export class EventsComponent implements OnInit {
       console.error('Failed to fetch event logs:', error)
     }
   }
+
+  onRefreshRequested(): void {
+    if (this.intlink_id) {
+      this.loadDagRuns(this.intlink_id)
+    }
+  }
 }

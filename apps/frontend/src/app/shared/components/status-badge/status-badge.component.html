@@ -7,7 +7,6 @@
     'bg-blue-500': status === 'queued',
     'bg-teal-500 animate-pulse': status === 'running'
   }"
-  translate
 >
-  status.type.{{ status }}
+  {{ ('status.type.' + status) | translate }}
 </span>
