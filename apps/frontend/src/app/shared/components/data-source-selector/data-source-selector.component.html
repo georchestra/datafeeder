@@ -52,11 +52,15 @@
         <label class="block text-sm font-medium text-gray-700 mb-2">
           {{ 'import.dataSource.url.password' | translate }}
         </label>
-        <gn-ui-text-input
+        <input
+          type="password"
           [value]="form.get('source.password')!.value"
-          (valueChange)="form.get('source.password')!.setValue($event)"
+          (input)="
+            form.get('source.password')!.setValue($any($event.target).value)
+          "
           placeholder=""
-        ></gn-ui-text-input>
+          class="gn-ui-text-input"
+        />
       </div>
     </div>
     }

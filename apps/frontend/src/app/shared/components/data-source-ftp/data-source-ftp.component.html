@@ -44,11 +44,13 @@
           {{ 'import.dataSource.ftp.password' | translate
           }}<span class="required">*</span>
         </label>
-        <gn-ui-text-input
+        <input
+          type="password"
           [value]="form.controls.password.value"
-          (valueChange)="form.controls.password.setValue($event)"
+          (input)="form.controls.password.setValue($any($event.target).value)"
           placeholder=""
-        ></gn-ui-text-input>
+          class="gn-ui-text-input"
+        />
       </div>
     </div>
 
