@@ -55,12 +55,15 @@
 **⚠️ CRITICAL**: Backend and frontend work cannot begin until this phase is complete.
 
 - [ ] T002 Extend transformation models with `FilterOperator`, `CastType`, `ColumnFilter` enums/models and update `ColumnConfig` with `original_name`, `new_name`, `excluded`, `cast_type`, `filter` fields in `libs/data_manipulation/src/data_manipulation/models.py`
-- [ ] T003 Update public exports to include `FilterOperator`, `CastType`, `ColumnFilter` in `libs/data_manipulation/src/data_manipulation/__init__.py`
-- [ ] T004 Create column transformation functions (`apply_column_filters`, `exclude_columns`, `rename_columns`, `cast_column_types`) in `libs/data_manipulation/src/data_manipulation/transformation/transform_columns.py`. All filter comparisons operate on the string representation of column values (`df[col].astype(str)`)
+- [ ] T003 Update public exports to include `FilterOperator`, `CastType`, `ColumnFilter`, and `build_filter_where_clauses` in `libs/data_manipulation/src/data_manipulation/__init__.py`
+- [ ] T004 Create column transformation functions (`apply_column_filters`, `exclude_columns`, `rename_columns`, `cast_column_types`) in `libs/data_manipulation/src/data_manipulation/transformation/transform_columns.py`. All filter comparisons operate on the string representation of column values (`df[col].astype(str)`). **These functions operate on full in-memory DataFrames and are intended for ELT/process DAG use only** — the preview endpoint must apply filters at the SQL level (see T004a/T004b) so that `LIMIT` is applied to already-filtered rows, not to a pre-limited result set.
+- [ ] T004a Create `build_filter_where_clauses(columns: list[ColumnConfig], table: Table) -> list[ColumnElement]` in `libs/data_manipulation/src/data_manipulation/transformation/filter_sql.py`. For each `ColumnConfig` whose `filter` field is set (and `excluded` is not `True`), build a SQLAlchemy WHERE condition using `cast(table.c[original_name], Text)`: `FilterOperator.EXACTLY` → `== value`, `FilterOperator.CONTAINS` → `.like('%value%')`, `FilterOperator.STARTS_WITH` → `.like('value%')`. Returns an empty list when no columns have active filters. This is imported by `read_data_from_postgis` to ensure filters execute in the database before any `LIMIT` clause.
+- [ ] T004b Extend `read_data_from_postgis` in `libs/data_manipulation/src/data_manipulation/ingestion.py` to accept an optional `columns: list[ColumnConfig] | None = None` parameter. When provided, call `build_filter_where_clauses(columns, table)` and apply the resulting conditions with `query = query.where(*filter_clauses)` **before** calling `query.limit(limit)`. This guarantees the `limit` rows returned are drawn from the already-filtered result set rather than filtering a pre-limited DataFrame in Python.
 - [ ] T005 Update `apply_transformations` to call column action functions (filter → exclude → rename → cast) before projection in `libs/data_manipulation/src/data_manipulation/transformation/transform.py`
 - [ ] T006 [P] Write unit tests for `apply_column_filters` (exactly, contains, starts_with operators; cumulative filters across columns; no matching rows returns empty; filter on excluded column ignored) in `libs/data_manipulation/tests/test_column_actions.py`
+- [ ] T006a [P] Write unit tests for `build_filter_where_clauses` (each operator maps to the correct SQLAlchemy expression using text cast; columns with no filter produce no clause; `excluded=True` columns are skipped; multiple filtered columns produce multiple independent clauses; empty column list returns `[]`) in `libs/data_manipulation/tests/test_column_actions.py`
 - [ ] T007 [P] Write unit tests for `exclude_columns`, `rename_columns`, `cast_column_types` (exclude drops columns; rename changes column names; cast converts types boolean/numeric/text/date; invalid cast raises error) in `libs/data_manipulation/tests/test_column_actions.py`
-- [ ] T008 [P] Write unit tests for updated `apply_transformations` with full column config (combined filter+exclude+rename+cast+projection; empty config returns unchanged data; backward compatibility with old ColumnConfig format) in `libs/data_manipulation/tests/test_column_actions.py`
+- [ ] T008 [P] Write unit tests for updated `apply_transformations` with full column config (combined filter+exclude+rename+cast+projection; empty config returns unchanged data; backward compatibility with old ColumnConfig format) in `libs/data_manipulation/tests/test_column_actions.py`. Also write an integration-style unit test for `read_data_from_postgis` verifying that SQL WHERE conditions are built from `columns` and applied **before** `LIMIT` (i.e., filtering a SQLite/PostgreSQL test fixture returns `limit` rows that all match the filter, not a subset of a pre-limited result).
 
 **Checkpoint**: `uv run pytest libs/data_manipulation/tests/` passes. Column actions work in isolation. Backward compatibility preserved.
 
@@ -75,7 +78,7 @@
 - [ ] T009 Update backend Pydantic models: replace `ColumnMetadata` with extended `ColumnConfig` (matching data_manipulation schema), add `FilterOperator`, `CastType`, `ColumnFilter` models, update `StagingMetadata` to use new `ColumnConfig` in `apps/backend/src/models/data_import.py`
 - [ ] T010 Add explicit Pydantic model type annotation for `integrity_transformation` field documentation in `apps/backend/src/models/integrity_link.py`
 - [ ] T011 Refactor PUT metadata endpoint to persist full transformation configuration (columns with rename/exclude/cast/filter + force_projection) to `integrity_link.integrity_transformation` on each call. Build a `TransformationConfiguration` from the `StagingMetadata` request body fields and serialize it to the DB. Return a clear error message (suitable for frontend alert-box display) when column name validation fails (empty or duplicate names) in `apps/backend/src/api/routes/ingestion/staging.py`
-- [ ] T012 Refactor GET preview endpoint: remove `projection`, `x_column`, `y_column` query parameters; add `raw: bool = Query(False)` parameter; when `raw=false` read saved config from DB and apply transformations, when `raw=true` return original staging data in `apps/backend/src/api/routes/ingestion/staging.py`
+- [ ] T012 Refactor GET preview endpoint: remove `projection`, `x_column`, `y_column` query parameters; add `raw: bool = Query(False)` parameter. When `raw=false`: read saved `TransformationConfiguration` from `integrity_link.integrity_transformation`, call `read_data_from_postgis(staging_table_name, engine, schema, limit, columns=config.columns)` so SQL WHERE clauses are applied **before** `LIMIT` in the database, then apply remaining in-memory transformations (exclude → rename → cast → projection) in Python. When `raw=true`: call `read_data_from_postgis` without columns config (no WHERE clauses, plain `LIMIT`). This separation ensures the 10-row preview always shows rows that match the configured filters rather than filtering a pre-limited Python DataFrame. In `apps/backend/src/api/routes/ingestion/staging.py`
 - [ ] T013 Update GET metadata endpoint to include saved column configurations from `integrity_transformation` in the response in `apps/backend/src/api/routes/ingestion/staging.py`
 - [ ] T014 Regenerate frontend API client by running `npm run generate-api` in `apps/frontend/` after downloading updated `openapi.json` from backend
 
@@ -225,6 +228,7 @@
 ### Parallel Opportunities (after Phase 4)
 
 Once Phase 4 (US5) is complete:
+
 - **US1** (rename) can run in parallel with **US2** (remove) — they edit different aspects of ColumnHeaderComponent
 - **US3** (type) can run in parallel with **US4** (filter) — they add different submenus
 - **US5** → then **US1 ∥ US2** → then **US3 ∥ US4** → then **US6 + Polish**
@@ -270,9 +274,9 @@ Task T021: "Refactor DataImportWizardComponent config flow"
 ### Incremental Delivery
 
 1. Phases 1-3 → Foundation ready (all backend/library work done)
-2. + Phase 4 (US5) → Menu infrastructure visible in UI
-3. + Phase 5 (US1) → Rename works → **First usable MVP**
-4. + Phase 6 (US2) → Remove/restore works → Structural editing complete
-5. + Phase 7 (US3) → Type change works → Data quality features added
-6. + Phase 8 (US4) → Filter works → Full feature complete
-7. + Phase 9 (US6 + Polish) → Consistency verified, code cleaned up
+2. - Phase 4 (US5) → Menu infrastructure visible in UI
+3. - Phase 5 (US1) → Rename works → **First usable MVP**
+4. - Phase 6 (US2) → Remove/restore works → Structural editing complete
+5. - Phase 7 (US3) → Type change works → Data quality features added
+6. - Phase 8 (US4) → Filter works → Full feature complete
+7. - Phase 9 (US6 + Polish) → Consistency verified, code cleaned up
