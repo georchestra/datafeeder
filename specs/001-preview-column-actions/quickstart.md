@@ -64,17 +64,20 @@ This feature adds column-level actions (rename, remove, change type, filter) to 
 
 **Files to modify**:
 - `libs/data_manipulation/src/data_manipulation/models.py` — Extend `ColumnConfig`, add `FilterOperator`, `CastType`, `ColumnFilter` enums/models
-- `libs/data_manipulation/src/data_manipulation/transformation/transform.py` — Add column action processing (filter, exclude, rename, cast)
+- `libs/data_manipulation/src/data_manipulation/transformation/transform.py` — Update `apply_transformations` (rename + cast only; filter + exclusion are now SQL-level)
 
 **Files to create**:
-- `libs/data_manipulation/src/data_manipulation/transformation/transform_columns.py` — Column filtering, exclusion, renaming, and type casting functions
+- `libs/data_manipulation/src/data_manipulation/transformation/filter_sql.py` — `build_sql_column_ops()`: SELECT list (excluded columns omitted) + WHERE clauses (filter conditions on text cast)
+- `libs/data_manipulation/src/data_manipulation/transformation/transform_columns.py` — `rename_columns()`, `cast_column_types()` in-memory Python functions
 - `libs/data_manipulation/tests/test_column_actions.py` — Unit tests for all column action transformations
 
 **Key changes**:
 1. Add `FilterOperator`, `CastType`, `ColumnFilter` to models
 2. Extend `ColumnConfig` with `original_name`, `new_name`, `excluded`, `cast_type`, `filter`
-3. Implement `apply_column_filters()`, `exclude_columns()`, `rename_columns()`, `cast_column_types()` in new transform_columns module
-4. Update `apply_transformations()` to call column action functions before projection
+3. Implement `build_sql_column_ops()` in `filter_sql.py`: returns `(select_cols, where_clauses)` — excluded columns absent from SELECT, active filters as WHERE conditions using `cast(col, Text)`
+4. Extend `read_data_from_postgis()` to accept `columns` param: apply SELECT list and WHERE clauses from `build_sql_column_ops` **before** LIMIT (or without LIMIT for process DAG); pass the `Select` object **directly** to `gpd.read_postgis`/`pd.read_sql` — never compile with `literal_binds=True` when filter values are present
+5. Implement `rename_columns()`, `cast_column_types()` in `transform_columns.py` (cast optional for preview display)
+6. Update `apply_transformations()` to call rename → cast only (not filter/exclude which are now SQL-level)
 
 ### Phase 2: Backend API
 
@@ -140,5 +143,6 @@ npm run test:ut
 | Preview reads saved config from DB | Guarantees preview = ingestion transformation (FR-021) |
 | `raw` param on GET preview | Error recovery — display original data when config breaks preview |
 | Filter operates on text representation | Matches spec: operators (exactly, contains, starts_with) are text-based |
-| Processing order: filter → exclude → rename → cast → projection | Filters on original data, excludes before wasted computation, rename before cast for clarity |
+| Processing order: SQL (exclude + filter) → Python (rename → cast) → projection | Exclusion and filtering in DB reduce data transferred; rename before cast for clarity; cast optional for preview display |
+| SQLAlchemy native operators for filter conditions | `.like()` / `==` auto-bind values as parameters; never interpolate user input into SQL fragments; pass `Select` object directly to `gpd.read_postgis`/`pd.read_sql` to preserve binding |
 | No NgRx — Angular signals only | Wizard state is transient, not global app state |

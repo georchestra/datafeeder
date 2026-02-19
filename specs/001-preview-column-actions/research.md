@@ -71,19 +71,27 @@ class ColumnConfig(BaseModel):
 
 ## R4: `apply_transformations` Extension in `data_manipulation`
 
-**Decision**: Extend `apply_transformations` to handle the new column actions (rename, exclude, cast, filter) in addition to the existing projection transformation. The `IntegrityTransformation` model in `data_manipulation` will be updated to match the new `ColumnConfig` schema.
+**Decision**: Refactor the processing pipeline so that filter and exclusion are SQL-level operations in `read_data_from_postgis`, and only rename and cast remain as in-memory Python operations in `apply_transformations`. A new function `build_sql_column_ops` builds the SELECT column list (excluding removed columns) and WHERE clauses (filter conditions on text cast) from the `ColumnConfig` list.
 
-**Rationale**: The `data_manipulation` library is the single source of truth for transformations (Constitution §III). Both the backend preview endpoint and the ELT process DAG call `apply_transformations`. Adding column actions here guarantees FR-021 (preview = final transformation).
+**Rationale**: Applying filter and exclusion at SQL level guarantees that LIMIT is applied to already-filtered, already-narrowed rows — both for the preview (LIMIT 10) and the process DAG (no LIMIT). This is correct-by-construction: the backend and the DAG both call `read_data_from_postgis(columns=config.columns)` and get back a DataFrame that already reflects filters and exclusion. Python only handles rename and cast, which are cheap in-memory operations.
 
 **Processing order**:
-1. Filter rows (based on column filters — cumulative intersection)
-2. Exclude columns (mark excluded columns for removal)
-3. Rename columns
-4. Cast types
-5. Apply projection/geometry transformations (existing logic)
-6. Drop excluded columns from output
+1. SQL: Exclude columns from SELECT list (non-excluded columns only)
+2. SQL: Apply filters as WHERE clauses (text-cast comparison: exactly / contains / starts_with)
+3. SQL: Apply LIMIT (preview only — process DAG reads full dataset)
+4. Python: Rename columns (`new_name` replaces `original_name` in DataFrame)
+5. Python: Cast types (boolean / numeric / text / date) — optional for preview display, required for final write
+6. Python: Apply projection/geometry transformations (existing logic)
+
+**Note on cast for preview**: Since the preview displays data as strings in the UI, skipping cast for preview is acceptable. Cast is required in the process DAG where the final table needs properly-typed columns.
+
+**Security implementation notes**:
+- Filter values are passed to SQLAlchemy's native comparison operators (`.like()`, `==`) which **automatically create bound parameters** — the full `%value%` string becomes a positional/named bind parameter, never interpolated into the SQL text.
+- Never use `text()` with f-strings for filter conditions.
+- The resulting `Select` object is passed **directly** to `gpd.read_postgis(query, con=engine, ...)` or `pd.read_sql(query, engine)` (both accept `Selectable` natively in SQLAlchemy 2.x / pandas 2.x). **Do not compile with `literal_binds=True`** when user-provided filter values are present — this inlines values into the SQL string and bypasses parameter binding.
 
 **Alternatives considered**:
+- Apply filter and exclusion as Python DataFrame operations: rejected because it causes LIMIT to be applied before filtering, returning wrong rows
 - Apply column actions in the backend only (not in data_manipulation): rejected because it would break Constitution §III (shared library) and FR-021 (transformation consistency)
 
 ---
@@ -135,13 +143,13 @@ class ColumnConfig(BaseModel):
 
 ## R8: Process DAG Configuration Consistency
 
-**Decision**: The process DAG already reads `integrity_link.integrity_transformation` and passes it to `apply_transformations`. After refactoring, the same `TransformationConfiguration` Pydantic model will be used, ensuring the serialized JSON stored in `integrity_transformation` is deserialized identically for both preview and final ingestion.
+**Decision**: Update the process DAG to call `read_data_from_postgis(columns=config.columns, limit=None)` instead of reading all data and filtering in Python. After reading, apply rename and cast via `apply_transformations`. This mirrors the preview pipeline exactly — same SQL logic, just without LIMIT.
 
-**Rationale**: FR-021/FR-022 require identical transformation between preview and ingestion. Since both code paths use `data_manipulation.apply_transformations` with the same config from `integrity_transformation`, this is achieved by construction.
+**Rationale**: FR-021/FR-022 require identical transformation between preview and ingestion. Using the same `read_data_from_postgis(columns=...)` call in both code paths guarantees that exclusion and filtering are performed identically in both cases. The only difference is LIMIT (10 for preview, none for process DAG).
 
-**No changes needed to process DAG flow** — it already:
-1. Reads `integrity_transformation` from IntegrityLink
-2. Passes it as `IntegrityTransformation(**dict)` to `apply_transformations`
-3. Writes result to final table
+**Changes needed to process DAG flow**:
+1. Pass `config.columns` to `read_data_from_postgis` instead of reading `SELECT *` then filtering in Python
+2. Call `apply_transformations(df, config)` for rename + cast only
+3. Write result to final table
 
-The only change is that `IntegrityTransformation` will now include column actions (rename, exclude, cast, filter) in addition to projection.
+The `IntegrityTransformation` model is deserialized identically in both paths from `integrity_link.integrity_transformation` JSON.

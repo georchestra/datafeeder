@@ -25,7 +25,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 - [x] **API-First**: New/modified API endpoints (PUT metadata, GET preview with `raw`) are designed before UI implementation. OpenAPI contract defined in `contracts/staging-api.yaml`.
 - [x] **Component Independence**: Backend persists config and serves preview independently. Frontend drives UI. ELT reads same config for final ingestion. No cross-component coupling.
-- [x] **Shared Libraries**: Column transformation logic (filter, exclude, rename, cast) goes into `libs/data_manipulation`. Both backend preview and ELT process DAG use `apply_transformations`.
+- [x] **Shared Libraries**: Column transformation logic goes into `libs/data_manipulation`. Filter and exclusion are SQL-level operations in `read_data_from_postgis`; rename and cast are in-memory Python operations. Both backend preview and ELT process DAG use the same code path through `read_data_from_postgis(columns=...)` + `apply_transformations`.
 - [x] **Architecture Structure**: Backend: API routes → models (no new service needed, logic stays in data_manipulation). Frontend: shared/components for new column action components.
 - [x] **Testing**: pytest for data_manipulation column actions. pytest for backend endpoint changes. vitest for each new frontend component.
 - [x] **Code Quality**: Ruff/Pyright for Python. ESLint/Prettier for TypeScript.
@@ -72,7 +72,8 @@ libs/data_manipulation/
 │   ├── __init__.py                        # MODIFY: export new models
 │   └── transformation/
 │       ├── transform.py                   # MODIFY: call column action functions
-│       └── transform_columns.py           # CREATE: filter, exclude, rename, cast functions
+│       ├── filter_sql.py                  # CREATE: build_sql_column_ops (SELECT list + WHERE clauses)
+│       └── transform_columns.py           # CREATE: rename_columns, cast_column_types functions
 └── tests/
     └── test_column_actions.py             # CREATE: unit tests for column actions
 
