@@ -6,8 +6,6 @@ from typing import Any
 from airflow.exceptions import AirflowException
 from airflow.sdk import task, task_group
 from airflow.utils.trigger_rule import TriggerRule
-from sqlalchemy import Table, MetaData
-
 from data_manipulation import (
     IntegrityTransformation,
     apply_transformations,
@@ -15,6 +13,7 @@ from data_manipulation import (
     write_data_to_postgis,
 )
 from data_manipulation.logging import configure_logging
+from sqlalchemy import MetaData, Table
 from utils import get_data_sql_engine, get_final_schema, get_staging_schema
 
 logger = logging.getLogger(__name__)
