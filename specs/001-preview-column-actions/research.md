@@ -32,6 +32,8 @@
 
 **Rationale**: Currently, the preview endpoint receives transformation parameters as query params, creating a split between what's saved (PUT) and what's previewed (GET params). This makes it impossible to guarantee FR-021 (preview transformation = ingestion transformation). By reading from the same saved config, both preview and process DAG use the same source of truth.
 
+**force_projection UI**: The `DatasetConfigurationComponent` force_projection dropdown **stays in place** — it is not moved or removed. Its change handler is wired into the wizard's config update signal, triggering PUT metadata (with the full `StagingMetadata` body including the updated `force_projection`) → GET preview, identical to the column action flow. The removal of `projection`/`x_column`/`y_column` from the GET preview API only affects the API contract; the user-facing UI component is unchanged.
+
 **Alternatives considered**:
 - Keep query params on preview and add `raw` param: rejected because it maintains the split between saved config and preview config
 - Send full config as POST body for preview: rejected because GET is semantically correct for read-only preview and allows URL sharing/caching
@@ -143,13 +145,13 @@ class ColumnConfig(BaseModel):
 
 ## R8: Process DAG Configuration Consistency
 
-**Decision**: Update the process DAG to call `read_data_from_postgis(columns=config.columns, limit=None)` instead of reading all data and filtering in Python. After reading, apply rename and cast via `apply_transformations`. This mirrors the preview pipeline exactly — same SQL logic, just without LIMIT.
+**Decision**: Update the process DAG to call `read_and_transform_data(staging_table_name, engine, staging_schema, transformation_config, limit=None)` as a single pipeline call, replacing the current two-step `read_data_from_postgis` + `apply_transformations` pattern.
 
-**Rationale**: FR-021/FR-022 require identical transformation between preview and ingestion. Using the same `read_data_from_postgis(columns=...)` call in both code paths guarantees that exclusion and filtering are performed identically in both cases. The only difference is LIMIT (10 for preview, none for process DAG).
+**Rationale**: FR-021/FR-022 require identical transformation between preview and ingestion. `read_and_transform_data` is the single entry point in `data_manipulation` that combines both steps — the backend GET preview and the Airflow DAG both call the same function, the only difference being `limit=10` vs `limit=None`. This eliminates the risk of divergence between the two code paths and satisfies the Constitution §III shared-library principle.
 
 **Changes needed to process DAG flow**:
-1. Pass `config.columns` to `read_data_from_postgis` instead of reading `SELECT *` then filtering in Python
-2. Call `apply_transformations(df, config)` for rename + cast only
+1. Replace `read_data_from_postgis` + `apply_transformations` imports with `read_and_transform_data`
+2. Call `read_and_transform_data(staging_table_name, engine, schema, transformation_config, limit=None)` in `read_transform_write_task`
 3. Write result to final table
 
 The `IntegrityTransformation` model is deserialized identically in both paths from `integrity_link.integrity_transformation` JSON.

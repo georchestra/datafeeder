@@ -95,7 +95,7 @@ This feature adds column-level actions (rename, remove, change type, filter) to 
 **Files to modify**:
 - `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts` — Update config flow (PUT on each change, GET preview with raw fallback)
 - `apps/frontend/src/app/shared/components/dataset-preview-table/dataset-preview-table.component.ts` — Add column headers with actions
-- `apps/frontend/src/app/shared/components/dataset-configuration/dataset-configuration.component.ts` — Remove projection config from here (now in column actions if needed)
+- `apps/frontend/src/app/shared/components/dataset-configuration/dataset-configuration.component.ts` — Wire force_projection dropdown change output into the wizard config update signal (component stays in place; no relocation or removal)
 
 **Files to create**:
 - `apps/frontend/src/app/shared/components/column-header/column-header.component.ts` — Editable column name + action button

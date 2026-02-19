@@ -108,16 +108,17 @@ IntegrityLink
 
 ## Transformation Processing Order
 
-When `apply_transformations` is called (both preview and final ingestion):
+When transformation is applied (both preview via `read_and_transform_data` and final ingestion via the Airflow process DAG):
 
-1. **Filter rows**: For each column with a `filter`, apply the operator against the column values. Cumulate filters across columns (AND / intersection).
-2. **Exclude columns**: Remove columns where `excluded=True`.
-3. **Rename columns**: Apply `new_name` where specified.
-4. **Cast types**: Apply `cast_type` conversions.
-5. **Projection**: Apply `force_projection` (existing logic — geometry creation from x/y or CRS reprojection).
+1. **SQL — Exclude columns**: SELECT list omits columns where `excluded=True` (handled by `build_sql_column_ops` inside `read_data_from_postgis`).
+2. **SQL — Filter rows**: WHERE clauses apply active filters via `cast(col, Text)` using auto-bound parameters (handled by `build_sql_column_ops`). Cumulate across columns (AND / intersection).
+3. **SQL — LIMIT**: Applied after exclusion and filtering (preview only — process DAG reads full dataset with `limit=None`).
+4. **Python — Rename columns**: Apply `new_name` where specified (handled by `rename_columns` in `apply_transformations`).
+5. **Python — Cast types**: Apply `cast_type` conversions (handled by `cast_column_types` in `apply_transformations`; optional for preview display, required for final write).
+6. **Python — Projection**: Apply `force_projection` (existing logic — geometry creation from x/y or CRS reprojection).
 
 This order ensures:
-- Filters operate on original data (before any renames/casts)
-- Excluded columns are dropped before rename/cast (no wasted computation)
+- SQL steps reduce data volume before it reaches Python (excluded columns never fetched, filtered rows never transferred)
+- LIMIT is applied to the already-filtered, already-narrowed result set (correct rows for preview)
 - Renames happen before casts (cast operates on renamed columns, though column identity is by `original_name`)
 - Projection is last (operates on the final column set)
