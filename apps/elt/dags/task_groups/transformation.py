@@ -5,6 +5,7 @@ from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.sdk import task, task_group
+from airflow.utils.trigger_rule import TriggerRule
 from data_manipulation import (
     IntegrityTransformation,
     apply_transformations,
@@ -39,7 +40,10 @@ def process_transformation_group(
     def _transformation_group():
         """Task group for final transformation from staging to final table."""
 
-        @task(task_id="read_transform_write_task")
+        @task(
+            task_id="read_transform_write_task",
+            trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+        )
         def read_transform_write_task(**context: dict[str, Any]) -> None:
             """Read from staging, apply transformations, and write to final table."""
             params = context.get("params", {})
