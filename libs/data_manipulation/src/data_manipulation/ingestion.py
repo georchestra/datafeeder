@@ -13,6 +13,8 @@ from sqlalchemy import MetaData, Table, func, select, text
 from sqlalchemy.engine import Engine
 
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
+from data_manipulation.models import ColumnConfig, IntegrityTransformation
+from data_manipulation.transformation.filter_sql import build_sql_column_ops
 from data_manipulation.utils import resolve_url
 from data_manipulation.validators import validate_schema_name, validate_table_name
 
@@ -256,17 +258,32 @@ def ingest_data_from_url_into_postgis(
 
 
 def read_data_from_postgis(
-    table_name: str, engine: Engine, schema: str | None = None, limit: int | None = None
+    table_name: str,
+    engine: Engine,
+    schema: str | None = None,
+    limit: int | None = None,
+    columns: list[ColumnConfig] | None = None,
 ) -> gpd.GeoDataFrame | pd.DataFrame:
     """Read data from a PostGIS table.
 
+    When *columns* is provided, exclusion and filtering are applied at the SQL
+    level so that WHERE clauses execute *before* any LIMIT.  The resulting
+    SQLAlchemy ``Select`` object is passed directly to ``gpd.read_postgis`` /
+    ``pd.read_sql`` — never compiled to a string — so all filter values remain
+    bound parameters (no SQL injection risk).
+
     Args:
-        table_name: Name of the table to read
-        engine: SQLAlchemy engine
-        schema: PostgreSQL schema name (optional)
+        table_name: Name of the table to read.
+        engine: SQLAlchemy engine.
+        schema: PostgreSQL schema name (optional).
+        limit: Maximum number of rows to return (applied after filters).
+        columns: Optional list of column configurations.  When provided,
+            excluded columns are omitted from the SELECT and active filters are
+            applied as WHERE clauses.  When ``None``, all columns are returned
+            without filtering.
 
     Returns:
-        GeoDataFrame or DataFrame containing the table data
+        GeoDataFrame or DataFrame containing the (filtered) table data.
     """
     # Validate identifiers to prevent SQL injection
     validate_table_name(table_name)
@@ -277,21 +294,77 @@ def read_data_from_postgis(
         # Use SQLAlchemy Core to safely construct the query
         metadata = MetaData(schema=schema)
         table = Table(table_name, metadata, autoload_with=engine)
-        query = select(table)
+
+        if columns is not None:
+            select_cols, where_clauses = build_sql_column_ops(columns, table)
+
+            if not select_cols:
+                # All columns excluded — return an empty DataFrame immediately
+                logger.warning(
+                    f"All columns excluded for table {schema}.{table_name}, returning empty DataFrame"
+                )
+                return pd.DataFrame()
+
+            query = select(*select_cols)
+            if where_clauses:
+                query = query.where(*where_clauses)
+
+            has_geom = any(col.key == DEFAULT_GEOMETRY_COLUMN for col in select_cols)
+        else:
+            query = select(table)
+            has_geom = DEFAULT_GEOMETRY_COLUMN in table.c
 
         if limit is not None and limit > 0:
             query = query.limit(limit)
 
-        # Compile the query to SQL string (with literal binds)
-        compiled_query = str(query.compile(engine, compile_kwargs={"literal_binds": True}))
-
-        if DEFAULT_GEOMETRY_COLUMN not in table.c:
-            return pd.read_sql(compiled_query, engine)
+        # Pass the Select object directly — both pd.read_sql and gpd.read_postgis
+        # accept a SQLAlchemy Selectable natively in SQLAlchemy 2.x.
+        # This guarantees that all filter values remain bound parameters.
+        if has_geom:
+            return gpd.read_postgis(query, con=engine, geom_col=DEFAULT_GEOMETRY_COLUMN)  # type: ignore[call-overload]
         else:
-            return gpd.read_postgis(compiled_query, engine, geom_col=DEFAULT_GEOMETRY_COLUMN)
+            return pd.read_sql(query, engine)
     except Exception as e:
         logger.error(f"Error reading data from PostGIS table {schema}.{table_name}: {e}")
         raise
+
+
+def read_and_transform_data(
+    table_name: str,
+    engine: Engine,
+    schema: str | None = None,
+    config: IntegrityTransformation | None = None,
+    limit: int | None = None,
+) -> gpd.GeoDataFrame | pd.DataFrame:
+    """Single pipeline entry point: read data and apply all transformations.
+
+    Combines ``read_data_from_postgis`` (SQL-level exclusion + filtering) with
+    ``apply_transformations`` (in-memory rename, cast, projection) in one call.
+
+    Both the backend GET preview (``limit=10``, config from DB) and the Airflow
+    process DAG (``limit=None``, config from DAG params) call this function
+    identically, which is the architectural guarantee for FR-021 consistency.
+
+    Args:
+        table_name: Name of the staging table.
+        engine: SQLAlchemy engine.
+        schema: PostgreSQL schema name (optional).
+        config: Transformation configuration.  ``None`` = return raw data
+            unchanged (no column filtering, no transformations).
+        limit: Row limit (``None`` = all rows).
+
+    Returns:
+        Transformed GeoDataFrame or DataFrame.
+    """
+    columns = config.columns if config is not None else None
+    data = read_data_from_postgis(table_name, engine, schema=schema, limit=limit, columns=columns)
+
+    if config is None:
+        return data
+
+    from data_manipulation.transformation.transform import apply_transformations
+
+    return apply_transformations(data, config)
 
 
 def write_data_to_postgis(

@@ -6,6 +6,7 @@ from shapely import wkb, wkt
 
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.models import IntegrityTransformation
+from data_manipulation.transformation.transform_columns import cast_column_types, rename_columns
 from data_manipulation.transformation.transform_geom_point import create_geometries_from_columns
 from data_manipulation.transformation.transform_projection import apply_projection
 
@@ -123,6 +124,15 @@ def apply_transformations(
     """
     logger.info(f"Applying transformations with config: {transformation_config}")
 
+    # --- Step 1: In-memory column operations (rename + cast) ---
+    # Filter and exclusion are handled upstream at the SQL level
+    # (read_data_from_postgis with columns param), so excluded columns are
+    # already absent from the DataFrame at this point.
+    if transformation_config.columns:
+        df = rename_columns(df, transformation_config.columns)
+        df = cast_column_types(df, transformation_config.columns)
+
+    # --- Step 2: Projection transformation ---
     y_column = None
     x_column = None
     projection = None

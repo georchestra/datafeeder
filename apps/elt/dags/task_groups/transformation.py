@@ -7,8 +7,7 @@ from airflow.exceptions import AirflowException
 from airflow.sdk import task, task_group
 from data_manipulation import (
     IntegrityTransformation,
-    apply_transformations,
-    read_data_from_postgis,
+    read_and_transform_data,
     write_data_to_postgis,
 )
 from data_manipulation.logging import configure_logging
@@ -76,16 +75,16 @@ def process_transformation_group(
             staging_schema = get_staging_schema()
 
             try:
-                logger.info(f"Reading data from {staging_schema}.{staging_table_name}")
-                data = read_data_from_postgis(
+                logger.info(
+                    f"Reading and transforming data from {staging_schema}.{staging_table_name}"
+                )
+                transformed_data = read_and_transform_data(
                     table_name=staging_table_name,
                     engine=engine,
                     schema=staging_schema,
+                    config=transformation_config,
+                    limit=None,
                 )
-                logger.info(f"Successfully read {len(data)} rows from staging")
-
-                logger.info(f"Applying transformations with config: {transformation_config}")
-                transformed_data = apply_transformations(data, transformation_config)
                 logger.info(f"Transformations applied to {len(transformed_data)} rows")
 
                 logger.info(f"Writing data to {final_schema}.{final_table_name}")
