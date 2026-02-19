@@ -4,6 +4,10 @@ from typing import Any
 from uuid import UUID
 
 from airflow_client.client.models.dag_run_state import DagRunState
+from data_manipulation.models import CastType as CastType
+from data_manipulation.models import ColumnConfig as ColumnConfig
+from data_manipulation.models import ColumnFilter as ColumnFilter
+from data_manipulation.models import FilterOperator as FilterOperator
 from geojson_pydantic import Feature, FeatureCollection
 from geojson_pydantic.geometries import Geometry
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -71,7 +75,7 @@ class StatusResponse(BaseModel):
 
 
 class ColumnMetadata(BaseModel):
-    """Metadata for a single column"""
+    """Metadata for a single column (legacy: use ColumnConfig for full configuration)"""
 
     name: str
 
@@ -87,7 +91,7 @@ class ForceProjection(BaseModel):
 class StagingMetadata(BaseModel):
     """Metadata for staging data"""
 
-    columns: list[ColumnMetadata]
+    columns: list[ColumnConfig]
     title: str
     file_type: FileType | None
     force_projection: ForceProjection | None = None
