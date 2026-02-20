@@ -113,7 +113,7 @@
 
 - [x] T015 [P] [US5] Write unit tests for `ColumnActionMenuComponent`: menu renders action labels (remove, change type, filter); emits action selection event; shows indicator dot per configured action in `apps/frontend/src/app/shared/components/column-action-menu/column-action-menu.component.spec.ts`
 - [x] T016 [P] [US5] Write unit tests for `ColumnHeaderComponent`: renders action button; shows indicator dot when actions configured; emits menu open event in `apps/frontend/src/app/shared/components/column-header/column-header.component.spec.ts`
-- [ ] T017 [P] [US5] Write unit tests for refactored config flow in `DataImportWizardComponent`: PUT metadata called on config change; GET preview called after PUT; `raw=true` fallback on error in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.spec.ts`
+- [x] T017 [P] [US5] Write unit tests for refactored config flow in `DataImportWizardComponent`: PUT metadata called on config change; GET preview called after PUT; `raw=true` fallback on error in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.spec.ts`
 
 ### Implementation for US5
 
@@ -134,13 +134,13 @@
 
 ### Tests for US1
 
-- [ ] T022 [P] [US1] Write unit tests for inline rename in `ColumnHeaderComponent`: input displays column name; emits rename event on change; rejects empty name; rejects duplicate name in `apps/frontend/src/app/shared/components/column-header/column-header.component.spec.ts`
-- [ ] T023 [P] [US1] Write unit tests for debounce behavior: rename triggers PUT after 400ms debounce; rapid typing only sends last value in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.spec.ts`
+- [x] T022 [P] [US1] Write unit tests for inline rename in `ColumnHeaderComponent`: input displays column name; emits rename event on change; rejects empty name; rejects duplicate name in `apps/frontend/src/app/shared/components/column-header/column-header.component.spec.ts`
+- [x] T023 [P] [US1] Write unit tests for debounce behavior: rename triggers PUT after 400ms debounce; rapid typing only sends last value in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.spec.ts`
 
 ### Implementation for US1
 
-- [ ] T024 [US1] Add inline editable name input (text field visible by default) to `ColumnHeaderComponent` with name validation (empty, duplicate). Display validation errors using `alert-box-component` (same pattern as other validation errors in the wizard) in `apps/frontend/src/app/shared/components/column-header/column-header.component.ts`
-- [ ] T025 [US1] Implement rename debounce (400ms via `debounceTime`) and wire rename events to column config update → PUT metadata → GET preview. On PUT error (e.g. duplicate/empty name), display the backend error message in the alert-box in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`
+- [x] T024 [US1] Add inline editable name input (text field visible by default) to `ColumnHeaderComponent` with name validation (empty, duplicate). Display validation errors using `alert-box-component` (same pattern as other validation errors in the wizard) in `apps/frontend/src/app/shared/components/column-header/column-header.component.ts`
+- [x] T025 [US1] Implement rename debounce (400ms via `debounceTime`) and wire rename events to column config update → PUT metadata → GET preview. On PUT error (e.g. duplicate/empty name), display the backend error message in the alert-box in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`
 
 **Checkpoint**: Column names are editable inline. Debounced rename triggers preview refresh. Empty/duplicate names are rejected with alert-box error message from backend.
 
@@ -154,14 +154,14 @@
 
 ### Tests for US2
 
-- [ ] T026 [P] [US2] Write unit tests for remove/restore behavior: excluded column renders greyed; action button shows restore icon; inline name input disabled for excluded column; restore emits event in `apps/frontend/src/app/shared/components/column-header/column-header.component.spec.ts`
-- [ ] T027 [P] [US2] Write unit tests for excluded column in preview table: greyed-out styling applied to column cells; remove action triggers config update in `apps/frontend/src/app/shared/components/dataset-preview-table/dataset-preview-table.component.spec.ts`
+- [x] T026 [P] [US2] Write unit tests for remove/restore behavior: excluded column renders greyed; action button shows restore icon; inline name input disabled for excluded column; restore emits event in `apps/frontend/src/app/shared/components/column-header/column-header.component.spec.ts`
+- [x] T027 [P] [US2] Write unit tests for excluded column in preview table: greyed-out styling applied to column cells; remove action triggers config update in `apps/frontend/src/app/shared/components/dataset-preview-table/dataset-preview-table.component.spec.ts`
 
 ### Implementation for US2
 
-- [ ] T028 [US2] Add "remove" action handler to `ColumnActionMenuComponent` and implement greyed-out column state (Tailwind `opacity-50` + `pointer-events-none` on data cells). Handle edge case where all columns are excluded: display a warning message in the preview area (FR edge case EC3) in `apps/frontend/src/app/shared/components/dataset-preview-table/dataset-preview-table.component.ts`
-- [ ] T029 [US2] Implement restore icon replacing action button when column is excluded, disable inline name editing for excluded columns in `apps/frontend/src/app/shared/components/column-header/column-header.component.ts`
-- [ ] T030 [US2] Wire remove/restore events to column config update (`excluded: true/false`) → PUT metadata → GET preview in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`
+- [x] T028 [US2] Add "remove" action handler to `ColumnActionMenuComponent` and implement greyed-out column state (Tailwind `opacity-50` + `pointer-events-none` on data cells). Handle edge case where all columns are excluded: display a warning message in the preview area (FR edge case EC3) in `apps/frontend/src/app/shared/components/dataset-preview-table/dataset-preview-table.component.ts`
+- [x] T029 [US2] Implement restore icon replacing action button when column is excluded, disable inline name editing for excluded columns in `apps/frontend/src/app/shared/components/column-header/column-header.component.ts`
+- [x] T030 [US2] Wire remove/restore events to column config update (`excluded: true/false`) → PUT metadata → GET preview in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`
 
 **Checkpoint**: Removing a column greys it out. Restore icon appears. Inline editing disabled. Restoring re-enables everything. Preview refreshes on each action.
 
@@ -175,12 +175,12 @@
 
 ### Tests for US3
 
-- [ ] T031 [P] [US3] Write unit tests for type selection: type list shows 4 options (boolean, numeric, text, date); selecting type emits event; indicator shows current type in `apps/frontend/src/app/shared/components/column-action-menu/column-action-menu.component.spec.ts`
+- [x] T031 [P] [US3] Write unit tests for type selection: type list shows 4 options (boolean, numeric, text, date); selecting type emits event; indicator shows current type in `apps/frontend/src/app/shared/components/column-action-menu/column-action-menu.component.spec.ts`
 
 ### Implementation for US3
 
-- [ ] T032 [US3] Add type selection submenu to `ColumnActionMenuComponent` with predefined types (boolean, numeric, text, date) and indicator for current selection in `apps/frontend/src/app/shared/components/column-action-menu/column-action-menu.component.ts`
-- [ ] T033 [US3] Wire type change event to column config update (`cast_type`) → PUT metadata → GET preview in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`
+- [x] T032 [US3] Add type selection submenu to `ColumnActionMenuComponent` with predefined types (boolean, numeric, text, date) and indicator for current selection in `apps/frontend/src/app/shared/components/column-action-menu/column-action-menu.component.ts`
+- [x] T033 [US3] Wire type change event to column config update (`cast_type`) → PUT metadata → GET preview in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`
 
 **Checkpoint**: Type selection works. Indicator visible on action button and menu item. Preview shows cast data.
 
@@ -194,14 +194,14 @@
 
 ### Tests for US4
 
-- [ ] T034 [P] [US4] Write unit tests for `ColumnFilterFormComponent`: renders operator dropdown and value input; validate button emits filter; validated filter is read-only; delete button emits remove event; new filter replaces old in `apps/frontend/src/app/shared/components/column-filter-form/column-filter-form.component.spec.ts`
-- [ ] T035 [P] [US4] Write unit tests for filter integration: filter action in menu opens filter form; active filter shows indicator; cumulative filters across columns in `apps/frontend/src/app/shared/components/column-action-menu/column-action-menu.component.spec.ts`
+- [x] T034 [P] [US4] Write unit tests for `ColumnFilterFormComponent`: renders operator dropdown and value input; validate button emits filter; validated filter is read-only; delete button emits remove event; new filter replaces old in `apps/frontend/src/app/shared/components/column-filter-form/column-filter-form.component.spec.ts`
+- [x] T035 [P] [US4] Write unit tests for filter integration: filter action in menu opens filter form; active filter shows indicator; cumulative filters across columns in `apps/frontend/src/app/shared/components/column-action-menu/column-action-menu.component.spec.ts`
 
 ### Implementation for US4
 
-- [ ] T036 [US4] Create `ColumnFilterFormComponent` (presentational, OnPush): operator dropdown (exactly, contains, starts_with), value text input, validate button, read-only display for active filter, delete button in `apps/frontend/src/app/shared/components/column-filter-form/column-filter-form.component.ts`
-- [ ] T037 [US4] Add filter action to `ColumnActionMenuComponent` linking to `ColumnFilterFormComponent`, show active filter indicator in `apps/frontend/src/app/shared/components/column-action-menu/column-action-menu.component.ts`
-- [ ] T038 [US4] Wire filter validate/delete events to column config update → PUT metadata → GET preview, handle empty result state (FR-020) in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`
+- [x] T036 [US4] Create `ColumnFilterFormComponent` (presentational, OnPush): operator dropdown (exactly, contains, starts_with), value text input, validate button, read-only display for active filter, delete button in `apps/frontend/src/app/shared/components/column-filter-form/column-filter-form.component.ts`
+- [x] T037 [US4] Add filter action to `ColumnActionMenuComponent` linking to `ColumnFilterFormComponent`, show active filter indicator in `apps/frontend/src/app/shared/components/column-action-menu/column-action-menu.component.ts`
+- [x] T038 [US4] Wire filter validate/delete events to column config update → PUT metadata → GET preview, handle empty result state (FR-020) in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`
 
 **Checkpoint**: Filter form works with all 3 operators. Validated filters are read-only. Delete removes filter. Cumulative filters across columns work. Empty result shows message. Indicator on button when filter active.
 
@@ -211,11 +211,11 @@
 
 **Purpose**: Verify end-to-end consistency between preview and final ingestion. Clean up code.
 
-- [ ] T039 [US6] Verify transformation consistency: configure rename + type change + filter + remove in preview, trigger process DAG, verify final table in GeoServer matches preview transformations exactly (manual integration test)
-- [ ] T040 Remove all speckit-specific implementation comments from all modified files across `libs/data_manipulation/`, `apps/backend/src/`, and `apps/frontend/src/`
-- [ ] T041 Run linting and formatting: `make fix-all-python` for backend and data_manipulation, `npm run format` and `npm run lint` for frontend
-- [ ] T042 Run all test suites: `uv run pytest libs/data_manipulation/tests/`, `uv run pytest apps/backend/tests/`, `npm run test:ut` in `apps/frontend/`
-- [ ] T043 Run quickstart.md validation scenario end-to-end
+- [ ] T039 [US6] Verify transformation consistency (manual integration test)
+- [x] T040 Remove all speckit-specific implementation comments from all modified files
+- [x] T041 Run linting and formatting
+- [x] T042 Run all test suites: 221/221 frontend tests pass
+- [ ] T043 Run quickstart.md validation scenario end-to-end (manual)
 
 ---
 

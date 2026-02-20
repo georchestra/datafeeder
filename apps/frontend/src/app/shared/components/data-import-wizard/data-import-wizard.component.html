@@ -143,6 +143,9 @@
       [previewError]="previewError()"
       [previewLoading]="previewLoading()"
       (columnActionRequested)="onColumnActionRequested($event)"
+      (columnRenameRequested)="onColumnRenameRequested($event)"
+      (columnTypeChangeRequested)="onColumnTypeChangeRequested($event)"
+      (columnFilterChangeRequested)="onColumnFilterChangeRequested($event)"
     />
     } @else { @if (previewErrorExtent()) {
     <div class="px-6 pb-4">
@@ -165,6 +168,9 @@
       [previewError]="previewError()"
       [previewLoading]="previewLoading()"
       (columnActionRequested)="onColumnActionRequested($event)"
+      (columnRenameRequested)="onColumnRenameRequested($event)"
+      (columnTypeChangeRequested)="onColumnTypeChangeRequested($event)"
+      (columnFilterChangeRequested)="onColumnFilterChangeRequested($event)"
     />
     }
   </div>

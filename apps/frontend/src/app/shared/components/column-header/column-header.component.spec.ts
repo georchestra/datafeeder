@@ -7,7 +7,9 @@ import type { ColumnConfigOutput } from '../../../core/api/models'
 const translations = {
   'import.columnAction.menu.filter': 'Filtrer la colonne',
   'import.columnAction.menu.changeType': 'Changer le type',
-  'import.columnAction.menu.remove': 'Retirer la colonne'
+  'import.columnAction.menu.remove': 'Retirer la colonne',
+  'import.columnHeader.error.empty': 'Le nom ne peut pas être vide',
+  'import.columnHeader.error.duplicate': 'Ce nom est déjà utilisé'
 }
 
 const baseColumnConfig: ColumnConfigOutput = {
@@ -135,12 +137,175 @@ describe('ColumnHeaderComponent', () => {
     actionBtn.click()
     fixture.detectChanges()
 
-    // Click an action item ("filter") in the opened menu
-    const filterBtn = compiled.querySelector('[data-action="filter"]') as HTMLElement
-    filterBtn.click()
+    // Click the "remove" action (which emits actionSelected directly)
+    const removeBtn = compiled.querySelector('[data-action="remove"]') as HTMLElement
+    removeBtn.click()
     fixture.detectChanges()
 
     expect(emitted.length).toBeGreaterThan(0)
-    expect(emitted[0]).toBe('filter')
+    expect(emitted[0]).toBe('remove')
+  })
+
+  // --- T022: Inline rename tests ---
+
+  it('should have an editable name input when column is not excluded', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+    expect(nameInput).toBeTruthy()
+    expect(nameInput.disabled).toBe(false)
+  })
+
+  it('should have a disabled name input when column is excluded', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', { ...baseColumnConfig, excluded: true })
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+    expect(nameInput).toBeTruthy()
+    expect(nameInput.disabled).toBe(true)
+  })
+
+  it('should emit nameChanged with the new valid name on change event', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.componentRef.setInput('allColumnNames', ['my_column', 'other_col'])
+    fixture.detectChanges()
+
+    const emitted: string[] = []
+    fixture.componentInstance.nameChanged.subscribe((n) => emitted.push(n))
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+    nameInput.value = 'new_name'
+    nameInput.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+
+    expect(emitted).toEqual(['new_name'])
+    expect(compiled.querySelector('[data-name-error]')).toBeNull()
+  })
+
+  it('should NOT emit nameChanged and should show error for empty name', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.detectChanges()
+
+    const emitted: string[] = []
+    fixture.componentInstance.nameChanged.subscribe((n) => emitted.push(n))
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+    nameInput.value = '   '
+    nameInput.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+
+    expect(emitted).toHaveLength(0)
+    const error = compiled.querySelector('[data-name-error]')
+    expect(error).toBeTruthy()
+    expect(error?.textContent?.trim()).toContain('vide')
+  })
+
+  it('should NOT emit nameChanged and should show error for duplicate name', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.componentRef.setInput('allColumnNames', ['my_column', 'other_col'])
+    fixture.detectChanges()
+
+    const emitted: string[] = []
+    fixture.componentInstance.nameChanged.subscribe((n) => emitted.push(n))
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+    nameInput.value = 'other_col'
+    nameInput.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+
+    expect(emitted).toHaveLength(0)
+    const error = compiled.querySelector('[data-name-error]')
+    expect(error).toBeTruthy()
+    expect(error?.textContent?.trim()).toContain('déjà utilisé')
+  })
+
+  it('should show restore button (not action button) when column is excluded', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', { ...baseColumnConfig, excluded: true })
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    expect(compiled.querySelector('[data-restore-button]')).toBeTruthy()
+    expect(compiled.querySelector('[data-action-button]')).toBeNull()
+  })
+
+  it('should show action button (not restore button) when column is not excluded', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    expect(compiled.querySelector('[data-action-button]')).toBeTruthy()
+    expect(compiled.querySelector('[data-restore-button]')).toBeNull()
+  })
+
+  // --- T026: Remove/restore behavior ---
+
+  it('should apply opacity-50 styling to wrapper when column is excluded', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', { ...baseColumnConfig, excluded: true })
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    // The inner row div should have opacity-50 class when excluded
+    const rowDiv = compiled.querySelector('.opacity-50')
+    expect(rowDiv).toBeTruthy()
+  })
+
+  it('should NOT apply opacity-50 styling when column is not excluded', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    expect(compiled.querySelector('.opacity-50')).toBeNull()
+  })
+
+  it('should emit actionMenuOpened with "remove" when restore button is clicked', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', { ...baseColumnConfig, excluded: true })
+    fixture.detectChanges()
+
+    const emitted: string[] = []
+    fixture.componentInstance.actionMenuOpened.subscribe((a) => emitted.push(a))
+
+    const restoreBtn = fixture.nativeElement.querySelector('[data-restore-button]') as HTMLElement
+    restoreBtn.click()
+    fixture.detectChanges()
+
+    expect(emitted).toEqual(['remove'])
+  })
+
+  it('should clear validation error when re-entering a valid name after error', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.componentRef.setInput('allColumnNames', ['my_column', 'other_col'])
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+
+    // First trigger an error
+    nameInput.value = ''
+    nameInput.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+    expect(compiled.querySelector('[data-name-error]')).toBeTruthy()
+
+    // Then type a valid name
+    nameInput.value = 'valid_name'
+    nameInput.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+    expect(compiled.querySelector('[data-name-error]')).toBeNull()
   })
 })

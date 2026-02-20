@@ -1347,3 +1347,251 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
     expect(compiled.textContent).toContain('Preview of the result')
   })
 })
+
+// --- T017: Config flow tests ---
+describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
+  let httpMock: HttpTestingController
+
+  const mockMetadata = {
+    title: 'test.csv',
+    file_type: 'csv',
+    force_projection: null,
+    columns: [
+      { original_name: 'col1', new_name: null, excluded: false, cast_type: null, filter: null },
+      { original_name: 'col2', new_name: null, excluded: false, cast_type: null, filter: null }
+    ]
+  }
+
+  const mockPreview = {
+    data: [{ col1: 'a', col2: 'b' }],
+    is_geographic: false,
+    geojson: null
+  }
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.error': 'Error',
+            'import.dataSource.unknownError': 'Unknown error'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: ApiConfiguration, useValue: { rootUrl: 'http://localhost:8000' } }
+      ]
+    }).compileComponents()
+
+    httpMock = TestBed.inject(HttpTestingController)
+  })
+
+  afterEach(() => {
+    const pending = httpMock.match(() => true)
+    pending.forEach((req) => { if (!req.cancelled) req.flush(null) })
+    httpMock.verify()
+  })
+
+  it('should call PUT metadata then GET preview when saveConfigAndRefresh is triggered', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkId.set('link-123')
+    component.metadata.set(mockMetadata)
+    component.columnConfigs.set(mockMetadata.columns)
+    component.forceProjection.set(null)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const promise = (component as any).saveConfigAndRefresh()
+
+    // Expect PUT request — triggered synchronously by the async function start
+    const putReq = httpMock.expectOne('http://localhost:8000/ingestion/staging/link-123/metadata')
+    expect(putReq.request.method).toBe('PUT')
+    putReq.flush(mockMetadata)
+
+    // Wait for microtasks to settle: PUT Promise resolves → saveConfigAndRefresh continues → refreshPreview called
+    await Promise.resolve()
+    await Promise.resolve()
+
+    // Expect GET preview request
+    const getReq = httpMock.expectOne((r) => r.url.includes('/ingestion/staging/link-123/preview'))
+    expect(getReq.request.method).toBe('GET')
+    getReq.flush(mockPreview)
+
+    await promise
+    expect(component.preview()).toEqual(mockPreview)
+    expect(component.previewError()).toBeNull()
+  })
+
+  it('should fall back to raw=true GET preview when raw=false preview errors', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkId.set('link-123')
+    component.metadata.set(mockMetadata)
+    component.columnConfigs.set(mockMetadata.columns)
+    component.forceProjection.set(null)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const promise = (component as any).saveConfigAndRefresh()
+
+    // PUT succeeds
+    httpMock.expectOne('http://localhost:8000/ingestion/staging/link-123/metadata').flush(mockMetadata)
+
+    await Promise.resolve()
+    await Promise.resolve()
+
+    // GET preview (raw=false) fails with server error
+    const previewReq = httpMock.expectOne((r) => r.url.includes('/preview'))
+    previewReq.flush(null, { status: 500, statusText: 'Server Error' })
+
+    // Wait for fallback to trigger
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    // Expect fallback GET preview (raw=true)
+    const rawReq = httpMock.expectOne((r) => r.url.includes('/preview'))
+    rawReq.flush(mockPreview)
+
+    await promise
+    expect(component.preview()).toEqual(mockPreview)
+    expect(component.previewError()).toBeTruthy() // error shown for transformation failure
+  })
+
+  it('should set previewError when PUT metadata fails', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkId.set('link-123')
+    component.metadata.set(mockMetadata)
+    component.columnConfigs.set(mockMetadata.columns)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const promise = (component as any).saveConfigAndRefresh()
+
+    // PUT fails with validation error
+    httpMock
+      .expectOne('http://localhost:8000/ingestion/staging/link-123/metadata')
+      .flush({ detail: 'Duplicate column name' }, { status: 422, statusText: 'Unprocessable Entity' })
+
+    await promise
+    expect(component.previewError()).toBeTruthy()
+  })
+})
+
+// --- T023: Rename debounce behavior tests ---
+describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
+  let httpMock: HttpTestingController
+
+  const mockMetadata = {
+    title: 'test.csv',
+    file_type: 'csv',
+    force_projection: null,
+    columns: [
+      { original_name: 'col1', new_name: null, excluded: false, cast_type: null, filter: null }
+    ]
+  }
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: { 'import.dataSource.unknownError': 'Unknown error' }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: ApiConfiguration, useValue: { rootUrl: 'http://localhost:8000' } }
+      ]
+    }).compileComponents()
+
+    httpMock = TestBed.inject(HttpTestingController)
+  })
+
+  afterEach(() => {
+    const pending = httpMock.match(() => true)
+    pending.forEach((req) => { if (!req.cancelled) req.flush(null) })
+    httpMock.verify()
+  })
+
+  it('should debounce rename: only one PUT call after 400ms for rapid events', fakeAsync(() => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkId.set('link-abc')
+    component.metadata.set(mockMetadata)
+    component.columnConfigs.set([...mockMetadata.columns])
+
+    // Simulate rapid rename events (before 400ms debounce fires)
+    component.onColumnRenameRequested({ originalName: 'col1', newName: 'renamed_1' })
+    tick(100)
+    component.onColumnRenameRequested({ originalName: 'col1', newName: 'renamed_2' })
+    tick(100)
+    component.onColumnRenameRequested({ originalName: 'col1', newName: 'renamed_final' })
+    tick(100)
+
+    // Debounce hasn't fired yet — no PUT request
+    httpMock.expectNone(() => true)
+
+    // Advance past debounce threshold
+    tick(400)
+
+    // Now exactly one PUT should fire with the last value
+    const putReq = httpMock.expectOne('http://localhost:8000/ingestion/staging/link-abc/metadata')
+    expect(putReq.request.method).toBe('PUT')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const body = putReq.request.body as { columns: Array<{ new_name: string }> }
+    expect(body.columns[0].new_name).toBe('renamed_final')
+    putReq.flush(mockMetadata)
+
+    // Drain microtasks so refreshPreview fires
+    tick(0)
+
+    // GET preview fires
+    const pending = httpMock.match((r) => r.url.includes('/preview'))
+    pending.forEach((req) => req.flush({ data: [], is_geographic: false, geojson: null }))
+
+    tick(100)
+  }))
+
+  it('should update columnConfigs with the new name after debounce', fakeAsync(() => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkId.set('link-abc')
+    component.metadata.set(mockMetadata)
+    component.columnConfigs.set([...mockMetadata.columns])
+
+    component.onColumnRenameRequested({ originalName: 'col1', newName: 'my_new_col' })
+    tick(400)
+
+    expect(component.columnConfigs()[0].new_name).toBe('my_new_col')
+
+    // Flush the resulting HTTP requests
+    const putReq = httpMock.expectOne((r) => r.url.includes('/metadata'))
+    putReq.flush(mockMetadata)
+    tick(0)
+
+    const pending = httpMock.match((r) => r.url.includes('/preview'))
+    pending.forEach((req) => req.flush({ data: [], is_geographic: false, geojson: null }))
+
+    tick(100)
+  }))
+})

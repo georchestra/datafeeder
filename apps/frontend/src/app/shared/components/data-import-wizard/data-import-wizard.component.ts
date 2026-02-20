@@ -1,12 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http'
 import {
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
   signal,
   OnInit
 } from '@angular/core'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { MatButtonToggleModule } from '@angular/material/button-toggle'
 import { MatTabsModule } from '@angular/material/tabs'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
@@ -22,7 +24,9 @@ import {
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { ButtonComponent, SpinningLoaderComponent } from 'geonetwork-ui'
 import {
+  Subject,
   catchError,
+  debounceTime,
   from,
   interval,
   lastValueFrom,
@@ -54,7 +58,8 @@ import type { SourceData } from '../data-source-selector/data-source-selector.co
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
 import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
-import type { ColumnAction } from '../column-action-menu/column-action-menu.component'
+import type { ColumnAction, CastType } from '../column-action-menu/column-action-menu.component'
+import type { ColumnFilter } from '../../../core/api/models/column-filter'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
@@ -115,6 +120,10 @@ export class DataImportWizardComponent implements OnInit {
   private translate = inject(TranslateService)
   private router = inject(Router)
   private route = inject(ActivatedRoute)
+  private destroyRef = inject(DestroyRef)
+
+  /** Subject for debouncing rename events (400ms). */
+  private renameSubject = new Subject<{ originalName: string; newName: string }>()
 
   selectedTabIndex = signal(0)
   importData = signal<ImportWizardData>(null)
@@ -157,6 +166,20 @@ export class DataImportWizardComponent implements OnInit {
   }
 
   constructor() {
+    // Wire debounced column rename → PUT metadata → GET preview
+    this.renameSubject
+      .pipe(debounceTime(400), takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ originalName, newName }) => {
+        this.columnConfigs.update((cols) =>
+          cols.map((col) =>
+            col.original_name === originalName
+              ? { ...col, new_name: newName }
+              : col
+          )
+        )
+        this.saveConfigAndRefresh()
+      })
+
     effect(async () => {
       const tabIndex = this.selectedTabIndex()
       const linkId = this.integrityLinkId()
@@ -234,9 +257,45 @@ export class DataImportWizardComponent implements OnInit {
     this.saveConfigAndRefresh()
   }
 
-  // Placeholder — individual action handlers wired in Phases 5 (rename), 6 (remove), 7 (type), 8 (filter)
-  onColumnActionRequested(_event: { originalName: string; action: ColumnAction }): void {
-    // TODO: dispatch to the appropriate panel/signal in each phase
+  onColumnActionRequested(event: { originalName: string; action: ColumnAction }): void {
+    const { originalName, action } = event
+    if (action === 'remove') {
+      this.columnConfigs.update((cols) =>
+        cols.map((col) =>
+          col.original_name === originalName
+            ? { ...col, excluded: !col.excluded }
+            : col
+        )
+      )
+      this.saveConfigAndRefresh()
+    }
+    // 'changeType' and 'filter' are handled via dedicated outputs (typeSelected / filterChanged)
+  }
+
+  onColumnRenameRequested(event: { originalName: string; newName: string }): void {
+    this.renameSubject.next(event)
+  }
+
+  onColumnTypeChangeRequested(event: { originalName: string; type: CastType | null }): void {
+    const { originalName, type } = event
+    this.columnConfigs.update((cols) =>
+      cols.map((col) =>
+        col.original_name === originalName ? { ...col, cast_type: type ?? undefined } : col
+      )
+    )
+    this.saveConfigAndRefresh()
+  }
+
+  onColumnFilterChangeRequested(event: { originalName: string; filter: ColumnFilter | null }): void {
+    const { originalName, filter } = event
+    this.columnConfigs.update((cols) =>
+      cols.map((col) =>
+        col.original_name === originalName
+          ? { ...col, filter: filter ?? undefined }
+          : col
+      )
+    )
+    this.saveConfigAndRefresh()
   }
 
   onSourceChanged(data: SourceData) {

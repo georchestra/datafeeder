@@ -1,0 +1,62 @@
+<div class="p-3 bg-white flex flex-col gap-2 min-w-[260px]" (click)="$event.stopPropagation()">
+  @if (isEditing()) {
+    <!-- Editing state: operator + value + validate button -->
+    <div class="flex flex-col gap-2">
+      <select
+        data-operator-select
+        [ngModel]="selectedOperator()"
+        (ngModelChange)="selectedOperator.set($event)"
+        class="border border-gray-300 rounded px-2 py-1.5 text-sm w-full"
+      >
+        @for (op of operators; track op) {
+          <option [value]="op">{{ 'import.columnFilter.operator.' + op | translate }}</option>
+        }
+      </select>
+
+      <input
+        type="text"
+        data-filter-value-input
+        [ngModel]="filterValue()"
+        (ngModelChange)="filterValue.set($event)"
+        class="border border-gray-300 rounded px-2 py-1.5 text-sm w-full"
+        [placeholder]="'import.columnFilter.valuePlaceholder' | translate"
+      />
+
+      <button
+        type="button"
+        data-validate-button
+        class="bg-[#1D3557] text-white text-sm px-3 py-1.5 rounded hover:bg-[#163044] disabled:opacity-50 disabled:cursor-not-allowed"
+        [disabled]="!filterValue().trim()"
+        (click)="onValidate($event)"
+      >
+        {{ 'import.columnFilter.validate' | translate }}
+      </button>
+    </div>
+  } @else {
+    <!-- Read-only active filter display -->
+    @if (activeFilter(); as filter) {
+      <div
+        data-active-filter
+        class="flex items-center justify-between gap-2 bg-gray-100 border border-gray-300 rounded px-2 py-1.5 text-sm"
+      >
+        <span class="flex-1 truncate text-gray-800">
+          <span class="font-semibold">{{ 'import.columnFilter.operator.' + filter.operator | translate }}</span>
+          <span class="ml-1">{{ filter.value }}</span>
+        </span>
+        <button
+          type="button"
+          data-delete-button
+          class="shrink-0 text-gray-500 hover:text-red-600 ml-1"
+          (click)="onDelete($event)"
+          aria-label="Delete filter"
+        >
+          <!-- X icon -->
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    }
+  }
+</div>
