@@ -85,7 +85,8 @@
           (typeSelected)="onTypeSelected($event)"
           (filterValidated)="onFilterValidated($event)"
           (filterDeleted)="onFilterDeleted()"
-          class="absolute top-full right-0 z-50 mt-0.5"
+          class="fixed z-[9999]"
+          [ngStyle]="menuStyle() ?? {}"
         ></app-column-action-menu>
       }
     </div>

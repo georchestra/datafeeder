@@ -9,6 +9,7 @@ import {
   ElementRef,
   inject
 } from '@angular/core'
+import { NgStyle } from '@angular/common'
 import { FormsModule } from '@angular/forms'
 import { TranslateService } from '@ngx-translate/core'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
@@ -24,7 +25,7 @@ marker('import.columnHeader.error.duplicate')
   selector: 'app-column-header',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ColumnActionMenuComponent, FormsModule],
+  imports: [ColumnActionMenuComponent, FormsModule, NgStyle],
   templateUrl: './column-header.component.html'
 })
 export class ColumnHeaderComponent {
@@ -45,6 +46,8 @@ export class ColumnHeaderComponent {
 
   isMenuOpen = signal(false)
   nameValidationError = signal<string | null>(null)
+  /** Position for the fixed-positioned dropdown menu. */
+  menuStyle = signal<{ top: string; right: string } | null>(null)
 
   displayName = computed(
     () => this.columnConfig().new_name ?? this.columnConfig().original_name
@@ -64,8 +67,22 @@ export class ColumnHeaderComponent {
     }
   }
 
+  @HostListener('document:wheel')
+  @HostListener('document:touchmove')
+  onScrollEvent(): void {
+    if (this.isMenuOpen()) {
+      this.isMenuOpen.set(false)
+    }
+  }
+
   toggleMenu(event: MouseEvent): void {
     event.stopPropagation()
+    const btn = event.currentTarget as HTMLElement
+    const rect = btn.getBoundingClientRect()
+    this.menuStyle.set({
+      top: `${rect.bottom + 2}px`,
+      right: `${window.innerWidth - rect.right}px`
+    })
     this.isMenuOpen.update((open) => !open)
   }
 
