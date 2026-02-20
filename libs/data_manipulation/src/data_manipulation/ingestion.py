@@ -72,9 +72,18 @@ def _read_file_encoded(file_path: str) -> gpd.GeoDataFrame | pd.DataFrame:
     Returns:
         GeoDataFrame or DataFrame with the file data
     """
+    try:
+        # Try reading with UTF-8 first (common default)
+        data = gpd.read_file(file_path)  # type: ignore[arg-type]
+        return data
+    except UnicodeDecodeError:
+        logger.warning(
+            "Failed to read file with UTF-8 encoding, attempting to detect encoding and read again."
+        )
+
     # Detect encoding (mainly for shapefiles, others default to UTF-8)
     encoding = _detect_file_encoding(file_path)
-
+    logger.warning("Detected encoding: %s", encoding)
     # Reading with detected encoding
     data = gpd.read_file(file_path, encoding=encoding)  # type: ignore[arg-type]
 
