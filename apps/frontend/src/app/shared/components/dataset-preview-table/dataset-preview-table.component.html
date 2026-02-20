@@ -15,9 +15,16 @@
         <th
           mat-header-cell
           *matHeaderCellDef
-          class="!bg-gray-200 !px-4 !font-semibold !text-gray-900 !whitespace-nowrap !border-b !border-r !border-gray-400 !w-[220px] !min-w-[220px] !max-w-[220px] !h-12 last:!border-r-0"
+          class="!p-0 !bg-gray-200 !border-b !border-r !border-gray-400 !w-[220px] !min-w-[220px] !max-w-[220px] !h-12 last:!border-r-0 !overflow-visible"
         >
-          {{ column }}
+          @if (getColumnConfig(column); as config) {
+            <app-column-header
+              [columnConfig]="config"
+              (actionMenuOpened)="onColumnAction(column, $event)"
+            ></app-column-header>
+          } @else {
+            <span class="px-4 font-semibold text-gray-900">{{ column }}</span>
+          }
         </th>
         <td
           mat-cell

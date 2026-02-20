@@ -1,0 +1,58 @@
+<div
+  class="relative flex items-stretch h-12 gap-[5px] px-[5px] py-[8px]"
+  [class.opacity-50]="isExcluded()"
+>
+  <!-- Column name input (read-only in Phase 4; interactive input added in Phase 5) -->
+  <div
+    class="flex-1 min-w-0 border border-gray-300 flex items-center px-2 overflow-hidden"
+    [class.bg-[#f7f5f0]]="!isExcluded()"
+    [class.bg-white]="isExcluded()"
+  >
+    <input
+      type="text"
+      [value]="displayName()"
+      [disabled]="true"
+      class="w-full bg-transparent font-bold text-[14px] text-[#646464] leading-[1.5] truncate outline-none cursor-default pointer-events-none"
+      [attr.aria-label]="displayName()"
+    />
+  </div>
+
+  <!-- Action button -->
+  <div class="relative shrink-0">
+    <button
+      type="button"
+      data-action-button
+      class="relative flex items-center justify-center w-10 h-full border border-gray-300 bg-white hover:bg-gray-50 focus:outline-none"
+      [disabled]="isExcluded()"
+      (click)="toggleMenu($event)"
+    >
+      <!-- Three-dot icon (⋮) -->
+      <svg
+        class="w-5 h-5 text-[#646464]"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+      >
+        <circle cx="12" cy="5" r="1.5" />
+        <circle cx="12" cy="12" r="1.5" />
+        <circle cx="12" cy="19" r="1.5" />
+      </svg>
+
+      <!-- Active actions indicator dot -->
+      @if (hasActiveActions()) {
+        <span
+          data-active-indicator
+          class="absolute top-[-4px] right-[-2px] w-2.5 h-2.5 rounded-full bg-[#E30513]"
+        ></span>
+      }
+    </button>
+
+    <!-- Dropdown menu -->
+    @if (isMenuOpen()) {
+      <app-column-action-menu
+        [columnConfig]="columnConfig()"
+        (actionSelected)="onMenuAction($event)"
+        class="absolute top-full right-0 z-50 mt-0.5"
+      ></app-column-action-menu>
+    }
+  </div>
+</div>

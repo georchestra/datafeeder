@@ -79,7 +79,7 @@ export class DatasetConfigurationComponent {
   showError = signal<boolean>(false)
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
   displayedColumns = computed(
-    () => this.metadata()?.columns.map((col) => col.name) || []
+    () => this.metadata()?.columns.map((col) => col.original_name) ?? []
   )
   dataSource = computed(() => this.preview()?.data || [])
   projections = computed<DropdownChoice[]>(() => {
@@ -125,8 +125,8 @@ export class DatasetConfigurationComponent {
     return [
       { value: '', label: '-' },
       ...meta.columns.map((col) => ({
-        value: col.name,
-        label: col.name
+        value: col.original_name,
+        label: col.original_name
       }))
     ]
   })

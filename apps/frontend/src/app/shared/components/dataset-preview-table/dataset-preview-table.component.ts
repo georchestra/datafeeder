@@ -1,59 +1,57 @@
-import { Component, input, computed, inject } from '@angular/core'
+import { Component, input, computed, inject, output, ChangeDetectionStrategy } from '@angular/core'
 import { MatTableModule } from '@angular/material/table'
 import type {
+  ColumnConfigOutput,
   StagingMetadataResponse,
   StagingPreviewResponse
 } from '../../../core/api/models'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
-import { DropdownChoice, SpinningLoaderComponent } from 'geonetwork-ui'
-import { provideIcons, provideNgIconsConfig } from '@ng-icons/core'
-import { iconoirDataTransferBoth } from '@ng-icons/iconoir'
+import { SpinningLoaderComponent } from 'geonetwork-ui'
+import { ColumnHeaderComponent } from '../column-header/column-header.component'
+import type { ColumnAction } from '../column-action-menu/column-action-menu.component'
 
 @Component({
   selector: 'app-dataset-preview-table',
-  imports: [MatTableModule, TranslatePipe, SpinningLoaderComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [MatTableModule, TranslatePipe, SpinningLoaderComponent, ColumnHeaderComponent],
   templateUrl: './dataset-preview-table.component.html',
-  styleUrls: ['./dataset-preview-table.component.scss'],
-  providers: [
-    provideIcons({
-      iconoirDataTransferBoth
-    }),
-    provideNgIconsConfig({
-      size: '2em'
-    })
-  ]
+  styleUrls: ['./dataset-preview-table.component.scss']
 })
 export class DatasetPreviewTableComponent {
-  private translate = inject(TranslateService)
+  private readonly translate = inject(TranslateService)
 
   metadata = input<StagingMetadataResponse | null>(null)
   preview = input<StagingPreviewResponse | null>(null)
   previewError = input<string | null>(null)
   previewLoading = input<boolean>(false)
 
+  columnActionRequested = output<{ originalName: string; action: ColumnAction }>()
+
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
 
+  /** Non-excluded columns, using new_name ?? original_name as the MatTable column key. */
   displayedColumns = computed(() => {
     const meta = this.metadata()
-    return meta?.columns.map((col) => col.name) || []
+    return (meta?.columns ?? [])
+      .filter((col) => !col.excluded)
+      .map((col) => col.new_name ?? col.original_name)
   })
 
-  dataSource = computed(() => {
-    const data = this.preview()?.data || []
-    return data
-  })
+  dataSource = computed(() => this.preview()?.data ?? [])
 
-  columns = computed<DropdownChoice[]>(() => {
-    const meta = this.metadata()
-    if (!meta?.columns) {
-      return [{ value: '', label: '-' }]
+  /** Look up a ColumnConfigOutput by its display name (new_name ?? original_name). */
+  getColumnConfig(displayName: string): ColumnConfigOutput | null {
+    return (
+      (this.metadata()?.columns ?? []).find(
+        (col) => (col.new_name ?? col.original_name) === displayName
+      ) ?? null
+    )
+  }
+
+  onColumnAction(displayName: string, action: ColumnAction): void {
+    const col = this.getColumnConfig(displayName)
+    if (col) {
+      this.columnActionRequested.emit({ originalName: col.original_name, action })
     }
-    return [
-      { value: '', label: '-' },
-      ...meta.columns.map((col) => ({
-        value: col.name,
-        label: col.name
-      }))
-    ]
-  })
+  }
 }

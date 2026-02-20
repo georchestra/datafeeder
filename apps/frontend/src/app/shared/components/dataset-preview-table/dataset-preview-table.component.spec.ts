@@ -15,7 +15,10 @@ describe('DatasetPreviewTableComponent', () => {
         TranslateTestingModule.withTranslations({
           en: {
             'import.datasetConfiguration.previewTitle': 'Result Preview',
-            'import.datasetPreviewTable.noDataAvailable': 'No data available'
+            'import.datasetPreviewTable.noDataAvailable': 'No data available',
+            'import.columnAction.menu.filter': 'Filter column',
+            'import.columnAction.menu.changeType': 'Change type',
+            'import.columnAction.menu.remove': 'Remove column'
           }
         })
           .withDefaultLanguage('en')
@@ -42,7 +45,7 @@ describe('DatasetPreviewTableComponent', () => {
 
     const mockMetadata: StagingMetadataResponse = {
       title: 'Test Dataset',
-      columns: [{ name: 'col1', type: 'string' }]
+      columns: [{ original_name: 'col1' }]
     }
 
     fixture.componentRef.setInput('metadata', mockMetadata)
@@ -59,7 +62,7 @@ describe('DatasetPreviewTableComponent', () => {
 
     const mockMetadata: StagingMetadataResponse = {
       title: 'Test Dataset',
-      columns: [{ name: 'col1', type: 'string' }]
+      columns: [{ original_name: 'col1' }]
     }
 
     fixture.componentRef.setInput('metadata', mockMetadata)
@@ -76,8 +79,8 @@ describe('DatasetPreviewTableComponent', () => {
     const mockMetadata: StagingMetadataResponse = {
       title: 'Test Dataset',
       columns: [
-        { name: 'firstName', type: 'string' },
-        { name: 'lastName', type: 'string' }
+        { original_name: 'firstName' },
+        { original_name: 'lastName' }
       ]
     }
 
@@ -91,8 +94,12 @@ describe('DatasetPreviewTableComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement
     expect(compiled.querySelector('table')).toBeTruthy()
-    expect(compiled.textContent).toContain('firstName')
-    expect(compiled.textContent).toContain('lastName')
+    // Column names are rendered as <input> values inside ColumnHeaderComponent
+    const headerInputs = Array.from(
+      compiled.querySelectorAll<HTMLInputElement>('th input[type="text"]')
+    ).map((el) => el.value)
+    expect(headerInputs).toContain('firstName')
+    expect(headerInputs).toContain('lastName')
     expect(compiled.textContent).toContain('John')
     expect(compiled.textContent).toContain('Doe')
   })

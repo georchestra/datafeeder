@@ -142,6 +142,7 @@
       [preview]="preview()"
       [previewError]="previewError()"
       [previewLoading]="previewLoading()"
+      (columnActionRequested)="onColumnActionRequested($event)"
     />
     } @else { @if (previewErrorExtent()) {
     <div class="px-6 pb-4">
@@ -163,6 +164,7 @@
       [preview]="preview()"
       [previewError]="previewError()"
       [previewLoading]="previewLoading()"
+      (columnActionRequested)="onColumnActionRequested($event)"
     />
     }
   </div>
