@@ -51,6 +51,7 @@
       } @else {
         <!-- Three-dot action button -->
         <button
+          #triggerBtn
           type="button"
           data-action-button
           class="relative flex items-center justify-center w-10 h-full border border-gray-300 bg-white hover:bg-gray-50 focus:outline-none"
@@ -76,19 +77,6 @@
           }
         </button>
       }
-
-      <!-- Dropdown menu -->
-      @if (isMenuOpen()) {
-        <app-column-action-menu
-          [columnConfig]="columnConfig()"
-          (actionSelected)="onMenuAction($event)"
-          (typeSelected)="onTypeSelected($event)"
-          (filterValidated)="onFilterValidated($event)"
-          (filterDeleted)="onFilterDeleted()"
-          class="fixed z-[9999]"
-          [ngStyle]="menuStyle() ?? {}"
-        ></app-column-action-menu>
-      }
     </div>
   </div>
 
@@ -102,3 +90,14 @@
     </div>
   }
 </div>
+
+<!-- CDK overlay portal for the action menu -->
+<ng-template #menuTemplate>
+  <app-column-action-menu
+    [columnConfig]="columnConfig()"
+    (actionSelected)="onMenuAction($event)"
+    (typeSelected)="onTypeSelected($event)"
+    (filterValidated)="onFilterValidated($event)"
+    (filterDeleted)="onFilterDeleted()"
+  ></app-column-action-menu>
+</ng-template>

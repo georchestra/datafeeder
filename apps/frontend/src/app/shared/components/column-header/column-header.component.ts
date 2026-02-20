@@ -1,15 +1,19 @@
 import {
   Component,
+  ElementRef,
   input,
   output,
   signal,
   computed,
   ChangeDetectionStrategy,
-  HostListener,
-  ElementRef,
-  inject
+  ViewContainerRef,
+  TemplateRef,
+  viewChild,
+  inject,
+  OnDestroy
 } from '@angular/core'
-import { NgStyle } from '@angular/common'
+import { Overlay, OverlayModule, OverlayRef } from '@angular/cdk/overlay'
+import { TemplatePortal } from '@angular/cdk/portal'
 import { FormsModule } from '@angular/forms'
 import { TranslateService } from '@ngx-translate/core'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
@@ -25,11 +29,12 @@ marker('import.columnHeader.error.duplicate')
   selector: 'app-column-header',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ColumnActionMenuComponent, FormsModule, NgStyle],
+  imports: [ColumnActionMenuComponent, FormsModule, OverlayModule],
   templateUrl: './column-header.component.html'
 })
-export class ColumnHeaderComponent {
-  private readonly elementRef = inject(ElementRef)
+export class ColumnHeaderComponent implements OnDestroy {
+  private readonly overlay = inject(Overlay)
+  private readonly vcr = inject(ViewContainerRef)
   private readonly translate = inject(TranslateService)
 
   columnConfig = input.required<ColumnConfigOutput>()
@@ -44,10 +49,13 @@ export class ColumnHeaderComponent {
   /** Emits a validated filter (or null to delete) from the filter form. */
   filterChanged = output<ColumnFilter | null>()
 
+  readonly triggerRef = viewChild<ElementRef<HTMLElement>>('triggerBtn')
+  readonly menuTemplate = viewChild<TemplateRef<void>>('menuTemplate')
+
+  private overlayRef: OverlayRef | null = null
+
   isMenuOpen = signal(false)
   nameValidationError = signal<string | null>(null)
-  /** Position for the fixed-positioned dropdown menu. */
-  menuStyle = signal<{ top: string; right: string } | null>(null)
 
   displayName = computed(
     () => this.columnConfig().new_name ?? this.columnConfig().original_name
@@ -60,49 +68,66 @@ export class ColumnHeaderComponent {
 
   isExcluded = computed(() => this.columnConfig().excluded === true)
 
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    if (!this.elementRef.nativeElement.contains(event.target)) {
-      this.isMenuOpen.set(false)
-    }
-  }
-
-  @HostListener('document:wheel')
-  @HostListener('document:touchmove')
-  onScrollEvent(): void {
-    if (this.isMenuOpen()) {
-      this.isMenuOpen.set(false)
-    }
+  ngOnDestroy(): void {
+    this.overlayRef?.dispose()
   }
 
   toggleMenu(event: MouseEvent): void {
     event.stopPropagation()
-    const btn = event.currentTarget as HTMLElement
-    const rect = btn.getBoundingClientRect()
-    this.menuStyle.set({
-      top: `${rect.bottom + 2}px`,
-      right: `${window.innerWidth - rect.right}px`
+    if (this.overlayRef?.hasAttached()) {
+      this.closeMenu()
+    } else {
+      this.openMenu()
+    }
+  }
+
+  private openMenu(): void {
+    const trigger = this.triggerRef()
+    const template = this.menuTemplate()
+    if (!trigger || !template) return
+
+    const positionStrategy = this.overlay
+      .position()
+      .flexibleConnectedTo(trigger)
+      .withPositions([
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 2 },
+        { originX: 'end', originY: 'top', overlayX: 'end', overlayY: 'bottom', offsetY: -2 }
+      ])
+      .withPush(false)
+
+    this.overlayRef = this.overlay.create({
+      positionStrategy,
+      scrollStrategy: this.overlay.scrollStrategies.close(),
+      hasBackdrop: false
     })
-    this.isMenuOpen.update((open) => !open)
+
+    this.overlayRef.outsidePointerEvents().subscribe(() => this.closeMenu())
+    this.overlayRef.attach(new TemplatePortal(template, this.vcr))
+    this.isMenuOpen.set(true)
+  }
+
+  private closeMenu(): void {
+    this.overlayRef?.detach()
+    this.isMenuOpen.set(false)
   }
 
   onMenuAction(action: ColumnAction): void {
-    this.isMenuOpen.set(false)
+    this.closeMenu()
     this.actionMenuOpened.emit(action)
   }
 
   onTypeSelected(type: CastType | null): void {
-    this.isMenuOpen.set(false)
+    this.closeMenu()
     this.typeSelected.emit(type)
   }
 
   onFilterValidated(filter: ColumnFilter): void {
-    this.isMenuOpen.set(false)
+    this.closeMenu()
     this.filterChanged.emit(filter)
   }
 
   onFilterDeleted(): void {
-    this.isMenuOpen.set(false)
+    this.closeMenu()
     this.filterChanged.emit(null)
   }
 

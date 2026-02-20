@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing'
+import { Subject } from 'rxjs'
+import { Overlay, OverlayRef } from '@angular/cdk/overlay'
 import { ColumnHeaderComponent } from './column-header.component'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
@@ -21,6 +23,27 @@ const baseColumnConfig: ColumnConfigOutput = {
 }
 
 describe('ColumnHeaderComponent', () => {
+  let outsidePointerEvents$: Subject<MouseEvent>
+  let mockOverlayRef: OverlayRef
+
+  function buildMockOverlay(): Overlay {
+    outsidePointerEvents$ = new Subject<MouseEvent>()
+    mockOverlayRef = {
+      hasAttached: vi.fn(() => false),
+      attach: vi.fn(),
+      detach: vi.fn(),
+      dispose: vi.fn(),
+      outsidePointerEvents: vi.fn(() => outsidePointerEvents$.asObservable())
+    } as unknown as OverlayRef
+
+    const positionStrategy = { withPositions: vi.fn().mockReturnThis(), withPush: vi.fn().mockReturnThis() }
+    return {
+      position: vi.fn(() => ({ flexibleConnectedTo: vi.fn(() => positionStrategy) })),
+      create: vi.fn(() => mockOverlayRef),
+      scrollStrategies: { close: vi.fn(() => ({})) }
+    } as unknown as Overlay
+  }
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [
@@ -113,14 +136,19 @@ describe('ColumnHeaderComponent', () => {
     fixture.componentRef.setInput('columnConfig', baseColumnConfig)
     fixture.detectChanges()
 
-    const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.querySelector('app-column-action-menu')).toBeNull()
+    // Assign mock directly since the CDK Overlay DI may not be resolvable in jsdom.
+    // TypeScript readonly is compile-time only, so this works at runtime.
+    ;(fixture.componentInstance as any).overlay = buildMockOverlay()
 
+    expect(fixture.componentInstance.isMenuOpen()).toBe(false)
+
+    const compiled = fixture.nativeElement as HTMLElement
     const actionBtn = compiled.querySelector('[data-action-button]') as HTMLElement
     actionBtn.click()
     fixture.detectChanges()
 
-    expect(compiled.querySelector('app-column-action-menu')).toBeTruthy()
+    expect(fixture.componentInstance.isMenuOpen()).toBe(true)
+    expect(mockOverlayRef.attach).toHaveBeenCalled()
   })
 
   it('should emit actionMenuOpened when an action is selected from the open menu', () => {
@@ -131,15 +159,17 @@ describe('ColumnHeaderComponent', () => {
     const emitted: string[] = []
     fixture.componentInstance.actionMenuOpened.subscribe((a) => emitted.push(a))
 
+    // Assign mock so that the overlay can open
+    ;(fixture.componentInstance as any).overlay = buildMockOverlay()
+
+    // Open the menu via button click
     const compiled = fixture.nativeElement as HTMLElement
-    // Open the menu
     const actionBtn = compiled.querySelector('[data-action-button]') as HTMLElement
     actionBtn.click()
     fixture.detectChanges()
 
-    // Click the "remove" action (which emits actionSelected directly)
-    const removeBtn = compiled.querySelector('[data-action="remove"]') as HTMLElement
-    removeBtn.click()
+    // Simulate menu action (overlay content is rendered by CDK outside the component)
+    fixture.componentInstance.onMenuAction('remove')
     fixture.detectChanges()
 
     expect(emitted.length).toBeGreaterThan(0)
