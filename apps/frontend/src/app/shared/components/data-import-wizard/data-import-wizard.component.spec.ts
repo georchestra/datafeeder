@@ -1357,8 +1357,20 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
     file_type: 'csv',
     force_projection: null,
     columns: [
-      { original_name: 'col1', new_name: null, excluded: false, cast_type: null, filter: null },
-      { original_name: 'col2', new_name: null, excluded: false, cast_type: null, filter: null }
+      {
+        original_name: 'col1',
+        new_name: null,
+        excluded: false,
+        cast_type: null,
+        filter: null
+      },
+      {
+        original_name: 'col2',
+        new_name: null,
+        excluded: false,
+        cast_type: null,
+        filter: null
+      }
     ]
   }
 
@@ -1386,7 +1398,10 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: ApiConfiguration, useValue: { rootUrl: 'http://localhost:8000' } }
+        {
+          provide: ApiConfiguration,
+          useValue: { rootUrl: 'http://localhost:8000' }
+        }
       ]
     }).compileComponents()
 
@@ -1395,7 +1410,9 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
 
   afterEach(() => {
     const pending = httpMock.match(() => true)
-    pending.forEach((req) => { if (!req.cancelled) req.flush(null) })
+    pending.forEach((req) => {
+      if (!req.cancelled) req.flush(null)
+    })
     httpMock.verify()
   })
 
@@ -1413,7 +1430,9 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
     const promise = (component as any).saveConfigAndRefresh()
 
     // Expect PUT request — triggered synchronously by the async function start
-    const putReq = httpMock.expectOne('http://localhost:8000/ingestion/staging/link-123/metadata')
+    const putReq = httpMock.expectOne(
+      'http://localhost:8000/ingestion/staging/link-123/metadata'
+    )
     expect(putReq.request.method).toBe('PUT')
     putReq.flush(mockMetadata)
 
@@ -1422,7 +1441,9 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
     await Promise.resolve()
 
     // Expect GET preview request
-    const getReq = httpMock.expectOne((r) => r.url.includes('/ingestion/staging/link-123/preview'))
+    const getReq = httpMock.expectOne((r) =>
+      r.url.includes('/ingestion/staging/link-123/preview')
+    )
     expect(getReq.request.method).toBe('GET')
     getReq.flush(mockPreview)
 
@@ -1445,7 +1466,9 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
     const promise = (component as any).saveConfigAndRefresh()
 
     // PUT succeeds
-    httpMock.expectOne('http://localhost:8000/ingestion/staging/link-123/metadata').flush(mockMetadata)
+    httpMock
+      .expectOne('http://localhost:8000/ingestion/staging/link-123/metadata')
+      .flush(mockMetadata)
 
     await Promise.resolve()
     await Promise.resolve()
@@ -1481,7 +1504,10 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
     // PUT fails with validation error
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/link-123/metadata')
-      .flush({ detail: 'Duplicate column name' }, { status: 422, statusText: 'Unprocessable Entity' })
+      .flush(
+        { detail: 'Duplicate column name' },
+        { status: 422, statusText: 'Unprocessable Entity' }
+      )
 
     await promise
     expect(component.previewError()).toBeTruthy()
@@ -1497,7 +1523,13 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     file_type: 'csv',
     force_projection: null,
     columns: [
-      { original_name: 'col1', new_name: null, excluded: false, cast_type: null, filter: null }
+      {
+        original_name: 'col1',
+        new_name: null,
+        excluded: false,
+        cast_type: null,
+        filter: null
+      }
     ]
   }
 
@@ -1516,7 +1548,10 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: ApiConfiguration, useValue: { rootUrl: 'http://localhost:8000' } }
+        {
+          provide: ApiConfiguration,
+          useValue: { rootUrl: 'http://localhost:8000' }
+        }
       ]
     }).compileComponents()
 
@@ -1525,7 +1560,9 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
 
   afterEach(() => {
     const pending = httpMock.match(() => true)
-    pending.forEach((req) => { if (!req.cancelled) req.flush(null) })
+    pending.forEach((req) => {
+      if (!req.cancelled) req.flush(null)
+    })
     httpMock.verify()
   })
 
@@ -1539,11 +1576,20 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     component.columnConfigs.set([...mockMetadata.columns])
 
     // Simulate rapid rename events (before 400ms debounce fires)
-    component.onColumnRenameRequested({ originalName: 'col1', newName: 'renamed_1' })
+    component.onColumnRenameRequested({
+      originalName: 'col1',
+      newName: 'renamed_1'
+    })
     tick(100)
-    component.onColumnRenameRequested({ originalName: 'col1', newName: 'renamed_2' })
+    component.onColumnRenameRequested({
+      originalName: 'col1',
+      newName: 'renamed_2'
+    })
     tick(100)
-    component.onColumnRenameRequested({ originalName: 'col1', newName: 'renamed_final' })
+    component.onColumnRenameRequested({
+      originalName: 'col1',
+      newName: 'renamed_final'
+    })
     tick(100)
 
     // Debounce hasn't fired yet — no PUT request
@@ -1553,7 +1599,9 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     tick(400)
 
     // Now exactly one PUT should fire with the last value
-    const putReq = httpMock.expectOne('http://localhost:8000/ingestion/staging/link-abc/metadata')
+    const putReq = httpMock.expectOne(
+      'http://localhost:8000/ingestion/staging/link-abc/metadata'
+    )
     expect(putReq.request.method).toBe('PUT')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const body = putReq.request.body as { columns: Array<{ new_name: string }> }
@@ -1565,7 +1613,9 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
 
     // GET preview fires
     const pending = httpMock.match((r) => r.url.includes('/preview'))
-    pending.forEach((req) => req.flush({ data: [], is_geographic: false, geojson: null }))
+    pending.forEach((req) =>
+      req.flush({ data: [], is_geographic: false, geojson: null })
+    )
 
     tick(100)
   }))
@@ -1579,7 +1629,10 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     component.metadata.set(mockMetadata)
     component.columnConfigs.set([...mockMetadata.columns])
 
-    component.onColumnRenameRequested({ originalName: 'col1', newName: 'my_new_col' })
+    component.onColumnRenameRequested({
+      originalName: 'col1',
+      newName: 'my_new_col'
+    })
     tick(400)
 
     expect(component.columnConfigs()[0].new_name).toBe('my_new_col')
@@ -1590,7 +1643,9 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     tick(0)
 
     const pending = httpMock.match((r) => r.url.includes('/preview'))
-    pending.forEach((req) => req.flush({ data: [], is_geographic: false, geojson: null }))
+    pending.forEach((req) =>
+      req.flush({ data: [], is_geographic: false, geojson: null })
+    )
 
     tick(100)
   }))

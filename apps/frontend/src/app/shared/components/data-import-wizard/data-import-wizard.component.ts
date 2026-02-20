@@ -58,7 +58,10 @@ import type { SourceData } from '../data-source-selector/data-source-selector.co
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
 import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
-import type { ColumnAction, CastType } from '../column-action-menu/column-action-menu.component'
+import type {
+  ColumnAction,
+  CastType
+} from '../column-action-menu/column-action-menu.component'
 import type { ColumnFilter } from '../../../core/api/models/column-filter'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
@@ -123,7 +126,10 @@ export class DataImportWizardComponent implements OnInit {
   private destroyRef = inject(DestroyRef)
 
   /** Subject for debouncing rename events (400ms). */
-  private renameSubject = new Subject<{ originalName: string; newName: string }>()
+  private renameSubject = new Subject<{
+    originalName: string
+    newName: string
+  }>()
 
   selectedTabIndex = signal(0)
   importData = signal<ImportWizardData>(null)
@@ -244,11 +250,7 @@ export class DataImportWizardComponent implements OnInit {
     )
   })
 
-  onConfigChanged(config: {
-    projection: string
-    colX: string
-    colY: string
-  }) {
+  onConfigChanged(config: { projection: string; colX: string; colY: string }) {
     this.forceProjection.set({
       type: config.projection || null,
       x_column: config.colX || null,
@@ -257,7 +259,10 @@ export class DataImportWizardComponent implements OnInit {
     this.saveConfigAndRefresh()
   }
 
-  onColumnActionRequested(event: { originalName: string; action: ColumnAction }): void {
+  onColumnActionRequested(event: {
+    originalName: string
+    action: ColumnAction
+  }): void {
     const { originalName, action } = event
     if (action === 'remove') {
       this.columnConfigs.update((cols) =>
@@ -272,21 +277,32 @@ export class DataImportWizardComponent implements OnInit {
     // 'changeType' and 'filter' are handled via dedicated outputs (typeSelected / filterChanged)
   }
 
-  onColumnRenameRequested(event: { originalName: string; newName: string }): void {
+  onColumnRenameRequested(event: {
+    originalName: string
+    newName: string
+  }): void {
     this.renameSubject.next(event)
   }
 
-  onColumnTypeChangeRequested(event: { originalName: string; type: CastType | null }): void {
+  onColumnTypeChangeRequested(event: {
+    originalName: string
+    type: CastType | null
+  }): void {
     const { originalName, type } = event
     this.columnConfigs.update((cols) =>
       cols.map((col) =>
-        col.original_name === originalName ? { ...col, cast_type: type ?? undefined } : col
+        col.original_name === originalName
+          ? { ...col, cast_type: type ?? undefined }
+          : col
       )
     )
     this.saveConfigAndRefresh()
   }
 
-  onColumnFilterChangeRequested(event: { originalName: string; filter: ColumnFilter | null }): void {
+  onColumnFilterChangeRequested(event: {
+    originalName: string
+    filter: ColumnFilter | null
+  }): void {
     const { originalName, filter } = event
     this.columnConfigs.update((cols) =>
       cols.map((col) =>
@@ -471,7 +487,9 @@ export class DataImportWizardComponent implements OnInit {
         error instanceof HttpErrorResponse
           ? error.error?.detail || error.message
           : 'import.dataSource.unknownError'
-      this.previewError.set(this.translate.instant(errorMessage) || errorMessage)
+      this.previewError.set(
+        this.translate.instant(errorMessage) || errorMessage
+      )
       return
     }
 

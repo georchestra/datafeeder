@@ -1,4 +1,11 @@
-import { Component, input, computed, inject, output, ChangeDetectionStrategy } from '@angular/core'
+import {
+  Component,
+  input,
+  computed,
+  inject,
+  output,
+  ChangeDetectionStrategy
+} from '@angular/core'
 import { MatTableModule } from '@angular/material/table'
 import type {
   ColumnConfigOutput,
@@ -9,7 +16,10 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import { SpinningLoaderComponent } from 'geonetwork-ui'
 import { ColumnHeaderComponent } from '../column-header/column-header.component'
-import type { ColumnAction, CastType } from '../column-action-menu/column-action-menu.component'
+import type {
+  ColumnAction,
+  CastType
+} from '../column-action-menu/column-action-menu.component'
 import type { ColumnFilter } from '../../../core/api/models/column-filter'
 
 marker('import.datasetPreviewTable.allColumnsExcluded')
@@ -17,7 +27,12 @@ marker('import.datasetPreviewTable.allColumnsExcluded')
 @Component({
   selector: 'app-dataset-preview-table',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatTableModule, TranslatePipe, SpinningLoaderComponent, ColumnHeaderComponent],
+  imports: [
+    MatTableModule,
+    TranslatePipe,
+    SpinningLoaderComponent,
+    ColumnHeaderComponent
+  ],
   templateUrl: './dataset-preview-table.component.html',
   styleUrls: ['./dataset-preview-table.component.scss']
 })
@@ -29,10 +44,19 @@ export class DatasetPreviewTableComponent {
   previewError = input<string | null>(null)
   previewLoading = input<boolean>(false)
 
-  columnActionRequested = output<{ originalName: string; action: ColumnAction }>()
+  columnActionRequested = output<{
+    originalName: string
+    action: ColumnAction
+  }>()
   columnRenameRequested = output<{ originalName: string; newName: string }>()
-  columnTypeChangeRequested = output<{ originalName: string; type: CastType | null }>()
-  columnFilterChangeRequested = output<{ originalName: string; filter: ColumnFilter | null }>()
+  columnTypeChangeRequested = output<{
+    originalName: string
+    type: CastType | null
+  }>()
+  columnFilterChangeRequested = output<{
+    originalName: string
+    filter: ColumnFilter | null
+  }>()
 
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
 
@@ -73,28 +97,40 @@ export class DatasetPreviewTableComponent {
   onColumnAction(displayName: string, action: ColumnAction): void {
     const col = this.getColumnConfig(displayName)
     if (col) {
-      this.columnActionRequested.emit({ originalName: col.original_name, action })
+      this.columnActionRequested.emit({
+        originalName: col.original_name,
+        action
+      })
     }
   }
 
   onColumnFilterChange(displayName: string, filter: ColumnFilter | null): void {
     const col = this.getColumnConfig(displayName)
     if (col) {
-      this.columnFilterChangeRequested.emit({ originalName: col.original_name, filter })
+      this.columnFilterChangeRequested.emit({
+        originalName: col.original_name,
+        filter
+      })
     }
   }
 
   onColumnTypeChange(displayName: string, type: CastType | null): void {
     const col = this.getColumnConfig(displayName)
     if (col) {
-      this.columnTypeChangeRequested.emit({ originalName: col.original_name, type })
+      this.columnTypeChangeRequested.emit({
+        originalName: col.original_name,
+        type
+      })
     }
   }
 
   onColumnRename(displayName: string, newName: string): void {
     const col = this.getColumnConfig(displayName)
     if (col) {
-      this.columnRenameRequested.emit({ originalName: col.original_name, newName })
+      this.columnRenameRequested.emit({
+        originalName: col.original_name,
+        newName
+      })
     }
   }
 }

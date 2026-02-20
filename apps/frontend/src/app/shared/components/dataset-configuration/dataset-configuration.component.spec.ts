@@ -94,10 +94,7 @@ describe('DatasetConfigurationComponent', () => {
 
   it('should compute columns from metadata', () => {
     const metadata: StagingMetadataResponse = {
-      columns: [
-        { original_name: 'id' },
-        { original_name: 'name' }
-      ],
+      columns: [{ original_name: 'id' }, { original_name: 'name' }],
       force_projection: null
     }
 
@@ -112,10 +109,7 @@ describe('DatasetConfigurationComponent', () => {
 
   it('should compute displayed columns from metadata', () => {
     const metadata: StagingMetadataResponse = {
-      columns: [
-        { original_name: 'col1' },
-        { original_name: 'col2' }
-      ],
+      columns: [{ original_name: 'col1' }, { original_name: 'col2' }],
       force_projection: null
     }
 

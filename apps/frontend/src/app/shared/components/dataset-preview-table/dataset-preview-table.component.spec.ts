@@ -16,7 +16,8 @@ describe('DatasetPreviewTableComponent', () => {
           en: {
             'import.datasetConfiguration.previewTitle': 'Result Preview',
             'import.datasetPreviewTable.noDataAvailable': 'No data available',
-            'import.datasetPreviewTable.allColumnsExcluded': 'All columns are excluded. Restore at least one column.',
+            'import.datasetPreviewTable.allColumnsExcluded':
+              'All columns are excluded. Restore at least one column.',
             'import.columnAction.menu.filter': 'Filter column',
             'import.columnAction.menu.changeType': 'Change type',
             'import.columnAction.menu.remove': 'Remove column'
@@ -79,10 +80,7 @@ describe('DatasetPreviewTableComponent', () => {
 
     const mockMetadata: StagingMetadataResponse = {
       title: 'Test Dataset',
-      columns: [
-        { original_name: 'firstName' },
-        { original_name: 'lastName' }
-      ]
+      columns: [{ original_name: 'firstName' }, { original_name: 'lastName' }]
     }
 
     const mockPreview: StagingPreviewResponse = {
@@ -119,7 +117,9 @@ describe('DatasetPreviewTableComponent', () => {
     }
 
     fixture.componentRef.setInput('metadata', mockMetadata)
-    fixture.componentRef.setInput('preview', { data: [{ col1: 'a', col2: 'b' }] })
+    fixture.componentRef.setInput('preview', {
+      data: [{ col1: 'a', col2: 'b' }]
+    })
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
@@ -143,7 +143,9 @@ describe('DatasetPreviewTableComponent', () => {
     }
 
     fixture.componentRef.setInput('metadata', mockMetadata)
-    fixture.componentRef.setInput('preview', { data: [{ col1: 'a', col2: 'b' }] })
+    fixture.componentRef.setInput('preview', {
+      data: [{ col1: 'a', col2: 'b' }]
+    })
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
@@ -185,7 +187,9 @@ describe('DatasetPreviewTableComponent', () => {
     fixture.detectChanges()
 
     const emitted: Array<{ originalName: string; action: string }> = []
-    fixture.componentInstance.columnActionRequested.subscribe((e) => emitted.push(e))
+    fixture.componentInstance.columnActionRequested.subscribe((e) =>
+      emitted.push(e)
+    )
 
     // Simulate the ColumnHeaderComponent emitting the action
     fixture.componentInstance.onColumnAction('col1', 'remove')

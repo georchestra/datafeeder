@@ -67,7 +67,9 @@ describe('ColumnActionMenuComponent', () => {
     fixture.componentInstance.actionSelected.subscribe((a) => emitted.push(a))
 
     const compiled = fixture.nativeElement as HTMLElement
-    const filterBtn = compiled.querySelectorAll('[data-action]')[0] as HTMLElement
+    const filterBtn = compiled.querySelectorAll(
+      '[data-action]'
+    )[0] as HTMLElement
     filterBtn.click()
     fixture.detectChanges()
 
@@ -85,7 +87,9 @@ describe('ColumnActionMenuComponent', () => {
     fixture.componentInstance.actionSelected.subscribe((a) => emitted.push(a))
 
     const compiled = fixture.nativeElement as HTMLElement
-    const typeBtn = compiled.querySelector('[data-action="changeType"]') as HTMLElement
+    const typeBtn = compiled.querySelector(
+      '[data-action="changeType"]'
+    ) as HTMLElement
     typeBtn.click()
     fixture.detectChanges()
 
@@ -103,7 +107,9 @@ describe('ColumnActionMenuComponent', () => {
     fixture.componentInstance.actionSelected.subscribe((a) => emitted.push(a))
 
     const compiled = fixture.nativeElement as HTMLElement
-    const removeBtn = compiled.querySelectorAll('[data-action]')[2] as HTMLElement
+    const removeBtn = compiled.querySelectorAll(
+      '[data-action]'
+    )[2] as HTMLElement
     removeBtn.click()
     expect(emitted).toContain('remove')
   })
@@ -155,7 +161,9 @@ describe('ColumnActionMenuComponent', () => {
     // Initially hidden
     expect(compiled.querySelector('[data-type-submenu]')).toBeNull()
 
-    const typeBtn = compiled.querySelector('[data-action="changeType"]') as HTMLElement
+    const typeBtn = compiled.querySelector(
+      '[data-action="changeType"]'
+    ) as HTMLElement
     typeBtn.click()
     fixture.detectChanges()
 
@@ -170,13 +178,15 @@ describe('ColumnActionMenuComponent', () => {
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
-    const typeBtn = compiled.querySelector('[data-action="changeType"]') as HTMLElement
+    const typeBtn = compiled.querySelector(
+      '[data-action="changeType"]'
+    ) as HTMLElement
     typeBtn.click()
     fixture.detectChanges()
 
-    const typeOptions = Array.from(compiled.querySelectorAll('[data-type]')).map(
-      (el) => el.getAttribute('data-type')
-    )
+    const typeOptions = Array.from(
+      compiled.querySelectorAll('[data-type]')
+    ).map((el) => el.getAttribute('data-type'))
     expect(typeOptions).toContain('boolean')
     expect(typeOptions).toContain('numeric')
     expect(typeOptions).toContain('text')
@@ -192,11 +202,15 @@ describe('ColumnActionMenuComponent', () => {
     fixture.componentInstance.typeSelected.subscribe((t) => emitted.push(t))
 
     const compiled = fixture.nativeElement as HTMLElement
-    const typeBtn = compiled.querySelector('[data-action="changeType"]') as HTMLElement
+    const typeBtn = compiled.querySelector(
+      '[data-action="changeType"]'
+    ) as HTMLElement
     typeBtn.click()
     fixture.detectChanges()
 
-    const numericBtn = compiled.querySelector('[data-type="numeric"]') as HTMLElement
+    const numericBtn = compiled.querySelector(
+      '[data-type="numeric"]'
+    ) as HTMLElement
     numericBtn.click()
     fixture.detectChanges()
 
@@ -205,19 +219,26 @@ describe('ColumnActionMenuComponent', () => {
 
   it('should emit typeSelected with null when currently active type is re-selected', () => {
     const fixture = TestBed.createComponent(ColumnActionMenuComponent)
-    fixture.componentRef.setInput('columnConfig', { ...baseColumnConfig, cast_type: 'numeric' })
+    fixture.componentRef.setInput('columnConfig', {
+      ...baseColumnConfig,
+      cast_type: 'numeric'
+    })
     fixture.detectChanges()
 
     const emitted: Array<string | null> = []
     fixture.componentInstance.typeSelected.subscribe((t) => emitted.push(t))
 
     const compiled = fixture.nativeElement as HTMLElement
-    const typeBtn = compiled.querySelector('[data-action="changeType"]') as HTMLElement
+    const typeBtn = compiled.querySelector(
+      '[data-action="changeType"]'
+    ) as HTMLElement
     typeBtn.click()
     fixture.detectChanges()
 
     // Click the currently active type (numeric) to deselect it
-    const numericBtn = compiled.querySelector('[data-type="numeric"]') as HTMLElement
+    const numericBtn = compiled.querySelector(
+      '[data-type="numeric"]'
+    ) as HTMLElement
     numericBtn.click()
     fixture.detectChanges()
 
@@ -226,11 +247,16 @@ describe('ColumnActionMenuComponent', () => {
 
   it('should mark the current cast_type option as active', () => {
     const fixture = TestBed.createComponent(ColumnActionMenuComponent)
-    fixture.componentRef.setInput('columnConfig', { ...baseColumnConfig, cast_type: 'text' })
+    fixture.componentRef.setInput('columnConfig', {
+      ...baseColumnConfig,
+      cast_type: 'text'
+    })
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
-    const typeBtn = compiled.querySelector('[data-action="changeType"]') as HTMLElement
+    const typeBtn = compiled.querySelector(
+      '[data-action="changeType"]'
+    ) as HTMLElement
     typeBtn.click()
     fixture.detectChanges()
 
@@ -248,7 +274,9 @@ describe('ColumnActionMenuComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement
     expect(compiled.querySelector('[data-filter-panel]')).toBeNull()
 
-    const filterBtn = compiled.querySelector('[data-action="filter"]') as HTMLElement
+    const filterBtn = compiled.querySelector(
+      '[data-action="filter"]'
+    ) as HTMLElement
     filterBtn.click()
     fixture.detectChanges()
 
@@ -277,17 +305,23 @@ describe('ColumnActionMenuComponent', () => {
 
     // Expand filter panel
     const compiled = fixture.nativeElement as HTMLElement
-    const filterBtn = compiled.querySelector('[data-action="filter"]') as HTMLElement
+    const filterBtn = compiled.querySelector(
+      '[data-action="filter"]'
+    ) as HTMLElement
     filterBtn.click()
     fixture.detectChanges()
 
     // Fill in filter form
-    const input = compiled.querySelector('[data-filter-value-input]') as HTMLInputElement
+    const input = compiled.querySelector(
+      '[data-filter-value-input]'
+    ) as HTMLInputElement
     input.value = 'test'
     input.dispatchEvent(new Event('input'))
     fixture.detectChanges()
 
-    const validateBtn = compiled.querySelector('[data-validate-button]') as HTMLElement
+    const validateBtn = compiled.querySelector(
+      '[data-validate-button]'
+    ) as HTMLElement
     validateBtn.click()
     fixture.detectChanges()
 
@@ -304,16 +338,22 @@ describe('ColumnActionMenuComponent', () => {
     fixture.detectChanges()
 
     let deleted = false
-    fixture.componentInstance.filterDeleted.subscribe(() => { deleted = true })
+    fixture.componentInstance.filterDeleted.subscribe(() => {
+      deleted = true
+    })
 
     const compiled = fixture.nativeElement as HTMLElement
 
     // Show the filter panel
-    const filterBtn = compiled.querySelector('[data-action="filter"]') as HTMLElement
+    const filterBtn = compiled.querySelector(
+      '[data-action="filter"]'
+    ) as HTMLElement
     filterBtn.click()
     fixture.detectChanges()
 
-    const deleteBtn = compiled.querySelector('[data-delete-button]') as HTMLElement
+    const deleteBtn = compiled.querySelector(
+      '[data-delete-button]'
+    ) as HTMLElement
     deleteBtn.click()
     fixture.detectChanges()
 

@@ -1,4 +1,6 @@
-<div class="bg-white shadow-[0px_9px_12px_0px_rgba(9,30,66,0.15),0px_0px_1px_0px_rgba(9,30,66,0.31)] w-[290px] flex flex-col">
+<div
+  class="bg-white shadow-[0px_9px_12px_0px_rgba(9,30,66,0.15),0px_0px_1px_0px_rgba(9,30,66,0.31)] w-[290px] flex flex-col"
+>
   <!-- Filter action + inline panel -->
   <div class="border-b border-gray-300">
     <button
@@ -11,26 +13,25 @@
       <span class="flex-1 text-sm text-black flex items-center gap-1.5">
         <span>{{ 'import.columnAction.menu.filter' | translate }}</span>
         @if (hasFilterActive()) {
-          <span
-            data-indicator-dot="filter"
-            class="inline-block w-2 h-2 rounded-full bg-[#E30513] shrink-0"
-          ></span>
+        <span
+          data-indicator-dot="filter"
+          class="inline-block w-2 h-2 rounded-full bg-[#E30513] shrink-0"
+        ></span>
         }
       </span>
-      <span class="text-gray-400 text-xs ml-2">{{ filterExpanded() ? '▾' : '›' }}</span>
+      <span class="text-gray-400 text-xs ml-2">{{
+        filterExpanded() ? '▾' : '›'
+      }}</span>
     </button>
 
     @if (filterExpanded()) {
-      <div
-        data-filter-panel
-        class="border-t border-gray-200"
-      >
-        <app-column-filter-form
-          [activeFilter]="columnConfig().filter ?? null"
-          (filterValidated)="onFilterValidated($event)"
-          (filterDeleted)="onFilterDeleted()"
-        ></app-column-filter-form>
-      </div>
+    <div data-filter-panel class="border-t border-gray-200">
+      <app-column-filter-form
+        [activeFilter]="columnConfig().filter ?? null"
+        (filterValidated)="onFilterValidated($event)"
+        (filterDeleted)="onFilterDeleted()"
+      ></app-column-filter-form>
+    </div>
     }
   </div>
 
@@ -46,13 +47,15 @@
       <span class="flex-1 text-sm text-black flex items-center gap-1.5">
         <span>{{ 'import.columnAction.menu.changeType' | translate }}</span>
         @if (hasCastTypeActive()) {
-          <span
-            data-indicator-dot="changeType"
-            class="inline-block w-2 h-2 rounded-full bg-[#E30513] shrink-0"
-          ></span>
+        <span
+          data-indicator-dot="changeType"
+          class="inline-block w-2 h-2 rounded-full bg-[#E30513] shrink-0"
+        ></span>
         }
       </span>
-      <span class="text-gray-400 text-xs ml-2">{{ typeExpanded() ? '▾' : '›' }}</span>
+      <span class="text-gray-400 text-xs ml-2">{{
+        typeExpanded() ? '▾' : '›'
+      }}</span>
     </button>
 
     @if (typeExpanded()) {
@@ -64,16 +67,20 @@
       <button
         type="button"
         [attr.data-type]="type"
-        [attr.aria-selected]="columnConfig().cast_type === type ? 'true' : 'false'"
+        [attr.aria-selected]="
+          columnConfig().cast_type === type ? 'true' : 'false'
+        "
         class="flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-gray-100 w-full"
         [class.font-semibold]="columnConfig().cast_type === type"
         [class.text-[#E30513]]="columnConfig().cast_type === type"
         (click)="onTypeSelect(type, $event)"
       >
         @if (columnConfig().cast_type === type) {
-          <span class="w-2 h-2 rounded-full bg-[#E30513] shrink-0 inline-block"></span>
+        <span
+          class="w-2 h-2 rounded-full bg-[#E30513] shrink-0 inline-block"
+        ></span>
         } @else {
-          <span class="w-2 h-2 shrink-0 inline-block"></span>
+        <span class="w-2 h-2 shrink-0 inline-block"></span>
         }
         {{ 'import.columnAction.typeMenu.' + type | translate }}
       </button>
@@ -89,7 +96,9 @@
     class="flex items-center justify-between p-[10px] hover:bg-gray-50 text-left w-full"
     (click)="onAction('remove', $event)"
   >
-    <span class="flex-1 text-sm text-black">{{ 'import.columnAction.menu.remove' | translate }}</span>
+    <span class="flex-1 text-sm text-black">{{
+      'import.columnAction.menu.remove' | translate
+    }}</span>
     <svg
       class="w-5 h-5 text-gray-500 shrink-0"
       viewBox="0 0 24 24"

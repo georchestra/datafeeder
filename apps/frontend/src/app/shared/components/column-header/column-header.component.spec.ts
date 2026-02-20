@@ -36,9 +36,14 @@ describe('ColumnHeaderComponent', () => {
       outsidePointerEvents: vi.fn(() => outsidePointerEvents$.asObservable())
     } as unknown as OverlayRef
 
-    const positionStrategy = { withPositions: vi.fn().mockReturnThis(), withPush: vi.fn().mockReturnThis() }
+    const positionStrategy = {
+      withPositions: vi.fn().mockReturnThis(),
+      withPush: vi.fn().mockReturnThis()
+    }
     return {
-      position: vi.fn(() => ({ flexibleConnectedTo: vi.fn(() => positionStrategy) })),
+      position: vi.fn(() => ({
+        flexibleConnectedTo: vi.fn(() => positionStrategy)
+      })),
       create: vi.fn(() => mockOverlayRef),
       scrollStrategies: { close: vi.fn(() => ({})) }
     } as unknown as Overlay
@@ -143,7 +148,9 @@ describe('ColumnHeaderComponent', () => {
     expect(fixture.componentInstance.isMenuOpen()).toBe(false)
 
     const compiled = fixture.nativeElement as HTMLElement
-    const actionBtn = compiled.querySelector('[data-action-button]') as HTMLElement
+    const actionBtn = compiled.querySelector(
+      '[data-action-button]'
+    ) as HTMLElement
     actionBtn.click()
     fixture.detectChanges()
 
@@ -164,7 +171,9 @@ describe('ColumnHeaderComponent', () => {
 
     // Open the menu via button click
     const compiled = fixture.nativeElement as HTMLElement
-    const actionBtn = compiled.querySelector('[data-action-button]') as HTMLElement
+    const actionBtn = compiled.querySelector(
+      '[data-action-button]'
+    ) as HTMLElement
     actionBtn.click()
     fixture.detectChanges()
 
@@ -184,18 +193,25 @@ describe('ColumnHeaderComponent', () => {
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
-    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+    const nameInput = compiled.querySelector(
+      '[data-name-input]'
+    ) as HTMLInputElement
     expect(nameInput).toBeTruthy()
     expect(nameInput.disabled).toBe(false)
   })
 
   it('should have a disabled name input when column is excluded', () => {
     const fixture = TestBed.createComponent(ColumnHeaderComponent)
-    fixture.componentRef.setInput('columnConfig', { ...baseColumnConfig, excluded: true })
+    fixture.componentRef.setInput('columnConfig', {
+      ...baseColumnConfig,
+      excluded: true
+    })
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
-    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+    const nameInput = compiled.querySelector(
+      '[data-name-input]'
+    ) as HTMLInputElement
     expect(nameInput).toBeTruthy()
     expect(nameInput.disabled).toBe(true)
   })
@@ -210,7 +226,9 @@ describe('ColumnHeaderComponent', () => {
     fixture.componentInstance.nameChanged.subscribe((n) => emitted.push(n))
 
     const compiled = fixture.nativeElement as HTMLElement
-    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+    const nameInput = compiled.querySelector(
+      '[data-name-input]'
+    ) as HTMLInputElement
     nameInput.value = 'new_name'
     nameInput.dispatchEvent(new Event('change'))
     fixture.detectChanges()
@@ -228,7 +246,9 @@ describe('ColumnHeaderComponent', () => {
     fixture.componentInstance.nameChanged.subscribe((n) => emitted.push(n))
 
     const compiled = fixture.nativeElement as HTMLElement
-    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+    const nameInput = compiled.querySelector(
+      '[data-name-input]'
+    ) as HTMLInputElement
     nameInput.value = '   '
     nameInput.dispatchEvent(new Event('change'))
     fixture.detectChanges()
@@ -249,7 +269,9 @@ describe('ColumnHeaderComponent', () => {
     fixture.componentInstance.nameChanged.subscribe((n) => emitted.push(n))
 
     const compiled = fixture.nativeElement as HTMLElement
-    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+    const nameInput = compiled.querySelector(
+      '[data-name-input]'
+    ) as HTMLInputElement
     nameInput.value = 'other_col'
     nameInput.dispatchEvent(new Event('change'))
     fixture.detectChanges()
@@ -262,7 +284,10 @@ describe('ColumnHeaderComponent', () => {
 
   it('should show restore button (not action button) when column is excluded', () => {
     const fixture = TestBed.createComponent(ColumnHeaderComponent)
-    fixture.componentRef.setInput('columnConfig', { ...baseColumnConfig, excluded: true })
+    fixture.componentRef.setInput('columnConfig', {
+      ...baseColumnConfig,
+      excluded: true
+    })
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
@@ -284,7 +309,10 @@ describe('ColumnHeaderComponent', () => {
 
   it('should apply opacity-50 styling to wrapper when column is excluded', () => {
     const fixture = TestBed.createComponent(ColumnHeaderComponent)
-    fixture.componentRef.setInput('columnConfig', { ...baseColumnConfig, excluded: true })
+    fixture.componentRef.setInput('columnConfig', {
+      ...baseColumnConfig,
+      excluded: true
+    })
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
@@ -304,13 +332,18 @@ describe('ColumnHeaderComponent', () => {
 
   it('should emit actionMenuOpened with "remove" when restore button is clicked', () => {
     const fixture = TestBed.createComponent(ColumnHeaderComponent)
-    fixture.componentRef.setInput('columnConfig', { ...baseColumnConfig, excluded: true })
+    fixture.componentRef.setInput('columnConfig', {
+      ...baseColumnConfig,
+      excluded: true
+    })
     fixture.detectChanges()
 
     const emitted: string[] = []
     fixture.componentInstance.actionMenuOpened.subscribe((a) => emitted.push(a))
 
-    const restoreBtn = fixture.nativeElement.querySelector('[data-restore-button]') as HTMLElement
+    const restoreBtn = fixture.nativeElement.querySelector(
+      '[data-restore-button]'
+    ) as HTMLElement
     restoreBtn.click()
     fixture.detectChanges()
 
@@ -324,7 +357,9 @@ describe('ColumnHeaderComponent', () => {
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
-    const nameInput = compiled.querySelector('[data-name-input]') as HTMLInputElement
+    const nameInput = compiled.querySelector(
+      '[data-name-input]'
+    ) as HTMLInputElement
 
     // First trigger an error
     nameInput.value = ''

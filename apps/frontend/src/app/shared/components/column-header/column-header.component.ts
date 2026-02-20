@@ -18,7 +18,10 @@ import { FormsModule } from '@angular/forms'
 import { TranslateService } from '@ngx-translate/core'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import type { ColumnConfigOutput } from '../../../core/api/models'
-import type { ColumnAction, CastType } from '../column-action-menu/column-action-menu.component'
+import type {
+  ColumnAction,
+  CastType
+} from '../column-action-menu/column-action-menu.component'
 import type { ColumnFilter } from '../../../core/api/models/column-filter'
 import { ColumnActionMenuComponent } from '../column-action-menu/column-action-menu.component'
 
@@ -63,7 +66,8 @@ export class ColumnHeaderComponent implements OnDestroy {
 
   hasActiveActions = computed(
     () =>
-      this.columnConfig().filter != null || this.columnConfig().cast_type != null
+      this.columnConfig().filter != null ||
+      this.columnConfig().cast_type != null
   )
 
   isExcluded = computed(() => this.columnConfig().excluded === true)
@@ -90,8 +94,20 @@ export class ColumnHeaderComponent implements OnDestroy {
       .position()
       .flexibleConnectedTo(trigger)
       .withPositions([
-        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 2 },
-        { originX: 'end', originY: 'top', overlayX: 'end', overlayY: 'bottom', offsetY: -2 }
+        {
+          originX: 'end',
+          originY: 'bottom',
+          overlayX: 'end',
+          overlayY: 'top',
+          offsetY: 2
+        },
+        {
+          originX: 'end',
+          originY: 'top',
+          overlayX: 'end',
+          overlayY: 'bottom',
+          offsetY: -2
+        }
       ])
       .withPush(false)
 

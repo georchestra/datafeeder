@@ -46,7 +46,9 @@ describe('ColumnFilterFormComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement
     const options = Array.from(
-      compiled.querySelectorAll<HTMLOptionElement>('[data-operator-select] option')
+      compiled.querySelectorAll<HTMLOptionElement>(
+        '[data-operator-select] option'
+      )
     ).map((o) => o.value)
     expect(options).toContain('exactly')
     expect(options).toContain('contains')
@@ -61,17 +63,23 @@ describe('ColumnFilterFormComponent', () => {
     fixture.componentInstance.filterValidated.subscribe((f) => emitted.push(f))
 
     const compiled = fixture.nativeElement as HTMLElement
-    const input = compiled.querySelector('[data-filter-value-input]') as HTMLInputElement
+    const input = compiled.querySelector(
+      '[data-filter-value-input]'
+    ) as HTMLInputElement
     input.value = 'test value'
     input.dispatchEvent(new Event('input'))
     fixture.detectChanges()
 
-    const select = compiled.querySelector('[data-operator-select]') as HTMLSelectElement
+    const select = compiled.querySelector(
+      '[data-operator-select]'
+    ) as HTMLSelectElement
     select.value = 'exactly'
     select.dispatchEvent(new Event('change'))
     fixture.detectChanges()
 
-    const validateBtn = compiled.querySelector('[data-validate-button]') as HTMLElement
+    const validateBtn = compiled.querySelector(
+      '[data-validate-button]'
+    ) as HTMLElement
     validateBtn.click()
     fixture.detectChanges()
 
@@ -87,7 +95,9 @@ describe('ColumnFilterFormComponent', () => {
     fixture.componentInstance.filterValidated.subscribe((f) => emitted.push(f))
 
     const compiled = fixture.nativeElement as HTMLElement
-    const validateBtn = compiled.querySelector('[data-validate-button]') as HTMLElement
+    const validateBtn = compiled.querySelector(
+      '[data-validate-button]'
+    ) as HTMLElement
     validateBtn.click()
     fixture.detectChanges()
 
@@ -96,7 +106,10 @@ describe('ColumnFilterFormComponent', () => {
 
   it('should show read-only active filter display when activeFilter is set', () => {
     const fixture = TestBed.createComponent(ColumnFilterFormComponent)
-    fixture.componentRef.setInput('activeFilter', { operator: 'contains', value: 'hello' } as ColumnFilter)
+    fixture.componentRef.setInput('activeFilter', {
+      operator: 'contains',
+      value: 'hello'
+    } as ColumnFilter)
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
@@ -111,7 +124,10 @@ describe('ColumnFilterFormComponent', () => {
 
   it('should show delete button on active filter', () => {
     const fixture = TestBed.createComponent(ColumnFilterFormComponent)
-    fixture.componentRef.setInput('activeFilter', { operator: 'contains', value: 'hello' } as ColumnFilter)
+    fixture.componentRef.setInput('activeFilter', {
+      operator: 'contains',
+      value: 'hello'
+    } as ColumnFilter)
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
@@ -120,14 +136,21 @@ describe('ColumnFilterFormComponent', () => {
 
   it('should emit filterDeleted when delete button is clicked', () => {
     const fixture = TestBed.createComponent(ColumnFilterFormComponent)
-    fixture.componentRef.setInput('activeFilter', { operator: 'contains', value: 'hello' } as ColumnFilter)
+    fixture.componentRef.setInput('activeFilter', {
+      operator: 'contains',
+      value: 'hello'
+    } as ColumnFilter)
     fixture.detectChanges()
 
     let deleted = false
-    fixture.componentInstance.filterDeleted.subscribe(() => { deleted = true })
+    fixture.componentInstance.filterDeleted.subscribe(() => {
+      deleted = true
+    })
 
     const compiled = fixture.nativeElement as HTMLElement
-    const deleteBtn = compiled.querySelector('[data-delete-button]') as HTMLElement
+    const deleteBtn = compiled.querySelector(
+      '[data-delete-button]'
+    ) as HTMLElement
     deleteBtn.click()
     fixture.detectChanges()
 
