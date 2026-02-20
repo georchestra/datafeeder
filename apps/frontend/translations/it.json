@@ -40,6 +40,8 @@
   "domain.record.updateFrequency.week": "",
   "domain.record.updateFrequency.weekly": "",
   "domain.record.updateFrequency.year": "",
+  "editor.record.form.bottomButtons.next": "",
+  "editor.record.form.bottomButtons.previous": "",
   "editor.record.form.constraint.add.legalConstraints": "",
   "editor.record.form.constraint.add.otherConstraints": "",
   "editor.record.form.constraint.add.securityConstraints": "",
