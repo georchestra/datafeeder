@@ -108,6 +108,9 @@ class Settings(BaseSettings):
         description="Encryption key for storing sensitive data (HTTP Basic Auth credentials)",
     )
 
+    # Task Executor Configuration (AIRFLOW)
+    TASK_EXECUTOR: Literal["AIRFLOW"] = "AIRFLOW"
+
     # Airflow configuration
     AIRFLOW_URL: str = "http://localhost:8081/airflow"
     AIRFLOW_USERNAME: str = "airflow"

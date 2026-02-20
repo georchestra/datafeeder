@@ -22,4 +22,7 @@ echo "Generating API client..."
 cd "$APPS_DIR/$FRONTEND_DIR"
 npm run generate-api
 
+echo "Formatting API client..."
+npm run format
+
 echo "API client generated successfully!"

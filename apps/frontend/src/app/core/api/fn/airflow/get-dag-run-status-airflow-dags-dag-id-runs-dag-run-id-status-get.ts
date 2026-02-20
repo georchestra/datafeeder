@@ -7,7 +7,7 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-import { DagRunState } from '../../models/dag-run-state'
+import { TaskStatus } from '../../models/task-status'
 
 export interface GetDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet$Params {
   dag_id: string
@@ -19,7 +19,7 @@ export function getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet(
   rootUrl: string,
   params: GetDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<DagRunState>> {
+): Observable<StrictHttpResponse<TaskStatus>> {
   const rb = new requestBuilders(
     rootUrl,
     getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet.PATH,
@@ -37,7 +37,7 @@ export function getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<DagRunState>
+        return r as StrictHttpResponse<TaskStatus>
       })
     )
 }

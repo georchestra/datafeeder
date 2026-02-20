@@ -7,7 +7,6 @@ from uuid import UUID, uuid4
 import geopandas as gpd
 import pandas as pd
 import requests
-from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from data_manipulation import (
     IntegrityTransformation,
     detect_column_type_from_sqla,
@@ -43,7 +42,7 @@ from src.models.data_import import (
     StagingPreviewResponse,
 )
 from src.models.integrity_link import IntegrityLink
-from src.services.airflow_client import get_dag_run_api
+from src.services.executor_factory import get_task_executor
 from src.services.files import delete_temp_file, upload_file_to_temp
 
 logger = get_logger()

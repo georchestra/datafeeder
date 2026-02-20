@@ -29,8 +29,14 @@ class SettingsService:
             logger.error(f"Failed to parse PROJECTIONS from settings: {e}")
             projections = []
 
+        enabled_features = []
+        if self._settings.TASK_EXECUTOR == "AIRFLOW":
+            enabled_features.append("scheduling")
+            enabled_features.append("events")
+
         settings_dict: dict[str, Any] = {
             "projections": projections,
+            "enabled_features": enabled_features,
         }
         return settings_dict
 
