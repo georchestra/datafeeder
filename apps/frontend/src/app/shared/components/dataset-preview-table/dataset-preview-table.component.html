@@ -9,15 +9,7 @@
   </div>
   }
   <div class="mx-6 overflow-x-auto border border-gray-400">
-    @if (previewLoading()) {
-    <div class="flex flex-col items-center gap-4 p-8">
-      <gn-ui-spinning-loader></gn-ui-spinning-loader>
-      <p class="text-center text-gray-600">
-        {{ 'import.dataSource.processingMessage' | translate }}
-      </p>
-    </div>
-    } @else if (dataSource().length > 0) {
-    <table mat-table [dataSource]="dataSource()" class="w-auto text-sm">
+    <table mat-table [dataSource]="previewLoading() ? [] : dataSource()" class="w-auto text-sm">
       @for (column of displayedColumns(); track column) {
       <ng-container [matColumnDef]="column">
         <th
@@ -51,6 +43,27 @@
       </ng-container>
       }
 
+      <tr *matNoDataRow>
+        <td [attr.colspan]="displayedColumns().length" class="!p-0">
+          @if (previewLoading()) {
+          <div class="flex flex-col items-center gap-4 p-8">
+            <gn-ui-spinning-loader></gn-ui-spinning-loader>
+            <p class="text-center text-gray-600">
+              {{ 'import.dataSource.processingMessage' | translate }}
+            </p>
+          </div>
+          } @else {
+          <div class="p-4 text-center text-gray-500">
+            @if (previewError()) {
+            {{ 'import.datasetPreviewTable.previewError' | translate }}
+            } @else {
+            {{ 'import.datasetPreviewTable.noDataAvailable' | translate }}
+            }
+          </div>
+          }
+        </td>
+      </tr>
+
       <tr
         mat-header-row
         *matHeaderRowDef="displayedColumns()"
@@ -62,15 +75,6 @@
         class="!h-[37px] even:!bg-gray-50 hover:!bg-gray-100"
       ></tr>
     </table>
-    } @else {
-    <div class="p-4 text-center text-gray-500">
-      @if (previewError()) {
-      {{ 'import.datasetPreviewTable.previewError' | translate }}
-      } @else {
-      {{ 'import.datasetPreviewTable.noDataAvailable' | translate }}
-      }
-    </div>
-    }
   </div>
 </div>
 }
