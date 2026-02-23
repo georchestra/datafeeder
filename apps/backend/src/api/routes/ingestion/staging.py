@@ -606,6 +606,14 @@ def get_staging_preview(
             "Used as fallback when transformation causes an error."
         ),
     ),
+    include_excluded: bool = Query(
+        False,
+        description=(
+            "When true, return all columns including those flagged as excluded "
+            "in the transformation config. Other transformations (rename, cast, "
+            "filter, projection) are still applied."
+        ),
+    ),
 ) -> StagingPreviewResponse:
     """
     Get a preview of the data in the staging table.
@@ -618,12 +626,17 @@ def get_staging_preview(
     rename, cast, projection). When raw=true: returns original data without any
     transformation applied (useful as fallback on preview error).
 
+    When include_excluded=true: returns all columns including those flagged as
+    excluded, while still applying other transformations (rename, cast, filter,
+    projection).
+
     Args:
         data_session: Data database session (injected)
         datakern_session: Datakern database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         limit: Number of rows to preview (optional, default is 10)
         raw: When true, bypass all transformations and return original data
+        include_excluded: When true, return all columns even if flagged as excluded
 
     Returns:
         Preview data from the staging table, transformed based on saved config
@@ -649,6 +662,18 @@ def get_staging_preview(
             )
         except Exception as e:
             logger.warning(f"Could not deserialize transformation config, using raw: {e}")
+
+    # When include_excluded is requested, strip excluded=True from all columns
+    # so SQL-level filtering keeps them, while other transformations still apply.
+    if include_excluded and config is not None and config.columns:
+        config = config.model_copy(
+            update={
+                "columns": [
+                    col.model_copy(update={"excluded": False}) if col.excluded else col
+                    for col in config.columns
+                ]
+            }
+        )
 
     try:
         transformed_data = read_and_transform_data(

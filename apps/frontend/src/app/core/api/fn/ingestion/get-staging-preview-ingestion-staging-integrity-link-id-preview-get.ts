@@ -21,6 +21,11 @@ export interface GetStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet$Para
    * When true, return original data ignoring saved transformation config. Used as fallback when transformation causes an error.
    */
   raw?: boolean
+
+  /**
+   * When true, return all columns including those flagged as excluded in the transformation config. Other transformations (rename, cast, filter, projection) are still applied.
+   */
+  include_excluded?: boolean
 }
 
 export function getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet(
@@ -38,6 +43,7 @@ export function getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet(
     rb.path('integrity_link_id', params.integrity_link_id, {})
     rb.query('limit', params.limit, {})
     rb.query('raw', params.raw, {})
+    rb.query('include_excluded', params.include_excluded, {})
   }
 
   return http
