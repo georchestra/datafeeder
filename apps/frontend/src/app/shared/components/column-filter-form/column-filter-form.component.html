@@ -1,76 +1,98 @@
 <div
-  class="p-3 bg-white flex flex-col gap-2 min-w-[260px]"
+  class="p-3 bg-white flex flex-col gap-2 w-[280px]"
   (click)="$event.stopPropagation()"
 >
-  @if (isEditing()) {
-  <!-- Editing state: operator + value + validate button -->
-  <div class="flex flex-col gap-2">
-    <select
-      data-operator-select
-      [ngModel]="selectedOperator()"
-      (ngModelChange)="selectedOperator.set($event)"
-      class="border border-gray-300 rounded px-2 py-1.5 text-sm w-full"
-    >
-      @for (op of operators; track op) {
-      <option [value]="op">
-        {{ 'import.columnFilter.operator.' + op | translate }}
-      </option>
-      }
-    </select>
-
-    <input
-      type="text"
-      data-filter-value-input
-      [ngModel]="filterValue()"
-      (ngModelChange)="filterValue.set($event)"
-      class="border border-gray-300 rounded px-2 py-1.5 text-sm w-full"
-      [placeholder]="'import.columnFilter.valuePlaceholder' | translate"
-    />
-
-    <button
-      type="button"
-      data-validate-button
-      class="bg-[#1D3557] text-white text-sm px-3 py-1.5 rounded hover:bg-[#163044] disabled:opacity-50 disabled:cursor-not-allowed"
-      [disabled]="!filterValue().trim()"
-      (click)="onValidate($event)"
-    >
-      {{ 'import.columnFilter.validate' | translate }}
-    </button>
-  </div>
-  } @else {
-  <!-- Read-only active filter display -->
+  <!-- Active filter chip -->
   @if (activeFilter(); as filter) {
   <div
     data-active-filter
-    class="flex items-center justify-between gap-2 bg-gray-100 border border-gray-300 rounded px-2 py-1.5 text-sm"
+    class="flex items-center bg-white border border-[#cccdd2] rounded h-7 pl-3 pr-0.5 gap-2 overflow-hidden"
   >
-    <span class="flex-1 truncate text-gray-800">
-      <span class="font-semibold">{{
-        'import.columnFilter.operator.' + filter.operator | translate
-      }}</span>
-      <span class="ml-1">{{ filter.value }}</span>
+    <span class="flex-1 truncate text-sm">
+      <span class="text-[#7c7c7c]">{{ 'import.columnFilter.operator.' + filter.operator | translate }} :</span>
+      <span class="ml-1 text-[#4c4c4c]">{{ filter.value }}</span>
     </span>
     <button
       type="button"
       data-delete-button
-      class="shrink-0 text-gray-500 hover:text-red-600 ml-1"
+      class="shrink-0 bg-[#eeeeee] rounded h-full aspect-square flex items-center justify-center hover:bg-gray-300"
+      [attr.aria-label]="'import.columnFilter.delete' | translate"
       (click)="onDelete($event)"
-      aria-label="Delete filter"
     >
-      <!-- X icon -->
-      <svg
-        class="w-4 h-4"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
-      </svg>
+      <ng-icon name="iconoirTrash" class="text-primary-darker" size="1rem"></ng-icon>
     </button>
   </div>
-  } }
+  }
+
+  <!-- Three filter inputs: one per operator -->
+  <div class="flex flex-col gap-[5px]">
+    <label class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500">
+      <ng-icon name="iconoirSearch" class="shrink-0 text-primary-darker" size="1.25rem"></ng-icon>
+      <input
+        type="text"
+        data-contains-input
+        class="flex-1 text-sm text-[#4c4c4c] placeholder:text-[#7c7c7c] outline-none bg-transparent"
+        [placeholder]="'import.columnFilter.placeholder.contains' | translate"
+        [ngModel]="containsValue()"
+        (ngModelChange)="containsValue.set($event)"
+        (keydown.enter)="onSubmit('contains', containsValue())"
+      />
+      @if (containsValue().trim()) {
+      <button
+        type="button"
+        class="shrink-0 bg-[#eeeeee] rounded h-8 w-8 flex items-center justify-center hover:bg-gray-300"
+        (mousedown)="$event.preventDefault()"
+        (click)="onSubmit('contains', containsValue())"
+      >
+        <ng-icon name="iconoirTransitionUp" class="text-primary-darker" size="1rem"></ng-icon>
+      </button>
+      }
+    </label>
+
+    <label class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500">
+      <ng-icon name="iconoirSearch" class="shrink-0 text-primary-darker" size="1.25rem"></ng-icon>
+      <input
+        type="text"
+        data-exactly-input
+        class="flex-1 text-sm text-[#4c4c4c] placeholder:text-[#7c7c7c] outline-none bg-transparent"
+        [placeholder]="'import.columnFilter.placeholder.exactly' | translate"
+        [ngModel]="exactlyValue()"
+        (ngModelChange)="exactlyValue.set($event)"
+        (keydown.enter)="onSubmit('exactly', exactlyValue())"
+      />
+      @if (exactlyValue().trim()) {
+      <button
+        type="button"
+        class="shrink-0 bg-[#eeeeee] rounded h-8 w-8 flex items-center justify-center hover:bg-gray-300"
+        (mousedown)="$event.preventDefault()"
+        (click)="onSubmit('exactly', exactlyValue())"
+      >
+        <ng-icon name="iconoirTransitionUp" class="text-primary-darker" size="1rem"></ng-icon>
+      </button>
+      }
+    </label>
+
+    <label class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500">
+      <ng-icon name="iconoirSearch" class="shrink-0 text-primary-darker" size="1.25rem"></ng-icon>
+      <input
+        type="text"
+        data-starts-with-input
+        class="flex-1 text-sm text-[#4c4c4c] placeholder:text-[#7c7c7c] outline-none bg-transparent"
+        [placeholder]="'import.columnFilter.placeholder.starts_with' | translate"
+        [ngModel]="startsWithValue()"
+        (ngModelChange)="startsWithValue.set($event)"
+        (keydown.enter)="onSubmit('starts_with', startsWithValue())"
+      />
+      @if (startsWithValue().trim()) {
+      <button
+        type="button"
+        class="shrink-0 bg-[#eeeeee] rounded h-8 w-8 flex items-center justify-center hover:bg-gray-300"
+        (mousedown)="$event.preventDefault()"
+        (click)="onSubmit('starts_with', startsWithValue())"
+      >
+        <ng-icon name="iconoirTransitionUp" class="text-primary-darker" size="1rem"></ng-icon>
+      </button>
+      }
+    </label>
+  </div>
 </div>
