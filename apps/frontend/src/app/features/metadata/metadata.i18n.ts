@@ -110,6 +110,8 @@ marker('input.image.altTextPlaceholder')
 marker('input.image.delete')
 marker('input.image.displayAltTextInput')
 marker('input.image.displayUrlInput')
+marker('input.image.dropFileLabel')
+marker('input.image.selectFileLabel')
 
 // Taken from libs/ui/inputs/src/lib/file-input in GN-UI
 marker('input.file.selectFileLabel')
