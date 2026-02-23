@@ -483,6 +483,10 @@ export class DataImportWizardComponent implements OnInit {
     }
   }
 
+  onTitleChanged(title: string) {
+    this.metadata.update((m) => (m ? { ...m, title } : m))
+  }
+
   async onValidateDataset(title: string) {
     this.validationError.set(null)
     this.processing.set(true)

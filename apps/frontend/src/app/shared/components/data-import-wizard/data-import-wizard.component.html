@@ -55,6 +55,7 @@
               #titleConfig
               [metadata]="selectedTabIndex() === 1 ? metadata() : undefined"
               (validated)="onValidateDataset($event)"
+              (titleChanged)="onTitleChanged($event)"
             />
           </div>
         </mat-tab>
