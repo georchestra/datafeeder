@@ -335,37 +335,24 @@ def dag_success_callback(
     Args:
         session: Database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
-
-    Returns:
-        Success message with updated IntegrityLink details
     """
-    # Query existing IntegrityLink
     integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    # Ensure created_at exists and is timezone-aware
     if integrity_link.created_at is None:
-        raise HTTPException(
-            status_code=500,
-            detail="IntegrityLink created_at is missing",
-        )
+        raise HTTPException(status_code=500, detail="IntegrityLink created_at is missing")
 
-    # Calculate job duration
     now = datetime.now(timezone.utc)
     created_at = (
         integrity_link.created_at.replace(tzinfo=timezone.utc)
         if integrity_link.created_at.tzinfo is None
         else integrity_link.created_at
     )
-    staging_retrieve_time = now - created_at
-
-    # Update IntegrityLink
-    integrity_link.staging_retrieve_time = staging_retrieve_time
+    integrity_link.staging_retrieve_time = now - created_at
     session.commit()
     session.refresh(integrity_link)
 
-    # Remove file from temp folder if applicable
     try:
         if integrity_link.source_url:
             delete_temp_file(integrity_link.source_url)
@@ -387,41 +374,76 @@ def dag_failure_callback(
         datakern_session: Datakern database session (injected)
         data_session: Data database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
-
-    Returns:
-        Success message with cleanup details
     """
-    # Query existing IntegrityLink
     integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    # Get staging table name
-    staging_table_name = integrity_link.staging_table_name
-
-    # Drop the staging table if it exists
-    if staging_table_name:
+    if integrity_link.staging_table_name:
         try:
-            # CRITICAL: Validate table name before using in SQL (defense in depth)
             from data_manipulation.validators import validate_table_name
 
-            validate_table_name(staging_table_name, context="staging")
-
+            validate_table_name(integrity_link.staging_table_name, context="staging")
             schema = get_staging_schema()
-            metadata = MetaData(schema=schema)
-            table = Table(staging_table_name, metadata)
+            table = Table(integrity_link.staging_table_name, MetaData(schema=schema))
             table.drop(data_session.get_bind(), checkfirst=True)
             data_session.commit()
         except ValueError as e:
-            # Log validation error but continue with cleanup
             logger.error(f"Invalid staging table name in database: {e}")
         except Exception as e:
-            # Log the error but continue with IntegrityLink deletion
-            logger.error(f"Error dropping staging table {staging_table_name}: {e}")
+            logger.error(f"Error dropping staging table {integrity_link.staging_table_name}: {e}")
 
-    # Delete the IntegrityLink
     datakern_session.delete(integrity_link)
     datakern_session.commit()
+
+
+def _detect_original_projection(
+    staging_table_name: str,
+    engine: Any,
+    schema: str | None,
+) -> str | None:
+    """Return the CRS string if the staging table contains geographic data."""
+    try:
+        sample = read_data_from_postgis(staging_table_name, engine, schema, limit=1)
+        if isinstance(sample, gpd.GeoDataFrame) and sample.crs is not None:
+            return sample.crs.to_string()
+    except Exception as e:
+        logger.warning(f"Could not detect original projection: {e}")
+    return None
+
+
+def _resolve_columns(
+    saved_transformation: dict[str, Any] | None,
+    table: Table,
+) -> tuple[list[ColumnConfig], dict[str, Any] | None]:
+    """Return (columns, force_projection_data) from saved config or live DB schema."""
+    column_sqla_types = {col.name: col.type for col in table.columns}
+
+    if saved_transformation:
+        raw_columns = saved_transformation.get("columns")
+        if raw_columns:
+            try:
+                columns: list[ColumnConfig] = []
+                for raw_col in raw_columns:
+                    col_cfg = ColumnConfig.model_validate(raw_col)
+                    sqla_type = column_sqla_types.get(col_cfg.original_name)
+                    if sqla_type is not None:
+                        col_cfg = col_cfg.model_copy(
+                            update={"original_type": detect_column_type_from_sqla(sqla_type)}
+                        )
+                    columns.append(col_cfg)
+                return columns, saved_transformation.get("force_projection")
+            except Exception as e:
+                logger.warning(f"Could not deserialize saved columns config: {e}")
+
+    columns = [
+        ColumnConfig(
+            original_name=col.name,
+            original_type=detect_column_type_from_sqla(col.type),
+        )
+        for col in table.columns
+    ]
+    return columns, None
 
 
 @router.get("/{integrity_link_id}/metadata")
@@ -445,79 +467,31 @@ def get_staging_metadata(
     Returns:
         Metadata of the staging table
     """
-
     integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    staging_table_name = integrity_link.staging_table_name
-    source_import_type = integrity_link.source_import_type
-    source_file_name = integrity_link.source_file_name
-    source_file_type = integrity_link.source_file_type
-
     schema = get_staging_schema()
-    sql_metadata = MetaData(schema=schema)
-    table = Table(staging_table_name, sql_metadata, autoload_with=data_session.get_bind())
+    table = Table(
+        integrity_link.staging_table_name,
+        MetaData(schema=schema),
+        autoload_with=data_session.get_bind(),
+    )
 
     row_count = data_session.scalar(select(func.count()).select_from(table)) or 0
-
-    # Detect original projection if data is geographic
-    original_projection = None
-    try:
-        sample_data = read_data_from_postgis(
-            staging_table_name,
-            data_session.get_bind(),  # type: ignore
-            schema,
-            limit=1,
-        )
-        if isinstance(sample_data, gpd.GeoDataFrame) and sample_data.crs is not None:
-            original_projection = sample_data.crs.to_string()
-    except Exception as e:
-        logger.warning(f"Could not detect original projection: {e}")
-
-    # Build a SQLAlchemy type map for original_type detection
-    column_sqla_types: dict[str, Any] = {col.name: col.type for col in table.columns}
-
-    # Determine columns: use saved config if available, else build from DB schema
-    saved_transformation = integrity_link.integrity_transformation
-    saved_columns: list[ColumnConfig] | None = None
-    force_projection_data: dict[str, Any] | None = None
-
-    if saved_transformation:
-        raw_columns = saved_transformation.get("columns")
-        if raw_columns:
-            try:
-                deserialized: list[ColumnConfig] = []
-                for raw_col in raw_columns:
-                    col_cfg = ColumnConfig.model_validate(raw_col)
-                    # Re-detect original_type from live schema to keep it accurate
-                    sqla_type = column_sqla_types.get(col_cfg.original_name)
-                    if sqla_type is not None:
-                        col_cfg = col_cfg.model_copy(
-                            update={"original_type": detect_column_type_from_sqla(sqla_type)}
-                        )
-                    deserialized.append(col_cfg)
-                saved_columns = deserialized
-            except Exception as e:
-                logger.warning(f"Could not deserialize saved columns config: {e}")
-        force_projection_data = saved_transformation.get("force_projection")
-
-    if saved_columns is not None:
-        columns = saved_columns
-    else:
-        # Build ColumnConfig from DB schema (no transformation configured yet)
-        columns = [
-            ColumnConfig(
-                original_name=col.name,
-                original_type=detect_column_type_from_sqla(col.type),
-            )
-            for col in table.columns
-        ]
+    original_projection = _detect_original_projection(
+        integrity_link.staging_table_name,
+        data_session.get_bind(),  # type: ignore
+        schema,
+    )
+    columns, force_projection_data = _resolve_columns(
+        integrity_link.integrity_transformation, table
+    )
 
     return StagingMetadataResponse(
-        title=source_file_name or "",
-        import_type=source_import_type,
-        file_type=source_file_type,
+        title=integrity_link.source_file_name or "",
+        import_type=integrity_link.source_import_type,
+        file_type=integrity_link.source_file_type,
         columns=columns,
         row_count=row_count,
         force_projection=ForceProjection.model_validate(force_projection_data)
@@ -545,7 +519,8 @@ def edit_staging_metadata(
     Persists the full IntegrityTransformation (columns + force_projection) to the DB.
 
     Args:
-        session: Database session (injected)
+        data_session: Data database session (injected)
+        datakern_session: Datakern database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         config: Staging configuration with columns (ColumnConfig list), file_type,
                 force_projection, and title
@@ -553,26 +528,21 @@ def edit_staging_metadata(
     Returns:
         Updated staging metadata with saved column configurations
     """
-    # Query existing IntegrityLink
     integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    # Validate column names: reject empty new_name and duplicates
     if config.columns:
-        effective_names: list[str] = []
+        # Validate column names: no empty names and no duplicates (after rename)
+        seen: set[str] = set()
         for col in config.columns:
-            name = col.new_name if col.new_name is not None else col.original_name
+            name = col.new_name or col.original_name
             if not name or not name.strip():
                 raise HTTPException(
                     status_code=422,
                     detail=f"Column '{col.original_name}' has an empty name. "
                     "Column names cannot be empty.",
                 )
-            effective_names.append(name)
-
-        seen: set[str] = set()
-        for name in effective_names:
             if name in seen:
                 raise HTTPException(
                     status_code=422,
@@ -582,11 +552,9 @@ def edit_staging_metadata(
 
     if config.title:
         integrity_link.source_file_name = config.title
-
     if config.file_type:
         integrity_link.source_file_type = config.file_type
 
-    # Build and persist full IntegrityTransformation
     force_proj = (
         DataManipulationForceProjection(
             type=config.force_projection.type,
@@ -597,12 +565,10 @@ def edit_staging_metadata(
         else None
     )
     transformation = IntegrityTransformation(
-        columns=config.columns if config.columns else None,
+        columns=config.columns or None,
         force_projection=force_proj,
     )
     integrity_link.integrity_transformation = transformation.model_dump(mode="json")
-
-    # Force SQLAlchemy to detect changes in the JSON column
     flag_modified(integrity_link, "integrity_transformation")
 
     datakern_session.commit()
@@ -641,8 +607,6 @@ def get_staging_preview(
     Get a preview of the data in the staging table.
 
     Returns both tabular data (for table display) and GeoJSON (for map display).
-    ALL transformation configuration (columns AND force_projection) is loaded
-    exclusively from the saved integrity_transformation — never from query params.
 
     When raw=false (default): applies saved transformation config (exclusion, filters,
     rename, cast, projection). When raw=true: returns original data without any
@@ -672,7 +636,7 @@ def get_staging_preview(
     if not staging_table_name:
         raise HTTPException(status_code=500, detail="Staging table name is missing")
 
-    # Load transformation config from DB (ALL config comes from here, no query params)
+    # Load transformation config from DB
     schema = get_staging_schema()
     engine = data_engine
     config: IntegrityTransformation | None = None
