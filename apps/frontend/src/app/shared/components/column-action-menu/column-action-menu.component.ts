@@ -11,23 +11,21 @@ import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import type { ColumnConfigOutput } from '../../../core/api/models'
 import type { ColumnFilter } from '../../../core/api/models/column-filter'
 import { ColumnFilterFormComponent } from '../column-filter-form/column-filter-form.component'
+import { ColumnTypeSelectComponent } from '../column-type-select/column-type-select.component'
+import type { CastType } from '../column-type-select/column-type-select.component'
 
+export type { CastType }
 export type ColumnAction = 'filter' | 'changeType' | 'remove'
-export type CastType = 'boolean' | 'numeric' | 'text' | 'date'
 
 marker('import.columnAction.menu.filter')
 marker('import.columnAction.menu.changeType')
 marker('import.columnAction.menu.remove')
-marker('import.columnAction.typeMenu.boolean')
-marker('import.columnAction.typeMenu.numeric')
-marker('import.columnAction.typeMenu.text')
-marker('import.columnAction.typeMenu.date')
 
 @Component({
   selector: 'app-column-action-menu',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe, ColumnFilterFormComponent],
+  imports: [TranslatePipe, ColumnFilterFormComponent, ColumnTypeSelectComponent],
   templateUrl: './column-action-menu.component.html'
 })
 export class ColumnActionMenuComponent {
@@ -47,22 +45,8 @@ export class ColumnActionMenuComponent {
     const originalType = this.columnConfig().original_type
     return castType != null && castType !== originalType
   })
-  effectiveType = computed(
-    () =>
-      this.columnConfig().cast_type ??
-      this.columnConfig().original_type ??
-      'text'
-  )
-
   typeExpanded = signal(false)
   filterExpanded = signal(false)
-
-  castTypes = computed<CastType[]>(() => {
-    const base: CastType[] = ['boolean', 'numeric', 'text']
-    return this.columnConfig().original_type === 'date'
-      ? [...base, 'date']
-      : base
-  })
 
   onAction(action: ColumnAction, event: MouseEvent): void {
     event.stopPropagation()
@@ -79,15 +63,8 @@ export class ColumnActionMenuComponent {
     }
   }
 
-  onTypeSelect(type: CastType, event: MouseEvent): void {
-    event.stopPropagation()
-    const castType = this.columnConfig().cast_type
-    const originalType = this.columnConfig().original_type
-    if (type === castType || type === originalType) {
-      this.typeSelected.emit(null)
-    } else {
-      this.typeSelected.emit(type)
-    }
+  onTypeSelect(type: CastType | null): void {
+    this.typeSelected.emit(type)
   }
 
   onFilterValidated(filter: ColumnFilter): void {
