@@ -33,7 +33,9 @@ describe('ColumnTypeSelectComponent', () => {
     const fixture = TestBed.createComponent(ColumnTypeSelectComponent)
     fixture.detectChanges()
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('[data-type-submenu]')
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-type-submenu]'
+      )
     ).toBeTruthy()
   })
 

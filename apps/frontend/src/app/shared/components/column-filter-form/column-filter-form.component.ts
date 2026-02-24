@@ -8,7 +8,11 @@ import {
 import { FormsModule } from '@angular/forms'
 import { TranslatePipe } from '@ngx-translate/core'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
-import { NgIconComponent, provideIcons, provideNgIconsConfig } from '@ng-icons/core'
+import {
+  NgIconComponent,
+  provideIcons,
+  provideNgIconsConfig
+} from '@ng-icons/core'
 import {
   iconoirSearch,
   iconoirTrash,
