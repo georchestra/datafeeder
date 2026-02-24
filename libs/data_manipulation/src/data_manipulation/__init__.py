@@ -16,6 +16,7 @@ from data_manipulation.models import (
 )
 from data_manipulation.transformation.filter_sql import build_sql_column_ops
 from data_manipulation.transformation.transform import apply_transformations
+from data_manipulation.type_detection import detect_column_type_from_sqla
 
 __all__ = [
     "hello",
@@ -25,6 +26,7 @@ __all__ = [
     "read_and_transform_data",
     "apply_transformations",
     "build_sql_column_ops",
+    "detect_column_type_from_sqla",
     "write_data_to_postgis",
     "configure_logging",
     "CastType",

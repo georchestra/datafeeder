@@ -43,6 +43,12 @@ class ColumnConfig(BaseModel):
     original_name: str = Field(
         ..., description="Original column name from staging table (immutable reference)"
     )
+    original_type: CastType = Field(
+        default=CastType.TEXT,
+        description=(
+            "Detected source column type. TEXT used as fallback for geometry and unknown types."
+        ),
+    )
     new_name: str | None = Field(
         default=None, description="Renamed column name. None = keep original name."
     )

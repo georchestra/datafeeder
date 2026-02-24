@@ -8,7 +8,11 @@ import geopandas as gpd
 import pandas as pd
 import requests
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
-from data_manipulation import IntegrityTransformation, read_and_transform_data
+from data_manipulation import (
+    IntegrityTransformation,
+    detect_column_type_from_sqla,
+    read_and_transform_data,
+)
 from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import ForceProjection as DataManipulationForceProjection
@@ -471,6 +475,9 @@ def get_staging_metadata(
     except Exception as e:
         logger.warning(f"Could not detect original projection: {e}")
 
+    # Build a SQLAlchemy type map for original_type detection
+    column_sqla_types: dict[str, Any] = {col.name: col.type for col in table.columns}
+
     # Determine columns: use saved config if available, else build from DB schema
     saved_transformation = integrity_link.integrity_transformation
     saved_columns: list[ColumnConfig] | None = None
@@ -480,7 +487,17 @@ def get_staging_metadata(
         raw_columns = saved_transformation.get("columns")
         if raw_columns:
             try:
-                saved_columns = [ColumnConfig.model_validate(c) for c in raw_columns]
+                deserialized: list[ColumnConfig] = []
+                for raw_col in raw_columns:
+                    col_cfg = ColumnConfig.model_validate(raw_col)
+                    # Re-detect original_type from live schema to keep it accurate
+                    sqla_type = column_sqla_types.get(col_cfg.original_name)
+                    if sqla_type is not None:
+                        col_cfg = col_cfg.model_copy(
+                            update={"original_type": detect_column_type_from_sqla(sqla_type)}
+                        )
+                    deserialized.append(col_cfg)
+                saved_columns = deserialized
             except Exception as e:
                 logger.warning(f"Could not deserialize saved columns config: {e}")
         force_projection_data = saved_transformation.get("force_projection")
@@ -489,7 +506,13 @@ def get_staging_metadata(
         columns = saved_columns
     else:
         # Build ColumnConfig from DB schema (no transformation configured yet)
-        columns = [ColumnConfig(original_name=col.name) for col in table.columns]
+        columns = [
+            ColumnConfig(
+                original_name=col.name,
+                original_type=detect_column_type_from_sqla(col.type),
+            )
+            for col in table.columns
+        ]
 
     return StagingMetadataResponse(
         title=source_file_name or "",
