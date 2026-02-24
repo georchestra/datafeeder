@@ -31,6 +31,7 @@ export class DatasetTitleComponent {
   private translate = inject(TranslateService)
 
   validated = output<string>()
+  titleChanged = output<string>()
 
   form = this.fb.group({
     title: this.fb.control('', {
@@ -55,6 +56,11 @@ export class DatasetTitleComponent {
           this.translate.instant('import.datasetConfiguration.untitled')
         this.form.patchValue({ title }, { emitEvent: false })
       }
+    })
+
+    // Propagate user edits back to parent
+    this.form.controls.title.valueChanges.subscribe((value) => {
+      this.titleChanged.emit(value)
     })
   }
 
