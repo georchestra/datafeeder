@@ -30,32 +30,27 @@ describe('ColumnFilterFormComponent', () => {
     expect(fixture.componentInstance).toBeTruthy()
   })
 
-  it('should render operator dropdown and value input in editing state (no active filter)', () => {
+  it('should render all three operator inputs in editing state (no active filter)', () => {
     const fixture = TestBed.createComponent(ColumnFilterFormComponent)
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
-    expect(compiled.querySelector('[data-operator-select]')).toBeTruthy()
-    expect(compiled.querySelector('[data-filter-value-input]')).toBeTruthy()
-    expect(compiled.querySelector('[data-validate-button]')).toBeTruthy()
+    expect(compiled.querySelector('[data-contains-input]')).toBeTruthy()
+    expect(compiled.querySelector('[data-exactly-input]')).toBeTruthy()
+    expect(compiled.querySelector('[data-starts-with-input]')).toBeTruthy()
   })
 
-  it('should render all 3 operator options', () => {
+  it('should render one dedicated input per operator', () => {
     const fixture = TestBed.createComponent(ColumnFilterFormComponent)
     fixture.detectChanges()
 
     const compiled = fixture.nativeElement as HTMLElement
-    const options = Array.from(
-      compiled.querySelectorAll<HTMLOptionElement>(
-        '[data-operator-select] option'
-      )
-    ).map((o) => o.value)
-    expect(options).toContain('exactly')
-    expect(options).toContain('contains')
-    expect(options).toContain('starts_with')
+    expect(compiled.querySelector('[data-contains-input]')).toBeTruthy()
+    expect(compiled.querySelector('[data-exactly-input]')).toBeTruthy()
+    expect(compiled.querySelector('[data-starts-with-input]')).toBeTruthy()
   })
 
-  it('should emit filterValidated with operator and value on validate click', () => {
+  it('should emit filterValidated with operator and value on input submit', () => {
     const fixture = TestBed.createComponent(ColumnFilterFormComponent)
     fixture.detectChanges()
 
@@ -64,23 +59,16 @@ describe('ColumnFilterFormComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement
     const input = compiled.querySelector(
-      '[data-filter-value-input]'
+      '[data-exactly-input]'
     ) as HTMLInputElement
     input.value = 'test value'
     input.dispatchEvent(new Event('input'))
     fixture.detectChanges()
 
-    const select = compiled.querySelector(
-      '[data-operator-select]'
-    ) as HTMLSelectElement
-    select.value = 'exactly'
-    select.dispatchEvent(new Event('change'))
-    fixture.detectChanges()
-
-    const validateBtn = compiled.querySelector(
-      '[data-validate-button]'
+    const submitBtn = compiled.querySelector(
+      '[data-submit-exactly]'
     ) as HTMLElement
-    validateBtn.click()
+    submitBtn.click()
     fixture.detectChanges()
 
     expect(emitted).toHaveLength(1)
@@ -95,12 +83,10 @@ describe('ColumnFilterFormComponent', () => {
     fixture.componentInstance.filterValidated.subscribe((f) => emitted.push(f))
 
     const compiled = fixture.nativeElement as HTMLElement
-    const validateBtn = compiled.querySelector(
-      '[data-validate-button]'
-    ) as HTMLElement
-    validateBtn.click()
-    fixture.detectChanges()
-
+    // Submit buttons are only rendered when their input has a non-empty value
+    expect(compiled.querySelector('[data-submit-contains]')).toBeNull()
+    expect(compiled.querySelector('[data-submit-exactly]')).toBeNull()
+    expect(compiled.querySelector('[data-submit-starts-with]')).toBeNull()
     expect(emitted).toHaveLength(0)
   })
 

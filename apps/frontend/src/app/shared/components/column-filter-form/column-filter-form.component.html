@@ -55,6 +55,7 @@
       @if (containsValue().trim()) {
       <button
         type="button"
+        data-submit-contains
         class="shrink-0 bg-[#eeeeee] rounded h-8 w-8 flex items-center justify-center hover:bg-gray-300"
         (mousedown)="$event.preventDefault()"
         (click)="onSubmit('contains', containsValue())"
@@ -88,6 +89,7 @@
       @if (exactlyValue().trim()) {
       <button
         type="button"
+        data-submit-exactly
         class="shrink-0 bg-[#eeeeee] rounded h-8 w-8 flex items-center justify-center hover:bg-gray-300"
         (mousedown)="$event.preventDefault()"
         (click)="onSubmit('exactly', exactlyValue())"
@@ -123,6 +125,7 @@
       @if (startsWithValue().trim()) {
       <button
         type="button"
+        data-submit-starts-with
         class="shrink-0 bg-[#eeeeee] rounded h-8 w-8 flex items-center justify-center hover:bg-gray-300"
         (mousedown)="$event.preventDefault()"
         (click)="onSubmit('starts_with', startsWithValue())"

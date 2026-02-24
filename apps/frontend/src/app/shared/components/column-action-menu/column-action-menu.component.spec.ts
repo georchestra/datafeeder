@@ -311,18 +311,18 @@ describe('ColumnActionMenuComponent', () => {
     filterBtn.click()
     fixture.detectChanges()
 
-    // Fill in filter form
+    // Fill in filter form using the contains input
     const input = compiled.querySelector(
-      '[data-filter-value-input]'
+      '[data-contains-input]'
     ) as HTMLInputElement
     input.value = 'test'
     input.dispatchEvent(new Event('input'))
     fixture.detectChanges()
 
-    const validateBtn = compiled.querySelector(
-      '[data-validate-button]'
+    const submitBtn = compiled.querySelector(
+      '[data-submit-contains]'
     ) as HTMLElement
-    validateBtn.click()
+    submitBtn.click()
     fixture.detectChanges()
 
     expect(emitted).toHaveLength(1)
