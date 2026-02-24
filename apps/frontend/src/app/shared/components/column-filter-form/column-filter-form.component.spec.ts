@@ -66,7 +66,7 @@ describe('ColumnFilterFormComponent', () => {
     fixture.detectChanges()
 
     const submitBtn = compiled.querySelector(
-      '[data-submit-exactly]'
+      '[data-submit="exactly"]'
     ) as HTMLElement
     submitBtn.click()
     fixture.detectChanges()
@@ -84,9 +84,9 @@ describe('ColumnFilterFormComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement
     // Submit buttons are only rendered when their input has a non-empty value
-    expect(compiled.querySelector('[data-submit-contains]')).toBeNull()
-    expect(compiled.querySelector('[data-submit-exactly]')).toBeNull()
-    expect(compiled.querySelector('[data-submit-starts-with]')).toBeNull()
+    expect(compiled.querySelector('[data-submit="contains"]')).toBeNull()
+    expect(compiled.querySelector('[data-submit="exactly"]')).toBeNull()
+    expect(compiled.querySelector('[data-submit="starts_with"]')).toBeNull()
     expect(emitted).toHaveLength(0)
   })
 

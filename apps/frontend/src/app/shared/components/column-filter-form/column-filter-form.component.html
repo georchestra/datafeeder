@@ -1,3 +1,17 @@
+<ng-template #submitBtn let-operator="operator" let-value="value">
+  @if (value.trim()) {
+  <button
+    type="button"
+    [attr.data-submit]="operator"
+    class="absolute right-0.5 inset-y-0.5 aspect-square bg-[#eeeeee] rounded flex items-center justify-center hover:bg-gray-300"
+    (mousedown)="$event.preventDefault()"
+    (click)="onSubmit(operator, value)"
+  >
+    <ng-icon name="iconoirTransitionUp" class="text-primary-darker"></ng-icon>
+  </button>
+  }
+</ng-template>
+
 <div
   class="p-3 bg-white flex flex-col gap-2 w-[280px]"
   (click)="$event.stopPropagation()"
@@ -32,7 +46,7 @@
   <!-- Three filter inputs: one per operator -->
   <div class="flex flex-col gap-[5px]">
     <label
-      class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500"
+      class="relative flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500 overflow-hidden"
     >
       <ng-icon
         name="iconoirSearch"
@@ -41,30 +55,22 @@
       <input
         type="text"
         data-contains-input
-        class="flex-1 text-sm text-[#4c4c4c] placeholder:text-[#7c7c7c] outline-none bg-transparent"
+        class="flex-1 text-sm text-[#4c4c4c] placeholder:text-[#7c7c7c] outline-none bg-transparent pr-10"
         [placeholder]="'import.columnFilter.placeholder.contains' | translate"
         [ngModel]="containsValue()"
         (ngModelChange)="containsValue.set($event)"
         (keydown.enter)="onSubmit('contains', containsValue())"
       />
-      @if (containsValue().trim()) {
-      <button
-        type="button"
-        data-submit-contains
-        class="shrink-0 bg-[#eeeeee] rounded h-8 w-8 flex items-center justify-center hover:bg-gray-300"
-        (mousedown)="$event.preventDefault()"
-        (click)="onSubmit('contains', containsValue())"
-      >
-        <ng-icon
-          name="iconoirTransitionUp"
-          class="text-primary-darker"
-        ></ng-icon>
-      </button>
-      }
+      <ng-container
+        *ngTemplateOutlet="
+          submitBtn;
+          context: { operator: 'contains', value: containsValue() }
+        "
+      ></ng-container>
     </label>
 
     <label
-      class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500"
+      class="relative flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500 overflow-hidden"
     >
       <ng-icon
         name="iconoirSearch"
@@ -73,30 +79,22 @@
       <input
         type="text"
         data-exactly-input
-        class="flex-1 text-sm text-[#4c4c4c] placeholder:text-[#7c7c7c] outline-none bg-transparent"
+        class="flex-1 text-sm text-[#4c4c4c] placeholder:text-[#7c7c7c] outline-none bg-transparent pr-10"
         [placeholder]="'import.columnFilter.placeholder.exactly' | translate"
         [ngModel]="exactlyValue()"
         (ngModelChange)="exactlyValue.set($event)"
         (keydown.enter)="onSubmit('exactly', exactlyValue())"
       />
-      @if (exactlyValue().trim()) {
-      <button
-        type="button"
-        data-submit-exactly
-        class="shrink-0 bg-[#eeeeee] rounded h-8 w-8 flex items-center justify-center hover:bg-gray-300"
-        (mousedown)="$event.preventDefault()"
-        (click)="onSubmit('exactly', exactlyValue())"
-      >
-        <ng-icon
-          name="iconoirTransitionUp"
-          class="text-primary-darker"
-        ></ng-icon>
-      </button>
-      }
+      <ng-container
+        *ngTemplateOutlet="
+          submitBtn;
+          context: { operator: 'exactly', value: exactlyValue() }
+        "
+      ></ng-container>
     </label>
 
     <label
-      class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500"
+      class="relative flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500 overflow-hidden"
     >
       <ng-icon
         name="iconoirSearch"
@@ -113,20 +111,12 @@
         (ngModelChange)="startsWithValue.set($event)"
         (keydown.enter)="onSubmit('starts_with', startsWithValue())"
       />
-      @if (startsWithValue().trim()) {
-      <button
-        type="button"
-        data-submit-starts-with
-        class="shrink-0 bg-[#eeeeee] rounded h-8 w-8 flex items-center justify-center hover:bg-gray-300"
-        (mousedown)="$event.preventDefault()"
-        (click)="onSubmit('starts_with', startsWithValue())"
-      >
-        <ng-icon
-          name="iconoirTransitionUp"
-          class="text-primary-darker"
-        ></ng-icon>
-      </button>
-      }
+      <ng-container
+        *ngTemplateOutlet="
+          submitBtn;
+          context: { operator: 'starts_with', value: startsWithValue() }
+        "
+      ></ng-container>
     </label>
   </div>
 </div>
