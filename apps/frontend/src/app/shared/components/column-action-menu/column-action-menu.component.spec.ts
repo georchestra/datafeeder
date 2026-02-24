@@ -345,7 +345,7 @@ describe('ColumnActionMenuComponent', () => {
     fixture.detectChanges()
 
     const submitBtn = compiled.querySelector(
-      '[data-submit-contains]'
+      '[data-submit="contains"]'
     ) as HTMLElement
     submitBtn.click()
     fixture.detectChanges()
