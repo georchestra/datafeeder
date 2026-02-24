@@ -32,4 +32,9 @@ export interface ColumnConfigOutput {
    * Original column name from staging table (immutable reference)
    */
   original_name: string
+
+  /**
+   * Detected source column type. TEXT used as fallback for geometry and unknown types.
+   */
+  original_type?: CastType
 }

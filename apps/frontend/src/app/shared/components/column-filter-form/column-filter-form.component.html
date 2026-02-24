@@ -9,7 +9,12 @@
     class="flex items-center bg-white border border-[#cccdd2] rounded h-7 pl-3 pr-0.5 gap-2 overflow-hidden"
   >
     <span class="flex-1 truncate text-sm">
-      <span class="text-[#7c7c7c]">{{ 'import.columnFilter.operator.' + filter.operator | translate }} :</span>
+      <span class="text-[#7c7c7c]"
+        >{{
+          'import.columnFilter.operator.' + filter.operator | translate
+        }}
+        :</span
+      >
       <span class="ml-1 text-[#4c4c4c]">{{ filter.value }}</span>
     </span>
     <button
@@ -19,15 +24,25 @@
       [attr.aria-label]="'import.columnFilter.delete' | translate"
       (click)="onDelete($event)"
     >
-      <ng-icon name="iconoirTrash" class="text-primary-darker" size="1rem"></ng-icon>
+      <ng-icon
+        name="iconoirTrash"
+        class="text-primary-darker"
+        size="1rem"
+      ></ng-icon>
     </button>
   </div>
   }
 
   <!-- Three filter inputs: one per operator -->
   <div class="flex flex-col gap-[5px]">
-    <label class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500">
-      <ng-icon name="iconoirSearch" class="shrink-0 text-primary-darker" size="1.25rem"></ng-icon>
+    <label
+      class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500"
+    >
+      <ng-icon
+        name="iconoirSearch"
+        class="shrink-0 text-primary-darker"
+        size="1.25rem"
+      ></ng-icon>
       <input
         type="text"
         data-contains-input
@@ -44,13 +59,23 @@
         (mousedown)="$event.preventDefault()"
         (click)="onSubmit('contains', containsValue())"
       >
-        <ng-icon name="iconoirTransitionUp" class="text-primary-darker" size="1rem"></ng-icon>
+        <ng-icon
+          name="iconoirTransitionUp"
+          class="text-primary-darker"
+          size="1rem"
+        ></ng-icon>
       </button>
       }
     </label>
 
-    <label class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500">
-      <ng-icon name="iconoirSearch" class="shrink-0 text-primary-darker" size="1.25rem"></ng-icon>
+    <label
+      class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500"
+    >
+      <ng-icon
+        name="iconoirSearch"
+        class="shrink-0 text-primary-darker"
+        size="1.25rem"
+      ></ng-icon>
       <input
         type="text"
         data-exactly-input
@@ -67,18 +92,30 @@
         (mousedown)="$event.preventDefault()"
         (click)="onSubmit('exactly', exactlyValue())"
       >
-        <ng-icon name="iconoirTransitionUp" class="text-primary-darker" size="1rem"></ng-icon>
+        <ng-icon
+          name="iconoirTransitionUp"
+          class="text-primary-darker"
+          size="1rem"
+        ></ng-icon>
       </button>
       }
     </label>
 
-    <label class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500">
-      <ng-icon name="iconoirSearch" class="shrink-0 text-primary-darker" size="1.25rem"></ng-icon>
+    <label
+      class="flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500"
+    >
+      <ng-icon
+        name="iconoirSearch"
+        class="shrink-0 text-primary-darker"
+        size="1.25rem"
+      ></ng-icon>
       <input
         type="text"
         data-starts-with-input
         class="flex-1 text-sm text-[#4c4c4c] placeholder:text-[#7c7c7c] outline-none bg-transparent"
-        [placeholder]="'import.columnFilter.placeholder.starts_with' | translate"
+        [placeholder]="
+          'import.columnFilter.placeholder.starts_with' | translate
+        "
         [ngModel]="startsWithValue()"
         (ngModelChange)="startsWithValue.set($event)"
         (keydown.enter)="onSubmit('starts_with', startsWithValue())"
@@ -90,7 +127,11 @@
         (mousedown)="$event.preventDefault()"
         (click)="onSubmit('starts_with', startsWithValue())"
       >
-        <ng-icon name="iconoirTransitionUp" class="text-primary-darker" size="1rem"></ng-icon>
+        <ng-icon
+          name="iconoirTransitionUp"
+          class="text-primary-darker"
+          size="1rem"
+        ></ng-icon>
       </button>
       }
     </label>

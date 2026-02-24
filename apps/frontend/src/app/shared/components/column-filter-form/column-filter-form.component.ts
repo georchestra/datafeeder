@@ -9,7 +9,11 @@ import { FormsModule } from '@angular/forms'
 import { TranslatePipe } from '@ngx-translate/core'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
-import { iconoirSearch, iconoirTrash, iconoirTransitionUp } from '@ng-icons/iconoir'
+import {
+  iconoirSearch,
+  iconoirTrash,
+  iconoirTransitionUp
+} from '@ng-icons/iconoir'
 import type { ColumnFilter } from '../../../core/api/models/column-filter'
 import type { FilterOperator } from '../../../core/api/models/filter-operator'
 
@@ -26,7 +30,9 @@ marker('import.columnFilter.delete')
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, TranslatePipe, NgIconComponent],
-  viewProviders: [provideIcons({ iconoirSearch, iconoirTrash, iconoirTransitionUp })],
+  viewProviders: [
+    provideIcons({ iconoirSearch, iconoirTrash, iconoirTransitionUp })
+  ],
   templateUrl: './column-filter-form.component.html'
 })
 export class ColumnFilterFormComponent {

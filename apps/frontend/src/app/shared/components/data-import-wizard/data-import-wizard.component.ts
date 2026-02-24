@@ -521,7 +521,12 @@ export class DataImportWizardComponent implements OnInit {
         from(
           this.api.invoke(
             getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
-            { integrity_link_id: integrityLinkId, limit: 10, raw, include_excluded: true }
+            {
+              integrity_link_id: integrityLinkId,
+              limit: 10,
+              raw,
+              include_excluded: true
+            }
           )
         ).pipe(timeout(5000))
       )

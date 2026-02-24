@@ -9,7 +9,11 @@
   </div>
   }
   <div class="mx-6 overflow-x-auto border border-gray-400">
-    <table mat-table [dataSource]="previewLoading() ? [] : dataSource()" class="w-auto text-sm">
+    <table
+      mat-table
+      [dataSource]="previewLoading() ? [] : dataSource()"
+      class="w-auto text-sm"
+    >
       @for (column of displayedColumns(); track column) {
       <ng-container [matColumnDef]="column">
         <th
@@ -46,14 +50,18 @@
       <tr *matNoDataRow>
         <td [attr.colspan]="displayedColumns().length" class="!p-0 h-[370px]">
           @if (previewLoading()) {
-          <div class="flex flex-col items-center gap-4 p-8 absolute left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div
+            class="flex flex-col items-center gap-4 p-8 absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
+          >
             <gn-ui-spinning-loader></gn-ui-spinning-loader>
             <p class="text-center text-gray-600">
               {{ 'import.dataSource.processingMessage' | translate }}
             </p>
           </div>
           } @else {
-          <div class="p-4 text-center text-gray-500 absolute left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div
+            class="p-4 text-center text-gray-500 absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
+          >
             @if (previewError()) {
             {{ 'import.datasetPreviewTable.previewError' | translate }}
             } @else {
