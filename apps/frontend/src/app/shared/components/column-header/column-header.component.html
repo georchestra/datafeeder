@@ -1,15 +1,11 @@
 <div class="relative flex flex-col">
-  <div
-    class="flex items-stretch h-12 gap-[5px] px-[5px] py-[8px]"
-    [class.opacity-50]="isExcluded()"
-  >
+  <div class="flex items-stretch h-12 gap-[5px] px-[5px] py-[8px]">
     <!-- Column name input (editable for active columns, read-only for excluded) -->
     <div
-      class="flex-1 min-w-0 border flex items-center px-2 overflow-hidden"
+      class="flex-1 min-w-0 border flex items-center px-2 overflow-hidden bg-white"
       [class.border-red-400]="nameValidationError()"
       [class.border-gray-300]="!nameValidationError()"
-      [class.bg-[#f7f5f0]]="!isExcluded()"
-      [class.bg-white]="isExcluded()"
+      [class.opacity-50]="isExcluded()"
     >
       <input
         type="text"
@@ -31,7 +27,7 @@
       <button
         type="button"
         data-restore-button
-        class="flex items-center justify-center w-10 h-full border border-gray-300 bg-white hover:bg-gray-50 focus:outline-none"
+        class="flex items-center justify-center w-10 h-full border border-gray-300 bg-beige hover:bg-gray-50 focus:outline-none"
         (click)="onMenuAction('remove')"
       >
         <!-- Undo/restore icon -->
@@ -54,7 +50,7 @@
         #triggerBtn
         type="button"
         data-action-button
-        class="relative flex items-center justify-center w-10 h-full border border-gray-300 bg-white hover:bg-gray-50 focus:outline-none"
+        class="relative flex items-center justify-center w-10 h-full border border-gray-300 bg-beige hover:bg-gray-50 focus:outline-none"
         (click)="toggleMenu($event)"
       >
         <!-- Three-dot icon (⋮) -->
