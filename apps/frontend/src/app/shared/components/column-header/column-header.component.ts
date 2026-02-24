@@ -64,11 +64,12 @@ export class ColumnHeaderComponent implements OnDestroy {
     () => this.columnConfig().new_name ?? this.columnConfig().original_name
   )
 
-  hasActiveActions = computed(
-    () =>
-      this.columnConfig().filter != null ||
-      this.columnConfig().cast_type != null
-  )
+  hasActiveActions = computed(() => {
+    const col = this.columnConfig()
+    const hasCastOverride =
+      col.cast_type != null && col.cast_type !== col.original_type
+    return col.filter != null || hasCastOverride
+  })
 
   isExcluded = computed(() => this.columnConfig().excluded === true)
 

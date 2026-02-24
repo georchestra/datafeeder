@@ -42,7 +42,17 @@ export class ColumnActionMenuComponent {
   filterDeleted = output<void>()
 
   hasFilterActive = computed(() => this.columnConfig().filter != null)
-  hasCastTypeActive = computed(() => this.columnConfig().cast_type != null)
+  hasCastTypeActive = computed(() => {
+    const castType = this.columnConfig().cast_type
+    const originalType = this.columnConfig().original_type
+    return castType != null && castType !== originalType
+  })
+  effectiveType = computed(
+    () =>
+      this.columnConfig().cast_type ??
+      this.columnConfig().original_type ??
+      'text'
+  )
 
   typeExpanded = signal(false)
   filterExpanded = signal(false)
@@ -66,8 +76,13 @@ export class ColumnActionMenuComponent {
 
   onTypeSelect(type: CastType, event: MouseEvent): void {
     event.stopPropagation()
-    const current = this.columnConfig().cast_type
-    this.typeSelected.emit(current === type ? null : type)
+    const castType = this.columnConfig().cast_type
+    const originalType = this.columnConfig().original_type
+    if (type === castType || type === originalType) {
+      this.typeSelected.emit(null)
+    } else {
+      this.typeSelected.emit(type)
+    }
   }
 
   onFilterValidated(filter: ColumnFilter): void {

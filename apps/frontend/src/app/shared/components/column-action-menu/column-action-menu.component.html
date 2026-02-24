@@ -67,15 +67,13 @@
       <button
         type="button"
         [attr.data-type]="type"
-        [attr.aria-selected]="
-          columnConfig().cast_type === type ? 'true' : 'false'
-        "
+        [attr.aria-selected]="effectiveType() === type ? 'true' : 'false'"
         class="flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-gray-100 w-full"
-        [class.font-semibold]="columnConfig().cast_type === type"
-        [class.text-[#E30513]]="columnConfig().cast_type === type"
+        [class.font-semibold]="effectiveType() === type"
+        [class.text-[#E30513]]="effectiveType() === type"
         (click)="onTypeSelect(type, $event)"
       >
-        @if (columnConfig().cast_type === type) {
+        @if (effectiveType() === type) {
         <span
           class="w-2 h-2 rounded-full bg-[#E30513] shrink-0 inline-block"
         ></span>
