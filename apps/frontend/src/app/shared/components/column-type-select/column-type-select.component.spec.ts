@@ -37,7 +37,7 @@ describe('ColumnTypeSelectComponent', () => {
     ).toBeTruthy()
   })
 
-  it('should render 3 buttons (boolean, numeric, text) when originalType is not date', () => {
+  it('should render 3 options (boolean, numeric, text) when originalType is not date', () => {
     const fixture = TestBed.createComponent(ColumnTypeSelectComponent)
     fixture.detectChanges()
 
@@ -45,7 +45,7 @@ describe('ColumnTypeSelectComponent', () => {
     expect(compiled.querySelectorAll('[data-type]').length).toBe(3)
   })
 
-  it('should render all 4 buttons including date when originalType is date', () => {
+  it('should render all 4 options including date when originalType is date', () => {
     const fixture = TestBed.createComponent(ColumnTypeSelectComponent)
     fixture.componentRef.setInput('originalType', 'date')
     fixture.detectChanges()
@@ -75,6 +75,27 @@ describe('ColumnTypeSelectComponent', () => {
         .querySelector('[data-type="text"]')
         ?.getAttribute('aria-selected')
     ).toBe('false')
+  })
+
+  it('should render radio inputs for each type option', () => {
+    const fixture = TestBed.createComponent(ColumnTypeSelectComponent)
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const radios = compiled.querySelectorAll('input[type="radio"]')
+    expect(radios.length).toBe(3)
+  })
+
+  it('should check the radio matching the effectiveType', () => {
+    const fixture = TestBed.createComponent(ColumnTypeSelectComponent)
+    fixture.componentRef.setInput('castType', 'numeric')
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const numericRadio = compiled.querySelector(
+      '[data-type="numeric"]'
+    ) as HTMLInputElement
+    expect(numericRadio.checked).toBe(true)
   })
 
   it('should emit the clicked type when it is not the active type', () => {

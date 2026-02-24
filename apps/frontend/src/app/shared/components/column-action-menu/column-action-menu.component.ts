@@ -6,6 +6,8 @@ import {
   signal,
   ChangeDetectionStrategy
 } from '@angular/core'
+import { NgIconComponent, provideIcons, provideNgIconsConfig } from '@ng-icons/core'
+import { iconoirTrash, iconoirNavArrowDown, iconoirNavArrowUp } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import type { ColumnConfigOutput } from '../../../core/api/models'
@@ -25,8 +27,9 @@ marker('import.columnAction.menu.remove')
   selector: 'app-column-action-menu',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe, ColumnFilterFormComponent, ColumnTypeSelectComponent],
-  templateUrl: './column-action-menu.component.html'
+  imports: [TranslatePipe, ColumnFilterFormComponent, ColumnTypeSelectComponent, NgIconComponent],
+  templateUrl: './column-action-menu.component.html',
+  providers: [provideIcons({ iconoirTrash, iconoirNavArrowDown, iconoirNavArrowUp }), provideNgIconsConfig({ size: '1.5rem' })]
 })
 export class ColumnActionMenuComponent {
   columnConfig = input.required<ColumnConfigOutput>()

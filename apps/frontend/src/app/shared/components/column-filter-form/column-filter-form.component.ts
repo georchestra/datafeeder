@@ -8,7 +8,7 @@ import {
 import { FormsModule } from '@angular/forms'
 import { TranslatePipe } from '@ngx-translate/core'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
-import { NgIconComponent, provideIcons } from '@ng-icons/core'
+import { NgIconComponent, provideIcons, provideNgIconsConfig } from '@ng-icons/core'
 import {
   iconoirSearch,
   iconoirTrash,
@@ -31,7 +31,8 @@ marker('import.columnFilter.delete')
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, TranslatePipe, NgIconComponent],
   viewProviders: [
-    provideIcons({ iconoirSearch, iconoirTrash, iconoirTransitionUp })
+    provideIcons({ iconoirSearch, iconoirTrash, iconoirTransitionUp }),
+    provideNgIconsConfig({ size: '1.5rem' })
   ],
   templateUrl: './column-filter-form.component.html'
 })

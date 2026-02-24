@@ -29,7 +29,7 @@ export class ColumnTypeSelectComponent {
   typeSelect = output<CastType | null>()
 
   castTypes = computed<CastType[]>(() => {
-    const base: CastType[] = ['boolean', 'numeric', 'text']
+    const base: CastType[] = ['text', 'numeric', 'boolean']
     return this.originalType() === 'date' ? [...base, 'date'] : base
   })
 
