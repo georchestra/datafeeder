@@ -152,7 +152,7 @@ describe('ColumnActionMenuComponent', () => {
 
   // --- T031: Type selection submenu ---
 
-  it('should show type submenu with 4 options when "Change type" is clicked', () => {
+  it('should show type submenu with 3 options (no date) when original_type is not date', () => {
     const fixture = TestBed.createComponent(ColumnActionMenuComponent)
     fixture.componentRef.setInput('columnConfig', baseColumnConfig)
     fixture.detectChanges()
@@ -169,10 +169,10 @@ describe('ColumnActionMenuComponent', () => {
 
     const submenu = compiled.querySelector('[data-type-submenu]')
     expect(submenu).toBeTruthy()
-    expect(compiled.querySelectorAll('[data-type]').length).toBe(4)
+    expect(compiled.querySelectorAll('[data-type]').length).toBe(3)
   })
 
-  it('should show all 4 type options: boolean, numeric, text, date', () => {
+  it('should show boolean, numeric, text options but NOT date when original_type is not date', () => {
     const fixture = TestBed.createComponent(ColumnActionMenuComponent)
     fixture.componentRef.setInput('columnConfig', baseColumnConfig)
     fixture.detectChanges()
@@ -190,7 +190,32 @@ describe('ColumnActionMenuComponent', () => {
     expect(typeOptions).toContain('boolean')
     expect(typeOptions).toContain('numeric')
     expect(typeOptions).toContain('text')
+    expect(typeOptions).not.toContain('date')
+  })
+
+  it('should show all 4 type options including date when original_type is date', () => {
+    const fixture = TestBed.createComponent(ColumnActionMenuComponent)
+    fixture.componentRef.setInput('columnConfig', {
+      ...baseColumnConfig,
+      original_type: 'date'
+    })
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const typeBtn = compiled.querySelector(
+      '[data-action="changeType"]'
+    ) as HTMLElement
+    typeBtn.click()
+    fixture.detectChanges()
+
+    const typeOptions = Array.from(
+      compiled.querySelectorAll('[data-type]')
+    ).map((el) => el.getAttribute('data-type'))
+    expect(typeOptions).toContain('boolean')
+    expect(typeOptions).toContain('numeric')
+    expect(typeOptions).toContain('text')
     expect(typeOptions).toContain('date')
+    expect(typeOptions.length).toBe(4)
   })
 
   it('should emit typeSelected with type name when a type is selected', () => {

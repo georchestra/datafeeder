@@ -63,7 +63,7 @@
       data-type-submenu
       class="border-t border-gray-200 bg-gray-50 flex flex-col"
     >
-      @for (type of castTypes; track type) {
+      @for (type of castTypes(); track type) {
       <button
         type="button"
         [attr.data-type]="type"

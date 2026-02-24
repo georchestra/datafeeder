@@ -57,7 +57,12 @@ export class ColumnActionMenuComponent {
   typeExpanded = signal(false)
   filterExpanded = signal(false)
 
-  readonly castTypes: CastType[] = ['boolean', 'numeric', 'text', 'date']
+  castTypes = computed<CastType[]>(() => {
+    const base: CastType[] = ['boolean', 'numeric', 'text']
+    return this.columnConfig().original_type === 'date'
+      ? [...base, 'date']
+      : base
+  })
 
   onAction(action: ColumnAction, event: MouseEvent): void {
     event.stopPropagation()
