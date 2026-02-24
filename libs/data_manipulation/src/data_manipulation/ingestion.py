@@ -15,6 +15,7 @@ from sqlalchemy.engine import Engine
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.models import ColumnConfig, IntegrityTransformation
 from data_manipulation.transformation.filter_sql import build_sql_column_ops
+from data_manipulation.transformation.transform import apply_transformations
 from data_manipulation.utils import resolve_url
 from data_manipulation.validators import validate_schema_name, validate_table_name
 
@@ -361,8 +362,6 @@ def read_and_transform_data(
 
     if config is None:
         return data
-
-    from data_manipulation.transformation.transform import apply_transformations
 
     return apply_transformations(data, config)
 

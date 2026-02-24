@@ -7,7 +7,6 @@ from data_manipulation.models import CastType
 from data_manipulation.type_detection import detect_column_type_from_sqla
 
 
-
 @pytest.mark.parametrize(
     "sqla_type, expected",
     [

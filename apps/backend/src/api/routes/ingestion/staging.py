@@ -576,8 +576,7 @@ def edit_staging_metadata(
             if name in seen:
                 raise HTTPException(
                     status_code=422,
-                    detail=f"Duplicate column name '{name}'. "
-                    "Each column must have a unique name.",
+                    detail=f"Duplicate column name '{name}'. Each column must have a unique name.",
                 )
             seen.add(name)
 
@@ -680,9 +679,7 @@ def get_staging_preview(
 
     if not raw and integrity_link.integrity_transformation:
         try:
-            config = IntegrityTransformation.model_validate(
-                integrity_link.integrity_transformation
-            )
+            config = IntegrityTransformation.model_validate(integrity_link.integrity_transformation)
         except Exception as e:
             logger.warning(f"Could not deserialize transformation config, using raw: {e}")
 
@@ -741,9 +738,7 @@ def get_staging_preview(
             try:
                 if map_gdf.crs and map_gdf.crs.to_string() != "EPSG:4326":
                     map_gdf = map_gdf.to_crs("EPSG:4326")
-                    logger.info(
-                        f"Reprojected data from {map_gdf.crs} to EPSG:4326 for map display"
-                    )
+                    logger.info(f"Reprojected data from {map_gdf.crs} to EPSG:4326 for map display")
             except Exception as crs_error:
                 logger.warning(f"Could not reproject to EPSG:4326: {crs_error}")
 

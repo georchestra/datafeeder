@@ -1,12 +1,5 @@
-"""Unit tests for column action transformations (Phase 2).
+"""Unit tests for column action transformations"""
 
-Covers:
-- T006:  build_sql_column_ops — expression types, bound-parameter safety, exclusion
-- T006a: read_data_from_postgis with ``columns`` param — SQLite integration + mock
-- T006b: read_and_transform_data — end-to-end pipeline
-- T007:  rename_columns and cast_column_types
-- T008:  updated apply_transformations (rename + cast only)
-"""
 
 from unittest.mock import patch
 
@@ -79,15 +72,15 @@ def _sqlite_engine_with_data():
 
 
 # ===========================================================================
-# T006 — build_sql_column_ops
+# Tests for build_sql_column_ops
 # ===========================================================================
 
 
 class TestBuildSqlColumnOps:
-    """T006: Unit tests for build_sql_column_ops."""
+    """Unit tests for build_sql_column_ops."""
 
     def test_empty_columns_returns_all_cols_no_where(self):
-        """T006 (6): Empty column list → (all_cols, [])."""
+        """Empty column list → (all_cols, [])."""
         table = _make_table()
         select_cols, where_clauses = build_sql_column_ops([], table)
 
@@ -95,7 +88,7 @@ class TestBuildSqlColumnOps:
         assert where_clauses == []
 
     def test_excluded_column_absent_from_select_cols(self):
-        """T006 (3): Excluded column not present in select_cols."""
+        """Excluded column not present in select_cols."""
         table = _make_table()
         columns = [
             ColumnConfig(original_name="id"),
@@ -110,7 +103,7 @@ class TestBuildSqlColumnOps:
         assert "city" in col_keys
 
     def test_no_filter_produces_no_where_clause(self):
-        """T006 (4): Non-excluded column without filter → no where clause."""
+        """Non-excluded column without filter → no where clause."""
         table = _make_table()
         columns = [ColumnConfig(original_name="name")]
 
@@ -120,7 +113,7 @@ class TestBuildSqlColumnOps:
         assert where_clauses == []
 
     def test_excluded_with_filter_produces_no_where_clause(self):
-        """T006 (5): excluded=True column with filter → no where clause AND absent from select_cols."""
+        """excluded=True column with filter → no where clause AND absent from select_cols."""
         table = _make_table()
         columns = [
             ColumnConfig(
@@ -135,7 +128,7 @@ class TestBuildSqlColumnOps:
         assert where_clauses == []
 
     def test_exactly_operator_produces_binary_expression(self):
-        """T006 (1): EXACTLY operator → BinaryExpression with Cast(Text) operand."""
+        """EXACTLY operator → BinaryExpression with Cast(Text) operand."""
         table = _make_table()
         columns = [
             ColumnConfig(
@@ -152,7 +145,7 @@ class TestBuildSqlColumnOps:
         assert isinstance(expr.left, Cast)
 
     def test_contains_operator_produces_like_expression(self):
-        """T006 (1): CONTAINS operator → LIKE BinaryExpression."""
+        """CONTAINS operator → LIKE BinaryExpression."""
         table = _make_table()
         columns = [
             ColumnConfig(
@@ -167,7 +160,7 @@ class TestBuildSqlColumnOps:
         assert "LIKE" in str(compiled).upper()
 
     def test_starts_with_operator_produces_like_expression(self):
-        """T006 (1): STARTS_WITH operator → LIKE BinaryExpression."""
+        """STARTS_WITH operator → LIKE BinaryExpression."""
         table = _make_table()
         columns = [
             ColumnConfig(
@@ -182,7 +175,7 @@ class TestBuildSqlColumnOps:
         assert "LIKE" in str(compiled).upper()
 
     def test_filter_value_not_inlined_as_literal(self):
-        """T006 (2): Filter value is a bound parameter, not inlined in SQL text."""
+        """Filter value is a bound parameter, not inlined in SQL text."""
         table = _make_table()
         filter_value = "SuperSecretValue"
         columns = [
@@ -201,7 +194,7 @@ class TestBuildSqlColumnOps:
         )
 
     def test_contains_filter_value_not_inlined(self):
-        """T006 (2): CONTAINS filter — pattern with % delimiters is a bound param."""
+        """CONTAINS filter — pattern with % delimiters is a bound param."""
         table = _make_table()
         filter_value = "InjectionAttempt"
         columns = [
@@ -236,15 +229,15 @@ class TestBuildSqlColumnOps:
 
 
 # ===========================================================================
-# T006a — read_data_from_postgis with columns param
+# Tests for read_data_from_postgis with columns param
 # ===========================================================================
 
 
 class TestReadDataFromPostgisWithColumns:
-    """T006a: Integration-style tests for read_data_from_postgis with columns param."""
+    """Integration-style tests for read_data_from_postgis with columns param."""
 
     def test_filter_applied_before_limit(self):
-        """T006a (1): Rows 11-20 match 'Paris'; with limit=10, all 10 returned rows match."""
+        """Rows 11-20 match 'Paris'; with limit=10, all 10 returned rows match."""
         engine = _sqlite_engine_with_data()
         columns = [
             ColumnConfig(
@@ -262,7 +255,7 @@ class TestReadDataFromPostgisWithColumns:
         assert all(result["city"] == "Paris")
 
     def test_excluded_column_absent_from_result(self):
-        """T006a (2): Excluded column is not present in the returned DataFrame."""
+        """Excluded column is not present in the returned DataFrame."""
         engine = _sqlite_engine_with_data()
         columns = [
             ColumnConfig(original_name="id"),
@@ -277,7 +270,7 @@ class TestReadDataFromPostgisWithColumns:
         assert "name" in result.columns
 
     def test_limit_none_returns_all_matching_rows(self):
-        """T006a (3): limit=None returns all rows matching the filter (no truncation)."""
+        """limit=None returns all rows matching the filter (no truncation)."""
         engine = _sqlite_engine_with_data()
         columns = [
             ColumnConfig(
@@ -294,7 +287,7 @@ class TestReadDataFromPostgisWithColumns:
         assert all(result["city"] == "Paris")
 
     def test_no_columns_param_returns_all_rows(self):
-        """T006a (4): No columns param → all rows and columns returned."""
+        """No columns param → all rows and columns returned."""
         engine = _sqlite_engine_with_data()
 
         result = read_data_from_postgis("staging", engine)
@@ -305,7 +298,7 @@ class TestReadDataFromPostgisWithColumns:
         assert "city" in result.columns
 
     def test_pd_read_sql_receives_select_object(self):
-        """T006a (5): pd.read_sql receives a Select object, not a compiled string."""
+        """pd.read_sql receives a Select object, not a compiled string."""
         engine = _sqlite_engine_with_data()
         columns = [ColumnConfig(original_name="name"), ColumnConfig(original_name="id")]
 
@@ -358,15 +351,15 @@ class TestReadDataFromPostgisWithColumns:
 
 
 # ===========================================================================
-# T006b — read_and_transform_data
+# Tests for read_and_transform_data with column transformations
 # ===========================================================================
 
 
 class TestReadAndTransformData:
-    """T006b: Tests for read_and_transform_data pipeline."""
+    """Tests for read_and_transform_data pipeline."""
 
     def test_config_none_returns_raw_data(self):
-        """T006b (1): config=None → raw data returned unchanged."""
+        """config=None → raw data returned unchanged."""
         engine = _sqlite_engine_with_data()
 
         result = read_and_transform_data("staging", engine, config=None)
@@ -375,7 +368,7 @@ class TestReadAndTransformData:
         assert list(result.columns) == ["id", "name", "city"]
 
     def test_end_to_end_filter_exclude_rename_cast(self):
-        """T006b (2): filter+exclude at SQL, rename+cast at Python — matching manual steps."""
+        """filter+exclude at SQL, rename+cast at Python — matching manual steps."""
         engine = _sqlite_engine_with_data()
         columns = [
             ColumnConfig(
@@ -401,7 +394,7 @@ class TestReadAndTransformData:
         assert result["id"].dtype == object or pd.api.types.is_string_dtype(result["id"])
 
     def test_limit_10_vs_none_filter_then_limit(self):
-        """T006b (3): limit=10 vs limit=None confirms LIMIT applied after filters."""
+        """limit=10 vs limit=None confirms LIMIT applied after filters."""
         engine = _sqlite_engine_with_data()
         columns = [
             ColumnConfig(
@@ -423,12 +416,12 @@ class TestReadAndTransformData:
 
 
 # ===========================================================================
-# T007 — rename_columns and cast_column_types
+# Tests for rename_columns and cast_column_types
 # ===========================================================================
 
 
 class TestRenameColumns:
-    """T007: Unit tests for rename_columns."""
+    """Unit tests for rename_columns."""
 
     def test_rename_changes_column_name(self):
         """rename_columns renames columns according to new_name."""
@@ -481,7 +474,7 @@ class TestRenameColumns:
 
 
 class TestCastColumnTypes:
-    """T007: Unit tests for cast_column_types."""
+    """Unit tests for cast_column_types."""
 
     def test_cast_to_text(self):
         """CastType.TEXT: numeric column converted to string dtype."""
@@ -558,15 +551,12 @@ class TestCastColumnTypes:
 
 
 # ===========================================================================
-# T008 — updated apply_transformations
+# Tests for updated apply_transformations (rename + cast only)
 # ===========================================================================
 
 
 class TestApplyTransformations:
-    """T008: Updated apply_transformations (rename + cast, projection unchanged)."""
-
     def test_empty_config_returns_unchanged_data(self):
-        """T008 (2): Empty IntegrityTransformation → data returned unchanged."""
         df = pd.DataFrame({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
 
         result = apply_transformations(df, IntegrityTransformation())
@@ -576,7 +566,6 @@ class TestApplyTransformations:
         assert list(result.columns) == ["col1", "col2"]
 
     def test_backward_compat_columns_none(self):
-        """T008 (3): columns=None → apply_transformations behaves as before (projection only)."""
         df = pd.DataFrame({"col1": [1, 2], "col2": ["x", "y"]})
         config = IntegrityTransformation(columns=None)
 
@@ -586,7 +575,7 @@ class TestApplyTransformations:
         assert len(result) == 2
 
     def test_rename_applied_via_apply_transformations(self):
-        """T008 (1): columns with new_name → rename applied."""
+        """columns with new_name → rename applied."""
         df = pd.DataFrame({"original": [1, 2]})
         config = IntegrityTransformation(
             columns=[ColumnConfig(original_name="original", new_name="renamed")]
@@ -598,7 +587,7 @@ class TestApplyTransformations:
         assert "original" not in result.columns
 
     def test_cast_applied_via_apply_transformations(self):
-        """T008 (1): columns with cast_type → cast applied."""
+        """columns with cast_type → cast applied."""
         df = pd.DataFrame({"num": ["1", "2", "3"]})
         config = IntegrityTransformation(
             columns=[ColumnConfig(original_name="num", cast_type=CastType.NUMERIC)]
@@ -609,7 +598,7 @@ class TestApplyTransformations:
         assert pd.api.types.is_numeric_dtype(result["num"])
 
     def test_excluded_columns_not_present_are_silently_ignored(self):
-        """T008 (4): Excluded columns absent from DataFrame (SQL-level) → no KeyError."""
+        """Excluded columns absent from DataFrame (SQL-level) → no KeyError."""
         # Simulates the state after read_data_from_postgis filtered out 'secret_col'
         df = pd.DataFrame({"visible_col": [1, 2]})
         config = IntegrityTransformation(
@@ -626,7 +615,7 @@ class TestApplyTransformations:
         assert "visible_col" not in result.columns
 
     def test_projection_still_applied(self):
-        """T008: Projection logic preserved after T005 refactor."""
+        """Projection logic preserved after refactor."""
         from shapely.geometry import Point
 
         gdf = gpd.GeoDataFrame(
@@ -640,7 +629,7 @@ class TestApplyTransformations:
         assert result.crs.to_string() == "EPSG:3857"  # type: ignore[misc]
 
     def test_rename_then_cast_then_projection(self):
-        """T008: rename → cast → projection executed in correct order."""
+        """rename → cast → projection executed in correct order."""
         from shapely.geometry import Point
 
         gdf = gpd.GeoDataFrame(
