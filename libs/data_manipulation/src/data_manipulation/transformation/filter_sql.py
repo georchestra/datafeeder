@@ -15,6 +15,20 @@ from data_manipulation.models import ColumnConfig, FilterOperator
 
 logger = logging.getLogger(__name__)
 
+_LIKE_ESCAPE_CHAR = "\\"
+
+
+def _escape_like(value: str) -> str:
+    """Escape LIKE wildcard characters in a user-provided value.
+
+    Escapes the escape character itself first, then % and _, so that
+    the value is treated as a plain text match in a LIKE expression.
+    """
+    value = value.replace(_LIKE_ESCAPE_CHAR, _LIKE_ESCAPE_CHAR * 2)
+    value = value.replace("%", f"{_LIKE_ESCAPE_CHAR}%")
+    value = value.replace("_", f"{_LIKE_ESCAPE_CHAR}_")
+    return value
+
 
 def build_sql_column_ops(
     columns: list[ColumnConfig],
@@ -66,8 +80,10 @@ def build_sql_column_ops(
             if operator == FilterOperator.EXACTLY:
                 where_clauses.append(col_as_text == filter_value)
             elif operator == FilterOperator.CONTAINS:
-                where_clauses.append(col_as_text.like(f"%{filter_value}%"))
+                escaped = _escape_like(filter_value)
+                where_clauses.append(col_as_text.like(f"%{escaped}%", escape=_LIKE_ESCAPE_CHAR))
             elif operator == FilterOperator.STARTS_WITH:
-                where_clauses.append(col_as_text.like(f"{filter_value}%"))
+                escaped = _escape_like(filter_value)
+                where_clauses.append(col_as_text.like(f"{escaped}%", escape=_LIKE_ESCAPE_CHAR))
 
     return select_cols, where_clauses
