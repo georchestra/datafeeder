@@ -179,3 +179,74 @@ def create_layer(
             raise Exception(
                 f"Failed to create layer '{table_name}' in GeoServer. Error: {error_msg}"
             ) from e
+
+
+def update_layer_bbox(
+    geoserver: GeoServerCloud,  # type: ignore[reportUnknownVariableType]
+    workspace_name: str,
+    datastore_name: str,
+    table_name: str,
+    bbox: str,
+    native_epsg: int = 4326,
+) -> None:
+    """
+    Update the bounding box of an existing GeoServer layer after data has been loaded.
+
+    Args:
+        geoserver: GeoServerCloud instance
+        workspace_name: Name of the workspace
+        datastore_name: Name of the datastore
+        table_name: Database table name (feature type name)
+        bbox: PostGIS ST_Extent string, e.g. "BOX(minx miny, maxx maxy)"
+        native_epsg: Native CRS EPSG code (defaults to 4326)
+
+    Raises:
+        ValueError: If bbox string is invalid
+        Exception: If GeoServer update fails
+    """
+    workspace_name = sanitize_name(workspace_name)
+    table_name = sanitize_name(table_name)
+
+    parsed_bbox = compute_bbox_from_postgis_stextent_string(bbox)
+
+    crs_class = "projected" if native_epsg != 4326 else "geographic"
+    native_bounding_box = {
+        **parsed_bbox,
+        "crs": {"$": f"EPSG:{native_epsg}", "@class": crs_class},
+    }
+
+    if native_epsg != 4326:
+        from pyproj import Transformer  # type: ignore[import-untyped]
+
+        transformer = Transformer.from_crs(f"EPSG:{native_epsg}", "EPSG:4326", always_xy=True)
+        minx_ll, miny_ll = transformer.transform(parsed_bbox["minx"], parsed_bbox["miny"])
+        maxx_ll, maxy_ll = transformer.transform(parsed_bbox["maxx"], parsed_bbox["maxy"])
+        lat_lon_bounding_box: dict[str, object] = {
+            "minx": minx_ll,
+            "miny": miny_ll,
+            "maxx": maxx_ll,
+            "maxy": maxy_ll,
+            "crs": "EPSG:4326",
+        }
+    else:
+        lat_lon_bounding_box = {
+            **parsed_bbox,
+            "crs": "EPSG:4326",
+        }
+
+    feature_type = FeatureType(
+        name=table_name,
+        native_name=table_name,
+        workspace_name=workspace_name,
+        store_name=datastore_name,
+        srs=f"EPSG:{native_epsg}",
+        epsg_code=native_epsg,
+        native_bounding_box=native_bounding_box,
+        lat_lon_bounding_box=lat_lon_bounding_box,
+    )
+
+    rest_service = RestService(
+        url=geoserver.url,  # type: ignore[reportUnknownMemberType]
+        auth=geoserver.auth,  # type: ignore[reportUnknownMemberType]
+    )
+    rest_service.create_feature_type(feature_type)

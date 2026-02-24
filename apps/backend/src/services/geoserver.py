@@ -5,6 +5,9 @@ from data_manipulation.geoserver import (
 from data_manipulation.geoserver import (
     create_workspace as dm_create_workspace,
 )
+from data_manipulation.geoserver import (
+    update_layer_bbox as dm_update_layer_bbox,
+)
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
 from pydantic import BaseModel
 
@@ -197,4 +200,31 @@ class GeoServerService:
                 getfeature=wfs_getfeature_url,
             ),
             ogcfeatures=ogcfeatures_url,
+        )
+
+    async def update_layer_bbox(
+        self,
+        workspace_name: str,
+        datastore_name: str,
+        table_name: str,
+        bbox: str,
+        native_epsg: int = 4326,
+    ) -> None:
+        """
+        Update the bounding box of an existing GeoServer layer.
+
+        Args:
+            workspace_name: Name of the workspace
+            datastore_name: Name of the datastore
+            table_name: Database table name
+            bbox: PostGIS ST_Extent string
+            native_epsg: Native CRS EPSG code (defaults to 4326)
+        """
+        dm_update_layer_bbox(
+            geoserver=self.geoserver,
+            workspace_name=workspace_name,
+            datastore_name=datastore_name,
+            table_name=table_name,
+            bbox=bbox,
+            native_epsg=native_epsg,
         )

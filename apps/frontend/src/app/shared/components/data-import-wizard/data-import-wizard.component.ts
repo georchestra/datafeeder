@@ -584,7 +584,7 @@ export class DataImportWizardComponent implements OnInit {
       })
 
       this.processing.set(false)
-      this.router.navigate([this.integrityLinkId(), 'events'])
+      this.router.navigate([this.integrityLinkId(), 'edit'])
     } catch (error) {
       this.validationError.set(
         error instanceof Error

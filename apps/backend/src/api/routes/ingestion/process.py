@@ -29,13 +29,23 @@ logger = get_logger()
 settings = get_settings()
 
 
+def _parse_epsg(projection_type: str | None) -> int:
+    """Extract EPSG code integer from a projection type string like 'EPSG:2154'."""
+    if projection_type and projection_type.upper().startswith("EPSG:"):
+        try:
+            return int(projection_type.split(":")[1])
+        except ValueError:
+            pass
+    return 4326
+
+
 @router.post(
     "/",
     response_model=ProcessResponse,
     summary="Submit staging data for processing",
     description="Submit staging data for processing by triggering the Airflow process DAG.",
 )
-def process_staging_data(
+async def process_staging_data(
     request: ProcessRequest,
     session: DatakernSessionDep,
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
@@ -45,6 +55,10 @@ def process_staging_data(
 ) -> ProcessResponse:
     """
     Submit staging data for processing.
+
+    Creates the GeoServer layer and GeoNetwork metadata record immediately (with a placeholder
+    bbox), then triggers the Airflow DAG. The bbox is updated in dag_success_callback once
+    the data is loaded and the actual extent is known.
 
     Args:
         request: Process configuration including integrity link ID and title
@@ -88,23 +102,142 @@ def process_staging_data(
             detail=f"Title produces invalid table name: {e}",
         )
 
-    # integrity_transformation = request.config # FIXME: currently not used
-
-    # TODO: update integrity link with integrity_transformation
-    # -> json is too big to be passed as params to airflow
-
     # Set integrity_title (raw request.title)
     integrity_link.integrity_title = request.title
+
+    # --- Create GeoServer workspace/datastore/layer and GeoNetwork metadata immediately ---
+    workspace_name = integrity_link.integrity_organization.lower()
+    datastore_name = f"{workspace_name}_ds"
+    layer_urls = None
+
+    # Create PostgreSQL schema
+    try:
+        create_schema(data_engine, workspace_name)
+        logger.info(f"Created/verified PostgreSQL schema: {workspace_name}")
+    except Exception as e:
+        logger.error(
+            f"Failed to create schema for IntegrityLink {integrity_link.id}: {e}", exc_info=True
+        )
+
+    # Create GeoServer workspace, datastore, and layer with placeholder bbox
+    try:
+        geoserver_service = GeoServerService(
+            base_url=settings.GEOSERVER_URL,
+            username=settings.GEOSERVER_USER,
+            password=settings.GEOSERVER_PASSWORD,
+            public_url=settings.DATA_PUBLIC_URL,
+        )
+
+        workspace_exists = await geoserver_service.workspace_exists(workspace_name)
+        datastore_exists = await geoserver_service.datastore_exists(workspace_name, datastore_name)
+
+        if workspace_exists and datastore_exists:
+            logger.info(
+                f"Reusing existing GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
+                f"workspace={workspace_name}, datastore={datastore_name}"
+            )
+        else:
+            await geoserver_service.create_workspace(
+                workspace_name=workspace_name,
+                datastore_name=datastore_name,
+                pg_schema="data",  # Point to the schema where Airflow creates final tables
+            )
+            logger.info(
+                f"Created GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
+                f"workspace={workspace_name}, datastore={datastore_name}"
+            )
+
+        try:
+            layer_urls = await geoserver_service.create_layer(
+                workspace_name=workspace_name,
+                datastore_name=datastore_name,
+                table_name=final_table_name,
+                title=integrity_link.integrity_title or final_table_name,
+                abstract=integrity_link.integrity_title or final_table_name,
+                is_geographic=False,
+                bbox="",
+            )
+            integrity_link.data_id = workspace_name + ":" + final_table_name
+            logger.info(
+                f"Created GeoServer layer (placeholder bbox) for IntegrityLink {integrity_link.id}: "
+                f"{integrity_link.data_id}"
+            )
+        except Exception as layer_error:
+            logger.warning(
+                f"Failed to create GeoServer layer for IntegrityLink {integrity_link.id}: "
+                f"{str(layer_error)}",
+                exc_info=True,
+            )
+
+    except Exception as e:
+        logger.error(
+            f"Failed to publish to GeoServer for IntegrityLink {integrity_link.id}: {e}",
+            exc_info=True,
+        )
+
+    # Create and publish metadata to GeoNetwork
+    try:
+        console_service = ConsoleService(settings.CONSOLE_URL)
+        organization = console_service.get_organization(integrity_link.integrity_organization)
+
+        user_first_name = sec_firstname
+        user_last_name = sec_lastname
+        contact_email = sec_email
+        if organization:
+            contact_email = organization.get("mail") or sec_email
+            org_name = organization.get("name")
+            if org_name:
+                user_first_name = org_name
+                user_last_name = ""
+                logger.info(f"Using organization name for metadata contact: {org_name}")
+        else:
+            logger.info("Organization not found, using user info for metadata contact")
+
+        metadata_service = MetadataService(
+            gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+            datadir_path=settings.DATADIR_PATH,
+            credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+            verify_tls=False,
+        )
+
+        metadata_id = metadata_service.create_and_publish_metadata(
+            integrity_link,
+            user_email=contact_email,
+            user_first_name=user_first_name,
+            user_last_name=user_last_name,
+            layer_urls=layer_urls.model_dump() if layer_urls else None,
+        )
+        integrity_link.metadata_id = str(integrity_link.id)
+        logger.info(f"Metadata published for IntegrityLink {integrity_link.id}: {metadata_id}")
+
+        try:
+            metadata_service.set_record_ownership(
+                metadata_uuid=str(integrity_link.id),
+                username=integrity_link.integrity_owner,
+                group_name=integrity_link.integrity_organization,
+            )
+        except Exception as ownership_error:
+            logger.warning(
+                "Failed to set metadata ownership for IntegrityLink %s: %s",
+                integrity_link.id,
+                ownership_error,
+                exc_info=True,
+            )
+
+    except Exception as e:
+        logger.error(
+            f"Failed to publish metadata for IntegrityLink {integrity_link.id}: {e}", exc_info=True
+        )
+
+    # Persist all changes before triggering the DAG
+    integrity_link.final_table_name = final_table_name
     session.commit()
     session.refresh(integrity_link)
 
-    # Build callback parameters
+    # Build callback parameters (no user info needed — metadata already created)
     callback_params = {
         "integrity_link_id": str(integrity_link.id),
         "final_table_name": final_table_name,
-        "user_email": sec_email,
-        "user_first_name": sec_firstname,
-        "user_last_name": sec_lastname,
     }
 
     # Build callback URLs
@@ -141,191 +274,70 @@ async def dag_success_callback(
     datakern_session: DatakernSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
-    user_email: str = Query("", description="User email"),
-    user_first_name: str = Query("", description="User first name"),
-    user_last_name: str = Query("", description="User last name"),
 ) -> None:
     """
     Success callback endpoint called by Airflow DAG on successful completion.
-    Updates the existing IntegrityLink record with final table name and retrieval timestamp.
+    Updates the GeoServer layer bbox with the actual data extent now that the table is loaded.
 
     Args:
-        session: Database session (injected)
+        datakern_session: Database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         final_table_name: Final table name created by the process DAG
-
-    Returns:
-        Success message with updated IntegrityLink details
     """
-    # Query existing IntegrityLink
     integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    # Initialize layer_urls for metadata generation
-    layer_urls = None
+    workspace_name = integrity_link.integrity_organization.lower()
+    datastore_name = f"{workspace_name}_ds"
 
-    # Publish to GeoServer (workspace, datastore, and layer)
-    # This must happen BEFORE GeoNetwork publication
+    # Update GeoServer layer bbox with actual data extent
     try:
-        # Get workspace and datastore names from IntegrityLink
-        workspace_name = integrity_link.integrity_organization.lower()
-        datastore_name = f"{workspace_name}_ds"
+        # Use SQLAlchemy Core to safely construct the query
+        metadata = MetaData(schema="data")
+        table = Table(final_table_name, metadata, autoload_with=data_engine)
+        is_geographic = DEFAULT_GEOMETRY_COLUMN in table.c
 
-        # Create database schema first
-        create_schema(data_engine, workspace_name)
-        logger.info(f"Created/verified PostgreSQL schema: {workspace_name}")
+        if is_geographic:
+            stmt = select(func.ST_Extent(table.c[DEFAULT_GEOMETRY_COLUMN]))
+            with data_engine.connect() as conn:
+                result = conn.execute(stmt).scalar_one_or_none()
+            bbox = str(result) if result else ""
 
-        # Initialize GeoServer service
-        geoserver_service = GeoServerService(
-            base_url=settings.GEOSERVER_URL,
-            username=settings.GEOSERVER_USER,
-            password=settings.GEOSERVER_PASSWORD,
-            public_url=settings.DATA_PUBLIC_URL,
-        )
+            if bbox:
+                force_proj = (
+                    integrity_link.integrity_transformation.get("force_projection")
+                    if integrity_link.integrity_transformation
+                    else None
+                )
+                projection_type = force_proj.get("type") if force_proj else None
+                native_epsg = _parse_epsg(projection_type)
 
-        # Check if GeoServer workspace and datastore already exist
-        workspace_exists = await geoserver_service.workspace_exists(workspace_name)
-        datastore_exists = await geoserver_service.datastore_exists(workspace_name, datastore_name)
-
-        if not final_table_name:
-            logger.info(
-                f"Skipping layer creation for IntegrityLink {integrity_link.id}: "
-                f"final_table_name not available"
-            )
-            raise Exception("final_table_name is required for GeoServer layer creation")
-
-        if workspace_exists and datastore_exists:
-            logger.info(
-                f"Reusing existing GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
-                f"workspace={workspace_name}, datastore={datastore_name}"
-            )
-        else:
-            # Create GeoServer workspace and datastore
-            _workspace = await geoserver_service.create_workspace(
-                workspace_name=workspace_name,
-                datastore_name=datastore_name,
-                pg_schema="data",  # Point to the schema where Airflow creates final tables
-            )
-            logger.info(
-                f"Created GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
-                f"workspace={workspace_name}, datastore={datastore_name}"
-            )
-
-        try:
-            logger.info(
-                f"Creating GeoServer layer for IntegrityLink {integrity_link.id}: "
-                f"layer={final_table_name}"
-                f"layers_urls={layer_urls}"
-            )
-
-            # Use SQLAlchemy Core to safely construct the query
-            metadata = MetaData(schema="data")
-            table = Table(final_table_name, metadata, autoload_with=data_engine)
-            is_geographic = DEFAULT_GEOMETRY_COLUMN in table.c
-            bbox = ""
-            if is_geographic:
-                stmt = select(func.ST_Extent(table.c[DEFAULT_GEOMETRY_COLUMN]))
-                with data_engine.connect() as conn:
-                    result = conn.execute(stmt).scalar_one_or_none()
-                bbox = str(result) if result else ""
-
-            layer_urls = await geoserver_service.create_layer(
-                workspace_name=workspace_name,
-                datastore_name=datastore_name,
-                table_name=final_table_name,
-                title=integrity_link.integrity_title or final_table_name,
-                abstract=integrity_link.integrity_title or final_table_name,
-                is_geographic=is_geographic,
-                bbox=bbox,
-            )
-            integrity_link.data_id = workspace_name + ":" + final_table_name
-
-            logger.info(
-                f"Data published to GeoServer for IntegrityLink {integrity_link.id}: {integrity_link.data_id} | "
-                f"WMS URL={layer_urls.wms.capabilities if is_geographic and layer_urls.wms else None}, "
-                f"WFS URL={layer_urls.wfs.capabilities}, "
-                f"OGC Features={layer_urls.ogcfeatures}, "
-            )
-        except Exception as layer_error:
-            # Log the error but don't fail - workspace/datastore were created successfully
-            logger.warning(
-                f"Failed to create GeoServer layer for IntegrityLink {integrity_link.id}: "
-                f"{str(layer_error)}",
-                exc_info=True,
-            )
+                geoserver_service = GeoServerService(
+                    base_url=settings.GEOSERVER_URL,
+                    username=settings.GEOSERVER_USER,
+                    password=settings.GEOSERVER_PASSWORD,
+                    public_url=settings.DATA_PUBLIC_URL,
+                )
+                await geoserver_service.update_layer_bbox(
+                    workspace_name=workspace_name,
+                    datastore_name=datastore_name,
+                    table_name=final_table_name,
+                    bbox=bbox,
+                    native_epsg=native_epsg,
+                )
+                logger.info(
+                    f"Updated GeoServer layer bbox for IntegrityLink {integrity_link.id}: "
+                    f"epsg={native_epsg}, bbox={bbox}"
+                )
 
     except Exception as e:
-        # Soft failure - log the error but continue with the callback
         logger.error(
-            f"Failed to publish to GeoServer for IntegrityLink {integrity_link.id}: {e}",
+            f"Failed to update GeoServer layer bbox for IntegrityLink {integrity_link.id}: {e}",
             exc_info=True,
         )
-        # Continue with GeoNetwork publication and IntegrityLink update
 
-    # Create and publish metadata to GeoNetwork
-    try:
-        # Try to get organization from console API
-        console_service = ConsoleService(settings.CONSOLE_URL)
-        organization = console_service.get_organization(integrity_link.integrity_organization)
-
-        if organization:
-            # Use org email, fall back to user email
-            contact_email = organization.get("mail") or user_email
-            # Use org name to replace user first/last name
-            org_name = organization.get("name")
-            if org_name:
-                user_first_name = org_name
-                user_last_name = ""
-                logger.info(f"Using organization name for metadata contact: {org_name}")
-        else:
-            contact_email = user_email
-            logger.info("Organization not found, using user info for metadata contact")
-
-        metadata_service = MetadataService(
-            gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
-            datadir_path=settings.DATADIR_PATH,
-            credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-            verify_tls=False,
-            org_based_sync=settings.ORG_BASED_SYNC,
-            metadata_default_group_name=settings.METADATA_DEFAULT_GROUP_NAME,
-        )
-
-        # Pass layer URLs to metadata service (if layer creation succeeded, else None)
-        metadata_id = metadata_service.create_and_publish_metadata(
-            integrity_link,
-            user_email=contact_email,
-            user_first_name=user_first_name,
-            user_last_name=user_last_name,
-            layer_urls=layer_urls.model_dump() if layer_urls else None,
-        )
-        integrity_link.metadata_id = str(integrity_link.id)
-
-        logger.info(f"Metadata published for IntegrityLink {integrity_link.id}: {metadata_id}")
-
-        # Set correct ownership on the published metadata
-        try:
-            metadata_service.set_record_ownership(
-                metadata_uuid=str(integrity_link.id),
-                username=integrity_link.integrity_owner,
-                group_name=integrity_link.integrity_organization,
-            )
-        except Exception as ownership_error:
-            logger.warning(
-                "Failed to set metadata ownership for IntegrityLink %s: %s",
-                integrity_link.id,
-                ownership_error,
-                exc_info=True,
-            )
-
-    except Exception as e:
-        logger.error(
-            f"Failed to publish metadata for IntegrityLink {integrity_link.id}: {e}", exc_info=True
-        )
-        # Continue with IntegrityLink update even if metadata fails (soft failure)
-
-    # Update IntegrityLink with final table information
-    integrity_link.final_table_name = final_table_name
+    # Update retrieval timestamp
     integrity_link.last_retrieval_timestamp = datetime.now(timezone.utc)
 
     datakern_session.commit()
