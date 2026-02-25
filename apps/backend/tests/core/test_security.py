@@ -1,0 +1,319 @@
+"""Tests for permission-checking dependency in core/security.py."""
+
+from unittest.mock import MagicMock
+from uuid import UUID
+
+import pytest
+from fastapi import HTTPException
+
+from src.core.security import (
+    AccessLevel,
+    EffectiveAccess,
+    check_permission,
+    compute_effective_access,
+)
+from src.models.integrity_link import IntegrityLink
+from src.models.integrity_link_rule import IntegrityLinkRule, RuleType, RuleValue
+from src.services.georchestra import GeorchestraContext
+
+DATASET_ID = "11111111-1111-1111-1111-111111111111"
+DATASET_UUID = UUID(DATASET_ID)
+
+
+def _geo_ctx(
+    username: str = "user1",
+    organization: str = "org_a",
+    is_admin: bool = False,
+) -> GeorchestraContext:
+    """Create a test GeorchestraContext."""
+    roles = {"ADMINISTRATOR"} if is_admin else {"IMPORT"}
+    return GeorchestraContext(
+        username=username,
+        roles=roles,
+        email="",
+        firstname="",
+        lastname="",
+        organization=organization,
+    )
+
+
+def _integrity_link(owner: str = "owner1") -> IntegrityLink:
+    """Create a test IntegrityLink."""
+    link = MagicMock(spec=IntegrityLink)
+    link.id = DATASET_UUID
+    link.integrity_owner = owner
+    return link
+
+
+def _mock_session(rules: list[IntegrityLinkRule] | None = None, integrity_link: IntegrityLink | None = None) -> MagicMock:
+    """Create a mock session with configurable rule query results."""
+    session = MagicMock()
+    if integrity_link is not None:
+        session.get.return_value = integrity_link
+    mock_exec = MagicMock()
+    mock_exec.all.return_value = rules or []
+    session.exec.return_value = mock_exec
+    return session
+
+
+def _make_rule(rule_value: RuleValue = RuleValue.READ) -> IntegrityLinkRule:
+    """Create a test IntegrityLinkRule."""
+    rule = MagicMock(spec=IntegrityLinkRule)
+    rule.integrity_link_id = DATASET_UUID
+    rule.rule_type = RuleType.METADATA
+    rule.rule_value = rule_value
+    rule.group_or_role = "org_a"
+    return rule
+
+
+# ────────────────────────────────────────────────────────
+# compute_effective_access
+# ────────────────────────────────────────────────────────
+
+
+class TestComputeEffectiveAccessAdmin:
+    """Admin always gets ADMIN access."""
+
+    def test_admin_gets_admin_access(self) -> None:
+        link = _integrity_link(owner="someone_else")
+        ctx = _geo_ctx(is_admin=True)
+        session = _mock_session()
+
+        result = compute_effective_access(link, ctx, session)
+
+        assert result == EffectiveAccess.ADMIN
+
+    def test_admin_skips_rule_query(self) -> None:
+        link = _integrity_link()
+        ctx = _geo_ctx(is_admin=True)
+        session = _mock_session()
+
+        compute_effective_access(link, ctx, session)
+
+        session.exec.assert_not_called()
+
+
+class TestComputeEffectiveAccessOwner:
+    """Owner always gets OWNER access."""
+
+    def test_owner_gets_owner_access(self) -> None:
+        link = _integrity_link(owner="user1")
+        ctx = _geo_ctx(username="user1")
+        session = _mock_session()
+
+        result = compute_effective_access(link, ctx, session)
+
+        assert result == EffectiveAccess.OWNER
+
+    def test_owner_skips_rule_query(self) -> None:
+        link = _integrity_link(owner="user1")
+        ctx = _geo_ctx(username="user1")
+        session = _mock_session()
+
+        compute_effective_access(link, ctx, session)
+
+        session.exec.assert_not_called()
+
+
+class TestComputeEffectiveAccessGroupRules:
+    """Group-based access through IntegrityLinkRule matching."""
+
+    def test_write_rule_gives_write_access(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx(username="user1", organization="org_a")
+        session = _mock_session(rules=[_make_rule(RuleValue.WRITE)])
+
+        result = compute_effective_access(link, ctx, session)
+
+        assert result == EffectiveAccess.WRITE
+
+    def test_read_rule_gives_read_access(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx(username="user1", organization="org_a")
+        session = _mock_session(rules=[_make_rule(RuleValue.READ)])
+
+        result = compute_effective_access(link, ctx, session)
+
+        assert result == EffectiveAccess.READ
+
+    def test_no_rules_gives_no_access(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx(username="user1", organization="org_a")
+        session = _mock_session(rules=[])
+
+        result = compute_effective_access(link, ctx, session)
+
+        assert result is None
+
+    def test_empty_organization_gives_no_access(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx(username="user1", organization="")
+        session = _mock_session()
+
+        result = compute_effective_access(link, ctx, session)
+
+        assert result is None
+        session.exec.assert_not_called()
+
+    def test_write_rule_takes_precedence_over_read(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx(username="user1", organization="org_a")
+        session = _mock_session(rules=[_make_rule(RuleValue.READ), _make_rule(RuleValue.WRITE)])
+
+        result = compute_effective_access(link, ctx, session)
+
+        assert result == EffectiveAccess.WRITE
+
+
+# ────────────────────────────────────────────────────────
+# check_permission
+# ────────────────────────────────────────────────────────
+
+
+class TestCheckPermissionNotFound:
+    """check_permission raises 404 when IntegrityLink not found."""
+
+    def test_raises_404_when_not_found(self) -> None:
+        session = MagicMock()
+        session.get.return_value = None
+        ctx = _geo_ctx()
+
+        with pytest.raises(HTTPException) as exc_info:
+            check_permission(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+
+        assert exc_info.value.status_code == 404
+
+
+class TestCheckPermissionAdminBypass:
+    """Admin bypasses all access levels."""
+
+    @pytest.mark.parametrize("level", list(AccessLevel))
+    def test_admin_passes_any_level(self, level: AccessLevel) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx(is_admin=True)
+        session = _mock_session(integrity_link=link)
+
+        result = check_permission(DATASET_ID, level, ctx, session)
+
+        assert result is link
+
+
+class TestCheckPermissionOwnerBypass:
+    """Owner bypasses all access levels."""
+
+    @pytest.mark.parametrize("level", list(AccessLevel))
+    def test_owner_passes_any_level(self, level: AccessLevel) -> None:
+        link = _integrity_link(owner="user1")
+        ctx = _geo_ctx(username="user1")
+        session = _mock_session(integrity_link=link)
+
+        result = check_permission(DATASET_ID, level, ctx, session)
+
+        assert result is link
+
+
+class TestCheckPermissionMetadataRead:
+    """METADATA_READ requires at least READ access."""
+
+    def test_read_rule_allows_metadata_read(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx()
+        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
+
+        result = check_permission(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+
+        assert result is link
+
+    def test_write_rule_allows_metadata_read(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx()
+        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
+
+        result = check_permission(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+
+        assert result is link
+
+    def test_no_rule_raises_403(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx()
+        session = _mock_session(integrity_link=link, rules=[])
+
+        with pytest.raises(HTTPException) as exc_info:
+            check_permission(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+
+        assert exc_info.value.status_code == 403
+
+
+class TestCheckPermissionMetadataWrite:
+    """METADATA_WRITE requires WRITE access (READ is insufficient)."""
+
+    def test_write_rule_allows_metadata_write(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx()
+        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
+
+        result = check_permission(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
+
+        assert result is link
+
+    def test_read_rule_raises_403_for_metadata_write(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx()
+        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
+
+        with pytest.raises(HTTPException) as exc_info:
+            check_permission(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
+
+        assert exc_info.value.status_code == 403
+
+    def test_no_rule_raises_403(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx()
+        session = _mock_session(integrity_link=link, rules=[])
+
+        with pytest.raises(HTTPException) as exc_info:
+            check_permission(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
+
+        assert exc_info.value.status_code == 403
+
+
+class TestCheckPermissionOwnerOnly:
+    """OWNER_ONLY rejects group-based access, only admin/owner pass."""
+
+    def test_write_rule_raises_403_for_owner_only(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx()
+        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
+
+        with pytest.raises(HTTPException) as exc_info:
+            check_permission(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+
+        assert exc_info.value.status_code == 403
+
+    def test_read_rule_raises_403_for_owner_only(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx()
+        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
+
+        with pytest.raises(HTTPException) as exc_info:
+            check_permission(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+
+        assert exc_info.value.status_code == 403
+
+    def test_owner_passes_owner_only(self) -> None:
+        link = _integrity_link(owner="user1")
+        ctx = _geo_ctx(username="user1")
+        session = _mock_session(integrity_link=link)
+
+        result = check_permission(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+
+        assert result is link
+
+    def test_admin_passes_owner_only(self) -> None:
+        link = _integrity_link(owner="other")
+        ctx = _geo_ctx(is_admin=True)
+        session = _mock_session(integrity_link=link)
+
+        result = check_permission(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+
+        assert result is link

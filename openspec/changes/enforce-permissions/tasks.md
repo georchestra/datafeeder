@@ -5,8 +5,8 @@
 
 ## 2. Backend: Permission Checking Dependency
 
-- [ ] 2.1 Create a reusable permission-checking dependency in `apps/backend/src/core/security.py` that accepts a required access level (METADATA_READ, METADATA_WRITE, OWNER_ONLY) and the dataset ID, loads the IntegrityLink, checks admin/owner/group-rule, and raises 403 on failure
-- [ ] 2.2 Write unit tests for the permission-checking dependency covering all access levels, admin bypass, owner bypass, group rule matching, WRITE-implies-READ, and 403 rejection in `apps/backend/tests/services/` or `apps/backend/tests/api/`
+- [x] 2.1 Create a reusable permission-checking dependency in `apps/backend/src/core/security.py` that accepts a required access level (METADATA_READ, METADATA_WRITE, OWNER_ONLY) and the dataset ID, loads the IntegrityLink, checks admin/owner/group-rule, and raises 403 on failure
+- [x] 2.2 Write unit tests for the permission-checking dependency covering all access levels, admin bypass, owner bypass, group rule matching, WRITE-implies-READ, and 403 rejection in `apps/backend/tests/services/` or `apps/backend/tests/api/`
 
 ## 3. Backend: Dataset List Visibility Filtering (US1)
 
