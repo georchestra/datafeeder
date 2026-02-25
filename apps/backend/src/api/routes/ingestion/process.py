@@ -9,11 +9,12 @@ from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import MetaData, Table, func, select
 
-from src.api.deps import DatakernSessionDep, DataSessionDep
+from src.api.deps import DatakernSessionDep, DataSessionDep, GeorchestraContextDep
 from src.core.callback import build_callback_url
 from src.core.config import get_settings, get_staging_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
+from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.models import (
     ProcessRequest,
     ProcessResponse,
@@ -38,7 +39,7 @@ settings = get_settings()
 async def process_staging_data(
     request: ProcessRequest,
     session: DatakernSessionDep,
-    sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
+    geo_ctx: GeorchestraContextDep,
     sec_email: str = Header("", alias="sec-email", include_in_schema=False),
     sec_firstname: str = Header("", alias="sec-firstname", include_in_schema=False),
     sec_lastname: str = Header("", alias="sec-lastname", include_in_schema=False),
@@ -52,20 +53,16 @@ async def process_staging_data(
 
     Args:
         request: Process configuration including integrity link ID and title
-        sec_username: Username from geOrchestra security headers
+        geo_ctx: geOrchestra security context
 
     Returns:
         StagingResponse with integrity link ID, DAG ID, DAG run ID, and current DAG run status
     """
 
-    # Query existing IntegrityLink
-    integrity_link = session.get(IntegrityLink, UUID(request.integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
-
-    # Check ownership
-    if integrity_link.integrity_owner != sec_username:
-        raise HTTPException(status_code=403, detail="User does not own the IntegrityLink")
+    # Load IntegrityLink and verify OWNER_ONLY permission (owner or admin)
+    integrity_link = load_authorized_integrity_link(
+        request.integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session
+    )
 
     # Get staging table name from IntegrityLink
     staging_table_name = integrity_link.staging_table_name
