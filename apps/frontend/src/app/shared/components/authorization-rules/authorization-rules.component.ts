@@ -6,7 +6,7 @@ import {
   output,
   signal
 } from '@angular/core'
-import { TranslatePipe, TranslateService } from '@ngx-translate/core'
+import { TranslateService } from '@ngx-translate/core'
 import { DropdownSelectorComponent, DropdownChoice } from 'geonetwork-ui'
 import { GroupItem, IntegrityLinkRule } from '../../../core/api/models'
 import { SearchInputComponent } from '../search-input/search-input.component'
@@ -18,7 +18,7 @@ export interface RuleChangeEvent {
 
 @Component({
   selector: 'app-authorization-rules',
-  imports: [DropdownSelectorComponent, SearchInputComponent, TranslatePipe],
+  imports: [DropdownSelectorComponent, SearchInputComponent],
   templateUrl: './authorization-rules.component.html'
 })
 export class AuthorizationRulesComponent {
