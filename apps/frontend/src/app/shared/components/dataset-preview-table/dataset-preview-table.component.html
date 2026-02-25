@@ -14,36 +14,36 @@
       [dataSource]="previewLoading() ? [] : dataSource()"
       class="w-auto text-sm"
     >
-      @for (column of displayedColumns(); track column) {
-      <ng-container [matColumnDef]="column">
+      @for (col of (metadata()?.columns ?? []); track col.original_name) {
+      <ng-container [matColumnDef]="col.original_name">
         <th
           mat-header-cell
           *matHeaderCellDef
           class="!p-0 !bg-gray-200 !border-b !border-r !border-gray-400 !w-[220px] !min-w-[220px] !max-w-[220px] !h-12 last:!border-r-0 !overflow-visible"
         >
-          @if (getColumnConfig(column); as config) {
+          @if (getColumnConfig(col.new_name ?? col.original_name); as config) {
           <app-column-header
             [columnConfig]="config"
             [allColumnNames]="allDisplayNames()"
-            (actionMenuOpened)="onColumnAction(column, $event)"
-            (nameChanged)="onColumnRename(column, $event)"
-            (typeSelected)="onColumnTypeChange(column, $event)"
-            (filterChanged)="onColumnFilterChange(column, $event)"
+            (actionMenuOpened)="onColumnAction(col.new_name ?? col.original_name, $event)"
+            (nameChanged)="onColumnRename(col.new_name ?? col.original_name, $event)"
+            (typeSelected)="onColumnTypeChange(col.new_name ?? col.original_name, $event)"
+            (filterChanged)="onColumnFilterChange(col.new_name ?? col.original_name, $event)"
           ></app-column-header>
           } @else {
-          <span class="px-4 font-semibold text-gray-900">{{ column }}</span>
+          <span class="px-4 font-semibold text-gray-900">{{ col.new_name ?? col.original_name }}</span>
           }
         </th>
         <td
           mat-cell
           *matCellDef="let row"
           class="!px-4 !text-gray-900 !border-b !border-r !border-gray-400 !whitespace-nowrap !w-[220px] !min-w-[220px] !max-w-[220px] !h-[37px] last:!border-r-0"
-          [class.!bg-gray-200]="isColumnExcluded(column)"
-          [class.opacity-50]="isColumnExcluded(column)"
-          [class.pointer-events-none]="isColumnExcluded(column)"
-          [class.excluded-cell]="isColumnExcluded(column)"
+          [class.!bg-gray-200]="isColumnExcluded(col.new_name ?? col.original_name)"
+          [class.opacity-50]="isColumnExcluded(col.new_name ?? col.original_name)"
+          [class.pointer-events-none]="isColumnExcluded(col.new_name ?? col.original_name)"
+          [class.excluded-cell]="isColumnExcluded(col.new_name ?? col.original_name)"
         >
-          {{ row[column] }}
+          {{ row[col.new_name ?? col.original_name] }}
         </td>
       </ng-container>
       }

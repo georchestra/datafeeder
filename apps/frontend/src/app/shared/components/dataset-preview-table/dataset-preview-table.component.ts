@@ -67,10 +67,10 @@ export class DatasetPreviewTableComponent {
     )
   )
 
-  /** All column display names used as MatTable column keys (excluded columns still shown). */
+  /** Stable column keys for MatTable (original_name never changes, prevents header cell recreation on rename). */
   displayedColumns = computed(() => {
     const meta = this.metadata()
-    return (meta?.columns ?? []).map((col) => col.new_name ?? col.original_name)
+    return (meta?.columns ?? []).map((col) => col.original_name)
   })
 
   /** True when every column has excluded=true (edge case EC3). */
