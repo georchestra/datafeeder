@@ -184,3 +184,4 @@ class IntegrityLinkResponse(BaseModel):
     schedule: str | None
     schedule_enabled: bool
     created_at: datetime | None
+    access_level: str | None = None

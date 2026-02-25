@@ -16,7 +16,10 @@ describe('IntegrityLinkListComponent', () => {
   let router: Router
 
   // Mock data helper function
-  const createMockItem = (id: string): IntegrityLinkListItem => ({
+  const createMockItem = (
+    id: string,
+    accessLevel: string | null = 'OWNER'
+  ): IntegrityLinkListItem => ({
     id,
     integrity_title: `Link ${id}`,
     integrity_owner: 'owner',
@@ -32,7 +35,8 @@ describe('IntegrityLinkListComponent', () => {
     schedule_enabled: false,
     data_id: null,
     metadata_id: null,
-    final_table_name: null
+    final_table_name: null,
+    access_level: accessLevel
   })
 
   // Helper to flush pending requests
@@ -272,7 +276,7 @@ describe('IntegrityLinkListComponent', () => {
   })
 
   describe('Navigation', () => {
-    it('should navigate to /edit/:id when onRowClick(id) is called', async () => {
+    it('should navigate to /edit/:id when onRowClick is called with writable link', async () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)
       const component = fixture.componentInstance
 
@@ -283,17 +287,54 @@ describe('IntegrityLinkListComponent', () => {
         'http://localhost:8000/ingestion/integrity-links/?offset=0'
       )
       req.flush({
-        items: [createMockItem('test-id-123')],
+        items: [createMockItem('test-id-123', 'OWNER')],
         has_more: false,
         offset: 0
       })
 
       await new Promise((resolve) => setTimeout(resolve, 10))
 
-      // Trigger row click
-      component.onRowClick('test-id-123')
+      // Trigger row click with writable link
+      component.onRowClick(createMockItem('test-id-123', 'OWNER'))
 
       expect(navigateSpy).toHaveBeenCalledWith(['/', 'test-id-123', 'edit'])
+    })
+
+    it('should NOT navigate when onRowClick is called with READ-only link', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      const navigateSpy = vi.spyOn(router, 'navigate')
+
+      // Complete initial load
+      const req = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      req.flush({
+        items: [createMockItem('read-only-id', 'READ')],
+        has_more: false,
+        offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      // Trigger row click with read-only link
+      component.onRowClick(createMockItem('read-only-id', 'READ'))
+
+      expect(navigateSpy).not.toHaveBeenCalled()
+    })
+
+    it('should identify read-only links correctly', () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      flushPendingRequests()
+
+      expect(component.isReadOnly(createMockItem('1', 'READ'))).toBe(true)
+      expect(component.isReadOnly(createMockItem('2', 'WRITE'))).toBe(false)
+      expect(component.isReadOnly(createMockItem('3', 'OWNER'))).toBe(false)
+      expect(component.isReadOnly(createMockItem('4', 'ADMIN'))).toBe(false)
+      expect(component.isReadOnly(createMockItem('5', null))).toBe(false)
     })
   })
 

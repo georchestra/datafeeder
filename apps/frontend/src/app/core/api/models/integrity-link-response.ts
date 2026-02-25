@@ -8,6 +8,7 @@ import { ImportType } from '../models/import-type'
  * Response model for IntegrityLink entity.
  */
 export interface IntegrityLinkResponse {
+  access_level?: string | null
   created_at: string | null
   data_id: string | null
   final_table_name: string | null

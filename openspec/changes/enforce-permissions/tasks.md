@@ -26,10 +26,10 @@
 
 ## 5. Frontend: Dataset List Permission-Aware Rendering (US3)
 
-- [ ] 5.1 Update the generated API client to include the new `access_level` field in `IntegrityLinkListItem` (regenerate from OpenAPI or update manually)
-- [ ] 5.2 Update `integrity-link-list.component.ts` in `apps/frontend/src/app/features/integrity-link-list/` to disable row click when `access_level` is `READ` (dataset visible but not navigable)
-- [ ] 5.3 Add visual indicator (e.g., greyed-out row or lock icon) for read-only datasets in the list
-- [ ] 5.4 Write vitest tests for the list component verifying clickable vs non-clickable rows based on access level
+- [x] 5.1 Update the generated API client to include the new `access_level` field in `IntegrityLinkListItem` (regenerate from OpenAPI or update manually)
+- [x] 5.2 Update `integrity-link-list.component.ts` in `apps/frontend/src/app/features/integrity-link-list/` to disable row click when `access_level` is `READ` (dataset visible but not navigable)
+- [x] 5.3 Add visual indicator (e.g., greyed-out row or lock icon) for read-only datasets in the list
+- [x] 5.4 Write vitest tests for the list component verifying clickable vs non-clickable rows based on access level
 
 ## 6. Frontend: Sidebar Conditional Navigation (US4, US5, US6)
 

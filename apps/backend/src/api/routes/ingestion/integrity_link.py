@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import select
 
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep
-from src.core.security import AccessLevel, load_authorized_integrity_link
+from src.core.security import AccessLevel, compute_effective_access, load_authorized_integrity_link
 from src.models.data_import import IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, UpsertRuleRequest
@@ -33,6 +33,9 @@ def get_integrity_link(
     )
 
     response = IntegrityLinkResponse.model_validate(integrity_link)
+
+    effective = compute_effective_access(integrity_link, geo_ctx, session)
+    response.access_level = effective.value if effective else None
 
     if not include_transformation:
         response.integrity_transformation = None
