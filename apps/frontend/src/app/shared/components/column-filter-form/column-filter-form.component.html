@@ -7,7 +7,11 @@
     (mousedown)="$event.preventDefault()"
     (click)="onSubmit(operator, value)"
   >
-    <ng-icon name="iconoirTransitionUp" class="text-primary-darker"></ng-icon>
+    <ng-icon
+      name="iconoirTransitionUp"
+      class="text-primary-darker"
+      size="1.25rem"
+    ></ng-icon>
   </button>
   }
 </ng-template>
@@ -37,7 +41,11 @@
       [attr.aria-label]="'import.columnFilter.delete' | translate"
       (click)="onDelete($event)"
     >
-      <ng-icon name="iconoirTrash" class="text-primary-darker"></ng-icon>
+      <ng-icon
+        name="iconoirTrash"
+        class="text-primary-darker"
+        size="1rem"
+      ></ng-icon>
     </button>
   </div>
   }
