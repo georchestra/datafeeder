@@ -16,6 +16,12 @@ import { Overlay, OverlayModule, OverlayRef } from '@angular/cdk/overlay'
 import { TemplatePortal } from '@angular/cdk/portal'
 import { FormsModule } from '@angular/forms'
 import { TranslateService } from '@ngx-translate/core'
+import {
+  NgIconComponent,
+  provideIcons,
+  provideNgIconsConfig
+} from '@ng-icons/core'
+import { iconoirMoreVert, iconoirUndo } from '@ng-icons/iconoir'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import type { ColumnConfigOutput } from '../../../core/api/models'
 import type {
@@ -32,8 +38,17 @@ marker('import.columnHeader.error.duplicate')
   selector: 'app-column-header',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ColumnActionMenuComponent, FormsModule, OverlayModule],
-  templateUrl: './column-header.component.html'
+  imports: [
+    ColumnActionMenuComponent,
+    FormsModule,
+    OverlayModule,
+    NgIconComponent
+  ],
+  templateUrl: './column-header.component.html',
+  providers: [
+    provideIcons({ iconoirMoreVert, iconoirUndo }),
+    provideNgIconsConfig({ size: '1.25rem' })
+  ]
 })
 export class ColumnHeaderComponent implements OnDestroy {
   private readonly overlay = inject(Overlay)
