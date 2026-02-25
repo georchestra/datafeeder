@@ -22,12 +22,13 @@ from shapely.geometry.base import BaseGeometry
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.orm.attributes import flag_modified
 
-from src.api.deps import DatakernSessionDep, DataSessionDep
+from src.api.deps import DatakernSessionDep, DataSessionDep, GeorchestraContextDep
 from src.core.callback import build_callback_url
 from src.core.config import get_staging_schema
 from src.core.db import data_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
+from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.models import (
     StagingResponse,
 )
@@ -450,6 +451,7 @@ def _resolve_columns(
 def get_staging_metadata(
     data_session: DataSessionDep,
     datakern_session: DatakernSessionDep,
+    geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
 ) -> StagingMetadataResponse:
     """
@@ -462,14 +464,15 @@ def get_staging_metadata(
     Args:
         data_session: Data database session (injected)
         datakern_session: Datakern database session (injected)
+        geo_ctx: geOrchestra security context
         integrity_link_id: IntegrityLink UUID (required)
 
     Returns:
         Metadata of the staging table
     """
-    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    integrity_link = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session
+    )
 
     schema = get_staging_schema()
     table = Table(
@@ -505,6 +508,7 @@ def get_staging_metadata(
 def edit_staging_metadata(
     data_session: DataSessionDep,
     datakern_session: DatakernSessionDep,
+    geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
     config: StagingMetadata = Body(
         ...,
@@ -521,6 +525,7 @@ def edit_staging_metadata(
     Args:
         data_session: Data database session (injected)
         datakern_session: Datakern database session (injected)
+        geo_ctx: geOrchestra security context
         integrity_link_id: IntegrityLink UUID (required)
         config: Staging configuration with columns (ColumnConfig list), file_type,
                 force_projection, and title
@@ -528,9 +533,9 @@ def edit_staging_metadata(
     Returns:
         Updated staging metadata with saved column configurations
     """
-    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    integrity_link = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session
+    )
 
     if config.columns:
         # Validate column names: no empty names and no duplicates (after rename).
@@ -589,6 +594,7 @@ def edit_staging_metadata(
 def get_staging_preview(
     data_session: DataSessionDep,
     datakern_session: DatakernSessionDep,
+    geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
     limit: int = Query(10, description="Number of rows to preview"),
     raw: bool = Query(
@@ -632,9 +638,9 @@ def get_staging_preview(
         Preview data from the staging table, transformed based on saved config
     """
 
-    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    integrity_link = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session
+    )
 
     staging_table_name = integrity_link.staging_table_name
     if not staging_table_name:
