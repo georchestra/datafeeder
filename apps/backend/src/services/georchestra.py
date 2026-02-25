@@ -19,6 +19,7 @@ class GeorchestraContext:
         email: User's email from sec-email header
         firstname: User's first name from sec-firstname header
         lastname: User's last name from sec-lastname header
+        organization: User's organization from sec-org header
     """
 
     username: str
@@ -26,6 +27,7 @@ class GeorchestraContext:
     email: str
     firstname: str
     lastname: str
+    organization: str
 
     def has_role(self, role: str) -> bool:
         """Check if user has a specific role.
@@ -56,6 +58,7 @@ def get_georchestra_context(request: Request) -> GeorchestraContext:
     - sec-email: User's email address
     - sec-firstname: User's first name
     - sec-lastname: User's last name
+    - sec-org: User's organization
 
     Args:
         request: FastAPI Request object
@@ -75,4 +78,5 @@ def get_georchestra_context(request: Request) -> GeorchestraContext:
         email=request.headers.get("sec-email", ""),
         firstname=request.headers.get("sec-firstname", ""),
         lastname=request.headers.get("sec-lastname", ""),
+        organization=request.headers.get("sec-org", ""),
     )

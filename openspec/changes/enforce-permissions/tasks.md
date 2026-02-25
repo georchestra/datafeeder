@@ -1,7 +1,7 @@
 ## 1. Backend: GeorchestraContext Enhancement
 
-- [ ] 1.1 Add `organization` field to `GeorchestraContext` in `apps/backend/src/services/georchestra.py`, extracted from the `sec-org` request header
-- [ ] 1.2 Update `GeorchestraContext` tests to cover the new `organization` field
+- [x] 1.1 Add `organization` field to `GeorchestraContext` in `apps/backend/src/services/georchestra.py`, extracted from the `sec-org` request header
+- [x] 1.2 Update `GeorchestraContext` tests to cover the new `organization` field
 
 ## 2. Backend: Permission Checking Dependency
 
