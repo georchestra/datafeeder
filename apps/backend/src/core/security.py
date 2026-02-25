@@ -91,16 +91,16 @@ def compute_effective_access(
     return EffectiveAccess.READ
 
 
-def check_permission(
+def load_authorized_integrity_link(
     integrity_link_id: str,
     required_level: AccessLevel,
     geo_ctx: GeorchestraContext,
     session: Session,
 ) -> IntegrityLink:
-    """Check if the user has the required permission on a dataset.
+    """Load an IntegrityLink and verify the user has the required permission.
 
-    Loads the IntegrityLink and verifies the user's access level meets
-    the required level. Raises HTTP exceptions on failure.
+    Loads the IntegrityLink by ID and checks that the user's effective access
+    level meets the required level. Raises HTTP exceptions on failure.
 
     Permission hierarchy:
     - Admin and owner always pass any check

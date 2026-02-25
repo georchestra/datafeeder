@@ -9,8 +9,8 @@ from fastapi import HTTPException
 from src.core.security import (
     AccessLevel,
     EffectiveAccess,
-    check_permission,
     compute_effective_access,
+    load_authorized_integrity_link,
 )
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, RuleType, RuleValue
@@ -166,12 +166,12 @@ class TestComputeEffectiveAccessGroupRules:
 
 
 # ────────────────────────────────────────────────────────
-# check_permission
+# load_authorized_integrity_link
 # ────────────────────────────────────────────────────────
 
 
-class TestCheckPermissionNotFound:
-    """check_permission raises 404 when IntegrityLink not found."""
+class TestLoadAuthorizedIntegrityLinkNotFound:
+    """load_authorized_integrity_link raises 404 when IntegrityLink not found."""
 
     def test_raises_404_when_not_found(self) -> None:
         session = MagicMock()
@@ -179,12 +179,12 @@ class TestCheckPermissionNotFound:
         ctx = _geo_ctx()
 
         with pytest.raises(HTTPException) as exc_info:
-            check_permission(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+            load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
 
         assert exc_info.value.status_code == 404
 
 
-class TestCheckPermissionAdminBypass:
+class TestLoadAuthorizedIntegrityLinkAdminBypass:
     """Admin bypasses all access levels."""
 
     @pytest.mark.parametrize("level", list(AccessLevel))
@@ -193,12 +193,12 @@ class TestCheckPermissionAdminBypass:
         ctx = _geo_ctx(is_admin=True)
         session = _mock_session(integrity_link=link)
 
-        result = check_permission(DATASET_ID, level, ctx, session)
+        result = load_authorized_integrity_link(DATASET_ID, level, ctx, session)
 
         assert result is link
 
 
-class TestCheckPermissionOwnerBypass:
+class TestLoadAuthorizedIntegrityLinkOwnerBypass:
     """Owner bypasses all access levels."""
 
     @pytest.mark.parametrize("level", list(AccessLevel))
@@ -207,12 +207,12 @@ class TestCheckPermissionOwnerBypass:
         ctx = _geo_ctx(username="user1")
         session = _mock_session(integrity_link=link)
 
-        result = check_permission(DATASET_ID, level, ctx, session)
+        result = load_authorized_integrity_link(DATASET_ID, level, ctx, session)
 
         assert result is link
 
 
-class TestCheckPermissionMetadataRead:
+class TestLoadAuthorizedIntegrityLinkMetadataRead:
     """METADATA_READ requires at least READ access."""
 
     def test_read_rule_allows_metadata_read(self) -> None:
@@ -220,7 +220,7 @@ class TestCheckPermissionMetadataRead:
         ctx = _geo_ctx()
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
 
-        result = check_permission(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+        result = load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
 
         assert result is link
 
@@ -229,7 +229,7 @@ class TestCheckPermissionMetadataRead:
         ctx = _geo_ctx()
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
 
-        result = check_permission(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+        result = load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
 
         assert result is link
 
@@ -239,12 +239,12 @@ class TestCheckPermissionMetadataRead:
         session = _mock_session(integrity_link=link, rules=[])
 
         with pytest.raises(HTTPException) as exc_info:
-            check_permission(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+            load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
 
         assert exc_info.value.status_code == 403
 
 
-class TestCheckPermissionMetadataWrite:
+class TestLoadAuthorizedIntegrityLinkMetadataWrite:
     """METADATA_WRITE requires WRITE access (READ is insufficient)."""
 
     def test_write_rule_allows_metadata_write(self) -> None:
@@ -252,7 +252,7 @@ class TestCheckPermissionMetadataWrite:
         ctx = _geo_ctx()
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
 
-        result = check_permission(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
+        result = load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
 
         assert result is link
 
@@ -262,7 +262,7 @@ class TestCheckPermissionMetadataWrite:
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
 
         with pytest.raises(HTTPException) as exc_info:
-            check_permission(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
+            load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
 
         assert exc_info.value.status_code == 403
 
@@ -272,12 +272,12 @@ class TestCheckPermissionMetadataWrite:
         session = _mock_session(integrity_link=link, rules=[])
 
         with pytest.raises(HTTPException) as exc_info:
-            check_permission(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
+            load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
 
         assert exc_info.value.status_code == 403
 
 
-class TestCheckPermissionOwnerOnly:
+class TestLoadAuthorizedIntegrityLinkOwnerOnly:
     """OWNER_ONLY rejects group-based access, only admin/owner pass."""
 
     def test_write_rule_raises_403_for_owner_only(self) -> None:
@@ -286,7 +286,7 @@ class TestCheckPermissionOwnerOnly:
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
 
         with pytest.raises(HTTPException) as exc_info:
-            check_permission(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+            load_authorized_integrity_link(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
 
         assert exc_info.value.status_code == 403
 
@@ -296,7 +296,7 @@ class TestCheckPermissionOwnerOnly:
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
 
         with pytest.raises(HTTPException) as exc_info:
-            check_permission(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+            load_authorized_integrity_link(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
 
         assert exc_info.value.status_code == 403
 
@@ -305,7 +305,7 @@ class TestCheckPermissionOwnerOnly:
         ctx = _geo_ctx(username="user1")
         session = _mock_session(integrity_link=link)
 
-        result = check_permission(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+        result = load_authorized_integrity_link(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
 
         assert result is link
 
@@ -314,6 +314,6 @@ class TestCheckPermissionOwnerOnly:
         ctx = _geo_ctx(is_admin=True)
         session = _mock_session(integrity_link=link)
 
-        result = check_permission(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+        result = load_authorized_integrity_link(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
 
         assert result is link

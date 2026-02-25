@@ -24,6 +24,7 @@ def _geo_ctx() -> GeorchestraContext:
         email="",
         firstname="",
         lastname="",
+        organization="",
     )
 
 
