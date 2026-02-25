@@ -42,6 +42,6 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Run full backend test suite (`make test-backend`) — all tests pass
-- [ ] 7.2 Run full frontend test suite (`npm test` in `apps/frontend/`) — all tests pass
+- [x] 7.1 Run full backend test suite (`make test-backend`) — all tests pass
+- [x] 7.2 Run full frontend test suite (`npm test` in `apps/frontend/`) — all tests pass
 - [ ] 7.3 Manual verification: test all acceptance scenarios from the spec with different user roles (admin, owner, METADATA_WRITE group member, METADATA_READ group member, no-permission user)
