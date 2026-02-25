@@ -21,27 +21,23 @@
           *matHeaderCellDef
           class="!p-0 !bg-gray-200 !border-b !border-r !border-gray-400 !w-[220px] !min-w-[220px] !max-w-[220px] !h-12 last:!border-r-0 !overflow-visible"
         >
-          @if (getColumnConfig(col.new_name ?? col.original_name); as config) {
           <app-column-header
-            [columnConfig]="config"
+            [columnConfig]="col"
             [allColumnNames]="allDisplayNames()"
-            (actionMenuOpened)="onColumnAction(col.new_name ?? col.original_name, $event)"
-            (nameChanged)="onColumnRename(col.new_name ?? col.original_name, $event)"
-            (typeSelected)="onColumnTypeChange(col.new_name ?? col.original_name, $event)"
-            (filterChanged)="onColumnFilterChange(col.new_name ?? col.original_name, $event)"
+            (actionMenuOpened)="onColumnAction(col.original_name, $event)"
+            (nameChanged)="onColumnRename(col.original_name, $event)"
+            (typeSelected)="onColumnTypeChange(col.original_name, $event)"
+            (filterChanged)="onColumnFilterChange(col.original_name, $event)"
           ></app-column-header>
-          } @else {
-          <span class="px-4 font-semibold text-gray-900">{{ col.new_name ?? col.original_name }}</span>
-          }
         </th>
         <td
           mat-cell
           *matCellDef="let row"
           class="!px-4 !text-gray-900 !border-b !border-r !border-gray-400 !whitespace-nowrap !w-[220px] !min-w-[220px] !max-w-[220px] !h-[37px] last:!border-r-0"
-          [class.!bg-gray-200]="isColumnExcluded(col.new_name ?? col.original_name)"
-          [class.opacity-50]="isColumnExcluded(col.new_name ?? col.original_name)"
-          [class.pointer-events-none]="isColumnExcluded(col.new_name ?? col.original_name)"
-          [class.excluded-cell]="isColumnExcluded(col.new_name ?? col.original_name)"
+          [class.!bg-gray-200]="col.excluded"
+          [class.opacity-50]="col.excluded"
+          [class.pointer-events-none]="col.excluded"
+          [class.excluded-cell]="col.excluded"
         >
           {{ row[col.new_name ?? col.original_name] }}
         </td>

@@ -8,7 +8,6 @@ import {
 } from '@angular/core'
 import { MatTableModule } from '@angular/material/table'
 import type {
-  ColumnConfigOutput,
   StagingMetadataResponse,
   StagingPreviewResponse
 } from '../../../core/api/models'
@@ -81,56 +80,22 @@ export class DatasetPreviewTableComponent {
 
   dataSource = computed(() => this.preview()?.data ?? [])
 
-  /** Look up a ColumnConfigOutput by its display name (new_name ?? original_name). */
-  getColumnConfig(displayName: string): ColumnConfigOutput | null {
-    return (
-      (this.metadata()?.columns ?? []).find(
-        (col) => (col.new_name ?? col.original_name) === displayName
-      ) ?? null
-    )
+  onColumnAction(originalName: string, action: ColumnAction): void {
+    this.columnActionRequested.emit({ originalName, action })
   }
 
-  isColumnExcluded(displayName: string): boolean {
-    return this.getColumnConfig(displayName)?.excluded === true
+  onColumnFilterChange(
+    originalName: string,
+    filter: ColumnFilter | null
+  ): void {
+    this.columnFilterChangeRequested.emit({ originalName, filter })
   }
 
-  onColumnAction(displayName: string, action: ColumnAction): void {
-    const col = this.getColumnConfig(displayName)
-    if (col) {
-      this.columnActionRequested.emit({
-        originalName: col.original_name,
-        action
-      })
-    }
+  onColumnTypeChange(originalName: string, type: CastType | null): void {
+    this.columnTypeChangeRequested.emit({ originalName, type })
   }
 
-  onColumnFilterChange(displayName: string, filter: ColumnFilter | null): void {
-    const col = this.getColumnConfig(displayName)
-    if (col) {
-      this.columnFilterChangeRequested.emit({
-        originalName: col.original_name,
-        filter
-      })
-    }
-  }
-
-  onColumnTypeChange(displayName: string, type: CastType | null): void {
-    const col = this.getColumnConfig(displayName)
-    if (col) {
-      this.columnTypeChangeRequested.emit({
-        originalName: col.original_name,
-        type
-      })
-    }
-  }
-
-  onColumnRename(displayName: string, newName: string): void {
-    const col = this.getColumnConfig(displayName)
-    if (col) {
-      this.columnRenameRequested.emit({
-        originalName: col.original_name,
-        newName
-      })
-    }
+  onColumnRename(originalName: string, newName: string): void {
+    this.columnRenameRequested.emit({ originalName, newName })
   }
 }
