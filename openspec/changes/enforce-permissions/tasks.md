@@ -16,11 +16,11 @@
 
 ## 4. Backend: Endpoint Authorization (US2)
 
-- [ ] 4.1 Add permission check to `GET /ingestion/integrity-link/{id}` requiring METADATA_WRITE, owner, or admin in `apps/backend/src/api/routes/ingestion/integrity_link.py`
-- [ ] 4.2 Add permission check to rules endpoints (`GET/PUT/DELETE /ingestion/integrity-link/{id}/rules*`) requiring OWNER_ONLY in `apps/backend/src/api/routes/ingestion/integrity_link.py`
-- [ ] 4.3 Add permission check to staging endpoints (`GET/PUT /ingestion/staging/{id}/metadata`, `GET /ingestion/staging/{id}/preview`) requiring METADATA_WRITE or OWNER_ONLY as appropriate in `apps/backend/src/api/routes/ingestion/staging.py`
-- [ ] 4.4 Add permission check to process endpoint (`POST /ingestion/process/`) — update existing owner check to also allow admin in `apps/backend/src/api/routes/ingestion/process.py`
-- [ ] 4.5 Add permission check to metadata proxy in `apps/backend/src/api/routes/geonetwork.py` requiring METADATA_WRITE, owner, or admin when the request references a dataset
+- [x] 4.1 Add permission check to `GET /ingestion/integrity-link/{id}` requiring METADATA_WRITE, owner, or admin in `apps/backend/src/api/routes/ingestion/integrity_link.py`
+- [x] 4.2 Add permission check to rules endpoints (`GET/PUT/DELETE /ingestion/integrity-link/{id}/rules*`) requiring OWNER_ONLY in `apps/backend/src/api/routes/ingestion/integrity_link.py`
+- [x] 4.3 Add permission check to staging endpoints (`GET/PUT /ingestion/staging/{id}/metadata`, `GET /ingestion/staging/{id}/preview`) requiring METADATA_WRITE or OWNER_ONLY as appropriate in `apps/backend/src/api/routes/ingestion/staging.py`
+- [x] 4.4 Add permission check to process endpoint (`POST /ingestion/process/`) — update existing owner check to also allow admin in `apps/backend/src/api/routes/ingestion/process.py`
+- [x] 4.5 Add permission check to metadata proxy in `apps/backend/src/api/routes/geonetwork.py` requiring METADATA_WRITE, owner, or admin when the request references a dataset
 - [ ] 4.6 Add permission check to airflow/events endpoints (`GET /airflow/dags/*/runs*`, logs) requiring OWNER_ONLY in `apps/backend/src/api/routes/airflow.py`
 - [ ] 4.7 [P] Write integration tests for each protected endpoint verifying 403 for unauthorized users and 200 for authorized users
 

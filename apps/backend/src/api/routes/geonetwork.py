@@ -1,9 +1,13 @@
+import re
+
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
+from src.api.deps import DatakernSessionDep, GeorchestraContextDep
 from src.core.config import get_settings
 from src.core.logging import get_logger
+from src.core.security import AccessLevel, load_authorized_integrity_link
 
 router = APIRouter(prefix="/geonetwork", tags=["GeoNetwork"])
 logger = get_logger()
@@ -50,15 +54,40 @@ def _filter_headers(headers: dict[str, str]) -> dict[str, str]:
     return {k: v for k, v in headers.items() if not _should_filter_header(k)}
 
 
+# GeoNetwork records API pattern: srv/api/records/{uuid}...
+_RECORDS_UUID_RE = re.compile(
+    r"srv/api/records/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+    re.IGNORECASE,
+)
+
+
+def _extract_dataset_uuid(path: str) -> str | None:
+    """Extract a dataset UUID from a GeoNetwork records API path.
+
+    Returns the UUID string if the path matches a records endpoint,
+    or None for generic GeoNetwork requests (e.g., search, groups).
+    """
+    match = _RECORDS_UUID_RE.search(path)
+    return match.group(1) if match else None
+
+
 @router.api_route(
     "/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     summary="GeoNetwork proxy",
     description="Pass-through proxy to GeoNetwork. Forwards all requests transparently.",
 )
-async def proxy_geonetwork(path: str, request: Request) -> Response:
+async def proxy_geonetwork(
+    path: str,
+    request: Request,
+    session: DatakernSessionDep,
+    geo_ctx: GeorchestraContextDep,
+) -> Response:
     """
     Full pass-through proxy to GeoNetwork.
+
+    When the path references a specific record (dataset UUID), verifies
+    the user has METADATA_WRITE permission before forwarding.
 
     Preserves:
     - HTTP method
@@ -67,6 +96,13 @@ async def proxy_geonetwork(path: str, request: Request) -> Response:
     - Request body
     - Response status code, headers, and content
     """
+    # Check permission when the request targets a specific dataset record
+    dataset_uuid = _extract_dataset_uuid(path)
+    if dataset_uuid:
+        load_authorized_integrity_link(
+            dataset_uuid, AccessLevel.METADATA_WRITE, geo_ctx, session
+        )
+
     settings = get_settings()
 
     # Build upstream URL
