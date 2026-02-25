@@ -33,12 +33,12 @@
 
 ## 6. Frontend: Sidebar Conditional Navigation (US4, US5, US6)
 
-- [ ] 6.1 Update `intlink-layout.component.ts` and `.html` in `apps/frontend/src/app/layout/` to conditionally enable/disable sidebar links based on user's permission level on the loaded dataset
-- [ ] 6.2 For METADATA_WRITE users (non-owner): enable only "Metadata Sheet" link; disable authorizations, events, recurrence, reconfigure, delete
-- [ ] 6.3 For OWNER and ADMIN users: enable all sidebar links and actions
-- [ ] 6.4 Hide reconfigure and delete actions entirely for non-owner, non-admin users
-- [ ] 6.5 Display backend 403 errors as-is when users manually navigate to unauthorized URLs (no custom redirect or guard)
-- [ ] 6.6 Write vitest tests for the layout component verifying sidebar state for each permission level
+- [x] 6.1 Update `intlink-layout.component.ts` and `.html` in `apps/frontend/src/app/layout/` to conditionally enable/disable sidebar links based on user's permission level on the loaded dataset
+- [x] 6.2 For METADATA_WRITE users (non-owner): enable only "Metadata Sheet" link; disable authorizations, events, recurrence, reconfigure, delete
+- [x] 6.3 For OWNER and ADMIN users: enable all sidebar links and actions
+- [x] 6.4 Hide reconfigure and delete actions entirely for non-owner, non-admin users
+- [x] 6.5 Display backend 403 errors as-is when users manually navigate to unauthorized URLs (no custom redirect or guard)
+- [x] 6.6 Write vitest tests for the layout component verifying sidebar state for each permission level
 
 ## 7. Verification
 
