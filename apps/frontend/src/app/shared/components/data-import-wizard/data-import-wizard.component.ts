@@ -586,11 +586,13 @@ export class DataImportWizardComponent implements OnInit {
       this.processing.set(false)
       this.router.navigate([this.integrityLinkId(), 'edit'])
     } catch (error) {
-      this.validationError.set(
-        error instanceof Error
-          ? error.message
-          : this.translate.instant('import.dataSource.validationError')
-      )
+      if (error instanceof HttpErrorResponse && error.error?.detail) {
+        this.validationError.set(error.error.detail)
+      } else {
+        this.validationError.set(
+          this.translate.instant('import.dataSource.validationError')
+        )
+      }
       this.processing.set(false)
     }
   }

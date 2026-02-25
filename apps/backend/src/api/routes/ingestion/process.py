@@ -29,7 +29,6 @@ logger = get_logger()
 settings = get_settings()
 
 
-
 @router.post(
     "/",
     response_model=ProcessResponse,
@@ -120,7 +119,7 @@ async def process_staging_data(
         is_geographic=is_geographic,
     )
 
-    # Create and publish metadata to GeoNetwork
+    # Create and publish metadata to GeoNetwork — fatal on failure
     try:
         console_service = ConsoleService(settings.CONSOLE_URL)
         organization = console_service.get_organization(integrity_link.integrity_organization)
@@ -154,24 +153,29 @@ async def process_staging_data(
         )
         integrity_link.metadata_id = str(integrity_link.id)
         logger.info(f"Metadata published for IntegrityLink {integrity_link.id}: {metadata_id}")
-
-        try:
-            metadata_service.set_record_ownership(
-                metadata_uuid=str(integrity_link.id),
-                username=integrity_link.integrity_owner,
-                group_name=integrity_link.integrity_organization,
-            )
-        except Exception as ownership_error:
-            logger.warning(
-                "Failed to set metadata ownership for IntegrityLink %s: %s",
-                integrity_link.id,
-                ownership_error,
-                exc_info=True,
-            )
-
     except Exception as e:
         logger.error(
-            f"Failed to publish metadata for IntegrityLink {integrity_link.id}: {e}", exc_info=True
+            f"Failed to publish metadata for IntegrityLink {integrity_link.id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to publish metadata. Please try again later.",
+        )
+
+    # Ownership assignment — soft failure (non-critical)
+    try:
+        metadata_service.set_record_ownership(
+            metadata_uuid=str(integrity_link.id),
+            username=integrity_link.integrity_owner,
+            group_name=integrity_link.integrity_organization,
+        )
+    except Exception as ownership_error:
+        logger.warning(
+            "Failed to set metadata ownership for IntegrityLink %s: %s",
+            integrity_link.id,
+            ownership_error,
+            exc_info=True,
         )
 
     # Persist all changes before triggering the DAG
