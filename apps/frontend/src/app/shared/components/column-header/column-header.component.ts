@@ -106,40 +106,44 @@ export class ColumnHeaderComponent implements OnDestroy {
     const template = this.menuTemplate()
     if (!trigger || !template) return
 
-    const positionStrategy = this.overlay
-      .position()
-      .flexibleConnectedTo(trigger)
-      .withPositions([
-        {
-          originX: 'end',
-          originY: 'bottom',
-          overlayX: 'end',
-          overlayY: 'top',
-          offsetY: 2
-        },
-        {
-          originX: 'end',
-          originY: 'top',
-          overlayX: 'end',
-          overlayY: 'bottom',
-          offsetY: -2
-        }
-      ])
-      .withPush(false)
+    if (!this.overlayRef) {
+      const positionStrategy = this.overlay
+        .position()
+        .flexibleConnectedTo(trigger)
+        .withPositions([
+          {
+            originX: 'end',
+            originY: 'bottom',
+            overlayX: 'end',
+            overlayY: 'top',
+            offsetY: 2
+          },
+          {
+            originX: 'end',
+            originY: 'top',
+            overlayX: 'end',
+            overlayY: 'bottom',
+            offsetY: -2
+          }
+        ])
+        .withPush(false)
 
-    this.overlayRef = this.overlay.create({
-      positionStrategy,
-      scrollStrategy: this.overlay.scrollStrategies.close(),
-      hasBackdrop: false
-    })
+      this.overlayRef = this.overlay.create({
+        positionStrategy,
+        scrollStrategy: this.overlay.scrollStrategies.close(),
+        hasBackdrop: false
+      })
 
-    this.overlayRef.outsidePointerEvents().subscribe(() => this.closeMenu())
+      this.overlayRef.outsidePointerEvents().subscribe(() => this.closeMenu())
+    }
+
     this.overlayRef.attach(new TemplatePortal(template, this.vcr))
     this.isMenuOpen.set(true)
   }
 
   private closeMenu(): void {
-    this.overlayRef?.detach()
+    if (!this.overlayRef?.hasAttached()) return
+    this.overlayRef.detach()
     this.isMenuOpen.set(false)
   }
 
