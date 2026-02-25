@@ -1,3 +1,5 @@
+from typing import Any
+
 from data_manipulation.geoserver import WorkspaceCreationResult
 from data_manipulation.geoserver import (
     create_layer as dm_create_layer,
@@ -201,6 +203,31 @@ class GeoServerService:
             ),
             ogcfeatures=ogcfeatures_url,
         )
+
+    def build_layer_urls(
+        self,
+        workspace_name: str,
+        table_name: str,
+        is_geographic: bool = True,
+    ) -> dict[str, Any]:
+        """Build layer service URLs without making any GeoServer API call.
+
+        Returns only the keys consumed by MetadataService.create_and_publish_metadata().
+        """
+        layer_qualified_name = f"{workspace_name}:{table_name}"
+        result: dict[str, Any] = {
+            "layer_qualified_name": layer_qualified_name,
+            "ogcfeatures": f"{self.public_url}/ogc/features/v1/collections/{layer_qualified_name}?f=json",
+            "wfs": {
+                "capabilities": f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities",
+            },
+        }
+        if is_geographic:
+            result["wms"] = {
+                "capabilities": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities",
+                "getmap": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}",
+            }
+        return result
 
     async def update_layer_bbox(
         self,
