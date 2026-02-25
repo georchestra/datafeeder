@@ -216,7 +216,7 @@ describe('ColumnHeaderComponent', () => {
     expect(nameInput.disabled).toBe(true)
   })
 
-  it('should emit nameChanged with the new valid name on change event', () => {
+  it('should emit nameChanged with the new valid name on input event', () => {
     const fixture = TestBed.createComponent(ColumnHeaderComponent)
     fixture.componentRef.setInput('columnConfig', baseColumnConfig)
     fixture.componentRef.setInput('allColumnNames', ['my_column', 'other_col'])
@@ -230,7 +230,7 @@ describe('ColumnHeaderComponent', () => {
       '[data-name-input]'
     ) as HTMLInputElement
     nameInput.value = 'new_name'
-    nameInput.dispatchEvent(new Event('change'))
+    nameInput.dispatchEvent(new Event('input'))
     fixture.detectChanges()
 
     expect(emitted).toEqual(['new_name'])
@@ -250,7 +250,7 @@ describe('ColumnHeaderComponent', () => {
       '[data-name-input]'
     ) as HTMLInputElement
     nameInput.value = '   '
-    nameInput.dispatchEvent(new Event('change'))
+    nameInput.dispatchEvent(new Event('input'))
     fixture.detectChanges()
 
     expect(emitted).toHaveLength(0)
@@ -273,7 +273,7 @@ describe('ColumnHeaderComponent', () => {
       '[data-name-input]'
     ) as HTMLInputElement
     nameInput.value = 'other_col'
-    nameInput.dispatchEvent(new Event('change'))
+    nameInput.dispatchEvent(new Event('input'))
     fixture.detectChanges()
 
     expect(emitted).toHaveLength(0)
@@ -363,13 +363,13 @@ describe('ColumnHeaderComponent', () => {
 
     // First trigger an error
     nameInput.value = ''
-    nameInput.dispatchEvent(new Event('change'))
+    nameInput.dispatchEvent(new Event('input'))
     fixture.detectChanges()
     expect(compiled.querySelector('[data-name-error]')).toBeTruthy()
 
     // Then type a valid name
     nameInput.value = 'valid_name'
-    nameInput.dispatchEvent(new Event('change'))
+    nameInput.dispatchEvent(new Event('input'))
     fixture.detectChanges()
     expect(compiled.querySelector('[data-name-error]')).toBeNull()
   })

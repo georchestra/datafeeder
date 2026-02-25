@@ -16,7 +16,7 @@
         [class.cursor-default]="isExcluded()"
         [class.pointer-events-none]="isExcluded()"
         [attr.aria-label]="displayName()"
-        (change)="onNameInput($event)"
+        (input)="onNameInput($event)"
       />
     </div>
 
