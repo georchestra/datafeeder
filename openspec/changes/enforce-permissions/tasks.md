@@ -21,7 +21,7 @@
 - [x] 4.3 Add permission check to staging endpoints (`GET/PUT /ingestion/staging/{id}/metadata`, `GET /ingestion/staging/{id}/preview`) requiring METADATA_WRITE or OWNER_ONLY as appropriate in `apps/backend/src/api/routes/ingestion/staging.py`
 - [x] 4.4 Add permission check to process endpoint (`POST /ingestion/process/`) — update existing owner check to also allow admin in `apps/backend/src/api/routes/ingestion/process.py`
 - [x] 4.5 Add permission check to metadata proxy in `apps/backend/src/api/routes/geonetwork.py` requiring METADATA_WRITE, owner, or admin when the request references a dataset
-- [ ] 4.6 Add permission check to airflow/events endpoints (`GET /airflow/dags/*/runs*`, logs) requiring OWNER_ONLY in `apps/backend/src/api/routes/airflow.py`
+- [x] 4.6 Add permission check to airflow/events endpoints (`GET /airflow/dags/*/runs*`, logs) requiring OWNER_ONLY in `apps/backend/src/api/routes/airflow.py`
 - [ ] 4.7 [P] Write integration tests for each protected endpoint verifying 403 for unauthorized users and 200 for authorized users
 
 ## 5. Frontend: Dataset List Permission-Aware Rendering (US3)
