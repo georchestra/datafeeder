@@ -12,8 +12,14 @@ import {
   inject,
   OnDestroy
 } from '@angular/core'
-import { Overlay, OverlayModule, OverlayRef } from '@angular/cdk/overlay'
+import {
+  FlexibleConnectedPositionStrategy,
+  Overlay,
+  OverlayModule,
+  OverlayRef
+} from '@angular/cdk/overlay'
 import { TemplatePortal } from '@angular/cdk/portal'
+import { filter } from 'rxjs'
 import { FormsModule } from '@angular/forms'
 import { TranslateService } from '@ngx-translate/core'
 import {
@@ -67,6 +73,7 @@ export class ColumnHeaderComponent implements OnDestroy {
   readonly menuTemplate = viewChild<TemplateRef<void>>('menuTemplate')
 
   private overlayRef: OverlayRef | null = null
+  private positionStrategy: FlexibleConnectedPositionStrategy | null = null
 
   isMenuOpen = signal(false)
   nameValidationError = signal<string | null>(null)
@@ -86,6 +93,7 @@ export class ColumnHeaderComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.overlayRef?.dispose()
+    this.positionStrategy = null
   }
 
   toggleMenu(event: MouseEvent): void {
@@ -103,7 +111,7 @@ export class ColumnHeaderComponent implements OnDestroy {
     if (!trigger || !template) return
 
     if (!this.overlayRef) {
-      const positionStrategy = this.overlay
+      this.positionStrategy = this.overlay
         .position()
         .flexibleConnectedTo(trigger)
         .withPositions([
@@ -125,12 +133,24 @@ export class ColumnHeaderComponent implements OnDestroy {
         .withPush(false)
 
       this.overlayRef = this.overlay.create({
-        positionStrategy,
+        positionStrategy: this.positionStrategy,
         scrollStrategy: this.overlay.scrollStrategies.close(),
         hasBackdrop: false
       })
 
-      this.overlayRef.outsidePointerEvents().subscribe(() => this.closeMenu())
+      this.overlayRef
+        .outsidePointerEvents()
+        .pipe(
+          filter(
+            (e) =>
+              !this.triggerRef()?.nativeElement.contains(
+                e.target as HTMLElement
+              )
+          )
+        )
+        .subscribe(() => this.closeMenu())
+    } else {
+      this.positionStrategy!.setOrigin(trigger)
     }
 
     this.overlayRef.attach(new TemplatePortal(template, this.vcr))
