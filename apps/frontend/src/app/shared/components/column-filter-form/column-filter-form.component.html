@@ -16,7 +16,6 @@
   class="p-3 bg-white flex flex-col gap-2 w-[280px]"
   (click)="$event.stopPropagation()"
 >
-  <!-- Active filter chip -->
   @if (activeFilter(); as filter) {
   <div
     data-active-filter
@@ -43,7 +42,6 @@
   </div>
   }
 
-  <!-- Three filter inputs: one per operator -->
   <div class="flex flex-col gap-[5px]">
     <label
       class="relative flex items-center gap-2 bg-white border border-[#cccdd2] rounded pl-4 pr-1 h-10 cursor-text hover:border-gray-400 focus-within:border-gray-500 overflow-hidden"

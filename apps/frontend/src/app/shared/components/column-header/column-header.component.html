@@ -1,6 +1,5 @@
 <div class="relative flex flex-col">
   <div class="flex items-stretch h-12 gap-[5px] px-[5px] py-[8px]">
-    <!-- Column name input (editable for active columns, read-only for excluded) -->
     <div
       class="flex-1 min-w-0 border flex items-center px-2 overflow-hidden bg-white"
       [class.border-red-400]="nameValidationError()"
@@ -20,10 +19,8 @@
       />
     </div>
 
-    <!-- Action button or Restore button when excluded -->
     <div class="relative shrink-0">
       @if (isExcluded()) {
-      <!-- Restore button (replaces three-dot menu when excluded) -->
       <button
         type="button"
         data-restore-button
@@ -33,7 +30,6 @@
         <ng-icon name="iconoirUndo" class="text-[#646464]"></ng-icon>
       </button>
       } @else {
-      <!-- Three-dot action button -->
       <button
         #triggerBtn
         type="button"
@@ -41,10 +37,8 @@
         class="relative flex items-center justify-center w-10 h-full border border-gray-300 bg-beige hover:bg-gray-50 focus:outline-none"
         (click)="toggleMenu($event)"
       >
-        <!-- Three-dot icon (⋮) -->
         <ng-icon name="iconoirMoreVert" class="text-[#646464]"></ng-icon>
 
-        <!-- Active actions indicator dot -->
         @if (hasActiveActions()) {
         <span
           data-active-indicator
@@ -56,7 +50,6 @@
     </div>
   </div>
 
-  <!-- Inline validation error -->
   @if (nameValidationError()) {
   <div
     data-name-error
@@ -67,7 +60,6 @@
   }
 </div>
 
-<!-- CDK overlay portal for the action menu -->
 <ng-template #menuTemplate>
   <app-column-action-menu
     [columnConfig]="columnConfig()"

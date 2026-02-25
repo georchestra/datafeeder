@@ -56,15 +56,11 @@ export class ColumnHeaderComponent implements OnDestroy {
   private readonly translate = inject(TranslateService)
 
   columnConfig = input.required<ColumnConfigOutput>()
-  /** All current display names (new_name ?? original_name) for duplicate detection. */
   allColumnNames = input<string[]>([])
 
   actionMenuOpened = output<ColumnAction>()
-  /** Emits the validated new name when the user renames the column. */
   nameChanged = output<string>()
-  /** Emits the selected cast type (or null to clear) when the user changes the type. */
   typeSelected = output<CastType | null>()
-  /** Emits a validated filter (or null to delete) from the filter form. */
   filterChanged = output<ColumnFilter | null>()
 
   readonly triggerRef = viewChild<ElementRef<HTMLElement>>('triggerBtn')

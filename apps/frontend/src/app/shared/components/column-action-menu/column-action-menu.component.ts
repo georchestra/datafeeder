@@ -51,11 +51,8 @@ export class ColumnActionMenuComponent {
   columnConfig = input.required<ColumnConfigOutput>()
 
   actionSelected = output<ColumnAction>()
-  /** Emits the selected cast type, or null to deselect (clear cast_type). */
   typeSelected = output<CastType | null>()
-  /** Emits a validated filter from the inline filter form. */
   filterValidated = output<ColumnFilter>()
-  /** Emits when the active filter is deleted. */
   filterDeleted = output<void>()
 
   hasFilterActive = computed(() => this.columnConfig().filter != null)

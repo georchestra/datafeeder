@@ -125,7 +125,6 @@ export class DataImportWizardComponent implements OnInit {
   private route = inject(ActivatedRoute)
   private destroyRef = inject(DestroyRef)
 
-  /** Subject for debouncing rename events (400ms). */
   private renameSubject = new Subject<{
     originalName: string
     newName: string
@@ -149,9 +148,7 @@ export class DataImportWizardComponent implements OnInit {
   previewTabIndex = signal(0)
   hasExtentError = signal(false)
 
-  /** Current column transformation config — initialized from metadata, updated by column actions. */
   columnConfigs = signal<ColumnConfigInput[]>([])
-  /** Current force_projection config — initialized from metadata, updated by DatasetConfiguration. */
   forceProjection = signal<ForceProjection | null>(null)
 
   isGeographicData = computed(() => {
@@ -172,7 +169,6 @@ export class DataImportWizardComponent implements OnInit {
   }
 
   constructor() {
-    // Wire debounced column rename → PUT metadata → GET preview
     this.renameSubject
       .pipe(debounceTime(400), takeUntilDestroyed(this.destroyRef))
       .subscribe(({ originalName, newName }) => {
@@ -274,7 +270,6 @@ export class DataImportWizardComponent implements OnInit {
       )
       this.saveConfigAndRefresh()
     }
-    // 'changeType' and 'filter' are handled via dedicated outputs (typeSelected / filterChanged)
   }
 
   onColumnRenameRequested(event: {
@@ -540,10 +535,8 @@ export class DataImportWizardComponent implements OnInit {
             : 'import.dataSource.unknownError'
         this.previewError.set(this.translate.instant(errorMessage))
         this.previewTabIndex.set(0)
-        // Fallback: load raw (unfiltered/untransformed) preview
         await this.refreshPreview(integrityLinkId, true)
       }
-      // If raw fallback also fails, leave the current preview state as-is
     } finally {
       if (!raw) this.previewLoading.set(false)
     }

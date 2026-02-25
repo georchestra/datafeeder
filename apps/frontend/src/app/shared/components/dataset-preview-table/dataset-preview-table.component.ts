@@ -59,20 +59,17 @@ export class DatasetPreviewTableComponent {
 
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
 
-  /** All display names (new_name ?? original_name) for ALL columns — used for duplicate detection. */
   allDisplayNames = computed(() =>
     (this.metadata()?.columns ?? []).map(
       (col) => col.new_name ?? col.original_name
     )
   )
 
-  /** Stable column keys for MatTable (original_name never changes, prevents header cell recreation on rename). */
   displayedColumns = computed(() => {
     const meta = this.metadata()
     return (meta?.columns ?? []).map((col) => col.original_name)
   })
 
-  /** True when every column has excluded=true (edge case EC3). */
   allColumnsExcluded = computed(() => {
     const cols = this.metadata()?.columns ?? []
     return cols.length > 0 && cols.every((col) => col.excluded === true)

@@ -42,13 +42,10 @@ marker('import.columnFilter.delete')
   templateUrl: './column-filter-form.component.html'
 })
 export class ColumnFilterFormComponent {
-  /** Currently active filter (null = no active filter). */
   activeFilter = input<ColumnFilter | null>(null)
 
-  /** Emits a validated filter when the user submits any input. */
   filterValidated = output<ColumnFilter>()
 
-  /** Emits when the user deletes the active filter. */
   filterDeleted = output<void>()
 
   containsValue = signal<string>('')
