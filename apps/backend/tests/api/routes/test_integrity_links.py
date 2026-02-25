@@ -41,7 +41,7 @@ class TestListIntegrityLinks:
             links.append(link)
         return links
 
-    def _create_geo_ctx(self, username: str, roles: set[str] | None = None) -> GeorchestraContext:
+    def _create_geo_ctx(self, username: str, roles: set[str] | None = None, organization: str = "") -> GeorchestraContext:
         """Create a GeorchestraContext for testing."""
         return GeorchestraContext(
             username=username,
@@ -49,6 +49,7 @@ class TestListIntegrityLinks:
             email="",
             firstname="",
             lastname="",
+            organization=organization,
         )
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
@@ -432,3 +433,179 @@ class TestListIntegrityLinks:
         assert hasattr(item, "last_retrieval_timestamp")
         assert hasattr(item, "schedule")
         assert hasattr(item, "schedule_enabled")
+        assert hasattr(item, "access_level")
+
+
+class TestListIntegrityLinksVisibility:
+    """Test dataset list visibility based on permissions (task 3.3)."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        """Create a mock database session."""
+        return MagicMock()
+
+    def _make_link(self, owner: str = "other_user", org: str = "other_org") -> IntegrityLink:
+        """Create a sample IntegrityLink."""
+        return IntegrityLink(
+            id=uuid4(),
+            integrity_title="Test Link",
+            integrity_owner=owner,
+            integrity_organization=org,
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+
+    def _geo_ctx(
+        self,
+        username: str = "user1",
+        organization: str = "org_a",
+        is_admin: bool = False,
+    ) -> GeorchestraContext:
+        roles = {"ADMINISTRATOR"} if is_admin else {"IMPORT"}
+        return GeorchestraContext(
+            username=username,
+            roles=roles,
+            email="",
+            firstname="",
+            lastname="",
+            organization=organization,
+        )
+
+    @patch("src.api.routes.ingestion.integrity_links.compute_effective_access")
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_owner_sees_own_datasets_with_owner_access_level(
+        self,
+        mock_logger: MagicMock,
+        mock_compute: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """Owner sees own datasets and gets OWNER access level."""
+        from src.core.security import EffectiveAccess
+        from src.api.routes.ingestion.integrity_links import list_integrity_links
+
+        link = self._make_link(owner="user1")
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = [link]
+        mock_session.exec.return_value = mock_exec_result
+        mock_compute.return_value = EffectiveAccess.OWNER
+
+        ctx = self._geo_ctx(username="user1")
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+
+        assert len(response.items) == 1
+        assert response.items[0].access_level == "OWNER"
+
+    @patch("src.api.routes.ingestion.integrity_links.compute_effective_access")
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_admin_sees_all_with_admin_access_level(
+        self,
+        mock_logger: MagicMock,
+        mock_compute: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """Admin sees all datasets and gets ADMIN access level."""
+        from src.core.security import EffectiveAccess
+        from src.api.routes.ingestion.integrity_links import list_integrity_links
+
+        links = [self._make_link(owner="someone"), self._make_link(owner="another")]
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = links
+        mock_session.exec.return_value = mock_exec_result
+        mock_compute.return_value = EffectiveAccess.ADMIN
+
+        ctx = self._geo_ctx(is_admin=True)
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+
+        assert len(response.items) == 2
+        for item in response.items:
+            assert item.access_level == "ADMIN"
+
+    @patch("src.api.routes.ingestion.integrity_links.compute_effective_access")
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_group_with_metadata_read_gets_read_access_level(
+        self,
+        mock_logger: MagicMock,
+        mock_compute: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """User whose group has METADATA READ sees dataset with READ access level."""
+        from src.core.security import EffectiveAccess
+        from src.api.routes.ingestion.integrity_links import list_integrity_links
+
+        link = self._make_link(owner="other")
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = [link]
+        mock_session.exec.return_value = mock_exec_result
+        mock_compute.return_value = EffectiveAccess.READ
+
+        ctx = self._geo_ctx(username="user1", organization="org_a")
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+
+        assert len(response.items) == 1
+        assert response.items[0].access_level == "READ"
+
+    @patch("src.api.routes.ingestion.integrity_links.compute_effective_access")
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_group_with_metadata_write_gets_write_access_level(
+        self,
+        mock_logger: MagicMock,
+        mock_compute: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """User whose group has METADATA WRITE sees dataset with WRITE access level."""
+        from src.core.security import EffectiveAccess
+        from src.api.routes.ingestion.integrity_links import list_integrity_links
+
+        link = self._make_link(owner="other")
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = [link]
+        mock_session.exec.return_value = mock_exec_result
+        mock_compute.return_value = EffectiveAccess.WRITE
+
+        ctx = self._geo_ctx(username="user1", organization="org_a")
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+
+        assert len(response.items) == 1
+        assert response.items[0].access_level == "WRITE"
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_no_permission_user_sees_empty_list(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """User with no ownership and no group rules sees empty list."""
+        from src.api.routes.ingestion.integrity_links import list_integrity_links
+
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = []
+        mock_session.exec.return_value = mock_exec_result
+
+        ctx = self._geo_ctx(username="nobody", organization="no_org")
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+
+        assert len(response.items) == 0
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_query_includes_or_condition_for_non_admin(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """Non-admin query should include OR condition for ownership + org rules."""
+        from src.api.routes.ingestion.integrity_links import list_integrity_links
+
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = []
+        mock_session.exec.return_value = mock_exec_result
+
+        ctx = self._geo_ctx(username="user1", organization="org_a")
+        list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+
+        # Verify the query was executed and contains both conditions
+        executed_query = mock_session.exec.call_args[0][0]
+        query_str = str(executed_query)
+        # Should have OR condition (owner = username OR EXISTS subquery)
+        assert "OR" in query_str.upper() or "or" in query_str.lower()

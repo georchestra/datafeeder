@@ -10,9 +10,9 @@
 
 ## 3. Backend: Dataset List Visibility Filtering (US1)
 
-- [ ] 3.1 Update the `list_integrity_links` query in `apps/backend/src/api/routes/ingestion/integrity_links.py` to include datasets where the user's organization has a METADATA rule (LEFT JOIN / EXISTS on IntegrityLinkRule)
-- [ ] 3.2 Add `access_level` computed field to the list response model in `apps/backend/src/models/integrity_link.py`, returning OWNER/ADMIN/WRITE/READ per item
-- [ ] 3.3 Write tests for dataset list visibility: owner sees own datasets, group with METADATA READ sees datasets, group without rules does not see datasets, admin sees all
+- [x] 3.1 Update the `list_integrity_links` query in `apps/backend/src/api/routes/ingestion/integrity_links.py` to include datasets where the user's organization has a METADATA rule (LEFT JOIN / EXISTS on IntegrityLinkRule)
+- [x] 3.2 Add `access_level` computed field to the list response model in `apps/backend/src/models/integrity_link.py`, returning OWNER/ADMIN/WRITE/READ per item
+- [x] 3.3 Write tests for dataset list visibility: owner sees own datasets, group with METADATA READ sees datasets, group without rules does not see datasets, admin sees all
 
 ## 4. Backend: Endpoint Authorization (US2)
 

@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Query
-from sqlmodel import select
+from sqlalchemy import exists
+from sqlmodel import or_, select
 
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep
 from src.core.logging import get_logger
+from src.core.security import EffectiveAccess, compute_effective_access
 from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
 from src.models.integrity_link import IntegrityLink
+from src.models.integrity_link_rule import IntegrityLinkRule, RuleType
 
 router = APIRouter(prefix="/ingestion/integrity-links", tags=["Ingestion"])
 logger = get_logger()
@@ -28,8 +31,9 @@ def list_integrity_links(
     """
     List integrity links with role-based access control.
 
-    - Normal users see only their own integrity links (integrity_owner == username)
     - Administrators see all integrity links
+    - Owners see their own integrity links
+    - Users see datasets where their organization has a METADATA permission rule
 
     Args:
         session: Database session (injected)
@@ -45,8 +49,19 @@ def list_integrity_links(
     query = select(IntegrityLink)
 
     if not is_admin:
-        # Non-admins only see their own integrity links
-        query = query.where(IntegrityLink.integrity_owner == geo_ctx.username)
+        # Non-admins see: own datasets + datasets with METADATA rules for their org
+        conditions = [IntegrityLink.integrity_owner == geo_ctx.username]
+        if geo_ctx.organization:
+            conditions.append(
+                exists(
+                    select(IntegrityLinkRule.id).where(
+                        IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
+                        IntegrityLinkRule.rule_type == RuleType.METADATA,
+                        IntegrityLinkRule.group_or_role == geo_ctx.organization,
+                    )
+                )
+            )
+        query = query.where(or_(*conditions))
 
     if search:
         query = query.where(IntegrityLink.integrity_title.ilike(f"%{search}%"))  # type: ignore[union-attr]
@@ -70,8 +85,16 @@ def list_integrity_links(
         f"(admin={is_admin}, offset={offset}, has_more={has_more}, search={search!r})"
     )
 
+    # Compute per-item access level
+    list_items: list[IntegrityLinkListItem] = []
+    for link in items:
+        effective = compute_effective_access(link, geo_ctx, session)
+        item = IntegrityLinkListItem.model_validate(link)
+        item.access_level = effective.value if effective else None
+        list_items.append(item)
+
     return IntegrityLinkListResponse(
-        items=[IntegrityLinkListItem.model_validate(link) for link in items],
+        items=list_items,
         has_more=has_more,
         offset=offset,
     )
