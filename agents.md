@@ -1,53 +1,53 @@
 # AI Agent Guide
 
-This file is the entry point for AI agents working in this codebase. It points to the key resources needed to understand the project, its conventions, and active work.
-
 ---
 
-## Constitution
+## OpenSpec (Change Management)
 
-The constitution is the primary reference for project principles, architecture decisions, coding standards, and workflow rules. **Read it before making any significant changes.**
+Config & project context: `openspec/config.yaml` | Docs: [openspec.dev](https://openspec.dev)
 
-- [.specify/memory/constitution.md](.specify/memory/constitution.md)
+| Action      | Skill                                                                  |
+| ----------- | ---------------------------------------------------------------------- |
+| **Propose** | [openspec-propose](.github/skills/openspec-propose/SKILL.md)           |
+| **Apply**   | [openspec-apply-change](.github/skills/openspec-apply-change/SKILL.md) |
+| **Explore** | [openspec-explore](.github/skills/openspec-explore/SKILL.md)           |
+| **Archive** | [openspec-archive-change](.github/skills/openspec-archive-change/SKILL.md) |
+
+### Active Changes
+
+| Change | Status |
+| ------ | ------ |
+| [enforce-permissions](openspec/changes/enforce-permissions/) — Backend 403 + frontend conditional nav | Ready to apply |
 
 ---
 
 ## Skills
 
-Skills contain domain-specific instructions for working with particular technologies used in this project. Load the relevant skill before implementing in that domain.
-
-| Skill                    | Description                                               | File                                                                                             |
-| ------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `angular-datakern`       | Angular 20 frontend (components, NgRx, signals, Tailwind) | [.agents/skills/angular-datakern/SKILL.md](.agents/skills/angular-datakern/SKILL.md)             |
-| `fastapi-expert`         | FastAPI backend (async, SQLAlchemy, JWT, Pydantic V2)     | [.agents/skills/fastapi-expert/SKILL.md](.agents/skills/fastapi-expert/SKILL.md)                 |
-| `airflow-datakern`       | Airflow 3.x DAGs (TaskAPI, task groups, ELT pipelines)    | [.agents/skills/airflow-datakern/SKILL.md](.agents/skills/airflow-datakern/SKILL.md)             |
-| `implement-design`       | Figma → code implementation with 1:1 fidelity             | [.agents/skills/implement-design/SKILL.md](.agents/skills/implement-design/SKILL.md)             |
-| `tailwind-design-system` | Tailwind CSS v4 design system and component patterns      | [.agents/skills/tailwind-design-system/SKILL.md](.agents/skills/tailwind-design-system/SKILL.md) |
-| `geopandas`              | Geospatial data processing with GeoPandas                 | [.agents/skills/geopandas/SKILL.md](.agents/skills/geopandas/SKILL.md)                           |
-| `skill-creator`          | How to create or update a skill                           | [.agents/skills/skill-creator/SKILL.md](.agents/skills/skill-creator/SKILL.md)                   |
+Domain-specific agent instructions: [.agents/skills/](.agents/skills/) | OpenSpec skills: [.github/skills/](.github/skills/)
 
 ---
 
-## Specs
+## Speckit (Feature Specifications)
 
-Specs define features under active development. Each spec folder contains a structured breakdown of the feature.
+Constitution & memory: [.specify/memory/constitution.md](.specify/memory/constitution.md)
 
-| Spec                                                                  | Description                    |
-| --------------------------------------------------------------------- | ------------------------------ |
-| [specs/001-preview-column-actions](specs/001-preview-column-actions/) | Preview column actions feature |
+| Spec                                                                  | Description                    | Status               |
+| --------------------------------------------------------------------- | ------------------------------ | -------------------- |
+| [specs/001-preview-column-actions](specs/001-preview-column-actions/) | Preview column actions feature | Implemented          |
+| [specs/002-enforce-permissions](specs/002-enforce-permissions/)       | Enforce permissions (original) | Migrated to OpenSpec |
 
-### Spec file structure
+---
 
-Each spec folder typically contains:
+## Commands & Config
 
-- `spec.md` — feature specification and acceptance criteria
-- `plan.md` — implementation plan
-- `tasks.md` — actionable task breakdown
-- `data-model.md` — data model changes
-- `research.md` — research and prior art
-- `quickstart.md` — quick orientation for the feature
-- `contracts/` — API contracts (request/response schemas)
-- `checklists/` — validation checklists
+| What          | Where                                                  | Purpose                                         |
+| ------------- | ------------------------------------------------------ | ------------------------------------------------ |
+| Makefile      | [Makefile](Makefile)                                   | Top-level commands: `make up-*`, `make test-*`, `make fix-all-python` |
+| Backend       | [apps/backend/pyproject.toml](apps/backend/pyproject.toml) | Python deps & scripts                       |
+| Frontend      | [apps/frontend/package.json](apps/frontend/package.json)   | `npm start`, `npm test`, `npm run format`   |
+| ELT           | [apps/elt/pyproject.toml](apps/elt/pyproject.toml)         | Airflow DAG deps                            |
+| Shared lib    | [libs/data_manipulation/pyproject.toml](libs/data_manipulation/pyproject.toml) | Shared Python library         |
+| Root          | [pyproject.toml](pyproject.toml)                       | Monorepo workspace config                        |
 
 ---
 
@@ -60,9 +60,15 @@ apps/
   frontend/   # Angular 20 application
 libs/
   data_manipulation/  # Shared Python data processing library
-specs/        # Feature specifications
+openspec/
+  config.yaml         # Project context & artifact rules
+  changes/            # Active changes (proposal → specs → design → tasks)
+  specs/              # Main specs (living truth after archive)
+specs/                # Feature specifications (speckit)
 .agents/
-  skills/     # Domain-specific AI agent instructions
+  skills/             # Domain-specific AI agent instructions
+.github/
+  skills/             # OpenSpec workflow skills
 .specify/
-  memory/     # Project memory and constitution
+  memory/             # Project memory and constitution (speckit)
 ```
