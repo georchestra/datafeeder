@@ -22,7 +22,7 @@
 - [x] 4.4 Add permission check to process endpoint (`POST /ingestion/process/`) — update existing owner check to also allow admin in `apps/backend/src/api/routes/ingestion/process.py`
 - [x] 4.5 Add permission check to metadata proxy in `apps/backend/src/api/routes/geonetwork.py` requiring METADATA_WRITE, owner, or admin when the request references a dataset
 - [x] 4.6 Add permission check to airflow/events endpoints (`GET /airflow/dags/*/runs*`, logs) requiring OWNER_ONLY in `apps/backend/src/api/routes/airflow.py`
-- [ ] 4.7 [P] Write integration tests for each protected endpoint verifying 403 for unauthorized users and 200 for authorized users
+- [x] 4.7 [P] Write integration tests for each protected endpoint verifying 403 for unauthorized users and 200 for authorized users
 
 ## 5. Frontend: Dataset List Permission-Aware Rendering (US3)
 

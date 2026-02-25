@@ -4,11 +4,10 @@ from airflow_client.client.models.dag_run_state import DagRunState
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from ...core.deps import DatakernSessionDep
-from ...core.security import AccessLevel, load_authorized_integrity_link
-from ...services.airflow_client import get_dag_run_api
-from ...services.airflow_logs import generate_failed_dag_run_logs
-from ...services.georchestra import GeorchestraContextDep
+from src.api.deps import DatakernSessionDep, GeorchestraContextDep
+from src.core.security import AccessLevel, load_authorized_integrity_link
+from src.services.airflow_client import get_dag_run_api
+from src.services.airflow_logs import generate_failed_dag_run_logs
 
 router = APIRouter(prefix="/airflow", tags=["Airflow"])
 
