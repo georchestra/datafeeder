@@ -17,6 +17,7 @@ from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import ForceProjection as DataManipulationForceProjection
 from data_manipulation.utils import sanitize_name
+from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
 from shapely.geometry.base import BaseGeometry
 from sqlalchemy import MetaData, Table, func, select
@@ -382,8 +383,6 @@ def dag_failure_callback(
 
     if integrity_link.staging_table_name:
         try:
-            from data_manipulation.validators import validate_table_name
-
             validate_table_name(integrity_link.staging_table_name, context="staging")
             schema = get_staging_schema()
             table = Table(integrity_link.staging_table_name, MetaData(schema=schema))

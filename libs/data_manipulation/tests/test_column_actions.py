@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import geopandas as gpd
 import pandas as pd
+from shapely.geometry import Point
 from sqlalchemy import (
     BinaryExpression,
     Column,
@@ -643,8 +644,6 @@ class TestApplyTransformations:
 
     def test_projection_still_applied(self):
         """Projection logic preserved after refactor."""
-        from shapely.geometry import Point
-
         gdf = gpd.GeoDataFrame(
             {"name": ["A", "B"]}, geometry=[Point(0, 0), Point(1, 1)], crs="EPSG:4326"
         )
@@ -657,8 +656,6 @@ class TestApplyTransformations:
 
     def test_rename_then_cast_then_projection(self):
         """rename → cast → projection executed in correct order."""
-        from shapely.geometry import Point
-
         gdf = gpd.GeoDataFrame(
             {"original": ["1", "2"], "name": ["A", "B"]},
             geometry=[Point(0, 0), Point(1, 1)],

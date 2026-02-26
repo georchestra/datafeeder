@@ -2,6 +2,7 @@ import httpx
 from fastapi import HTTPException
 from pydantic import BaseModel
 
+from src.core.config import get_settings
 from src.core.logging import get_logger
 
 logger = get_logger()
@@ -56,8 +57,6 @@ def resolve_org_id(short_name: str) -> str | None:
     Returns ``None`` if the org is not found or if the upstream call failed.
     In that case the caller should treat the user as having no org-based access.
     """
-    from src.core.config import get_settings
-
     settings = get_settings()
     try:
         items = fetch_groups(
