@@ -45,7 +45,9 @@ def _integrity_link(owner: str = "owner1") -> IntegrityLink:
     return link
 
 
-def _mock_session(rules: list[IntegrityLinkRule] | None = None, integrity_link: IntegrityLink | None = None) -> MagicMock:
+def _mock_session(
+    rules: list[IntegrityLinkRule] | None = None, integrity_link: IntegrityLink | None = None
+) -> MagicMock:
     """Create a mock session with configurable rule query results."""
     session = MagicMock()
     if integrity_link is not None:
@@ -252,7 +254,9 @@ class TestLoadAuthorizedIntegrityLinkMetadataWrite:
         ctx = _geo_ctx()
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
 
-        result = load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
+        result = load_authorized_integrity_link(
+            DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session
+        )
 
         assert result is link
 

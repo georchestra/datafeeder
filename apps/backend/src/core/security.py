@@ -127,7 +127,9 @@ def load_authorized_integrity_link(
     effective = compute_effective_access(integrity_link, geo_ctx, session)
 
     if effective is None:
-        raise HTTPException(status_code=403, detail="You do not have permission to access this dataset")
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this dataset"
+        )
 
     # Admin and owner always pass
     if effective in (EffectiveAccess.ADMIN, EffectiveAccess.OWNER):
@@ -135,11 +137,16 @@ def load_authorized_integrity_link(
 
     # For OWNER_ONLY, only admin/owner pass (already handled above)
     if required_level == AccessLevel.OWNER_ONLY:
-        raise HTTPException(status_code=403, detail="Only the dataset owner or an administrator can perform this action")
+        raise HTTPException(
+            status_code=403,
+            detail="Only the dataset owner or an administrator can perform this action",
+        )
 
     # For METADATA_WRITE, need at least WRITE
     if required_level == AccessLevel.METADATA_WRITE and effective == EffectiveAccess.READ:
-        raise HTTPException(status_code=403, detail="You need METADATA WRITE permission to perform this action")
+        raise HTTPException(
+            status_code=403, detail="You need METADATA WRITE permission to perform this action"
+        )
 
     # METADATA_READ: READ or WRITE both pass
     return integrity_link

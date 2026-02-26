@@ -41,7 +41,9 @@ class TestListIntegrityLinks:
             links.append(link)
         return links
 
-    def _create_geo_ctx(self, username: str, roles: set[str] | None = None, organization: str = "") -> GeorchestraContext:
+    def _create_geo_ctx(
+        self, username: str, roles: set[str] | None = None, organization: str = ""
+    ) -> GeorchestraContext:
         """Create a GeorchestraContext for testing."""
         return GeorchestraContext(
             username=username,
@@ -482,8 +484,8 @@ class TestListIntegrityLinksVisibility:
         mock_session: MagicMock,
     ) -> None:
         """Owner sees own datasets and gets OWNER access level."""
-        from src.core.security import EffectiveAccess
         from src.api.routes.ingestion.integrity_links import list_integrity_links
+        from src.core.security import EffectiveAccess
 
         link = self._make_link(owner="user1")
         mock_exec_result = MagicMock()
@@ -506,8 +508,8 @@ class TestListIntegrityLinksVisibility:
         mock_session: MagicMock,
     ) -> None:
         """Admin sees all datasets and gets ADMIN access level."""
-        from src.core.security import EffectiveAccess
         from src.api.routes.ingestion.integrity_links import list_integrity_links
+        from src.core.security import EffectiveAccess
 
         links = [self._make_link(owner="someone"), self._make_link(owner="another")]
         mock_exec_result = MagicMock()
@@ -531,8 +533,8 @@ class TestListIntegrityLinksVisibility:
         mock_session: MagicMock,
     ) -> None:
         """User whose group has METADATA READ sees dataset with READ access level."""
-        from src.core.security import EffectiveAccess
         from src.api.routes.ingestion.integrity_links import list_integrity_links
+        from src.core.security import EffectiveAccess
 
         link = self._make_link(owner="other")
         mock_exec_result = MagicMock()
@@ -555,8 +557,8 @@ class TestListIntegrityLinksVisibility:
         mock_session: MagicMock,
     ) -> None:
         """User whose group has METADATA WRITE sees dataset with WRITE access level."""
-        from src.core.security import EffectiveAccess
         from src.api.routes.ingestion.integrity_links import list_integrity_links
+        from src.core.security import EffectiveAccess
 
         link = self._make_link(owner="other")
         mock_exec_result = MagicMock()

@@ -6,7 +6,6 @@ from sqlmodel import select
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep
 from src.core.security import AccessLevel, compute_effective_access, load_authorized_integrity_link
 from src.models.data_import import IntegrityLinkResponse
-from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, UpsertRuleRequest
 
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
@@ -55,7 +54,9 @@ def list_integrity_link_rules(
     integrity_link_id: str,
 ) -> list[IntegrityLinkRule]:
     """List all rules for a given IntegrityLink."""
-    load_authorized_integrity_link(integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session)
+    load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session
+    )
 
     statement = select(IntegrityLinkRule).where(
         IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
@@ -75,7 +76,9 @@ def upsert_integrity_link_rule(
     body: UpsertRuleRequest,
 ) -> IntegrityLinkRule:
     """Create or update a rule for a given IntegrityLink."""
-    load_authorized_integrity_link(integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session)
+    load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session
+    )
 
     statement = select(IntegrityLinkRule).where(
         IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id),
@@ -115,7 +118,9 @@ def delete_integrity_link_rule(
     rule_id: int,
 ) -> Response:
     """Delete a rule from a given IntegrityLink."""
-    load_authorized_integrity_link(integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session)
+    load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session
+    )
 
     rule = session.get(IntegrityLinkRule, rule_id)
     if not rule or rule.integrity_link_id != UUID(integrity_link_id):

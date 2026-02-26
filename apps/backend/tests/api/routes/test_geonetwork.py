@@ -141,7 +141,9 @@ class TestGeoNetworkProxy:
                 assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_given_timeout_when_proxying_then_raises_504(self, mock_settings: Mock, mock_session: Mock) -> None:
+    async def test_given_timeout_when_proxying_then_raises_504(
+        self, mock_settings: Mock, mock_session: Mock
+    ) -> None:
         """Given upstream timeout, when proxying, then raises 504 error."""
         path = "srv/api/records"
         request = self._create_mock_request(method="GET")

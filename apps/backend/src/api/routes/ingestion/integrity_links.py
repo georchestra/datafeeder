@@ -4,7 +4,7 @@ from sqlmodel import or_, select
 
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep
 from src.core.logging import get_logger
-from src.core.security import EffectiveAccess, compute_effective_access
+from src.core.security import compute_effective_access
 from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, RuleType

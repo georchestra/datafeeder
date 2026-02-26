@@ -99,9 +99,7 @@ async def proxy_geonetwork(
     # Check permission when the request targets a specific dataset record
     dataset_uuid = _extract_dataset_uuid(path)
     if dataset_uuid:
-        load_authorized_integrity_link(
-            dataset_uuid, AccessLevel.METADATA_WRITE, geo_ctx, session
-        )
+        load_authorized_integrity_link(dataset_uuid, AccessLevel.METADATA_WRITE, geo_ctx, session)
 
     settings = get_settings()
 
