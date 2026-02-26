@@ -13,9 +13,7 @@ import {
 } from '@angular/common/http/testing'
 import { ApiConfiguration } from '../core/api/api-configuration'
 
-function createStore(
-  accessLevel: string | null = null
-): IntegrityLinkStore {
+function createStore(accessLevel: string | null = null): IntegrityLinkStore {
   const store = new IntegrityLinkStore()
   if (accessLevel) {
     store.integrityLink.set({
@@ -123,9 +121,7 @@ describe('IntlinkLayoutComponent', () => {
       const { fixture } = await setupComponent('OWNER')
       const nav = fixture.nativeElement.querySelector('nav')
       const links = nav.querySelectorAll('a')
-      const linkTexts = Array.from(links).map(
-        (a: any) => a.textContent.trim()
-      )
+      const linkTexts = Array.from(links).map((a: any) => a.textContent.trim())
       expect(linkTexts).toContain('Access Rights')
     })
 
@@ -133,9 +129,7 @@ describe('IntlinkLayoutComponent', () => {
       const { fixture } = await setupComponent('OWNER')
       const nav = fixture.nativeElement.querySelector('nav')
       const links = nav.querySelectorAll('a')
-      const linkTexts = Array.from(links).map(
-        (a: any) => a.textContent.trim()
-      )
+      const linkTexts = Array.from(links).map((a: any) => a.textContent.trim())
       expect(linkTexts).toContain('Events')
     })
 
@@ -153,9 +147,7 @@ describe('IntlinkLayoutComponent', () => {
       const { fixture } = await setupComponent('ADMIN')
       const nav = fixture.nativeElement.querySelector('nav')
       const links = nav.querySelectorAll('a')
-      const linkTexts = Array.from(links).map(
-        (a: any) => a.textContent.trim()
-      )
+      const linkTexts = Array.from(links).map((a: any) => a.textContent.trim())
       expect(linkTexts).toContain('Access Rights')
       expect(linkTexts).toContain('Events')
     })
@@ -166,9 +158,7 @@ describe('IntlinkLayoutComponent', () => {
       const { fixture } = await setupComponent('WRITE')
       const nav = fixture.nativeElement.querySelector('nav')
       const spans = nav.querySelectorAll('span')
-      const spanTexts = Array.from(spans).map(
-        (s: any) => s.textContent.trim()
-      )
+      const spanTexts = Array.from(spans).map((s: any) => s.textContent.trim())
       expect(spanTexts).toContain('Access Rights')
     })
 
@@ -176,9 +166,7 @@ describe('IntlinkLayoutComponent', () => {
       const { fixture } = await setupComponent('WRITE')
       const nav = fixture.nativeElement.querySelector('nav')
       const spans = nav.querySelectorAll('span')
-      const spanTexts = Array.from(spans).map(
-        (s: any) => s.textContent.trim()
-      )
+      const spanTexts = Array.from(spans).map((s: any) => s.textContent.trim())
       expect(spanTexts).toContain('Events')
     })
 
@@ -193,9 +181,7 @@ describe('IntlinkLayoutComponent', () => {
       const { fixture } = await setupComponent('WRITE')
       const nav = fixture.nativeElement.querySelector('nav')
       const links = nav.querySelectorAll('a')
-      const linkTexts = Array.from(links).map(
-        (a: any) => a.textContent.trim()
-      )
+      const linkTexts = Array.from(links).map((a: any) => a.textContent.trim())
       expect(linkTexts).toContain('Metadata Sheet')
     })
   })

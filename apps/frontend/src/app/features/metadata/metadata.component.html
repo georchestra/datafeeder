@@ -1,6 +1,10 @@
 @if (!store.integrityLink()?.metadata_id) {
-<div class="flex-1 flex flex-col items-center justify-center gap-4 px-9 py-12 text-center">
-  <p class="text-gray-500 text-lg">{{ 'metadata.notAvailableYet' | translate }}</p>
+<div
+  class="flex-1 flex flex-col items-center justify-center gap-4 px-9 py-12 text-center"
+>
+  <p class="text-gray-500 text-lg">
+    {{ 'metadata.notAvailableYet' | translate }}
+  </p>
   <a
     class="text-primary underline hover:text-primary-darker font-medium"
     [routerLink]="['/import']"
