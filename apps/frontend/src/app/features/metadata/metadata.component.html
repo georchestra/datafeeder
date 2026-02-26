@@ -27,6 +27,10 @@
   <div class="py-6">
     <gn-ui-record-form></gn-ui-record-form>
   </div>
+  } @else if (!store.integrityLink()?.metadata_id) {
+  <div class="py-6 text-center text-gray-500">
+    <p>{{ 'metadata.notAvailableYet' | translate }}</p>
+  </div>
   }
   <div
     data-test="previousNextPageButtons"

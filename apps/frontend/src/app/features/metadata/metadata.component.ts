@@ -59,7 +59,7 @@ export class MetadataComponent implements OnInit {
   constructor() {
     effect(() => {
       const integrityLink = this.store.integrityLink()
-      if (integrityLink) {
+      if (integrityLink?.metadata_id) {
         this.loadMetadata(integrityLink.metadata_id)
       }
     })

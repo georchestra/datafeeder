@@ -238,6 +238,7 @@
   "status.type.error": "Error",
   "status.type.queued": "Queued",
   "status.type.running": "Running",
+  "metadata.notAvailableYet": "Metadata is not available yet. Process the dataset first.",
   "status.type.success": "Success",
   "status.type.warning": "Warning"
 }

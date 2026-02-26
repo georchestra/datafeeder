@@ -238,6 +238,7 @@
   "status.type.error": "Erreur",
   "status.type.queued": "En attente",
   "status.type.running": "En cours",
+  "metadata.notAvailableYet": "Les métadonnées ne sont pas encore disponibles. Traitez le jeu de données d'abord.",
   "status.type.success": "Succès",
   "status.type.warning": "Avertissement"
 }
