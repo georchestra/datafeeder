@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { Component, effect, inject, OnInit } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import {
@@ -26,7 +27,8 @@ import { IntegrityLinkStore } from '../../layout/integrity-link.store'
     ButtonComponent,
     TranslateDirective,
     TranslatePipe,
-    RecordFormComponent
+    RecordFormComponent,
+    RouterLink
   ],
   templateUrl: './metadata.component.html',
   styleUrl: './metadata.component.css',

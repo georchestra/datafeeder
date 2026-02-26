@@ -1,3 +1,15 @@
+@if (!store.integrityLink()?.metadata_id) {
+<div class="flex-1 flex flex-col items-center justify-center gap-4 px-9 py-12 text-center">
+  <p class="text-gray-500 text-lg">{{ 'metadata.notAvailableYet' | translate }}</p>
+  <a
+    class="text-primary underline hover:text-primary-darker font-medium"
+    [routerLink]="['/import']"
+    [queryParams]="{ linkId: store.integrityLink()?.id }"
+  >
+    {{ 'metadata.goToImport' | translate }}
+  </a>
+</div>
+} @else {
 <div class="px-9 pt-1 pb-6">
   <div class="w-full flex gap-2" data-test="pageSelectorButtons">
     @for ( page of pages(); track page; let index = $index ) {
@@ -27,10 +39,6 @@
   <div class="py-6">
     <gn-ui-record-form></gn-ui-record-form>
   </div>
-  } @else if (!store.integrityLink()?.metadata_id) {
-  <div class="py-6 text-center text-gray-500">
-    <p>{{ 'metadata.notAvailableYet' | translate }}</p>
-  </div>
   }
   <div
     data-test="previousNextPageButtons"
@@ -53,3 +61,4 @@
     }
   </div>
 </div>
+}
