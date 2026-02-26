@@ -7,6 +7,7 @@ import jwt
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
+from src.api.routes.groups_common import resolve_org_id
 from src.core.config import get_settings
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, RuleType, RuleValue
@@ -71,11 +72,17 @@ def compute_effective_access(
     if not geo_ctx.organization:
         return None
 
+    # Resolve the org shortName (from sec-org header) to its console UUID,
+    # which is what is stored in IntegrityLinkRule.group_or_role.
+    org_id = resolve_org_id(geo_ctx.organization)
+    if org_id is None:
+        return None
+
     # Query for METADATA rules matching the user's organization
     statement = select(IntegrityLinkRule).where(
         IntegrityLinkRule.integrity_link_id == integrity_link.id,
         IntegrityLinkRule.rule_type == RuleType.METADATA,
-        IntegrityLinkRule.group_or_role == geo_ctx.organization,
+        IntegrityLinkRule.group_or_role == org_id,
     )
     rules = session.exec(statement).all()
 

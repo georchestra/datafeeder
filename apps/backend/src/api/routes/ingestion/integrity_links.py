@@ -5,6 +5,7 @@ from sqlalchemy import exists
 from sqlmodel import or_, select
 
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep
+from src.api.routes.groups_common import resolve_org_id
 from src.core.logging import get_logger
 from src.core.security import compute_effective_access
 from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
@@ -53,13 +54,14 @@ def list_integrity_links(
     if not is_admin:
         # Non-admins see: own datasets + datasets with METADATA rules for their org
         conditions: list[Any] = [IntegrityLink.integrity_owner == geo_ctx.username]
-        if geo_ctx.organization:
+        org_id = resolve_org_id(geo_ctx.organization) if geo_ctx.organization else None
+        if org_id:
             conditions.append(
                 exists(
                     select(IntegrityLinkRule.id).where(
                         IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
                         IntegrityLinkRule.rule_type == RuleType.METADATA,
-                        IntegrityLinkRule.group_or_role == geo_ctx.organization,
+                        IntegrityLinkRule.group_or_role == org_id,
                     )
                 )
             )

@@ -43,3 +43,31 @@ def fetch_groups(
         for item in items
         if id_field in item and label_field in item
     ]
+
+
+def resolve_org_id(short_name: str) -> str | None:
+    """Resolve an org shortName (sec-org header value) to its console UUID.
+
+    The geOrchestra gateway injects the LDAP ``cn`` (e.g. ``PSC``) as
+    ``sec-org``, while rules are stored with the console UUID as identifier.
+    Fetches the organizations list on every call so that newly added or removed
+    orgs are always reflected.
+
+    Returns ``None`` if the org is not found or if the upstream call failed.
+    In that case the caller should treat the user as having no org-based access.
+    """
+    from src.core.config import get_settings
+
+    settings = get_settings()
+    try:
+        items = fetch_groups(
+            url=settings.METADATA_FETCH_GROUPS_URL,
+            id_field="id",
+            label_field="shortName",
+            username=settings.METADATA_FETCH_GROUPS_USERNAME,
+            password=settings.METADATA_FETCH_GROUPS_PASSWORD,
+        )
+        return {item.label: item.id for item in items}.get(short_name)
+    except Exception:
+        logger.warning(f"Could not resolve org '{short_name}' to UUID; treating as no org access")
+        return None
