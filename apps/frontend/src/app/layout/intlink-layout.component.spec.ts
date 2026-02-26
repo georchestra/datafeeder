@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
-import { provideRouter } from '@angular/router'
+import { ActivatedRoute, provideRouter } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { IntegrityLinkStore } from './integrity-link.store'
@@ -12,6 +12,8 @@ import {
   provideHttpClientTesting
 } from '@angular/common/http/testing'
 import { ApiConfiguration } from '../core/api/api-configuration'
+import { Api } from '../core/api/api'
+import { getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet } from '../core/api/functions'
 
 function createStore(accessLevel: string | null = null): IntegrityLinkStore {
   const store = new IntegrityLinkStore()
@@ -183,6 +185,126 @@ describe('IntlinkLayoutComponent', () => {
       const links = nav.querySelectorAll('a')
       const linkTexts = Array.from(links).map((a: any) => a.textContent.trim())
       expect(linkTexts).toContain('Metadata Sheet')
+    })
+  })
+
+  // ─── ngOnInit API behavior ─────────────────────────────────────────────
+  // Matrix coverage (frontend-behavior-matrix.md — Page: /:id layout shell):
+  //   200 + access_level → store populated, child routes render        ✅
+  //   403 (READ/NO_PERM user) → unhandled rejection, store stays null  ❌
+  //   404 / 500  → unhandled rejection, store stays null               ❌
+  // ──────────────────────────────────────────────────────────────────────
+
+  describe('ngOnInit - API call behavior', () => {
+    const intlinkId = 'test-link-abc'
+
+    const mockLinkResponse: IntegrityLinkResponse = {
+      id: intlinkId,
+      integrity_owner: 'owner1',
+      integrity_organization: 'org_a',
+      source_import_type: 'url',
+      staging_table_name: 'staging_test',
+      schedule_enabled: false,
+      created_at: null,
+      data_id: null,
+      metadata_id: null,
+      integrity_title: 'Test Link',
+      last_retrieval_timestamp: null,
+      schedule: null,
+      source_file_name: null,
+      source_file_type: null,
+      source_url: null,
+      source_username: null,
+      staging_retrieve_time: null,
+      final_table_name: null,
+      access_level: 'OWNER'
+    }
+
+    const setupWithMockedApi = async (options: { rejects?: boolean } = {}) => {
+      const store = new IntegrityLinkStore()
+      const mockApi = {
+        invoke: vi
+          .fn()
+          .mockImplementation(() =>
+            options.rejects
+              ? Promise.reject({ status: 403, message: 'Forbidden' })
+              : Promise.resolve(mockLinkResponse)
+          )
+      }
+      const mockRoute = {
+        snapshot: { paramMap: { get: () => intlinkId } }
+      }
+
+      await TestBed.configureTestingModule({
+        imports: [
+          IntlinkLayoutComponent,
+          TranslateTestingModule.withTranslations({
+            en: {
+              'sidebar.metadataSheet': 'Metadata Sheet',
+              'sidebar.accessRights': 'Access Rights',
+              'sidebar.recurrencePlanning': 'Recurrence',
+              'sidebar.eventsAndStatuses': 'Events',
+              'sidebar.reconfigureDataset': 'Reconfigure',
+              'integrityLinks.dashboard': 'Dashboard'
+            }
+          })
+            .withDefaultLanguage('en')
+            .withCompiler(new TranslateMessageFormatCompiler())
+        ],
+        providers: [
+          provideRouter([]),
+          { provide: ActivatedRoute, useValue: mockRoute },
+          { provide: Api, useValue: mockApi },
+          { provide: IntegrityLinkStore, useValue: store }
+        ]
+      })
+        .overrideComponent(IntlinkLayoutComponent, {
+          set: { providers: [{ provide: IntegrityLinkStore, useValue: store }] }
+        })
+        .compileComponents()
+
+      const fixture = TestBed.createComponent(IntlinkLayoutComponent)
+      return { fixture, store, mockApi }
+    }
+
+    it('should set intlinkId on the store from the route parameter', async () => {
+      const { fixture, store } = await setupWithMockedApi()
+      fixture.detectChanges()
+
+      expect(store.intlinkId()).toBe(intlinkId)
+    })
+
+    it('should populate the store with the API response on 200 (✅)', async () => {
+      const { fixture, store } = await setupWithMockedApi()
+      fixture.detectChanges()
+
+      await vi.waitFor(() => {
+        expect(store.integrityLink()).not.toBeNull()
+      })
+      expect(store.integrityLink()?.access_level).toBe('OWNER')
+    })
+
+    it('should call the correct API function with the intlink_id', async () => {
+      const { fixture, mockApi } = await setupWithMockedApi()
+      fixture.detectChanges()
+
+      await vi.waitFor(() => {
+        expect(mockApi.invoke).toHaveBeenCalledWith(
+          getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet,
+          { integrity_link_id: intlinkId }
+        )
+      })
+    })
+
+    it('should leave integrityLink null when API throws 403 — no try/catch (❌)', async () => {
+      const { store } = await setupWithMockedApi({ rejects: true })
+      const fixture = TestBed.createComponent(IntlinkLayoutComponent)
+
+      // Call ngOnInit directly and catch the unhandled rejection to prevent
+      // test failure — the component has NO error handling for this case
+      await fixture.componentInstance.ngOnInit().catch(() => {})
+
+      expect(store.integrityLink()).toBeNull()
     })
   })
 })

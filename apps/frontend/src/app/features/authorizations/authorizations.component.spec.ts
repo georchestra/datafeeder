@@ -221,4 +221,72 @@ describe('AuthorizationsComponent', () => {
       }
     )
   })
+
+  // ─── Error handling ──────────────────────────────────────────────────────
+  // Matrix coverage (frontend-behavior-matrix.md — Page: /:id/authorizations):
+  //   403 on GET rules → unhandled promise rejection, rules stays empty   ❌
+  //   403 on PUT/DELETE rule → unhandled promise rejection               ❌
+
+  describe('Error handling', () => {
+    it('should leave rules empty when listRules API returns 403 — unhandled rejection (❌)', async () => {
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.reject({ status: 403, message: 'Forbidden' })
+        if (fn === listGroupsMetadataGroupsGet) return Promise.resolve([])
+        if (fn === listGroupsDataGroupsGet) return Promise.resolve([])
+        return Promise.resolve(null)
+      })
+
+      const fixture = TestBed.createComponent(AuthorizationsComponent)
+      const component = fixture.componentInstance
+
+      // Call loadRules directly (bypassing ngOnInit) and catch the rejection to
+      // avoid an unhandled promise rejection in the test runner.
+      // This verifies that when loadRules throws, rules() stays empty (no try/catch
+      // in the component means the signal is never updated on error).
+      await (component as any).loadRules(intlinkId).catch(() => {})
+
+      expect(component.rules()).toEqual([])
+    })
+
+    it('should leave rules unchanged when upsert returns 403 — unhandled rejection (❌)', async () => {
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        if (fn === listGroupsMetadataGroupsGet)
+          return Promise.resolve(mockGeonetworkGroups)
+        if (fn === listGroupsDataGroupsGet)
+          return Promise.resolve(mockGeoserverGroups)
+        if (
+          fn ===
+          upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut
+        )
+          return Promise.reject({ status: 403, message: 'Forbidden' })
+        return Promise.resolve(null)
+      })
+
+      const fixture = TestBed.createComponent(AuthorizationsComponent)
+      const component = fixture.componentInstance
+      fixture.detectChanges()
+
+      await vi.waitFor(() => expect(component.rules().length).toBe(2))
+
+      // onMetadataRuleChange has no try/catch — the rejection propagates
+      await component
+        .onMetadataRuleChange({
+          group: { id: 'org-1', label: 'Organization A' },
+          value: 'WRITE'
+        })
+        .catch(() => {})
+
+      // rules signal reflects last successful load, not the failed upsert
+      expect(component.rules().length).toBe(2)
+    })
+  })
 })
