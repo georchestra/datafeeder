@@ -272,3 +272,37 @@ class TestRoleParsing:
         ctx = get_georchestra_context(mock_request)
 
         assert ctx.roles == {"IMPORT", "USER", "ADMIN"}
+
+    def test_strips_role_prefix_injected_by_gateway(self, mock_request: MagicMock) -> None:
+        """Test that ROLE_ prefix injected by the geOrchestra gateway is stripped.
+
+        The geOrchestra gateway follows Spring Security naming convention and injects
+        roles with a ROLE_ prefix (e.g. ROLE_ADMINISTRATOR, ROLE_IMPORT).
+        The backend should normalize these to their bare names.
+        """
+        mock_request.headers = {"sec-roles": "ROLE_ADMINISTRATOR;ROLE_IMPORT;ROLE_USER"}
+
+        ctx = get_georchestra_context(mock_request)
+
+        assert ctx.roles == {"ADMINISTRATOR", "IMPORT", "USER"}
+
+    def test_strips_role_prefix_case_insensitive(self, mock_request: MagicMock) -> None:
+        """Test ROLE_ prefix stripping is case-insensitive (header is normalized to upper first)."""
+        mock_request.headers = {"sec-roles": "role_administrator;role_import"}
+
+        ctx = get_georchestra_context(mock_request)
+
+        assert ctx.roles == {"ADMINISTRATOR", "IMPORT"}
+
+    def test_is_administrator_true_with_gateway_role_prefix(self, mock_request: MagicMock) -> None:
+        """Test that is_administrator() works when gateway injects ROLE_ prefixed roles."""
+        mock_request.headers = {
+            "sec-username": "testadmin",
+            "sec-roles": "ROLE_ADMINISTRATOR;ROLE_SUPERUSER;ROLE_USER;ROLE_IMPORT",
+        }
+
+        ctx = get_georchestra_context(mock_request)
+
+        assert ctx.is_administrator() is True
+        assert ctx.has_role("ADMINISTRATOR") is True
+        assert ctx.has_role("IMPORT") is True

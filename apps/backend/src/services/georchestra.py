@@ -69,8 +69,15 @@ def get_georchestra_context(request: Request) -> GeorchestraContext:
     username = request.headers.get("sec-username", "")
     roles_str = request.headers.get("sec-roles", "")
 
-    # Parse roles: semicolon-separated, normalize to uppercase set
-    roles = {r.strip().upper() for r in roles_str.split(";") if r.strip()}
+    # Parse roles: semicolon-separated, normalize to uppercase, strip ROLE_ prefix
+    # The geOrchestra gateway injects roles with a "ROLE_" prefix (Spring Security convention),
+    # e.g. "ROLE_ADMINISTRATOR;ROLE_IMPORT". We strip this prefix so that downstream
+    # checks like is_administrator() use the bare name "ADMINISTRATOR".
+    def _normalize_role(r: str) -> str:
+        upper = r.strip().upper()
+        return upper.removeprefix("ROLE_")
+
+    roles = {_normalize_role(r) for r in roles_str.split(";") if r.strip()}
 
     return GeorchestraContext(
         username=username,
