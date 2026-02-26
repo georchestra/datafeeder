@@ -1,5 +1,7 @@
 # AI Agent Guide
 
+This file is the entry point for AI agents working in this codebase. It points to the key resources needed to understand the project, its conventions, and active work.
+
 ---
 
 ## OpenSpec (Change Management)
