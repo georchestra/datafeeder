@@ -212,6 +212,7 @@
   "import.datasetPreviewTable.allColumnsExcluded": "Všetky stĺpce sú vylúčené z importu.",
   "import.datasetPreviewTable.noDataAvailable": "",
   "import.datasetPreviewTable.previewError": "",
+  "import.metadataPublication.error": "",
   "input.file.dropFileLabel": "",
   "input.file.orInputUrl": "",
   "input.file.selectFileLabel": "",
