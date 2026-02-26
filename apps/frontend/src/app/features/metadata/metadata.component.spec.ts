@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, Output, signal } from '@angular/core'
 import { ComponentFixture, TestBed } from '@angular/core/testing'
+import { provideRouter } from '@angular/router'
 import { NgIconComponent } from '@ng-icons/core'
 import { TranslateModule } from '@ngx-translate/core'
 import {
@@ -75,6 +76,7 @@ describe('MetadataComponent', () => {
     await TestBed.configureTestingModule({
       imports: [MetadataComponent, TranslateModule.forRoot()],
       providers: [
+        provideRouter([]),
         { provide: EditorFacade, useValue: mockEditorFacade },
         { provide: RecordsRepositoryInterface, useValue: mockRepo },
         { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
