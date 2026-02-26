@@ -9,6 +9,10 @@
       "command": "npx",
       "args": ["@playwright/mcp@latest", "--browser", "chrome"],
       "type": "stdio"
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest", "--no-usage-statistics"]
     }
   }
 }
