@@ -586,6 +586,7 @@ def edit_staging_metadata(
     return get_staging_metadata(
         data_session=data_session,
         datakern_session=datakern_session,
+        geo_ctx=geo_ctx,
         integrity_link_id=integrity_link_id,
     )
 

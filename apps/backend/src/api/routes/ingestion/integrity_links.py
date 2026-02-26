@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Query
 from sqlalchemy import exists
 from sqlmodel import or_, select
@@ -50,7 +52,7 @@ def list_integrity_links(
 
     if not is_admin:
         # Non-admins see: own datasets + datasets with METADATA rules for their org
-        conditions = [IntegrityLink.integrity_owner == geo_ctx.username]
+        conditions: list[Any] = [IntegrityLink.integrity_owner == geo_ctx.username]
         if geo_ctx.organization:
             conditions.append(
                 exists(

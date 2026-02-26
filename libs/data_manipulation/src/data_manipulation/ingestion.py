@@ -264,7 +264,7 @@ def read_data_from_postgis(
     schema: str | None = None,
     limit: int | None = None,
     columns: list[ColumnConfig] | None = None,
-) -> gpd.GeoDataFrame | pd.DataFrame:
+) -> pd.DataFrame:
     """Read data from a PostGIS table.
 
     When *columns* is provided, exclusion and filtering are applied at the SQL
@@ -336,7 +336,7 @@ def read_and_transform_data(
     schema: str | None = None,
     config: IntegrityTransformation | None = None,
     limit: int | None = None,
-) -> gpd.GeoDataFrame | pd.DataFrame:
+) -> pd.DataFrame:
     """Single pipeline entry point: read data and apply all transformations.
 
     Combines ``read_data_from_postgis`` (SQL-level exclusion + filtering) with

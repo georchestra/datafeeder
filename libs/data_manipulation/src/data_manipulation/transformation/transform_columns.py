@@ -8,7 +8,6 @@ absent from the DataFrame when these functions are called.
 
 import logging
 
-import geopandas as gpd
 import pandas as pd
 
 from data_manipulation.models import CastType, ColumnConfig
@@ -55,9 +54,9 @@ def _parse_bool_from_strings(series: pd.Series) -> pd.Series:
 
 
 def rename_columns(
-    df: gpd.GeoDataFrame | pd.DataFrame,
+    df: pd.DataFrame,
     columns: list[ColumnConfig],
-) -> gpd.GeoDataFrame | pd.DataFrame:
+) -> pd.DataFrame:
     """Rename columns in the DataFrame according to column configurations.
 
     Only renames non-excluded columns that have a non-None ``new_name``.
@@ -85,9 +84,9 @@ def rename_columns(
 
 
 def cast_column_types(
-    df: gpd.GeoDataFrame | pd.DataFrame,
+    df: pd.DataFrame,
     columns: list[ColumnConfig],
-) -> gpd.GeoDataFrame | pd.DataFrame:
+) -> pd.DataFrame:
     """Cast column types according to column configurations.
 
     Applied in-memory after the data is fetched.  Excluded columns are already

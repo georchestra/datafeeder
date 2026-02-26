@@ -67,11 +67,11 @@ def _convert_geom_column_to_geodataframe(df: pd.DataFrame, projection: str) -> g
 
 
 def _apply_projection_transformation(
-    df: gpd.GeoDataFrame | pd.DataFrame,
+    df: pd.DataFrame,
     projection: str,
     x_column: str | None = None,
     y_column: str | None = None,
-) -> gpd.GeoDataFrame | pd.DataFrame:
+) -> pd.DataFrame:
     """Apply projection/CRS transformation to geometries.
 
     Args:
@@ -109,8 +109,8 @@ def _apply_projection_transformation(
 
 
 def apply_transformations(
-    df: gpd.GeoDataFrame | pd.DataFrame, transformation_config: IntegrityTransformation
-) -> gpd.GeoDataFrame | pd.DataFrame:
+    df: pd.DataFrame, transformation_config: IntegrityTransformation
+) -> pd.DataFrame:
     """Apply transformations to a GeoDataFrame or a DataFrame.
 
     Args:
