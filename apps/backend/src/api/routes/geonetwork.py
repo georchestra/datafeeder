@@ -7,7 +7,7 @@ from fastapi.responses import Response
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep
 from src.core.config import get_settings
 from src.core.logging import get_logger
-from src.core.security import AccessLevel, load_authorized_integrity_link
+from src.core.security import AccessLevel, OrgIdDep, load_authorized_integrity_link
 
 router = APIRouter(prefix="/geonetwork", tags=["GeoNetwork"])
 logger = get_logger()
@@ -82,6 +82,7 @@ async def proxy_geonetwork(
     request: Request,
     session: DatakernSessionDep,
     geo_ctx: GeorchestraContextDep,
+    org_id: OrgIdDep,
 ) -> Response:
     """
     Full pass-through proxy to GeoNetwork.
@@ -99,7 +100,9 @@ async def proxy_geonetwork(
     # Check permission when the request targets a specific dataset record
     dataset_uuid = _extract_dataset_uuid(path)
     if dataset_uuid:
-        load_authorized_integrity_link(dataset_uuid, AccessLevel.METADATA_WRITE, geo_ctx, session)
+        load_authorized_integrity_link(
+            dataset_uuid, AccessLevel.METADATA_WRITE, geo_ctx, session, org_id
+        )
 
     settings = get_settings()
 

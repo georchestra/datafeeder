@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep
-from src.core.security import AccessLevel, load_authorized_integrity_link
+from src.core.security import AccessLevel, OrgIdDep, load_authorized_integrity_link
 from src.services.airflow_client import get_dag_run_api
 from src.services.airflow_logs import generate_failed_dag_run_logs
 
@@ -29,9 +29,10 @@ def get_dag_run_by_intlink(
     intlink_id: str,
     session: DatakernSessionDep,
     geo_ctx: GeorchestraContextDep,
+    org_id: OrgIdDep,
     limit: int = 20,
 ) -> DAGRunCollectionResponse:
-    load_authorized_integrity_link(intlink_id, AccessLevel.OWNER_ONLY, geo_ctx, session)
+    load_authorized_integrity_link(intlink_id, AccessLevel.OWNER_ONLY, geo_ctx, session, org_id)
     try:
         dag_runs = get_dag_run_api().get_dag_runs(dag_id, run_id_pattern=f"{intlink_id}_%")
         return dag_runs
