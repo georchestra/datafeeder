@@ -1,6 +1,5 @@
 """Unit tests for column action transformations"""
 
-
 from unittest.mock import patch
 
 import geopandas as gpd
@@ -497,13 +496,41 @@ class TestCastColumnTypes:
         assert pd.isna(result["val"].iloc[2])
 
     def test_cast_to_boolean(self):
-        """CastType.BOOLEAN: column cast to bool dtype."""
+        """CastType.BOOLEAN: numeric column cast to bool dtype (astype path)."""
         df = pd.DataFrame({"flag": [1, 0, 1]})
         columns = [ColumnConfig(original_name="flag", cast_type=CastType.BOOLEAN)]
 
         result = cast_column_types(df, columns)
 
         assert result["flag"].dtype == bool
+
+    def test_cast_to_boolean_string_false_not_true(self):
+        """CastType.BOOLEAN: 'False', '0', 'no' must NOT become True.
+
+        pandas astype(bool) treats any non-empty string as True, which is
+        incorrect for user-visible boolean columns. The custom string parser
+        must correctly map 'False' → False and '0' → False.
+        """
+        df = pd.DataFrame({"flag": ["True", "False", "1", "0", "yes", "no"]})
+        columns = [ColumnConfig(original_name="flag", cast_type=CastType.BOOLEAN)]
+
+        result = cast_column_types(df, columns)
+
+        assert result["flag"].iloc[0] == True  # noqa: E712
+        assert result["flag"].iloc[1] == False  # noqa: E712
+        assert result["flag"].iloc[2] == True  # noqa: E712
+        assert result["flag"].iloc[3] == False  # noqa: E712
+        assert result["flag"].iloc[4] == True  # noqa: E712
+        assert result["flag"].iloc[5] == False  # noqa: E712
+
+    def test_cast_to_boolean_unrecognised_string_becomes_na(self):
+        """CastType.BOOLEAN: unrecognised strings (e.g. 'maybe') become NA."""
+        df = pd.DataFrame({"flag": ["True", "maybe", "False"]})
+        columns = [ColumnConfig(original_name="flag", cast_type=CastType.BOOLEAN)]
+
+        result = cast_column_types(df, columns)
+
+        assert pd.isna(result["flag"].iloc[1])
 
     def test_cast_to_date(self):
         """CastType.DATE: string column parsed to datetime."""

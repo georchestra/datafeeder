@@ -142,4 +142,30 @@ describe('ColumnFilterFormComponent', () => {
 
     expect(deleted).toBe(true)
   })
+
+  it('should clear all input signals when delete button is clicked', () => {
+    const fixture = TestBed.createComponent(ColumnFilterFormComponent)
+    const component = fixture.componentInstance
+    fixture.componentRef.setInput('activeFilter', {
+      operator: 'contains',
+      value: 'hello'
+    } as ColumnFilter)
+    fixture.detectChanges()
+
+    // Simulate stale values in signals (e.g. previously typed before filter was set)
+    component.containsValue.set('stale-contains')
+    component.exactlyValue.set('stale-exactly')
+    component.startsWithValue.set('stale-starts-with')
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const deleteBtn = compiled.querySelector(
+      '[data-delete-button]'
+    ) as HTMLElement
+    deleteBtn.click()
+    fixture.detectChanges()
+
+    expect(component.containsValue()).toBe('')
+    expect(component.exactlyValue()).toBe('')
+    expect(component.startsWithValue()).toBe('')
+  })
 })

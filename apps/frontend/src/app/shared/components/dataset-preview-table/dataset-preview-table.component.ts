@@ -65,6 +65,10 @@ export class DatasetPreviewTableComponent {
     )
   )
 
+  // Material table tracks column definitions by a string ID. We use original_name
+  // as that ID (not new_name) so the definition stays stable even when the user
+  // renames a column mid-session. The display label is rendered separately inside
+  // the column header component using the effective name (new_name ?? original_name).
   displayedColumns = computed(() => {
     const meta = this.metadata()
     return (meta?.columns ?? []).map((col) => col.original_name)

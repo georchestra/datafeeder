@@ -286,7 +286,7 @@ describe('ColumnActionMenuComponent', () => {
     fixture.detectChanges()
 
     const textOption = compiled.querySelector('[data-type="text"]')
-    expect(textOption?.getAttribute('aria-selected')).toBe('true')
+    expect(textOption?.getAttribute('aria-checked')).toBe('true')
   })
 
   // --- T035: Filter integration in action menu ---

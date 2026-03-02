@@ -150,6 +150,7 @@ export class DataImportWizardComponent implements OnInit {
 
   columnConfigs = signal<ColumnConfigInput[]>([])
   forceProjection = signal<ForceProjection | null>(null)
+  configSaving = signal(false)
 
   isGeographicData = computed(() => {
     const preview = this.preview()
@@ -182,6 +183,10 @@ export class DataImportWizardComponent implements OnInit {
         this.saveConfigAndRefresh()
       })
 
+    // NOTE: any signal read inside an effect body without untracked() creates a
+    // subscription that re-triggers the effect. Keep side-effect logic here to
+    // deliberately tracked signals (tabIndex, linkId) and wrap any incidental
+    // reads in untracked() to prevent unintended re-execution.
     effect(async () => {
       const tabIndex = this.selectedTabIndex()
       const linkId = this.integrityLinkId()
@@ -462,6 +467,7 @@ export class DataImportWizardComponent implements OnInit {
     const linkId = this.integrityLinkId()
     if (!linkId) return
 
+    this.configSaving.set(true)
     try {
       const updatedMetadata = await this.api.invoke(
         editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut,
@@ -486,6 +492,8 @@ export class DataImportWizardComponent implements OnInit {
         this.translate.instant(errorMessage) || errorMessage
       )
       return
+    } finally {
+      this.configSaving.set(false)
     }
 
     await this.refreshPreview(linkId, false)
