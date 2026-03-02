@@ -166,6 +166,14 @@ class Settings(BaseSettings):
         default="testadmin",
         validation_alias=AliasChoices("geonetworkPassword", "GEONETWORK_PASSWORD"),
     )
+    ORG_BASED_SYNC: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("orgBasedSync", "ORG_BASED_SYNC"),
+    )
+    METADATA_DEFAULT_GROUP_NAME: str = Field(
+        default="sample",
+        validation_alias=AliasChoices("metadataDefaultGroupName", "METADATA_DEFAULT_GROUP_NAME"),
+    )
 
     # Console
     CONSOLE_URL: str = Field(

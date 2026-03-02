@@ -287,6 +287,8 @@ async def dag_success_callback(
             datadir_path=settings.DATADIR_PATH,
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
             verify_tls=False,
+            org_based_sync=settings.ORG_BASED_SYNC,
+            metadata_default_group_name=settings.METADATA_DEFAULT_GROUP_NAME,
         )
 
         # Pass layer URLs to metadata service (if layer creation succeeded, else None)
