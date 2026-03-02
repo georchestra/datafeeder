@@ -1,19 +1,41 @@
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
 import jwt
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from sqlmodel import Session, select
 
-from src.api.routes.groups_common import resolve_org_id
 from src.core.config import get_settings
+from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, RuleType, RuleValue
-from src.services.georchestra import GeorchestraContext
+from src.services.console_service import ConsoleService
+from src.services.georchestra import GeorchestraContext, get_georchestra_context
+
+logger = get_logger()
 
 ALGORITHM = "HS256"
+
+
+def get_org_id(
+    geo_ctx: Annotated[GeorchestraContext, Depends(get_georchestra_context)],
+) -> str | None:
+    """Resolve the current user's org shortName to its console UUID once per request.
+
+    FastAPI deduplicates dependencies — geo_ctx is shared with the route handler.
+    Returns the UUID string from the console, or None if the org is not found or
+    if the console is unreachable (user treated as having no org-based access).
+    """
+    if not geo_ctx.organization:
+        return None
+    service = ConsoleService(get_settings().CONSOLE_URL)
+    org = service.get_organization(geo_ctx.organization)
+    return str(org["id"]) if org and "id" in org else None
+
+
+OrgIdDep = Annotated[str | None, Depends(get_org_id)]
 
 
 def create_access_token(subject: str | Any, expires_delta: timedelta) -> str:
@@ -50,6 +72,7 @@ def compute_effective_access(
     integrity_link: IntegrityLink,
     geo_ctx: GeorchestraContext,
     session: Session,
+    org_id: str | None,
 ) -> EffectiveAccess | None:
     """Compute the effective access level for a user on a dataset.
 
@@ -59,6 +82,7 @@ def compute_effective_access(
         integrity_link: The dataset to check access for
         geo_ctx: The user's geOrchestra security context
         session: Database session for querying rules
+        org_id: Pre-resolved console UUID for the user's organisation (or None)
 
     Returns:
         EffectiveAccess level or None if no access
@@ -69,12 +93,6 @@ def compute_effective_access(
     if integrity_link.integrity_owner == geo_ctx.username:
         return EffectiveAccess.OWNER
 
-    if not geo_ctx.organization:
-        return None
-
-    # Resolve the org shortName (from sec-org header) to its console UUID,
-    # which is what is stored in IntegrityLinkRule.group_or_role.
-    org_id = resolve_org_id(geo_ctx.organization)
     if org_id is None:
         return None
 
@@ -103,6 +121,7 @@ def load_authorized_integrity_link(
     required_level: AccessLevel,
     geo_ctx: GeorchestraContext,
     session: Session,
+    org_id: str | None,
 ) -> IntegrityLink:
     """Load an IntegrityLink and verify the user has the required permission.
 
@@ -119,6 +138,7 @@ def load_authorized_integrity_link(
         required_level: Minimum access level required
         geo_ctx: The user's geOrchestra security context
         session: Database session
+        org_id: Pre-resolved console UUID for the user's organisation (or None)
 
     Returns:
         The loaded IntegrityLink entity
@@ -131,7 +151,7 @@ def load_authorized_integrity_link(
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    effective = compute_effective_access(integrity_link, geo_ctx, session)
+    effective = compute_effective_access(integrity_link, geo_ctx, session, org_id)
 
     if effective is None:
         raise HTTPException(
