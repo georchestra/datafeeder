@@ -4,10 +4,10 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
-from src.api.deps import DatakernSessionDep, GeorchestraContextDep
+from src.api.deps import DatakernSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.config import get_settings
 from src.core.logging import get_logger
-from src.core.security import AccessLevel, OrgIdDep, load_authorized_integrity_link
+from src.core.security import AccessLevel, load_authorized_integrity_link
 
 router = APIRouter(prefix="/geonetwork", tags=["GeoNetwork"])
 logger = get_logger()

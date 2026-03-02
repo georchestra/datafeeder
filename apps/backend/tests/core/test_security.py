@@ -6,11 +6,11 @@ from uuid import UUID
 import pytest
 from fastapi import HTTPException
 
+from src.api.deps import get_org_id
 from src.core.security import (
     AccessLevel,
     EffectiveAccess,
     compute_effective_access,
-    get_org_id,
     load_authorized_integrity_link,
 )
 from src.models.integrity_link import IntegrityLink

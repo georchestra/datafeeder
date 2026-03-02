@@ -3,10 +3,9 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import select
 
-from src.api.deps import DatakernSessionDep, GeorchestraContextDep
+from src.api.deps import DatakernSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.security import (
     AccessLevel,
-    OrgIdDep,
     compute_effective_access,
     load_authorized_integrity_link,
 )

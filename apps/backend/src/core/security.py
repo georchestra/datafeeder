@@ -1,41 +1,21 @@
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Annotated, Any
+from typing import Any
 from uuid import UUID
 
 import jwt
-from fastapi import Depends, HTTPException
+from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, RuleType, RuleValue
-from src.services.console_service import ConsoleService
-from src.services.georchestra import GeorchestraContext, get_georchestra_context
+from src.services.georchestra import GeorchestraContext
 
 logger = get_logger()
 
 ALGORITHM = "HS256"
-
-
-def get_org_id(
-    geo_ctx: Annotated[GeorchestraContext, Depends(get_georchestra_context)],
-) -> str | None:
-    """Resolve the current user's org shortName to its console UUID once per request.
-
-    FastAPI deduplicates dependencies — geo_ctx is shared with the route handler.
-    Returns the UUID string from the console, or None if the org is not found or
-    if the console is unreachable (user treated as having no org-based access).
-    """
-    if not geo_ctx.organization:
-        return None
-    service = ConsoleService(get_settings().CONSOLE_URL)
-    org = service.get_organization(geo_ctx.organization)
-    return str(org["id"]) if org and "id" in org else None
-
-
-OrgIdDep = Annotated[str | None, Depends(get_org_id)]
 
 
 def create_access_token(subject: str | Any, expires_delta: timedelta) -> str:

@@ -9,12 +9,12 @@ from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import MetaData, Table, func, select
 
-from src.api.deps import DatakernSessionDep, DataSessionDep, GeorchestraContextDep
+from src.api.deps import DatakernSessionDep, DataSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.callback import build_callback_url
 from src.core.config import get_settings, get_staging_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
-from src.core.security import AccessLevel, OrgIdDep, load_authorized_integrity_link
+from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.models import (
     ProcessRequest,
     ProcessResponse,
