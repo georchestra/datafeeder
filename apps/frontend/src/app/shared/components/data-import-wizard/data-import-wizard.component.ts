@@ -1,7 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http'
 import {
   Component,
-  DestroyRef,
   computed,
   effect,
   inject,
@@ -123,7 +122,6 @@ export class DataImportWizardComponent implements OnInit {
   private translate = inject(TranslateService)
   private router = inject(Router)
   private route = inject(ActivatedRoute)
-  private destroyRef = inject(DestroyRef)
 
   private renameSubject = new Subject<{
     originalName: string
@@ -170,7 +168,7 @@ export class DataImportWizardComponent implements OnInit {
 
   constructor() {
     this.renameSubject
-      .pipe(debounceTime(400), takeUntilDestroyed(this.destroyRef))
+      .pipe(debounceTime(400), takeUntilDestroyed())
       .subscribe(({ originalName, newName }) => {
         this.columnConfigs.update((cols) =>
           cols.map((col) =>

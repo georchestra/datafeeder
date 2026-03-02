@@ -25,10 +25,6 @@ import type { FilterOperator } from '../../../core/api/models/filter-operator'
 marker('import.columnFilter.operator.exactly')
 marker('import.columnFilter.operator.contains')
 marker('import.columnFilter.operator.starts_with')
-marker('import.columnFilter.placeholder.contains')
-marker('import.columnFilter.placeholder.exactly')
-marker('import.columnFilter.placeholder.starts_with')
-marker('import.columnFilter.delete')
 
 @Component({
   selector: 'app-column-filter-form',

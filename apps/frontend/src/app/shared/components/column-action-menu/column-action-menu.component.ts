@@ -17,7 +17,6 @@ import {
   iconoirNavArrowUp
 } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
-import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import type { ColumnConfigOutput } from '../../../core/api/models'
 import type { ColumnFilter } from '../../../core/api/models/column-filter'
 import { ColumnFilterFormComponent } from '../column-filter-form/column-filter-form.component'
@@ -26,10 +25,6 @@ import type { CastType } from '../column-type-select/column-type-select.componen
 
 export type { CastType }
 export type ColumnAction = 'filter' | 'changeType' | 'remove'
-
-marker('import.columnAction.menu.filter')
-marker('import.columnAction.menu.changeType')
-marker('import.columnAction.menu.remove')
 
 @Component({
   selector: 'app-column-action-menu',
