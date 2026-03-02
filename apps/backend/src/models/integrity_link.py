@@ -1,14 +1,21 @@
 import re
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 from typing import Any, ClassVar, Optional
 from uuid import UUID
 
 from data_manipulation.validators import validate_table_name
 from pydantic import field_validator
 from sqlalchemy import JSON, Column
+from sqlalchemy import Enum as SqlEnum
 from sqlmodel import Field, SQLModel
 
 from src.models.data_import import FileType, ImportType
+
+
+def get_enum_values(enum_cls: type[Enum]) -> list[str]:
+    """Helper function to extract string values from an Enum class for SQLAlchemy Enum column."""
+    return [member.value for member in enum_cls]
 
 
 class IntegrityLink(SQLModel, table=True):
@@ -29,10 +36,15 @@ class IntegrityLink(SQLModel, table=True):
         sa_column=Column(JSON),
         description="Full transformation config (IntegrityTransformation): columns + force_projection",
     )
-    source_import_type: ImportType
+    source_import_type: ImportType = Field(
+        sa_type=SqlEnum(ImportType, values_callable=get_enum_values, nullable=False)
+    )
     source_url: Optional[str] = None
     source_file_name: Optional[str] = None
-    source_file_type: Optional[FileType] = None
+    source_file_type: Optional[FileType] = Field(
+        default=None,
+        sa_type=SqlEnum(FileType, values_callable=get_enum_values, nullable=True),
+    )
     source_username: Optional[str] = None
     source_password_encrypted: Optional[str] = None
     staging_table_name: str = Field(max_length=63)
