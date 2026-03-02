@@ -14,7 +14,7 @@ from src.core.callback import build_callback_url
 from src.core.config import get_settings, get_staging_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
-from src.core.security import AccessLevel, load_authorized_integrity_link
+from src.core.security import AccessLevel, OrgIdDep, load_authorized_integrity_link
 from src.models import (
     ProcessRequest,
     ProcessResponse,
@@ -40,6 +40,7 @@ async def process_staging_data(
     request: ProcessRequest,
     session: DatakernSessionDep,
     geo_ctx: GeorchestraContextDep,
+    org_id: OrgIdDep,
     sec_email: str = Header("", alias="sec-email", include_in_schema=False),
     sec_firstname: str = Header("", alias="sec-firstname", include_in_schema=False),
     sec_lastname: str = Header("", alias="sec-lastname", include_in_schema=False),
@@ -61,7 +62,7 @@ async def process_staging_data(
 
     # Load IntegrityLink and verify OWNER_ONLY permission (owner or admin)
     integrity_link = load_authorized_integrity_link(
-        request.integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session
+        request.integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, org_id
     )
 
     # Get staging table name from IntegrityLink

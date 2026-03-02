@@ -5,9 +5,8 @@ from sqlalchemy import exists
 from sqlmodel import or_, select
 
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep
-from src.api.routes.groups_common import resolve_org_id
 from src.core.logging import get_logger
-from src.core.security import compute_effective_access
+from src.core.security import OrgIdDep, compute_effective_access
 from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, RuleType
@@ -28,6 +27,7 @@ BATCH_SIZE = 100  # Fixed batch size for lazy loading
 def list_integrity_links(
     session: DatakernSessionDep,
     geo_ctx: GeorchestraContextDep,
+    org_id: OrgIdDep,
     offset: int = Query(0, ge=0, description="Number of items to skip (for lazy loading)"),
     search: str | None = Query(None, description="Filter by integrity title (case-insensitive)"),
 ) -> IntegrityLinkListResponse:
@@ -54,7 +54,6 @@ def list_integrity_links(
     if not is_admin:
         # Non-admins see: own datasets + datasets with METADATA rules for their org
         conditions: list[Any] = [IntegrityLink.integrity_owner == geo_ctx.username]
-        org_id = resolve_org_id(geo_ctx.organization) if geo_ctx.organization else None
         if org_id:
             conditions.append(
                 exists(
@@ -92,7 +91,7 @@ def list_integrity_links(
     # Compute per-item access level
     list_items: list[IntegrityLinkListItem] = []
     for link in items:
-        effective = compute_effective_access(link, geo_ctx, session)
+        effective = compute_effective_access(link, geo_ctx, session, org_id)
         item = IntegrityLinkListItem.model_validate(link)
         item.access_level = effective.value if effective else None
         list_items.append(item)

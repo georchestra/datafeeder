@@ -29,7 +29,7 @@ from src.core.config import get_staging_schema
 from src.core.db import data_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
-from src.core.security import AccessLevel, load_authorized_integrity_link
+from src.core.security import AccessLevel, OrgIdDep, load_authorized_integrity_link
 from src.models import (
     StagingResponse,
 )
@@ -452,6 +452,7 @@ def get_staging_metadata(
     datakern_session: DatakernSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
 ) -> StagingMetadataResponse:
     """
     Get metadata of the staging table.
@@ -470,7 +471,7 @@ def get_staging_metadata(
         Metadata of the staging table
     """
     integrity_link = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session, org_id
     )
 
     schema = get_staging_schema()
@@ -509,6 +510,7 @@ def edit_staging_metadata(
     datakern_session: DatakernSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
     config: StagingMetadata = Body(
         ...,
         description="Staging configuration including columns, file type, projection, and title",
@@ -533,7 +535,7 @@ def edit_staging_metadata(
         Updated staging metadata with saved column configurations
     """
     integrity_link = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session, org_id
     )
 
     if config.columns:
@@ -587,6 +589,7 @@ def edit_staging_metadata(
         datakern_session=datakern_session,
         geo_ctx=geo_ctx,
         integrity_link_id=integrity_link_id,
+        org_id=org_id,
     )
 
 
@@ -596,6 +599,7 @@ def get_staging_preview(
     datakern_session: DatakernSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
     limit: int = Query(10, description="Number of rows to preview"),
     raw: bool = Query(
         False,
@@ -639,7 +643,7 @@ def get_staging_preview(
     """
 
     integrity_link = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session, org_id
     )
 
     staging_table_name = integrity_link.staging_table_name

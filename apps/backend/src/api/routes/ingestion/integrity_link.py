@@ -4,7 +4,12 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import select
 
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep
-from src.core.security import AccessLevel, compute_effective_access, load_authorized_integrity_link
+from src.core.security import (
+    AccessLevel,
+    OrgIdDep,
+    compute_effective_access,
+    load_authorized_integrity_link,
+)
 from src.models.data_import import IntegrityLinkResponse
 from src.models.integrity_link_rule import IntegrityLinkRule, UpsertRuleRequest
 
@@ -21,6 +26,7 @@ def get_integrity_link(
     session: DatakernSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
     include_transformation: bool = Query(
         False,
         description="Include the integrity_transformation field in the response",
@@ -28,12 +34,12 @@ def get_integrity_link(
 ) -> IntegrityLinkResponse:
     """Get an IntegrityLink entity by its ID."""
     integrity_link = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, session
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, session, org_id
     )
 
     response = IntegrityLinkResponse.model_validate(integrity_link)
 
-    effective = compute_effective_access(integrity_link, geo_ctx, session)
+    effective = compute_effective_access(integrity_link, geo_ctx, session, org_id)
     response.access_level = effective.value if effective else None
 
     if not include_transformation:
@@ -52,10 +58,11 @@ def list_integrity_link_rules(
     session: DatakernSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
 ) -> list[IntegrityLinkRule]:
     """List all rules for a given IntegrityLink."""
     load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
     )
 
     statement = select(IntegrityLinkRule).where(
@@ -73,11 +80,12 @@ def upsert_integrity_link_rule(
     session: DatakernSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
     body: UpsertRuleRequest,
 ) -> IntegrityLinkRule:
     """Create or update a rule for a given IntegrityLink."""
     load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
     )
 
     statement = select(IntegrityLinkRule).where(
@@ -115,11 +123,12 @@ def delete_integrity_link_rule(
     session: DatakernSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
     rule_id: int,
 ) -> Response:
     """Delete a rule from a given IntegrityLink."""
     load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
     )
 
     rule = session.get(IntegrityLinkRule, rule_id)
