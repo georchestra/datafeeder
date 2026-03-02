@@ -10,7 +10,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 # Type aliases for common dependencies
 DB = Annotated[AsyncSession, Depends(get_db)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
 Pagination = Annotated[int, Query(ge=1, le=100)]
 ```
 
@@ -26,7 +26,7 @@ async def create_user(db: DB, user_in: UserCreate) -> User:
 @router.get("/", response_model=list[UserOut])
 async def list_users(
     db: DB,
-    current_user: CurrentUser,
+    current_user: CurrentUserDep,
     skip: int = Query(0, ge=0),
     limit: Pagination = 20,
 ) -> list[User]:
@@ -47,14 +47,14 @@ async def update_user(
     db: DB,
     user_id: int,
     user_in: UserUpdate,
-    current_user: CurrentUser,
+    current_user: CurrentUserDep,
 ) -> User:
     if current_user.id != user_id and not current_user.is_admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not authorized")
     return await update_user_db(db, user_id, user_in)
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(db: DB, user_id: int, current_user: CurrentUser) -> None:
+async def delete_user(db: DB, user_id: int, current_user: CurrentUserDep) -> None:
     if not await delete_user_db(db, user_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
 ```
@@ -65,7 +65,7 @@ async def delete_user(db: DB, user_id: int, current_user: CurrentUser) -> None:
 from fastapi import Depends
 
 async def get_current_active_user(
-    current_user: CurrentUser,
+    current_user: CurrentUserDep,
 ) -> User:
     if not current_user.is_active:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Inactive user")
@@ -73,7 +73,7 @@ async def get_current_active_user(
 
 ActiveUser = Annotated[User, Depends(get_current_active_user)]
 
-async def require_admin(current_user: CurrentUser) -> User:
+async def require_admin(current_user: CurrentUserDep) -> User:
     if not current_user.is_admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin required")
     return current_user
