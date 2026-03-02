@@ -1,6 +1,6 @@
 """Tests for permission-checking dependency in core/security.py."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
@@ -10,6 +10,7 @@ from src.core.security import (
     AccessLevel,
     EffectiveAccess,
     compute_effective_access,
+    get_org_id,
     load_authorized_integrity_link,
 )
 from src.models.integrity_link import IntegrityLink
@@ -18,6 +19,10 @@ from src.services.georchestra import GeorchestraContext
 
 DATASET_ID = "11111111-1111-1111-1111-111111111111"
 DATASET_UUID = UUID(DATASET_ID)
+
+# A non-None org UUID used by group-access tests (value is arbitrary—the session mock
+# ignores query parameters).
+ORG_UUID = "aaaabbbb-cccc-dddd-eeee-ffffffffffff"
 
 
 def _geo_ctx(
@@ -81,7 +86,7 @@ class TestComputeEffectiveAccessAdmin:
         ctx = _geo_ctx(is_admin=True)
         session = _mock_session()
 
-        result = compute_effective_access(link, ctx, session)
+        result = compute_effective_access(link, ctx, session, None)
 
         assert result == EffectiveAccess.ADMIN
 
@@ -90,7 +95,7 @@ class TestComputeEffectiveAccessAdmin:
         ctx = _geo_ctx(is_admin=True)
         session = _mock_session()
 
-        compute_effective_access(link, ctx, session)
+        compute_effective_access(link, ctx, session, None)
 
         session.exec.assert_not_called()
 
@@ -103,7 +108,7 @@ class TestComputeEffectiveAccessOwner:
         ctx = _geo_ctx(username="user1")
         session = _mock_session()
 
-        result = compute_effective_access(link, ctx, session)
+        result = compute_effective_access(link, ctx, session, None)
 
         assert result == EffectiveAccess.OWNER
 
@@ -112,7 +117,7 @@ class TestComputeEffectiveAccessOwner:
         ctx = _geo_ctx(username="user1")
         session = _mock_session()
 
-        compute_effective_access(link, ctx, session)
+        compute_effective_access(link, ctx, session, None)
 
         session.exec.assert_not_called()
 
@@ -125,7 +130,7 @@ class TestComputeEffectiveAccessGroupRules:
         ctx = _geo_ctx(username="user1", organization="org_a")
         session = _mock_session(rules=[_make_rule(RuleValue.WRITE)])
 
-        result = compute_effective_access(link, ctx, session)
+        result = compute_effective_access(link, ctx, session, ORG_UUID)
 
         assert result == EffectiveAccess.WRITE
 
@@ -134,7 +139,7 @@ class TestComputeEffectiveAccessGroupRules:
         ctx = _geo_ctx(username="user1", organization="org_a")
         session = _mock_session(rules=[_make_rule(RuleValue.READ)])
 
-        result = compute_effective_access(link, ctx, session)
+        result = compute_effective_access(link, ctx, session, ORG_UUID)
 
         assert result == EffectiveAccess.READ
 
@@ -143,7 +148,7 @@ class TestComputeEffectiveAccessGroupRules:
         ctx = _geo_ctx(username="user1", organization="org_a")
         session = _mock_session(rules=[])
 
-        result = compute_effective_access(link, ctx, session)
+        result = compute_effective_access(link, ctx, session, ORG_UUID)
 
         assert result is None
 
@@ -152,7 +157,7 @@ class TestComputeEffectiveAccessGroupRules:
         ctx = _geo_ctx(username="user1", organization="")
         session = _mock_session()
 
-        result = compute_effective_access(link, ctx, session)
+        result = compute_effective_access(link, ctx, session, None)
 
         assert result is None
         session.exec.assert_not_called()
@@ -162,7 +167,7 @@ class TestComputeEffectiveAccessGroupRules:
         ctx = _geo_ctx(username="user1", organization="org_a")
         session = _mock_session(rules=[_make_rule(RuleValue.READ), _make_rule(RuleValue.WRITE)])
 
-        result = compute_effective_access(link, ctx, session)
+        result = compute_effective_access(link, ctx, session, ORG_UUID)
 
         assert result == EffectiveAccess.WRITE
 
@@ -181,7 +186,9 @@ class TestLoadAuthorizedIntegrityLinkNotFound:
         ctx = _geo_ctx()
 
         with pytest.raises(HTTPException) as exc_info:
-            load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+            load_authorized_integrity_link(
+                DATASET_ID, AccessLevel.METADATA_READ, ctx, session, None
+            )
 
         assert exc_info.value.status_code == 404
 
@@ -195,7 +202,7 @@ class TestLoadAuthorizedIntegrityLinkAdminBypass:
         ctx = _geo_ctx(is_admin=True)
         session = _mock_session(integrity_link=link)
 
-        result = load_authorized_integrity_link(DATASET_ID, level, ctx, session)
+        result = load_authorized_integrity_link(DATASET_ID, level, ctx, session, None)
 
         assert result is link
 
@@ -209,7 +216,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerBypass:
         ctx = _geo_ctx(username="user1")
         session = _mock_session(integrity_link=link)
 
-        result = load_authorized_integrity_link(DATASET_ID, level, ctx, session)
+        result = load_authorized_integrity_link(DATASET_ID, level, ctx, session, None)
 
         assert result is link
 
@@ -222,7 +229,9 @@ class TestLoadAuthorizedIntegrityLinkMetadataRead:
         ctx = _geo_ctx()
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
 
-        result = load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+        result = load_authorized_integrity_link(
+            DATASET_ID, AccessLevel.METADATA_READ, ctx, session, ORG_UUID
+        )
 
         assert result is link
 
@@ -231,7 +240,9 @@ class TestLoadAuthorizedIntegrityLinkMetadataRead:
         ctx = _geo_ctx()
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
 
-        result = load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+        result = load_authorized_integrity_link(
+            DATASET_ID, AccessLevel.METADATA_READ, ctx, session, ORG_UUID
+        )
 
         assert result is link
 
@@ -241,7 +252,9 @@ class TestLoadAuthorizedIntegrityLinkMetadataRead:
         session = _mock_session(integrity_link=link, rules=[])
 
         with pytest.raises(HTTPException) as exc_info:
-            load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_READ, ctx, session)
+            load_authorized_integrity_link(
+                DATASET_ID, AccessLevel.METADATA_READ, ctx, session, ORG_UUID
+            )
 
         assert exc_info.value.status_code == 403
 
@@ -255,7 +268,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataWrite:
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
 
         result = load_authorized_integrity_link(
-            DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session
+            DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session, ORG_UUID
         )
 
         assert result is link
@@ -266,7 +279,9 @@ class TestLoadAuthorizedIntegrityLinkMetadataWrite:
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
 
         with pytest.raises(HTTPException) as exc_info:
-            load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
+            load_authorized_integrity_link(
+                DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session, ORG_UUID
+            )
 
         assert exc_info.value.status_code == 403
 
@@ -276,7 +291,9 @@ class TestLoadAuthorizedIntegrityLinkMetadataWrite:
         session = _mock_session(integrity_link=link, rules=[])
 
         with pytest.raises(HTTPException) as exc_info:
-            load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session)
+            load_authorized_integrity_link(
+                DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session, ORG_UUID
+            )
 
         assert exc_info.value.status_code == 403
 
@@ -290,7 +307,9 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
 
         with pytest.raises(HTTPException) as exc_info:
-            load_authorized_integrity_link(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+            load_authorized_integrity_link(
+                DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, ORG_UUID
+            )
 
         assert exc_info.value.status_code == 403
 
@@ -300,7 +319,9 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
         session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
 
         with pytest.raises(HTTPException) as exc_info:
-            load_authorized_integrity_link(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+            load_authorized_integrity_link(
+                DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, ORG_UUID
+            )
 
         assert exc_info.value.status_code == 403
 
@@ -309,7 +330,9 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
         ctx = _geo_ctx(username="user1")
         session = _mock_session(integrity_link=link)
 
-        result = load_authorized_integrity_link(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+        result = load_authorized_integrity_link(
+            DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, None
+        )
 
         assert result is link
 
@@ -318,6 +341,59 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
         ctx = _geo_ctx(is_admin=True)
         session = _mock_session(integrity_link=link)
 
-        result = load_authorized_integrity_link(DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session)
+        result = load_authorized_integrity_link(
+            DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, None
+        )
 
         assert result is link
+
+
+# ────────────────────────────────────────────────────────
+# get_org_id
+# ────────────────────────────────────────────────────────
+
+
+class TestGetOrgId:
+    """get_org_id dependency resolves org shortName to console UUID once per request."""
+
+    def test_returns_none_when_no_organization(self) -> None:
+        ctx = _geo_ctx(organization="")
+        result = get_org_id(ctx)
+        assert result is None
+
+    @patch("src.core.security.ConsoleService")
+    def test_returns_uuid_when_org_found(self, mock_cls: MagicMock) -> None:
+        mock_cls.return_value.get_organization.return_value = {"id": "uuid-123", "name": "Org A"}
+        ctx = _geo_ctx(organization="org_a")
+
+        result = get_org_id(ctx)
+
+        assert result == "uuid-123"
+        mock_cls.return_value.get_organization.assert_called_once_with("org_a")
+
+    @patch("src.core.security.ConsoleService")
+    def test_returns_none_when_org_not_found(self, mock_cls: MagicMock) -> None:
+        mock_cls.return_value.get_organization.return_value = None
+        ctx = _geo_ctx(organization="unknown_org")
+
+        result = get_org_id(ctx)
+
+        assert result is None
+
+    @patch("src.core.security.ConsoleService")
+    def test_returns_none_when_console_unreachable(self, mock_cls: MagicMock) -> None:
+        mock_cls.return_value.get_organization.return_value = None
+        ctx = _geo_ctx(organization="org_a")
+
+        result = get_org_id(ctx)
+
+        assert result is None
+
+    @patch("src.core.security.ConsoleService")
+    def test_returns_none_when_id_missing_from_response(self, mock_cls: MagicMock) -> None:
+        mock_cls.return_value.get_organization.return_value = {"name": "Org A"}  # no 'id' key
+        ctx = _geo_ctx(organization="org_a")
+
+        result = get_org_id(ctx)
+
+        assert result is None

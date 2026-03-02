@@ -77,6 +77,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -104,6 +105,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -140,6 +142,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -177,6 +180,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -197,6 +201,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=200,
         )
 
@@ -234,6 +239,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -266,6 +272,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -300,6 +307,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
             search="Dataset",
         )
@@ -341,6 +349,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=50,
             search="Matching",
         )
@@ -379,6 +388,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
             search="",
         )
@@ -409,6 +419,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -494,7 +505,7 @@ class TestListIntegrityLinksVisibility:
         mock_compute.return_value = EffectiveAccess.OWNER
 
         ctx = self._geo_ctx(username="user1")
-        response = list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
 
         assert len(response.items) == 1
         assert response.items[0].access_level == "OWNER"
@@ -518,7 +529,7 @@ class TestListIntegrityLinksVisibility:
         mock_compute.return_value = EffectiveAccess.ADMIN
 
         ctx = self._geo_ctx(is_admin=True)
-        response = list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
 
         assert len(response.items) == 2
         for item in response.items:
@@ -543,7 +554,7 @@ class TestListIntegrityLinksVisibility:
         mock_compute.return_value = EffectiveAccess.READ
 
         ctx = self._geo_ctx(username="user1", organization="org_a")
-        response = list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
 
         assert len(response.items) == 1
         assert response.items[0].access_level == "READ"
@@ -567,7 +578,7 @@ class TestListIntegrityLinksVisibility:
         mock_compute.return_value = EffectiveAccess.WRITE
 
         ctx = self._geo_ctx(username="user1", organization="org_a")
-        response = list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
 
         assert len(response.items) == 1
         assert response.items[0].access_level == "WRITE"
@@ -586,7 +597,7 @@ class TestListIntegrityLinksVisibility:
         mock_session.exec.return_value = mock_exec_result
 
         ctx = self._geo_ctx(username="nobody", organization="no_org")
-        response = list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
 
         assert len(response.items) == 0
 
@@ -604,7 +615,7 @@ class TestListIntegrityLinksVisibility:
         mock_session.exec.return_value = mock_exec_result
 
         ctx = self._geo_ctx(username="user1", organization="org_a")
-        list_integrity_links(session=mock_session, geo_ctx=ctx, offset=0)
+        list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
 
         # Verify the query was executed and contains both conditions
         executed_query = mock_session.exec.call_args[0][0]
