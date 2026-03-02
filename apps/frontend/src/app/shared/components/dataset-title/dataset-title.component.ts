@@ -4,7 +4,8 @@ import {
   effect,
   inject,
   output,
-  ChangeDetectionStrategy
+  ChangeDetectionStrategy,
+  computed
 } from '@angular/core'
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms'
 import { MatFormFieldModule } from '@angular/material/form-field'
@@ -33,6 +34,8 @@ export class DatasetTitleComponent {
   validated = output<string>()
   titleChanged = output<string>()
 
+  title_is_disabled = computed(() => this.metadata()?.has_final_table ?? false)
+
   form = this.fb.group({
     title: this.fb.control('', {
       nonNullable: true,
@@ -58,6 +61,17 @@ export class DatasetTitleComponent {
       }
     })
 
+    // Disable/enable title control based on has_final_table
+    effect(() => {
+      const isDisabled = this.title_is_disabled()
+      const titleControl = this.form.controls.title
+      if (isDisabled) {
+        titleControl.disable({ emitEvent: false })
+      } else {
+        titleControl.enable({ emitEvent: false })
+      }
+    })
+
     // Propagate user edits back to parent
     this.form.controls.title.valueChanges.subscribe((value) => {
       this.titleChanged.emit(value)
@@ -65,7 +79,13 @@ export class DatasetTitleComponent {
   }
 
   submitForm() {
-    if (this.form.valid) {
+    // !!! If input is disabled, angular considers form is invalid
+    const titleControl = this.form.controls.title
+
+    if (
+      (titleControl.disabled && this.metadata().title) ||
+      titleControl.valid
+    ) {
       this.validated.emit(this.form.value.title!)
     } else {
       this.form.markAllAsTouched()

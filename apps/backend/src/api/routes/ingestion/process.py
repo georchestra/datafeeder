@@ -73,8 +73,10 @@ async def process_staging_data(
         raise HTTPException(status_code=400, detail="Staging table name not found in IntegrityLink")
 
     dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}_manual"
-    final_table_name = get_available_table_name(
-        data_engine, "data", sanitize_name(request.title)[:53]
+    final_table_name = (
+        integrity_link.final_table_name
+        if integrity_link.last_retrieval_timestamp is not None
+        else get_available_table_name(data_engine, "data", sanitize_name(request.title)[:53])
     )
     if not final_table_name:
         raise HTTPException(
@@ -106,77 +108,78 @@ async def process_staging_data(
     except Exception:
         is_geographic = False
 
-    # Compute layer URLs — pure string building, no GeoServer API call
-    geoserver_service = GeoServerService(
-        base_url=settings.GEOSERVER_URL,
-        username=settings.GEOSERVER_USER,
-        password=settings.GEOSERVER_PASSWORD,
-        public_url=settings.DATA_PUBLIC_URL,
-    )
-    layer_urls = geoserver_service.build_layer_urls(
-        workspace_name=workspace_name,
-        table_name=final_table_name,
-        is_geographic=is_geographic,
-    )
+    # Create and publish metadata to GeoNetwork, only if metadata_id is not already set (first time process, not re-run)
+    if integrity_link.metadata_id is None:
+        try:
+            # Compute layer URLs — pure string building, no GeoServer API call
+            geoserver_service = GeoServerService(
+                base_url=settings.GEOSERVER_URL,
+                username=settings.GEOSERVER_USER,
+                password=settings.GEOSERVER_PASSWORD,
+                public_url=settings.DATA_PUBLIC_URL,
+            )
+            layer_urls = geoserver_service.build_layer_urls(
+                workspace_name=workspace_name,
+                table_name=final_table_name,
+                is_geographic=is_geographic,
+            )
 
-    # Create and publish metadata to GeoNetwork — fatal on failure
-    try:
-        console_service = ConsoleService(settings.CONSOLE_URL)
-        organization = console_service.get_organization(integrity_link.integrity_organization)
+            console_service = ConsoleService(settings.CONSOLE_URL)
+            organization = console_service.get_organization(integrity_link.integrity_organization)
 
-        user_first_name = sec_firstname
-        user_last_name = sec_lastname
-        contact_email = sec_email
-        if organization:
-            contact_email = organization.get("mail") or sec_email
-            org_name = organization.get("name")
-            if org_name:
-                user_first_name = org_name
-                user_last_name = ""
-                logger.info(f"Using organization name for metadata contact: {org_name}")
-        else:
-            logger.info("Organization not found, using user info for metadata contact")
+            user_first_name = sec_firstname
+            user_last_name = sec_lastname
+            contact_email = sec_email
+            if organization:
+                contact_email = organization.get("mail") or sec_email
+                org_name = organization.get("name")
+                if org_name:
+                    user_first_name = org_name
+                    user_last_name = ""
+                    logger.info(f"Using organization name for metadata contact: {org_name}")
+            else:
+                logger.info("Organization not found, using user info for metadata contact")
 
-        metadata_service = MetadataService(
-            gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
-            datadir_path=settings.DATADIR_PATH,
-            credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-            verify_tls=False,
-        )
+            metadata_service = MetadataService(
+                gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+                datadir_path=settings.DATADIR_PATH,
+                credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+                verify_tls=False,
+            )
 
-        metadata_id = metadata_service.create_and_publish_metadata(
-            integrity_link,
-            user_email=contact_email,
-            user_first_name=user_first_name,
-            user_last_name=user_last_name,
-            layer_urls=layer_urls,
-        )
-        integrity_link.metadata_id = str(integrity_link.id)
-        logger.info(f"Metadata published for IntegrityLink {integrity_link.id}: {metadata_id}")
-    except Exception as e:
-        logger.error(
-            f"Failed to publish metadata for IntegrityLink {integrity_link.id}: {e}",
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=500,
-            detail="import.metadataPublication.error",
-        )
+            metadata_id = metadata_service.create_and_publish_metadata(
+                integrity_link,
+                user_email=contact_email,
+                user_first_name=user_first_name,
+                user_last_name=user_last_name,
+                layer_urls=layer_urls,
+            )
+            integrity_link.metadata_id = str(integrity_link.id)
+            logger.info(f"Metadata published for IntegrityLink {integrity_link.id}: {metadata_id}")
+        except Exception as e:
+            logger.error(
+                f"Failed to publish metadata for IntegrityLink {integrity_link.id}: {e}",
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="import.metadataPublication.error",
+            )
 
-    # Ownership assignment — soft failure (non-critical)
-    try:
-        metadata_service.set_record_ownership(
-            metadata_uuid=str(integrity_link.id),
-            username=integrity_link.integrity_owner,
-            group_name=integrity_link.integrity_organization,
-        )
-    except Exception as ownership_error:
-        logger.warning(
-            "Failed to set metadata ownership for IntegrityLink %s: %s",
-            integrity_link.id,
-            ownership_error,
-            exc_info=True,
-        )
+        # Ownership assignment — soft failure (non-critical)
+        try:
+            metadata_service.set_record_ownership(
+                metadata_uuid=str(integrity_link.id),
+                username=integrity_link.integrity_owner,
+                group_name=integrity_link.integrity_organization,
+            )
+        except Exception as ownership_error:
+            logger.warning(
+                "Failed to set metadata ownership for IntegrityLink %s: %s",
+                integrity_link.id,
+                ownership_error,
+                exc_info=True,
+            )
 
     # Persist all changes before triggering the DAG
     integrity_link.final_table_name = final_table_name
@@ -204,6 +207,7 @@ async def process_staging_data(
                     "integrity_transformation": integrity_link.integrity_transformation or {},
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,
+                    "last_retrieval_timestamp": integrity_link.last_retrieval_timestamp,
                 },
             ),
         )
@@ -282,12 +286,19 @@ async def dag_success_callback(
         table = Table(final_table_name, table_meta, autoload_with=data_engine)
         is_geographic = DEFAULT_GEOMETRY_COLUMN in table.c
         bbox = ""
+        epsg = None
 
         if is_geographic:
-            stmt = select(func.ST_Extent(table.c[DEFAULT_GEOMETRY_COLUMN]))
             with data_engine.connect() as conn:
-                result = conn.execute(stmt).scalar_one_or_none()
-            bbox = str(result) if result else ""
+                # Get SRID from PostGIS geometry column
+                srid_stmt = select(func.ST_SRID(table.c[DEFAULT_GEOMETRY_COLUMN])).limit(1)
+                srid_result = conn.execute(srid_stmt).scalar_one_or_none()
+                epsg = srid_result if srid_result else None
+
+                # Get bounding box
+                bbox_stmt = select(func.ST_Extent(table.c[DEFAULT_GEOMETRY_COLUMN]))
+                bbox_result = conn.execute(bbox_stmt).scalar_one_or_none()
+                bbox = str(bbox_result) if bbox_result else ""
 
         await geoserver_service.create_layer(
             workspace_name=workspace_name,
@@ -295,6 +306,7 @@ async def dag_success_callback(
             table_name=final_table_name,
             title=integrity_link.integrity_title or final_table_name,
             abstract=integrity_link.integrity_title or final_table_name,
+            epsg=epsg or 4326,
             is_geographic=is_geographic,
             bbox=bbox,
         )
@@ -311,6 +323,7 @@ async def dag_success_callback(
         )
 
     # Update retrieval timestamp
+    integrity_link.final_table_name = final_table_name
     integrity_link.last_retrieval_timestamp = datetime.now(timezone.utc)
 
     datakern_session.commit()

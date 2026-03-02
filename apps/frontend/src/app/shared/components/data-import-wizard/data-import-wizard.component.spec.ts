@@ -3,16 +3,30 @@ import {
   HttpTestingController,
   provideHttpClientTesting
 } from '@angular/common/http/testing'
+import { signal } from '@angular/core'
 import { TestBed, fakeAsync, tick } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
 import { provideRouter } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { ApiConfiguration } from '../../../core/api/api-configuration'
+import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { DataImportWizardComponent } from './data-import-wizard.component'
 
 describe('DataImportWizardComponent', () => {
+  let mockIntegrityLinkStore: {
+    intlinkId: ReturnType<typeof signal<string | null>>
+    integrityLink: ReturnType<typeof signal>
+    setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+  }
+
   beforeEach(async () => {
+    mockIntegrityLinkStore = {
+      intlinkId: signal<string | null>(null),
+      integrityLink: signal(null),
+      setAndLoadIntegrityLink: vi.fn()
+    }
+
     await TestBed.configureTestingModule({
       imports: [
         DataImportWizardComponent,
@@ -29,7 +43,8 @@ describe('DataImportWizardComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideRouter([])
+        provideRouter([]),
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
       ]
     }).compileComponents()
   })
@@ -132,6 +147,11 @@ describe('DataImportWizardComponent', () => {
 
 describe('DataImportWizardComponent - Import and Status Polling', () => {
   let httpMock: HttpTestingController
+  let mockIntegrityLinkStore: {
+    intlinkId: ReturnType<typeof signal<string | null>>
+    integrityLink: ReturnType<typeof signal>
+    setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+  }
 
   // Mock data constants
   const mockImportResponse = {
@@ -148,6 +168,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
   const mockStatusFailed: string = 'failed'
 
   beforeEach(async () => {
+    mockIntegrityLinkStore = {
+      intlinkId: signal<string | null>(null),
+      integrityLink: signal(null),
+      setAndLoadIntegrityLink: vi.fn()
+    }
+
     await TestBed.configureTestingModule({
       imports: [
         DataImportWizardComponent,
@@ -170,7 +196,8 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
-        }
+        },
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
       ]
     }).compileComponents()
 
@@ -755,6 +782,11 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
 
 describe('DataImportWizardComponent - Dataset Validation', () => {
   let httpMock: HttpTestingController
+  let mockIntegrityLinkStore: {
+    intlinkId: ReturnType<typeof signal<string | null>>
+    integrityLink: ReturnType<typeof signal>
+    setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+  }
 
   // Mock data constants
   const mockStagingResponse = {
@@ -772,6 +804,12 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
   }
 
   beforeEach(async () => {
+    mockIntegrityLinkStore = {
+      intlinkId: signal<string | null>(null),
+      integrityLink: signal(null),
+      setAndLoadIntegrityLink: vi.fn()
+    }
+
     await TestBed.configureTestingModule({
       imports: [
         DataImportWizardComponent,
@@ -804,7 +842,8 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
         {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
-        }
+        },
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
       ]
     }).compileComponents()
 
@@ -826,7 +865,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
   it('should start with integrityLinkId as null', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
-    expect(component.integrityLinkId()).toBe(null)
+    expect(component.integrityLinkStore.intlinkId()).toBe(null)
   })
 
   it('should start with processing as false', () => {
@@ -847,6 +886,14 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
+    // Mock setAndLoadIntegrityLink to update the signal
+    component.integrityLinkStore.setAndLoadIntegrityLink = vi.fn(
+      (id: string) => {
+        component.integrityLinkStore.intlinkId.set(id)
+        return Promise.resolve({} as any)
+      }
+    )
+
     component.importData.set({
       source: {
         type: 'url',
@@ -860,7 +907,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     req.flush(mockStagingResponse)
     await new Promise((resolve) => setTimeout(resolve, 10))
 
-    expect(component.integrityLinkId()).toBe('test-link-789')
+    expect(component.integrityLinkStore.intlinkId()).toBe('test-link-789')
 
     // Complete status polling
     await new Promise((resolve) => setTimeout(resolve, 600))
@@ -880,7 +927,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     fixture.detectChanges()
 
     // Set integrity link ID (as if staging completed)
-    component.integrityLinkId.set('test-link-789')
+    component.integrityLinkStore.intlinkId.set('test-link-789')
 
     // Start validation
     const promise = component.onValidateDataset('Test Dataset Title')
@@ -907,7 +954,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     const router = (component as any).router
     const navigateSpy = vi.spyOn(router, 'navigate')
 
-    component.integrityLinkId.set('test-link-789')
+    component.integrityLinkStore.intlinkId.set('test-link-789')
     const promise = component.onValidateDataset('Test Dataset')
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/process/')
@@ -922,7 +969,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.integrityLinkId.set('test-link-789')
+    component.integrityLinkStore.intlinkId.set('test-link-789')
 
     // Before validation
     expect(component.processing()).toBe(false)
@@ -945,7 +992,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.integrityLinkId.set('test-link-789')
+    component.integrityLinkStore.intlinkId.set('test-link-789')
     component.validationError.set('Previous error')
 
     const promise = component.onValidateDataset('Test Dataset')
@@ -963,7 +1010,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.integrityLinkId.set('test-link-789')
+    component.integrityLinkStore.intlinkId.set('test-link-789')
     const promise = component.onValidateDataset('Test Dataset')
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/process/')
@@ -983,7 +1030,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.integrityLinkId.set('test-link-789')
+    component.integrityLinkStore.intlinkId.set('test-link-789')
     const promise = component.onValidateDataset('Test Dataset')
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/process/')
@@ -1032,7 +1079,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     fixture.detectChanges()
 
     component.selectedTabIndex.set(1)
-    component.integrityLinkId.set('test-link-789')
+    component.integrityLinkStore.intlinkId.set('test-link-789')
     component.processing.set(true)
     fixture.detectChanges()
 
@@ -1049,7 +1096,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     fixture.detectChanges()
 
     component.selectedTabIndex.set(1)
-    component.integrityLinkId.set(null)
+    component.integrityLinkStore.intlinkId.set(null)
     component.processing.set(false)
     fixture.detectChanges()
 
@@ -1066,7 +1113,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     fixture.detectChanges()
 
     component.selectedTabIndex.set(1)
-    component.integrityLinkId.set('test-link-789')
+    component.integrityLinkStore.intlinkId.set('test-link-789')
     component.processing.set(false)
     fixture.detectChanges()
 
@@ -1083,7 +1130,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     fixture.detectChanges()
 
     component.selectedTabIndex.set(1)
-    component.integrityLinkId.set('test-link-789')
+    component.integrityLinkStore.intlinkId.set('test-link-789')
     component.processing.set(true)
     fixture.detectChanges()
 
@@ -1108,7 +1155,19 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
 })
 
 describe('DataImportWizardComponent - Preview Toggle', () => {
+  let mockIntegrityLinkStore: {
+    intlinkId: ReturnType<typeof signal<string | null>>
+    integrityLink: ReturnType<typeof signal>
+    setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+  }
+
   beforeEach(async () => {
+    mockIntegrityLinkStore = {
+      intlinkId: signal<string | null>(null),
+      integrityLink: signal(null),
+      setAndLoadIntegrityLink: vi.fn()
+    }
+
     await TestBed.configureTestingModule({
       imports: [
         DataImportWizardComponent,
@@ -1132,7 +1191,8 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
         {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
-        }
+        },
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
       ]
     }).compileComponents()
   })
@@ -1351,6 +1411,11 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
 // --- T017: Config flow tests ---
 describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
   let httpMock: HttpTestingController
+  let mockIntegrityLinkStore: {
+    intlinkId: ReturnType<typeof signal<string | null>>
+    integrityLink: ReturnType<typeof signal>
+    setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+  }
 
   const mockMetadata = {
     title: 'test.csv',
@@ -1381,6 +1446,12 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
   }
 
   beforeEach(async () => {
+    mockIntegrityLinkStore = {
+      intlinkId: signal<string | null>(null),
+      integrityLink: signal(null),
+      setAndLoadIntegrityLink: vi.fn()
+    }
+
     await TestBed.configureTestingModule({
       imports: [
         DataImportWizardComponent,
@@ -1401,7 +1472,8 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
         {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
-        }
+        },
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
       ]
     }).compileComponents()
 
@@ -1421,7 +1493,7 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.integrityLinkId.set('link-123')
+    component.integrityLinkStore.intlinkId.set('link-123')
     component.metadata.set(mockMetadata)
     component.columnConfigs.set(mockMetadata.columns)
     component.forceProjection.set(null)
@@ -1457,7 +1529,7 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.integrityLinkId.set('link-123')
+    component.integrityLinkStore.intlinkId.set('link-123')
     component.metadata.set(mockMetadata)
     component.columnConfigs.set(mockMetadata.columns)
     component.forceProjection.set(null)
@@ -1494,7 +1566,7 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.integrityLinkId.set('link-123')
+    component.integrityLinkStore.intlinkId.set('link-123')
     component.metadata.set(mockMetadata)
     component.columnConfigs.set(mockMetadata.columns)
 
@@ -1517,6 +1589,11 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
 // --- T023: Rename debounce behavior tests ---
 describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
   let httpMock: HttpTestingController
+  let mockIntegrityLinkStore: {
+    intlinkId: ReturnType<typeof signal<string | null>>
+    integrityLink: ReturnType<typeof signal>
+    setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+  }
 
   const mockMetadata = {
     title: 'test.csv',
@@ -1534,6 +1611,12 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
   }
 
   beforeEach(async () => {
+    mockIntegrityLinkStore = {
+      intlinkId: signal<string | null>(null),
+      integrityLink: signal(null),
+      setAndLoadIntegrityLink: vi.fn()
+    }
+
     await TestBed.configureTestingModule({
       imports: [
         DataImportWizardComponent,
@@ -1551,7 +1634,8 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
         {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
-        }
+        },
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
       ]
     }).compileComponents()
 
@@ -1571,7 +1655,7 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.integrityLinkId.set('link-abc')
+    component.integrityLinkStore.intlinkId.set('link-abc')
     component.metadata.set(mockMetadata)
     component.columnConfigs.set([...mockMetadata.columns])
 
@@ -1625,7 +1709,7 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.integrityLinkId.set('link-abc')
+    component.integrityLinkStore.intlinkId.set('link-abc')
     component.metadata.set(mockMetadata)
     component.columnConfigs.set([...mockMetadata.columns])
 
@@ -1652,7 +1736,19 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
 })
 
 describe('DataImportWizardComponent - Column Name Validation', () => {
+  let mockIntegrityLinkStore: {
+    intlinkId: ReturnType<typeof signal<string | null>>
+    integrityLink: ReturnType<typeof signal>
+    setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+  }
+
   beforeEach(async () => {
+    mockIntegrityLinkStore = {
+      intlinkId: signal<string | null>(null),
+      integrityLink: signal(null),
+      setAndLoadIntegrityLink: vi.fn()
+    }
+
     await TestBed.configureTestingModule({
       imports: [
         DataImportWizardComponent,
@@ -1668,7 +1764,8 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
         {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
-        }
+        },
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
       ]
     }).compileComponents()
   })

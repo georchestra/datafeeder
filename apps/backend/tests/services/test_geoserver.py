@@ -112,6 +112,7 @@ class TestGeoServerService:
             table_name=table_name,
             title=title,
             abstract=abstract,
+            epsg=4326,
             is_geographic=True,
             bbox="",
         )

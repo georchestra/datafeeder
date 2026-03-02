@@ -127,6 +127,7 @@ class GeoServerService:
         table_name: str,
         title: str,
         abstract: str,
+        epsg: int = 4326,
         is_geographic: bool = True,
         bbox: str = "",
     ) -> LayerCreationResult:
@@ -139,6 +140,7 @@ class GeoServerService:
             table_name: Database table name
             title: Layer title
             abstract: Layer description/abstract
+            epsg: EPSG code for the coordinate reference system (defaults to 4326)
             is_geographic: Whether the data has valid geometry (defaults to True)
 
         Returns:
@@ -155,6 +157,7 @@ class GeoServerService:
             table_name=table_name,
             title=title,
             abstract=abstract,
+            epsg=epsg,
             is_geographic=is_geographic,
             bbox=bbox,
         )

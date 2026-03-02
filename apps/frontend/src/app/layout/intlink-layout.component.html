@@ -40,8 +40,8 @@
     <div>
       <button
         type="button"
-        disabled
-        class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-base text-gray-400 cursor-not-allowed hover:bg-secondary-hover"
+        [routerLink]="['/import', store.intlinkId()]"
+        class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-base text-gray-900 hover:bg-secondary-hover hover:text-gray-950"
       >
         <ng-icon name="iconoirRefreshCircle" size="1.25em"></ng-icon>
         {{ 'sidebar.reconfigureDataset' | translate }}

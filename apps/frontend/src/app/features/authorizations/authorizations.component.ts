@@ -9,7 +9,7 @@ import {
   upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut
 } from '../../core/api/functions'
 import { GroupItem, IntegrityLinkRule, RuleType } from '../../core/api/models'
-import { IntegrityLinkStore } from '../../layout/integrity-link.store'
+import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import {
   AuthorizationRulesComponent,
   RuleChangeEvent

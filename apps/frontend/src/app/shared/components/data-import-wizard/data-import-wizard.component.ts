@@ -1,17 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http'
-import {
-  Component,
-  computed,
-  effect,
-  inject,
-  signal,
-  OnInit
-} from '@angular/core'
+import { Component, computed, effect, inject, signal } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { MatButtonToggleModule } from '@angular/material/button-toggle'
 import { MatTabsModule } from '@angular/material/tabs'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
-import { Router, ActivatedRoute } from '@angular/router'
+import { Router } from '@angular/router'
 import {
   iconoirMap,
   iconoirNumber1Square,
@@ -43,7 +36,8 @@ import {
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
   submitStagingIngestionStagingPost,
   processStagingDataIngestionProcessPost,
-  editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut
+  editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut,
+  editStagingIngestionStagingIntegrityLinkIdPut
 } from '../../../core/api/functions'
 import type {
   ColumnConfigInput,
@@ -65,6 +59,7 @@ import type { ColumnFilter } from '../../../core/api/models/column-filter'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
+import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 
 marker('import.dataSource.error')
 marker('import.dataSource.error.extent')
@@ -118,11 +113,12 @@ export interface ImportWizardData {
     })
   ]
 })
-export class DataImportWizardComponent implements OnInit {
+export class DataImportWizardComponent {
   private api = inject(Api)
   private translate = inject(TranslateService)
   private router = inject(Router)
-  private route = inject(ActivatedRoute)
+
+  integrityLinkStore = inject(IntegrityLinkStore)
 
   private renameSubject = new Subject<{
     originalName: string
@@ -141,7 +137,6 @@ export class DataImportWizardComponent implements OnInit {
   previewErrorExtent = signal<string | null>(null)
   previewLoading = signal<boolean>(false)
   dagRunInfo = signal<{ dag_id: string; dag_run_id: string } | null>(null)
-  integrityLinkId = signal<string | null>(null)
   processing = signal(false)
   validationError = signal<string | null>(null)
   previewTabIndex = signal(0)
@@ -163,14 +158,6 @@ export class DataImportWizardComponent implements OnInit {
 
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
 
-  ngOnInit() {
-    const linkId = this.route.snapshot.queryParamMap.get('linkId')
-    if (linkId) {
-      this.integrityLinkId.set(linkId)
-      this.selectedTabIndex.set(1)
-    }
-  }
-
   constructor() {
     this.renameSubject
       .pipe(debounceTime(400), takeUntilDestroyed())
@@ -191,17 +178,9 @@ export class DataImportWizardComponent implements OnInit {
     // reads in untracked() to prevent unintended re-execution.
     effect(async () => {
       const tabIndex = this.selectedTabIndex()
-      const linkId = this.integrityLinkId()
+      const linkId = this.integrityLinkStore.intlinkId()
 
       if (tabIndex === 1 && linkId) {
-        // Update URL with linkId parameter
-        // eg. /datakern/import?linkId=40e4aa31-022b-484f-bcb8-93423d1c726f
-        this.router.navigate([], {
-          relativeTo: this.route,
-          queryParams: { linkId },
-          queryParamsHandling: 'merge'
-        })
-
         if (!this.metadata() && !this.preview()) {
           const metadata = await this.refreshMetadata(linkId)
           if (metadata) {
@@ -210,14 +189,6 @@ export class DataImportWizardComponent implements OnInit {
           }
           await this.refreshPreview(linkId, false)
         }
-      }
-
-      if (tabIndex === 0) {
-        this.router.navigate([], {
-          relativeTo: this.route,
-          queryParams: { linkId: null },
-          queryParamsHandling: 'merge'
-        })
       }
     })
 
@@ -353,13 +324,13 @@ export class DataImportWizardComponent implements OnInit {
     try {
       const importResponse = await this.createImportRequest()
 
-      this.integrityLinkId.set(importResponse.integrity_link_id)
+      this.integrityLinkStore.setAndLoadIntegrityLink(
+        importResponse.integrity_link_id
+      )
       this.dagRunInfo.set({
         dag_id: importResponse.dag_id,
         dag_run_id: importResponse.dag_run_id
       })
-      this.integrityLinkId.set(importResponse.integrity_link_id)
-
       this.importing.set(false)
       this.polling.set(true)
 
@@ -388,52 +359,62 @@ export class DataImportWizardComponent implements OnInit {
 
   private async createImportRequest(): Promise<StagingResponse> {
     const source = this.importData().source
+    const integrityLinkId = this.integrityLinkStore.intlinkId()
 
+    let body: any
     if (source.type === 'file') {
       if (!source.file) {
         throw new Error(this.translate.instant('import.dataSource.missingFile'))
       }
 
-      return await this.api.invoke(submitStagingIngestionStagingPost, {
-        body: {
-          type: 'file',
-          file: source.file
-        }
-      })
+      body = {
+        type: 'file',
+        file: source.file
+      }
     } else if (source.type === 'url') {
       if (!source.url) {
         throw new Error(this.translate.instant('import.dataSource.missingUrl'))
       }
 
-      return await this.api.invoke(submitStagingIngestionStagingPost, {
-        body: {
-          type: 'url',
-          url: source.url,
-          username: source.authEnabled ? source.username.trim() : null,
-          password: source.authEnabled ? source.password.trim() : null,
-          auth_enabled: source.authEnabled
-        }
-      })
+      body = {
+        type: 'url',
+        url: source.url,
+        username: source.authEnabled ? source.username.trim() : null,
+        password: source.authEnabled ? source.password.trim() : null,
+        auth_enabled: source.authEnabled
+      }
     } else if (source.type === 'ftp') {
       if (!this.validFtp(source)) {
         throw new Error(this.translate.instant('import.dataSource.missingUrl'))
       }
 
-      return await this.api.invoke(submitStagingIngestionStagingPost, {
-        body: {
-          type: 'ftp',
-          ftp_host: source.ftpHost.trim(),
-          ftp_port: source.ftpPort,
-          ftp_path: source.ftpPath.trim(),
-          username: source.username.trim(),
-          password: source.password.trim()
-        }
-      })
+      body = {
+        type: 'ftp',
+        ftp_host: source.ftpHost.trim(),
+        ftp_port: source.ftpPort,
+        ftp_path: source.ftpPath.trim(),
+        username: source.username.trim(),
+        password: source.password.trim()
+      }
+    } else {
+      throw new Error(
+        this.translate.instant('import.dataSource.unsupportedSourceType')
+      )
     }
 
-    throw new Error(
-      this.translate.instant('import.dataSource.unsupportedSourceType')
-    )
+    if (integrityLinkId) {
+      return await this.api.invoke(
+        editStagingIngestionStagingIntegrityLinkIdPut,
+        {
+          integrity_link_id: integrityLinkId,
+          body
+        }
+      )
+    } else {
+      return await this.api.invoke(submitStagingIngestionStagingPost, {
+        body
+      })
+    }
   }
 
   private async pollImportStatus(
@@ -482,7 +463,7 @@ export class DataImportWizardComponent implements OnInit {
   }
 
   private async saveConfigAndRefresh(): Promise<void> {
-    const linkId = this.integrityLinkId()
+    const linkId = this.integrityLinkStore.intlinkId()
     if (!linkId) return
 
     this.configSaving.set(true)
@@ -579,13 +560,13 @@ export class DataImportWizardComponent implements OnInit {
     try {
       await this.api.invoke(processStagingDataIngestionProcessPost, {
         body: {
-          integrity_link_id: this.integrityLinkId()!,
+          integrity_link_id: this.integrityLinkStore.intlinkId()!,
           title: title
         }
       })
 
       this.processing.set(false)
-      this.router.navigate([this.integrityLinkId(), 'edit'])
+      this.router.navigate([this.integrityLinkStore.intlinkId(), 'edit'])
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.error?.detail) {
         this.validationError.set(error.error.detail)
