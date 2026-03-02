@@ -80,6 +80,8 @@ async def proxy_geonetwork(path: str, request: Request) -> Response:
 
     # Filter and forward headers
     headers = _filter_headers(dict(request.headers))
+    headers["X-XSRF-TOKEN"] = settings.GEONETWORK_XSRF_TOKEN
+    headers["Cookie"] = f"XSRF-TOKEN={settings.GEONETWORK_XSRF_TOKEN}"
 
     # Get body for methods that support it
     body = None
