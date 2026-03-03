@@ -66,6 +66,7 @@ export class ColumnHeaderComponent implements OnDestroy {
 
   actionMenuOpened = output<ColumnAction>()
   nameChanged = output<string>()
+  nameValidationErrorChanged = output<string | null>()
   typeSelected = output<CastType | null>()
   filterChanged = output<ColumnFilter | null>()
 
@@ -188,9 +189,9 @@ export class ColumnHeaderComponent implements OnDestroy {
     const original = this.columnConfig().original_name
 
     if (!value) {
-      this.nameValidationError.set(
-        this.translate.instant('import.columnHeader.error.empty')
-      )
+      const error = this.translate.instant('import.columnHeader.error.empty')
+      this.nameValidationError.set(error)
+      this.nameValidationErrorChanged.emit(error)
       return
     }
 
@@ -198,13 +199,16 @@ export class ColumnHeaderComponent implements OnDestroy {
       (n) => n !== (this.columnConfig().new_name ?? original)
     )
     if (otherNames.includes(value)) {
-      this.nameValidationError.set(
-        this.translate.instant('import.columnHeader.error.duplicate')
+      const error = this.translate.instant(
+        'import.columnHeader.error.duplicate'
       )
+      this.nameValidationError.set(error)
+      this.nameValidationErrorChanged.emit(error)
       return
     }
 
     this.nameValidationError.set(null)
+    this.nameValidationErrorChanged.emit(null)
     this.nameChanged.emit(value)
   }
 }

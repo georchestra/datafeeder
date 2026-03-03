@@ -26,6 +26,9 @@
             [allColumnNames]="allDisplayNames()"
             (actionMenuOpened)="onColumnAction(col.original_name, $event)"
             (nameChanged)="onColumnRename(col.original_name, $event)"
+            (nameValidationErrorChanged)="
+              onColumnNameValidationErrorChange(col.original_name, $event)
+            "
             (typeSelected)="onColumnTypeChange(col.original_name, $event)"
             (filterChanged)="onColumnFilterChange(col.original_name, $event)"
           ></app-column-header>

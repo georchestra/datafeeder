@@ -56,6 +56,10 @@ export class DatasetPreviewTableComponent {
     originalName: string
     filter: ColumnFilter | null
   }>()
+  columnNameValidationErrorChanged = output<{
+    originalName: string
+    error: string | null
+  }>()
 
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
 
@@ -98,5 +102,12 @@ export class DatasetPreviewTableComponent {
 
   onColumnRename(originalName: string, newName: string): void {
     this.columnRenameRequested.emit({ originalName, newName })
+  }
+
+  onColumnNameValidationErrorChange(
+    originalName: string,
+    error: string | null
+  ): void {
+    this.columnNameValidationErrorChanged.emit({ originalName, error })
   }
 }

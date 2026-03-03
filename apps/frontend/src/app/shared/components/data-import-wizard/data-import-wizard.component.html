@@ -79,7 +79,7 @@
       } @else if (selectedTabIndex() === 1) {
       <gn-ui-button
         type="primary"
-        [disabled]="processing() || !integrityLinkId()"
+        [disabled]="processing() || !integrityLinkId() || hasColumnNameError()"
         (buttonClick)="titleConfig.submitForm()"
         data-test="validate-dataset"
       >
@@ -151,6 +151,9 @@
       (columnRenameRequested)="onColumnRenameRequested($event)"
       (columnTypeChangeRequested)="onColumnTypeChangeRequested($event)"
       (columnFilterChangeRequested)="onColumnFilterChangeRequested($event)"
+      (columnNameValidationErrorChanged)="
+        onColumnNameValidationErrorChanged($event)
+      "
     />
     } @else { @if (previewErrorExtent()) {
     <div class="px-6 pb-4">
@@ -176,6 +179,9 @@
       (columnRenameRequested)="onColumnRenameRequested($event)"
       (columnTypeChangeRequested)="onColumnTypeChangeRequested($event)"
       (columnFilterChangeRequested)="onColumnFilterChangeRequested($event)"
+      (columnNameValidationErrorChanged)="
+        onColumnNameValidationErrorChanged($event)
+      "
     />
     }
   </div>

@@ -1650,3 +1650,109 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     tick(100)
   }))
 })
+
+describe('DataImportWizardComponent - Column Name Validation', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({ en: {} })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: ApiConfiguration,
+          useValue: { rootUrl: 'http://localhost:8000' }
+        }
+      ]
+    }).compileComponents()
+  })
+
+  it('should start with hasColumnNameError as false', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    expect(component.hasColumnNameError()).toBe(false)
+  })
+
+  it('should set hasColumnNameError to true when an error event is received', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onColumnNameValidationErrorChanged({
+      originalName: 'col1',
+      error: 'Le nom ne peut pas être vide'
+    })
+
+    expect(component.hasColumnNameError()).toBe(true)
+    expect(component.columnNameErrors().has('col1')).toBe(true)
+  })
+
+  it('should set hasColumnNameError back to false when the error is cleared', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onColumnNameValidationErrorChanged({
+      originalName: 'col1',
+      error: 'error'
+    })
+    expect(component.hasColumnNameError()).toBe(true)
+
+    component.onColumnNameValidationErrorChanged({
+      originalName: 'col1',
+      error: null
+    })
+    expect(component.hasColumnNameError()).toBe(false)
+  })
+
+  it('should remain true when one of multiple errors is cleared but another persists', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onColumnNameValidationErrorChanged({
+      originalName: 'col1',
+      error: 'error'
+    })
+    component.onColumnNameValidationErrorChanged({
+      originalName: 'col2',
+      error: 'error'
+    })
+    expect(component.hasColumnNameError()).toBe(true)
+
+    component.onColumnNameValidationErrorChanged({
+      originalName: 'col1',
+      error: null
+    })
+    expect(component.hasColumnNameError()).toBe(true)
+    expect(component.columnNameErrors().has('col2')).toBe(true)
+  })
+
+  it('should become false only when all errors are cleared', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onColumnNameValidationErrorChanged({
+      originalName: 'col1',
+      error: 'error'
+    })
+    component.onColumnNameValidationErrorChanged({
+      originalName: 'col2',
+      error: 'error'
+    })
+
+    component.onColumnNameValidationErrorChanged({
+      originalName: 'col1',
+      error: null
+    })
+    component.onColumnNameValidationErrorChanged({
+      originalName: 'col2',
+      error: null
+    })
+
+    expect(component.hasColumnNameError()).toBe(false)
+  })
+})

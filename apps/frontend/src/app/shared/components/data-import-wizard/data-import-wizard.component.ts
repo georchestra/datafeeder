@@ -150,6 +150,9 @@ export class DataImportWizardComponent implements OnInit {
   forceProjection = signal<ForceProjection | null>(null)
   configSaving = signal(false)
 
+  columnNameErrors = signal<Set<string>>(new Set())
+  hasColumnNameError = computed(() => this.columnNameErrors().size > 0)
+
   isGeographicData = computed(() => {
     const preview = this.preview()
     return preview?.is_geographic === true && preview?.geojson != null
@@ -324,11 +327,27 @@ export class DataImportWizardComponent implements OnInit {
     return !this.validSource() || this.importing() || this.polling()
   }
 
+  onColumnNameValidationErrorChanged(event: {
+    originalName: string
+    error: string | null
+  }): void {
+    this.columnNameErrors.update((s) => {
+      const next = new Set(s)
+      if (event.error) {
+        next.add(event.originalName)
+      } else {
+        next.delete(event.originalName)
+      }
+      return next
+    })
+  }
+
   async onConfigureDataset() {
     this.importError.set(null)
     this.importing.set(true)
     this.metadata.update(() => null)
     this.preview.update(() => null)
+    this.columnNameErrors.set(new Set())
 
     try {
       const importResponse = await this.createImportRequest()

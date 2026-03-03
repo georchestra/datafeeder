@@ -196,4 +196,37 @@ describe('DatasetPreviewTableComponent', () => {
 
     expect(emitted).toEqual([{ originalName: 'col1', action: 'remove' }])
   })
+
+  it('should emit columnNameValidationErrorChanged with error when onColumnNameValidationErrorChange is called with an error', () => {
+    const fixture = TestBed.createComponent(DatasetPreviewTableComponent)
+    fixture.detectChanges()
+
+    const emitted: Array<{ originalName: string; error: string | null }> = []
+    fixture.componentInstance.columnNameValidationErrorChanged.subscribe((e) =>
+      emitted.push(e)
+    )
+
+    fixture.componentInstance.onColumnNameValidationErrorChange(
+      'col1',
+      'Le nom ne peut pas être vide'
+    )
+
+    expect(emitted).toEqual([
+      { originalName: 'col1', error: 'Le nom ne peut pas être vide' }
+    ])
+  })
+
+  it('should emit columnNameValidationErrorChanged with null when error is cleared', () => {
+    const fixture = TestBed.createComponent(DatasetPreviewTableComponent)
+    fixture.detectChanges()
+
+    const emitted: Array<{ originalName: string; error: string | null }> = []
+    fixture.componentInstance.columnNameValidationErrorChanged.subscribe((e) =>
+      emitted.push(e)
+    )
+
+    fixture.componentInstance.onColumnNameValidationErrorChange('col1', null)
+
+    expect(emitted).toEqual([{ originalName: 'col1', error: null }])
+  })
 })

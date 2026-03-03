@@ -373,4 +373,101 @@ describe('ColumnHeaderComponent', () => {
     fixture.detectChanges()
     expect(compiled.querySelector('[data-name-error]')).toBeNull()
   })
+
+  it('should emit nameValidationErrorChanged with the error string when name is empty', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.detectChanges()
+
+    const emitted: Array<string | null> = []
+    fixture.componentInstance.nameValidationErrorChanged.subscribe((e) =>
+      emitted.push(e)
+    )
+
+    const nameInput = fixture.nativeElement.querySelector(
+      '[data-name-input]'
+    ) as HTMLInputElement
+    nameInput.value = '   '
+    nameInput.dispatchEvent(new Event('input'))
+    fixture.detectChanges()
+
+    expect(emitted).toHaveLength(1)
+    expect(emitted[0]).toBeTruthy()
+    expect(emitted[0]).toContain('vide')
+  })
+
+  it('should emit nameValidationErrorChanged with the error string when name is duplicate', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.componentRef.setInput('allColumnNames', ['my_column', 'other_col'])
+    fixture.detectChanges()
+
+    const emitted: Array<string | null> = []
+    fixture.componentInstance.nameValidationErrorChanged.subscribe((e) =>
+      emitted.push(e)
+    )
+
+    const nameInput = fixture.nativeElement.querySelector(
+      '[data-name-input]'
+    ) as HTMLInputElement
+    nameInput.value = 'other_col'
+    nameInput.dispatchEvent(new Event('input'))
+    fixture.detectChanges()
+
+    expect(emitted).toHaveLength(1)
+    expect(emitted[0]).toBeTruthy()
+    expect(emitted[0]).toContain('déjà utilisé')
+  })
+
+  it('should emit nameValidationErrorChanged with null when name is valid', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.componentRef.setInput('allColumnNames', ['my_column', 'other_col'])
+    fixture.detectChanges()
+
+    const emitted: Array<string | null> = []
+    fixture.componentInstance.nameValidationErrorChanged.subscribe((e) =>
+      emitted.push(e)
+    )
+
+    const nameInput = fixture.nativeElement.querySelector(
+      '[data-name-input]'
+    ) as HTMLInputElement
+    nameInput.value = 'valid_name'
+    nameInput.dispatchEvent(new Event('input'))
+    fixture.detectChanges()
+
+    expect(emitted).toHaveLength(1)
+    expect(emitted[0]).toBeNull()
+  })
+
+  it('should emit nameValidationErrorChanged null after emitting an error (error cleared)', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.componentRef.setInput('allColumnNames', ['my_column', 'other_col'])
+    fixture.detectChanges()
+
+    const emitted: Array<string | null> = []
+    fixture.componentInstance.nameValidationErrorChanged.subscribe((e) =>
+      emitted.push(e)
+    )
+
+    const nameInput = fixture.nativeElement.querySelector(
+      '[data-name-input]'
+    ) as HTMLInputElement
+
+    // Trigger error
+    nameInput.value = ''
+    nameInput.dispatchEvent(new Event('input'))
+    fixture.detectChanges()
+
+    // Fix it
+    nameInput.value = 'fixed_name'
+    nameInput.dispatchEvent(new Event('input'))
+    fixture.detectChanges()
+
+    expect(emitted).toHaveLength(2)
+    expect(emitted[0]).toBeTruthy() // error
+    expect(emitted[1]).toBeNull() // cleared
+  })
 })
