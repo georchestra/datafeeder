@@ -55,6 +55,7 @@ def _filter_headers(headers: dict[str, str]) -> dict[str, str]:
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     summary="GeoNetwork proxy",
     description="Pass-through proxy to GeoNetwork. Forwards all requests transparently.",
+    include_in_schema=False,
 )
 async def proxy_geonetwork(path: str, request: Request) -> Response:
     """
