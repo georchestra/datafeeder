@@ -17,6 +17,7 @@
     "typeCheckingMode": "strict",
     "reportUnknownVariableType": "warning",
     "reportUnknownMemberType": "warning",
+    "reportUnknownArgumentType": "warning",
     "reportUnusedExpression": "warning",
     "reportMissingImports": "warning",
     "reportMissingTypeStubs": "none"
