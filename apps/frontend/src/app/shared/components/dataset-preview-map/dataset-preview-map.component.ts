@@ -61,8 +61,8 @@ export class DatasetPreviewMapComponent {
       minY <= 90 &&
       maxY >= -90 &&
       maxY <= 90 &&
-      minX < maxX &&
-      minY < maxY
+      minX <= maxX &&
+      minY <= maxY
 
     if (!isValidExtent) {
       this.hasExtentError.set(true)
