@@ -676,11 +676,13 @@ def get_staging_preview(
                     ColumnConfig(
                         original_name=col.original_name,
                         original_type=col.original_type,
-                        new_name=col.new_name, # renaming should still apply to excluded columns in preview
+                        new_name=col.new_name,  # renaming should still apply to excluded columns in preview
                         excluded=False,  # override to False to include in preview
-                        cast_type=None, # cast is not supported in preview, so ignore any cast_type in config
-                        filter=None, # filter is not supported in preview, so ignore any filter_expression in config
-                    ) if col.excluded else col
+                        cast_type=None,  # cast is not supported in preview, so ignore any cast_type in config
+                        filter=None,  # filter is not supported in preview, so ignore any filter_expression in config
+                    )
+                    if col.excluded
+                    else col
                     for col in config.columns
                 ]
             }

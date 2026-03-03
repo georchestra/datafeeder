@@ -90,7 +90,7 @@ def process_transformation_group(
                 if transformed_data.empty:
                     logger.error("No data to write after transformation.")
                     raise AirflowException("No data to write after transformation.")
-                
+
                 logger.info(f"Writing data to {final_schema}.{final_table_name}")
                 write_data_to_postgis(
                     data=transformed_data,
