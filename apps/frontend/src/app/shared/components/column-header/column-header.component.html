@@ -7,9 +7,9 @@
       [class.opacity-50]="isExcluded()"
     >
       <input
+        #nameInputEl
         type="text"
         data-name-input
-        [value]="displayName()"
         [disabled]="isExcluded()"
         class="w-full bg-transparent font-bold text-[14px] text-[#646464] leading-[1.5] truncate outline-none"
         [class.cursor-default]="isExcluded()"

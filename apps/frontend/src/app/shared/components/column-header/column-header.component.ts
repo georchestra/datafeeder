@@ -5,6 +5,7 @@ import {
   output,
   signal,
   computed,
+  effect,
   ChangeDetectionStrategy,
   ViewContainerRef,
   TemplateRef,
@@ -72,9 +73,21 @@ export class ColumnHeaderComponent implements OnDestroy {
 
   readonly triggerRef = viewChild<ElementRef<HTMLElement>>('triggerBtn')
   readonly menuTemplate = viewChild<TemplateRef<void>>('menuTemplate')
+  readonly nameInputEl = viewChild<ElementRef<HTMLInputElement>>('nameInputEl')
 
   private overlayRef: OverlayRef | null = null
   private positionStrategy: FlexibleConnectedPositionStrategy | null = null
+
+  constructor() {
+    // only update input when not focused to avoid interfering with user input
+    effect(() => {
+      const name = this.displayName()
+      const el = this.nameInputEl()?.nativeElement
+      if (el && el !== document.activeElement) {
+        el.value = name
+      }
+    })
+  }
 
   isMenuOpen = signal(false)
   nameValidationError = signal<string | null>(null)
