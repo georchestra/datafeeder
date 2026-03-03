@@ -15,6 +15,7 @@ export interface IntegrityLinkListItem {
   created_at: string | null
   data_id: string | null
   final_table_name: string | null
+  has_final_table?: boolean
   id: string
   integrity_organization: string
   integrity_owner: string

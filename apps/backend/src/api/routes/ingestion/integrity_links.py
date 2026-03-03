@@ -1,10 +1,11 @@
 from typing import Any
 
 from fastapi import APIRouter, Query
-from sqlalchemy import exists
-from sqlmodel import or_, select
+from sqlalchemy import Column, MetaData, String, Table, exists, literal, or_
+from sqlalchemy import select as sa_select
 
 from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, OrgIdDep
+from src.core.config import get_staging_schema
 from src.core.logging import get_logger
 from src.core.security import build_access_expr
 from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
@@ -15,6 +16,13 @@ router = APIRouter(prefix="/ingestion/integrity-links", tags=["Ingestion"])
 logger = get_logger()
 
 BATCH_SIZE = 100  # Fixed batch size for lazy loading
+
+_info_tables = Table(
+    "tables",
+    MetaData(schema="information_schema"),
+    Column("table_schema", String),
+    Column("table_name", String),
+)
 
 
 @router.get(
@@ -48,8 +56,32 @@ def list_integrity_links(
     """
     is_admin = geo_ctx.is_administrator()
 
+    _il = IntegrityLink.__table__  # type: ignore[reportAttributeAccessIssue]
+
+    staging_exists = (
+        sa_select(literal(1))
+        .select_from(_info_tables)
+        .where(_info_tables.c.table_schema == get_staging_schema())
+        .where(_info_tables.c.table_name == _il.c.staging_table_name)  # type: ignore[union-attr]
+        .correlate(_il)  # type: ignore[arg-type]
+        .exists()
+    )
+
+    final_exists = (
+        sa_select(literal(1))
+        .select_from(_info_tables)
+        .where(_info_tables.c.table_schema == "data")
+        .where(_info_tables.c.table_name == _il.c.final_table_name)  # type: ignore[union-attr]
+        .correlate(_il)  # type: ignore[arg-type]
+        .exists()
+    )
+
     access_expr = build_access_expr(geo_ctx.username, org_id, is_admin)
-    query = select(IntegrityLink, access_expr)
+    query = sa_select(
+        IntegrityLink,
+        access_expr.label("access_level"),
+        final_exists.label("has_final_table"),
+    ).where(or_(staging_exists, final_exists))
 
     if not is_admin:
         # Non-admins see: own datasets + datasets with METADATA rules for their org
@@ -57,7 +89,7 @@ def list_integrity_links(
         if org_id:
             conditions.append(
                 exists(
-                    select(IntegrityLinkRule.id).where(
+                    sa_select(IntegrityLinkRule.id).where(  # type: ignore[reportArgumentType]
                         IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
                         IntegrityLinkRule.rule_type == RuleType.METADATA,
                         IntegrityLinkRule.group_or_role == org_id,
@@ -70,25 +102,23 @@ def list_integrity_links(
     if search:
         query = query.where(IntegrityLink.integrity_title.ilike(f"%{search}%"))  # type: ignore[union-attr]
 
-    # Order by created_at descending (newest first)
     query = query.order_by(IntegrityLink.created_at.desc())  # type: ignore[union-attr]
-
-    # Fetch one extra item to determine if there are more items
     query = query.offset(offset).limit(BATCH_SIZE + 1)
 
-    results = session.exec(query).all()
-    has_more = len(results) > BATCH_SIZE
-    rows = results[:BATCH_SIZE]
+    rows = session.execute(query).all()  # type: ignore[reportDeprecated]
+    has_more = len(rows) > BATCH_SIZE
+    items_rows = rows[:BATCH_SIZE]
 
     logger.info(
-        f"Listed {len(rows)} integrity links for user '{geo_ctx.username}' "
+        f"Listed {len(items_rows)} integrity links for user '{geo_ctx.username}' "
         f"(admin={is_admin}, offset={offset}, has_more={has_more}, search={search!r})"
     )
 
     items: list[IntegrityLinkListItem] = []
-    for link, access_level in rows:
+    for link, access_level, has_final in items_rows:
         item = IntegrityLinkListItem.model_validate(link)
         item.access_level = access_level
+        item.has_final_table = bool(has_final)
         items.append(item)
 
     return IntegrityLinkListResponse(

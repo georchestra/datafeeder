@@ -54,6 +54,12 @@ class TestListIntegrityLinks:
             organization=organization,
         )
 
+    def _mock_rows(
+        self, links: list[IntegrityLink], has_final: bool = False, access_level: str = "OWNER"
+    ) -> list[tuple[IntegrityLink, str, bool]]:
+        """Wrap links into (link, access_level, has_final_table) tuples as returned by session.execute()."""
+        return [(link, access_level, has_final) for link in links]
+
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_normal_user_sees_only_own_links(
         self,
@@ -66,10 +72,9 @@ class TestListIntegrityLinks:
         # Filter links for user0
         user0_links = [link for link in sample_integrity_links if link.integrity_owner == "user0"]
 
-        # Mock the session.exec().all() to return user0's links
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "OWNER") for link in user0_links]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = self._mock_rows(user0_links)
+        mock_session.execute.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT", "USER"})
 
@@ -93,10 +98,9 @@ class TestListIntegrityLinks:
     ) -> None:
         """Test that administrators see all integrity links."""
 
-        # Mock the session.exec().all() to return all links
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "ADMIN") for link in sample_integrity_links]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = self._mock_rows(sample_integrity_links)
+        mock_session.execute.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("admin", {"IMPORT", "ADMINISTRATOR", "USER"})
 
@@ -131,10 +135,8 @@ class TestListIntegrityLinks:
         ]
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [
-            (link, "OWNER") for link in links
-        ]  # Returns BATCH_SIZE + 1 items
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = self._mock_rows(links)  # Returns BATCH_SIZE + 1 items
+        mock_session.execute.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
 
@@ -170,8 +172,8 @@ class TestListIntegrityLinks:
         ]
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "OWNER") for link in links]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = self._mock_rows(links)
+        mock_session.execute.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
 
@@ -191,7 +193,7 @@ class TestListIntegrityLinks:
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []
-        mock_session.exec.return_value = mock_exec_result
+        mock_session.execute.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
 
@@ -227,8 +229,8 @@ class TestListIntegrityLinks:
         )
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "OWNER")]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = self._mock_rows([link])
+        mock_session.execute.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
 
@@ -260,7 +262,7 @@ class TestListIntegrityLinks:
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []
-        mock_session.exec.return_value = mock_exec_result
+        mock_session.execute.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("newuser", {"IMPORT"})
 
@@ -293,8 +295,8 @@ class TestListIntegrityLinks:
         )
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(matching_link, "OWNER")]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = self._mock_rows([matching_link])
+        mock_session.execute.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
 
@@ -309,8 +311,8 @@ class TestListIntegrityLinks:
         assert len(response.items) == 1
         assert response.items[0].integrity_title == "My Dataset Import"
 
-        # Verify the query passed to session.exec contains an ilike filter
-        executed_query = mock_session.exec.call_args[0][0]
+        # Verify the query passed to session.execute contains an ilike filter
+        executed_query = mock_session.execute.call_args[0][0]
         query_str = str(executed_query)
         assert "ilike" in query_str.lower() or "LIKE" in query_str
 
@@ -334,8 +336,8 @@ class TestListIntegrityLinks:
         ]
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "OWNER") for link in links]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = self._mock_rows(links)
+        mock_session.execute.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
 
@@ -371,8 +373,8 @@ class TestListIntegrityLinks:
         ]
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "OWNER") for link in links]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = self._mock_rows(links)
+        mock_session.execute.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
 
@@ -388,7 +390,7 @@ class TestListIntegrityLinks:
         assert len(response.items) == 1
 
         # Verify no ilike filter was added
-        executed_query = mock_session.exec.call_args[0][0]
+        executed_query = mock_session.execute.call_args[0][0]
         query_str = str(executed_query)
         assert "ilike" not in query_str.lower() and "LIKE" not in query_str
 
@@ -402,8 +404,10 @@ class TestListIntegrityLinks:
         """Test that response model has correct structure."""
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "OWNER") for link in sample_integrity_links[:1]]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = self._mock_rows(
+            sample_integrity_links[:1], has_final=True
+        )
+        mock_session.execute.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
 
@@ -438,6 +442,40 @@ class TestListIntegrityLinks:
         assert hasattr(item, "schedule")
         assert hasattr(item, "schedule_enabled")
         assert hasattr(item, "access_level")
+        assert hasattr(item, "has_final_table")
+        assert item.has_final_table is True
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_has_final_table_false_when_no_final_table(
+        self, mock_logger: MagicMock, mock_session: MagicMock
+    ) -> None:
+        """Test that has_final_table is False when the final table does not exist."""
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="No Final Table",
+            integrity_owner="user0",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = self._mock_rows([link], has_final=False)
+        mock_session.execute.return_value = mock_exec_result
+
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
+        response = list_integrity_links(
+            session=mock_session,
+            geo_ctx=geo_ctx,
+            org_id=None,
+            offset=0,
+        )
+
+        assert len(response.items) == 1
+        assert response.items[0].has_final_table is False
 
 
 class TestListIntegrityLinksVisibility:
@@ -487,8 +525,8 @@ class TestListIntegrityLinksVisibility:
 
         link = self._make_link(owner="user1")
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "OWNER")]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = [(link, "OWNER", False)]
+        mock_session.execute.return_value = mock_exec_result
 
         ctx = self._geo_ctx(username="user1")
         response = list_integrity_links(
@@ -508,8 +546,8 @@ class TestListIntegrityLinksVisibility:
 
         links = [self._make_link(owner="someone"), self._make_link(owner="another")]
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "ADMIN") for link in links]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = [(link, "ADMIN", False) for link in links]
+        mock_session.execute.return_value = mock_exec_result
 
         ctx = self._geo_ctx(is_admin=True)
         response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
@@ -530,8 +568,8 @@ class TestListIntegrityLinksVisibility:
         org_id = "test-org-uuid"
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "READ")]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = [(link, "READ", False)]
+        mock_session.execute.return_value = mock_exec_result
 
         ctx = self._geo_ctx(username="user1", organization="org_a")
         response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=org_id, offset=0)
@@ -551,8 +589,8 @@ class TestListIntegrityLinksVisibility:
         org_id = "test-org-uuid"
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "WRITE")]
-        mock_session.exec.return_value = mock_exec_result
+        mock_exec_result.all.return_value = [(link, "WRITE", False)]
+        mock_session.execute.return_value = mock_exec_result
 
         ctx = self._geo_ctx(username="user1", organization="org_a")
         response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=org_id, offset=0)
@@ -570,7 +608,7 @@ class TestListIntegrityLinksVisibility:
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []
-        mock_session.exec.return_value = mock_exec_result
+        mock_session.execute.return_value = mock_exec_result
 
         ctx = self._geo_ctx(username="nobody", organization="no_org")
         response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
@@ -587,13 +625,13 @@ class TestListIntegrityLinksVisibility:
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []
-        mock_session.exec.return_value = mock_exec_result
+        mock_session.execute.return_value = mock_exec_result
 
         ctx = self._geo_ctx(username="user1", organization="org_a")
         list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
 
         # Verify the query was executed and contains both conditions
-        executed_query = mock_session.exec.call_args[0][0]
+        executed_query = mock_session.execute.call_args[0][0]
         query_str = str(executed_query)
         # Should have OR condition (owner = username OR EXISTS subquery)
         assert "OR" in query_str.upper() or "or" in query_str.lower()
