@@ -56,7 +56,7 @@ describe('ColumnTypeSelectComponent', () => {
     expect(compiled.querySelectorAll('[data-type]').length).toBe(4)
   })
 
-  it('should set aria-selected="true" on the castType option', () => {
+  it('should set aria-checked="true" on the castType option', () => {
     const fixture = TestBed.createComponent(ColumnTypeSelectComponent)
     fixture.componentRef.setInput('castType', 'numeric')
     fixture.detectChanges()
@@ -65,17 +65,15 @@ describe('ColumnTypeSelectComponent', () => {
     expect(
       compiled
         .querySelector('[data-type="numeric"]')
-        ?.getAttribute('aria-selected')
+        ?.getAttribute('aria-checked')
     ).toBe('true')
     expect(
       compiled
         .querySelector('[data-type="boolean"]')
-        ?.getAttribute('aria-selected')
+        ?.getAttribute('aria-checked')
     ).toBe('false')
     expect(
-      compiled
-        .querySelector('[data-type="text"]')
-        ?.getAttribute('aria-selected')
+      compiled.querySelector('[data-type="text"]')?.getAttribute('aria-checked')
     ).toBe('false')
   })
 

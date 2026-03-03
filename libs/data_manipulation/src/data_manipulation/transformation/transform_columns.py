@@ -15,6 +15,44 @@ from data_manipulation.models import CastType, ColumnConfig
 
 logger = logging.getLogger(__name__)
 
+# Common string representations of True/False, matched case-insensitively.
+# Used by _parse_bool_from_strings to handle text-encoded boolean columns.
+_BOOL_TRUE = frozenset({"true", "1", "yes", "on", "t", "y"})
+_BOOL_FALSE = frozenset({"false", "0", "no", "off", "f", "n"})
+
+
+def _parse_bool_from_strings(series: pd.Series) -> pd.Series:
+    """Parse a string-typed Series to nullable boolean.
+
+    pandas ``astype(bool)`` treats **any non-empty string** — including
+    ``"False"``, ``"0"``, ``"no"`` — as ``True``, which is incorrect for
+    user-visible column data.  This function maps common string
+    representations to proper booleans and coerces unrecognised values to
+    ``pd.NA`` (logged as a warning).
+
+    Args:
+        series: An object-dtype Series containing string boolean values.
+
+    Returns:
+        A Series with pandas nullable boolean dtype (``"boolean"``).
+    """
+
+    def _to_bool(val: object) -> object:
+        if val is None or (isinstance(val, float) and val != val):
+            return None
+        s = str(val).strip().lower()
+        if s in _BOOL_TRUE:
+            return True
+        if s in _BOOL_FALSE:
+            return False
+        return None
+
+    result = series.map(_to_bool).astype("boolean")
+    na_count = int(result.isna().sum())
+    if na_count > 0:
+        logger.warning(f"Boolean cast: {na_count} value(s) could not be parsed and were set to NA")
+    return result
+
 
 def rename_columns(
     df: gpd.GeoDataFrame | pd.DataFrame,
@@ -87,7 +125,14 @@ def cast_column_types(
         try:
             if cast_type == CastType.BOOLEAN:
                 df = df.copy()
-                df[effective_name] = df[effective_name].astype(bool)
+                col = df[effective_name]
+                # Use a custom string parser for object (text) columns so that
+                # "False", "0", "no" correctly become False rather than True.
+                # pandas astype(bool) treats any non-empty string as True.
+                if col.dtype == object:
+                    df[effective_name] = _parse_bool_from_strings(col)  # type: ignore[arg-type]
+                else:
+                    df[effective_name] = col.astype(bool)  # type: ignore[union-attr]
             elif cast_type == CastType.NUMERIC:
                 df = df.copy()
                 df[effective_name] = pd.to_numeric(df[effective_name], errors="coerce")

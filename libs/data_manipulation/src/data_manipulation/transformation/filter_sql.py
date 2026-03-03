@@ -73,6 +73,13 @@ def build_sql_column_ops(
             # Cast to TEXT for uniform comparison regardless of native column type.
             # SQLAlchemy's == and .like() automatically bind the value as a parameter,
             # so no user input is ever interpolated into the SQL text.
+            #
+            # Case-sensitivity note (by design):
+            #   EXACTLY   → == comparison   → CASE-SENSITIVE after TEXT cast
+            #   CONTAINS  → ilike()         → CASE-INSENSITIVE (PostgreSQL ILIKE)
+            #   STARTS_WITH → ilike()       → CASE-INSENSITIVE (PostgreSQL ILIKE)
+            # This inconsistency is intentional: exact matching is strict by nature,
+            # while substring/prefix matching is more useful case-insensitively.
             col_as_text = cast(col, Text)
             filter_value = col_config.filter.value
             operator = col_config.filter.operator

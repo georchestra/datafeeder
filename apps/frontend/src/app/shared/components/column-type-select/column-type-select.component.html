@@ -7,7 +7,7 @@
     <input
       type="radio"
       [attr.data-type]="type"
-      [attr.aria-selected]="effectiveType() === type ? 'true' : 'false'"
+      [attr.aria-checked]="effectiveType() === type ? 'true' : 'false'"
       name="column-type-select"
       [value]="type"
       [checked]="effectiveType() === type"

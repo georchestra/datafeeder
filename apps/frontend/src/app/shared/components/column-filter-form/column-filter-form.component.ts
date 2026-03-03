@@ -59,6 +59,11 @@ export class ColumnFilterFormComponent {
 
   onDelete(event: MouseEvent): void {
     event.stopPropagation()
+    // Clear stale input values so the editing form is empty after the filter
+    // is removed — otherwise previously-typed values remain visible in the inputs.
+    this.containsValue.set('')
+    this.exactlyValue.set('')
+    this.startsWithValue.set('')
     this.filterDeleted.emit()
   }
 }

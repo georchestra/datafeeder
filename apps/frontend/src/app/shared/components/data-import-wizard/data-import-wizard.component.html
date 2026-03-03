@@ -102,9 +102,14 @@
   <div class="border-gray-600 border rounded-tr-lg rounded-b-lg">
     <!-- Preview header with toggle buttons -->
     <div class="flex items-center justify-between px-6 pt-6">
-      <h1 class="text-lg font-semibold text-gray-900">
-        {{ 'import.datasetConfiguration.previewTitle' | translate }}
-      </h1>
+      <div class="flex items-center gap-3">
+        <h1 class="text-lg font-semibold text-gray-900">
+          {{ 'import.datasetConfiguration.previewTitle' | translate }}
+        </h1>
+        @if (configSaving()) {
+        <gn-ui-spinning-loader data-test="config-saving-indicator" />
+        }
+      </div>
 
       <mat-button-toggle-group
         [value]="previewTabIndex()"

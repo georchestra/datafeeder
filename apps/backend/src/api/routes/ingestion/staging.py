@@ -533,7 +533,11 @@ def edit_staging_metadata(
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
     if config.columns:
-        # Validate column names: no empty names and no duplicates (after rename)
+        # Validate column names: no empty names and no duplicates (after rename).
+        # `name` is the *effective* output name for each column: new_name if set,
+        # original_name otherwise.  Checking effective names catches all collision
+        # scenarios including new_name of one column clashing with original_name of
+        # another (when that column has no new_name).
         seen: set[str] = set()
         for col in config.columns:
             name = col.new_name or col.original_name
@@ -646,6 +650,13 @@ def get_staging_preview(
             config = IntegrityTransformation.model_validate(integrity_link.integrity_transformation)
         except Exception as e:
             logger.warning(f"Could not deserialize transformation config, using raw: {e}")
+    # SECURITY NOTE: when raw=True, config remains None and read_and_transform_data
+    # returns ALL columns including those marked as excluded in the saved config.
+    # This is intentional — raw mode is a debug/fallback path used when the
+    # transformation itself causes a preview error. If excluded columns contain
+    # sensitive data, access to this endpoint should be restricted at the
+    # infrastructure level (authentication / authorisation) rather than relying
+    # on the exclusion flag alone.
 
     # When include_excluded is requested, strip excluded=True from all columns
     # so SQL-level filtering keeps them, while other transformations still apply.
