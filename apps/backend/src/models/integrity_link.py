@@ -23,7 +23,12 @@ class IntegrityLink(SQLModel, table=True):
     integrity_title: Optional[str] = Field(default=None, max_length=256)
     integrity_owner: str = Field(max_length=256)
     integrity_organization: str = Field(max_length=63)
-    integrity_transformation: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    # See data_manipulation.IntegrityTransformation for the full typed schema.
+    integrity_transformation: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(JSON),
+        description="Full transformation config (IntegrityTransformation): columns + force_projection",
+    )
     source_import_type: ImportType
     source_url: Optional[str] = None
     source_file_name: Optional[str] = None

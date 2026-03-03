@@ -1,0 +1,81 @@
+<div
+  class="bg-white shadow-[0px_9px_12px_0px_rgba(9,30,66,0.15),0px_0px_1px_0px_rgba(9,30,66,0.31)] w-[290px] flex flex-col"
+>
+  <div class="border-b border-gray-300">
+    <button
+      type="button"
+      data-action="filter"
+      class="flex items-center justify-between p-[10px] hover:bg-gray-50 text-left w-full"
+      [class.bg-gray-50]="filterExpanded()"
+      (click)="onAction('filter', $event)"
+    >
+      <span class="flex-1 text-sm text-black flex items-center gap-1.5">
+        <span>{{ 'import.columnAction.menu.filter' | translate }}</span>
+        @if (hasFilterActive()) {
+        <span
+          data-indicator-dot="filter"
+          class="inline-block w-2 h-2 rounded-full bg-[#E30513] shrink-0"
+        ></span>
+        }
+      </span>
+      <ng-icon
+        [name]="filterExpanded() ? 'iconoirNavArrowUp' : 'iconoirNavArrowDown'"
+        class="text-neutral-500 shrink-0"
+      ></ng-icon>
+    </button>
+
+    @if (filterExpanded()) {
+    <div data-filter-panel class="border-t border-gray-200">
+      <app-column-filter-form
+        [activeFilter]="columnConfig().filter ?? null"
+        (filterValidated)="onFilterValidated($event)"
+        (filterDeleted)="onFilterDeleted()"
+      ></app-column-filter-form>
+    </div>
+    }
+  </div>
+
+  <div class="border-b border-gray-300">
+    <button
+      type="button"
+      data-action="changeType"
+      class="flex items-center justify-between p-[10px] hover:bg-gray-50 text-left w-full"
+      [class.bg-gray-50]="typeExpanded()"
+      (click)="onAction('changeType', $event)"
+    >
+      <span class="flex-1 text-sm text-black flex items-center gap-1.5">
+        <span>{{ 'import.columnAction.menu.changeType' | translate }}</span>
+        @if (hasCastTypeActive()) {
+        <span
+          data-indicator-dot="changeType"
+          class="inline-block w-2 h-2 rounded-full bg-[#E30513] shrink-0"
+        ></span>
+        }
+      </span>
+      <ng-icon
+        [name]="typeExpanded() ? 'iconoirNavArrowUp' : 'iconoirNavArrowDown'"
+        class="text-neutral-500 shrink-0"
+      ></ng-icon>
+    </button>
+
+    @if (typeExpanded()) {
+    <app-column-type-select
+      [originalType]="columnConfig().original_type"
+      [castType]="columnConfig().cast_type"
+      (typeSelect)="onTypeSelect($event)"
+    />
+    }
+  </div>
+
+  <button
+    type="button"
+    data-action="remove"
+    class="flex items-center justify-between p-[10px] hover:bg-gray-50 text-left w-full"
+    (click)="onAction('remove', $event)"
+  >
+    <span class="flex-1 text-sm text-black">{{
+      'import.columnAction.menu.remove' | translate
+    }}</span>
+    <ng-icon name="iconoirTrash" class="text-neutral-500"></ng-icon>
+  </button>
+</div>

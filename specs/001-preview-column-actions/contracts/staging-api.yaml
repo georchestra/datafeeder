@@ -1,0 +1,259 @@
+openapi: "3.1.0"
+info:
+  title: DataKern Staging API — Column Actions Extension
+  version: "1.0.0"
+  description: |
+    API contracts for the "Actions sur les colonnes de l'aperçu tabulaire" feature.
+    Extends the existing staging endpoints with transformation configuration
+    persistence and raw preview support.
+
+paths:
+  /ingestion/staging/{integrity_link_id}/metadata:
+    get:
+      operationId: get_staging_metadata
+      summary: Get staging table metadata
+      description: |
+        Returns metadata about the staging table: column list (from DB schema),
+        row count, import type, file type, original projection, and the saved
+        transformation configuration.
+      parameters:
+        - name: integrity_link_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Staging metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StagingMetadataResponse"
+        "404":
+          description: IntegrityLink not found
+
+    put:
+      operationId: edit_staging_metadata
+      summary: Update staging transformation configuration
+      description: |
+        Persists the full transformation configuration (columns, projection,
+        title, file_type) to the IntegrityLink record. Called by the frontend
+        on each user modification to incrementally persist configuration choices.
+        Initial state is empty (no default config exists).
+      parameters:
+        - name: integrity_link_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StagingMetadata"
+      responses:
+        "200":
+          description: Updated metadata (re-reads from DB)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StagingMetadataResponse"
+        "404":
+          description: IntegrityLink not found
+
+  /ingestion/staging/{integrity_link_id}/preview:
+    get:
+      operationId: get_staging_preview
+      summary: Get staging data preview
+      description: |
+        Returns a preview of the staging data. By default (raw=false), reads
+        the saved transformation configuration from the database and applies
+        it (column renames, excludes, type casts, filters, projection).
+        When raw=true, returns the original data without any transformations.
+        
+        The `raw` parameter is critical for error recovery: if the user's
+        configuration breaks the preview (wrong projection, invalid columns),
+        the frontend can request raw data to display the original table
+        alongside error messages.
+      parameters:
+        - name: integrity_link_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Maximum number of rows to return
+        - name: raw
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: |
+            If true, return original staging data without any transformations.
+            If false (default), apply saved transformation configuration.
+      responses:
+        "200":
+          description: Preview data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StagingPreviewResponse"
+        "404":
+          description: IntegrityLink not found
+        "500":
+          description: Transformation error (invalid config)
+
+components:
+  schemas:
+    FilterOperator:
+      type: string
+      enum:
+        - exactly
+        - contains
+        - starts_with
+      description: Filter comparison operator
+
+    CastType:
+      type: string
+      enum:
+        - boolean
+        - numeric
+        - text
+        - date
+      description: Target data type for column casting
+
+    ColumnFilter:
+      type: object
+      required:
+        - operator
+        - value
+      properties:
+        operator:
+          $ref: "#/components/schemas/FilterOperator"
+        value:
+          type: string
+          minLength: 1
+          description: Filter value to match against
+
+    ColumnConfig:
+      type: object
+      required:
+        - original_name
+      properties:
+        original_name:
+          type: string
+          description: Original column name from staging table (immutable reference)
+        new_name:
+          type: string
+          nullable: true
+          description: Renamed column name. Null = keep original name.
+        excluded:
+          type: boolean
+          default: false
+          description: Whether the column is excluded from output
+        cast_type:
+          $ref: "#/components/schemas/CastType"
+          nullable: true
+          description: Target data type for casting. Null = keep original type.
+        filter:
+          $ref: "#/components/schemas/ColumnFilter"
+          nullable: true
+          description: Active filter on this column. Null = no filter.
+
+    ForceProjection:
+      type: object
+      properties:
+        type:
+          type: string
+          default: ""
+          description: "Projection type (e.g., EPSG:4326)"
+        x_column:
+          type: string
+          nullable: true
+          description: Longitude/X coordinate column name
+        y_column:
+          type: string
+          nullable: true
+          description: Latitude/Y coordinate column name
+
+    StagingMetadata:
+      type: object
+      required:
+        - columns
+        - title
+      properties:
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ColumnConfig"
+          description: Per-column transformation configuration
+        title:
+          type: string
+          description: Dataset title
+        file_type:
+          type: string
+          nullable: true
+          enum:
+            - csv
+            - geojson
+            - json
+            - shapefile
+            - gpkg
+            - zip
+        force_projection:
+          $ref: "#/components/schemas/ForceProjection"
+          nullable: true
+
+    StagingMetadataResponse:
+      allOf:
+        - $ref: "#/components/schemas/StagingMetadata"
+        - type: object
+          required:
+            - import_type
+            - row_count
+          properties:
+            import_type:
+              type: string
+              enum:
+                - url
+                - file
+                - database
+                - api
+            row_count:
+              type: integer
+              description: Total number of rows in the staging table
+            original_projection:
+              type: string
+              nullable: true
+              description: Original CRS detected from the data (read-only, informational)
+
+    StagingPreviewResponse:
+      type: object
+      required:
+        - data
+        - is_geographic
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          description: Tabular data rows (up to `limit` rows)
+        geojson:
+          type: object
+          nullable: true
+          description: GeoJSON FeatureCollection (only for geographic data)
+        is_geographic:
+          type: boolean
+          default: false
+          description: Whether the staging table contains geometry data

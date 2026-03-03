@@ -1,0 +1,71 @@
+<div class="relative flex flex-col">
+  <div class="flex items-stretch h-12 gap-[5px] px-[5px] py-[8px]">
+    <div
+      class="flex-1 min-w-0 border flex items-center px-2 overflow-hidden bg-white"
+      [class.border-red-400]="nameValidationError()"
+      [class.border-gray-300]="!nameValidationError()"
+      [class.opacity-50]="isExcluded()"
+    >
+      <input
+        #nameInputEl
+        type="text"
+        data-name-input
+        [disabled]="isExcluded()"
+        class="w-full bg-transparent font-bold text-[14px] text-[#646464] leading-[1.5] truncate outline-none"
+        [class.cursor-default]="isExcluded()"
+        [class.pointer-events-none]="isExcluded()"
+        [attr.aria-label]="displayName()"
+        (input)="onNameInput($event)"
+      />
+    </div>
+
+    <div class="relative shrink-0">
+      @if (isExcluded()) {
+      <button
+        type="button"
+        data-restore-button
+        class="flex items-center justify-center w-10 h-full border border-gray-300 bg-beige hover:bg-gray-50 focus:outline-none"
+        (click)="onMenuAction('remove')"
+      >
+        <ng-icon name="iconoirUndo" class="text-[#646464]"></ng-icon>
+      </button>
+      } @else {
+      <button
+        #triggerBtn
+        type="button"
+        data-action-button
+        class="relative flex items-center justify-center w-10 h-full border border-gray-300 bg-beige hover:bg-gray-50 focus:outline-none"
+        (click)="toggleMenu($event)"
+      >
+        <ng-icon name="iconoirMoreVert" class="text-[#646464]"></ng-icon>
+
+        @if (hasActiveActions()) {
+        <span
+          data-active-indicator
+          class="absolute top-[-4px] right-[-2px] w-2.5 h-2.5 rounded-full bg-[#E30513]"
+        ></span>
+        }
+      </button>
+      }
+    </div>
+  </div>
+
+  @if (nameValidationError()) {
+  <div
+    data-name-error
+    class="absolute top-full left-0 right-0 z-40 bg-red-50 border border-red-300 text-red-700 text-xs px-2 py-1 shadow-sm"
+  >
+    {{ nameValidationError() }}
+  </div>
+  }
+</div>
+
+<ng-template #menuTemplate>
+  <app-column-action-menu
+    [columnConfig]="columnConfig()"
+    (actionSelected)="onMenuAction($event)"
+    (typeSelected)="onTypeSelected($event)"
+    (filterValidated)="onFilterValidated($event)"
+    (filterDeleted)="onFilterDeleted()"
+  ></app-column-action-menu>
+</ng-template>

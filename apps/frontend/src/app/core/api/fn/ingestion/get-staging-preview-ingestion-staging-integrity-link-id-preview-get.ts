@@ -18,19 +18,14 @@ export interface GetStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet$Para
   limit?: number
 
   /**
-   * CRS/projection (e.g., EPSG:4326)
+   * When true, return original data ignoring saved transformation config. Used as fallback when transformation causes an error.
    */
-  projection?: string | null
+  raw?: boolean
 
   /**
-   * Latitude column name
+   * When true, return all columns including those flagged as excluded in the transformation config. Other transformations (rename, cast, filter, projection) are still applied.
    */
-  x_column?: string | null
-
-  /**
-   * Longitude column name
-   */
-  y_column?: string | null
+  include_excluded?: boolean
 }
 
 export function getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet(
@@ -47,9 +42,8 @@ export function getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet(
   if (params) {
     rb.path('integrity_link_id', params.integrity_link_id, {})
     rb.query('limit', params.limit, {})
-    rb.query('projection', params.projection, {})
-    rb.query('x_column', params.x_column, {})
-    rb.query('y_column', params.y_column, {})
+    rb.query('raw', params.raw, {})
+    rb.query('include_excluded', params.include_excluded, {})
   }
 
   return http

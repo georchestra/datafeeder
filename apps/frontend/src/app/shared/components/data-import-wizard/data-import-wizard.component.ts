@@ -7,6 +7,7 @@ import {
   signal,
   OnInit
 } from '@angular/core'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { MatButtonToggleModule } from '@angular/material/button-toggle'
 import { MatTabsModule } from '@angular/material/tabs'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
@@ -22,7 +23,10 @@ import {
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { ButtonComponent, SpinningLoaderComponent } from 'geonetwork-ui'
 import {
+  Subject,
   catchError,
+  debounceTime,
+  from,
   interval,
   lastValueFrom,
   of,
@@ -42,7 +46,9 @@ import {
   editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut
 } from '../../../core/api/functions'
 import type {
+  ColumnConfigInput,
   DagRunState,
+  ForceProjection,
   StagingResponse,
   StagingMetadataResponse,
   StagingPreviewResponse
@@ -51,6 +57,11 @@ import type { SourceData } from '../data-source-selector/data-source-selector.co
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
 import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
+import type {
+  ColumnAction,
+  CastType
+} from '../column-action-menu/column-action-menu.component'
+import type { ColumnFilter } from '../../../core/api/models/column-filter'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
@@ -112,6 +123,11 @@ export class DataImportWizardComponent implements OnInit {
   private router = inject(Router)
   private route = inject(ActivatedRoute)
 
+  private renameSubject = new Subject<{
+    originalName: string
+    newName: string
+  }>()
+
   selectedTabIndex = signal(0)
   importData = signal<ImportWizardData>(null)
 
@@ -129,6 +145,13 @@ export class DataImportWizardComponent implements OnInit {
   validationError = signal<string | null>(null)
   previewTabIndex = signal(0)
   hasExtentError = signal(false)
+
+  columnConfigs = signal<ColumnConfigInput[]>([])
+  forceProjection = signal<ForceProjection | null>(null)
+  configSaving = signal(false)
+
+  columnNameErrors = signal<Set<string>>(new Set())
+  hasColumnNameError = computed(() => this.columnNameErrors().size > 0)
 
   isGeographicData = computed(() => {
     const preview = this.preview()
@@ -148,6 +171,23 @@ export class DataImportWizardComponent implements OnInit {
   }
 
   constructor() {
+    this.renameSubject
+      .pipe(debounceTime(400), takeUntilDestroyed())
+      .subscribe(({ originalName, newName }) => {
+        this.columnConfigs.update((cols) =>
+          cols.map((col) =>
+            col.original_name === originalName
+              ? { ...col, new_name: newName }
+              : col
+          )
+        )
+        this.saveConfigAndRefresh()
+      })
+
+    // NOTE: any signal read inside an effect body without untracked() creates a
+    // subscription that re-triggers the effect. Keep side-effect logic here to
+    // deliberately tracked signals (tabIndex, linkId) and wrap any incidental
+    // reads in untracked() to prevent unintended re-execution.
     effect(async () => {
       const tabIndex = this.selectedTabIndex()
       const linkId = this.integrityLinkId()
@@ -163,12 +203,11 @@ export class DataImportWizardComponent implements OnInit {
 
         if (!this.metadata() && !this.preview()) {
           const metadata = await this.refreshMetadata(linkId)
-          await this.refreshPreview(
-            linkId,
-            metadata?.force_projection?.type,
-            metadata?.force_projection?.x_column,
-            metadata?.force_projection?.y_column
-          )
+          if (metadata) {
+            this.columnConfigs.set(metadata.columns)
+            this.forceProjection.set(metadata.force_projection ?? null)
+          }
+          await this.refreshPreview(linkId, false)
         }
       }
 
@@ -213,31 +252,67 @@ export class DataImportWizardComponent implements OnInit {
     )
   })
 
-  async onConfigChanged(config: {
-    projection: string
-    colX: string
-    colY: string
-  }) {
-    const linkId = this.integrityLinkId()
-    if (linkId) {
-      try {
-        const metadata = await this.submitConfigStagingData(
-          linkId,
-          config.projection,
-          config.colX,
-          config.colY
+  onConfigChanged(config: { projection: string; colX: string; colY: string }) {
+    this.forceProjection.set({
+      type: config.projection || null,
+      x_column: config.colX || null,
+      y_column: config.colY || null
+    })
+    this.saveConfigAndRefresh()
+  }
+
+  onColumnActionRequested(event: {
+    originalName: string
+    action: ColumnAction
+  }): void {
+    const { originalName, action } = event
+    if (action === 'remove') {
+      this.columnConfigs.update((cols) =>
+        cols.map((col) =>
+          col.original_name === originalName
+            ? { ...col, excluded: !col.excluded }
+            : col
         )
-        await this.refreshPreview(
-          linkId,
-          config.projection,
-          config.colX,
-          config.colY
-        )
-        this.metadata.update(() => metadata)
-      } catch (error) {
-        console.error('Error submitting configuration:', error)
-      }
+      )
+      this.saveConfigAndRefresh()
     }
+  }
+
+  onColumnRenameRequested(event: {
+    originalName: string
+    newName: string
+  }): void {
+    this.renameSubject.next(event)
+  }
+
+  onColumnTypeChangeRequested(event: {
+    originalName: string
+    type: CastType | null
+  }): void {
+    const { originalName, type } = event
+    this.columnConfigs.update((cols) =>
+      cols.map((col) =>
+        col.original_name === originalName
+          ? { ...col, cast_type: type ?? undefined }
+          : col
+      )
+    )
+    this.saveConfigAndRefresh()
+  }
+
+  onColumnFilterChangeRequested(event: {
+    originalName: string
+    filter: ColumnFilter | null
+  }): void {
+    const { originalName, filter } = event
+    this.columnConfigs.update((cols) =>
+      cols.map((col) =>
+        col.original_name === originalName
+          ? { ...col, filter: filter ?? undefined }
+          : col
+      )
+    )
+    this.saveConfigAndRefresh()
   }
 
   onSourceChanged(data: SourceData) {
@@ -252,11 +327,27 @@ export class DataImportWizardComponent implements OnInit {
     return !this.validSource() || this.importing() || this.polling()
   }
 
+  onColumnNameValidationErrorChanged(event: {
+    originalName: string
+    error: string | null
+  }): void {
+    this.columnNameErrors.update((s) => {
+      const next = new Set(s)
+      if (event.error) {
+        next.add(event.originalName)
+      } else {
+        next.delete(event.originalName)
+      }
+      return next
+    })
+  }
+
   async onConfigureDataset() {
     this.importError.set(null)
     this.importing.set(true)
     this.metadata.update(() => null)
     this.preview.update(() => null)
+    this.columnNameErrors.set(new Set())
 
     try {
       const importResponse = await this.createImportRequest()
@@ -389,33 +480,40 @@ export class DataImportWizardComponent implements OnInit {
     )
   }
 
-  private submitConfigStagingData(
-    integrityLinkId: string,
-    projection?: string,
-    colX?: string,
-    colY?: string
-  ): Promise<StagingMetadataResponse> {
-    const metadata = this.metadata()
-    if (!metadata) return
+  private async saveConfigAndRefresh(): Promise<void> {
+    const linkId = this.integrityLinkId()
+    if (!linkId) return
 
-    const force_projection = {
-      type: projection,
-      x_column: colX,
-      y_column: colY
+    this.configSaving.set(true)
+    try {
+      const updatedMetadata = await this.api.invoke(
+        editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut,
+        {
+          integrity_link_id: linkId,
+          body: {
+            columns: this.columnConfigs(),
+            title: this.metadata()?.title ?? '',
+            file_type: this.metadata()?.file_type ?? null,
+            force_projection: this.forceProjection()
+          }
+        }
+      )
+      this.metadata.set(updatedMetadata)
+      this.columnConfigs.set(updatedMetadata.columns)
+    } catch (error) {
+      const errorMessage =
+        error instanceof HttpErrorResponse
+          ? error.error?.detail || error.message
+          : 'import.dataSource.unknownError'
+      this.previewError.set(
+        this.translate.instant(errorMessage) || errorMessage
+      )
+      return
+    } finally {
+      this.configSaving.set(false)
     }
 
-    return this.api.invoke(
-      editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut,
-      {
-        integrity_link_id: integrityLinkId,
-        body: {
-          columns: metadata.columns || [],
-          title: metadata.title,
-          file_type: metadata.file_type,
-          force_projection
-        }
-      }
-    )
+    await this.refreshPreview(linkId, false)
   }
 
   private async refreshMetadata(
@@ -428,58 +526,44 @@ export class DataImportWizardComponent implements OnInit {
       }
     )
 
-    this.metadata.update(() => metadata)
+    this.metadata.set(metadata)
 
     return metadata
   }
 
   private async refreshPreview(
     integrityLinkId: string,
-    projection?: string,
-    colX?: string,
-    colY?: string,
-    retryCount: number = 0,
-    isRetry: boolean = false
+    raw: boolean
   ): Promise<void> {
-    this.previewLoading.set(true)
+    if (!raw) this.previewLoading.set(true)
     try {
-      const preview = await this.api.invoke(
-        getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
-        {
-          integrity_link_id: integrityLinkId,
-          limit: 10,
-          projection: projection || null,
-          x_column: colX || null,
-          y_column: colY || null
-        }
+      const preview = await lastValueFrom(
+        from(
+          this.api.invoke(
+            getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
+            {
+              integrity_link_id: integrityLinkId,
+              limit: 10,
+              raw,
+              include_excluded: true
+            }
+          )
+        ).pipe(timeout(5000))
       )
-
-      this.preview.update(() => preview)
-      this.previewError.set(null)
+      this.preview.set(preview)
+      if (!raw) this.previewError.set(null)
     } catch (error) {
-      // Refresh metadata in case of projection or columns errors
-      // Retry only once without projection/columns to recover
-      if (!isRetry && retryCount < 1) {
-        await this.refreshPreview(
-          integrityLinkId,
-          undefined,
-          undefined,
-          undefined,
-          retryCount + 1,
-          true
-        )
-
-        // Back to table view on error
-        this.previewTabIndex.set(0)
-
+      if (!raw) {
         const errorMessage =
           error instanceof HttpErrorResponse
             ? error.error?.detail || error.message
             : 'import.dataSource.unknownError'
         this.previewError.set(this.translate.instant(errorMessage))
+        this.previewTabIndex.set(0)
+        await this.refreshPreview(integrityLinkId, true)
       }
     } finally {
-      this.previewLoading.set(false)
+      if (!raw) this.previewLoading.set(false)
     }
   }
 

@@ -1,33 +1,76 @@
 @if (metadata()) {
 <div class="pb-6">
+  @if (allColumnsExcluded()) {
+  <div
+    data-all-excluded-warning
+    class="mx-6 mb-2 px-4 py-3 bg-yellow-50 border border-yellow-300 text-yellow-800 text-sm rounded"
+  >
+    {{ 'import.datasetPreviewTable.allColumnsExcluded' | translate }}
+  </div>
+  }
   <div class="mx-6 overflow-x-auto border border-gray-400">
-    @if (previewLoading()) {
-    <div class="flex flex-col items-center gap-4 p-8">
-      <gn-ui-spinning-loader></gn-ui-spinning-loader>
-      <p class="text-center text-gray-600">
-        {{ 'import.dataSource.processingMessage' | translate }}
-      </p>
-    </div>
-    } @else if (dataSource().length > 0) {
-    <table mat-table [dataSource]="dataSource()" class="w-auto text-sm">
-      @for (column of displayedColumns(); track column) {
-      <ng-container [matColumnDef]="column">
+    <table
+      mat-table
+      [dataSource]="previewLoading() ? [] : dataSource()"
+      class="w-auto text-sm"
+    >
+      @for (col of (metadata()?.columns ?? []); track col.original_name) {
+      <ng-container [matColumnDef]="col.original_name">
         <th
           mat-header-cell
           *matHeaderCellDef
-          class="!bg-gray-200 !px-4 !font-semibold !text-gray-900 !whitespace-nowrap !border-b !border-r !border-gray-400 !w-[220px] !min-w-[220px] !max-w-[220px] !h-12 last:!border-r-0"
+          class="!p-0 !bg-gray-200 !border-b !border-r !border-gray-400 !w-[220px] !min-w-[220px] !max-w-[220px] !h-12 last:!border-r-0 !overflow-visible"
         >
-          {{ column }}
+          <app-column-header
+            [columnConfig]="col"
+            [allColumnNames]="allDisplayNames()"
+            (actionMenuOpened)="onColumnAction(col.original_name, $event)"
+            (nameChanged)="onColumnRename(col.original_name, $event)"
+            (nameValidationErrorChanged)="
+              onColumnNameValidationErrorChange(col.original_name, $event)
+            "
+            (typeSelected)="onColumnTypeChange(col.original_name, $event)"
+            (filterChanged)="onColumnFilterChange(col.original_name, $event)"
+          ></app-column-header>
         </th>
         <td
           mat-cell
           *matCellDef="let row"
           class="!px-4 !text-gray-900 !border-b !border-r !border-gray-400 !whitespace-nowrap !w-[220px] !min-w-[220px] !max-w-[220px] !h-[37px] last:!border-r-0"
+          [class.!bg-gray-200]="col.excluded"
+          [class.opacity-50]="col.excluded"
+          [class.pointer-events-none]="col.excluded"
+          [class.excluded-cell]="col.excluded"
         >
-          {{ row[column] }}
+          {{ row[col.new_name ?? col.original_name] }}
         </td>
       </ng-container>
       }
+
+      <tr *matNoDataRow>
+        <td [attr.colspan]="displayedColumns().length" class="!p-0 h-[370px]">
+          @if (previewLoading()) {
+          <div
+            class="flex flex-col items-center gap-4 p-8 absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
+          >
+            <gn-ui-spinning-loader></gn-ui-spinning-loader>
+            <p class="text-center text-gray-600">
+              {{ 'import.dataSource.processingMessage' | translate }}
+            </p>
+          </div>
+          } @else {
+          <div
+            class="p-4 text-center text-gray-500 absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
+          >
+            @if (previewError()) {
+            {{ 'import.datasetPreviewTable.previewError' | translate }}
+            } @else {
+            {{ 'import.datasetPreviewTable.noDataAvailable' | translate }}
+            }
+          </div>
+          }
+        </td>
+      </tr>
 
       <tr
         mat-header-row
@@ -40,15 +83,6 @@
         class="!h-[37px] even:!bg-gray-50 hover:!bg-gray-100"
       ></tr>
     </table>
-    } @else {
-    <div class="p-4 text-center text-gray-500">
-      @if (previewError()) {
-      {{ 'import.datasetPreviewTable.previewError' | translate }}
-      } @else {
-      {{ 'import.datasetPreviewTable.noDataAvailable' | translate }}
-      }
-    </div>
-    }
   </div>
 </div>
 }

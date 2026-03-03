@@ -8,7 +8,11 @@ import geopandas as gpd
 import pandas as pd
 import requests
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
-from data_manipulation import IntegrityTransformation, apply_transformations
+from data_manipulation import (
+    IntegrityTransformation,
+    detect_column_type_from_sqla,
+    read_and_transform_data,
+)
 from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import ForceProjection as DataManipulationForceProjection
@@ -28,7 +32,7 @@ from src.models import (
     StagingResponse,
 )
 from src.models.data_import import (
-    ColumnMetadata,
+    ColumnConfig,
     FileType,
     ForceProjection,
     ImportType,
@@ -331,37 +335,24 @@ def dag_success_callback(
     Args:
         session: Database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
-
-    Returns:
-        Success message with updated IntegrityLink details
     """
-    # Query existing IntegrityLink
     integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    # Ensure created_at exists and is timezone-aware
     if integrity_link.created_at is None:
-        raise HTTPException(
-            status_code=500,
-            detail="IntegrityLink created_at is missing",
-        )
+        raise HTTPException(status_code=500, detail="IntegrityLink created_at is missing")
 
-    # Calculate job duration
     now = datetime.now(timezone.utc)
     created_at = (
         integrity_link.created_at.replace(tzinfo=timezone.utc)
         if integrity_link.created_at.tzinfo is None
         else integrity_link.created_at
     )
-    staging_retrieve_time = now - created_at
-
-    # Update IntegrityLink
-    integrity_link.staging_retrieve_time = staging_retrieve_time
+    integrity_link.staging_retrieve_time = now - created_at
     session.commit()
     session.refresh(integrity_link)
 
-    # Remove file from temp folder if applicable
     try:
         if integrity_link.source_url:
             delete_temp_file(integrity_link.source_url)
@@ -383,41 +374,76 @@ def dag_failure_callback(
         datakern_session: Datakern database session (injected)
         data_session: Data database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
-
-    Returns:
-        Success message with cleanup details
     """
-    # Query existing IntegrityLink
     integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    # Get staging table name
-    staging_table_name = integrity_link.staging_table_name
-
-    # Drop the staging table if it exists
-    if staging_table_name:
+    if integrity_link.staging_table_name:
         try:
-            # CRITICAL: Validate table name before using in SQL (defense in depth)
             from data_manipulation.validators import validate_table_name
 
-            validate_table_name(staging_table_name, context="staging")
-
+            validate_table_name(integrity_link.staging_table_name, context="staging")
             schema = get_staging_schema()
-            metadata = MetaData(schema=schema)
-            table = Table(staging_table_name, metadata)
+            table = Table(integrity_link.staging_table_name, MetaData(schema=schema))
             table.drop(data_session.get_bind(), checkfirst=True)
             data_session.commit()
         except ValueError as e:
-            # Log validation error but continue with cleanup
             logger.error(f"Invalid staging table name in database: {e}")
         except Exception as e:
-            # Log the error but continue with IntegrityLink deletion
-            logger.error(f"Error dropping staging table {staging_table_name}: {e}")
+            logger.error(f"Error dropping staging table {integrity_link.staging_table_name}: {e}")
 
-    # Delete the IntegrityLink
     datakern_session.delete(integrity_link)
     datakern_session.commit()
+
+
+def _detect_original_projection(
+    staging_table_name: str,
+    engine: Any,
+    schema: str | None,
+) -> str | None:
+    """Return the CRS string if the staging table contains geographic data."""
+    try:
+        sample = read_data_from_postgis(staging_table_name, engine, schema, limit=1)
+        if isinstance(sample, gpd.GeoDataFrame) and sample.crs is not None:
+            return sample.crs.to_string()
+    except Exception as e:
+        logger.warning(f"Could not detect original projection: {e}")
+    return None
+
+
+def _resolve_columns(
+    saved_transformation: dict[str, Any] | None,
+    table: Table,
+) -> tuple[list[ColumnConfig], dict[str, Any] | None]:
+    """Return (columns, force_projection_data) from saved config or live DB schema."""
+    column_sqla_types = {col.name: col.type for col in table.columns}
+
+    if saved_transformation:
+        raw_columns = saved_transformation.get("columns")
+        if raw_columns:
+            try:
+                columns: list[ColumnConfig] = []
+                for raw_col in raw_columns:
+                    col_cfg = ColumnConfig.model_validate(raw_col)
+                    sqla_type = column_sqla_types.get(col_cfg.original_name)
+                    if sqla_type is not None:
+                        col_cfg = col_cfg.model_copy(
+                            update={"original_type": detect_column_type_from_sqla(sqla_type)}
+                        )
+                    columns.append(col_cfg)
+                return columns, saved_transformation.get("force_projection")
+            except Exception as e:
+                logger.warning(f"Could not deserialize saved columns config: {e}")
+
+    columns = [
+        ColumnConfig(
+            original_name=col.name,
+            original_type=detect_column_type_from_sqla(col.type),
+        )
+        for col in table.columns
+    ]
+    return columns, None
 
 
 @router.get("/{integrity_link_id}/metadata")
@@ -429,6 +455,10 @@ def get_staging_metadata(
     """
     Get metadata of the staging table.
 
+    If a transformation configuration has been saved via PUT metadata, the saved
+    column configurations (with rename/exclude/cast/filter settings) are returned.
+    Otherwise, columns are built from the staging table schema (original names only).
+
     Args:
         data_session: Data database session (injected)
         datakern_session: Datakern database session (injected)
@@ -437,49 +467,34 @@ def get_staging_metadata(
     Returns:
         Metadata of the staging table
     """
-
     integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    staging_table_name = integrity_link.staging_table_name
-    source_import_type = integrity_link.source_import_type
-    source_file_name = integrity_link.source_file_name
-    source_file_type = integrity_link.source_file_type
-    force_projection_data = (
-        integrity_link.integrity_transformation.get("force_projection")
-        if integrity_link.integrity_transformation
-        else None
+    schema = get_staging_schema()
+    table = Table(
+        integrity_link.staging_table_name,
+        MetaData(schema=schema),
+        autoload_with=data_session.get_bind(),
     )
 
-    schema = get_staging_schema()
-    sql_metadata = MetaData(schema=schema)
-    table = Table(staging_table_name, sql_metadata, autoload_with=data_session.get_bind())
-
-    columns = [ColumnMetadata(name=col.name) for col in table.columns]
     row_count = data_session.scalar(select(func.count()).select_from(table)) or 0
-
-    # Detect original projection if data is geographic
-    original_projection = None
-    try:
-        sample_data = read_data_from_postgis(
-            staging_table_name,
-            data_session.get_bind(),  # type: ignore
-            schema,
-            limit=1,
-        )
-        if isinstance(sample_data, gpd.GeoDataFrame) and sample_data.crs is not None:
-            original_projection = sample_data.crs.to_string()
-    except Exception as e:
-        logger.warning(f"Could not detect original projection: {e}")
+    original_projection = _detect_original_projection(
+        integrity_link.staging_table_name,
+        data_session.get_bind(),  # type: ignore
+        schema,
+    )
+    columns, force_projection_data = _resolve_columns(
+        integrity_link.integrity_transformation, table
+    )
 
     return StagingMetadataResponse(
-        title=source_file_name or "",
-        import_type=source_import_type,
-        file_type=source_file_type,
+        title=integrity_link.source_file_name or "",
+        import_type=integrity_link.source_import_type,
+        file_type=integrity_link.source_file_type,
         columns=columns,
         row_count=row_count,
-        force_projection=ForceProjection(**force_projection_data)
+        force_projection=ForceProjection.model_validate(force_projection_data)
         if force_projection_data
         else None,
         original_projection=original_projection,
@@ -500,40 +515,64 @@ def edit_staging_metadata(
     Configure staging data endpoint called by frontend to update IntegrityLink
     with any additional configuration before finalizing the import.
 
+    Validates column names (empty or duplicate new_name values are rejected).
+    Persists the full IntegrityTransformation (columns + force_projection) to the DB.
+
     Args:
-        session: Database session (injected)
+        data_session: Data database session (injected)
+        datakern_session: Datakern database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
-        config: Staging configuration with columns, file_type, force_projection, and title
+        config: Staging configuration with columns (ColumnConfig list), file_type,
+                force_projection, and title
 
     Returns:
-        Success message with updated IntegrityLink details
+        Updated staging metadata with saved column configurations
     """
-    # Query existing IntegrityLink
     integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    # Initialize integrity_transformation if it doesn't exist
-    if not integrity_link.integrity_transformation:
-        integrity_link.integrity_transformation = {}
+    if config.columns:
+        # Validate column names: no empty names and no duplicates (after rename).
+        # `name` is the *effective* output name for each column: new_name if set,
+        # original_name otherwise.  Checking effective names catches all collision
+        # scenarios including new_name of one column clashing with original_name of
+        # another (when that column has no new_name).
+        seen: set[str] = set()
+        for col in config.columns:
+            name = col.new_name or col.original_name
+            if not name or not name.strip():
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Column '{col.original_name}' has an empty name. "
+                    "Column names cannot be empty.",
+                )
+            if name in seen:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Duplicate column name '{name}'. Each column must have a unique name.",
+                )
+            seen.add(name)
 
     if config.title:
         integrity_link.source_file_name = config.title
-
     if config.file_type:
         integrity_link.source_file_type = config.file_type
 
-    if config.columns:
-        integrity_link.integrity_transformation["columns"] = [
-            col.model_dump() for col in config.columns
-        ]
-
-    if config.force_projection:
-        integrity_link.integrity_transformation["force_projection"] = (
-            config.force_projection.model_dump()
+    force_proj = (
+        DataManipulationForceProjection(
+            type=config.force_projection.type,
+            x_column=config.force_projection.x_column,
+            y_column=config.force_projection.y_column,
         )
-
-    # Force SQLAlchemy to detect changes in the JSON column
+        if config.force_projection
+        else None
+    )
+    transformation = IntegrityTransformation(
+        columns=config.columns or None,
+        force_projection=force_proj,
+    )
+    integrity_link.integrity_transformation = transformation.model_dump(mode="json")
     flag_modified(integrity_link, "integrity_transformation")
 
     datakern_session.commit()
@@ -552,27 +591,45 @@ def get_staging_preview(
     datakern_session: DatakernSessionDep,
     integrity_link_id: str,
     limit: int = Query(10, description="Number of rows to preview"),
-    projection: Optional[str] = Query(None, description="CRS/projection (e.g., EPSG:4326)"),
-    x_column: Optional[str] = Query(None, description="Latitude column name"),
-    y_column: Optional[str] = Query(None, description="Longitude column name"),
+    raw: bool = Query(
+        False,
+        description=(
+            "When true, return original data ignoring saved transformation config. "
+            "Used as fallback when transformation causes an error."
+        ),
+    ),
+    include_excluded: bool = Query(
+        False,
+        description=(
+            "When true, return all columns including those flagged as excluded "
+            "in the transformation config. Other transformations (rename, cast, "
+            "filter, projection) are still applied."
+        ),
+    ),
 ) -> StagingPreviewResponse:
     """
-    Get a preview of the data in the staging table, with optional coordinate transformations.
+    Get a preview of the data in the staging table.
+
     Returns both tabular data (for table display) and GeoJSON (for map display).
 
-    The parameters projection, x_column, y_column correspond to the attributes of ForceProjection.
+    When raw=false (default): applies saved transformation config (exclusion, filters,
+    rename, cast, projection). When raw=true: returns original data without any
+    transformation applied (useful as fallback on preview error).
+
+    When include_excluded=true: returns all columns including those flagged as
+    excluded, while still applying other transformations (rename, cast, filter,
+    projection).
 
     Args:
         data_session: Data database session (injected)
         datakern_session: Datakern database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         limit: Number of rows to preview (optional, default is 10)
-        projection: CRS/projection (optional, e.g., "EPSG:4326")
-        x_column: Latitude column name from StagingMetadata (optional)
-        y_column: Longitude column name from StagingMetadata (optional)
+        raw: When true, bypass all transformations and return original data
+        include_excluded: When true, return all columns even if flagged as excluded
 
     Returns:
-        Preview data from the staging table, transformed based on parameters
+        Preview data from the staging table, transformed based on saved config
     """
 
     integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
@@ -583,32 +640,62 @@ def get_staging_preview(
     if not staging_table_name:
         raise HTTPException(status_code=500, detail="Staging table name is missing")
 
-    transformation_config = IntegrityTransformation(
-        force_projection=DataManipulationForceProjection(
-            type=projection or "",
-            x_column=x_column,
-            y_column=y_column,
-        )
-        if projection or x_column or y_column
-        else None
-    )
-
+    # Load transformation config from DB
     schema = get_staging_schema()
     engine = data_engine
-    staging_data = read_data_from_postgis(staging_table_name, engine, schema, limit)
+    config: IntegrityTransformation | None = None
 
-    if isinstance(staging_data, gpd.GeoDataFrame):
-        df_for_transform = staging_data
-    else:
-        df_for_transform = pd.DataFrame(staging_data)
+    if not raw and integrity_link.integrity_transformation:
+        try:
+            config = IntegrityTransformation.model_validate(integrity_link.integrity_transformation)
+        except Exception as e:
+            logger.warning(f"Could not deserialize transformation config, using raw: {e}")
+    # SECURITY NOTE: when raw=True, config remains None and read_and_transform_data
+    # returns ALL columns including those marked as excluded in the saved config.
+    # This is intentional — raw mode is a debug/fallback path used when the
+    # transformation itself causes a preview error. If excluded columns contain
+    # sensitive data, access to this endpoint should be restricted at the
+    # infrastructure level (authentication / authorisation) rather than relying
+    # on the exclusion flag alone.
+
+    # Track whether the geom column is explicitly excluded in the saved config.
+    # Used below to suppress map data even when include_excluded=True.
+    geom_excluded_in_config = (
+        not raw
+        and config is not None
+        and config.columns is not None
+        and any(col.original_name == "geom" and col.excluded for col in config.columns)
+    )
+
+    # When include_excluded is requested, strip excluded=True from all columns
+    # so SQL-level filtering keeps them in the query results.
+    if include_excluded and config is not None and config.columns:
+        config = config.model_copy(
+            update={
+                "columns": [
+                    ColumnConfig(
+                        original_name=col.original_name,
+                        original_type=col.original_type,
+                        new_name=col.new_name,  # renaming should still apply to excluded columns in preview
+                        excluded=False,  # override to False to include in preview
+                        cast_type=None,  # cast is not supported in preview, so ignore any cast_type in config
+                        filter=None,  # filter is not supported in preview, so ignore any filter_expression in config
+                    )
+                    if col.excluded
+                    else col
+                    for col in config.columns
+                ]
+            }
+        )
 
     try:
-        transformed_data = apply_transformations(df_for_transform, transformation_config)
+        transformed_data = read_and_transform_data(
+            staging_table_name, engine, schema, config, limit=limit
+        )
 
         # Convert all non-JSON-serializable types to string (datetime, Timestamp, etc.)
         for col in transformed_data.columns:
             if transformed_data[col].dtype == "object":
-                # Check if column contains datetime-like objects
                 try:
                     if pd.api.types.is_datetime64_any_dtype(transformed_data[col]):
                         transformed_data[col] = transformed_data[col].astype(str)  # type: ignore[misc]
@@ -617,12 +704,11 @@ def get_staging_preview(
             elif pd.api.types.is_datetime64_any_dtype(transformed_data[col]):
                 transformed_data[col] = transformed_data[col].astype(str)  # type: ignore[misc]
 
-        data = []  # tabular data
+        data: list[dict[str, Any]] = []
         geojson_data = None
         is_geographic = False
 
         # Convert geometry to WKT for tabular display if GeoDataFrame
-        # otherwise you cannot convert to data row to be sent to the frontend
         if isinstance(transformed_data, gpd.GeoDataFrame):
             is_geographic = True
 
@@ -649,15 +735,14 @@ def get_staging_preview(
             except Exception as crs_error:
                 logger.warning(f"Could not reproject to EPSG:4326: {crs_error}")
 
-            # Now modify transformed_data directly for tabular display
+            # Modify transformed_data directly for tabular display
             if "geom" in geometry_cols:
                 transformed_data["geom"] = transformed_data["geom"].apply(  # type: ignore[misc]
                     lambda geom: geom.wkt if geom is not None else None  # type: ignore[misc]
                 )
-
                 geometry_cols.remove("geom")
 
-            # Drop geometry columns for tabular data
+            # Drop extra geometry columns for tabular data
             table_data = transformed_data.drop(columns=geometry_cols, errors="ignore")
             data = table_data.to_dict(orient="records")  # type: ignore[misc]
 
@@ -666,6 +751,12 @@ def get_staging_preview(
         else:
             # Regular DataFrame, no geometry conversion needed
             data = transformed_data.to_dict(orient="records")  # type: ignore[misc]
+
+        # If the geom column was excluded in the saved config, suppress map data
+        # regardless of include_excluded. Raw mode bypasses this rule.
+        if geom_excluded_in_config:
+            is_geographic = False
+            geojson_data = None
 
         return StagingPreviewResponse(
             data=data,  # type: ignore[misc]

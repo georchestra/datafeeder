@@ -1,0 +1,22 @@
+<div
+  data-type-submenu
+  class="border-t border-[#cccdd2] bg-white flex flex-col gap-[5px] p-[10px]"
+>
+  @for (type of castTypes(); track type) {
+  <label class="flex items-center gap-2 cursor-pointer select-none">
+    <input
+      type="radio"
+      [attr.data-type]="type"
+      [attr.aria-checked]="effectiveType() === type ? 'true' : 'false'"
+      name="column-type-select"
+      [value]="type"
+      [checked]="effectiveType() === type"
+      (click)="onTypeClick(type, $event)"
+      class="size-5 accent-[#E30513] cursor-pointer shrink-0"
+    />
+    <span class="text-sm text-black">{{
+      'import.columnAction.typeMenu.' + type | translate
+    }}</span>
+  </label>
+  }
+</div>

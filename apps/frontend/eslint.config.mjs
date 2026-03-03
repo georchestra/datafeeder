@@ -1,11 +1,17 @@
-import js from '@eslint/js';
-import angular from 'angular-eslint';
-import tseslint from 'typescript-eslint';
-import cypress from 'eslint-plugin-cypress';
+import js from '@eslint/js'
+import angular from 'angular-eslint'
+import tseslint from 'typescript-eslint'
+import cypress from 'eslint-plugin-cypress'
 
 export default tseslint.config(
   {
-    ignores: ['**/dist', '**/vitest.config.*.timestamp*', '**/node_modules', '**/.angular', 'src/app/core/api/**'],
+    ignores: [
+      '**/dist',
+      '**/vitest.config.*.timestamp*',
+      '**/node_modules',
+      '**/.angular',
+      'src/app/core/api/**'
+    ]
   },
   js.configs.recommended,
   ...angular.configs.tsRecommended,
@@ -25,9 +31,11 @@ export default tseslint.config(
         URL: 'readonly',
         FileReader: 'readonly',
         navigator: 'readonly',
+        MouseEvent: 'readonly',
         Event: 'readonly',
-        HTMLInputElement: 'readonly',
-      },
+        HTMLElement: 'readonly',
+        HTMLInputElement: 'readonly'
+      }
     },
     rules: {
       '@angular-eslint/directive-selector': [
@@ -35,31 +43,36 @@ export default tseslint.config(
         {
           type: 'attribute',
           prefix: 'app',
-          style: 'camelCase',
-        },
+          style: 'camelCase'
+        }
       ],
       '@angular-eslint/component-selector': [
         'error',
         {
           type: 'element',
           prefix: 'app',
-          style: 'kebab-case',
-        },
-      ],
-    },
+          style: 'kebab-case'
+        }
+      ]
+    }
   },
   {
     files: ['**/*.html'],
-    ...angular.configs.templateRecommended[0],
+    ...angular.configs.templateRecommended[0]
   },
   {
     files: ['**/*.html'],
-    ...angular.configs.templateAccessibility[0],
+    ...angular.configs.templateAccessibility[0]
   },
   {
-    files: ['cypress/**/*.cy.ts', 'cypress/**/*.cy.js', 'cypress/**/*.ts', 'cypress/**/*.js'],
+    files: [
+      'cypress/**/*.cy.ts',
+      'cypress/**/*.cy.js',
+      'cypress/**/*.ts',
+      'cypress/**/*.js'
+    ],
     plugins: {
-      cypress,
+      cypress
     },
     languageOptions: {
       globals: {
@@ -80,12 +93,12 @@ export default tseslint.config(
         localStorage: 'readonly',
         sessionStorage: 'readonly',
         __filename: 'readonly',
-        __dirname: 'readonly',
-      },
+        __dirname: 'readonly'
+      }
     },
     rules: {
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
-    },
+      '@typescript-eslint/no-unused-vars': 'off'
+    }
   }
-);
+)

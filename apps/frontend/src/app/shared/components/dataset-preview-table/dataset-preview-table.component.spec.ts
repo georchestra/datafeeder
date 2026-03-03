@@ -15,7 +15,12 @@ describe('DatasetPreviewTableComponent', () => {
         TranslateTestingModule.withTranslations({
           en: {
             'import.datasetConfiguration.previewTitle': 'Result Preview',
-            'import.datasetPreviewTable.noDataAvailable': 'No data available'
+            'import.datasetPreviewTable.noDataAvailable': 'No data available',
+            'import.datasetPreviewTable.allColumnsExcluded':
+              'All columns are excluded. Restore at least one column.',
+            'import.columnAction.menu.filter': 'Filter column',
+            'import.columnAction.menu.changeType': 'Change type',
+            'import.columnAction.menu.remove': 'Remove column'
           }
         })
           .withDefaultLanguage('en')
@@ -42,7 +47,7 @@ describe('DatasetPreviewTableComponent', () => {
 
     const mockMetadata: StagingMetadataResponse = {
       title: 'Test Dataset',
-      columns: [{ name: 'col1', type: 'string' }]
+      columns: [{ original_name: 'col1' }]
     }
 
     fixture.componentRef.setInput('metadata', mockMetadata)
@@ -59,7 +64,7 @@ describe('DatasetPreviewTableComponent', () => {
 
     const mockMetadata: StagingMetadataResponse = {
       title: 'Test Dataset',
-      columns: [{ name: 'col1', type: 'string' }]
+      columns: [{ original_name: 'col1' }]
     }
 
     fixture.componentRef.setInput('metadata', mockMetadata)
@@ -75,10 +80,7 @@ describe('DatasetPreviewTableComponent', () => {
 
     const mockMetadata: StagingMetadataResponse = {
       title: 'Test Dataset',
-      columns: [
-        { name: 'firstName', type: 'string' },
-        { name: 'lastName', type: 'string' }
-      ]
+      columns: [{ original_name: 'firstName' }, { original_name: 'lastName' }]
     }
 
     const mockPreview: StagingPreviewResponse = {
@@ -91,9 +93,140 @@ describe('DatasetPreviewTableComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement
     expect(compiled.querySelector('table')).toBeTruthy()
-    expect(compiled.textContent).toContain('firstName')
-    expect(compiled.textContent).toContain('lastName')
+    // Column names are rendered as <input> values inside ColumnHeaderComponent
+    const headerInputs = Array.from(
+      compiled.querySelectorAll<HTMLInputElement>('th input[type="text"]')
+    ).map((el) => el.value)
+    expect(headerInputs).toContain('firstName')
+    expect(headerInputs).toContain('lastName')
     expect(compiled.textContent).toContain('John')
     expect(compiled.textContent).toContain('Doe')
+  })
+
+  // --- T027: Remove/restore behavior in preview table ---
+
+  it('should still render excluded column header in table', () => {
+    const fixture = TestBed.createComponent(DatasetPreviewTableComponent)
+
+    const mockMetadata: StagingMetadataResponse = {
+      title: 'Dataset',
+      columns: [
+        { original_name: 'col1', excluded: false },
+        { original_name: 'col2', excluded: true }
+      ]
+    }
+
+    fixture.componentRef.setInput('metadata', mockMetadata)
+    fixture.componentRef.setInput('preview', {
+      data: [{ col1: 'a', col2: 'b' }]
+    })
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const headerInputs = Array.from(
+      compiled.querySelectorAll<HTMLInputElement>('th input[type="text"]')
+    ).map((el) => el.value)
+    // Both columns should appear
+    expect(headerInputs).toContain('col1')
+    expect(headerInputs).toContain('col2')
+  })
+
+  it('should apply greyed-out styling to data cells of excluded columns', () => {
+    const fixture = TestBed.createComponent(DatasetPreviewTableComponent)
+
+    const mockMetadata: StagingMetadataResponse = {
+      title: 'Dataset',
+      columns: [
+        { original_name: 'col1', excluded: false },
+        { original_name: 'col2', excluded: true }
+      ]
+    }
+
+    fixture.componentRef.setInput('metadata', mockMetadata)
+    fixture.componentRef.setInput('preview', {
+      data: [{ col1: 'a', col2: 'b' }]
+    })
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    // The excluded column's <td> cells should have opacity-50 class
+    const excludedCell = compiled.querySelector('td.excluded-cell')
+    expect(excludedCell).toBeTruthy()
+  })
+
+  it('should show all-excluded warning when every column is excluded', () => {
+    const fixture = TestBed.createComponent(DatasetPreviewTableComponent)
+
+    const mockMetadata: StagingMetadataResponse = {
+      title: 'Dataset',
+      columns: [
+        { original_name: 'col1', excluded: true },
+        { original_name: 'col2', excluded: true }
+      ]
+    }
+
+    fixture.componentRef.setInput('metadata', mockMetadata)
+    fixture.componentRef.setInput('preview', { data: [] })
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const warning = compiled.querySelector('[data-all-excluded-warning]')
+    expect(warning).toBeTruthy()
+  })
+
+  it('should emit columnActionRequested with remove when remove action is triggered', () => {
+    const fixture = TestBed.createComponent(DatasetPreviewTableComponent)
+
+    const mockMetadata: StagingMetadataResponse = {
+      title: 'Dataset',
+      columns: [{ original_name: 'col1', excluded: false }]
+    }
+
+    fixture.componentRef.setInput('metadata', mockMetadata)
+    fixture.componentRef.setInput('preview', { data: [{ col1: 'v' }] })
+    fixture.detectChanges()
+
+    const emitted: Array<{ originalName: string; action: string }> = []
+    fixture.componentInstance.columnActionRequested.subscribe((e) =>
+      emitted.push(e)
+    )
+
+    // Simulate the ColumnHeaderComponent emitting the action
+    fixture.componentInstance.onColumnAction('col1', 'remove')
+
+    expect(emitted).toEqual([{ originalName: 'col1', action: 'remove' }])
+  })
+
+  it('should emit columnNameValidationErrorChanged with error when onColumnNameValidationErrorChange is called with an error', () => {
+    const fixture = TestBed.createComponent(DatasetPreviewTableComponent)
+    fixture.detectChanges()
+
+    const emitted: Array<{ originalName: string; error: string | null }> = []
+    fixture.componentInstance.columnNameValidationErrorChanged.subscribe((e) =>
+      emitted.push(e)
+    )
+
+    fixture.componentInstance.onColumnNameValidationErrorChange(
+      'col1',
+      'Le nom ne peut pas être vide'
+    )
+
+    expect(emitted).toEqual([
+      { originalName: 'col1', error: 'Le nom ne peut pas être vide' }
+    ])
+  })
+
+  it('should emit columnNameValidationErrorChanged with null when error is cleared', () => {
+    const fixture = TestBed.createComponent(DatasetPreviewTableComponent)
+    fixture.detectChanges()
+
+    const emitted: Array<{ originalName: string; error: string | null }> = []
+    fixture.componentInstance.columnNameValidationErrorChanged.subscribe((e) =>
+      emitted.push(e)
+    )
+
+    fixture.componentInstance.onColumnNameValidationErrorChange('col1', null)
+
+    expect(emitted).toEqual([{ originalName: 'col1', error: null }])
   })
 })
