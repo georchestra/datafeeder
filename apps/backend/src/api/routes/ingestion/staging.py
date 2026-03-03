@@ -658,6 +658,15 @@ def get_staging_preview(
     # infrastructure level (authentication / authorisation) rather than relying
     # on the exclusion flag alone.
 
+    # Track whether the geom column is explicitly excluded in the saved config.
+    # Used below to suppress map data even when include_excluded=True.
+    geom_excluded_in_config = (
+        not raw
+        and config is not None
+        and config.columns is not None
+        and any(col.original_name == "geom" and col.excluded for col in config.columns)
+    )
+
     # When include_excluded is requested, strip excluded=True from all columns
     # so SQL-level filtering keeps them, while other transformations still apply.
     if include_excluded and config is not None and config.columns:
@@ -733,6 +742,12 @@ def get_staging_preview(
         else:
             # Regular DataFrame, no geometry conversion needed
             data = transformed_data.to_dict(orient="records")  # type: ignore[misc]
+
+        # If the geom column was excluded in the saved config, suppress map data
+        # regardless of include_excluded. Raw mode bypasses this rule.
+        if geom_excluded_in_config:
+            is_geographic = False
+            geojson_data = None
 
         return StagingPreviewResponse(
             data=data,  # type: ignore[misc]
