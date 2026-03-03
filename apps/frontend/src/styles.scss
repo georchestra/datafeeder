@@ -29,7 +29,19 @@
 }
 html,
 body {
-  height: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+app-root {
+  //class="flex-1 flex min-h-0"
+  flex: 1 1 0%;
+  display: flex;
+  min-height: 0;
+}
+app-main-layout {
+  width: 100%;
 }
 
 // TODO: implement into GN-UI instead of overriding here

@@ -5,6 +5,7 @@ from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.sdk import task, task_group
+from airflow.utils.trigger_rule import TriggerRule
 from data_manipulation import (
     IntegrityTransformation,
     apply_transformations,
@@ -12,6 +13,7 @@ from data_manipulation import (
     write_data_to_postgis,
 )
 from data_manipulation.logging import configure_logging
+from sqlalchemy import MetaData, Table
 from utils import get_data_sql_engine, get_final_schema, get_staging_schema
 
 logger = logging.getLogger(__name__)
@@ -39,7 +41,10 @@ def process_transformation_group(
     def _transformation_group():
         """Task group for final transformation from staging to final table."""
 
-        @task(task_id="read_transform_write_task")
+        @task(
+            task_id="read_transform_write_task",
+            trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+        )
         def read_transform_write_task(**context: dict[str, Any]) -> None:
             """Read from staging, apply transformations, and write to final table."""
             params = context.get("params", {})
@@ -101,6 +106,38 @@ def process_transformation_group(
             except Exception as e:
                 raise AirflowException(f"Failed to transform and load data: {e}")
 
-        read_transform_write_task()
+        @task(
+            task_id="clean_staging_table_task",
+        )
+        def clean_staging_table_task(**context: dict[str, Any]) -> None:
+            """Clean up staging table after transformation."""
+            ti = context["ti"]
+
+            # Get staging_table_name from XCom or params
+            staging_table_name = None
+            if task_id_where_to_get_staging_table_name:
+                staging_table_name = ti.xcom_pull(task_ids=task_id_where_to_get_staging_table_name)
+                logger.info(
+                    f"Cleaning staging table from task '{task_id_where_to_get_staging_table_name}': {staging_table_name}"
+                )
+
+            if not staging_table_name or not staging_table_name.strip():
+                logger.warning("staging_table_name is required to clean up, skipping cleanup")
+                return
+
+            engine = get_data_sql_engine()
+            staging_schema = get_staging_schema()
+
+            try:
+                logger.info(f"Dropping staging table {staging_schema}.{staging_table_name}")
+                schema = "staging"  # FIXME get it from config
+                metadata = MetaData(schema=schema)
+                t = Table(staging_table_name, metadata)
+                t.drop(engine, checkfirst=True)
+                logger.info("Staging table dropped successfully")
+            except Exception as e:
+                raise AirflowException(f"Failed to drop staging table: {e}")
+
+        read_transform_write_task() >> clean_staging_table_task()
 
     return _transformation_group
