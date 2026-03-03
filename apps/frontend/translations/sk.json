@@ -239,5 +239,11 @@
   "status.type.queued": "",
   "status.type.running": "",
   "status.type.success": "",
-  "status.type.warning": ""
+  "status.type.warning": "",
+  "metadata.goToImport": "",
+  "metadata.notAvailableYet": "",
+  "metadata.processing.failed": "",
+  "metadata.processing.queued": "",
+  "metadata.processing.refreshing": "",
+  "metadata.processing.running": ""
 }

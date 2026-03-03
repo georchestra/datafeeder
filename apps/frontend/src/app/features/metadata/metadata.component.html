@@ -2,6 +2,9 @@
 <div
   class="flex-1 flex flex-col items-center justify-center gap-4 px-9 py-12 text-center"
 >
+  @if (!processingStatusLoaded()) {
+  <p class="text-gray-500 text-lg">{{ 'common.loading' | translate }}</p>
+  } @else if (processingStatus() === null) {
   <p class="text-gray-500 text-lg">
     {{ 'metadata.notAvailableYet' | translate }}
   </p>
@@ -12,6 +15,45 @@
   >
     {{ 'metadata.goToImport' | translate }}
   </a>
+  } @else if (processingStatus() === 'failed') {
+  <p class="text-gray-500 text-lg">
+    {{ 'metadata.processing.failed' | translate }}
+  </p>
+  <a
+    class="text-primary underline hover:text-primary-darker font-medium"
+    [routerLink]="['/import']"
+    [queryParams]="{ linkId: store.integrityLink()?.id }"
+  >
+    {{ 'metadata.goToImport' | translate }}
+  </a>
+  } @else {
+  <p class="text-gray-500 text-lg">
+    {{ 'metadata.processing.' + processingStatus() | translate }}
+  </p>
+  <div class="flex items-center gap-2 text-primary">
+    <svg
+      class="animate-spin h-5 w-5"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        class="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        stroke-width="4"
+      ></circle>
+      <path
+        class="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      ></path>
+    </svg>
+    <span class="text-sm">{{ 'metadata.processing.refreshing' | translate }}</span>
+  </div>
+  }
 </div>
 } @else {
 <div class="px-9 pt-1 pb-6">

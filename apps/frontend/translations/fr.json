@@ -240,6 +240,11 @@
   "status.type.running": "En cours",
   "metadata.goToImport": "Aller au formulaire d'import",
   "metadata.notAvailableYet": "Les métadonnées ne sont pas encore disponibles. Traitez le jeu de données d'abord.",
+  "metadata.processing.failed": "Le traitement des métadonnées a échoué. Veuillez relancer l'import.",
+  "metadata.processing.queued": "Le traitement des métadonnées est en attente. Patientez...",
+  "metadata.processing.refreshing": "Vérification du statut...",
+  "metadata.processing.running": "Les métadonnées sont en cours de traitement. Patientez...",
+
   "status.type.success": "Succès",
   "status.type.warning": "Avertissement"
 }
