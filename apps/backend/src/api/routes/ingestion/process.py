@@ -118,7 +118,7 @@ async def process_staging_data(
                 password=settings.GEOSERVER_PASSWORD,
                 public_url=settings.DATA_PUBLIC_URL,
             )
-            layer_urls = geoserver_service.build_layer_urls(
+            layer_urls = geoserver_service.build_layer_urls_for_metadata(
                 workspace_name=workspace_name,
                 table_name=final_table_name,
                 is_geographic=is_geographic,

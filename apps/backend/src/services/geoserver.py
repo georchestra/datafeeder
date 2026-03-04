@@ -162,36 +162,23 @@ class GeoServerService:
             bbox=bbox,
         )
 
-        # Build service URLs
-        layer_qualified_name = f"{workspace_name}:{table_name}"
-
-        wms = None
-        if is_geographic:
-            # WMS GetCapabilities URL for the workspace
-            wms_capabilities_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities"
-
-            # WMS GetMap URL for the specific layer
-            wms_getmap_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}"
-
-            # WMS GetLegendGraphic URL for the layer
-            wms_legend_url = f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetLegendGraphic&layer={layer_qualified_name}&format=image/png"
-
-            wms = WMSUrls(
-                capabilities=wms_capabilities_url,
-                getmap=wms_getmap_url,
-                legend=wms_legend_url,
-            )
-
-        # WFS GetCapabilities URL for the workspace
-        wfs_capabilities_url = f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities"
-
-        # WFS GetFeature URL for the specific layer
-        wfs_getfeature_url = f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames={layer_qualified_name}"
-
-        # OGC Features URL for the layer
-        ogcfeatures_url = (
-            f"{self.public_url}/ogc/features/v1/collections/{layer_qualified_name}?f=json"
+        # Build service URLs using build_layer_urls
+        urls = self.build_layer_urls(
+            workspace_name=workspace_name,
+            table_name=table_name,
+            is_geographic=is_geographic,
         )
+
+        layer_qualified_name = urls["layer_qualified_name"]
+
+        # Build WMS from URLs
+        wms = None
+        if is_geographic and "wms" in urls:
+            wms = WMSUrls(
+                capabilities=urls["wms"]["capabilities"],
+                getmap=urls["wms"]["getmap"],
+                legend=urls["wms"]["legend"],
+            )
 
         return LayerCreationResult(
             workspace=workspace_name,
@@ -201,10 +188,10 @@ class GeoServerService:
             table=table_name,
             wms=wms,
             wfs=WFSUrls(
-                capabilities=wfs_capabilities_url,
-                getfeature=wfs_getfeature_url,
+                capabilities=urls["wfs"]["capabilities"],
+                getfeature=urls["wfs"]["getfeature"],
             ),
-            ogcfeatures=ogcfeatures_url,
+            ogcfeatures=urls["ogcfeatures"],
         )
 
     def build_layer_urls(
@@ -213,9 +200,9 @@ class GeoServerService:
         table_name: str,
         is_geographic: bool = True,
     ) -> dict[str, Any]:
-        """Build layer service URLs without making any GeoServer API call.
+        """Build all layer service URLs without making any GeoServer API call.
 
-        Returns only the keys consumed by MetadataService.create_and_publish_metadata().
+        Returns all URLs for WMS, WFS, and OGC Features services.
         """
         layer_qualified_name = f"{workspace_name}:{table_name}"
         result: dict[str, Any] = {
@@ -223,12 +210,46 @@ class GeoServerService:
             "ogcfeatures": f"{self.public_url}/ogc/features/v1/collections/{layer_qualified_name}?f=json",
             "wfs": {
                 "capabilities": f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities",
+                "getfeature": f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames={layer_qualified_name}",
             },
         }
         if is_geographic:
             result["wms"] = {
                 "capabilities": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities",
                 "getmap": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}",
+                "legend": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetLegendGraphic&layer={layer_qualified_name}&format=image/png",
+            }
+        return result
+
+    def build_layer_urls_for_metadata(
+        self,
+        workspace_name: str,
+        table_name: str,
+        is_geographic: bool = True,
+    ) -> dict[str, Any]:
+        """Build layer service URLs for metadata without making any GeoServer API call.
+
+        Returns only the keys consumed by MetadataService.create_and_publish_metadata().
+        """
+        # Get all URLs from build_layer_urls
+        all_urls = self.build_layer_urls(
+            workspace_name=workspace_name,
+            table_name=table_name,
+            is_geographic=is_geographic,
+        )
+
+        # Filter to keep only URLs needed for metadata
+        result: dict[str, Any] = {
+            "layer_qualified_name": all_urls["layer_qualified_name"],
+            "ogcfeatures": all_urls["ogcfeatures"],
+            "wfs": {
+                "capabilities": all_urls["wfs"]["capabilities"],
+            },
+        }
+        if is_geographic and "wms" in all_urls:
+            result["wms"] = {
+                "capabilities": all_urls["wms"]["capabilities"],
+                "getmap": all_urls["wms"]["getmap"],
             }
         return result
 
