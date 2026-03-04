@@ -212,6 +212,7 @@
   "import.datasetPreviewTable.allColumnsExcluded": "Toutes les colonnes sont exclues de l'importation.",
   "import.datasetPreviewTable.noDataAvailable": "Aucune donnée disponible",
   "import.datasetPreviewTable.previewError": "Prévisualisation non disponible. Veuillez vérifier votre configuration.",
+  "import.metadataPublication.error": "Erreur lors de la publication de la métadonnée, veuillez réessayer.",
   "input.file.dropFileLabel": "ou déplacez le ici",
   "input.file.orInputUrl": "Ou importez un fichier à partir d'un lien",
   "input.file.selectFileLabel": "Choisissez un fichier",

@@ -1,9 +1,14 @@
+from typing import Any
+
 from data_manipulation.geoserver import WorkspaceCreationResult
 from data_manipulation.geoserver import (
     create_layer as dm_create_layer,
 )
 from data_manipulation.geoserver import (
     create_workspace as dm_create_workspace,
+)
+from data_manipulation.geoserver import (
+    update_layer_bbox as dm_update_layer_bbox,
 )
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
 from pydantic import BaseModel
@@ -197,4 +202,56 @@ class GeoServerService:
                 getfeature=wfs_getfeature_url,
             ),
             ogcfeatures=ogcfeatures_url,
+        )
+
+    def build_layer_urls(
+        self,
+        workspace_name: str,
+        table_name: str,
+        is_geographic: bool = True,
+    ) -> dict[str, Any]:
+        """Build layer service URLs without making any GeoServer API call.
+
+        Returns only the keys consumed by MetadataService.create_and_publish_metadata().
+        """
+        layer_qualified_name = f"{workspace_name}:{table_name}"
+        result: dict[str, Any] = {
+            "layer_qualified_name": layer_qualified_name,
+            "ogcfeatures": f"{self.public_url}/ogc/features/v1/collections/{layer_qualified_name}?f=json",
+            "wfs": {
+                "capabilities": f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities",
+            },
+        }
+        if is_geographic:
+            result["wms"] = {
+                "capabilities": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities",
+                "getmap": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}",
+            }
+        return result
+
+    async def update_layer_bbox(
+        self,
+        workspace_name: str,
+        datastore_name: str,
+        table_name: str,
+        bbox: str,
+        native_epsg: int = 4326,
+    ) -> None:
+        """
+        Update the bounding box of an existing GeoServer layer.
+
+        Args:
+            workspace_name: Name of the workspace
+            datastore_name: Name of the datastore
+            table_name: Database table name
+            bbox: PostGIS ST_Extent string
+            native_epsg: Native CRS EPSG code (defaults to 4326)
+        """
+        dm_update_layer_bbox(
+            geoserver=self.geoserver,
+            workspace_name=workspace_name,
+            datastore_name=datastore_name,
+            table_name=table_name,
+            bbox=bbox,
+            native_epsg=native_epsg,
         )

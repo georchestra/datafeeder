@@ -71,6 +71,7 @@ marker('import.dataSource.error.extent')
 marker('i18nerror.transformation.geometry_creation_failed')
 marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
+marker('import.metadataPublication.error')
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 120000
@@ -584,13 +585,15 @@ export class DataImportWizardComponent implements OnInit {
       })
 
       this.processing.set(false)
-      this.router.navigate([this.integrityLinkId(), 'events'])
+      this.router.navigate([this.integrityLinkId(), 'edit'])
     } catch (error) {
-      this.validationError.set(
-        error instanceof Error
-          ? error.message
-          : this.translate.instant('import.dataSource.validationError')
-      )
+      if (error instanceof HttpErrorResponse && error.error?.detail) {
+        this.validationError.set(error.error.detail)
+      } else {
+        this.validationError.set(
+          this.translate.instant('import.dataSource.validationError')
+        )
+      }
       this.processing.set(false)
     }
   }

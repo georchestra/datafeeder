@@ -212,6 +212,7 @@
   "import.datasetPreviewTable.allColumnsExcluded": "Todas las columnas están excluidas de la importación.",
   "import.datasetPreviewTable.noDataAvailable": "",
   "import.datasetPreviewTable.previewError": "",
+  "import.metadataPublication.error": "",
   "input.file.dropFileLabel": "",
   "input.file.orInputUrl": "",
   "input.file.selectFileLabel": "",
