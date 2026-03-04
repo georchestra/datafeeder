@@ -177,3 +177,166 @@ class TestGeoServerService:
                 user="customuser",
                 password="custompass",
             )
+
+    def test_build_layer_urls_geographic(self, geoserver_service: GeoServerService) -> None:
+        """Test build_layer_urls with geographic data (WMS and WFS included)."""
+        workspace_name = "test_workspace"
+        table_name = "test_table"
+
+        result = geoserver_service.build_layer_urls(
+            workspace_name=workspace_name,
+            table_name=table_name,
+            is_geographic=True,
+        )
+
+        # Verify layer_qualified_name
+        assert result["layer_qualified_name"] == f"{workspace_name}:{table_name}"
+
+        # Verify ogcfeatures URL
+        assert "ogcfeatures" in result
+        assert f"collections/{workspace_name}:{table_name}" in result["ogcfeatures"]
+
+        # Verify WFS URLs are present
+        assert "wfs" in result
+        assert "capabilities" in result["wfs"]
+        assert "getfeature" in result["wfs"]
+        assert workspace_name in result["wfs"]["capabilities"]
+        assert table_name in result["wfs"]["getfeature"]
+
+        # Verify WMS URLs are present
+        assert "wms" in result
+        assert "capabilities" in result["wms"]
+        assert "getmap" in result["wms"]
+        assert "legend" in result["wms"]
+        assert workspace_name in result["wms"]["capabilities"]
+        assert table_name in result["wms"]["getmap"]
+        assert table_name in result["wms"]["legend"]
+
+    def test_build_layer_urls_non_geographic(self, geoserver_service: GeoServerService) -> None:
+        """Test build_layer_urls with non-geographic data (no WMS/WFS)."""
+        workspace_name = "test_workspace"
+        table_name = "test_table"
+
+        result = geoserver_service.build_layer_urls(
+            workspace_name=workspace_name,
+            table_name=table_name,
+            is_geographic=False,
+        )
+
+        # Verify layer_qualified_name
+        assert result["layer_qualified_name"] == f"{workspace_name}:{table_name}"
+
+        # Verify ogcfeatures URL
+        assert "ogcfeatures" in result
+        assert f"collections/{workspace_name}:{table_name}" in result["ogcfeatures"]
+
+        # Verify WFS URLs are NOT present
+        assert "wfs" not in result
+
+        # Verify WMS URLs are NOT present
+        assert "wms" not in result
+
+    def test_build_layer_urls_for_metadata_geographic(
+        self, geoserver_service: GeoServerService
+    ) -> None:
+        """Test build_layer_urls_for_metadata with geographic data (filtered URLs)."""
+        workspace_name = "test_workspace"
+        table_name = "test_table"
+
+        result = geoserver_service.build_layer_urls_for_metadata(
+            workspace_name=workspace_name,
+            table_name=table_name,
+            is_geographic=True,
+        )
+
+        # Verify layer_qualified_name
+        assert result["layer_qualified_name"] == f"{workspace_name}:{table_name}"
+
+        # Verify ogcfeatures URL
+        assert "ogcfeatures" in result
+
+        # Verify WFS URLs are present (only capabilities, no getfeature)
+        assert "wfs" in result
+        assert "capabilities" in result["wfs"]
+        assert "getfeature" not in result["wfs"]  # Filtered out for metadata
+
+        # Verify WMS URLs are present (capabilities and getmap, no legend)
+        assert "wms" in result
+        assert "capabilities" in result["wms"]
+        assert "getmap" in result["wms"]
+        assert "legend" not in result["wms"]  # Filtered out for metadata
+
+    def test_build_layer_urls_for_metadata_non_geographic(
+        self, geoserver_service: GeoServerService
+    ) -> None:
+        """Test build_layer_urls_for_metadata with non-geographic data."""
+        workspace_name = "test_workspace"
+        table_name = "test_table"
+
+        result = geoserver_service.build_layer_urls_for_metadata(
+            workspace_name=workspace_name,
+            table_name=table_name,
+            is_geographic=False,
+        )
+
+        # Verify layer_qualified_name
+        assert result["layer_qualified_name"] == f"{workspace_name}:{table_name}"
+
+        # Verify ogcfeatures URL
+        assert "ogcfeatures" in result
+
+        # Verify WFS URLs are NOT present
+        assert "wfs" not in result
+
+        # Verify WMS URLs are NOT present
+        assert "wms" not in result
+
+    @pytest.mark.asyncio
+    @patch("src.services.geoserver.dm_create_layer")
+    async def test_create_layer_non_geographic(
+        self, mock_dm_create_layer: MagicMock, geoserver_service: GeoServerService
+    ) -> None:
+        """Test create_layer with non-geographic data (no WMS/WFS)."""
+        workspace_name = "test_workspace"
+        datastore_name = "test_datastore"
+        table_name = "test_table"
+        title = "Test Layer"
+        abstract = "Test layer description"
+
+        result = await geoserver_service.create_layer(
+            workspace_name=workspace_name,
+            datastore_name=datastore_name,
+            table_name=table_name,
+            title=title,
+            abstract=abstract,
+            is_geographic=False,
+        )
+
+        # Verify dm_create_layer was called with is_geographic=False
+        mock_dm_create_layer.assert_called_once_with(
+            geoserver=geoserver_service.geoserver,
+            workspace_name=workspace_name,
+            datastore_name=datastore_name,
+            table_name=table_name,
+            title=title,
+            abstract=abstract,
+            epsg=4326,
+            is_geographic=False,
+            bbox="",
+        )
+
+        # Verify return value structure
+        assert result.workspace == workspace_name
+        assert result.datastore == datastore_name
+        assert result.layer == table_name
+        assert result.layer_qualified_name == f"{workspace_name}:{table_name}"
+
+        # Verify WMS is None for non-geographic data
+        assert result.wms is None
+
+        # Verify WFS is None for non-geographic data
+        assert result.wfs is None
+
+        # Verify ogcfeatures URL is present
+        assert result.ogcfeatures is not None
+        assert table_name in result.ogcfeatures
