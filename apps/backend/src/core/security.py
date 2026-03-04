@@ -127,7 +127,16 @@ def load_authorized_integrity_link(
         HTTPException 404: If IntegrityLink not found
         HTTPException 403: If user lacks the required access level
     """
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link_id_as_uuid = None
+
+    try:
+        integrity_link_id_as_uuid = UUID(integrity_link_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=422, detail="Invalid integrity_link_id format; expected a valid UUID"
+        )
+
+    integrity_link = session.get(IntegrityLink, integrity_link_id_as_uuid)
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
