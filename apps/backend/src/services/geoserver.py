@@ -38,7 +38,7 @@ class LayerCreationResult(BaseModel):
     layer_qualified_name: str
     table: str
     wms: WMSUrls | None
-    wfs: WFSUrls
+    wfs: WFSUrls | None
     ogcfeatures: str
 
 
@@ -171,13 +171,19 @@ class GeoServerService:
 
         layer_qualified_name = urls["layer_qualified_name"]
 
-        # Build WMS from URLs
+        # Build WMS and WFS from URLs
         wms = None
+        wfs = None
         if is_geographic and "wms" in urls:
             wms = WMSUrls(
                 capabilities=urls["wms"]["capabilities"],
                 getmap=urls["wms"]["getmap"],
                 legend=urls["wms"]["legend"],
+            )
+        if is_geographic and "wfs" in urls:
+            wfs = WFSUrls(
+                capabilities=urls["wfs"]["capabilities"],
+                getfeature=urls["wfs"]["getfeature"],
             )
 
         return LayerCreationResult(
@@ -187,10 +193,7 @@ class GeoServerService:
             layer_qualified_name=layer_qualified_name,
             table=table_name,
             wms=wms,
-            wfs=WFSUrls(
-                capabilities=urls["wfs"]["capabilities"],
-                getfeature=urls["wfs"]["getfeature"],
-            ),
+            wfs=wfs,
             ogcfeatures=urls["ogcfeatures"],
         )
 
@@ -208,12 +211,12 @@ class GeoServerService:
         result: dict[str, Any] = {
             "layer_qualified_name": layer_qualified_name,
             "ogcfeatures": f"{self.public_url}/ogc/features/v1/collections/{layer_qualified_name}?f=json",
-            "wfs": {
-                "capabilities": f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities",
-                "getfeature": f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames={layer_qualified_name}",
-            },
         }
         if is_geographic:
+            result["wfs"] = {
+                "capabilities": f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities",
+                "getfeature": f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames={layer_qualified_name}",
+            }
             result["wms"] = {
                 "capabilities": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities",
                 "getmap": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}",
@@ -242,11 +245,12 @@ class GeoServerService:
         result: dict[str, Any] = {
             "layer_qualified_name": all_urls["layer_qualified_name"],
             "ogcfeatures": all_urls["ogcfeatures"],
-            "wfs": {
-                "capabilities": all_urls["wfs"]["capabilities"],
-            },
         }
-        if is_geographic and "wms" in all_urls:
+        if "wfs" in all_urls:
+            result["wfs"] = {
+                "capabilities": all_urls["wfs"]["capabilities"],
+            }
+        if "wms" in all_urls:
             result["wms"] = {
                 "capabilities": all_urls["wms"]["capabilities"],
                 "getmap": all_urls["wms"]["getmap"],
