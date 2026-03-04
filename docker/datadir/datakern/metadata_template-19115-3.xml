@@ -162,26 +162,6 @@
           </mri:equivalentScale>
         </mri:MD_Resolution>
       </mri:spatialResolution>
-      <mri:extent>
-        <gex:EX_Extent>
-          <gex:geographicElement>
-            <gex:EX_GeographicBoundingBox>
-              <gex:westBoundLongitude>
-                <gco:Decimal>2.78913293567365</gco:Decimal>
-              </gex:westBoundLongitude>
-              <gex:eastBoundLongitude>
-                <gco:Decimal>3.272498092970729</gco:Decimal>
-              </gex:eastBoundLongitude>
-              <gex:southBoundLatitude>
-                <gco:Decimal>50.4997300394295</gco:Decimal>
-              </gex:southBoundLatitude>
-              <gex:northBoundLatitude>
-                <gco:Decimal>50.7945765614518</gco:Decimal>
-              </gex:northBoundLatitude>
-            </gex:EX_GeographicBoundingBox>
-          </gex:geographicElement>
-        </gex:EX_Extent>
-      </mri:extent>
       <mri:resourceMaintenance>
         <mmi:MD_MaintenanceInformation>
           <mmi:maintenanceAndUpdateFrequency>
