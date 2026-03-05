@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core'
+import { Component, OnInit, inject, signal } from '@angular/core'
 import {
   ActivatedRoute,
   RouterLink,
@@ -10,6 +10,7 @@ import { iconoirRefreshCircle } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../core/api/api'
 import { getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet } from '../core/api/functions'
+import { UiAlertBoxComponent } from '../shared/components/ui-alert-box/ui-alert-box.component'
 import { IntegrityLinkStore } from './integrity-link.store'
 
 @Component({
@@ -19,7 +20,8 @@ import { IntegrityLinkStore } from './integrity-link.store'
     RouterLink,
     RouterLinkActive,
     NgIconComponent,
-    TranslatePipe
+    TranslatePipe,
+    UiAlertBoxComponent
   ],
   templateUrl: './intlink-layout.component.html',
   providers: [
@@ -34,15 +36,28 @@ export class IntlinkLayoutComponent implements OnInit {
   private api = inject(Api)
   readonly store = inject(IntegrityLinkStore)
 
+  loadError = signal<'forbidden' | 'not_found' | 'server_error' | null>(null)
+
   async ngOnInit(): Promise<void> {
     const intlinkId = this.route.snapshot.paramMap.get('intlink_id')
     this.store.intlinkId.set(intlinkId)
     if (intlinkId) {
-      const integrityLink = await this.api.invoke(
-        getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet,
-        { integrity_link_id: intlinkId }
-      )
-      this.store.integrityLink.set(integrityLink)
+      try {
+        const integrityLink = await this.api.invoke(
+          getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet,
+          { integrity_link_id: intlinkId }
+        )
+        this.store.integrityLink.set(integrityLink)
+      } catch (error: any) {
+        console.error('Failed to load integrity link:', error)
+        if (error?.status === 403) {
+          this.loadError.set('forbidden')
+        } else if (error?.status === 404) {
+          this.loadError.set('not_found')
+        } else {
+          this.loadError.set('server_error')
+        }
+      }
     }
   }
 }

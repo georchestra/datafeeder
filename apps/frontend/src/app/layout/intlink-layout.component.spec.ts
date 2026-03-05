@@ -191,8 +191,9 @@ describe('IntlinkLayoutComponent', () => {
   // ─── ngOnInit API behavior ─────────────────────────────────────────────
   // Matrix coverage (frontend-behavior-matrix.md — Page: /:id layout shell):
   //   200 + access_level → store populated, child routes render        ✅
-  //   403 (READ/NO_PERM user) → unhandled rejection, store stays null  ❌
-  //   404 / 500  → unhandled rejection, store stays null               ❌
+  //   403 (READ/NO_PERM user) → loadError = 'forbidden', alert shown   ✅
+  //   404               → loadError = 'not_found', alert shown         ✅
+  //   500               → loadError = 'server_error', alert shown      ✅
   // ──────────────────────────────────────────────────────────────────────
 
   describe('ngOnInit - API call behavior', () => {
@@ -220,14 +221,16 @@ describe('IntlinkLayoutComponent', () => {
       access_level: 'OWNER'
     }
 
-    const setupWithMockedApi = async (options: { rejects?: boolean } = {}) => {
+    const setupWithMockedApi = async (
+      options: { rejectStatus?: number } = {}
+    ) => {
       const store = new IntegrityLinkStore()
       const mockApi = {
         invoke: vi
           .fn()
           .mockImplementation(() =>
-            options.rejects
-              ? Promise.reject({ status: 403, message: 'Forbidden' })
+            options.rejectStatus
+              ? Promise.reject({ status: options.rejectStatus })
               : Promise.resolve(mockLinkResponse)
           )
       }
@@ -296,15 +299,32 @@ describe('IntlinkLayoutComponent', () => {
       })
     })
 
-    it('should leave integrityLink null when API throws 403 — no try/catch (❌)', async () => {
-      const { store } = await setupWithMockedApi({ rejects: true })
-      const fixture = TestBed.createComponent(IntlinkLayoutComponent)
+    it('should set loadError to "forbidden" and keep store null when API throws 403 (✅)', async () => {
+      const { fixture, store } = await setupWithMockedApi({ rejectStatus: 403 })
+      fixture.detectChanges()
 
-      // Call ngOnInit directly and catch the unhandled rejection to prevent
-      // test failure — the component has NO error handling for this case
-      await fixture.componentInstance.ngOnInit().catch(() => {})
-
+      await vi.waitFor(() =>
+        expect(fixture.componentInstance.loadError()).toBe('forbidden')
+      )
       expect(store.integrityLink()).toBeNull()
+    })
+
+    it('should set loadError to "not_found" when API throws 404 (✅)', async () => {
+      const { fixture } = await setupWithMockedApi({ rejectStatus: 404 })
+      fixture.detectChanges()
+
+      await vi.waitFor(() =>
+        expect(fixture.componentInstance.loadError()).toBe('not_found')
+      )
+    })
+
+    it('should set loadError to "server_error" for unexpected errors (✅)', async () => {
+      const { fixture } = await setupWithMockedApi({ rejectStatus: 500 })
+      fixture.detectChanges()
+
+      await vi.waitFor(() =>
+        expect(fixture.componentInstance.loadError()).toBe('server_error')
+      )
     })
   })
 })
