@@ -242,9 +242,7 @@ describe('AuthorizationsComponent', () => {
 
       const { component } = createComponent()
 
-      await vi.waitFor(() =>
-        expect(component.loadError()).not.toBeNull()
-      )
+      await vi.waitFor(() => expect(component.loadError()).not.toBeNull())
       expect(component.rules()).toEqual([])
     })
 

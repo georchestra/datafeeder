@@ -79,14 +79,14 @@
 
   <div class="flex-grow overflow-y-auto px-11 py-5 flex flex-col">
     @if (loadError()) {
-      <app-ui-alert-box
-        type="error"
-        [dismissible]="false"
-        [title]="'intlinkLayout.error.' + loadError() + '.title' | translate"
-        [message]="'intlinkLayout.error.' + loadError() + '.message' | translate"
-      />
+    <app-ui-alert-box
+      type="error"
+      [dismissible]="false"
+      [title]="'intlinkLayout.error.' + loadError() + '.title' | translate"
+      [message]="'intlinkLayout.error.' + loadError() + '.message' | translate"
+    />
     } @else {
-      <router-outlet></router-outlet>
+    <router-outlet></router-outlet>
     }
   </div>
 </div>

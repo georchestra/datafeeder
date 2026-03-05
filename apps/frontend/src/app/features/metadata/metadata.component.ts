@@ -1,5 +1,12 @@
 import { CommonModule } from '@angular/common'
-import { Component, DestroyRef, effect, inject, OnInit, signal } from '@angular/core'
+import {
+  Component,
+  DestroyRef,
+  effect,
+  inject,
+  OnInit,
+  signal
+} from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
@@ -16,7 +23,17 @@ import {
   RecordFormComponent,
   RecordsRepositoryInterface
 } from 'geonetwork-ui'
-import { combineLatest, firstValueFrom, from, interval, map, switchMap, take, takeWhile, tap } from 'rxjs'
+import {
+  combineLatest,
+  firstValueFrom,
+  from,
+  interval,
+  map,
+  switchMap,
+  take,
+  takeWhile,
+  tap
+} from 'rxjs'
 import { Api } from '../../core/api/api'
 import {
   getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
@@ -76,7 +93,11 @@ export class MetadataComponent implements OnInit {
       const integrityLink = this.store.integrityLink()
       if (integrityLink?.metadata_id) {
         this.loadMetadata(integrityLink.metadata_id)
-      } else if (integrityLink && !integrityLink.metadata_id && !this.processingStatusLoaded()) {
+      } else if (
+        integrityLink &&
+        !integrityLink.metadata_id &&
+        !this.processingStatusLoaded()
+      ) {
         this.loadProcessingStatus(integrityLink.id)
       }
     })
@@ -139,10 +160,13 @@ export class MetadataComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef),
         switchMap(() =>
           from(
-            this.api.invoke(getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet, {
-              dag_id: 'process_dag',
-              dag_run_id: dagRunId
-            })
+            this.api.invoke(
+              getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
+              {
+                dag_id: 'process_dag',
+                dag_run_id: dagRunId
+              }
+            )
           )
         ),
         takeWhile(
@@ -157,7 +181,8 @@ export class MetadataComponent implements OnInit {
             await this.reloadIntegrityLink(intlinkId)
           }
         },
-        error: (error) => console.error('Error polling processing status:', error)
+        error: (error) =>
+          console.error('Error polling processing status:', error)
       })
   }
 
