@@ -13,6 +13,7 @@ import {
 } from 'geonetwork-ui'
 import { BehaviorSubject, firstValueFrom, of } from 'rxjs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Api } from '../../core/api/api'
 import { IntegrityLinkStore } from '../../layout/integrity-link.store'
 import { MetadataComponent } from './metadata.component'
 
@@ -39,6 +40,7 @@ describe('MetadataComponent', () => {
   let mockEditorFacade: any
   let mockRepo: any
   let mockIntegrityLinkStore: any
+  let mockApi: any
 
   let recordSubject: BehaviorSubject<any>
   let configSubject: BehaviorSubject<any>
@@ -72,6 +74,10 @@ describe('MetadataComponent', () => {
       integrityLink: integrityLinkSignal
     }
 
+    mockApi = {
+      invoke: vi.fn().mockResolvedValue({ dag_runs: [] })
+    }
+
     window.scroll = vi.fn()
 
     await TestBed.configureTestingModule({
@@ -81,7 +87,8 @@ describe('MetadataComponent', () => {
         provideHttpClient(),
         { provide: EditorFacade, useValue: mockEditorFacade },
         { provide: RecordsRepositoryInterface, useValue: mockRepo },
-        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore },
+        { provide: Api, useValue: mockApi }
       ]
     })
       .overrideComponent(MetadataComponent, {
@@ -119,8 +126,11 @@ describe('MetadataComponent', () => {
   })
 
   describe('Reactive Loading (Effect)', () => {
-    it('should load metadata when integrityLink store is updated', async () => {
-      const mockLink = { metadata_id: 'meta-123' }
+    it('should load metadata when processing status is success', async () => {
+      const mockLink = { id: 'intlink-1', metadata_id: 'meta-123' }
+      mockApi.invoke.mockResolvedValue({
+        dag_runs: [{ dag_run_id: 'run-1', state: 'success' }]
+      })
 
       integrityLinkSignal.set(mockLink)
 
@@ -134,9 +144,24 @@ describe('MetadataComponent', () => {
       )
     })
 
-    it('should NOT load metadata if integrityLink is null', () => {
+    it('should NOT load metadata if processing status is not success', async () => {
+      const mockLink = { id: 'intlink-1', metadata_id: 'meta-123' }
+      mockApi.invoke.mockResolvedValue({
+        dag_runs: [{ dag_run_id: 'run-1', state: 'failed' }]
+      })
+
+      integrityLinkSignal.set(mockLink)
+
+      fixture.detectChanges()
+      await fixture.whenStable()
+
+      expect(mockRepo.openRecordForEdition).not.toHaveBeenCalled()
+    })
+
+    it('should NOT load metadata if integrityLink is null', async () => {
       integrityLinkSignal.set(null)
       fixture.detectChanges()
+      await fixture.whenStable()
       expect(mockRepo.openRecordForEdition).not.toHaveBeenCalled()
     })
   })

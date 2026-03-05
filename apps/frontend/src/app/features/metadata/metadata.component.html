@@ -1,4 +1,4 @@
-@if (!store.integrityLink()?.metadata_id) {
+@if (processingStatus() !== 'success') {
 <div
   class="flex-1 flex flex-col items-center justify-center gap-4 px-9 py-12 text-center"
 >

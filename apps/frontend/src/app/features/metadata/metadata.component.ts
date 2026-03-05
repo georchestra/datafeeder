@@ -91,13 +91,7 @@ export class MetadataComponent implements OnInit {
   constructor() {
     effect(() => {
       const integrityLink = this.store.integrityLink()
-      if (integrityLink?.metadata_id) {
-        this.loadMetadata(integrityLink.metadata_id)
-      } else if (
-        integrityLink &&
-        !integrityLink.metadata_id &&
-        !this.processingStatusLoaded()
-      ) {
+      if (integrityLink && !this.processingStatusLoaded()) {
         this.loadProcessingStatus(integrityLink.id)
       }
     })
@@ -145,7 +139,15 @@ export class MetadataComponent implements OnInit {
       this.processingStatus.set(latestRun.state)
       this.processingStatusLoaded.set(true)
 
-      if (latestRun.state === 'queued' || latestRun.state === 'running') {
+      if (latestRun.state === 'success') {
+        const integrityLink = this.store.integrityLink()
+        if (integrityLink?.metadata_id) {
+          this.loadMetadata(integrityLink.metadata_id)
+        }
+      } else if (
+        latestRun.state === 'queued' ||
+        latestRun.state === 'running'
+      ) {
         this.startPollingStatus(intlinkId, latestRun.dag_run_id)
       }
     } catch (error) {
@@ -179,6 +181,10 @@ export class MetadataComponent implements OnInit {
           this.processingStatus.set(status)
           if (status === 'success') {
             await this.reloadIntegrityLink(intlinkId)
+            const integrityLink = this.store.integrityLink()
+            if (integrityLink?.metadata_id) {
+              this.loadMetadata(integrityLink.metadata_id)
+            }
           }
         },
         error: (error) =>
