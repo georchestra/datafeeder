@@ -6,7 +6,8 @@ from uuid import uuid4
 
 import pytest
 
-from src.api.routes.ingestion.integrity_links import BATCH_SIZE
+from src.api.routes.ingestion.integrity_links import BATCH_SIZE, list_integrity_links
+from src.core.security import EffectiveAccess
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.services.georchestra import GeorchestraContext
@@ -62,7 +63,6 @@ class TestListIntegrityLinks:
         sample_integrity_links: list[IntegrityLink],
     ) -> None:
         """Test that normal users only see their own integrity links."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Filter links for user0
         user0_links = [link for link in sample_integrity_links if link.integrity_owner == "user0"]
@@ -93,7 +93,6 @@ class TestListIntegrityLinks:
         sample_integrity_links: list[IntegrityLink],
     ) -> None:
         """Test that administrators see all integrity links."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Mock the session.exec().all() to return all links
         mock_exec_result = MagicMock()
@@ -116,7 +115,6 @@ class TestListIntegrityLinks:
         self, mock_logger: MagicMock, mock_session: MagicMock
     ) -> None:
         """Test that has_more is True when there are more items."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Create more than BATCH_SIZE links
         links = [
@@ -154,7 +152,6 @@ class TestListIntegrityLinks:
         self, mock_logger: MagicMock, mock_session: MagicMock
     ) -> None:
         """Test that has_more is False when there are no more items."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Create fewer than BATCH_SIZE links
         links = [
@@ -190,7 +187,6 @@ class TestListIntegrityLinks:
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_offset_parameter(self, mock_logger: MagicMock, mock_session: MagicMock) -> None:
         """Test that offset parameter is included in response."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []
@@ -212,7 +208,6 @@ class TestListIntegrityLinks:
         self, mock_logger: MagicMock, mock_session: MagicMock
     ) -> None:
         """Test that sensitive fields are excluded from response."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Create link with sensitive data
         link = IntegrityLink(
@@ -261,7 +256,6 @@ class TestListIntegrityLinks:
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_empty_result(self, mock_logger: MagicMock, mock_session: MagicMock) -> None:
         """Test handling of empty results."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []
@@ -285,7 +279,6 @@ class TestListIntegrityLinks:
         self, mock_logger: MagicMock, mock_session: MagicMock
     ) -> None:
         """Test that the search parameter filters results by integrity_title."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         matching_link = IntegrityLink(
             id=uuid4(),
@@ -323,7 +316,6 @@ class TestListIntegrityLinks:
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_search_with_pagination(self, mock_logger: MagicMock, mock_session: MagicMock) -> None:
         """Test that search works correctly with pagination."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Simulate BATCH_SIZE + 1 results (has_more = True)
         links = [
@@ -363,7 +355,6 @@ class TestListIntegrityLinks:
         self, mock_logger: MagicMock, mock_session: MagicMock
     ) -> None:
         """Test that an empty search string does not add a filter."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         links = [
             IntegrityLink(
@@ -408,7 +399,6 @@ class TestListIntegrityLinks:
         sample_integrity_links: list[IntegrityLink],
     ) -> None:
         """Test that response model has correct structure."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = sample_integrity_links[:1]
@@ -495,8 +485,6 @@ class TestListIntegrityLinksVisibility:
         mock_session: MagicMock,
     ) -> None:
         """Owner sees own datasets and gets OWNER access level."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
-        from src.core.security import EffectiveAccess
 
         link = self._make_link(owner="user1")
         mock_exec_result = MagicMock()
@@ -519,8 +507,6 @@ class TestListIntegrityLinksVisibility:
         mock_session: MagicMock,
     ) -> None:
         """Admin sees all datasets and gets ADMIN access level."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
-        from src.core.security import EffectiveAccess
 
         links = [self._make_link(owner="someone"), self._make_link(owner="another")]
         mock_exec_result = MagicMock()
@@ -544,8 +530,6 @@ class TestListIntegrityLinksVisibility:
         mock_session: MagicMock,
     ) -> None:
         """User whose group has METADATA READ sees dataset with READ access level."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
-        from src.core.security import EffectiveAccess
 
         link = self._make_link(owner="other")
         mock_exec_result = MagicMock()
@@ -568,8 +552,6 @@ class TestListIntegrityLinksVisibility:
         mock_session: MagicMock,
     ) -> None:
         """User whose group has METADATA WRITE sees dataset with WRITE access level."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
-        from src.core.security import EffectiveAccess
 
         link = self._make_link(owner="other")
         mock_exec_result = MagicMock()
@@ -590,7 +572,6 @@ class TestListIntegrityLinksVisibility:
         mock_session: MagicMock,
     ) -> None:
         """User with no ownership and no group rules sees empty list."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []
@@ -608,7 +589,6 @@ class TestListIntegrityLinksVisibility:
         mock_session: MagicMock,
     ) -> None:
         """Non-admin query should include OR condition for ownership + org rules."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []

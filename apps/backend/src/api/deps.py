@@ -43,10 +43,10 @@ def get_org_id(geo_ctx: GeorchestraContextDep) -> str | None:
     """
     if not geo_ctx.organization:
         return None
-    
+
     service = ConsoleService(get_settings().CONSOLE_URL)
     org = service.get_organization(geo_ctx.organization)
-    
+
     return str(org["id"]) if org and "id" in org else None
 
 

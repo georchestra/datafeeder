@@ -14,8 +14,22 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import HTTPException
 
+from src.api.routes.airflow import get_dag_run_by_intlink, get_dag_run_logs, get_dag_run_status
+from src.api.routes.geonetwork import proxy_geonetwork
+from src.api.routes.ingestion.integrity_link import (
+    delete_integrity_link_rule,
+    get_integrity_link,
+    list_integrity_link_rules,
+    upsert_integrity_link_rule,
+)
+from src.api.routes.ingestion.process import process_staging_data
+from src.api.routes.ingestion.staging import (
+    edit_staging_metadata,
+    get_staging_metadata,
+    get_staging_preview,
+)
 from src.core.security import AccessLevel
-from src.models.data_import import ImportType
+from src.models.data_import import ImportType, ProcessRequest
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleType, RuleValue, UpsertRuleRequest
 from src.services.georchestra import GeorchestraContext
@@ -127,8 +141,6 @@ def _mock_session_with_rule(link: IntegrityLink, rule_value: RuleValue) -> Magic
 
 class TestGetIntegrityLinkPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        from src.api.routes.ingestion.integrity_link import get_integrity_link
-
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
@@ -138,7 +150,6 @@ class TestGetIntegrityLinkPermission:
 
     def test_returns_403_for_read_group_user(self) -> None:
         """READ group access is insufficient for METADATA_WRITE endpoint."""
-        from src.api.routes.ingestion.integrity_link import get_integrity_link
 
         session = _mock_session_with_rule(_link(), RuleValue.READ)
 
@@ -148,8 +159,6 @@ class TestGetIntegrityLinkPermission:
         assert exc_info.value.status_code == 403
 
     def test_returns_entity_for_owner(self) -> None:
-        from src.api.routes.ingestion.integrity_link import get_integrity_link
-
         session = _mock_session(_link())
 
         result = get_integrity_link(session, _owner_ctx(), INTLINK_ID, None)
@@ -158,7 +167,6 @@ class TestGetIntegrityLinkPermission:
 
     def test_returns_entity_for_write_group_user(self) -> None:
         """WRITE group access is sufficient for METADATA_WRITE endpoint."""
-        from src.api.routes.ingestion.integrity_link import get_integrity_link
 
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
 
@@ -168,7 +176,6 @@ class TestGetIntegrityLinkPermission:
 
     def test_returns_entity_for_admin(self) -> None:
         """Admin bypasses all permission checks."""
-        from src.api.routes.ingestion.integrity_link import get_integrity_link
 
         session = _mock_session(_link())
 
@@ -184,8 +191,6 @@ class TestGetIntegrityLinkPermission:
 
 class TestListIntegrityLinkRulesPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        from src.api.routes.ingestion.integrity_link import list_integrity_link_rules
-
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
@@ -195,7 +200,6 @@ class TestListIntegrityLinkRulesPermission:
 
     def test_returns_403_for_write_group_user(self) -> None:
         """WRITE group access is insufficient for OWNER_ONLY endpoint."""
-        from src.api.routes.ingestion.integrity_link import list_integrity_link_rules
 
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
 
@@ -205,8 +209,6 @@ class TestListIntegrityLinkRulesPermission:
         assert exc_info.value.status_code == 403
 
     def test_returns_rules_for_owner(self) -> None:
-        from src.api.routes.ingestion.integrity_link import list_integrity_link_rules
-
         session = _mock_session(_link())
 
         result = list_integrity_link_rules(session, _owner_ctx(), INTLINK_ID, None)
@@ -221,8 +223,6 @@ class TestListIntegrityLinkRulesPermission:
 
 class TestDeleteIntegrityLinkRulePermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
-
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
@@ -232,7 +232,6 @@ class TestDeleteIntegrityLinkRulePermission:
 
     def test_returns_403_for_write_group_user(self) -> None:
         """WRITE group access is insufficient for OWNER_ONLY endpoint."""
-        from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
 
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
 
@@ -249,9 +248,6 @@ class TestDeleteIntegrityLinkRulePermission:
 
 class TestProcessPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        from src.api.routes.ingestion.process import process_staging_data
-        from src.models.data_import import ProcessRequest
-
         session = _mock_session(_link())
         body = ProcessRequest(integrity_link_id=INTLINK_ID, title="Test")
 
@@ -270,8 +266,6 @@ class TestProcessPermission:
 
     def test_returns_403_for_write_group_user(self) -> None:
         """WRITE group access is insufficient for OWNER_ONLY endpoint."""
-        from src.api.routes.ingestion.process import process_staging_data
-        from src.models.data_import import ProcessRequest
 
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
         body = ProcessRequest(integrity_link_id=INTLINK_ID, title="Test")
@@ -299,8 +293,6 @@ DAG_RUN_ID = f"{INTLINK_ID}_run_20260305"  # UUID has no underscores; split("_")
 
 class TestAirflowDagRunByIntlinkPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        from src.api.routes.airflow import get_dag_run_by_intlink
-
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
@@ -311,7 +303,6 @@ class TestAirflowDagRunByIntlinkPermission:
     @patch("src.api.routes.airflow.get_dag_run_api")
     def test_returns_result_for_read_group_user(self, mock_api: MagicMock) -> None:
         """READ group access is sufficient for METADATA_READ endpoint."""
-        from src.api.routes.airflow import get_dag_run_by_intlink
 
         session = _mock_session_with_rule(_link(), RuleValue.READ)
         mock_api.return_value.get_dag_runs.return_value = MagicMock()
@@ -323,7 +314,6 @@ class TestAirflowDagRunByIntlinkPermission:
     @patch("src.api.routes.airflow.get_dag_run_api")
     def test_returns_result_for_write_group_user(self, mock_api: MagicMock) -> None:
         """WRITE group access is sufficient for METADATA_READ endpoint."""
-        from src.api.routes.airflow import get_dag_run_by_intlink
 
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
         mock_api.return_value.get_dag_runs.return_value = MagicMock()
@@ -334,8 +324,6 @@ class TestAirflowDagRunByIntlinkPermission:
 
     @patch("src.api.routes.airflow.get_dag_run_api")
     def test_returns_result_for_owner(self, mock_api: MagicMock) -> None:
-        from src.api.routes.airflow import get_dag_run_by_intlink
-
         session = _mock_session(_link())
         mock_runs = MagicMock()
         mock_api.return_value.get_dag_runs.return_value = mock_runs
@@ -347,7 +335,6 @@ class TestAirflowDagRunByIntlinkPermission:
     @patch("src.api.routes.airflow.get_dag_run_api")
     def test_returns_result_for_admin(self, mock_api: MagicMock) -> None:
         """Admin bypasses all permission checks."""
-        from src.api.routes.airflow import get_dag_run_by_intlink
 
         session = _mock_session(_link())
         mock_api.return_value.get_dag_runs.return_value = MagicMock()
@@ -359,7 +346,6 @@ class TestAirflowDagRunByIntlinkPermission:
     @patch("src.api.routes.airflow.load_authorized_integrity_link")
     def test_requires_metadata_read_level(self, mock_load: MagicMock) -> None:
         """Verify the endpoint enforces AccessLevel.METADATA_READ (not OWNER_ONLY)."""
-        from src.api.routes.airflow import get_dag_run_by_intlink
 
         mock_load.side_effect = HTTPException(status_code=403)
 
@@ -376,8 +362,6 @@ class TestAirflowDagRunByIntlinkPermission:
 
 class TestAirflowDagRunStatusPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        from src.api.routes.airflow import get_dag_run_status
-
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
@@ -387,8 +371,6 @@ class TestAirflowDagRunStatusPermission:
 
     @patch("src.api.routes.airflow.get_dag_run_api")
     def test_returns_result_for_read_group_user(self, mock_api: MagicMock) -> None:
-        from src.api.routes.airflow import get_dag_run_status
-
         session = _mock_session_with_rule(_link(), RuleValue.READ)
         mock_api.return_value.get_dag_run.return_value.state = MagicMock()
 
@@ -398,8 +380,6 @@ class TestAirflowDagRunStatusPermission:
 
     @patch("src.api.routes.airflow.get_dag_run_api")
     def test_returns_result_for_owner(self, mock_api: MagicMock) -> None:
-        from src.api.routes.airflow import get_dag_run_status
-
         session = _mock_session(_link())
         mock_state = MagicMock()
         mock_api.return_value.get_dag_run.return_value.state = mock_state
@@ -410,8 +390,6 @@ class TestAirflowDagRunStatusPermission:
 
     @patch("src.api.routes.airflow.get_dag_run_api")
     def test_returns_result_for_admin(self, mock_api: MagicMock) -> None:
-        from src.api.routes.airflow import get_dag_run_status
-
         session = _mock_session(_link())
         mock_api.return_value.get_dag_run.return_value.state = MagicMock()
 
@@ -422,7 +400,6 @@ class TestAirflowDagRunStatusPermission:
     @patch("src.api.routes.airflow.load_authorized_integrity_link")
     def test_extracts_intlink_id_from_dag_run_id(self, mock_load: MagicMock) -> None:
         """Verify intlink_id is extracted as the UUID prefix before the first underscore."""
-        from src.api.routes.airflow import get_dag_run_status
 
         mock_load.side_effect = HTTPException(status_code=403)
 
@@ -439,8 +416,6 @@ class TestAirflowDagRunStatusPermission:
 
 class TestAirflowDagRunLogsPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        from src.api.routes.airflow import get_dag_run_logs
-
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
@@ -450,8 +425,6 @@ class TestAirflowDagRunLogsPermission:
 
     @patch("src.api.routes.airflow.generate_failed_dag_run_logs")
     def test_returns_result_for_read_group_user(self, mock_logs: MagicMock) -> None:
-        from src.api.routes.airflow import get_dag_run_logs
-
         session = _mock_session_with_rule(_link(), RuleValue.READ)
         mock_logs.return_value = "some log output"
 
@@ -461,8 +434,6 @@ class TestAirflowDagRunLogsPermission:
 
     @patch("src.api.routes.airflow.generate_failed_dag_run_logs")
     def test_returns_result_for_owner(self, mock_logs: MagicMock) -> None:
-        from src.api.routes.airflow import get_dag_run_logs
-
         session = _mock_session(_link())
         mock_logs.return_value = "some log output"
 
@@ -472,8 +443,6 @@ class TestAirflowDagRunLogsPermission:
 
     @patch("src.api.routes.airflow.generate_failed_dag_run_logs")
     def test_returns_result_for_admin(self, mock_logs: MagicMock) -> None:
-        from src.api.routes.airflow import get_dag_run_logs
-
         session = _mock_session(_link())
         mock_logs.return_value = "some log output"
 
@@ -484,7 +453,6 @@ class TestAirflowDagRunLogsPermission:
     @patch("src.api.routes.airflow.load_authorized_integrity_link")
     def test_extracts_intlink_id_from_dag_run_id(self, mock_load: MagicMock) -> None:
         """Verify intlink_id is extracted as the UUID prefix before the first underscore."""
-        from src.api.routes.airflow import get_dag_run_logs
 
         mock_load.side_effect = HTTPException(status_code=403)
 
@@ -510,8 +478,6 @@ class TestGeoNetworkProxyPermission:
 
     @pytest.mark.asyncio
     async def test_returns_403_for_unauthorized_user_on_dataset_path(self) -> None:
-        from src.api.routes.geonetwork import proxy_geonetwork
-
         session = _mock_session(_link())
         path = f"srv/api/records/{INTLINK_UUID}"
         request = MagicMock()
@@ -524,7 +490,6 @@ class TestGeoNetworkProxyPermission:
     @pytest.mark.asyncio
     async def test_returns_403_for_read_group_user_on_dataset_path(self) -> None:
         """READ group access is insufficient for METADATA_WRITE endpoint."""
-        from src.api.routes.geonetwork import proxy_geonetwork
 
         session = _mock_session_with_rule(_link(), RuleValue.READ)
         path = f"srv/api/records/{INTLINK_UUID}"
@@ -550,8 +515,6 @@ class TestUpsertIntegrityLinkRulePermission:
         )
 
     def test_returns_403_for_unauthorized_user(self) -> None:
-        from src.api.routes.ingestion.integrity_link import upsert_integrity_link_rule
-
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
@@ -561,7 +524,6 @@ class TestUpsertIntegrityLinkRulePermission:
 
     def test_returns_403_for_write_group_user(self) -> None:
         """WRITE group access is insufficient for OWNER_ONLY endpoint."""
-        from src.api.routes.ingestion.integrity_link import upsert_integrity_link_rule
 
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
 
@@ -571,8 +533,6 @@ class TestUpsertIntegrityLinkRulePermission:
         assert exc_info.value.status_code == 403
 
     def test_succeeds_for_owner(self) -> None:
-        from src.api.routes.ingestion.integrity_link import upsert_integrity_link_rule
-
         session = _mock_session(_link())
 
         result = upsert_integrity_link_rule(session, _owner_ctx(), INTLINK_ID, None, self._body())
@@ -587,8 +547,6 @@ class TestUpsertIntegrityLinkRulePermission:
 
 class TestGetStagingMetadataPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        from src.api.routes.ingestion.staging import get_staging_metadata
-
         datakern_session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
@@ -598,7 +556,6 @@ class TestGetStagingMetadataPermission:
 
     def test_returns_403_for_read_group_user(self) -> None:
         """READ group access is insufficient for METADATA_WRITE endpoint."""
-        from src.api.routes.ingestion.staging import get_staging_metadata
 
         datakern_session = _mock_session_with_rule(_link(), RuleValue.READ)
 
@@ -610,7 +567,6 @@ class TestGetStagingMetadataPermission:
     @patch("src.api.routes.ingestion.staging.load_authorized_integrity_link")
     def test_requires_metadata_write_level(self, mock_load: MagicMock) -> None:
         """Verify endpoint passes AccessLevel.METADATA_WRITE (not OWNER_ONLY)."""
-        from src.api.routes.ingestion.staging import get_staging_metadata
 
         mock_load.side_effect = HTTPException(status_code=403)
 
@@ -627,8 +583,6 @@ class TestGetStagingMetadataPermission:
 
 class TestPutStagingMetadataPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        from src.api.routes.ingestion.staging import edit_staging_metadata
-
         datakern_session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
@@ -640,7 +594,6 @@ class TestPutStagingMetadataPermission:
 
     def test_returns_403_for_read_group_user(self) -> None:
         """READ group access is insufficient for METADATA_WRITE endpoint."""
-        from src.api.routes.ingestion.staging import edit_staging_metadata
 
         datakern_session = _mock_session_with_rule(_link(), RuleValue.READ)
 
@@ -654,7 +607,6 @@ class TestPutStagingMetadataPermission:
     @patch("src.api.routes.ingestion.staging.load_authorized_integrity_link")
     def test_requires_metadata_write_level(self, mock_load: MagicMock) -> None:
         """Verify endpoint passes AccessLevel.METADATA_WRITE (not OWNER_ONLY)."""
-        from src.api.routes.ingestion.staging import edit_staging_metadata
 
         mock_load.side_effect = HTTPException(status_code=403)
 
@@ -671,8 +623,6 @@ class TestPutStagingMetadataPermission:
 
 class TestGetStagingPreviewPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        from src.api.routes.ingestion.staging import get_staging_preview
-
         datakern_session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
@@ -682,7 +632,6 @@ class TestGetStagingPreviewPermission:
 
     def test_returns_403_for_read_group_user(self) -> None:
         """READ group access is insufficient for METADATA_WRITE endpoint."""
-        from src.api.routes.ingestion.staging import get_staging_preview
 
         datakern_session = _mock_session_with_rule(_link(), RuleValue.READ)
 
@@ -694,7 +643,6 @@ class TestGetStagingPreviewPermission:
     @patch("src.api.routes.ingestion.staging.load_authorized_integrity_link")
     def test_requires_metadata_write_level(self, mock_load: MagicMock) -> None:
         """Verify endpoint passes AccessLevel.METADATA_WRITE (not OWNER_ONLY)."""
-        from src.api.routes.ingestion.staging import get_staging_preview
 
         mock_load.side_effect = HTTPException(status_code=403)
 

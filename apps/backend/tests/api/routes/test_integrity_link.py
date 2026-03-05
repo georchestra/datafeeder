@@ -6,6 +6,10 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import HTTPException
 
+from src.api.routes.ingestion.integrity_link import (
+    delete_integrity_link_rule,
+    upsert_integrity_link_rule,
+)
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import (
@@ -40,8 +44,6 @@ class TestUpsertIntegrityLinkRule:
         return str(uuid4())
 
     def test_create_new_rule(self, mock_session: MagicMock, integrity_link_id: str) -> None:
-        from src.api.routes.ingestion.integrity_link import upsert_integrity_link_rule
-
         # IntegrityLink exists
         mock_session.get.return_value = IntegrityLink(
             id=UUID(integrity_link_id),
@@ -79,8 +81,6 @@ class TestUpsertIntegrityLinkRule:
         assert added_rule.rule_value == RuleValue.READ
 
     def test_update_existing_rule(self, mock_session: MagicMock, integrity_link_id: str) -> None:
-        from src.api.routes.ingestion.integrity_link import upsert_integrity_link_rule
-
         mock_session.get.return_value = IntegrityLink(
             id=UUID(integrity_link_id),
             integrity_owner="testuser",
@@ -118,8 +118,6 @@ class TestUpsertIntegrityLinkRule:
         mock_session.refresh.assert_called_once_with(existing_rule)
 
     def test_integrity_link_not_found(self, mock_session: MagicMock) -> None:
-        from src.api.routes.ingestion.integrity_link import upsert_integrity_link_rule
-
         mock_session.get.return_value = None
 
         body = UpsertRuleRequest(
@@ -152,8 +150,6 @@ class TestDeleteIntegrityLinkRule:
         return str(uuid4())
 
     def test_delete_existing_rule(self, mock_session: MagicMock, integrity_link_id: str) -> None:
-        from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
-
         mock_session.get.side_effect = [
             IntegrityLink(
                 id=UUID(integrity_link_id),
@@ -183,8 +179,6 @@ class TestDeleteIntegrityLinkRule:
         mock_session.commit.assert_called_once()
 
     def test_integrity_link_not_found(self, mock_session: MagicMock) -> None:
-        from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
-
         mock_session.get.return_value = None
 
         with pytest.raises(HTTPException) as exc_info:
@@ -199,8 +193,6 @@ class TestDeleteIntegrityLinkRule:
         assert exc_info.value.detail == "IntegrityLink not found"
 
     def test_rule_not_found(self, mock_session: MagicMock, integrity_link_id: str) -> None:
-        from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
-
         mock_session.get.side_effect = [
             IntegrityLink(
                 id=UUID(integrity_link_id),
@@ -226,8 +218,6 @@ class TestDeleteIntegrityLinkRule:
     def test_rule_belongs_to_different_integrity_link(
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
-        from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
-
         other_link_id = uuid4()
         mock_session.get.side_effect = [
             IntegrityLink(
