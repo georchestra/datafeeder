@@ -46,11 +46,10 @@ def list_integrity_links(
     Returns:
         IntegrityLinkListResponse with items, has_more flag, and current offset
     """
-    is_admin = geo_ctx.is_administrator()
-
     # Build query based on user role
     query = select(IntegrityLink)
 
+    is_admin = geo_ctx.is_administrator()
     if not is_admin:
         # Non-admins see: own datasets + datasets with METADATA rules for their org
         conditions: list[Any] = [IntegrityLink.integrity_owner == geo_ctx.username]
@@ -92,8 +91,15 @@ def list_integrity_links(
     list_items: list[IntegrityLinkListItem] = []
     for link in items:
         effective = compute_effective_access(link, geo_ctx, session, org_id)
+        if effective is None:
+            logger.warning(
+                f"Skipping integrity link '{link.id}' for user '{geo_ctx.username}': "
+                "no effective access (possible race condition)"
+            )
+            continue
+
         item = IntegrityLinkListItem.model_validate(link)
-        item.access_level = effective.value if effective else None
+        item.access_level = effective.value
         list_items.append(item)
 
     return IntegrityLinkListResponse(
