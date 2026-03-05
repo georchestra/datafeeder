@@ -247,12 +247,13 @@ class TestDeleteIntegrityLinkRulePermission:
 
 
 class TestProcessPermission:
-    def test_returns_403_for_unauthorized_user(self) -> None:
+    @pytest.mark.asyncio
+    async def test_returns_403_for_unauthorized_user(self) -> None:
         session = _mock_session(_link())
         body = ProcessRequest(integrity_link_id=INTLINK_ID, title="Test")
 
         with pytest.raises(HTTPException) as exc_info:
-            process_staging_data(
+            await process_staging_data(
                 body,
                 session,
                 _ctx(),
@@ -264,14 +265,15 @@ class TestProcessPermission:
 
         assert exc_info.value.status_code == 403
 
-    def test_returns_403_for_write_group_user(self) -> None:
+    @pytest.mark.asyncio
+    async def test_returns_403_for_write_group_user(self) -> None:
         """WRITE group access is insufficient for OWNER_ONLY endpoint."""
 
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
         body = ProcessRequest(integrity_link_id=INTLINK_ID, title="Test")
 
         with pytest.raises(HTTPException) as exc_info:
-            process_staging_data(
+            await process_staging_data(
                 body,
                 session,
                 _write_ctx(),

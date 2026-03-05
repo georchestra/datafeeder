@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, Output, signal } from '@angular/core'
 import { ComponentFixture, TestBed } from '@angular/core/testing'
+import { provideHttpClient } from '@angular/common/http'
 import { provideRouter } from '@angular/router'
 import { NgIconComponent } from '@ng-icons/core'
 import { TranslateModule } from '@ngx-translate/core'
@@ -77,6 +78,7 @@ describe('MetadataComponent', () => {
       imports: [MetadataComponent, TranslateModule.forRoot()],
       providers: [
         provideRouter([]),
+        provideHttpClient(),
         { provide: EditorFacade, useValue: mockEditorFacade },
         { provide: RecordsRepositoryInterface, useValue: mockRepo },
         { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }

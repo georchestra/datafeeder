@@ -361,7 +361,7 @@ class TestGetOrgId:
         result = get_org_id(ctx)
         assert result is None
 
-    @patch("src.core.security.ConsoleService")
+    @patch("src.api.deps.ConsoleService")
     def test_returns_uuid_when_org_found(self, mock_cls: MagicMock) -> None:
         mock_cls.return_value.get_organization.return_value = {"id": "uuid-123", "name": "Org A"}
         ctx = _geo_ctx(organization="org_a")
@@ -371,7 +371,7 @@ class TestGetOrgId:
         assert result == "uuid-123"
         mock_cls.return_value.get_organization.assert_called_once_with("org_a")
 
-    @patch("src.core.security.ConsoleService")
+    @patch("src.api.deps.ConsoleService")
     def test_returns_none_when_org_not_found(self, mock_cls: MagicMock) -> None:
         mock_cls.return_value.get_organization.return_value = None
         ctx = _geo_ctx(organization="unknown_org")
@@ -380,7 +380,7 @@ class TestGetOrgId:
 
         assert result is None
 
-    @patch("src.core.security.ConsoleService")
+    @patch("src.api.deps.ConsoleService")
     def test_returns_none_when_console_unreachable(self, mock_cls: MagicMock) -> None:
         mock_cls.return_value.get_organization.return_value = None
         ctx = _geo_ctx(organization="org_a")
@@ -389,7 +389,7 @@ class TestGetOrgId:
 
         assert result is None
 
-    @patch("src.core.security.ConsoleService")
+    @patch("src.api.deps.ConsoleService")
     def test_returns_none_when_id_missing_from_response(self, mock_cls: MagicMock) -> None:
         mock_cls.return_value.get_organization.return_value = {"name": "Org A"}  # no 'id' key
         ctx = _geo_ctx(organization="org_a")

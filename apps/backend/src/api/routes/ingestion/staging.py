@@ -302,7 +302,7 @@ async def submit_staging(
         dag_run_response = get_dag_run_api().trigger_dag_run(
             dag_id="staging_dag",
             trigger_dag_run_post_body=TriggerDAGRunPostBody(
-                dag_run_id=integrity_link_id_as_string, # For easier tracking
+                dag_run_id=integrity_link_id_as_string,  # For easier tracking
                 conf={
                     "source": str(source),
                     "source_type": type.value.upper(),
