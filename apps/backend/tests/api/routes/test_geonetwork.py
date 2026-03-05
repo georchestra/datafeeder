@@ -72,7 +72,7 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx())
+                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
 
                 # Verify correct URL with query string
                 call_kwargs = mock_client.request.call_args.kwargs
@@ -106,7 +106,7 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx())
+                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
 
                 # Verify body was forwarded
                 call_kwargs = mock_client.request.call_args.kwargs
@@ -135,7 +135,7 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx())
+                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
 
                 # Proxy should preserve the 404 status
                 assert response.status_code == 404
@@ -155,7 +155,7 @@ class TestGeoNetworkProxy:
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
                 with pytest.raises(HTTPException) as exc_info:
-                    await proxy_geonetwork(path, request, mock_session, _geo_ctx())
+                    await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
 
                 assert exc_info.value.status_code == 504
 
@@ -174,7 +174,7 @@ class TestGeoNetworkProxy:
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
                 with pytest.raises(HTTPException) as exc_info:
-                    await proxy_geonetwork(path, request, mock_session, _geo_ctx())
+                    await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
 
                 assert exc_info.value.status_code == 502
 
@@ -200,7 +200,7 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx())
+                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
 
                 # Verify body was forwarded
                 call_kwargs = mock_client.request.call_args.kwargs
@@ -227,7 +227,7 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx())
+                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
 
                 # Verify method was forwarded
                 call_kwargs = mock_client.request.call_args.kwargs
@@ -253,7 +253,7 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                await proxy_geonetwork(path, request, mock_session, _geo_ctx())
+                await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
 
                 # Verify URL has no query string
                 call_kwargs = mock_client.request.call_args.kwargs

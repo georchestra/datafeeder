@@ -68,6 +68,7 @@ class TestUpsertIntegrityLinkRule:
             session=mock_session,
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
+            org_id=None,
             body=body,
         )
 
@@ -110,6 +111,7 @@ class TestUpsertIntegrityLinkRule:
             session=mock_session,
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
+            org_id=None,
             body=body,
         )
 
@@ -131,6 +133,7 @@ class TestUpsertIntegrityLinkRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=str(uuid4()),
+                org_id=None,
                 body=body,
             )
 
@@ -171,6 +174,7 @@ class TestDeleteIntegrityLinkRule:
             session=mock_session,
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
+            org_id=None,
             rule_id=7,
         )
 
@@ -186,6 +190,7 @@ class TestDeleteIntegrityLinkRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=str(uuid4()),
+                org_id=None,
                 rule_id=1,
             )
 
@@ -209,6 +214,7 @@ class TestDeleteIntegrityLinkRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
+                org_id=None,
                 rule_id=999,
             )
 
@@ -241,6 +247,7 @@ class TestDeleteIntegrityLinkRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
+                org_id=None,
                 rule_id=7,
             )
 
