@@ -74,7 +74,7 @@
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-cypress": "^3.5.0",
-    "jsdom": "~22.1.0",
+    "jsdom": "~28.1.0",
     "ng-openapi-gen": "^1.0.5",
     "ngx-translate-testing": "^6.1.0",
     "postcss": "^8.5.6",
