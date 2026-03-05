@@ -21,7 +21,9 @@ def get_dag_run_by_intlink(
     org_id: OrgIdDep,
     limit: int = 20,
 ) -> DAGRunCollectionResponse:
-    load_authorized_integrity_link(intlink_id, AccessLevel.OWNER_ONLY, geo_ctx, session, org_id)
+    # Ensure the user has access to the integrity link associated with this DAG run
+    load_authorized_integrity_link(intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, org_id)
+
     try:
         dag_runs = get_dag_run_api().get_dag_runs(dag_id, run_id_pattern=f"{intlink_id}_%")
         return dag_runs
@@ -32,7 +34,17 @@ def get_dag_run_by_intlink(
 
 
 @router.get("/dags/{dag_id}/runs/{dag_run_id}/status", response_model=DagRunState)
-def get_dag_run_status(dag_id: str, dag_run_id: str) -> DagRunState:
+def get_dag_run_status(
+    dag_id: str,
+    dag_run_id: str,
+    session: DatakernSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    org_id: OrgIdDep,
+) -> DagRunState:
+    intlink_id = dag_run_id.split("_")[0]  # Extract intlink_id from run_id pattern
+    # Ensure the user has access to the integrity link associated with this DAG run
+    load_authorized_integrity_link(intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, org_id)
+
     try:
         dag_run = get_dag_run_api().get_dag_run(dag_id, dag_run_id)
         return dag_run.state
@@ -43,5 +55,15 @@ def get_dag_run_status(dag_id: str, dag_run_id: str) -> DagRunState:
 
 
 @router.get("/dags/{dag_id}/runs/{dag_run_id}/logs", response_class=PlainTextResponse)
-def get_dag_run_logs(dag_id: str, dag_run_id: str) -> str:
+def get_dag_run_logs(
+    dag_id: str,
+    dag_run_id: str,
+    session: DatakernSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    org_id: OrgIdDep,
+) -> str:
+    intlink_id = dag_run_id.split("_")[0]  # Extract intlink_id from run_id pattern
+    # Ensure the user has access to the integrity link associated with this DAG run
+    load_authorized_integrity_link(intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, org_id)
+
     return generate_failed_dag_run_logs(dag_id, dag_run_id)

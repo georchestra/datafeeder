@@ -291,8 +291,10 @@ class TestProcessPermission:
 
 
 # ────────────────────────────────────────────────────────
-# GET /airflow/dags/{dag_id}/runs/{intlink_id}  (OWNER_ONLY)
+# GET /airflow/dags/{dag_id}/runs/{intlink_id}  (METADATA_READ)
 # ────────────────────────────────────────────────────────
+
+DAG_RUN_ID = f"{INTLINK_ID}_run_20260305"  # UUID has no underscores; split("_")[0] == INTLINK_ID
 
 
 class TestAirflowDagRunByIntlinkPermission:
@@ -306,16 +308,29 @@ class TestAirflowDagRunByIntlinkPermission:
 
         assert exc_info.value.status_code == 403
 
-    def test_returns_403_for_write_group_user(self) -> None:
-        """WRITE group access is insufficient for OWNER_ONLY endpoint."""
+    @patch("src.api.routes.airflow.get_dag_run_api")
+    def test_returns_result_for_read_group_user(self, mock_api: MagicMock) -> None:
+        """READ group access is sufficient for METADATA_READ endpoint."""
+        from src.api.routes.airflow import get_dag_run_by_intlink
+
+        session = _mock_session_with_rule(_link(), RuleValue.READ)
+        mock_api.return_value.get_dag_runs.return_value = MagicMock()
+
+        result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _read_ctx(), ORG_UUID)
+
+        assert result is not None
+
+    @patch("src.api.routes.airflow.get_dag_run_api")
+    def test_returns_result_for_write_group_user(self, mock_api: MagicMock) -> None:
+        """WRITE group access is sufficient for METADATA_READ endpoint."""
         from src.api.routes.airflow import get_dag_run_by_intlink
 
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
+        mock_api.return_value.get_dag_runs.return_value = MagicMock()
 
-        with pytest.raises(HTTPException) as exc_info:
-            get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _write_ctx(), ORG_UUID)
+        result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _write_ctx(), ORG_UUID)
 
-        assert exc_info.value.status_code == 403
+        assert result is not None
 
     @patch("src.api.routes.airflow.get_dag_run_api")
     def test_returns_result_for_owner(self, mock_api: MagicMock) -> None:
@@ -328,6 +343,155 @@ class TestAirflowDagRunByIntlinkPermission:
         result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _owner_ctx(), None)
 
         assert result is mock_runs
+
+    @patch("src.api.routes.airflow.get_dag_run_api")
+    def test_returns_result_for_admin(self, mock_api: MagicMock) -> None:
+        """Admin bypasses all permission checks."""
+        from src.api.routes.airflow import get_dag_run_by_intlink
+
+        session = _mock_session(_link())
+        mock_api.return_value.get_dag_runs.return_value = MagicMock()
+
+        result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _admin_ctx(), None)
+
+        assert result is not None
+
+    @patch("src.api.routes.airflow.load_authorized_integrity_link")
+    def test_requires_metadata_read_level(self, mock_load: MagicMock) -> None:
+        """Verify the endpoint enforces AccessLevel.METADATA_READ (not OWNER_ONLY)."""
+        from src.api.routes.airflow import get_dag_run_by_intlink
+
+        mock_load.side_effect = HTTPException(status_code=403)
+
+        with pytest.raises(HTTPException):
+            get_dag_run_by_intlink("process_dag", INTLINK_ID, MagicMock(), _ctx(), None)
+
+        mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_READ, ANY, ANY, ANY)
+
+
+# ────────────────────────────────────────────────────────
+# GET /airflow/dags/{dag_id}/runs/{dag_run_id}/status  (METADATA_READ)
+# ────────────────────────────────────────────────────────
+
+
+class TestAirflowDagRunStatusPermission:
+    def test_returns_403_for_unauthorized_user(self) -> None:
+        from src.api.routes.airflow import get_dag_run_status
+
+        session = _mock_session(_link())
+
+        with pytest.raises(HTTPException) as exc_info:
+            get_dag_run_status("process_dag", DAG_RUN_ID, session, _ctx(), None)
+
+        assert exc_info.value.status_code == 403
+
+    @patch("src.api.routes.airflow.get_dag_run_api")
+    def test_returns_result_for_read_group_user(self, mock_api: MagicMock) -> None:
+        from src.api.routes.airflow import get_dag_run_status
+
+        session = _mock_session_with_rule(_link(), RuleValue.READ)
+        mock_api.return_value.get_dag_run.return_value.state = MagicMock()
+
+        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _read_ctx(), ORG_UUID)
+
+        assert result is not None
+
+    @patch("src.api.routes.airflow.get_dag_run_api")
+    def test_returns_result_for_owner(self, mock_api: MagicMock) -> None:
+        from src.api.routes.airflow import get_dag_run_status
+
+        session = _mock_session(_link())
+        mock_state = MagicMock()
+        mock_api.return_value.get_dag_run.return_value.state = mock_state
+
+        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _owner_ctx(), None)
+
+        assert result is mock_state
+
+    @patch("src.api.routes.airflow.get_dag_run_api")
+    def test_returns_result_for_admin(self, mock_api: MagicMock) -> None:
+        from src.api.routes.airflow import get_dag_run_status
+
+        session = _mock_session(_link())
+        mock_api.return_value.get_dag_run.return_value.state = MagicMock()
+
+        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _admin_ctx(), None)
+
+        assert result is not None
+
+    @patch("src.api.routes.airflow.load_authorized_integrity_link")
+    def test_extracts_intlink_id_from_dag_run_id(self, mock_load: MagicMock) -> None:
+        """Verify intlink_id is extracted as the UUID prefix before the first underscore."""
+        from src.api.routes.airflow import get_dag_run_status
+
+        mock_load.side_effect = HTTPException(status_code=403)
+
+        with pytest.raises(HTTPException):
+            get_dag_run_status("process_dag", DAG_RUN_ID, MagicMock(), _ctx(), None)
+
+        mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_READ, ANY, ANY, ANY)
+
+
+# ────────────────────────────────────────────────────────
+# GET /airflow/dags/{dag_id}/runs/{dag_run_id}/logs  (METADATA_READ)
+# ────────────────────────────────────────────────────────
+
+
+class TestAirflowDagRunLogsPermission:
+    def test_returns_403_for_unauthorized_user(self) -> None:
+        from src.api.routes.airflow import get_dag_run_logs
+
+        session = _mock_session(_link())
+
+        with pytest.raises(HTTPException) as exc_info:
+            get_dag_run_logs("process_dag", DAG_RUN_ID, session, _ctx(), None)
+
+        assert exc_info.value.status_code == 403
+
+    @patch("src.api.routes.airflow.generate_failed_dag_run_logs")
+    def test_returns_result_for_read_group_user(self, mock_logs: MagicMock) -> None:
+        from src.api.routes.airflow import get_dag_run_logs
+
+        session = _mock_session_with_rule(_link(), RuleValue.READ)
+        mock_logs.return_value = "some log output"
+
+        result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _read_ctx(), ORG_UUID)
+
+        assert result == "some log output"
+
+    @patch("src.api.routes.airflow.generate_failed_dag_run_logs")
+    def test_returns_result_for_owner(self, mock_logs: MagicMock) -> None:
+        from src.api.routes.airflow import get_dag_run_logs
+
+        session = _mock_session(_link())
+        mock_logs.return_value = "some log output"
+
+        result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _owner_ctx(), None)
+
+        assert result == "some log output"
+
+    @patch("src.api.routes.airflow.generate_failed_dag_run_logs")
+    def test_returns_result_for_admin(self, mock_logs: MagicMock) -> None:
+        from src.api.routes.airflow import get_dag_run_logs
+
+        session = _mock_session(_link())
+        mock_logs.return_value = "some log output"
+
+        result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _admin_ctx(), None)
+
+        assert result == "some log output"
+
+    @patch("src.api.routes.airflow.load_authorized_integrity_link")
+    def test_extracts_intlink_id_from_dag_run_id(self, mock_load: MagicMock) -> None:
+        """Verify intlink_id is extracted as the UUID prefix before the first underscore."""
+        from src.api.routes.airflow import get_dag_run_logs
+
+        mock_load.side_effect = HTTPException(status_code=403)
+
+        with pytest.raises(HTTPException):
+            get_dag_run_logs("process_dag", DAG_RUN_ID, MagicMock(), _ctx(), None)
+
+        mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_READ, ANY, ANY, ANY)
 
 
 # ────────────────────────────────────────────────────────
