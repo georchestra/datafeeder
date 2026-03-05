@@ -12,17 +12,6 @@ from src.services.airflow_logs import generate_failed_dag_run_logs
 router = APIRouter(prefix="/airflow", tags=["Airflow"])
 
 
-@router.get("/dags/{dag_id}/runs")
-def get_dag_runs(dag_id: str, limit: int = 20) -> DAGRunCollectionResponse:
-    try:
-        dag_runs = get_dag_run_api().get_dag_runs(dag_id, limit=limit, order_by=["-start_date"])
-        return dag_runs
-    except NotFoundException:
-        raise HTTPException(status_code=404, detail=f"DAG not found: {dag_id}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
-
-
 @router.get("/dags/{dag_id}/runs/{intlink_id}")
 def get_dag_run_by_intlink(
     dag_id: str,
