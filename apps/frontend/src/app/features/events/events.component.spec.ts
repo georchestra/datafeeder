@@ -4,10 +4,10 @@
  * Matrix coverage (frontend-behavior-matrix.md — Page: /:id/events):
  *   ✅ 200 + dag runs → events list renders
  *   ✅ 200 + empty list → events empty
- *   ⚠️ 403 (WRITE/READ navigates via URL) → console.error only, events stay empty
- *   ⚠️ Network error → console.error only, events stay empty
- *   ✅ Log download 200 → download triggered
- *   ⚠️ Log download error → console.error only
+ *   ✅ 403 → loadError signal set, events stay empty
+ *   ✅ Network error → loadError signal set, events stay empty
+ *   ✅ Log download 200 → download triggered, downloadingEventId reset
+ *   ✅ Log download error → downloadError signal set, downloadingEventId reset via finally
  */
 
 import { Component, EventEmitter, Input, Output } from '@angular/core'
@@ -23,13 +23,21 @@ import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collecti
 import { IntegrityLinkStore } from '../../layout/integrity-link.store'
 import type { Event } from '../../shared/components/event/event.component'
 import { EventsListComponent } from '../../shared/components/events-list/events-list.component'
+import { UiAlertBoxComponent } from '../../shared/components/ui-alert-box/ui-alert-box.component'
 import { EventsComponent } from './events.component'
 
 vi.mock('../../shared/utils/download.util', () => ({
   downloadTextBlob: vi.fn()
 }))
 
-// ─── Stub EventsListComponent to avoid its transitive dependencies ──────────
+// ─── Stub child components to avoid their transitive dependencies ───────────
+
+@Component({
+  selector: 'app-ui-alert-box',
+  standalone: true,
+  template: ''
+})
+class MockUiAlertBoxComponent {}
 
 @Component({
   selector: 'app-events-list',
@@ -105,8 +113,8 @@ describe('EventsComponent', () => {
       ]
     })
       .overrideComponent(EventsComponent, {
-        remove: { imports: [EventsListComponent] },
-        add: { imports: [MockEventsListComponent] }
+        remove: { imports: [EventsListComponent, UiAlertBoxComponent] },
+        add: { imports: [MockEventsListComponent, MockUiAlertBoxComponent] }
       })
       .compileComponents()
 
@@ -187,22 +195,35 @@ describe('EventsComponent', () => {
   // ─── Error handling (matrix: ⚠️ console.error only, no user feedback) ───
 
   describe('Error handling', () => {
-    it('should leave events empty when API returns 403 — caught by try/catch, no user feedback (⚠️)', async () => {
+    it('should leave events empty and surface error when API returns 403 (✅)', async () => {
       apiInvokeSpy.mockRejectedValue({ status: 403, message: 'Forbidden' })
 
       const { component } = createComponent()
 
-      await new Promise((r) => setTimeout(r, 30))
+      await vi.waitFor(() => expect(component.loadError()).not.toBeNull())
       expect(component.events()).toEqual([])
     })
 
-    it('should leave events empty on network error — caught by try/catch, no user feedback (⚠️)', async () => {
+    it('should leave events empty and surface error on network error (✅)', async () => {
       apiInvokeSpy.mockRejectedValue(new Error('Network error'))
 
       const { component } = createComponent()
 
-      await new Promise((r) => setTimeout(r, 30))
+      await vi.waitFor(() => expect(component.loadError()).not.toBeNull())
       expect(component.events()).toEqual([])
+    })
+
+    it('should clear loadError when a subsequent load succeeds', async () => {
+      apiInvokeSpy.mockRejectedValue(new Error('Network error'))
+
+      const { component } = createComponent()
+
+      await vi.waitFor(() => expect(component.loadError()).not.toBeNull())
+
+      apiInvokeSpy.mockResolvedValue({ dag_runs: [makeDagRun('run-1')] })
+      component.onRefreshRequested()
+
+      await vi.waitFor(() => expect(component.loadError()).toBeNull())
     })
   })
 
@@ -234,7 +255,7 @@ describe('EventsComponent', () => {
       expect(component.downloadingEventId()).toBeNull()
     })
 
-    it('should leave downloadingEventId null after log download error — console.error only (⚠️)', async () => {
+    it('should reset downloadingEventId and surface error after log download error (✅)', async () => {
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (fn === getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet)
           return Promise.resolve({ dag_runs: [] })
@@ -250,9 +271,8 @@ describe('EventsComponent', () => {
         dag_run_id: 'run-1'
       })
 
-      // downloadingEventId is never reset on error (another error-handling gap)
-      // but the component remains usable
-      expect(component.events()).toEqual([])
+      expect(component.downloadingEventId()).toBeNull()
+      expect(component.downloadError()).not.toBeNull()
     })
   })
 
