@@ -5,27 +5,10 @@ import pytest
 from fastapi import HTTPException
 
 from src.api.routes.geonetwork import proxy_geonetwork
-from src.services.georchestra import GeorchestraContext
-
-
-def _geo_ctx() -> GeorchestraContext:
-    return GeorchestraContext(
-        username="testuser",
-        roles=set(),
-        email="",
-        firstname="",
-        lastname="",
-        organization="",
-    )
 
 
 class TestGeoNetworkProxy:
     """Test cases for GeoNetwork pass-through proxy."""
-
-    @pytest.fixture
-    def mock_session(self) -> Mock:
-        """Create a mock database session."""
-        return Mock()
 
     @pytest.fixture
     def mock_settings(self) -> Mock:
@@ -54,7 +37,7 @@ class TestGeoNetworkProxy:
 
     @pytest.mark.asyncio
     async def test_given_get_request_when_proxying_then_forwards_path_and_query(
-        self, mock_settings: Mock, mock_session: Mock
+        self, mock_settings: Mock
     ) -> None:
         """Given a GET request, when proxying, then forwards path and query params."""
         path = "srv/api/records/test-uuid"
@@ -72,7 +55,7 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
+                response = await proxy_geonetwork(path, request)
 
                 # Verify correct URL with query string
                 call_kwargs = mock_client.request.call_args.kwargs
@@ -86,7 +69,7 @@ class TestGeoNetworkProxy:
 
     @pytest.mark.asyncio
     async def test_given_post_request_when_proxying_then_forwards_body(
-        self, mock_settings: Mock, mock_session: Mock
+        self, mock_settings: Mock
     ) -> None:
         """Given a POST request, when proxying, then forwards request body."""
         path = "srv/api/records"
@@ -106,7 +89,7 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
+                response = await proxy_geonetwork(path, request)
 
                 # Verify body was forwarded
                 call_kwargs = mock_client.request.call_args.kwargs
@@ -118,7 +101,7 @@ class TestGeoNetworkProxy:
 
     @pytest.mark.asyncio
     async def test_given_upstream_404_when_proxying_then_preserves_status(
-        self, mock_settings: Mock, mock_session: Mock
+        self, mock_settings: Mock
     ) -> None:
         """Given upstream returns 404, when proxying, then preserves status code."""
         path = "srv/api/records/nonexistent"
@@ -135,15 +118,13 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
+                response = await proxy_geonetwork(path, request)
 
                 # Proxy should preserve the 404 status
                 assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_given_timeout_when_proxying_then_raises_504(
-        self, mock_settings: Mock, mock_session: Mock
-    ) -> None:
+    async def test_given_timeout_when_proxying_then_raises_504(self, mock_settings: Mock) -> None:
         """Given upstream timeout, when proxying, then raises 504 error."""
         path = "srv/api/records"
         request = self._create_mock_request(method="GET")
@@ -155,13 +136,13 @@ class TestGeoNetworkProxy:
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
                 with pytest.raises(HTTPException) as exc_info:
-                    await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
+                    await proxy_geonetwork(path, request)
 
                 assert exc_info.value.status_code == 504
 
     @pytest.mark.asyncio
     async def test_given_connection_error_when_proxying_then_raises_502(
-        self, mock_settings: Mock, mock_session: Mock
+        self, mock_settings: Mock
     ) -> None:
         """Given connection error, when proxying, then raises 502 error."""
         path = "srv/api/records"
@@ -174,13 +155,13 @@ class TestGeoNetworkProxy:
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
                 with pytest.raises(HTTPException) as exc_info:
-                    await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
+                    await proxy_geonetwork(path, request)
 
                 assert exc_info.value.status_code == 502
 
     @pytest.mark.asyncio
     async def test_given_put_request_when_proxying_then_forwards_body(
-        self, mock_settings: Mock, mock_session: Mock
+        self, mock_settings: Mock
     ) -> None:
         """Given a PUT request, when proxying, then forwards request body."""
         path = "srv/api/records/test-uuid"
@@ -200,7 +181,7 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
+                response = await proxy_geonetwork(path, request)
 
                 # Verify body was forwarded
                 call_kwargs = mock_client.request.call_args.kwargs
@@ -210,7 +191,7 @@ class TestGeoNetworkProxy:
 
     @pytest.mark.asyncio
     async def test_given_delete_request_when_proxying_then_forwards_correctly(
-        self, mock_settings: Mock, mock_session: Mock
+        self, mock_settings: Mock
     ) -> None:
         """Given a DELETE request, when proxying, then forwards correctly."""
         path = "srv/api/records/test-uuid"
@@ -227,7 +208,7 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                response = await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
+                response = await proxy_geonetwork(path, request)
 
                 # Verify method was forwarded
                 call_kwargs = mock_client.request.call_args.kwargs
@@ -236,7 +217,7 @@ class TestGeoNetworkProxy:
 
     @pytest.mark.asyncio
     async def test_given_request_without_query_when_proxying_then_no_query_string_appended(
-        self, mock_settings: Mock, mock_session: Mock
+        self, mock_settings: Mock
     ) -> None:
         """Given request without query params, when proxying, then no query string appended."""
         path = "srv/api/records/test-uuid"
@@ -253,7 +234,7 @@ class TestGeoNetworkProxy:
                 mock_client.request.return_value = mock_response
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                await proxy_geonetwork(path, request, mock_session, _geo_ctx(), None)
+                await proxy_geonetwork(path, request)
 
                 # Verify URL has no query string
                 call_kwargs = mock_client.request.call_args.kwargs

@@ -15,7 +15,6 @@ import pytest
 from fastapi import HTTPException
 
 from src.api.routes.airflow import get_dag_run_by_intlink, get_dag_run_logs, get_dag_run_status
-from src.api.routes.geonetwork import proxy_geonetwork
 from src.api.routes.ingestion.integrity_link import (
     delete_integrity_link_rule,
     get_integrity_link,
@@ -462,45 +461,6 @@ class TestAirflowDagRunLogsPermission:
             get_dag_run_logs("process_dag", DAG_RUN_ID, MagicMock(), _ctx(), None)
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_READ, ANY, ANY, ANY)
-
-
-# ────────────────────────────────────────────────────────
-# GeoNetwork proxy  (METADATA_WRITE when dataset UUID in path)
-# ────────────────────────────────────────────────────────
-
-
-class TestGeoNetworkProxyPermission:
-    @pytest.fixture
-    def mock_settings(self) -> MagicMock:
-        settings = MagicMock()
-        settings.GEONETWORK_URL = "http://gn.example.com/geonetwork"
-        settings.GEONETWORK_USERNAME = "admin"
-        settings.GEONETWORK_PASSWORD = "pass"
-        return settings
-
-    @pytest.mark.asyncio
-    async def test_returns_403_for_unauthorized_user_on_dataset_path(self) -> None:
-        session = _mock_session(_link())
-        path = f"srv/api/records/{INTLINK_UUID}"
-        request = MagicMock()
-
-        with pytest.raises(HTTPException) as exc_info:
-            await proxy_geonetwork(path, request, session, _ctx(), None)
-
-        assert exc_info.value.status_code == 403
-
-    @pytest.mark.asyncio
-    async def test_returns_403_for_read_group_user_on_dataset_path(self) -> None:
-        """READ group access is insufficient for METADATA_WRITE endpoint."""
-
-        session = _mock_session_with_rule(_link(), RuleValue.READ)
-        path = f"srv/api/records/{INTLINK_UUID}"
-        request = MagicMock()
-
-        with pytest.raises(HTTPException) as exc_info:
-            await proxy_geonetwork(path, request, session, _read_ctx(), ORG_UUID)
-
-        assert exc_info.value.status_code == 403
 
 
 # ────────────────────────────────────────────────────────
