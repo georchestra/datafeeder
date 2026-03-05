@@ -191,8 +191,6 @@ async def submit_staging(
         StagingResponse with integrity link ID, DAG ID, DAG run ID, and current DAG run status
     """
 
-    dag_run_id = str(uuid4())
-
     source = None
     source_file_name = None
     source_file_type = None
@@ -208,7 +206,7 @@ async def submit_staging(
                 raise HTTPException(status_code=400, detail="File is required")
 
             source_file_name, source_file_type, file_url = await upload_file_to_temp(
-                file, rand_id=dag_run_id
+                file, rand_id=str(uuid4())
             )
             source = file_url
             url = file_url
@@ -279,9 +277,11 @@ async def submit_staging(
     session.commit()
     session.refresh(integrity_link)
 
+    integrity_link_id_as_string = str(integrity_link.id)
+
     # Build callback parameters
     callback_params = {
-        "integrity_link_id": str(integrity_link.id),
+        "integrity_link_id": integrity_link_id_as_string,
     }
 
     # Build callback URLs
@@ -289,7 +289,7 @@ async def submit_staging(
     failure_callback_url = build_callback_url("/ingestion/staging/dag_failure", callback_params)
 
     logger.info(
-        f"Created IntegrityLink {integrity_link.id} for DAG run {dag_run_id} | "
+        f"Created IntegrityLink {integrity_link.id} for DAG run {integrity_link_id_as_string} | "
         f"owner={sec_username} | org={sec_org} | table={staging_table_name}"
     )
     logger.info(f"Success callback URL: {success_callback_url}")
@@ -302,7 +302,7 @@ async def submit_staging(
         dag_run_response = get_dag_run_api().trigger_dag_run(
             dag_id="staging_dag",
             trigger_dag_run_post_body=TriggerDAGRunPostBody(
-                dag_run_id=dag_run_id,
+                dag_run_id=integrity_link_id_as_string, # For easier tracking
                 conf={
                     "source": str(source),
                     "source_type": type.value.upper(),
@@ -315,7 +315,7 @@ async def submit_staging(
         )
 
         return StagingResponse(
-            integrity_link_id=str(integrity_link.id),
+            integrity_link_id=integrity_link_id_as_string,
             dag_id=dag_run_response.dag_id,
             dag_run_id=dag_run_response.dag_run_id,
             status=dag_run_response.state,
