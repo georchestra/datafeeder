@@ -8,7 +8,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { Api } from '../../core/api/api'
 import { listIntegrityLinksIngestionIntegrityLinksGet } from '../../core/api/functions'
 import { IntegrityLinkListItem } from '../../core/api/models'
-import { iconoirPlus } from '@ng-icons/iconoir'
+import { iconoirPlus, iconoirChatBubbleWarning } from '@ng-icons/iconoir'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 
 const DEBOUNCE_TIME = 300
@@ -19,7 +19,8 @@ const DEBOUNCE_TIME = 300
   templateUrl: './integrity-link-list.component.html',
   providers: [
     provideIcons({
-      iconoirPlus
+      iconoirPlus,
+      iconoirChatBubbleWarning
     })
   ]
 })
@@ -81,7 +82,11 @@ export class IntegrityLinkListComponent {
 
   onRowClick(link: IntegrityLinkListItem): void {
     if (link.access_level === 'READ') return
-    this.router.navigate(['/', link.id, 'edit'])
+    if (!link.has_final_table) {
+      this.router.navigate(['/', 'import'], { queryParams: { id: link.id } })
+    } else {
+      this.router.navigate(['/', link.id, 'edit'])
+    }
   }
 
   isReadOnly(link: IntegrityLinkListItem): boolean {

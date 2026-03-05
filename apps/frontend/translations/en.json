@@ -241,6 +241,7 @@
   "integrityLinks.dashboard": "Data Dashboard",
   "integrityLinks.emptyList": "No dataset found",
   "integrityLinks.loadMore": "Load more",
+  "integrityLinks.noFinalTable": "",
   "integrityLinks.noResults": "No results found",
   "integrityLinks.owner": "Owner",
   "integrityLinks.readOnly": "Read only",

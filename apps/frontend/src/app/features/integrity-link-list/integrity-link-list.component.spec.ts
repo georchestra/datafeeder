@@ -297,7 +297,9 @@ describe('IntegrityLinkListComponent', () => {
       // Trigger row click with writable link
       component.onRowClick(createMockItem('test-id-123', 'OWNER'))
 
-      expect(navigateSpy).toHaveBeenCalledWith(['/', 'test-id-123', 'edit'])
+      expect(navigateSpy).toHaveBeenCalledWith(['/', 'import'], {
+        queryParams: { id: 'test-id-123' }
+      })
     })
 
     it('should NOT navigate when onRowClick is called with READ-only link', async () => {
