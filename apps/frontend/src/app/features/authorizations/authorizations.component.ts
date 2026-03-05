@@ -14,10 +14,11 @@ import {
   AuthorizationRulesComponent,
   RuleChangeEvent
 } from '../../shared/components/authorization-rules/authorization-rules.component'
+import { UiAlertBoxComponent } from '../../shared/components/ui-alert-box/ui-alert-box.component'
 
 @Component({
   selector: 'app-authorizations',
-  imports: [TranslatePipe, AuthorizationRulesComponent],
+  imports: [TranslatePipe, AuthorizationRulesComponent, UiAlertBoxComponent],
   templateUrl: './authorizations.component.html',
   host: { class: 'flex-1 min-h-0 flex flex-col' }
 })
@@ -31,6 +32,8 @@ export class AuthorizationsComponent implements OnInit {
   rules = signal<IntegrityLinkRule[]>([])
   geonetworkGroups = signal<GroupItem[]>([])
   geoserverGroups = signal<GroupItem[]>([])
+  loadError = signal<string | null>(null)
+  mutationError = signal<string | null>(null)
   metadataRules = computed(() =>
     this.rules().filter((r) => r.rule_type === this.metadataRuleType)
   )
@@ -59,51 +62,71 @@ export class AuthorizationsComponent implements OnInit {
     ruleType: RuleType
   ): Promise<void> {
     if (!this.intlinkId) return
+    this.mutationError.set(null)
     const existingRule = this.rules().find(
       (r) => r.group_or_role === event.group.id && r.rule_type === ruleType
     )
 
-    if (event.value === 'NONE') {
-      if (existingRule?.id != null) {
+    try {
+      if (event.value === 'NONE') {
+        if (existingRule?.id != null) {
+          await this.api.invoke(
+            deleteIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesRuleIdDelete,
+            {
+              integrity_link_id: this.intlinkId,
+              rule_id: existingRule.id
+            }
+          )
+        }
+      } else {
         await this.api.invoke(
-          deleteIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesRuleIdDelete,
+          upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut,
           {
             integrity_link_id: this.intlinkId,
-            rule_id: existingRule.id
+            body: {
+              group_or_role: event.group.id,
+              rule_type: ruleType,
+              rule_value: event.value as 'READ' | 'WRITE'
+            }
           }
         )
       }
-    } else {
-      await this.api.invoke(
-        upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut,
-        {
-          integrity_link_id: this.intlinkId,
-          body: {
-            group_or_role: event.group.id,
-            rule_type: ruleType,
-            rule_value: event.value as 'READ' | 'WRITE'
-          }
-        }
-      )
+      await this.loadRules(this.intlinkId)
+    } catch (error) {
+      console.error('Failed to update rule:', error)
+      this.mutationError.set('authorizations.error.mutation')
     }
-    await this.loadRules(this.intlinkId)
   }
 
   private async loadRules(id: string): Promise<void> {
-    const rules = await this.api.invoke(
-      listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet,
-      { integrity_link_id: id }
-    )
-    this.rules.set(rules)
+    this.loadError.set(null)
+    try {
+      const rules = await this.api.invoke(
+        listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet,
+        { integrity_link_id: id }
+      )
+      this.rules.set(rules)
+    } catch (error) {
+      console.error('Failed to load rules:', error)
+      this.loadError.set('authorizations.error.load')
+    }
   }
 
   private async loadGeonetworkGroups(): Promise<void> {
-    const groups = await this.api.invoke(listGroupsMetadataGroupsGet)
-    this.geonetworkGroups.set(groups)
+    try {
+      const groups = await this.api.invoke(listGroupsMetadataGroupsGet)
+      this.geonetworkGroups.set(groups)
+    } catch (error) {
+      console.error('Failed to load GeoNetwork groups:', error)
+    }
   }
 
   private async loadGeoserverGroups(): Promise<void> {
-    const groups = await this.api.invoke(listGroupsDataGroupsGet)
-    this.geoserverGroups.set(groups)
+    try {
+      const groups = await this.api.invoke(listGroupsDataGroupsGet)
+      this.geoserverGroups.set(groups)
+    } catch (error) {
+      console.error('Failed to load GeoServer groups:', error)
+    }
   }
 }

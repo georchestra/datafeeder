@@ -224,11 +224,11 @@ describe('AuthorizationsComponent', () => {
 
   // ─── Error handling ──────────────────────────────────────────────────────
   // Matrix coverage (frontend-behavior-matrix.md — Page: /:id/authorizations):
-  //   403 on GET rules → unhandled promise rejection, rules stays empty   ❌
-  //   403 on PUT/DELETE rule → unhandled promise rejection               ❌
+  //   403 on GET rules → loadError signal set, rules stays empty       ✅
+  //   403 on PUT/DELETE rule → mutationError signal set                ✅
 
   describe('Error handling', () => {
-    it('should leave rules empty when listRules API returns 403 — unhandled rejection (❌)', async () => {
+    it('should set loadError and leave rules empty when listRules API returns 403 (✅)', async () => {
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (
           fn ===
@@ -240,19 +240,15 @@ describe('AuthorizationsComponent', () => {
         return Promise.resolve(null)
       })
 
-      const fixture = TestBed.createComponent(AuthorizationsComponent)
-      const component = fixture.componentInstance
+      const { component } = createComponent()
 
-      // Call loadRules directly (bypassing ngOnInit) and catch the rejection to
-      // avoid an unhandled promise rejection in the test runner.
-      // This verifies that when loadRules throws, rules() stays empty (no try/catch
-      // in the component means the signal is never updated on error).
-      await (component as any).loadRules(intlinkId).catch(() => {})
-
+      await vi.waitFor(() =>
+        expect(component.loadError()).not.toBeNull()
+      )
       expect(component.rules()).toEqual([])
     })
 
-    it('should leave rules unchanged when upsert returns 403 — unhandled rejection (❌)', async () => {
+    it('should set mutationError and leave rules unchanged when upsert returns 403 (✅)', async () => {
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (
           fn ===
@@ -271,21 +267,47 @@ describe('AuthorizationsComponent', () => {
         return Promise.resolve(null)
       })
 
-      const fixture = TestBed.createComponent(AuthorizationsComponent)
-      const component = fixture.componentInstance
-      fixture.detectChanges()
+      const { component } = createComponent()
 
       await vi.waitFor(() => expect(component.rules().length).toBe(2))
 
-      // onMetadataRuleChange has no try/catch — the rejection propagates
-      await component
-        .onMetadataRuleChange({
-          group: { id: 'org-1', label: 'Organization A' },
-          value: 'WRITE'
-        })
-        .catch(() => {})
+      await component.onMetadataRuleChange({
+        group: { id: 'org-1', label: 'Organization A' },
+        value: 'WRITE'
+      })
 
-      // rules signal reflects last successful load, not the failed upsert
+      expect(component.mutationError()).not.toBeNull()
+      // rules unchanged — loadRules was not called after the failed upsert
+      expect(component.rules().length).toBe(2)
+    })
+
+    it('should clear loadError when subsequent load succeeds', async () => {
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.reject({ status: 403 })
+        if (fn === listGroupsMetadataGroupsGet) return Promise.resolve([])
+        if (fn === listGroupsDataGroupsGet) return Promise.resolve([])
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+
+      await vi.waitFor(() => expect(component.loadError()).not.toBeNull())
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        return Promise.resolve([])
+      })
+      ;(component as any).loadRules(intlinkId)
+
+      await vi.waitFor(() => expect(component.loadError()).toBeNull())
       expect(component.rules().length).toBe(2)
     })
   })

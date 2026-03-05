@@ -1,4 +1,8 @@
 {
+  "authorizations.error.load.message": "Une erreur est survenue lors du chargement des autorisations. Veuillez réessayer.",
+  "authorizations.error.load.title": "Échec du chargement des autorisations",
+  "authorizations.error.mutation.message": "Une erreur est survenue lors de la sauvegarde du changement d'autorisation. Veuillez réessayer.",
+  "authorizations.error.mutation.title": "Échec de la sauvegarde",
   "authorizations.geonetwork": "Organisations GeoNetwork",
   "authorizations.geonetwork.search": "Rechercher une organisation répertoriée sur GeoNetwork",
   "authorizations.geoserver": "Rôles GeoServer",

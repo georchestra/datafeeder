@@ -1,4 +1,8 @@
 {
+  "authorizations.error.load.message": "",
+  "authorizations.error.load.title": "",
+  "authorizations.error.mutation.message": "",
+  "authorizations.error.mutation.title": "",
   "authorizations.geonetwork": "GeoNetwork authorizations",
   "authorizations.geonetwork.search": "Search for an organization listed on GeoNetwork",
   "authorizations.geoserver": "GeoServer authorizations",
