@@ -1854,6 +1854,7 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
   })
 
   it('should initialize on tab 2 when step=2 queryParam is present', () => {
+    mockIntegrityLinkStore.intlinkId.set('existing-link-id')
     TestBed.overrideProvider(ActivatedRoute, {
       useValue: {
         snapshot: {

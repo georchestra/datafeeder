@@ -32,7 +32,7 @@
             />
           </div>
         </mat-tab>
-        <mat-tab [disabled]="selectedTabIndex() !== 1">
+        <mat-tab [disabled]="!integrityLinkStore.intlinkId()">
           <ng-template mat-tab-label>
             <ng-icon
               class="mr-2"

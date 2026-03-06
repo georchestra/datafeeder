@@ -297,8 +297,8 @@ describe('IntegrityLinkListComponent', () => {
       // Trigger row click with writable link
       component.onRowClick(createMockItem('test-id-123', 'OWNER'))
 
-      expect(navigateSpy).toHaveBeenCalledWith(['/', 'import'], {
-        queryParams: { id: 'test-id-123' }
+      expect(navigateSpy).toHaveBeenCalledWith(['/', 'test-id-123', 'edit'], {
+        queryParams: {}
       })
     })
 
