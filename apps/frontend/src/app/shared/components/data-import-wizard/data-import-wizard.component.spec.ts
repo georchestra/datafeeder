@@ -6,7 +6,7 @@ import {
 import { signal } from '@angular/core'
 import { TestBed, fakeAsync, tick } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
-import { provideRouter } from '@angular/router'
+import { ActivatedRoute, provideRouter } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { ApiConfiguration } from '../../../core/api/api-configuration'
@@ -1851,5 +1851,18 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
     })
 
     expect(component.hasColumnNameError()).toBe(false)
+  })
+
+  it('should initialize on tab 2 when step=2 queryParam is present', () => {
+    TestBed.overrideProvider(ActivatedRoute, {
+      useValue: {
+        snapshot: {
+          queryParamMap: { get: (key: string) => (key === 'step' ? '2' : null) }
+        }
+      }
+    })
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    expect(component.selectedTabIndex()).toBe(1)
   })
 })
