@@ -15,12 +15,6 @@ Config & project context: `openspec/config.yaml` | Docs: [openspec.dev](https://
 | **Explore** | [openspec-explore](.github/skills/openspec-explore/SKILL.md)           |
 | **Archive** | [openspec-archive-change](.github/skills/openspec-archive-change/SKILL.md) |
 
-### Active Changes
-
-| Change | Status |
-| ------ | ------ |
-| [enforce-permissions](openspec/changes/enforce-permissions/) — Backend 403 + frontend conditional nav | Ready to apply |
-
 ---
 
 ## Skills
