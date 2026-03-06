@@ -51,7 +51,7 @@ def _is_geom_excluded(transformation: dict[str, Any] | None) -> bool:
     summary="Submit staging data for processing",
     description="Submit staging data for processing by triggering the Airflow process DAG.",
 )
-async def process_staging_data(
+def process_staging_data(
     request: ProcessRequest,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
