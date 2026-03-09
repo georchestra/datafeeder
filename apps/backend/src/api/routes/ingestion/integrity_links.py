@@ -1,10 +1,10 @@
 from typing import Any
 
 from fastapi import APIRouter, Query
-from sqlalchemy import Column, MetaData, String, Table, exists, literal, or_
+from sqlalchemy import Column, MetaData, String, Table, exists, or_
 from sqlalchemy import select as sa_select
 
-from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, OrgIdDep
+from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.config import get_staging_schema
 from src.core.logging import get_logger
 from src.core.security import build_access_expr
@@ -34,6 +34,7 @@ _info_tables = Table(
 )
 def list_integrity_links(
     session: DatafeederSessionDep,
+    data_session: DataSessionDep,
     geo_ctx: GeorchestraContextDep,
     org_id: OrgIdDep,
     offset: int = Query(0, ge=0, description="Number of items to skip (for lazy loading)"),
@@ -48,6 +49,7 @@ def list_integrity_links(
 
     Args:
         session: Database session (injected)
+        data_session: Data engine session for table existence checks (injected)
         geo_ctx: geOrchestra security context with username and roles
         offset: Number of items to skip for pagination (lazy loading)
 
@@ -56,32 +58,8 @@ def list_integrity_links(
     """
     is_admin = geo_ctx.is_administrator()
 
-    _il = IntegrityLink.__table__  # type: ignore[reportAttributeAccessIssue]
-
-    staging_exists = (
-        sa_select(literal(1))
-        .select_from(_info_tables)
-        .where(_info_tables.c.table_schema == get_staging_schema())
-        .where(_info_tables.c.table_name == _il.c.staging_table_name)  # type: ignore[union-attr]
-        .correlate(_il)  # type: ignore[arg-type]
-        .exists()
-    )
-
-    final_exists = (
-        sa_select(literal(1))
-        .select_from(_info_tables)
-        .where(_info_tables.c.table_schema == "data")
-        .where(_info_tables.c.table_name == _il.c.final_table_name)  # type: ignore[union-attr]
-        .correlate(_il)  # type: ignore[arg-type]
-        .exists()
-    )
-
     access_expr = build_access_expr(geo_ctx.username, org_id, is_admin)
-    query = sa_select(
-        IntegrityLink,
-        access_expr.label("access_level"),
-        final_exists.label("has_final_table"),
-    ).where(or_(staging_exists, final_exists))
+    query = sa_select(IntegrityLink, access_expr.label("access_level"))
 
     if not is_admin:
         # Non-admins see: own datasets + datasets with METADATA rules for their org
@@ -106,8 +84,34 @@ def list_integrity_links(
     query = query.offset(offset).limit(BATCH_SIZE + 1)
 
     rows = session.execute(query).all()  # type: ignore[reportDeprecated]
-    has_more = len(rows) > BATCH_SIZE
-    items_rows = rows[:BATCH_SIZE]
+
+    # Check table existence against data_engine's DB (correct DB in all modes).
+    # Using data_session ensures information_schema reflects datadb, not georchestra.
+    staging_tables = {
+        row[0]
+        for row in data_session.execute(  # type: ignore[reportDeprecated]
+            sa_select(_info_tables.c.table_name).where(
+                _info_tables.c.table_schema == get_staging_schema()
+            )
+        )
+    }
+    final_tables = {
+        row[0]
+        for row in data_session.execute(  # type: ignore[reportDeprecated]
+            sa_select(_info_tables.c.table_name).where(_info_tables.c.table_schema == "data")
+        )
+    }
+
+    # Filter: only show links with at least one associated table; compute has_final flag
+    items_with_flags = [
+        (link, access_level, bool(link.final_table_name and link.final_table_name in final_tables))
+        for link, access_level in rows
+        if (link.staging_table_name and link.staging_table_name in staging_tables)
+        or (link.final_table_name and link.final_table_name in final_tables)
+    ]
+
+    has_more = len(items_with_flags) > BATCH_SIZE
+    items_rows = items_with_flags[:BATCH_SIZE]
 
     logger.info(
         f"Listed {len(items_rows)} integrity links for user '{geo_ctx.username}' "
