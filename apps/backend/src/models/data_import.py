@@ -103,6 +103,7 @@ class StagingMetadataResponse(StagingMetadata):
 
     import_type: ImportType
     row_count: int
+    has_final_table: bool
 
 
 class StagingPreviewResponse(BaseModel):

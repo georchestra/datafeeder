@@ -10,7 +10,7 @@ import {
   upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut
 } from '../../core/api/functions'
 import { GroupItem, IntegrityLinkRule } from '../../core/api/models'
-import { IntegrityLinkStore } from '../../layout/integrity-link.store'
+import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import { AuthorizationsComponent } from './authorizations.component'
 
 describe('AuthorizationsComponent', () => {
