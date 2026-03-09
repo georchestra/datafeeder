@@ -1,6 +1,7 @@
 """Task executor abstraction layer for Airflow and others."""
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -82,6 +83,7 @@ class BaseTaskExecutor(ABC):
         success_callback_url: str | None = None,
         failure_callback_url: str | None = None,
         encrypted_credentials: str | None = None,
+        last_retrieval_timestamp: datetime | None = None,
     ) -> TaskRunInfo:
         """
         Trigger a process task.

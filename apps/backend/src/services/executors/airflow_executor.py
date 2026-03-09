@@ -1,5 +1,6 @@
 """Airflow task executor implementation."""
 
+from datetime import datetime
 from typing import Any
 
 from airflow_client.client.models.dag_run_state import DagRunState
@@ -67,6 +68,7 @@ class AirflowTaskExecutor(BaseTaskExecutor):
         success_callback_url: str | None = None,
         failure_callback_url: str | None = None,
         encrypted_credentials: str | None = None,
+        last_retrieval_timestamp: datetime | None = None,
     ) -> TaskRunInfo:
         """Trigger a process task in Airflow."""
         dag_run_response = get_dag_run_api().trigger_dag_run(
@@ -82,6 +84,7 @@ class AirflowTaskExecutor(BaseTaskExecutor):
                     "success_callback_url": success_callback_url or "",
                     "failure_callback_url": failure_callback_url or "",
                     "encrypted_credentials": encrypted_credentials,
+                    "last_retrieval_timestamp": last_retrieval_timestamp,
                 },
             ),
         )
