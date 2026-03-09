@@ -326,6 +326,68 @@ class TestMetadataService:
         )
 
     @patch("src.services.metadata_service.GnApi")
+    def test_toggle_publish_metadata_record_publish(self, mock_gn_api: MagicMock) -> None:
+        """Test successful publication of a metadata record."""
+        mock_api_instance = MagicMock()
+        mock_gn_api.return_value = mock_api_instance
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+        )
+
+        service.toggle_publish_metadata_record("test-uuid-123", publish=True)
+
+        mock_api_instance.put_publish_record.assert_called_once_with("test-uuid-123")
+        mock_api_instance.put_unpublish_record.assert_not_called()
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_toggle_publish_metadata_record_unpublish(self, mock_gn_api: MagicMock) -> None:
+        """Test successful unpublication of a metadata record."""
+        mock_api_instance = MagicMock()
+        mock_gn_api.return_value = mock_api_instance
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+        )
+
+        service.toggle_publish_metadata_record("test-uuid-456", publish=False)
+
+        mock_api_instance.put_unpublish_record.assert_called_once_with("test-uuid-456")
+        mock_api_instance.put_publish_record.assert_not_called()
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_toggle_publish_metadata_record_publish_error(self, mock_gn_api: MagicMock) -> None:
+        """Test that errors from put_publish_record are propagated."""
+        mock_api_instance = MagicMock()
+        mock_api_instance.put_publish_record.side_effect = Exception("GeoNetwork unavailable")
+        mock_gn_api.return_value = mock_api_instance
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+        )
+
+        with pytest.raises(Exception, match="GeoNetwork unavailable"):
+            service.toggle_publish_metadata_record("test-uuid-789", publish=True)
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_toggle_publish_metadata_record_unpublish_error(self, mock_gn_api: MagicMock) -> None:
+        """Test that errors from put_unpublish_record are propagated."""
+        mock_api_instance = MagicMock()
+        mock_api_instance.put_unpublish_record.side_effect = Exception("Connection refused")
+        mock_gn_api.return_value = mock_api_instance
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+        )
+
+        with pytest.raises(Exception, match="Connection refused"):
+            service.toggle_publish_metadata_record("test-uuid-000", publish=False)
+
+    @patch("src.services.metadata_service.GnApi")
     def test_set_record_ownership_user_groups_no_fallback(self, mock_gn_api: MagicMock) -> None:
         """Test org_based_sync=False with no groups and default group not found → PUT not called."""
         mock_session = MagicMock()
