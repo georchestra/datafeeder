@@ -315,7 +315,8 @@ async def dag_success_callback(
                 # Get bounding box
                 bbox_stmt = select(func.ST_Extent(geom))
                 bbox_result = conn.execute(bbox_stmt).scalar_one_or_none()
-                bbox = compute_bbox_from_postgis_stextent_string(bbox_result) if bbox_result else ""
+                if bbox_result:
+                    bbox = compute_bbox_from_postgis_stextent_string(bbox_result)
 
         await geoserver_service.create_layer(
             workspace_name=workspace_name,

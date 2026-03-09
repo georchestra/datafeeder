@@ -129,7 +129,6 @@ class GeoServerService:
         abstract: str,
         epsg: int = 4326,
         is_geographic: bool = True,
-        epsg: int = 4326,
         bbox: dict[str, float] = {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0},
     ) -> LayerCreationResult:
         """
@@ -160,7 +159,6 @@ class GeoServerService:
             abstract=abstract,
             epsg=epsg,
             is_geographic=is_geographic,
-            epsg=epsg,
             bbox=bbox,
         )
 
