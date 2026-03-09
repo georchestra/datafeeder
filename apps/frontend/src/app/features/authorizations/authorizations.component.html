@@ -14,7 +14,7 @@
         "
       >
         <gn-ui-check-toggle
-          [value]="is_published_gn()"
+          [value]="isPublishedGn()"
           (toggled)="onTogglePublishGn($event)"
           [label]="'authorizations.geonetwork.publicAccess' | translate"
           [title]="'authorizations.geonetwork.publicAccess' | translate"
@@ -64,7 +64,7 @@
           [groups]="geonetworkGroups()"
           [rules]="metadataRules()"
           [searchPlaceholder]="'authorizations.geonetwork.search' | translate"
-          [isPublic]="is_published_gn()"
+          [isPublic]="isPublishedGn()"
           (ruleChange)="onMetadataRuleChange($event)"
         />
         }

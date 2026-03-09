@@ -63,7 +63,7 @@ export class AuthorizationsComponent implements OnInit {
   rules = signal<IntegrityLinkRule[]>([])
   geonetworkGroups = signal<GroupItem[]>([])
   geoserverGroups = signal<GroupItem[]>([])
-  is_published_gn = signal<boolean>(false)
+  isPublishedGn = signal<boolean>(false)
   isPublishing = signal<boolean>(false)
   publishError = signal<string | null>(null)
   metadataRules = computed(() =>
@@ -77,7 +77,7 @@ export class AuthorizationsComponent implements OnInit {
     effect(() => {
       const integrityLink = this.store.integrityLink()
       if (integrityLink) {
-        this.is_published_gn.set(integrityLink.gn_is_published ?? false)
+        this.isPublishedGn.set(integrityLink.gn_is_published ?? false)
       }
     })
   }
@@ -99,14 +99,14 @@ export class AuthorizationsComponent implements OnInit {
   }
 
   async onTogglePublishGn(publish: boolean): Promise<void> {
-    const previousValue = this.is_published_gn()
+    const previousValue = this.isPublishedGn()
     if (!this.intlinkId) return
 
     // Clear any previous error
     this.publishError.set(null)
 
     // Optimistically update the UI
-    this.is_published_gn.set(publish)
+    this.isPublishedGn.set(publish)
     this.isPublishing.set(true)
 
     try {
@@ -118,7 +118,7 @@ export class AuthorizationsComponent implements OnInit {
         }
       )
       // Update signal with the response value
-      this.is_published_gn.set(response.gn_is_published ?? false)
+      this.isPublishedGn.set(response.gn_is_published ?? false)
       this.store.integrityLink.set(response)
     } catch (error) {
       console.error('Failed to toggle publish status:', error)
@@ -138,9 +138,9 @@ export class AuthorizationsComponent implements OnInit {
       this.publishError.set(errorMessage)
 
       // Force re-render by setting to opposite first, then back to previous
-      this.is_published_gn.set(!previousValue)
+      this.isPublishedGn.set(!previousValue)
       setTimeout(() => {
-        this.is_published_gn.set(
+        this.isPublishedGn.set(
           this.store.integrityLink()?.gn_is_published ?? false
         )
       }, 0)

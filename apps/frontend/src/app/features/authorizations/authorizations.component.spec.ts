@@ -263,7 +263,7 @@ describe('AuthorizationsComponent', () => {
         togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut,
         { integrity_link_id: intlinkId, publish: true }
       )
-      expect(component.is_published_gn()).toBe(true)
+      expect(component.isPublishedGn()).toBe(true)
       expect(component.isPublishing()).toBe(false)
       expect(component.publishError()).toBeNull()
     })
@@ -303,7 +303,7 @@ describe('AuthorizationsComponent', () => {
 
       await component.onTogglePublishGn(false)
 
-      expect(component.is_published_gn()).toBe(false)
+      expect(component.isPublishedGn()).toBe(false)
       expect(component.publishError()).toBeNull()
     })
 
@@ -398,7 +398,7 @@ describe('AuthorizationsComponent', () => {
       expect(component.publishError()).toBeNull()
     })
 
-    it('should optimistically update is_published_gn before API resolves', async () => {
+    it('should optimistically update isPublishedGn before API resolves', async () => {
       let resolveToggle!: (v: any) => void
       const togglePromise = new Promise((resolve) => {
         resolveToggle = resolve
@@ -423,12 +423,12 @@ describe('AuthorizationsComponent', () => {
       })
 
       const { component } = createComponent()
-      expect(component.is_published_gn()).toBe(false)
+      expect(component.isPublishedGn()).toBe(false)
 
       const toggleCall = component.onTogglePublishGn(true)
 
       // Optimistic update should be applied immediately
-      expect(component.is_published_gn()).toBe(true)
+      expect(component.isPublishedGn()).toBe(true)
       expect(component.isPublishing()).toBe(true)
 
       resolveToggle({ integrity_link_id: intlinkId, gn_is_published: true })
