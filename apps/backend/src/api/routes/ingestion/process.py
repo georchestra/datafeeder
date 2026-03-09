@@ -6,7 +6,10 @@ from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRun
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.database import create_schema, get_available_table_name
 from data_manipulation.models import IntegrityTransformation
-from data_manipulation.utils import sanitize_name
+from data_manipulation.utils import (
+    compute_bbox_from_postgis_stextent_string,
+    sanitize_name,
+)
 from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import MetaData, Table, func, select
@@ -298,20 +301,21 @@ async def dag_success_callback(
         table_meta = MetaData(schema="data")
         table = Table(final_table_name, table_meta, autoload_with=data_engine)
         is_geographic = DEFAULT_GEOMETRY_COLUMN in table.c
-        bbox = ""
+        bbox = {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0}
         epsg = None
 
         if is_geographic:
             with data_engine.connect() as conn:
+                geom = table.c[DEFAULT_GEOMETRY_COLUMN]
                 # Get SRID from PostGIS geometry column
-                srid_stmt = select(func.ST_SRID(table.c[DEFAULT_GEOMETRY_COLUMN])).limit(1)
+                srid_stmt = select(func.ST_SRID(geom)).limit(1)
                 srid_result = conn.execute(srid_stmt).scalar_one_or_none()
                 epsg = srid_result if srid_result else None
 
                 # Get bounding box
-                bbox_stmt = select(func.ST_Extent(table.c[DEFAULT_GEOMETRY_COLUMN]))
+                bbox_stmt = select(func.ST_Extent(geom))
                 bbox_result = conn.execute(bbox_stmt).scalar_one_or_none()
-                bbox = str(bbox_result) if bbox_result else ""
+                bbox = compute_bbox_from_postgis_stextent_string(bbox_result) if bbox_result else ""
 
         await geoserver_service.create_layer(
             workspace_name=workspace_name,
