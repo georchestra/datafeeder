@@ -72,10 +72,11 @@ class TestListIntegrityLinks:
         final_names: list[str],
     ) -> None:
         """Set up data_session mock to return table names for staging then final queries."""
-        mock_data_session.execute.side_effect = [
-            iter([(t,) for t in staging_names]),
-            iter([(t,) for t in final_names]),
-        ]
+        mock_staging = MagicMock()
+        mock_staging.scalars.return_value.all.return_value = staging_names
+        mock_final = MagicMock()
+        mock_final.scalars.return_value.all.return_value = final_names
+        mock_data_session.execute.side_effect = [mock_staging, mock_final]
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_normal_user_sees_only_own_links(
@@ -341,7 +342,7 @@ class TestListIntegrityLinks:
         assert len(response.items) == 1
         assert response.items[0].integrity_title == "My Dataset Import"
 
-        # Verify the query passed to session.execute contains an ilike filter
+        # Verify the query passed to session.exec contains an ilike filter
         executed_query = mock_session.execute.call_args[0][0]
         query_str = str(executed_query)
         assert "ilike" in query_str.lower() or "LIKE" in query_str
@@ -558,13 +559,15 @@ class TestListIntegrityLinksVisibility:
             organization=organization,
         )
 
-    def _setup_data_session(self, mock_data_session: MagicMock, link: IntegrityLink) -> None:
-        """Set up data_session to pass a single link through the table existence filter."""
-        staging = [link.staging_table_name] if link.staging_table_name else []
-        mock_data_session.execute.side_effect = [
-            iter([(t,) for t in staging]),
-            iter([]),
-        ]
+    def _setup_data_session(
+        self, mock_data_session: MagicMock, staging_names: list[str], final_names: list[str] = []
+    ) -> None:
+        """Set up data_session mock to return table names for staging then final queries."""
+        mock_staging = MagicMock()
+        mock_staging.scalars.return_value.all.return_value = staging_names
+        mock_final = MagicMock()
+        mock_final.scalars.return_value.all.return_value = final_names
+        mock_data_session.execute.side_effect = [mock_staging, mock_final]
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_owner_sees_own_datasets_with_owner_access_level(
@@ -579,7 +582,8 @@ class TestListIntegrityLinksVisibility:
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = [(link, "OWNER")]
         mock_session.execute.return_value = mock_exec_result
-        self._setup_data_session(mock_data_session, link)
+        staging = [link.staging_table_name] if link.staging_table_name else []
+        self._setup_data_session(mock_data_session, staging)
 
         ctx = self._geo_ctx(username="user1")
         response = list_integrity_links(
@@ -606,10 +610,7 @@ class TestListIntegrityLinksVisibility:
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = [(link, "ADMIN") for link in links]
         mock_session.execute.return_value = mock_exec_result
-        mock_data_session.execute.side_effect = [
-            iter([("staging_test",)]),
-            iter([]),
-        ]
+        self._setup_data_session(mock_data_session, ["staging_test"])
 
         ctx = self._geo_ctx(is_admin=True)
         response = list_integrity_links(
@@ -635,7 +636,8 @@ class TestListIntegrityLinksVisibility:
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = [(link, "READ")]
         mock_session.execute.return_value = mock_exec_result
-        self._setup_data_session(mock_data_session, link)
+        staging = [link.staging_table_name] if link.staging_table_name else []
+        self._setup_data_session(mock_data_session, staging)
 
         ctx = self._geo_ctx(username="user1", organization="org_a")
         response = list_integrity_links(
@@ -664,7 +666,8 @@ class TestListIntegrityLinksVisibility:
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = [(link, "WRITE")]
         mock_session.execute.return_value = mock_exec_result
-        self._setup_data_session(mock_data_session, link)
+        staging = [link.staging_table_name] if link.staging_table_name else []
+        self._setup_data_session(mock_data_session, staging)
 
         ctx = self._geo_ctx(username="user1", organization="org_a")
         response = list_integrity_links(
@@ -690,7 +693,7 @@ class TestListIntegrityLinksVisibility:
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []
         mock_session.execute.return_value = mock_exec_result
-        mock_data_session.execute.side_effect = [iter([]), iter([])]
+        self._setup_data_session(mock_data_session, [])
 
         ctx = self._geo_ctx(username="nobody", organization="no_org")
         response = list_integrity_links(
@@ -711,7 +714,7 @@ class TestListIntegrityLinksVisibility:
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []
         mock_session.execute.return_value = mock_exec_result
-        mock_data_session.execute.side_effect = [iter([]), iter([])]
+        self._setup_data_session(mock_data_session, [])
 
         ctx = self._geo_ctx(username="user1", organization="org_a")
         list_integrity_links(

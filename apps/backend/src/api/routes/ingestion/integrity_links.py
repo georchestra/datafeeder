@@ -87,20 +87,23 @@ def list_integrity_links(
 
     # Check table existence against data_engine's DB (correct DB in all modes).
     # Using data_session ensures information_schema reflects datadb, not georchestra.
-    staging_tables = {
-        row[0]
-        for row in data_session.execute(  # type: ignore[reportDeprecated]
+    # Raw Table objects require execute(); exec() only accepts SQLModel SelectOfScalar.
+    staging_tables = set(
+        data_session.execute(  # type: ignore[reportDeprecated]
             sa_select(_info_tables.c.table_name).where(
                 _info_tables.c.table_schema == get_staging_schema()
             )
         )
-    }
-    final_tables = {
-        row[0]
-        for row in data_session.execute(  # type: ignore[reportDeprecated]
+        .scalars()
+        .all()
+    )
+    final_tables = set(
+        data_session.execute(  # type: ignore[reportDeprecated]
             sa_select(_info_tables.c.table_name).where(_info_tables.c.table_schema == "data")
         )
-    }
+        .scalars()
+        .all()
+    )
 
     # Filter: only show links with at least one associated table; compute has_final flag
     items_with_flags = [
