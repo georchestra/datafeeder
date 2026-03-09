@@ -14,7 +14,6 @@ from src.core.security import (
     load_authorized_integrity_link,
 )
 from src.models.integrity_link import IntegrityLink
-from src.models.integrity_link_rule import IntegrityLinkRule, RuleType, RuleValue
 from src.services.georchestra import GeorchestraContext
 
 DATASET_ID = "11111111-1111-1111-1111-111111111111"
@@ -51,26 +50,27 @@ def _integrity_link(owner: str = "owner1") -> IntegrityLink:
 
 
 def _mock_session(
-    rules: list[IntegrityLinkRule] | None = None, integrity_link: IntegrityLink | None = None
+    integrity_link: IntegrityLink | None = None,
+    access_result: str | None = "__unset__",
 ) -> MagicMock:
-    """Create a mock session with configurable rule query results."""
+    """Create a mock session with configurable query results.
+
+    Args:
+        integrity_link: Value returned by ``session.get()`` (for
+            load_authorized_integrity_link).
+        access_result: Value returned by ``session.exec().first()`` —
+            simulates the SQL access_level expression result used by
+            ``compute_effective_access``.  Pass ``"__unset__"`` (default)
+            to leave ``.first()`` as a generic Mock.
+    """
     session = MagicMock()
     if integrity_link is not None:
         session.get.return_value = integrity_link
     mock_exec = MagicMock()
-    mock_exec.all.return_value = rules or []
+    if access_result != "__unset__":
+        mock_exec.first.return_value = access_result
     session.exec.return_value = mock_exec
     return session
-
-
-def _make_rule(rule_value: RuleValue = RuleValue.READ) -> IntegrityLinkRule:
-    """Create a test IntegrityLinkRule."""
-    rule = MagicMock(spec=IntegrityLinkRule)
-    rule.integrity_link_id = DATASET_UUID
-    rule.rule_type = RuleType.METADATA
-    rule.rule_value = rule_value
-    rule.group_or_role = "org_a"
-    return rule
 
 
 # ────────────────────────────────────────────────────────
@@ -84,20 +84,21 @@ class TestComputeEffectiveAccessAdmin:
     def test_admin_gets_admin_access(self) -> None:
         link = _integrity_link(owner="someone_else")
         ctx = _geo_ctx(is_admin=True)
-        session = _mock_session()
+        session = _mock_session(access_result="ADMIN")
 
         result = compute_effective_access(link, ctx, session, None)
 
         assert result == EffectiveAccess.ADMIN
 
     def test_admin_skips_rule_query(self) -> None:
+        """Admin path still executes one query (for the SQL expression)."""
         link = _integrity_link()
         ctx = _geo_ctx(is_admin=True)
-        session = _mock_session()
+        session = _mock_session(access_result="ADMIN")
 
         compute_effective_access(link, ctx, session, None)
 
-        session.exec.assert_not_called()
+        session.exec.assert_called_once()
 
 
 class TestComputeEffectiveAccessOwner:
@@ -106,20 +107,21 @@ class TestComputeEffectiveAccessOwner:
     def test_owner_gets_owner_access(self) -> None:
         link = _integrity_link(owner="user1")
         ctx = _geo_ctx(username="user1")
-        session = _mock_session()
+        session = _mock_session(access_result="OWNER")
 
         result = compute_effective_access(link, ctx, session, None)
 
         assert result == EffectiveAccess.OWNER
 
-    def test_owner_skips_rule_query(self) -> None:
+    def test_owner_executes_one_query(self) -> None:
+        """Owner path executes one query (for the SQL expression)."""
         link = _integrity_link(owner="user1")
         ctx = _geo_ctx(username="user1")
-        session = _mock_session()
+        session = _mock_session(access_result="OWNER")
 
         compute_effective_access(link, ctx, session, None)
 
-        session.exec.assert_not_called()
+        session.exec.assert_called_once()
 
 
 class TestComputeEffectiveAccessGroupRules:
@@ -128,7 +130,7 @@ class TestComputeEffectiveAccessGroupRules:
     def test_write_rule_gives_write_access(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx(username="user1", organization="org_a")
-        session = _mock_session(rules=[_make_rule(RuleValue.WRITE)])
+        session = _mock_session(access_result="WRITE")
 
         result = compute_effective_access(link, ctx, session, ORG_UUID)
 
@@ -137,7 +139,7 @@ class TestComputeEffectiveAccessGroupRules:
     def test_read_rule_gives_read_access(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx(username="user1", organization="org_a")
-        session = _mock_session(rules=[_make_rule(RuleValue.READ)])
+        session = _mock_session(access_result="READ")
 
         result = compute_effective_access(link, ctx, session, ORG_UUID)
 
@@ -146,7 +148,7 @@ class TestComputeEffectiveAccessGroupRules:
     def test_no_rules_gives_no_access(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx(username="user1", organization="org_a")
-        session = _mock_session(rules=[])
+        session = _mock_session(access_result=None)
 
         result = compute_effective_access(link, ctx, session, ORG_UUID)
 
@@ -155,21 +157,11 @@ class TestComputeEffectiveAccessGroupRules:
     def test_empty_organization_gives_no_access(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx(username="user1", organization="")
-        session = _mock_session()
+        session = _mock_session(access_result=None)
 
         result = compute_effective_access(link, ctx, session, None)
 
         assert result is None
-        session.exec.assert_not_called()
-
-    def test_write_rule_takes_precedence_over_read(self) -> None:
-        link = _integrity_link(owner="other")
-        ctx = _geo_ctx(username="user1", organization="org_a")
-        session = _mock_session(rules=[_make_rule(RuleValue.READ), _make_rule(RuleValue.WRITE)])
-
-        result = compute_effective_access(link, ctx, session, ORG_UUID)
-
-        assert result == EffectiveAccess.WRITE
 
 
 # ────────────────────────────────────────────────────────
@@ -200,7 +192,7 @@ class TestLoadAuthorizedIntegrityLinkAdminBypass:
     def test_admin_passes_any_level(self, level: AccessLevel) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx(is_admin=True)
-        session = _mock_session(integrity_link=link)
+        session = _mock_session(integrity_link=link, access_result="ADMIN")
 
         result = load_authorized_integrity_link(DATASET_ID, level, ctx, session, None)
 
@@ -214,7 +206,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerBypass:
     def test_owner_passes_any_level(self, level: AccessLevel) -> None:
         link = _integrity_link(owner="user1")
         ctx = _geo_ctx(username="user1")
-        session = _mock_session(integrity_link=link)
+        session = _mock_session(integrity_link=link, access_result="OWNER")
 
         result = load_authorized_integrity_link(DATASET_ID, level, ctx, session, None)
 
@@ -227,7 +219,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataRead:
     def test_read_rule_allows_metadata_read(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx()
-        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
+        session = _mock_session(integrity_link=link, access_result="READ")
 
         result = load_authorized_integrity_link(
             DATASET_ID, AccessLevel.METADATA_READ, ctx, session, ORG_UUID
@@ -238,7 +230,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataRead:
     def test_write_rule_allows_metadata_read(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx()
-        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
+        session = _mock_session(integrity_link=link, access_result="WRITE")
 
         result = load_authorized_integrity_link(
             DATASET_ID, AccessLevel.METADATA_READ, ctx, session, ORG_UUID
@@ -249,7 +241,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataRead:
     def test_no_rule_raises_403(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx()
-        session = _mock_session(integrity_link=link, rules=[])
+        session = _mock_session(integrity_link=link, access_result=None)
 
         with pytest.raises(HTTPException) as exc_info:
             load_authorized_integrity_link(
@@ -265,7 +257,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataWrite:
     def test_write_rule_allows_metadata_write(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx()
-        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
+        session = _mock_session(integrity_link=link, access_result="WRITE")
 
         result = load_authorized_integrity_link(
             DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session, ORG_UUID
@@ -276,7 +268,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataWrite:
     def test_read_rule_raises_403_for_metadata_write(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx()
-        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
+        session = _mock_session(integrity_link=link, access_result="READ")
 
         with pytest.raises(HTTPException) as exc_info:
             load_authorized_integrity_link(
@@ -288,7 +280,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataWrite:
     def test_no_rule_raises_403(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx()
-        session = _mock_session(integrity_link=link, rules=[])
+        session = _mock_session(integrity_link=link, access_result=None)
 
         with pytest.raises(HTTPException) as exc_info:
             load_authorized_integrity_link(
@@ -304,7 +296,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
     def test_write_rule_raises_403_for_owner_only(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx()
-        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.WRITE)])
+        session = _mock_session(integrity_link=link, access_result="WRITE")
 
         with pytest.raises(HTTPException) as exc_info:
             load_authorized_integrity_link(
@@ -316,7 +308,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
     def test_read_rule_raises_403_for_owner_only(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx()
-        session = _mock_session(integrity_link=link, rules=[_make_rule(RuleValue.READ)])
+        session = _mock_session(integrity_link=link, access_result="READ")
 
         with pytest.raises(HTTPException) as exc_info:
             load_authorized_integrity_link(
@@ -328,7 +320,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
     def test_owner_passes_owner_only(self) -> None:
         link = _integrity_link(owner="user1")
         ctx = _geo_ctx(username="user1")
-        session = _mock_session(integrity_link=link)
+        session = _mock_session(integrity_link=link, access_result="OWNER")
 
         result = load_authorized_integrity_link(
             DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, None
@@ -339,7 +331,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
     def test_admin_passes_owner_only(self) -> None:
         link = _integrity_link(owner="other")
         ctx = _geo_ctx(is_admin=True)
-        session = _mock_session(integrity_link=link)
+        session = _mock_session(integrity_link=link, access_result="ADMIN")
 
         result = load_authorized_integrity_link(
             DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, None

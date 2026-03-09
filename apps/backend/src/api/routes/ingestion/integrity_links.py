@@ -6,7 +6,7 @@ from sqlmodel import or_, select
 
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.logging import get_logger
-from src.core.security import compute_effective_access
+from src.core.security import build_access_expr
 from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, RuleType
@@ -46,10 +46,11 @@ def list_integrity_links(
     Returns:
         IntegrityLinkListResponse with items, has_more flag, and current offset
     """
-    # Build query based on user role
-    query = select(IntegrityLink)
-
     is_admin = geo_ctx.is_administrator()
+
+    access_expr = build_access_expr(geo_ctx.username, org_id, is_admin)
+    query = select(IntegrityLink, access_expr)
+
     if not is_admin:
         # Non-admins see: own datasets + datasets with METADATA rules for their org
         conditions: list[Any] = [IntegrityLink.integrity_owner == geo_ctx.username]
@@ -65,6 +66,7 @@ def list_integrity_links(
             )
         query = query.where(or_(*conditions))
 
+    # Apply search filter if provided
     if search:
         query = query.where(IntegrityLink.integrity_title.ilike(f"%{search}%"))  # type: ignore[union-attr]
 
@@ -75,35 +77,22 @@ def list_integrity_links(
     query = query.offset(offset).limit(BATCH_SIZE + 1)
 
     results = session.exec(query).all()
-
-    # Check if there are more items
     has_more = len(results) > BATCH_SIZE
-
-    # Only return up to BATCH_SIZE items
-    items = results[:BATCH_SIZE]
+    rows = results[:BATCH_SIZE]
 
     logger.info(
-        f"Listed {len(items)} integrity links for user '{geo_ctx.username}' "
+        f"Listed {len(rows)} integrity links for user '{geo_ctx.username}' "
         f"(admin={is_admin}, offset={offset}, has_more={has_more}, search={search!r})"
     )
 
-    # Compute per-item access level
-    list_items: list[IntegrityLinkListItem] = []
-    for link in items:
-        effective = compute_effective_access(link, geo_ctx, session, org_id)
-        if effective is None:
-            logger.warning(
-                f"Skipping integrity link '{link.id}' for user '{geo_ctx.username}': "
-                "no effective access (possible race condition)"
-            )
-            continue
-
+    items: list[IntegrityLinkListItem] = []
+    for link, access_level in rows:
         item = IntegrityLinkListItem.model_validate(link)
-        item.access_level = effective.value
-        list_items.append(item)
+        item.access_level = access_level
+        items.append(item)
 
     return IntegrityLinkListResponse(
-        items=list_items,
+        items=items,
         has_more=has_more,
         offset=offset,
     )

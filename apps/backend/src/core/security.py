@@ -5,6 +5,8 @@ from uuid import UUID
 
 import jwt
 from fastapi import HTTPException
+from sqlalchemy import case, exists, literal
+from sqlalchemy.sql.expression import Label
 from sqlmodel import Session, select
 
 from src.core.config import get_settings
@@ -48,6 +50,54 @@ class EffectiveAccess(str, Enum):
     READ = "READ"
 
 
+def build_access_expr(
+    username: str,
+    org_id: str | None,
+    is_admin: bool,
+) -> Label[str | None]:
+    """Build a SQL expression that computes the effective access level.
+
+    Returns a labelled column expression evaluating to one of the
+    :class:`EffectiveAccess` values (``ADMIN``, ``OWNER``, ``WRITE``,
+    ``READ``), or ``None`` when the user has no access.
+
+    Callers that list multiple rows should combine this with a WHERE clause
+    that excludes ``None``-access rows; single-row callers can map ``None``
+    to a 403.
+
+    The expression references ``IntegrityLink`` columns and correlated
+    ``IntegrityLinkRule`` subqueries, so it must be used inside a
+    ``SELECT … FROM integrity_link`` context.
+    """
+    if is_admin:
+        return literal(EffectiveAccess.ADMIN.value).label("access_level")  # type: ignore[return-value]
+
+    conditions: list[tuple[Any, str]] = [
+        (IntegrityLink.integrity_owner == username, EffectiveAccess.OWNER.value),  # type: ignore[arg-type]
+    ]
+
+    if org_id is not None:
+        write_rule_exists = exists(
+            select(IntegrityLinkRule.id).where(
+                IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
+                IntegrityLinkRule.rule_type == RuleType.METADATA,
+                IntegrityLinkRule.group_or_role == org_id,
+                IntegrityLinkRule.rule_value == RuleValue.WRITE,
+            )
+        )
+        read_rule_exists = exists(
+            select(IntegrityLinkRule.id).where(
+                IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
+                IntegrityLinkRule.rule_type == RuleType.METADATA,
+                IntegrityLinkRule.group_or_role == org_id,
+            )
+        )
+        conditions.append((write_rule_exists, EffectiveAccess.WRITE.value))
+        conditions.append((read_rule_exists, EffectiveAccess.READ.value))
+
+    return case(*conditions, else_=None).label("access_level")
+
+
 def compute_effective_access(
     integrity_link: IntegrityLink,
     geo_ctx: GeorchestraContext,
@@ -55,6 +105,9 @@ def compute_effective_access(
     org_id: str | None,
 ) -> EffectiveAccess | None:
     """Compute the effective access level for a user on a dataset.
+
+    Uses the same SQL CASE expression as the list endpoint
+    (via :func:`build_access_expr`) so the permission logic is defined once.
 
     Returns the highest applicable access level, or None if no access.
 
@@ -67,33 +120,17 @@ def compute_effective_access(
     Returns:
         EffectiveAccess level or None if no access
     """
-    if geo_ctx.is_administrator():
-        return EffectiveAccess.ADMIN
+    access_expr = build_access_expr(geo_ctx.username, org_id, geo_ctx.is_administrator())
+    result = session.exec(
+        select(access_expr)
+        .select_from(IntegrityLink)  # type: ignore[arg-type]
+        .where(IntegrityLink.id == integrity_link.id)
+    ).first()
 
-    if integrity_link.integrity_owner == geo_ctx.username:
-        return EffectiveAccess.OWNER
-
-    if org_id is None:
+    if result is None:
         return None
 
-    # Query for METADATA rules matching the user's organization
-    statement = select(IntegrityLinkRule).where(
-        IntegrityLinkRule.integrity_link_id == integrity_link.id,
-        IntegrityLinkRule.rule_type == RuleType.METADATA,
-        IntegrityLinkRule.group_or_role == org_id,
-    )
-    rules = session.exec(statement).all()
-
-    if not rules:
-        return None
-
-    # Check for WRITE (highest group-based access)
-    for rule in rules:
-        if rule.rule_value == RuleValue.WRITE:
-            return EffectiveAccess.WRITE
-
-    # Otherwise must be READ
-    return EffectiveAccess.READ
+    return EffectiveAccess(result)
 
 
 def load_authorized_integrity_link(

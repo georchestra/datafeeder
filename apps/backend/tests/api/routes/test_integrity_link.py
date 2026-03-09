@@ -53,10 +53,13 @@ class TestUpsertIntegrityLinkRule:
             staging_table_name="staging_test",
         )
 
-        # No existing rule found
-        mock_exec_result = MagicMock()
-        mock_exec_result.first.return_value = None
-        mock_session.exec.return_value = mock_exec_result
+        # First exec call: compute_effective_access → "OWNER"
+        # Second exec call: look up existing rule → None (no rule exists)
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        mock_session.exec.side_effect = [access_mock, no_rule_mock]
 
         body = UpsertRuleRequest(
             group_or_role="GROUP_1",
@@ -97,9 +100,13 @@ class TestUpsertIntegrityLinkRule:
             rule_type=RuleType.DATA,
             rule_value=RuleValue.READ,
         )
-        mock_exec_result = MagicMock()
-        mock_exec_result.first.return_value = existing_rule
-        mock_session.exec.return_value = mock_exec_result
+        # First exec call: compute_effective_access → "OWNER"
+        # Second exec call: look up existing rule → existing_rule
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        rule_mock = MagicMock()
+        rule_mock.first.return_value = existing_rule
+        mock_session.exec.side_effect = [access_mock, rule_mock]
 
         body = UpsertRuleRequest(
             group_or_role="GROUP_1",
@@ -169,6 +176,7 @@ class TestDeleteIntegrityLinkRule:
                 rule_value=RuleValue.READ,
             ),  # second call: rule
         ]
+        mock_session.exec.return_value.first.return_value = "OWNER"
 
         response = delete_integrity_link_rule(
             session=mock_session,
@@ -208,6 +216,7 @@ class TestDeleteIntegrityLinkRule:
             ),  # integrity_link exists
             None,  # rule not found
         ]
+        mock_session.exec.return_value.first.return_value = "OWNER"
 
         with pytest.raises(HTTPException) as exc_info:
             delete_integrity_link_rule(
@@ -241,6 +250,7 @@ class TestDeleteIntegrityLinkRule:
                 rule_value=RuleValue.READ,
             ),
         ]
+        mock_session.exec.return_value.first.return_value = "OWNER"
 
         with pytest.raises(HTTPException) as exc_info:
             delete_integrity_link_rule(

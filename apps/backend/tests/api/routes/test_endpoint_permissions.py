@@ -27,7 +27,7 @@ from src.api.routes.ingestion.staging import (
     get_staging_metadata,
     get_staging_preview,
 )
-from src.core.security import AccessLevel
+from src.core.security import AccessLevel, EffectiveAccess
 from src.models.data_import import ImportType, ProcessRequest
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleType, RuleValue, UpsertRuleRequest
@@ -111,24 +111,27 @@ def _admin_ctx() -> GeorchestraContext:
     )
 
 
-def _mock_session(link: IntegrityLink | None = None) -> MagicMock:
-    """Session that returns *link* on `session.get(...)` and no rules."""
+def _mock_session(
+    link: IntegrityLink | None = None, access_result: str | None = None
+) -> MagicMock:
+    """Session that returns *link* on `session.get(...)` and *access_result* from exec().first()."""
     session = MagicMock()
     session.get.return_value = link
     mock_exec = MagicMock()
-    mock_exec.all.return_value = []  # no rules → no group access
+    mock_exec.first.return_value = access_result
+    mock_exec.all.return_value = []
     session.exec.return_value = mock_exec
     return session
 
 
 def _mock_session_with_rule(link: IntegrityLink, rule_value: RuleValue) -> MagicMock:
-    """Session that returns *link* and a single METADATA rule with given value."""
+    """Session that returns *link* and the corresponding access level from exec().first()."""
+    access = EffectiveAccess.WRITE.value if rule_value == RuleValue.WRITE else EffectiveAccess.READ.value
     session = MagicMock()
     session.get.return_value = link
-    rule = MagicMock()
-    rule.rule_value = rule_value
     mock_exec = MagicMock()
-    mock_exec.all.return_value = [rule]
+    mock_exec.first.return_value = access
+    mock_exec.all.return_value = []
     session.exec.return_value = mock_exec
     return session
 
@@ -158,7 +161,7 @@ class TestGetIntegrityLinkPermission:
         assert exc_info.value.status_code == 403
 
     def test_returns_entity_for_owner(self) -> None:
-        session = _mock_session(_link())
+        session = _mock_session(_link(), access_result="OWNER")
 
         result = get_integrity_link(session, _owner_ctx(), INTLINK_ID, None)
 
@@ -176,7 +179,7 @@ class TestGetIntegrityLinkPermission:
     def test_returns_entity_for_admin(self) -> None:
         """Admin bypasses all permission checks."""
 
-        session = _mock_session(_link())
+        session = _mock_session(_link(), access_result="ADMIN")
 
         result = get_integrity_link(session, _admin_ctx(), INTLINK_ID, None)
 
@@ -208,7 +211,7 @@ class TestListIntegrityLinkRulesPermission:
         assert exc_info.value.status_code == 403
 
     def test_returns_rules_for_owner(self) -> None:
-        session = _mock_session(_link())
+        session = _mock_session(_link(), access_result="OWNER")
 
         result = list_integrity_link_rules(session, _owner_ctx(), INTLINK_ID, None)
 
@@ -325,7 +328,7 @@ class TestAirflowDagRunByIntlinkPermission:
 
     @patch("src.api.routes.airflow.get_dag_run_api")
     def test_returns_result_for_owner(self, mock_api: MagicMock) -> None:
-        session = _mock_session(_link())
+        session = _mock_session(_link(), access_result="OWNER")
         mock_runs = MagicMock()
         mock_api.return_value.get_dag_runs.return_value = mock_runs
 
@@ -337,7 +340,7 @@ class TestAirflowDagRunByIntlinkPermission:
     def test_returns_result_for_admin(self, mock_api: MagicMock) -> None:
         """Admin bypasses all permission checks."""
 
-        session = _mock_session(_link())
+        session = _mock_session(_link(), access_result="ADMIN")
         mock_api.return_value.get_dag_runs.return_value = MagicMock()
 
         result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _admin_ctx(), None)
@@ -381,7 +384,7 @@ class TestAirflowDagRunStatusPermission:
 
     @patch("src.api.routes.airflow.get_dag_run_api")
     def test_returns_result_for_owner(self, mock_api: MagicMock) -> None:
-        session = _mock_session(_link())
+        session = _mock_session(_link(), access_result="OWNER")
         mock_state = MagicMock()
         mock_api.return_value.get_dag_run.return_value.state = mock_state
 
@@ -391,7 +394,7 @@ class TestAirflowDagRunStatusPermission:
 
     @patch("src.api.routes.airflow.get_dag_run_api")
     def test_returns_result_for_admin(self, mock_api: MagicMock) -> None:
-        session = _mock_session(_link())
+        session = _mock_session(_link(), access_result="ADMIN")
         mock_api.return_value.get_dag_run.return_value.state = MagicMock()
 
         result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _admin_ctx(), None)
@@ -435,7 +438,7 @@ class TestAirflowDagRunLogsPermission:
 
     @patch("src.api.routes.airflow.generate_failed_dag_run_logs")
     def test_returns_result_for_owner(self, mock_logs: MagicMock) -> None:
-        session = _mock_session(_link())
+        session = _mock_session(_link(), access_result="OWNER")
         mock_logs.return_value = "some log output"
 
         result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _owner_ctx(), None)
@@ -444,7 +447,7 @@ class TestAirflowDagRunLogsPermission:
 
     @patch("src.api.routes.airflow.generate_failed_dag_run_logs")
     def test_returns_result_for_admin(self, mock_logs: MagicMock) -> None:
-        session = _mock_session(_link())
+        session = _mock_session(_link(), access_result="ADMIN")
         mock_logs.return_value = "some log output"
 
         result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _admin_ctx(), None)
@@ -496,6 +499,11 @@ class TestUpsertIntegrityLinkRulePermission:
 
     def test_succeeds_for_owner(self) -> None:
         session = _mock_session(_link())
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        session.exec.side_effect = [access_mock, no_rule_mock]
 
         result = upsert_integrity_link_rule(session, _owner_ctx(), INTLINK_ID, None, self._body())
 
