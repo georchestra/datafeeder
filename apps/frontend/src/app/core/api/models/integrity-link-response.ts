@@ -11,6 +11,7 @@ export interface IntegrityLinkResponse {
   created_at: string | null
   data_id: string | null
   final_table_name: string | null
+  gn_is_published: boolean | null
   id: string
   integrity_organization: string
   integrity_owner: string

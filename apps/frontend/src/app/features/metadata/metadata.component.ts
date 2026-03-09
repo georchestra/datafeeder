@@ -16,7 +16,7 @@ import {
   RecordsRepositoryInterface
 } from 'geonetwork-ui'
 import { combineLatest, firstValueFrom, map, take, tap } from 'rxjs'
-import { IntegrityLinkStore } from '../../layout/integrity-link.store'
+import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 
 @Component({
   selector: 'app-metadata',

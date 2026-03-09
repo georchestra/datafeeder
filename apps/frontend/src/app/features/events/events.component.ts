@@ -6,7 +6,7 @@ import { getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet } from '../../core/api
 import { DagRunState } from '../../core/api/models'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
 import { DagRunResponse } from '../../core/api/models/dag-run-response'
-import { IntegrityLinkStore } from '../../layout/integrity-link.store'
+import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import { EventType } from '../../shared/components/event-type-badge/event-type-badge.component'
 import {
   Event,

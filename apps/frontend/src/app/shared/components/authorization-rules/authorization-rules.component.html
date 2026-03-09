@@ -13,7 +13,7 @@
       <span class="font-medium text-gray-2">{{ group.label }}</span>
       <div class="w-40">
         <gn-ui-dropdown-selector
-          [choices]="ruleChoices"
+          [choices]="ruleChoices()"
           [selected]="getRuleValue(group)"
           [showTitle]="false"
           [title]="''"

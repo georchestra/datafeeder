@@ -13,6 +13,7 @@ export interface StagingMetadataResponse {
   columns: Array<ColumnConfigOutput>
   file_type: FileType | null
   force_projection?: ForceProjection | null
+  has_final_table: boolean
   import_type: ImportType
   original_projection?: string | null
   row_count: number

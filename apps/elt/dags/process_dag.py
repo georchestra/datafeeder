@@ -87,6 +87,11 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             type=["null", "string"],
             description="Encrypted credentials (base64-encoded pgp_sym_encrypt result)",
         ),
+        "last_retrieval_timestamp": Param(
+            default=None,
+            type=["null", "string"],
+            description="Timestamp of last retrieval (ISO format), indicates if this is a re-run (optional)",
+        ),
     },
     on_success_callback=_dag_success_callback,
     on_failure_callback=_dag_failure_callback,

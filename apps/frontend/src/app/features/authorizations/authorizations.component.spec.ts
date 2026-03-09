@@ -7,10 +7,11 @@ import {
   listGroupsDataGroupsGet,
   listGroupsMetadataGroupsGet,
   listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet,
+  togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut,
   upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut
 } from '../../core/api/functions'
 import { GroupItem, IntegrityLinkRule } from '../../core/api/models'
-import { IntegrityLinkStore } from '../../layout/integrity-link.store'
+import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import { AuthorizationsComponent } from './authorizations.component'
 
 describe('AuthorizationsComponent', () => {
@@ -78,8 +79,14 @@ describe('AuthorizationsComponent', () => {
             'authorizations.geoserver.search':
               'Search for a role listed on GeoServer',
             'authorizations.ruleValue.none': 'None',
+            'authorizations.ruleValue.public': 'Public',
             'authorizations.ruleValue.read': 'Read',
-            'authorizations.ruleValue.write': 'Write'
+            'authorizations.ruleValue.write': 'Write',
+            'authorizations.geonetwork.publishError.title': 'Publication Error',
+            'authorizations.geonetwork.publishError.defaultMessage':
+              'An error occurred during publication',
+            'i18nerror.publish.geonetwork':
+              'Error publishing metadata to GeoNetwork'
           }
         })
           .withDefaultLanguage('en')
@@ -220,5 +227,214 @@ describe('AuthorizationsComponent', () => {
         rule_id: 21
       }
     )
+  })
+
+  describe('onTogglePublishGn', () => {
+    it('should call toggle publish API with publish=true and update signals on success', async () => {
+      const updatedLink = {
+        integrity_link_id: intlinkId,
+        integrity_title: 'Test Link',
+        gn_is_published: true
+      } as any
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (fn === listGroupsMetadataGroupsGet)
+          return Promise.resolve(mockGeonetworkGroups)
+        if (fn === listGroupsDataGroupsGet)
+          return Promise.resolve(mockGeoserverGroups)
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        if (
+          fn ===
+          togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut
+        )
+          return Promise.resolve(updatedLink)
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+
+      await component.onTogglePublishGn(true)
+
+      expect(apiInvokeSpy).toHaveBeenCalledWith(
+        togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut,
+        { integrity_link_id: intlinkId, publish: true }
+      )
+      expect(component.is_published_gn()).toBe(true)
+      expect(component.isPublishing()).toBe(false)
+      expect(component.publishError()).toBeNull()
+    })
+
+    it('should call toggle publish API with publish=false and update signals on success', async () => {
+      store.integrityLink.set({
+        integrity_link_id: intlinkId,
+        integrity_title: 'Test Link',
+        gn_is_published: true
+      } as any)
+
+      const updatedLink = {
+        integrity_link_id: intlinkId,
+        integrity_title: 'Test Link',
+        gn_is_published: false
+      } as any
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (fn === listGroupsMetadataGroupsGet)
+          return Promise.resolve(mockGeonetworkGroups)
+        if (fn === listGroupsDataGroupsGet)
+          return Promise.resolve(mockGeoserverGroups)
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        if (
+          fn ===
+          togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut
+        )
+          return Promise.resolve(updatedLink)
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+
+      await component.onTogglePublishGn(false)
+
+      expect(component.is_published_gn()).toBe(false)
+      expect(component.publishError()).toBeNull()
+    })
+
+    it('should set publishError with default message on generic error', async () => {
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (fn === listGroupsMetadataGroupsGet)
+          return Promise.resolve(mockGeonetworkGroups)
+        if (fn === listGroupsDataGroupsGet)
+          return Promise.resolve(mockGeoserverGroups)
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        if (
+          fn ===
+          togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut
+        )
+          return Promise.reject(new Error('Network error'))
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+
+      await component.onTogglePublishGn(true)
+
+      expect(component.publishError()).toBe('Network error')
+      expect(component.isPublishing()).toBe(false)
+    })
+
+    it('should set publishError with translated i18n key from backend detail', async () => {
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (fn === listGroupsMetadataGroupsGet)
+          return Promise.resolve(mockGeonetworkGroups)
+        if (fn === listGroupsDataGroupsGet)
+          return Promise.resolve(mockGeoserverGroups)
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        if (
+          fn ===
+          togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut
+        )
+          return Promise.reject({
+            error: { detail: 'i18nerror.publish.geonetwork' }
+          })
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+
+      await component.onTogglePublishGn(true)
+
+      expect(component.publishError()).toBe(
+        'Error publishing metadata to GeoNetwork'
+      )
+      expect(component.isPublishing()).toBe(false)
+    })
+
+    it('should clear publishError at start of a new toggle call', async () => {
+      const updatedLink = {
+        integrity_link_id: intlinkId,
+        integrity_title: 'Test Link',
+        gn_is_published: true
+      } as any
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (fn === listGroupsMetadataGroupsGet)
+          return Promise.resolve(mockGeonetworkGroups)
+        if (fn === listGroupsDataGroupsGet)
+          return Promise.resolve(mockGeoserverGroups)
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        if (
+          fn ===
+          togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut
+        )
+          return Promise.resolve(updatedLink)
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+      component.publishError.set('Previous error')
+
+      await component.onTogglePublishGn(true)
+
+      expect(component.publishError()).toBeNull()
+    })
+
+    it('should optimistically update is_published_gn before API resolves', async () => {
+      let resolveToggle!: (v: any) => void
+      const togglePromise = new Promise((resolve) => {
+        resolveToggle = resolve
+      })
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (fn === listGroupsMetadataGroupsGet)
+          return Promise.resolve(mockGeonetworkGroups)
+        if (fn === listGroupsDataGroupsGet)
+          return Promise.resolve(mockGeoserverGroups)
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        if (
+          fn ===
+          togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut
+        )
+          return togglePromise
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+      expect(component.is_published_gn()).toBe(false)
+
+      const toggleCall = component.onTogglePublishGn(true)
+
+      // Optimistic update should be applied immediately
+      expect(component.is_published_gn()).toBe(true)
+      expect(component.isPublishing()).toBe(true)
+
+      resolveToggle({ integrity_link_id: intlinkId, gn_is_published: true })
+      await toggleCall
+
+      expect(component.isPublishing()).toBe(false)
+    })
   })
 })
