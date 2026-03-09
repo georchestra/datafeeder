@@ -1,6 +1,6 @@
 """Tests for integrity_link API routes (single link endpoints)."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -255,3 +255,152 @@ class TestDeleteIntegrityLinkRule:
 
         assert exc_info.value.status_code == 404
         assert exc_info.value.detail == "Rule not found"
+
+
+class TestTogglePublishGnIntegrityLink:
+    """Test the toggle_publish_gn_integrity_link endpoint."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def integrity_link_id(self) -> str:
+        return str(uuid4())
+
+    def test_publish_success(self, mock_session: MagicMock, integrity_link_id: str) -> None:
+        from src.api.routes.ingestion.integrity_link import toggle_publish_gn_integrity_link
+
+        integrity_link = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            metadata_id="some-metadata-uuid",
+            gn_is_published=False,
+        )
+        mock_session.get.return_value = integrity_link
+
+        with patch("src.api.routes.ingestion.integrity_link.get_settings"), patch(
+            "src.api.routes.ingestion.integrity_link.MetadataService"
+        ) as mock_ms_cls:
+            mock_ms = MagicMock()
+            mock_ms_cls.return_value = mock_ms
+
+            toggle_publish_gn_integrity_link(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                publish=True,
+            )
+
+        mock_ms.toggle_publish_metadata_record.assert_called_once_with("some-metadata-uuid", True)
+        assert integrity_link.gn_is_published is True
+        mock_session.add.assert_called_once()
+        mock_session.commit.assert_called_once()
+        mock_session.refresh.assert_called_once()
+
+    def test_unpublish_success(self, mock_session: MagicMock, integrity_link_id: str) -> None:
+        from src.api.routes.ingestion.integrity_link import toggle_publish_gn_integrity_link
+
+        integrity_link = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            metadata_id="some-metadata-uuid",
+            gn_is_published=True,
+        )
+        mock_session.get.return_value = integrity_link
+
+        with patch("src.api.routes.ingestion.integrity_link.get_settings"), patch(
+            "src.api.routes.ingestion.integrity_link.MetadataService"
+        ) as mock_ms_cls:
+            mock_ms = MagicMock()
+            mock_ms_cls.return_value = mock_ms
+
+            toggle_publish_gn_integrity_link(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                publish=False,
+            )
+
+        mock_ms.toggle_publish_metadata_record.assert_called_once_with("some-metadata-uuid", False)
+        assert integrity_link.gn_is_published is False
+        mock_session.add.assert_called_once()
+        mock_session.commit.assert_called_once()
+        mock_session.refresh.assert_called_once()
+
+    def test_integrity_link_not_found(self, mock_session: MagicMock) -> None:
+        from src.api.routes.ingestion.integrity_link import toggle_publish_gn_integrity_link
+
+        mock_session.get.return_value = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            toggle_publish_gn_integrity_link(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=str(uuid4()),
+                publish=True,
+            )
+
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.detail == "IntegrityLink not found"
+
+    def test_no_metadata_id(self, mock_session: MagicMock, integrity_link_id: str) -> None:
+        from src.api.routes.ingestion.integrity_link import toggle_publish_gn_integrity_link
+
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            metadata_id=None,
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            toggle_publish_gn_integrity_link(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                publish=True,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail == "IntegrityLink has no associated metadata to publish/unpublish"
+
+    def test_metadata_service_failure(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        from src.api.routes.ingestion.integrity_link import toggle_publish_gn_integrity_link
+
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            metadata_id="some-metadata-uuid",
+        )
+
+        with patch("src.api.routes.ingestion.integrity_link.get_settings"), patch(
+            "src.api.routes.ingestion.integrity_link.MetadataService"
+        ) as mock_ms_cls:
+            mock_ms = MagicMock()
+            mock_ms_cls.return_value = mock_ms
+            mock_ms.toggle_publish_metadata_record.side_effect = Exception("GeoNetwork error")
+
+            with pytest.raises(HTTPException) as exc_info:
+                toggle_publish_gn_integrity_link(
+                    session=mock_session,
+                    georchestra_context=_geo_ctx(),
+                    integrity_link_id=integrity_link_id,
+                    publish=True,
+                )
+
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.detail == "i18nerror.publish.geonetwork"
