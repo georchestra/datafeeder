@@ -83,7 +83,7 @@ export class IntegrityLinkListComponent {
   onRowClick(link: IntegrityLinkListItem): void {
     if (link.access_level === 'READ') return
     if (!link.has_final_table) {
-      this.router.navigate(['/', 'import'], { queryParams: { id: link.id } })
+      this.router.navigate(['/', 'import', link.id], { queryParams: { step: 2 } })
     } else {
       this.router.navigate(['/', link.id, 'edit'])
     }
