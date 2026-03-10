@@ -96,6 +96,28 @@ def process_transformation_group(
                     logger.error("No data to write after transformation.")
                     raise AirflowException("No data to write after transformation.")
 
+                # If this is a re-run (has last_retrieval_timestamp), drop the old final table first
+                last_retrieval_timestamp = params.get("last_retrieval_timestamp")
+                if last_retrieval_timestamp:
+                    try:
+                        logger.info(
+                            f"Re-run detected (last_retrieval_timestamp={last_retrieval_timestamp}). "
+                            f"Dropping existing final table: {final_schema}.{final_table_name}"
+                        )
+                        with engine.connect() as conn:
+                            metadata = MetaData(schema=final_schema)
+                            table = Table(final_table_name, metadata)
+                            table.drop(conn, checkfirst=True)
+                            conn.commit()
+                        logger.info(
+                            f"Successfully dropped final table: {final_schema}.{final_table_name}"
+                        )
+                    except Exception as drop_error:
+                        logger.warning(
+                            f"Failed to drop final table {final_schema}.{final_table_name}: {drop_error}",
+                            exc_info=True,
+                        )
+
                 logger.info(f"Writing data to {final_schema}.{final_table_name}")
                 write_data_to_postgis(
                     data=transformed_data,

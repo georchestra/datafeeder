@@ -53,6 +53,7 @@ class IntegrityLink(SQLModel, table=True):
     last_retrieval_timestamp: Optional[datetime] = None
     schedule: Optional[str] = Field(default=None, max_length=10)
     schedule_enabled: bool = Field(default=False)
+    gn_is_published: bool = Field(default=False)
     created_at: Optional[datetime] = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         sa_column_kwargs={"server_default": "current_timestamp"},

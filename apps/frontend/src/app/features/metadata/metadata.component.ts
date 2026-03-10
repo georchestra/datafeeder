@@ -41,7 +41,7 @@ import {
   getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet
 } from '../../core/api/functions'
 import { DagRunState } from '../../core/api/models'
-import { IntegrityLinkStore } from '../../layout/integrity-link.store'
+import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 
 @Component({
   selector: 'app-metadata',

@@ -67,8 +67,8 @@
     <div>
       <button
         type="button"
-        disabled
-        class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-base text-gray-400 cursor-not-allowed hover:bg-secondary-hover"
+        [routerLink]="['/import', store.intlinkId()]"
+        class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-base text-gray-900 hover:bg-secondary-hover hover:text-gray-950"
       >
         <ng-icon name="iconoirRefreshCircle" size="1.25em"></ng-icon>
         {{ 'sidebar.reconfigureDataset' | translate }}
@@ -78,15 +78,15 @@
   </nav>
 
   <div class="flex-grow overflow-y-auto px-11 py-5 flex flex-col">
-    @if (loadError()) {
+    @if (store.loadError()) {
     <app-ui-alert-box
       type="error"
       [dismissible]="false"
-      [title]="'intlinkLayout.error.' + loadError() + '.title' | translate"
-      [message]="'intlinkLayout.error.' + loadError() + '.message' | translate"
+      [title]="'intlinkLayout.error.' + store.loadError() + '.title' | translate"
+      [message]="'intlinkLayout.error.' + store.loadError() + '.message' | translate"
     />
     } @else {
-    <router-outlet></router-outlet>
+      <router-outlet></router-outlet>
     }
   </div>
 </div>

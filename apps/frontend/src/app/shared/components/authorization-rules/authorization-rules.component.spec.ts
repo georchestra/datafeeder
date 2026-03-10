@@ -44,6 +44,7 @@ describe('AuthorizationRulesComponent', () => {
         TranslateTestingModule.withTranslations({
           en: {
             'authorizations.ruleValue.none': 'None',
+            'authorizations.ruleValue.public': 'Public',
             'authorizations.ruleValue.read': 'Read',
             'authorizations.ruleValue.write': 'Write'
           }
@@ -117,12 +118,50 @@ describe('AuthorizationRulesComponent', () => {
   describe('ruleChoices', () => {
     it('should contain exactly 3 choices: NONE, READ, WRITE', () => {
       const { component } = createComponent()
-      expect(component.ruleChoices.length).toBe(3)
-      expect(component.ruleChoices.map((c) => c.value)).toEqual([
+      expect(component.ruleChoices().length).toBe(3)
+      expect(component.ruleChoices().map((c) => c.value)).toEqual([
         'NONE',
         'READ',
         'WRITE'
       ])
+    })
+
+    it('should label NONE choice as "None" when isPublic is false', () => {
+      const { component } = createComponent()
+      const noneChoice = component.ruleChoices().find((c) => c.value === 'NONE')
+      expect(noneChoice?.label).toBe('None')
+    })
+
+    it('should label NONE choice as "Public" when isPublic is true', () => {
+      const fixture = TestBed.createComponent(AuthorizationRulesComponent)
+      fixture.componentRef.setInput('groups', mockGroups)
+      fixture.componentRef.setInput('rules', mockRules)
+      fixture.componentRef.setInput('isPublic', true)
+      fixture.detectChanges()
+      const component = fixture.componentInstance
+
+      const noneChoice = component.ruleChoices().find((c) => c.value === 'NONE')
+      expect(noneChoice?.label).toBe('Public')
+    })
+
+    it('should update NONE label reactively when isPublic changes', () => {
+      const fixture = TestBed.createComponent(AuthorizationRulesComponent)
+      fixture.componentRef.setInput('groups', mockGroups)
+      fixture.componentRef.setInput('rules', mockRules)
+      fixture.componentRef.setInput('isPublic', false)
+      fixture.detectChanges()
+      const component = fixture.componentInstance
+
+      expect(
+        component.ruleChoices().find((c) => c.value === 'NONE')?.label
+      ).toBe('None')
+
+      fixture.componentRef.setInput('isPublic', true)
+      fixture.detectChanges()
+
+      expect(
+        component.ruleChoices().find((c) => c.value === 'NONE')?.label
+      ).toBe('Public')
     })
   })
 })

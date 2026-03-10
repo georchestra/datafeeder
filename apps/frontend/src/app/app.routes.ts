@@ -1,5 +1,6 @@
 import { Route } from '@angular/router'
 import { MainLayoutComponent } from './layout/main-layout.component'
+import { IntegrityLinkResolver } from './core/resolvers/integrity-link.resolver'
 
 export const appRoutes: Route[] = [
   {
@@ -18,7 +19,20 @@ export const appRoutes: Route[] = [
         loadComponent: () =>
           import('./features/import/import.component').then(
             (m) => m.ImportComponent
-          )
+          ),
+        resolve: {
+          integrityLink: IntegrityLinkResolver
+        }
+      },
+      {
+        path: 'import/:intlink_id',
+        loadComponent: () =>
+          import('./features/import/import.component').then(
+            (m) => m.ImportComponent
+          ),
+        resolve: {
+          integrityLink: IntegrityLinkResolver
+        }
       },
       {
         path: ':intlink_id',
@@ -26,6 +40,9 @@ export const appRoutes: Route[] = [
           import('./layout/intlink-layout.component').then(
             (m) => m.IntlinkLayoutComponent
           ),
+        resolve: {
+          integrityLink: IntegrityLinkResolver
+        },
         children: [
           {
             path: 'edit',

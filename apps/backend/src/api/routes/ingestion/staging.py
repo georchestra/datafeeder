@@ -61,6 +61,169 @@ def _generate_staging_table_name() -> str:
     return sanitize_name(str(uuid4()))
 
 
+def _remove_staging_table(staging_table_name: str) -> None:
+    """Remove a staging table from the data database.
+
+    Args:
+        staging_table_name: The name of the staging table to remove
+
+    Raises:
+        Logs errors but does not raise exceptions
+    """
+    try:
+        validate_table_name(staging_table_name, context="staging")
+
+        schema = get_staging_schema()
+        metadata = MetaData(schema=schema)
+        table = Table(staging_table_name, metadata)
+        table.drop(data_engine, checkfirst=True)
+
+        logger.info(f"Successfully removed staging table: {staging_table_name}")
+    except Exception as e:
+        logger.error(f"Error removing staging table {staging_table_name}: {e}")
+
+
+class _ImportSourceResult:
+    def __init__(
+        self,
+        source: str,
+        url: str,
+        source_file_name: str | None,
+        source_file_type: "FileType | None",
+        auth_enabled: bool,
+    ) -> None:
+        self.source = source
+        self.url = url
+        self.source_file_name = source_file_name
+        self.source_file_type = source_file_type
+        self.auth_enabled = auth_enabled
+
+
+async def _process_import_source(
+    type: "ImportType",
+    url: Optional[str] = None,
+    file: Optional[UploadFile] = None,
+    auth_enabled: bool = False,
+    username: Optional[str] = None,
+    password: Optional[str] = None,
+    ftp_host: Optional[str] = None,
+    ftp_port: Optional[int] = None,
+    ftp_path: Optional[str] = None,
+) -> _ImportSourceResult:
+    """Process the import source and extract file metadata.
+
+    Returns:
+        _ImportSourceResult containing source, url, source_file_name, source_file_type, auth_enabled
+    """
+    source = None
+    source_file_name = None
+    source_file_type = None
+
+    match type:
+        case ImportType.FILE:
+            if file is None:
+                raise HTTPException(status_code=400, detail="File is required")
+
+            source_file_name, source_file_type, file_url = await upload_file_to_temp(
+                file, rand_id=str(uuid4())
+            )
+            source = file_url
+            url = file_url
+
+        case ImportType.URL:
+            if not url:
+                logger.error("URL is required for URL import type")
+                raise HTTPException(status_code=400, detail="URL is required for URL import type")
+
+            source = url
+            source_file_name, source_file_type = _extract_url_metadata(
+                url, auth_enabled, username, password
+            )
+
+        case ImportType.FTP:
+            ftp_host = ftp_host.strip() if ftp_host else None
+            ftp_path = ftp_path.strip() if ftp_path else None
+
+            if not ftp_host or not ftp_port or not ftp_path or not username or not password:
+                logger.error(
+                    "FTP host, port, path, username and password are required for FTP import type"
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail="FTP host, port, path, username and password are required for FTP import type",
+                )
+
+            source = f"ftp://{ftp_host}:{ftp_port}/{ftp_path}"
+            url = source
+            source_file_name = ftp_path.rsplit("/", 1)[-1]
+            source_file_type = _extract_filetype(source_file_name)
+            auth_enabled = True
+
+        case ImportType.DATABASE | ImportType.API:
+            logger.error(f"Import type {type.value} not implemented yet")
+            raise HTTPException(
+                status_code=501, detail=f"Import type {type.value} not implemented yet"
+            )
+
+    return _ImportSourceResult(
+        source=str(source),
+        url=str(url),
+        source_file_name=source_file_name,
+        source_file_type=source_file_type,
+        auth_enabled=auth_enabled,
+    )
+
+
+def _trigger_staging_dag(
+    integrity_link: "IntegrityLink",
+    staging_table_name: str,
+    source: str,
+    import_type: "ImportType",
+    encrypted_password: Optional[str],
+    dag_run_id: str,
+) -> "StagingResponse":
+    """Trigger the Airflow staging DAG and return the response.
+
+    Returns:
+        StagingResponse with integrity link ID, DAG ID, DAG run ID, and current status
+    """
+    callback_params = {"integrity_link_id": str(integrity_link.id)}
+    success_callback_url = build_callback_url("/ingestion/staging/dag_success", callback_params)
+    failure_callback_url = build_callback_url("/ingestion/staging/dag_failure", callback_params)
+
+    logger.info(f"Success callback URL: {success_callback_url}")
+    logger.info(f"Failure callback URL: {failure_callback_url}")
+    logger.info(
+        f"Triggering staging_dag with source_type: {import_type.value.upper()} and source: {source}"
+    )
+
+    try:
+        dag_run_response = get_dag_run_api().trigger_dag_run(
+            dag_id="staging_dag",
+            trigger_dag_run_post_body=TriggerDAGRunPostBody(
+                dag_run_id=dag_run_id,
+                conf={
+                    "source": source,
+                    "source_type": import_type.value.upper(),
+                    "staging_table_name": staging_table_name,
+                    "encrypted_credentials": encrypted_password,
+                    "success_callback_url": success_callback_url,
+                    "failure_callback_url": failure_callback_url,
+                },
+            ),
+        )
+
+        return StagingResponse(
+            integrity_link_id=str(integrity_link.id),
+            dag_id=dag_run_response.dag_id,
+            dag_run_id=dag_run_response.dag_run_id,
+            status=dag_run_response.state,
+        )
+    except Exception as e:
+        logger.error(f"Error triggering Airflow DAG: {e}")
+        raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
+
+
 def _extract_filetype(filename: str) -> FileType | None:
     """Extract file type from filename extension.
 
@@ -183,94 +346,56 @@ async def submit_staging(
     Submit data for staging import.
 
     Args:
-        request: Import configuration including type and optional URL
+        type: Import type (file, URL, FTP, etc.)
+        url: Optional URL if import type is URL
+        file: Optional file upload if import type is file
+        auth_enabled: Whether authentication is enabled for the source
+        username: Optional username for authentication
+        password: Optional password for authentication
+        ftp_host: Optional FTP host if import type is FTP
+        ftp_port: Optional FTP port if import type is FTP
+        ftp_path: Optional FTP path if import type is FTP
         sec_username: Username from geOrchestra security headers
         sec_org: Organization from geOrchestra security headers
 
     Returns:
         StagingResponse with integrity link ID, DAG ID, DAG run ID, and current DAG run status
     """
-
-    source = None
-    source_file_name = None
-    source_file_type = None
-
     url = url.strip() if url else None
     username = username.strip() if username else None
     password = password.strip() if password else None
 
-    # Extract source, source_file_name, and source_file_type according to import type
-    match type:
-        case ImportType.FILE:
-            if file is None:
-                raise HTTPException(status_code=400, detail="File is required")
-
-            source_file_name, source_file_type, file_url = await upload_file_to_temp(
-                file, rand_id=str(uuid4())
-            )
-            source = file_url
-            url = file_url
-
-        case ImportType.URL:
-            if not url:
-                logger.error("URL is required for URL import type")
-                raise HTTPException(status_code=400, detail="URL is required for URL import type")
-
-            source = url
-            source_file_name, source_file_type = _extract_url_metadata(
-                url, auth_enabled, username, password
-            )
-
-        case ImportType.FTP:
-            ftp_host = ftp_host.strip() if ftp_host else None
-            ftp_path = ftp_path.strip() if ftp_path else None
-
-            if not ftp_host or not ftp_port or not ftp_path or not username or not password:
-                logger.error(
-                    "FTP host, port, path, username and password are required for FTP import type"
-                )
-                raise HTTPException(
-                    status_code=400,
-                    detail="FTP host, port, path, username and password are required for FTP import type",
-                )
-
-            # Construct FTP URL
-            source = f"ftp://{ftp_host}:{ftp_port}/{ftp_path}"
-            url = source
-            source_file_name = ftp_path.rsplit("/", 1)[-1]
-            source_file_type = _extract_filetype(source_file_name)
-
-            # Force encrypted credentials for FTP since they are required
-            auth_enabled = True
-
-        case ImportType.DATABASE | ImportType.API:
-            # TODO: implement handling for DATABASE and API import types
-            logger.error(f"Import type {type.value} not implemented yet")
-            raise HTTPException(
-                status_code=501, detail=f"Import type {type.value} not implemented yet"
-            )
+    import_source = await _process_import_source(
+        type=type,
+        url=url,
+        file=file,
+        auth_enabled=auth_enabled,
+        username=username,
+        password=password,
+        ftp_host=ftp_host,
+        ftp_port=ftp_port,
+        ftp_path=ftp_path,
+    )
 
     staging_table_name = _generate_staging_table_name()
 
-    # Encrypt Basic Auth credentials if provided
     encrypted_password = None
-    if auth_enabled and username and password:
+    if import_source.auth_enabled and username and password:
         try:
             encrypted_password = encrypt_basic_auth(session.connection(), username, password)
         except Exception as e:
             logger.error(f"Failed to encrypt credentials: {e}")
             raise HTTPException(status_code=500, detail="Failed to encrypt credentials")
 
-    # Create IntegrityLink immediately
     integrity_link = IntegrityLink(
         integrity_owner=sec_username,
         integrity_organization=sec_org,
         source_import_type=type,
-        source_url=url,
-        source_file_name=source_file_name,
-        source_file_type=source_file_type,
-        source_username=username if auth_enabled else None,
-        source_password_encrypted=encrypted_password if auth_enabled else None,
+        source_url=import_source.url,
+        source_file_name=import_source.source_file_name,
+        source_file_type=import_source.source_file_type,
+        source_username=username if import_source.auth_enabled else None,
+        source_password_encrypted=encrypted_password if import_source.auth_enabled else None,
         staging_table_name=staging_table_name,
     )
     session.add(integrity_link)
@@ -279,50 +404,125 @@ async def submit_staging(
 
     integrity_link_id_as_string = str(integrity_link.id)
 
-    # Build callback parameters
-    callback_params = {
-        "integrity_link_id": integrity_link_id_as_string,
-    }
-
-    # Build callback URLs
-    success_callback_url = build_callback_url("/ingestion/staging/dag_success", callback_params)
-    failure_callback_url = build_callback_url("/ingestion/staging/dag_failure", callback_params)
-
     logger.info(
         f"Created IntegrityLink {integrity_link.id} for DAG run {integrity_link_id_as_string} | "
         f"owner={sec_username} | org={sec_org} | table={staging_table_name}"
     )
-    logger.info(f"Success callback URL: {success_callback_url}")
-    logger.info(f"Failure callback URL: {failure_callback_url}")
-    logger.info(
-        f"Triggering staging_dag with source_type: {type.value.upper()} and source: {source}"
+
+    return _trigger_staging_dag(
+        integrity_link=integrity_link,
+        staging_table_name=staging_table_name,
+        source=import_source.source,
+        import_type=type,
+        encrypted_password=encrypted_password,
+        dag_run_id=integrity_link_id_as_string,
     )
 
-    try:
-        dag_run_response = get_dag_run_api().trigger_dag_run(
-            dag_id="staging_dag",
-            trigger_dag_run_post_body=TriggerDAGRunPostBody(
-                dag_run_id=integrity_link_id_as_string,  # For easier tracking
-                conf={
-                    "source": str(source),
-                    "source_type": type.value.upper(),
-                    "staging_table_name": staging_table_name,
-                    "encrypted_credentials": encrypted_password if auth_enabled else None,
-                    "success_callback_url": success_callback_url,
-                    "failure_callback_url": failure_callback_url,
-                },
-            ),
-        )
 
-        return StagingResponse(
-            integrity_link_id=integrity_link_id_as_string,
-            dag_id=dag_run_response.dag_id,
-            dag_run_id=dag_run_response.dag_run_id,
-            status=dag_run_response.state,
-        )
-    except Exception as e:
-        logger.error(f"Error triggering Airflow DAG: {e}")
-        raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
+@router.put(
+    "/{integrity_link_id}",
+    response_model=StagingResponse,
+    summary="Submit data for existing staging import",
+    description="Submit data for existing staging import by triggering the Airflow staging DAG.",
+)
+async def edit_staging(
+    session: DatakernSessionDep,
+    integrity_link_id: str,
+    type: ImportType = Form(...),
+    url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    auth_enabled: bool = Form(False),
+    username: Optional[str] = Form(None),
+    password: Optional[str] = Form(None),
+    ftp_host: Optional[str] = Form(None),
+    ftp_port: Optional[int] = Form(None),
+    ftp_path: Optional[str] = Form(None),
+    sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
+    sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
+) -> StagingResponse:
+    """
+    Submit data for existing staging import.
+
+    Args:
+        integrity_link_id: IntegrityLink UUID to update
+        type: Import type (file, URL, FTP, etc.)
+        url: Optional URL if import type is URL
+        file: Optional file upload if import type is file
+        auth_enabled: Whether authentication is enabled for the source
+        username: Optional username for authentication
+        password: Optional password for authentication
+        ftp_host: Optional FTP host if import type is FTP
+        ftp_port: Optional FTP port if import type is FTP
+        ftp_path: Optional FTP path if import type is FTP
+        sec_username: Username from geOrchestra security headers
+        sec_org: Organization from geOrchestra security headers
+
+    Returns:
+        StagingResponse with integrity link ID, DAG ID, DAG run ID, and current DAG run status
+    """
+    url = url.strip() if url else None
+    username = username.strip() if username else None
+    password = password.strip() if password else None
+
+    import_source = await _process_import_source(
+        type=type,
+        url=url,
+        file=file,
+        auth_enabled=auth_enabled,
+        username=username,
+        password=password,
+        ftp_host=ftp_host,
+        ftp_port=ftp_port,
+        ftp_path=ftp_path,
+    )
+
+    staging_table_name = _generate_staging_table_name()
+
+    encrypted_password = None
+    if import_source.auth_enabled and username and password:
+        try:
+            encrypted_password = encrypt_basic_auth(session.connection(), username, password)
+        except Exception as e:
+            logger.error(f"Failed to encrypt credentials: {e}")
+            raise HTTPException(status_code=500, detail="Failed to encrypt credentials")
+
+    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
+    if not integrity_link:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    old_staging_table_name = integrity_link.staging_table_name
+
+    integrity_link.source_import_type = type
+    integrity_link.source_url = import_source.url
+    integrity_link.source_file_name = import_source.source_file_name
+    integrity_link.source_file_type = import_source.source_file_type
+    integrity_link.source_username = username if import_source.auth_enabled else None
+    integrity_link.source_password_encrypted = (
+        encrypted_password if import_source.auth_enabled else None
+    )
+    integrity_link.staging_table_name = staging_table_name
+    integrity_link.integrity_transformation = None  # Clear any existing transformations on edit !! warning this may break process if recurrent edits are needed, need to find better way to handle this
+
+    session.commit()
+    session.refresh(integrity_link)
+
+    _remove_staging_table(old_staging_table_name)
+
+    dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}"
+
+    logger.info(
+        f"Updated IntegrityLink {integrity_link.id} | "
+        f"owner={integrity_link.integrity_owner} | org={integrity_link.integrity_organization} | table={staging_table_name}"
+    )
+
+    return _trigger_staging_dag(
+        integrity_link=integrity_link,
+        staging_table_name=staging_table_name,
+        source=import_source.source,
+        import_type=type,
+        encrypted_password=encrypted_password,
+        dag_run_id=dag_run_id,
+    )
 
 
 @router.post("/dag_success")
@@ -474,16 +674,25 @@ def get_staging_metadata(
         integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session, org_id
     )
 
+    staging_table_name = integrity_link.staging_table_name
+    source_import_type = integrity_link.source_import_type
+    source_file_type = integrity_link.source_file_type
+    title = integrity_link.integrity_title or integrity_link.source_file_name or ""
+    force_projection_data = (
+        integrity_link.integrity_transformation.get("force_projection")
+        if integrity_link.integrity_transformation
+        else None
+    )
+
     schema = get_staging_schema()
     table = Table(
-        integrity_link.staging_table_name,
+        staging_table_name,
         MetaData(schema=schema),
         autoload_with=data_session.get_bind(),
     )
-
     row_count = data_session.scalar(select(func.count()).select_from(table)) or 0
     original_projection = _detect_original_projection(
-        integrity_link.staging_table_name,
+        staging_table_name,
         data_session.get_bind(),  # type: ignore
         schema,
     )
@@ -492,15 +701,16 @@ def get_staging_metadata(
     )
 
     return StagingMetadataResponse(
-        title=integrity_link.source_file_name or "",
-        import_type=integrity_link.source_import_type,
-        file_type=integrity_link.source_file_type,
+        title=title,
+        import_type=source_import_type,
+        file_type=source_file_type,
         columns=columns,
         row_count=row_count,
         force_projection=ForceProjection.model_validate(force_projection_data)
         if force_projection_data
         else None,
         original_projection=original_projection,
+        has_final_table=integrity_link.final_table_name is not None,
     )
 
 

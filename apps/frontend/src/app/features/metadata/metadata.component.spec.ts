@@ -14,7 +14,7 @@ import {
 import { BehaviorSubject, firstValueFrom, of } from 'rxjs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Api } from '../../core/api/api'
-import { IntegrityLinkStore } from '../../layout/integrity-link.store'
+import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import { MetadataComponent } from './metadata.component'
 
 @Component({ selector: 'gn-ui-button', standalone: true, template: '' })

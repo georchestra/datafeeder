@@ -470,4 +470,101 @@ describe('ColumnHeaderComponent', () => {
     expect(emitted[0]).toBeTruthy() // error
     expect(emitted[1]).toBeNull() // cleared
   })
+
+  it('should close the menu on pointerdown outside the overlay (e.g. scroll initiation)', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.detectChanges()
+
+    // Build a mock where hasAttached() tracks actual attach/detach calls
+    let attached = false
+    const localOverlayRef = {
+      hasAttached: vi.fn(() => attached),
+      attach: vi.fn(() => {
+        attached = true
+      }),
+      detach: vi.fn(() => {
+        attached = false
+      }),
+      dispose: vi.fn(),
+      overlayElement: document.createElement('div')
+    } as unknown as OverlayRef
+
+    const positionStrategy = {
+      withPositions: vi.fn().mockReturnThis(),
+      withPush: vi.fn().mockReturnThis()
+    }
+    const localOverlay = {
+      position: vi.fn(() => ({
+        flexibleConnectedTo: vi.fn(() => positionStrategy)
+      })),
+      create: vi.fn(() => localOverlayRef),
+      scrollStrategies: { close: vi.fn(() => ({})) }
+    } as unknown as Overlay
+
+    ;(fixture.componentInstance as any).overlay = localOverlay
+
+    // Open the menu
+    const actionBtn = fixture.nativeElement.querySelector(
+      '[data-action-button]'
+    ) as HTMLElement
+    actionBtn.click()
+    fixture.detectChanges()
+    expect(fixture.componentInstance.isMenuOpen()).toBe(true)
+
+    // Simulate a pointerdown outside the trigger and overlay (e.g. on a scrollable container)
+    document.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
+    fixture.detectChanges()
+
+    expect(fixture.componentInstance.isMenuOpen()).toBe(false)
+    expect(localOverlayRef.detach).toHaveBeenCalled()
+  })
+
+  it('should NOT close the menu on pointerdown inside the trigger button', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.detectChanges()
+
+    let attached = false
+    const localOverlayRef = {
+      hasAttached: vi.fn(() => attached),
+      attach: vi.fn(() => {
+        attached = true
+      }),
+      detach: vi.fn(() => {
+        attached = false
+      }),
+      dispose: vi.fn(),
+      overlayElement: document.createElement('div')
+    } as unknown as OverlayRef
+
+    const positionStrategy = {
+      withPositions: vi.fn().mockReturnThis(),
+      withPush: vi.fn().mockReturnThis()
+    }
+    const localOverlay = {
+      position: vi.fn(() => ({
+        flexibleConnectedTo: vi.fn(() => positionStrategy)
+      })),
+      create: vi.fn(() => localOverlayRef),
+      scrollStrategies: { close: vi.fn(() => ({})) }
+    } as unknown as Overlay
+
+    ;(fixture.componentInstance as any).overlay = localOverlay
+
+    // Open the menu
+    const actionBtn = fixture.nativeElement.querySelector(
+      '[data-action-button]'
+    ) as HTMLElement
+    actionBtn.click()
+    fixture.detectChanges()
+    expect(fixture.componentInstance.isMenuOpen()).toBe(true)
+
+    // Simulate pointerdown on the trigger button itself — should NOT close
+    actionBtn.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
+    fixture.detectChanges()
+
+    expect(fixture.componentInstance.isMenuOpen()).toBe(true)
+    expect(localOverlayRef.detach).not.toHaveBeenCalled()
+  })
 })

@@ -103,6 +103,7 @@ class StagingMetadataResponse(StagingMetadata):
 
     import_type: ImportType
     row_count: int
+    has_final_table: bool
 
 
 class StagingPreviewResponse(BaseModel):
@@ -184,4 +185,5 @@ class IntegrityLinkResponse(BaseModel):
     schedule: str | None
     schedule_enabled: bool
     created_at: datetime | None
+    gn_is_published: bool | None
     access_level: str | None = None
