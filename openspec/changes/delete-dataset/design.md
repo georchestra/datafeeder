@@ -1,6 +1,6 @@
 ## Context
 
-The JDD dashboard currently allows users to view and search their datasets (IntegrityLinks). Users cannot yet delete datasets — once ingested, a JDD persists indefinitely. This change adds deletion as a lifecycle operation, removing all associated resources: the Airflow recurrent DAG (if applicable), the GeoServer layer, the data table, the GeoNetwork metadata record, and the IntegrityLink row itself.
+The dataset dashboard currently allows users to view and search their datasets (IntegrityLinks). Users cannot yet delete datasets — once ingested, a dataset persists indefinitely. This change adds deletion as a lifecycle operation, removing all associated resources: the Airflow recurrent DAG (if applicable), the GeoServer layer, the data table, the GeoNetwork metadata record, and the IntegrityLink row itself.
 
 The backend already provides:
 
@@ -9,7 +9,7 @@ The backend already provides:
 - `AirflowApiClient` (via `airflow_client` library's `DAGApi`) for DAG operations
 - `MetadataService` wrapping GeoNetwork
 
-The frontend dashboard (`integrity-link-list` feature) already lists JDDs via the `listIntegrityLinks` API call, using Angular signals without NgRx.
+The frontend dashboard (`integrity-link-list` feature) already lists datasets via the `listIntegrityLinks` API call, using Angular signals without NgRx.
 
 ## Goals / Non-Goals
 
@@ -17,7 +17,7 @@ The frontend dashboard (`integrity-link-list` feature) already lists JDDs via th
 
 - `DELETE /api/ingestion/integrity-link/{id}` endpoint enforcing ownership (owner or admin)
 - Sequential resource cleanup: DAG (blocking) → GeoServer layer → data table → GeoNetwork record → IntegrityLink (via cascade)
-- Hover-triggered trash icon in the JDD list row; row removed from list on success
+- Hover-triggered trash icon in the dataset list row; row removed from list on success
 - Error is surfaced to caller if DAG deletion fails; subsequent steps are skipped in that case
 
 **Non-Goals:**
@@ -34,7 +34,7 @@ The frontend dashboard (`integrity-link-list` feature) already lists JDDs via th
 
 **Decision**: Add the DELETE method to the existing `integrity_link.py` router, keeping the path consistent with the existing GET on the same resource.
 
-**Alternative considered**: A separate `/ingestion/jdd/{id}` path. Rejected — the resource is already named `integrity-link` throughout the API; a new alias would add confusion.
+**Alternative considered**: A separate `/ingestion/dataset/{id}` path. Rejected — the resource is already named `integrity-link` throughout the API; a new alias would add confusion.
 
 ### 2. Permission model: `AccessLevel.OWNER_ONLY`
 
@@ -63,7 +63,7 @@ The frontend dashboard (`integrity-link-list` feature) already lists JDDs via th
 
 **Rationale**: The list already manages its own state via signals without NgRx. Introducing an NgRx action for a single delete operation would significantly over-engineer the interaction with no observable benefit.
 
-**Alternative**: NgRx `deleteJdd` action + effect. Rejected — the feature doesn't use NgRx; introducing it here would be inconsistent.
+**Alternative**: NgRx `deleteDataset` action + effect. Rejected — the feature doesn't use NgRx; introducing it here would be inconsistent.
 
 ### 4b. UI Design: Figma mockup with hover states
 
@@ -103,7 +103,7 @@ The frontend dashboard (`integrity-link-list` feature) already lists JDDs via th
 
 ~~Should the staging table also be dropped, or only the final table? → per Jira story: "suppression table données" refers to the published final table; staging is separate~~
 
-**RESOLVED**: ✅ New Jira requirement: "suppression table données (staging et finale, selon l'état du JDD)" - Delete BOTH tables according to JDD state. In practice:
+**RESOLVED**: ✅ New Jira requirement: "suppression table données (staging et finale, selon l'état du dataset)" - Delete BOTH tables according to dataset state. In practice:
 
 - Final table: Always attempt to drop if `final_table_name` is set (published data)
 - Staging table: Always attempt to drop with `IF EXISTS` (usually already cleaned post-ingestion, but may linger if ingestion failed)

@@ -7,7 +7,7 @@
 - [ ] 2.1 Add `delete_dag()` method to `apps/backend/src/services/airflow_client.py` using the existing `DAGApi`; treat 404 as success, raise on other errors
 - [ ] 2.2 Add `delete_layer()` method to `apps/backend/src/services/geoserver.py`; treat 404 as success, log other errors
 - [ ] 2.3 Add `delete_record()` method to `apps/backend/src/services/metadata_service.py` (GeoNetwork); treat 404 as success, log other errors
-- [ ] 2.4 Create `apps/backend/src/services/jdd_deletion_service.py` with `delete_jdd(integrity_link, session)`:
+- [ ] 2.4 Create `apps/backend/src/services/dataset_deletion_service.py` with `delete_dataset(integrity_link, session)`:
   - If `schedule` is set: call `delete_dag()` — raise HTTP 500 on failure (blocking step)
   - Call `delete_layer()` — best-effort
   - Drop final table with `DROP TABLE IF EXISTS {org_schema}.{final_table_name}` — best-effort
@@ -19,13 +19,13 @@
 
 - [ ] 3.1 Add `DELETE /{integrity_link_id}` handler to `apps/backend/src/api/routes/ingestion/integrity_link.py`:
   - Use `load_authorized_integrity_link(id, AccessLevel.OWNER_ONLY, ...)` for permission check
-  - Delegate to `JddDeletionService.delete_jdd()`
+  - Delegate to `DatasetDeletionService.delete_dataset()`
   - Return HTTP 204 on success
 - [ ] 3.2 Run `make fix-all-python` and verify Pyright has no errors on changed files
 
 ## 4. Backend — Tests
 
-- [ ] 4.1 Add unit tests in `apps/backend/tests/services/` for `JddDeletionService`:
+- [ ] 4.1 Add unit tests in `apps/backend/tests/services/` for `DatasetDeletionService`:
   - Happy path: with and without schedule
   - DAG delete failure → HTTP 500, other steps skipped
   - DAG 404 → treated as success
@@ -56,7 +56,7 @@
   - Add `deleting = signal<string | null>(null)` to prevent double-click
   - Implement `deleteIntegrityLink(id)`: call API, on success filter item from `integrityLinks` signal
   - Register `iconoirTrash` in `provideIcons()`
-- [ ] 6.3 Add i18n keys for delete action in `apps/frontend/translations/` (`dashboard.delete_jdd`, `dashboard.delete_jdd_confirm`)
+- [ ] 6.3 Add i18n keys for delete action in `apps/frontend/translations/` (`dashboard.delete_dataset`, `dashboard.delete_dataset_confirm`)
 
 ## 7. Frontend — Tests
 
@@ -68,7 +68,7 @@
 
 ## 8. Validation
 
-- [ ] 8.1 Manual smoke test: delete a JDD as owner → verify row disappears and resources are removed
+- [ ] 8.1 Manual smoke test: delete a dataset as owner → verify row disappears and resources are removed
 - [ ] 8.2 Manual test: attempt delete as non-owner → verify 403 and row stays in list
-- [ ] 8.3 Manual test: delete a JDD with a recurrent schedule → verify DAG is removed from Airflow
-- [ ] 8.4 Verify network trace for DAG deletion failure → backend returns 500, JDD remains in list (validates GSMEL-866 acceptance per Jira notes)
+- [ ] 8.3 Manual test: delete a dataset with a recurrent schedule → verify DAG is removed from Airflow
+- [ ] 8.4 Verify network trace for DAG deletion failure → backend returns 500, dataset remains in list (validates GSMEL-866 acceptance per Jira notes)
