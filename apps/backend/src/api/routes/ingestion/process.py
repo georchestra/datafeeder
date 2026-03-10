@@ -61,7 +61,7 @@ async def process_staging_data(
     """
 
     # Load IntegrityLink and verify OWNER_ONLY permission (owner or admin)
-    integrity_link = load_authorized_integrity_link(
+    integrity_link, _ = load_authorized_integrity_link(
         request.integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, org_id
     )
 

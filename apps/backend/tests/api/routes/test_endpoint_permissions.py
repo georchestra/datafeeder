@@ -111,9 +111,7 @@ def _admin_ctx() -> GeorchestraContext:
     )
 
 
-def _mock_session(
-    link: IntegrityLink | None = None, access_result: str | None = None
-) -> MagicMock:
+def _mock_session(link: IntegrityLink | None = None, access_result: str | None = None) -> MagicMock:
     """Session that returns *link* on `session.get(...)` and *access_result* from exec().first()."""
     session = MagicMock()
     session.get.return_value = link
@@ -126,7 +124,9 @@ def _mock_session(
 
 def _mock_session_with_rule(link: IntegrityLink, rule_value: RuleValue) -> MagicMock:
     """Session that returns *link* and the corresponding access level from exec().first()."""
-    access = EffectiveAccess.WRITE.value if rule_value == RuleValue.WRITE else EffectiveAccess.READ.value
+    access = (
+        EffectiveAccess.WRITE.value if rule_value == RuleValue.WRITE else EffectiveAccess.READ.value
+    )
     session = MagicMock()
     session.get.return_value = link
     mock_exec = MagicMock()

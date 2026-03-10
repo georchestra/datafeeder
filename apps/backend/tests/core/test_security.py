@@ -196,7 +196,7 @@ class TestLoadAuthorizedIntegrityLinkAdminBypass:
 
         result = load_authorized_integrity_link(DATASET_ID, level, ctx, session, None)
 
-        assert result is link
+        assert result[0] is link
 
 
 class TestLoadAuthorizedIntegrityLinkOwnerBypass:
@@ -210,7 +210,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerBypass:
 
         result = load_authorized_integrity_link(DATASET_ID, level, ctx, session, None)
 
-        assert result is link
+        assert result[0] is link
 
 
 class TestLoadAuthorizedIntegrityLinkMetadataRead:
@@ -225,7 +225,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataRead:
             DATASET_ID, AccessLevel.METADATA_READ, ctx, session, ORG_UUID
         )
 
-        assert result is link
+        assert result[0] is link
 
     def test_write_rule_allows_metadata_read(self) -> None:
         link = _integrity_link(owner="other")
@@ -236,7 +236,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataRead:
             DATASET_ID, AccessLevel.METADATA_READ, ctx, session, ORG_UUID
         )
 
-        assert result is link
+        assert result[0] is link
 
     def test_no_rule_raises_403(self) -> None:
         link = _integrity_link(owner="other")
@@ -263,7 +263,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataWrite:
             DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session, ORG_UUID
         )
 
-        assert result is link
+        assert result[0] is link
 
     def test_read_rule_raises_403_for_metadata_write(self) -> None:
         link = _integrity_link(owner="other")
@@ -326,7 +326,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
             DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, None
         )
 
-        assert result is link
+        assert result[0] is link
 
     def test_admin_passes_owner_only(self) -> None:
         link = _integrity_link(owner="other")
@@ -337,7 +337,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
             DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, None
         )
 
-        assert result is link
+        assert result[0] is link
 
 
 # ────────────────────────────────────────────────────────

@@ -470,7 +470,7 @@ def get_staging_metadata(
     Returns:
         Metadata of the staging table
     """
-    integrity_link = load_authorized_integrity_link(
+    integrity_link, _ = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session, org_id
     )
 
@@ -534,7 +534,7 @@ def edit_staging_metadata(
     Returns:
         Updated staging metadata with saved column configurations
     """
-    integrity_link = load_authorized_integrity_link(
+    integrity_link, _ = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session, org_id
     )
 
@@ -642,7 +642,7 @@ def get_staging_preview(
         Preview data from the staging table, transformed based on saved config
     """
 
-    integrity_link = load_authorized_integrity_link(
+    integrity_link, _ = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session, org_id
     )
 

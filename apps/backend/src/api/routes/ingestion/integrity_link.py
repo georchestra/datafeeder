@@ -6,7 +6,6 @@ from sqlmodel import select
 from src.api.deps import DatakernSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.security import (
     AccessLevel,
-    compute_effective_access,
     load_authorized_integrity_link,
 )
 from src.models.data_import import IntegrityLinkResponse
@@ -32,14 +31,12 @@ def get_integrity_link(
     ),
 ) -> IntegrityLinkResponse:
     """Get an IntegrityLink entity by its ID."""
-    integrity_link = load_authorized_integrity_link(
+    integrity_link, effective = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, session, org_id
     )
 
     response = IntegrityLinkResponse.model_validate(integrity_link)
-
-    effective = compute_effective_access(integrity_link, geo_ctx, session, org_id)
-    response.access_level = effective.value if effective else None
+    response.access_level = effective.value
 
     if not include_transformation:
         response.integrity_transformation = None

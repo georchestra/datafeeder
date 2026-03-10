@@ -139,7 +139,7 @@ def load_authorized_integrity_link(
     geo_ctx: GeorchestraContext,
     session: Session,
     org_id: str | None,
-) -> IntegrityLink:
+) -> tuple[IntegrityLink, EffectiveAccess]:
     """Load an IntegrityLink and verify the user has the required permission.
 
     Loads the IntegrityLink by ID and checks that the user's effective access
@@ -158,7 +158,7 @@ def load_authorized_integrity_link(
         org_id: Pre-resolved console UUID for the user's organisation (or None)
 
     Returns:
-        The loaded IntegrityLink entity
+        Tuple of (IntegrityLink, EffectiveAccess) — the entity and the caller's access level
 
     Raises:
         HTTPException 404: If IntegrityLink not found
@@ -186,7 +186,7 @@ def load_authorized_integrity_link(
 
     # Admin and owner always pass
     if effective in (EffectiveAccess.ADMIN, EffectiveAccess.OWNER):
-        return integrity_link
+        return integrity_link, effective
 
     # For OWNER_ONLY, only admin/owner pass (already handled above)
     if required_level == AccessLevel.OWNER_ONLY:
@@ -202,4 +202,4 @@ def load_authorized_integrity_link(
         )
 
     # METADATA_READ: READ or WRITE both pass
-    return integrity_link
+    return integrity_link, effective
