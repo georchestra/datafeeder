@@ -355,3 +355,28 @@ class MetadataService:
             self.metadata_default_group_name,
         )
         return self._resolve_group_by_org_name(session, self.metadata_default_group_name)
+
+    def toggle_publish_metadata_record(self, metadata_uuid: str, publish: bool) -> None:
+        """Toggle publication status of a metadata record in GeoNetwork.
+
+        Args:
+            metadata_uuid: UUID of the metadata record
+            publish: True to publish (make visible/public), False to unpublish (make private)
+
+        Raises:
+            Exception: If the operation fails
+        """
+        try:
+            if publish:
+                self.gn_api.put_publish_record(metadata_uuid)
+                logger.info(f"Successfully published metadata record: {metadata_uuid}")
+            else:
+                self.gn_api.put_unpublish_record(metadata_uuid)
+                logger.info(f"Successfully unpublished metadata record: {metadata_uuid}")
+        except Exception as e:
+            action = "publish" if publish else "unpublish"
+            logger.error(
+                f"Failed to {action} metadata record {metadata_uuid}: {e}",
+                exc_info=True,
+            )
+            raise

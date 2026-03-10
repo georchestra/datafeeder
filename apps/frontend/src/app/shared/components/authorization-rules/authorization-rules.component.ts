@@ -10,6 +10,12 @@ import { TranslateService } from '@ngx-translate/core'
 import { DropdownSelectorComponent, DropdownChoice } from 'geonetwork-ui'
 import { GroupItem, IntegrityLinkRule } from '../../../core/api/models'
 import { SearchInputComponent } from '../search-input/search-input.component'
+import { marker } from '@biesbjerg/ngx-translate-extract-marker'
+
+marker('authorizations.ruleValue.none')
+marker('authorizations.ruleValue.public')
+marker('authorizations.ruleValue.read')
+marker('authorizations.ruleValue.write')
 
 export interface RuleChangeEvent {
   group: GroupItem
@@ -27,6 +33,7 @@ export class AuthorizationRulesComponent {
   groups = input<GroupItem[]>([])
   rules = input<IntegrityLinkRule[]>([])
   searchPlaceholder = input('')
+  isPublic = input<boolean>(false)
   ruleChange = output<RuleChangeEvent>()
 
   searchQuery = signal('')
@@ -38,10 +45,14 @@ export class AuthorizationRulesComponent {
       .sort((a, b) => a.label.localeCompare(b.label))
   })
 
-  ruleChoices: DropdownChoice[] = [
+  ruleChoices = computed<DropdownChoice[]>(() => [
     {
       value: 'NONE',
-      label: this.translate.instant('authorizations.ruleValue.none')
+      label: this.translate.instant(
+        this.isPublic()
+          ? 'authorizations.ruleValue.public'
+          : 'authorizations.ruleValue.none'
+      )
     },
     {
       value: 'READ',
@@ -51,7 +62,7 @@ export class AuthorizationRulesComponent {
       value: 'WRITE',
       label: this.translate.instant('authorizations.ruleValue.write')
     }
-  ]
+  ])
 
   getRuleValue(group: GroupItem): string {
     const rule = this.rules().find((r) => r.group_or_role === group.id)

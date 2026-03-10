@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS datakern.integrity_link(
     last_retrieval_timestamp timestamp NULL,
     schedule varchar(63) NULL,
     schedule_enabled boolean DEFAULT FALSE,
+    gn_is_published boolean DEFAULT FALSE,
     created_at timestamp DEFAULT CURRENT_TIMESTAMP
 );
 

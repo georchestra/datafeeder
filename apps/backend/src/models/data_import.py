@@ -181,3 +181,4 @@ class IntegrityLinkResponse(BaseModel):
     schedule: str | None
     schedule_enabled: bool
     created_at: datetime | None
+    gn_is_published: bool | None
