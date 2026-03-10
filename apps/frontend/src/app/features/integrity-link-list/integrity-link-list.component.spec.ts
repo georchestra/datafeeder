@@ -347,7 +347,11 @@ describe('IntegrityLinkListComponent', () => {
       const req = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-links/?offset=0'
       )
-      req.flush({ items: [createMockItem('link-42')], has_more: false, offset: 0 })
+      req.flush({
+        items: [createMockItem('link-42')],
+        has_more: false,
+        offset: 0
+      })
       await new Promise((resolve) => setTimeout(resolve, 10))
 
       component.onRowClick(createMockItem('link-42', 'OWNER', true))
@@ -363,7 +367,11 @@ describe('IntegrityLinkListComponent', () => {
       const req = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-links/?offset=0'
       )
-      req.flush({ items: [createMockItem('link-42')], has_more: false, offset: 0 })
+      req.flush({
+        items: [createMockItem('link-42')],
+        has_more: false,
+        offset: 0
+      })
       await new Promise((resolve) => setTimeout(resolve, 10))
 
       component.onRowClick(createMockItem('link-42', 'OWNER', false))
