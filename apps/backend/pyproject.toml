@@ -8,9 +8,9 @@ fmt = "ruff format . --check"
 check= "pyright ."
 
 [project]
-name = "datakern-backend"
+name = "datafeeder-backend"
 version = "0.1.0"
-description = "REST API for data ingestion in DataKern"
+description = "REST API for data ingestion in Datafeeder"
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [

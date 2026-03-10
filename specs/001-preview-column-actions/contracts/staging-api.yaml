@@ -1,6 +1,6 @@
 openapi: "3.1.0"
 info:
-  title: DataKern Staging API — Column Actions Extension
+  title: Datafeeder Staging API — Column Actions Extension
   version: "1.0.0"
   description: |
     API contracts for the "Actions sur les colonnes de l'aperçu tabulaire" feature.

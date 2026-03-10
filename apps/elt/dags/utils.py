@@ -3,10 +3,10 @@ from airflow.sdk import Variable
 from sqlalchemy.engine import Engine
 
 
-def get_datakern_pg_hook() -> PostgresHook:
+def get_datafeeder_pg_hook() -> PostgresHook:
     """Create and return a PostgresHook using Airflow Connection."""
-    hook = PostgresHook("DATAKERN_PG")
-    hook.schema = "datakern"
+    hook = PostgresHook("DATAFEEDER_PG")
+    hook.schema = "datafeeder"
     return hook
 
 
@@ -15,9 +15,9 @@ def get_data_sql_engine() -> Engine:
     return PostgresHook("DATA_PG").get_sqlalchemy_engine()
 
 
-def get_datakern_sql_engine() -> Engine:
-    """Get SQLAlchemy engine for DataKern from PostgresHook."""
-    return get_datakern_pg_hook().get_sqlalchemy_engine()
+def get_datafeeder_sql_engine() -> Engine:
+    """Get SQLAlchemy engine for Datafeeder from PostgresHook."""
+    return get_datafeeder_pg_hook().get_sqlalchemy_engine()
 
 
 def get_final_schema() -> str:

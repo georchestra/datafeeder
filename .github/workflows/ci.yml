@@ -1,4 +1,4 @@
-name: DataKern CI
+name: Datafeeder CI
 
 on:
   push:

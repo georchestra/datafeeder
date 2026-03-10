@@ -31,7 +31,7 @@ class TestMetadataService:
         """Test MetadataService initialization."""
         service = MetadataService(
             gn_api_url="http://test.example.com/geonetwork/srv/api",
-            datadir_path="/home/aabt/Sites/DataKern/docker/datadir",
+            datadir_path="/home/aabt/Sites/Datafeeder/docker/datadir",
             credentials=None,
             verify_tls=False,
         )

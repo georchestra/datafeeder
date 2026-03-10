@@ -43,7 +43,7 @@
 
 ### Infrastructure
 
-- [x] T001a Start the full stack with `make up-full` (builds libs, starts all services including GeoServer/GeoNetwork). Verify gateway at http://localhost:8080/ (credentials: `testadmin/testadmin`), frontend at http://localhost:8080/datakern/, backend API docs at http://localhost:8080/datakern-backend/docs, Airflow at http://localhost:8080/airflow (credentials: `airflow/airflow`)
+- [x] T001a Start the full stack with `make up-full` (builds libs, starts all services including GeoServer/GeoNetwork). Verify gateway at http://localhost:8080/ (credentials: `testadmin/testadmin`), frontend at http://localhost:8080/datafeeder/, backend API docs at http://localhost:8080/datafeeder-backend/docs, Airflow at http://localhost:8080/airflow (credentials: `airflow/airflow`)
 
 ### Python (backend + data_manipulation + ELT)
 
@@ -97,7 +97,7 @@
 - [x] T012 Refactor GET preview endpoint in `apps/backend/src/api/routes/ingestion/staging.py`: **remove `projection`, `x_column`, `y_column` query parameters entirely** — ALL transformation configuration (columns AND force_projection) is loaded exclusively from `integrity_link.integrity_transformation` saved by PUT metadata, never from query parameters. Add `raw: bool = Query(False)` parameter. When `raw=false`: deserialize `TransformationConfiguration` from `integrity_link.integrity_transformation` and call `read_and_transform_data(staging_table_name, engine, schema, config, limit=10)` — this single call handles SQL-level exclusion and filtering (via `read_data_from_postgis`) plus in-memory rename, cast, and projection (via `apply_transformations`). The route handler only converts the result to tabular/GeoJSON response format. When `raw=true`: call `read_and_transform_data(staging_table_name, engine, schema, config=None, limit=10)` to return original data without transformations.
 - [x] T013 Update GET metadata endpoint to include saved column configurations from `integrity_transformation` in the response in `apps/backend/src/api/routes/ingestion/staging.py`
 - [x] T013b [P] The `DatasetConfigurationComponent` force_projection dropdown **stays in place** — no relocation or removal. Wire its change output into the existing config update signal in `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts` so that any change to the force_projection dropdown triggers PUT metadata (with the full config including updated `force_projection`) → GET preview, identical to how column actions flow.
-- [x] T014 Regenerate frontend API client by running `curl http://localhost:8080/datakern-backend/openapi.json > apps/frontend/openapi.json && npm run generate-api` in `apps/frontend/` after the backend is updated and running
+- [x] T014 Regenerate frontend API client by running `curl http://localhost:8080/datafeeder-backend/openapi.json > apps/frontend/openapi.json && npm run generate-api` in `apps/frontend/` after the backend is updated and running
 
 **Checkpoint**: Backend endpoints work with new schema. Frontend API client regenerated. Manual test: PUT metadata with column config (including force_projection) → GET preview (`raw=false`) calls `read_and_transform_data` and returns transformed data; GET preview (`raw=true`) returns original data. No `projection`/`x_column`/`y_column` query params exist. force_projection dropdown change also triggers PUT → GET preview flow. PUT with empty/duplicate column name returns clear error message.
 

@@ -1,17 +1,17 @@
 
 services:
-  datakern-frontend:
+  datafeeder-frontend:
     profiles:
-      - datakern
+      - datafeeder
     build:
       context: ../apps/frontend
       dockerfile: Dockerfile
     ports:
       - "8001:8080"
 
-  datakern-backend:
+  datafeeder-backend:
     profiles:
-      - datakern
+      - datafeeder
     build:
       context: ../
       dockerfile: ./apps/backend/Dockerfile

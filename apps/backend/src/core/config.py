@@ -41,27 +41,27 @@ def parse_cors(v: Any) -> list[str] | str:
 
 
 class Settings(BaseSettings):
-    datakern_config: str = os.getenv("DATAKERN_CONFIG", "")
+    datafeeder_config: str = os.getenv("DATAFEEDER_CONFIG", "")
     _default_datadir = get_default_datadir()
 
-    if not os.path.exists(datakern_config) and not os.path.exists(
-        f"{_default_datadir}/datakern/datakern.env"
+    if not os.path.exists(datafeeder_config) and not os.path.exists(
+        f"{_default_datadir}/datafeeder/datafeeder.env"
     ):
         logger.warning("Configuration file not found!")
-        logger.warning("looked for DATAKERN_CONFIG at: %s", os.getenv("DATAKERN_CONFIG", ""))
+        logger.warning("looked for DATAFEEDER_CONFIG at: %s", os.getenv("DATAFEEDER_CONFIG", ""))
         logger.warning(
-            "looked for datakern.env at: %s", f"{_default_datadir}/datakern/datakern.env"
+            "looked for datafeeder.env at: %s", f"{_default_datadir}/datafeeder/datafeeder.env"
         )
     else:
-        if not os.path.exists(datakern_config) and os.path.exists(
-            f"{_default_datadir}/datakern/datakern.env"
+        if not os.path.exists(datafeeder_config) and os.path.exists(
+            f"{_default_datadir}/datafeeder/datafeeder.env"
         ):
-            datakern_config = f"{_default_datadir}/datakern/datakern.env"
-        logger.info("Loading configuration from %s", datakern_config)
+            datafeeder_config = f"{_default_datadir}/datafeeder/datafeeder.env"
+        logger.info("Loading configuration from %s", datafeeder_config)
 
     model_config = SettingsConfigDict(
         # Load .env from workspace root, with defaults from georchestra properties
-        env_file=datakern_config,
+        env_file=datafeeder_config,
         env_ignore_empty=False,
         extra="ignore",
     )
@@ -84,7 +84,7 @@ class Settings(BaseSettings):
         )
 
     # Project Information
-    PROJECT_NAME: str = "DataKern"
+    PROJECT_NAME: str = "Datafeeder"
     BACKEND_URL: str = "http://localhost:8000"
     DATA_PUBLIC_URL: str = "http://localhost:8080/geoserver"
     DATADIR_PATH: str = get_default_datadir()
@@ -119,19 +119,19 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = []
 
     # PostgreSQL Database
-    POSTGRES_DATAKERN_HOST: str = Field(
+    POSTGRES_DATAFEEDER_HOST: str = Field(
         default="localhost", validation_alias=AliasChoices("pgsqlHost", "POSTGRES_HOST")
     )
-    POSTGRES_DATAKERN_PORT: int = Field(
+    POSTGRES_DATAFEEDER_PORT: int = Field(
         default=5432, validation_alias=AliasChoices("pgsqlPort", "POSTGRES_PORT")
     )
-    POSTGRES_DATAKERN_USER: str = Field(
+    POSTGRES_DATAFEEDER_USER: str = Field(
         default="georchestra", validation_alias=AliasChoices("pgsqlUser", "POSTGRES_USER")
     )
-    POSTGRES_DATAKERN_PASSWORD: str = Field(
+    POSTGRES_DATAFEEDER_PASSWORD: str = Field(
         default="georchestra", validation_alias=(AliasChoices("pgsqlPassword", "POSTGRES_PASSWORD"))
     )
-    POSTGRES_DATAKERN_DB: str = Field(
+    POSTGRES_DATAFEEDER_DB: str = Field(
         default="georchestra", validation_alias=(AliasChoices("pgsqlDatabase", "POSTGRES_DB"))
     )
 
@@ -220,14 +220,14 @@ class Settings(BaseSettings):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def POSTGRES_DATAKERN_URI(self) -> PostgresDsn:
+    def POSTGRES_DATAFEEDER_URI(self) -> PostgresDsn:
         return PostgresDsn.build(
             scheme="postgresql+psycopg",
-            username=self.POSTGRES_DATAKERN_USER,
-            password=self.POSTGRES_DATAKERN_PASSWORD,
-            host=self.POSTGRES_DATAKERN_HOST,
-            port=self.POSTGRES_DATAKERN_PORT,
-            path=self.POSTGRES_DATAKERN_DB,
+            username=self.POSTGRES_DATAFEEDER_USER,
+            password=self.POSTGRES_DATAFEEDER_PASSWORD,
+            host=self.POSTGRES_DATAFEEDER_HOST,
+            port=self.POSTGRES_DATAFEEDER_PORT,
+            path=self.POSTGRES_DATAFEEDER_DB,
         )
 
     @computed_field  # type: ignore[prop-decorator]
@@ -255,17 +255,17 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _set_data_db_defaults(self) -> Self:
-        """Set POSTGRES_DATA_* fields to POSTGRES_DATAKERN_* values if not provided."""
+        """Set POSTGRES_DATA_* fields to POSTGRES_DATAFEEDER_* values if not provided."""
         if self.POSTGRES_DATA_HOST is None:
-            object.__setattr__(self, "POSTGRES_DATA_HOST", self.POSTGRES_DATAKERN_HOST)
+            object.__setattr__(self, "POSTGRES_DATA_HOST", self.POSTGRES_DATAFEEDER_HOST)
         if self.POSTGRES_DATA_PORT is None:
-            object.__setattr__(self, "POSTGRES_DATA_PORT", self.POSTGRES_DATAKERN_PORT)
+            object.__setattr__(self, "POSTGRES_DATA_PORT", self.POSTGRES_DATAFEEDER_PORT)
         if self.POSTGRES_DATA_USER is None:
-            object.__setattr__(self, "POSTGRES_DATA_USER", self.POSTGRES_DATAKERN_USER)
+            object.__setattr__(self, "POSTGRES_DATA_USER", self.POSTGRES_DATAFEEDER_USER)
         if self.POSTGRES_DATA_PASSWORD is None:
-            object.__setattr__(self, "POSTGRES_DATA_PASSWORD", self.POSTGRES_DATAKERN_PASSWORD)
+            object.__setattr__(self, "POSTGRES_DATA_PASSWORD", self.POSTGRES_DATAFEEDER_PASSWORD)
         if self.POSTGRES_DATA_DB is None:
-            object.__setattr__(self, "POSTGRES_DATA_DB", self.POSTGRES_DATAKERN_DB)
+            object.__setattr__(self, "POSTGRES_DATA_DB", self.POSTGRES_DATAFEEDER_DB)
         return self
 
     # Validators
@@ -283,7 +283,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Self:
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
-        self._check_default_secret("POSTGRES_DATAKERN_PASSWORD", self.POSTGRES_DATAKERN_PASSWORD)
+        self._check_default_secret(
+            "POSTGRES_DATAFEEDER_PASSWORD", self.POSTGRES_DATAFEEDER_PASSWORD
+        )
         self._check_default_secret("ENCRYPTION_KEY", self.ENCRYPTION_KEY)
         return self
 

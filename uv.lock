@@ -5,9 +5,9 @@ requires-python = "==3.12.*"
 [manifest]
 members = [
     "data-manipulation",
-    "datakern-airflow-elt",
-    "datakern-backend",
-    "datakern-python-monorepo",
+    "datafeeder-airflow-elt",
+    "datafeeder-backend",
+    "datafeeder-python-monorepo",
 ]
 
 [[package]]
@@ -605,7 +605,7 @@ dev = [
 ]
 
 [[package]]
-name = "datakern-airflow-elt"
+name = "datafeeder-airflow-elt"
 version = "0.1.0"
 source = { virtual = "apps/elt" }
 dependencies = [
@@ -634,7 +634,7 @@ dev = [
 ]
 
 [[package]]
-name = "datakern-backend"
+name = "datafeeder-backend"
 version = "0.1.0"
 source = { editable = "apps/backend" }
 dependencies = [
@@ -695,7 +695,7 @@ dev = [
 ]
 
 [[package]]
-name = "datakern-python-monorepo"
+name = "datafeeder-python-monorepo"
 version = "0.1.0"
 source = { virtual = "." }
 

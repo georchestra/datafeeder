@@ -1,8 +1,8 @@
 {
-  "/datakern-backend": {
-    "target": "http://localhost:8000/datakern-backend/",
+  "/datafeeder-backend": {
+    "target": "http://localhost:8000/datafeeder-backend/",
     "pathRewrite": {
-      "^/datakern-backend": ""
+      "^/datafeeder-backend": ""
     },
     "secure": false,
     "changeOrigin": true,

@@ -90,7 +90,7 @@ Key components:
 **See:** [apps/elt/dags/utils.py](../../../apps/elt/dags/utils.py)
 
 Functions to replicate:
-- `get_datakern_pg_hook()` - PostgresHook with schema set
+- `get_datafeeder_pg_hook()` - PostgresHook with schema set
 - `get_data_sql_engine()` - SQLAlchemy engine from hook
 - `get_final_schema()` - Variable getter with default
 - `get_staging_schema()` - Hardcoded schema name

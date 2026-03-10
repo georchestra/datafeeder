@@ -81,7 +81,7 @@ describe('AuthService', () => {
       }
 
       await service.login(credentials)
-      const stored = localStorage.getItem('datakern_auth')
+      const stored = localStorage.getItem('datafeeder_auth')
 
       expect(stored).toBeTruthy()
       const state = JSON.parse(stored!)
@@ -129,11 +129,11 @@ describe('AuthService', () => {
       }
 
       await service.login(credentials)
-      expect(localStorage.getItem('datakern_auth')).toBeTruthy()
+      expect(localStorage.getItem('datafeeder_auth')).toBeTruthy()
 
       service.logout()
 
-      expect(localStorage.getItem('datakern_auth')).toBeNull()
+      expect(localStorage.getItem('datafeeder_auth')).toBeNull()
     })
   })
 
@@ -155,7 +155,7 @@ describe('AuthService', () => {
     })
 
     it('should handle corrupted localStorage data', () => {
-      localStorage.setItem('datakern_auth', 'invalid-json')
+      localStorage.setItem('datafeeder_auth', 'invalid-json')
 
       const newService = new AuthService()
 

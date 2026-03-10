@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core'
 import { AuthState, LoginCredentials, User, AuthToken } from './auth.model'
 
-const STORAGE_KEY = 'datakern_auth'
+const STORAGE_KEY = 'datafeeder_auth'
 
 @Injectable({
   providedIn: 'root'

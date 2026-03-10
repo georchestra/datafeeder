@@ -1,13 +1,13 @@
-# DataKern Architecture
+# Datafeeder Architecture
 
 ## Overview
 
-DataKern is a data ingestion module for geOrchestra built as a monorepo.
+Datafeeder is a data ingestion module for geOrchestra built as a monorepo.
 
 ## Project Structure
 
 ```
-DataKern/
+Datafeeder/
 ├── apps/
 │   ├── backend/          # REST API for data ingestion (FastAPI/Python)
 │   ├── frontend/         # User interface for data management (Angular/ custom gn-ui application)
@@ -27,12 +27,12 @@ DataKern/
 
 ## Fonctionnement minimal (en français)
 
-DataKern doit être pensé en "API first" et, si possible, indépendant de n'importe quel outil.  
+Datafeeder doit être pensé en "API first" et, si possible, indépendant de n'importe quel outil.  
 
-Le fonctionnement minimum viable de DataKern repose sur l'interaction entre deux composants principaux : 
+Le fonctionnement minimum viable de Datafeeder repose sur l'interaction entre deux composants principaux : 
 - Le backend (et sa bdd) qui expose une API REST pour gérer les demandes d'ingestion de données.
 - Les Dags Airflow qui utilisent la BDD du backend pour récupérer les tâches d'ingestion à exécuter.
 
-Geoserver et geonetwork sont des composants optionnels qui peuvent être intégrés pour enrichir les fonctionnalités de DataKern, mais ne devraient pas être indispensables à son fonctionnement de base.
+Geoserver et geonetwork sont des composants optionnels qui peuvent être intégrés pour enrichir les fonctionnalités de Datafeeder, mais ne devraient pas être indispensables à son fonctionnement de base.
 L'interface utilisateur (frontend) est également un composant optionnel qui facilite la gestion des tâches d'ingestion, mais l'API REST du backend doit être pleinement fonctionnelle et accessible indépendamment de l'interface utilisateur.
 

@@ -18,9 +18,9 @@ Skills contain domain-specific instructions for working with particular technolo
 
 | Skill                    | Description                                               | File                                                                                             |
 | ------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `angular-datakern`       | Angular 20 frontend (components, NgRx, signals, Tailwind) | [.agents/skills/angular-datakern/SKILL.md](.agents/skills/angular-datakern/SKILL.md)             |
+| `angular-datafeeder`       | Angular 20 frontend (components, NgRx, signals, Tailwind) | [.agents/skills/angular-datafeeder/SKILL.md](.agents/skills/angular-datafeeder/SKILL.md)             |
 | `fastapi-expert`         | FastAPI backend (async, SQLAlchemy, JWT, Pydantic V2)     | [.agents/skills/fastapi-expert/SKILL.md](.agents/skills/fastapi-expert/SKILL.md)                 |
-| `airflow-datakern`       | Airflow 3.x DAGs (TaskAPI, task groups, ELT pipelines)    | [.agents/skills/airflow-datakern/SKILL.md](.agents/skills/airflow-datakern/SKILL.md)             |
+| `airflow-datafeeder`       | Airflow 3.x DAGs (TaskAPI, task groups, ELT pipelines)    | [.agents/skills/airflow-datafeeder/SKILL.md](.agents/skills/airflow-datafeeder/SKILL.md)             |
 | `implement-design`       | Figma → code implementation with 1:1 fidelity             | [.agents/skills/implement-design/SKILL.md](.agents/skills/implement-design/SKILL.md)             |
 | `tailwind-design-system` | Tailwind CSS v4 design system and component patterns      | [.agents/skills/tailwind-design-system/SKILL.md](.agents/skills/tailwind-design-system/SKILL.md) |
 | `geopandas`              | Geospatial data processing with GeoPandas                 | [.agents/skills/geopandas/SKILL.md](.agents/skills/geopandas/SKILL.md)                           |

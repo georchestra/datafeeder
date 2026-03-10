@@ -1,6 +1,6 @@
-# DataKern Project Conventions
+# Datafeeder Project Conventions
 
-Project-specific rules, naming conventions, and integration patterns for DataKern Airflow DAGs.
+Project-specific rules, naming conventions, and integration patterns for Datafeeder Airflow DAGs.
 
 ## File Organization
 
@@ -77,14 +77,14 @@ Standard parameter naming across DAGs:
 - `schedule`: Cron expression or Airflow schedule
 - `schedule_enabled`: Boolean to enable/disable
 
-## DataKern Database Integration
+## Datafeeder Database Integration
 
-### Main Table: `datakern.integrity_link`
+### Main Table: `datafeeder.integrity_link`
 
 Links staging tables, final tables, and metadata together:
 
 ```sql
-datakern.integrity_link:
+datafeeder.integrity_link:
   - id (uuid)
   - data_id (layer ID in GeoServer)
   - metadata_id (metadata ID in GeoNetwork)
@@ -124,7 +124,7 @@ sql = """
         source_import_type,
         source_password_encrypted,
         source_auth_enabled
-    FROM datakern.integrity_link
+    FROM datafeeder.integrity_link
     WHERE schedule_enabled = true
 """
 ```
@@ -224,8 +224,8 @@ When `basic_auth_encrypted` is provided:
 from airflow.sdk import Variable
 from data_manipulation.encryption import decrypt_credentials
 
-encryption_key = Variable.get("datakern_encryption_key")
-engine = get_datakern_sql_engine()
+encryption_key = Variable.get("datafeeder_encryption_key")
+engine = get_datafeeder_sql_engine()
 
 with engine.connect() as conn:
     username, password = decrypt_credentials(
@@ -258,7 +258,7 @@ with engine.connect() as conn:
 
 ### Dynamic DAG Workflow
 
-1. Query `datakern.integrity_link` for `schedule_enabled = true`
+1. Query `datafeeder.integrity_link` for `schedule_enabled = true`
 2. For each row, create DAG `ingestion_{id}`
 3. Set schedule from `schedule` column
 4. DAG triggers `process_dag` with config from row

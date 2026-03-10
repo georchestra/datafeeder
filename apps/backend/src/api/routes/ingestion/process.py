@@ -11,7 +11,7 @@ from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import MetaData, Table, func, select
 
-from src.api.deps import DatakernSessionDep, DataSessionDep
+from src.api.deps import DatafeederSessionDep, DataSessionDep
 from src.core.callback import build_callback_url
 from src.core.config import get_settings, get_staging_schema
 from src.core.db import data_engine
@@ -49,7 +49,7 @@ def _is_geom_excluded(transformation: dict[str, Any] | None) -> bool:
 )
 async def process_staging_data(
     request: ProcessRequest,
-    session: DatakernSessionDep,
+    session: DatafeederSessionDep,
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_email: str = Header("", alias="sec-email", include_in_schema=False),
     sec_firstname: str = Header("", alias="sec-firstname", include_in_schema=False),
@@ -238,7 +238,7 @@ async def process_staging_data(
 
 @router.post("/dag_success")
 async def dag_success_callback(
-    datakern_session: DatakernSessionDep,
+    datafeeder_session: DatafeederSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
 ) -> None:
@@ -247,11 +247,11 @@ async def dag_success_callback(
     Creates the GeoServer workspace/datastore/layer with the actual bbox now that the table exists.
 
     Args:
-        datakern_session: Database session (injected)
+        datafeeder_session: Database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         final_table_name: Final table name created by the process DAG
     """
-    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
@@ -340,8 +340,8 @@ async def dag_success_callback(
     integrity_link.final_table_name = final_table_name
     integrity_link.last_retrieval_timestamp = datetime.now(timezone.utc)
 
-    datakern_session.commit()
-    datakern_session.refresh(integrity_link)
+    datafeeder_session.commit()
+    datafeeder_session.refresh(integrity_link)
 
     logger.info(
         f"Process DAG success for IntegrityLink {integrity_link.id} | "
@@ -352,7 +352,7 @@ async def dag_success_callback(
 @router.post("/dag_failure")
 async def dag_failure_callback(
     data_session: DataSessionDep,
-    datakern_session: DatakernSessionDep,
+    datafeeder_session: DatafeederSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(None, description="Final table name (if created)"),
 ) -> None:
@@ -362,7 +362,7 @@ async def dag_failure_callback(
 
     Args:
         data_session: Data database session (injected)
-        datakern_session: Datakern database session (injected)
+        datafeeder_session: Datafeeder database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         final_table_name: Final table name (optional, in case it was partially created)
 
@@ -370,7 +370,7 @@ async def dag_failure_callback(
         Success message with cleanup details
     """
     # Query existing IntegrityLink
-    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 

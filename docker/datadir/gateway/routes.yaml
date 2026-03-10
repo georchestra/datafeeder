@@ -10,20 +10,20 @@ spring:
         predicates:
           - Path=/
         filters:
-          - RedirectTo=307, /datakern/
+          - RedirectTo=307, /datafeeder/
       - id: backend
         uri: ${georchestra.gateway.services.backend.target}
         predicates:
-        - Path=/datakern-backend/**,/openapi.json
+        - Path=/datafeeder-backend/**,/openapi.json
         filters:
-          - RewritePath=/datakern-backend/(?<segment>.*),/$\{segment}
+          - RewritePath=/datafeeder-backend/(?<segment>.*),/$\{segment}
       - id: frontend
         uri: ${georchestra.gateway.services.frontend.target}
         predicates:
-        - Path=/datakern/**
+        - Path=/datafeeder/**
         filters:
         # https://github.com/spring-cloud/spring-cloud-gateway/issues/1748
-        - RewritePath=/datakern,/datakern/
+        - RewritePath=/datafeeder,/datafeeder/
       - id: airflow
         uri: ${georchestra.gateway.services.airflow.target}
         predicates:
@@ -42,10 +42,10 @@ spring:
           - Path=/geoserver/**
 
 georchestra.gateway.services:
-#  backend.target: http://datakern-backend:8000/
+#  backend.target: http://datafeeder-backend:8000/
   backend.target: http://host.docker.internal:8000/
-#  frontend.target: http://datakern-frontend:8080/datakern/
-  frontend.target: http://host.docker.internal:4200/datakern/
+#  frontend.target: http://datafeeder-frontend:8080/datafeeder/
+  frontend.target: http://host.docker.internal:4200/datafeeder/
   airflow.target: http://airflow-apiserver:8081/airflow
   # airflow.target: http://localhost:8081/airflow
   console.target: http://console:8080/

@@ -1,4 +1,4 @@
-# DataKern
+# Datafeeder
 
 Data ingestion module for geOrchestra
 
@@ -42,9 +42,9 @@ make up-light
 
 # In light mode, you can launch backend and frontend with docker but you will need to change the gateway config to right hosts in docker/datadir/gateway/routes.yaml to use docker internal hostnames:
 # georchestra.gateway.services:
-# backend.target: http://datakern-backend:8000/ Use this line
+# backend.target: http://datafeeder-backend:8000/ Use this line
 # backend.target: http://host.docker.internal:8000/ Comment this line
-# frontend.target: http://datakern-frontend:8080/ Use this line
+# frontend.target: http://datafeeder-frontend:8080/ Use this line
 # frontend.target: http://host.docker.internal:4200/frontend/ Comment this line
 # airflow.target: http://airflow-apiserver:8081/airflow Use this line
 # airflow.target: http://localhost:8081/airflow Comment this line
@@ -63,27 +63,27 @@ make reload-airflow-deps
 
 ### Gateway for the Authentication
 
-The DataKern application is accessible through a gateway that handles authentication and routing to the frontend and backend services.
+The Datafeeder application is accessible through a gateway that handles authentication and routing to the frontend and backend services.
 
 - **URL**: http://localhost:8080/
 - **Credentials**: `testadmin/testadmin`
 
-It redirects, by default, to the frontend at http://localhost:8080/datakern/.
+It redirects, by default, to the frontend at http://localhost:8080/datafeeder/.
 
 ### Frontend
 
-The DataKern frontend is built with Angular 20 and provides the user interface for managing data ingestion workflows. It features a modern, component-based architecture using Tailwind CSS for styling.
+The Datafeeder frontend is built with Angular 20 and provides the user interface for managing data ingestion workflows. It features a modern, component-based architecture using Tailwind CSS for styling.
 
-- **Gateway URL**: http://localhost:8080/datakern/
+- **Gateway URL**: http://localhost:8080/datafeeder/
 - **URL**: http://localhost:8001/
 
 For detailed information about the frontend application structure, development setup, and guidelines, see the [frontend README](./apps/frontend/README.md).
 
 ### Backend
 
-The DataKern backend is built with FastAPI and serves as the core API for data ingestion operations.
+The Datafeeder backend is built with FastAPI and serves as the core API for data ingestion operations.
 
-- **Gateway URL**: http://localhost:8080/datakern-backend/
+- **Gateway URL**: http://localhost:8080/datafeeder-backend/
 - **Direct URL**: http://localhost:8000/
 - **API Documentation**: http://localhost:8000/docs
 
@@ -98,7 +98,7 @@ The ELT application uses Apache Airflow for data orchestration and workflow mana
 
 ### GeoServer and GeoNetwork
 
-These services are included in the full setup of DataKern for geospatial data management.
+These services are included in the full setup of Datafeeder for geospatial data management.
 
 - **GeoServer URL**: http://localhost:8080/geoserver
 - **GeoNetwork URL**: http://localhost:8080/geonetwork

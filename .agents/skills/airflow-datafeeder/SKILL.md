@@ -1,12 +1,12 @@
 ---
-name: airflow-datakern
-description: Build Apache Airflow 3.x DAGs following DataKern project patterns. Use when creating DAGs with TaskAPI decorators (@dag, @task, @task_group), implementing task groups as factory functions, setting up success/failure callbacks to external APIs, dynamic DAG generation from database, branching workflows, XCom communication, PostgreSQL integration with hooks, or working with apps/elt/dags codebase. Follows Python 3.12, ruff formatting (100 char lines), data_manipulation library integration.
+name: airflow-datafeeder
+description: Build Apache Airflow 3.x DAGs following Datafeeder project patterns. Use when creating DAGs with TaskAPI decorators (@dag, @task, @task_group), implementing task groups as factory functions, setting up success/failure callbacks to external APIs, dynamic DAG generation from database, branching workflows, XCom communication, PostgreSQL integration with hooks, or working with apps/elt/dags codebase. Follows Python 3.12, ruff formatting (100 char lines), data_manipulation library integration.
 triggers: Airflow, Apache Airflow, DAG, task group, @dag, @task, @task_group, Airflow callback, XCom, Airflow PostgreSQL, TaskAPI, Airflow 3, apps/elt/dags, staging_dag, process_dag, Airflow scheduler
 ---
 
-# Airflow DataKern
+# Airflow Datafeeder
 
-Build Airflow 3.x workflows following DataKern project conventions with TaskAPI decorators, factory-based task groups, callbacks, and PostgreSQL integration.
+Build Airflow 3.x workflows following Datafeeder project conventions with TaskAPI decorators, factory-based task groups, callbacks, and PostgreSQL integration.
 
 ## Core Patterns
 
@@ -24,8 +24,8 @@ Use `@dag` decorator with typed `Param()` objects. Include `on_success_callback`
 
 ### Database Access
 Database utilities live in [apps/elt/dags/utils.py](apps/elt/dags/utils.py):
-- `get_datakern_pg_hook()` / `get_data_pg_hook()` - PostgresHook instances
-- `get_datakern_sql_engine()` / `get_data_sql_engine()` - SQLAlchemy engines
+- `get_datafeeder_pg_hook()` / `get_data_pg_hook()` - PostgresHook instances
+- `get_datafeeder_sql_engine()` / `get_data_sql_engine()` - SQLAlchemy engines
 - `get_final_schema()` / `get_staging_schema()` - Schema name getters
 
 ### Callbacks
