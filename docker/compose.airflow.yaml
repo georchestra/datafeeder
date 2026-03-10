@@ -88,9 +88,9 @@ x-airflow-common:
     - ../apps/elt/dags:/opt/airflow/dags
     - ../libs/data_manipulation/src/data_manipulation:/opt/airflow/dags/data_manipulation
     - ../apps/elt/logs:/opt/airflow/logs
-#    - ./datadir/datakern/airflow/config:/opt/airflow/config
-#    - ./datadir/datakern/airflow/plugins:/opt/airflow/plugins
-    - ./datadir/datakern/airflow/files:/opt/airflow/files
+#    - ./datadir/datafeeder/airflow/config:/opt/airflow/config
+#    - ./datadir/datafeeder/airflow/plugins:/opt/airflow/plugins
+    - ./datadir/datafeeder/airflow/files:/opt/airflow/files
     - /tmp/:/tmp:rw
   user: "${AIRFLOW_UID:-50000}:0"
   extra_hosts:

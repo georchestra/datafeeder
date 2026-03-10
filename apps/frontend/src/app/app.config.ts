@@ -28,7 +28,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(appRoutes),
     provideHttpClient(),
     provideI18n(TRANSLATE_DEFAULT_CONFIG),
-    provideRepositoryUrl(() => '/datakern-backend/geonetwork/srv/api'),
+    provideRepositoryUrl(() => '/datafeeder-backend/geonetwork/srv/api'),
     provideGn4(),
     importProvidersFrom(
       StoreModule.forRoot(
@@ -44,7 +44,7 @@ export const appConfig: ApplicationConfig = {
     ),
     importProvidersFrom(EffectsModule.forRoot()),
     importProvidersFrom(FeatureEditorModule),
-    provideApiConfiguration('/datakern-backend'),
+    provideApiConfiguration('/datafeeder-backend'),
     provideAppInitializer(() => {
       const settingsService = inject(SettingsService)
       return settingsService.loadSettings()

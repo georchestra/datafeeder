@@ -43,8 +43,8 @@ class MetadataService:
             metadata_default_group_name: Fallback group name when user has no non-system groups
         """
         self.gn_api: Any = GnApi(api_url=gn_api_url, credentials=credentials, verifytls=verify_tls)
-        self.template_path: str = f"{datadir_path}/datakern/metadata_template-19115-3.xml"
-        self.xslt_path: str = f"{datadir_path}/datakern/metadata_transform-19115-3.xsl"
+        self.template_path: str = f"{datadir_path}/datafeeder/metadata_template-19115-3.xml"
+        self.xslt_path: str = f"{datadir_path}/datafeeder/metadata_transform-19115-3.xsl"
         self.org_based_sync: bool = org_based_sync
         self.metadata_default_group_name: str = metadata_default_group_name
 
@@ -78,7 +78,7 @@ class MetadataService:
         etree.SubElement(props, "title").text = integrity_link.integrity_title or "Untitled Dataset"
         etree.SubElement(
             props, "abstract"
-        ).text = f"Dataset imported via DataKern: {integrity_link.integrity_title or 'Untitled'}"
+        ).text = f"Dataset imported via Datafeeder: {integrity_link.integrity_title or 'Untitled'}"
 
         # Build individual name from first + last name, fallback to username
         if user_first_name or user_last_name:

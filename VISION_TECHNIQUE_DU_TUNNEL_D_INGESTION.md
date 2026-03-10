@@ -1,12 +1,12 @@
 # Vision technique du tunnel d'ingestion
 
-Ce document décrit simplement les flux de communication entre les composants (Frontend, Backend, ELT/Airflow) du tunnel d'ingestion DataKern.
+Ce document décrit simplement les flux de communication entre les composants (Frontend, Backend, ELT/Airflow) du tunnel d'ingestion Datafeeder.
 
 ## Notes préalables
 
 ### Les tables principales
 
-- **`datakern.integrity_link`** : Lien entre staging, données finales et métadonnées
+- **`datafeeder.integrity_link`** : Lien entre staging, données finales et métadonnées
 
 ### DAGs Airflow
 

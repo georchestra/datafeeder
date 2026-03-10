@@ -29,7 +29,7 @@ class TestGeoServerService:
         """Test create_workspace with all required parameters."""
         workspace_name = "test_workspace"
         datastore_name = "test_datastore"
-        jndi_reference = "jdbc/datakern"
+        jndi_reference = "jdbc/datafeeder"
         pg_schema = "test_schema"
 
         # Mock the return value from dm_create_workspace
@@ -54,7 +54,7 @@ class TestGeoServerService:
             datastore_name=datastore_name,
             jndi_reference=jndi_reference,
             pg_schema=pg_schema,
-            description=f"DataKern datasets for {workspace_name}",
+            description=f"Datafeeder datasets for {workspace_name}",
         )
 
         # Verify return value
@@ -68,7 +68,7 @@ class TestGeoServerService:
         """Test that exceptions from dm_create_workspace are propagated."""
         workspace_name = "error_workspace"
         datastore_name = "error_datastore"
-        jndi_reference = "jdbc/datakern"
+        jndi_reference = "jdbc/datafeeder"
         pg_schema = "error_schema"
 
         mock_dm_create_workspace.side_effect = Exception("GeoServer connection error")

@@ -31,7 +31,7 @@
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-**Refer to `.specify/memory/constitution.md` for complete principles. Key checks for DataKern:**
+**Refer to `.specify/memory/constitution.md` for complete principles. Key checks for Datafeeder:**
 
 - [ ] **API-First**: Does this feature require new API endpoints? If yes, are they designed before UI implementation?
 - [ ] **Component Independence**: Does this feature maintain clear boundaries? Can backend/frontend/ELT operate independently?

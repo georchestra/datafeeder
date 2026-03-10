@@ -1,4 +1,4 @@
-CREATE SCHEMA IF NOT EXISTS datakern;
+CREATE SCHEMA IF NOT EXISTS datafeeder;
 
 CREATE SCHEMA IF NOT EXISTS data;
 
@@ -7,23 +7,23 @@ CREATE SCHEMA IF NOT EXISTS staging;
 -- Enable pgcrypto extension for encrypted storage of credentials
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE SEQUENCE datakern.hibernate_sequence;
+CREATE SEQUENCE datafeeder.hibernate_sequence;
 
-GRANT ALL ON datakern.hibernate_sequence TO georchestra;
+GRANT ALL ON datafeeder.hibernate_sequence TO georchestra;
 
 GRANT ALL ON SCHEMA staging TO georchestra;
 
-CREATE TYPE datakern.rule_type_enum AS ENUM(
+CREATE TYPE datafeeder.rule_type_enum AS ENUM(
     'DATA',
     'METADATA'
 );
 
-CREATE TYPE datakern.rule_value_enum AS ENUM(
+CREATE TYPE datafeeder.rule_value_enum AS ENUM(
     'READ',
     'WRITE'
 );
 
-CREATE TABLE IF NOT EXISTS datakern.integrity_link(
+CREATE TABLE IF NOT EXISTS datafeeder.integrity_link(
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     data_id varchar(255) NULL,
     metadata_id varchar(255) NULL,
@@ -47,19 +47,19 @@ CREATE TABLE IF NOT EXISTS datakern.integrity_link(
     created_at timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON COLUMN datakern.integrity_link.staging_retrieve_time IS 'Estimated time taken to retrieve data into staging table. Used to define the minimum interval allowed between two schedules.';
+COMMENT ON COLUMN datafeeder.integrity_link.staging_retrieve_time IS 'Estimated time taken to retrieve data into staging table. Used to define the minimum interval allowed between two schedules.';
 
-COMMENT ON COLUMN datakern.integrity_link.last_retrieval_timestamp IS 'Timestamp of the last successful retrieval into the final table';
+COMMENT ON COLUMN datafeeder.integrity_link.last_retrieval_timestamp IS 'Timestamp of the last successful retrieval into the final table';
 
-CREATE TABLE IF NOT EXISTS datakern.integrity_link_rules(
+CREATE TABLE IF NOT EXISTS datafeeder.integrity_link_rules(
     id serial,
-    integrity_link_id uuid REFERENCES datakern.integrity_link(id) ON DELETE CASCADE,
-    rule_type datakern.rule_type_enum NOT NULL,
-    rule_value datakern.rule_value_enum DEFAULT 'READ',
+    integrity_link_id uuid REFERENCES datafeeder.integrity_link(id) ON DELETE CASCADE,
+    rule_type datafeeder.rule_type_enum NOT NULL,
+    rule_value datafeeder.rule_value_enum DEFAULT 'READ',
     group_or_role varchar(255) NOT NULL
 );
 
-ALTER TABLE datakern.integrity_link_rules
+ALTER TABLE datafeeder.integrity_link_rules
     ADD CONSTRAINT uq_integrity_link_rules_link_type_group
     UNIQUE (integrity_link_id, rule_type, group_or_role);
 

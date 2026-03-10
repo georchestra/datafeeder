@@ -3,10 +3,10 @@ FQDN=georchestra-127-0-0-1.nip.io
 SMTPHOST=smtp
 SMTPPORT=25
 
-# DataKern backend configuration
-PROJECT_NAME=DataKern
+# Datafeeder backend configuration
+PROJECT_NAME=Datafeeder
 FRONTEND_HOST=http://localhost:5173
-BACKEND_HOST=http://datakern-backend:8000
+BACKEND_HOST=http://datafeeder-backend:8000
 
 # GeoServer configuration
 GEOSERVER_URL=http://localhost:8080/geoserver

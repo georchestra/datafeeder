@@ -1,4 +1,4 @@
 {
   "final_schema": "data",
-  "datakern_encryption_key": "your_encryption_key"
+  "datafeeder_encryption_key": "your_encryption_key"
 }

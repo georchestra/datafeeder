@@ -11,7 +11,7 @@ Add column-level actions (rename, remove, change type, filter) to the tabular pr
 
 **Language/Version**: Python 3.12 (backend, data_manipulation), TypeScript/Angular 20 (frontend)
 **Primary Dependencies**: FastAPI, SQLModel, Pydantic v2, pandas, geopandas (backend); Angular Material, Tailwind CSS, geonetwork-ui 2.9.0 (frontend)
-**Storage**: PostgreSQL (datakern schema for IntegrityLink, staging schema for data tables)
+**Storage**: PostgreSQL (datafeeder schema for IntegrityLink, staging schema for data tables)
 **Testing**: pytest (Python), vitest (frontend unit tests)
 **Target Platform**: Linux server (Docker containers)
 **Project Type**: Web application (monorepo: backend + frontend + ELT + shared library)
