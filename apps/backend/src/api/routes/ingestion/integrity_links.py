@@ -88,21 +88,36 @@ def list_integrity_links(
     # Check table existence against data_engine's DB (correct DB in all modes).
     # Using data_session ensures information_schema reflects datadb, not georchestra.
     # Raw Table objects require execute(); exec() only accepts SQLModel SelectOfScalar.
-    staging_tables = set(
-        data_session.execute(  # type: ignore[reportDeprecated]
-            sa_select(_info_tables.c.table_name).where(
-                _info_tables.c.table_schema == get_staging_schema()
+    staging_candidates = {lnk.staging_table_name for lnk in links if lnk.staging_table_name}
+    final_candidates = {lnk.final_table_name for lnk in links if lnk.final_table_name}
+
+    staging_tables = (
+        set(
+            data_session.execute(  # type: ignore[reportDeprecated]
+                sa_select(_info_tables.c.table_name).where(
+                    _info_tables.c.table_schema == get_staging_schema(),
+                    _info_tables.c.table_name.in_(staging_candidates),
+                )
             )
+            .scalars()
+            .all()
         )
-        .scalars()
-        .all()
+        if staging_candidates
+        else set()
     )
-    final_tables = set(
-        data_session.execute(  # type: ignore[reportDeprecated]
-            sa_select(_info_tables.c.table_name).where(_info_tables.c.table_schema == "data")
+    final_tables = (
+        set(
+            data_session.execute(  # type: ignore[reportDeprecated]
+                sa_select(_info_tables.c.table_name).where(
+                    _info_tables.c.table_schema == "data",
+                    _info_tables.c.table_name.in_(final_candidates),
+                )
+            )
+            .scalars()
+            .all()
         )
-        .scalars()
-        .all()
+        if final_candidates
+        else set()
     )
 
     # Filter: only show links with at least one associated table; compute has_final flag
