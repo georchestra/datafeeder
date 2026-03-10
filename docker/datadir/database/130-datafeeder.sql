@@ -7,7 +7,7 @@ CREATE SCHEMA IF NOT EXISTS staging;
 -- Enable pgcrypto extension for encrypted storage of credentials
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE SEQUENCE datafeeder.hibernate_sequence;
+CREATE SEQUENCE IF NOT EXISTS datafeeder.hibernate_sequence;
 
 GRANT ALL ON datafeeder.hibernate_sequence TO georchestra;
 
