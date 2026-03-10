@@ -145,7 +145,7 @@ The reconfigure and delete actions on a dataset are reserved exclusively for the
 - The user's group membership is reliably provided by the gateway via request headers and is up-to-date at request time. Each user belongs to exactly one group.
 - The ADMINISTRATOR role confers full access to all datasets and all actions, bypassing all permission checks.
 - WRITE permission on METADATA is sufficient to navigate to and edit metadata. READ permission on METADATA is sufficient only to see the dataset in the list, not to navigate to any detail page.
-- Permission rules for DATA (READ/WRITE) do not affect visibility in the dataset list or navigation to pages within DataKern; they control access to the underlying data in external systems.
+- Permission rules for DATA (READ/WRITE) do not affect visibility in the dataset list or navigation to pages within DataFeeder; they control access to the underlying data in external systems.
 - When no permission rules exist for a dataset (freshly created state), only the owner and administrators can access it.
 
 ## Success Criteria *(mandatory)*

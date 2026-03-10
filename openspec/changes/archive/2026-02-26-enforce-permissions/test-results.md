@@ -98,7 +98,7 @@ Note: Only tested 403 case to avoid triggering real Airflow DAGs.
 
 | Check                      | Expected                          | Actual                           | Result |
 |----------------------------|-----------------------------------|----------------------------------|--------|
-| Gateway access to /datakern/| 403 Forbidden                    | 403 page shown                   | ✅ PASS |
+| Gateway access to /datafeeder/| 403 Forbidden                    | 403 page shown                   | ✅ PASS |
 
 ---
 
@@ -115,7 +115,7 @@ Note: Only tested 403 case to avoid triggering real Airflow DAGs.
 
 **Fix applied:**
 ```sql
-UPDATE datakern.integrity_link SET source_import_type = UPPER(source_import_type);
+UPDATE datafeeder.integrity_link SET source_import_type = UPPER(source_import_type);
 ```
 
 **Recommendation:** Add an Alembic migration to normalize existing data, and/or add a model validator to handle case-insensitive enum loading.

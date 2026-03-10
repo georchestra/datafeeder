@@ -1,10 +1,10 @@
 schema: spec-driven
 
 context: |
-  # DataKern — Project Context
+  # DataFeeder — Project Context
 
   ## Domain
-  DataKern is a data-ingestion and lifecycle-management module for the
+  DataFeeder is a data-ingestion and lifecycle-management module for the
   geOrchestra platform. It guides users through connecting data sources,
   previewing/transforming data, ingesting it, publishing via GeoServer,
   and managing metadata via GeoNetwork.

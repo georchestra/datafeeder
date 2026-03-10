@@ -2,9 +2,9 @@
 
 ## Environment
 
-- Frontend URL: http://localhost:8080/datakern/
-- Backend via gateway: http://localhost:8080/datakern-backend
-- Backend docs: http://localhost:8080/datakern-backend/docs
+- Frontend URL: http://localhost:8080/datafeeder/
+- Backend via gateway: http://localhost:8080/datafeeder-backend
+- Backend docs: http://localhost:8080/datafeeder-backend/docs
 
 ## LDAP Users & Organizations
 
@@ -34,7 +34,7 @@ Discovered from the geOrchestra LDAP (image: georchestra/ldap:25.0.x):
 ## Gateway Access Rules
 
 From `docker/datadir/gateway/gateway.yaml`:
-- `/datakern-backend/**` requires `ROLE_IMPORT` role
+- `/datafeeder-backend/**` requires `ROLE_IMPORT` role
 - Only testadmin, testuser, idatafeeder have IMPORT → the others can't reach the backend via gateway
 - For direct backend tests at `:8000`, we bypass the gateway and inject `sec-*` headers manually
 
@@ -43,8 +43,8 @@ From `docker/datadir/gateway/gateway.yaml`:
 All tests go through **http://localhost:8080** (geOrchestra gateway). This tests the full real
 auth chain: LDAP → gateway → sec-* headers → backend.
 
-- **Backend API tests**: Use `curl --user <user>:<password> http://localhost:8080/datakern-backend/...`
-- **Frontend UI tests**: Use Playwright MCP (browser login at /login → navigate /datakern/)
+- **Backend API tests**: Use `curl --user <user>:<password> http://localhost:8080/datafeeder-backend/...`
+- **Frontend UI tests**: Use Playwright MCP (browser login at /login → navigate /datafeeder/)
 
 ## Bugs Found During Exploration
 
@@ -85,7 +85,7 @@ All requests go through the gateway with Basic Auth.
 **1. Create Dataset_A — owned by testadmin (org=PSC) — GeoJSON**
 
 ```bash
-curl -X POST http://localhost:8080/datakern-backend/ingestion/staging/ \
+curl -X POST http://localhost:8080/datafeeder-backend/ingestion/staging/ \
   --user testadmin:testadmin \
   -F "type=url" \
   -F "url=https://datahub.bordeaux-metropole.fr/api/explore/v2.1/catalog/datasets/ci_vcub_p/exports/geojson"
@@ -98,7 +98,7 @@ curl -X POST http://localhost:8080/datakern-backend/ingestion/staging/ \
 **2. Create Dataset_B — owned by testuser (org=PSC) — CSV**
 
 ```bash
-curl -X POST http://localhost:8080/datakern-backend/ingestion/staging/ \
+curl -X POST http://localhost:8080/datafeeder-backend/ingestion/staging/ \
   --user testuser:testuser \
   -F "type=url" \
   -F "url=https://datahub.bordeaux-metropole.fr/api/explore/v2.1/catalog/datasets/ci_vcub_p/exports/csv?use_labels=true"
@@ -110,7 +110,7 @@ curl -X POST http://localhost:8080/datakern-backend/ingestion/staging/ \
 **3. Create Dataset_C — owned by idatafeeder (org=none) — Shapefile**
 
 ```bash
-curl -X POST http://localhost:8080/datakern-backend/ingestion/staging/ \
+curl -X POST http://localhost:8080/datafeeder-backend/ingestion/staging/ \
   --user idatafeeder:idatafeeder \
   -F "type=url" \
   -F "url=https://datahub.bordeaux-metropole.fr/api/explore/v2.1/catalog/datasets/ci_vcub_p/exports/shp"
@@ -135,13 +135,13 @@ Rules are created by the **dataset owner** (or admin) via the rules endpoint.
 
 ```bash
 # Rule 1: PSC org gets METADATA WRITE (so testadmin can also access via rule — redundant with admin, but validates rule logic)
-curl -X PUT "http://localhost:8080/datakern-backend/ingestion/integrity-link/$DATASET_B_ID/rules" \
+curl -X PUT "http://localhost:8080/datafeeder-backend/ingestion/integrity-link/$DATASET_B_ID/rules" \
   --user testuser:testuser \
   -H "Content-Type: application/json" \
   -d '{"group_or_role": "PSC", "rule_type": "METADATA", "rule_value": "WRITE"}'
 
 # Rule 2: C2C org gets METADATA READ (testeditor can see in list but NOT navigate)
-curl -X PUT "http://localhost:8080/datakern-backend/ingestion/integrity-link/$DATASET_B_ID/rules" \
+curl -X PUT "http://localhost:8080/datafeeder-backend/ingestion/integrity-link/$DATASET_B_ID/rules" \
   --user testuser:testuser \
   -H "Content-Type: application/json" \
   -d '{"group_or_role": "C2C", "rule_type": "METADATA", "rule_value": "READ"}'
@@ -151,7 +151,7 @@ curl -X PUT "http://localhost:8080/datakern-backend/ingestion/integrity-link/$DA
 
 ```bash
 # Rule 3: PSC org gets METADATA WRITE (testuser can access Dataset_C via this rule)
-curl -X PUT "http://localhost:8080/datakern-backend/ingestion/integrity-link/$DATASET_C_ID/rules" \
+curl -X PUT "http://localhost:8080/datafeeder-backend/ingestion/integrity-link/$DATASET_C_ID/rules" \
   --user idatafeeder:idatafeeder \
   -H "Content-Type: application/json" \
   -d '{"group_or_role": "PSC", "rule_type": "METADATA", "rule_value": "WRITE"}'
@@ -182,8 +182,8 @@ curl -X PUT "http://localhost:8080/datakern-backend/ingestion/integrity-link/$DA
 - Dataset_C: testuser is not owner, but PSC→METADATA/WRITE rule exists → **visible**, access_level=WRITE
 
 **Note on testeditor:**
-- testeditor has no ROLE_IMPORT → the gateway blocks access to `/datakern-backend/**`
-- BUT testeditor CAN log in to the frontend at `/datakern/` (the frontend is not role-gated in the gateway)
+- testeditor has no ROLE_IMPORT → the gateway blocks access to `/datafeeder-backend/**`
+- BUT testeditor CAN log in to the frontend at `/datafeeder/` (the frontend is not role-gated in the gateway)
 - The frontend fetches the API on behalf of the user; if the gateway blocks the XHR, the UI shows "No dataset found" or an error
 - To test testeditor's READ-only visibility, we either: (a) test via Playwright browser login, or (b) relax this scenario
 
@@ -268,13 +268,13 @@ Phase 4 — Bug Fixes
 
 ```bash
 # As testadmin
-curl --user testadmin:testadmin http://localhost:8080/datakern-backend/...
+curl --user testadmin:testadmin http://localhost:8080/datafeeder-backend/...
 
 # As testuser
-curl --user testuser:testuser http://localhost:8080/datakern-backend/...
+curl --user testuser:testuser http://localhost:8080/datafeeder-backend/...
 
 # As idatafeeder
-curl --user idatafeeder:idatafeeder http://localhost:8080/datakern-backend/...
+curl --user idatafeeder:idatafeeder http://localhost:8080/datafeeder-backend/...
 ```
 
 ## Integration Tests Location

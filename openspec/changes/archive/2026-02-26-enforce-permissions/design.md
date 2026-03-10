@@ -16,7 +16,7 @@ The `GeorchestraContext` extracts user identity from gateway headers (`sec-usern
 - Changing the permission data model (IntegrityLinkRule schema stays as-is)
 - Adding new API endpoints (existing endpoints gain authorization checks)
 - Frontend route guards or custom 403 pages (backend 403 is displayed as-is)
-- DATA-dimension permission enforcement (DATA READ/WRITE controls external systems, not DataKern navigation)
+- DATA-dimension permission enforcement (DATA READ/WRITE controls external systems, not DataFeeder navigation)
 
 ## Decisions
 

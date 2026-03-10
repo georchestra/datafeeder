@@ -517,20 +517,20 @@ class TestUpsertIntegrityLinkRulePermission:
 
 class TestGetStagingMetadataPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        datakern_session = _mock_session(_link())
+        datafeeder_session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            get_staging_metadata(MagicMock(), datakern_session, _ctx(), INTLINK_ID, None)
+            get_staging_metadata(MagicMock(), datafeeder_session, _ctx(), INTLINK_ID, None)
 
         assert exc_info.value.status_code == 403
 
     def test_returns_403_for_read_group_user(self) -> None:
         """READ group access is insufficient for METADATA_WRITE endpoint."""
 
-        datakern_session = _mock_session_with_rule(_link(), RuleValue.READ)
+        datafeeder_session = _mock_session_with_rule(_link(), RuleValue.READ)
 
         with pytest.raises(HTTPException) as exc_info:
-            get_staging_metadata(MagicMock(), datakern_session, _read_ctx(), INTLINK_ID, ORG_UUID)
+            get_staging_metadata(MagicMock(), datafeeder_session, _read_ctx(), INTLINK_ID, ORG_UUID)
 
         assert exc_info.value.status_code == 403
 
@@ -553,11 +553,11 @@ class TestGetStagingMetadataPermission:
 
 class TestPutStagingMetadataPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        datakern_session = _mock_session(_link())
+        datafeeder_session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
             edit_staging_metadata(
-                MagicMock(), datakern_session, _ctx(), INTLINK_ID, None, MagicMock()
+                MagicMock(), datafeeder_session, _ctx(), INTLINK_ID, None, MagicMock()
             )
 
         assert exc_info.value.status_code == 403
@@ -565,11 +565,11 @@ class TestPutStagingMetadataPermission:
     def test_returns_403_for_read_group_user(self) -> None:
         """READ group access is insufficient for METADATA_WRITE endpoint."""
 
-        datakern_session = _mock_session_with_rule(_link(), RuleValue.READ)
+        datafeeder_session = _mock_session_with_rule(_link(), RuleValue.READ)
 
         with pytest.raises(HTTPException) as exc_info:
             edit_staging_metadata(
-                MagicMock(), datakern_session, _read_ctx(), INTLINK_ID, ORG_UUID, MagicMock()
+                MagicMock(), datafeeder_session, _read_ctx(), INTLINK_ID, ORG_UUID, MagicMock()
             )
 
         assert exc_info.value.status_code == 403
@@ -593,20 +593,20 @@ class TestPutStagingMetadataPermission:
 
 class TestGetStagingPreviewPermission:
     def test_returns_403_for_unauthorized_user(self) -> None:
-        datakern_session = _mock_session(_link())
+        datafeeder_session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            get_staging_preview(MagicMock(), datakern_session, _ctx(), INTLINK_ID, None)
+            get_staging_preview(MagicMock(), datafeeder_session, _ctx(), INTLINK_ID, None)
 
         assert exc_info.value.status_code == 403
 
     def test_returns_403_for_read_group_user(self) -> None:
         """READ group access is insufficient for METADATA_WRITE endpoint."""
 
-        datakern_session = _mock_session_with_rule(_link(), RuleValue.READ)
+        datafeeder_session = _mock_session_with_rule(_link(), RuleValue.READ)
 
         with pytest.raises(HTTPException) as exc_info:
-            get_staging_preview(MagicMock(), datakern_session, _read_ctx(), INTLINK_ID, ORG_UUID)
+            get_staging_preview(MagicMock(), datafeeder_session, _read_ctx(), INTLINK_ID, ORG_UUID)
 
         assert exc_info.value.status_code == 403
 

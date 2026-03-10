@@ -32,5 +32,5 @@
 ## Notes
 
 - All items pass validation. The spec is ready for `/speckit.clarify` or `/speckit.plan`.
-- Assumptions section documents key defaults (ADMINISTRATOR bypass, WRITE implies READ, DATA rules not affecting DataKern navigation).
+- Assumptions section documents key defaults (ADMINISTRATOR bypass, WRITE implies READ, DATA rules not affecting DataFeeder navigation).
 - No [NEEDS CLARIFICATION] markers were needed — the user's description was sufficiently detailed and all gaps could be resolved with reasonable defaults documented in the Assumptions section.

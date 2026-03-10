@@ -1,6 +1,6 @@
 ## Why
 
-DataKern currently allows editing and saving permission rules on datasets (IntegrityLinkRule), but these rules are not enforced. Any authenticated user can access any dataset's endpoints, view any dataset in the list, and navigate to any detail page regardless of permissions. This is a security gap: authorization is purely cosmetic. Backend enforcement (HTTP 403) and frontend conditional navigation must be implemented to make the permission system functional.
+DataFeeder currently allows editing and saving permission rules on datasets (IntegrityLinkRule), but these rules are not enforced. Any authenticated user can access any dataset's endpoints, view any dataset in the list, and navigate to any detail page regardless of permissions. This is a security gap: authorization is purely cosmetic. Backend enforcement (HTTP 403) and frontend conditional navigation must be implemented to make the permission system functional.
 
 This is a full-stack change touching backend (API authorization) and frontend (conditional navigation/UI).
 
