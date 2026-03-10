@@ -48,11 +48,12 @@ The frontend dashboard (`integrity-link-list` feature) already lists JDDs via th
 
 1. Delete Airflow DAG (only if `schedule` is set) — **blocking**: if this fails → return HTTP 500, stop
 2. Delete GeoServer layer — best-effort, log on failure
-3. Drop data table (`{org_schema}.{final_table_name}`) — best-effort, log on failure
-4. Delete GeoNetwork record — best-effort, log on failure
-5. Delete IntegrityLink row (DB) — cascade removes `IntegrityLinkRule` rows automatically
+3. Drop final table (`{org_schema}.{final_table_name}`) — best-effort, log on failure
+4. Drop staging table (`staging.{staging_table_name}`) with `IF EXISTS` — best-effort, log on failure (usually already cleaned post-ingestion)
+5. Delete GeoNetwork record — best-effort, log on failure
+6. Delete IntegrityLink row (DB) — cascade removes `IntegrityLinkRule` rows automatically
 
-**Rationale**: DAG deletion is the only step where a lingering process could corrupt system state (scheduled runs on a deleted dataset). All other steps are idempotent resources that can be cleaned up manually if needed. `ON DELETE CASCADE` on `integrity_link_rule.integrity_link_id` ensures no orphan rules remain.
+**Rationale**: DAG deletion is the only step where a lingering process could corrupt system state (scheduled runs on a deleted dataset). All other steps are idempotent resources that can be cleaned up manually if needed. Staging table drop captures orphaned tables from failed ingestions (successful ingestions already drop staging in the transformation task group). `ON DELETE CASCADE` on `integrity_link_rule.integrity_link_id` ensures no orphan rules remain.
 
 **Alternative**: Transactional rollback across all external systems. Rejected — distributed rollback across Airflow/GeoServer/GeoNetwork/PostgreSQL is impractical and over-engineered for this use case.
 
@@ -66,7 +67,9 @@ The frontend dashboard (`integrity-link-list` feature) already lists JDDs via th
 
 ### 5. Database: no migration needed
 
-**Decision**: Verify the existing `integrity_link_rule` table already has `ON DELETE CASCADE` on the `integrity_link_id` FK. If not, a migration must be added. The staging table data is independent (schema-qualified `{org}.{staging_table_name}`) and is deleted via direct SQL DROP in the service layer.
+**Decision**: Rely on existing `ON DELETE CASCADE` constraint in database schema (`docker/datadir/database/130-datakern.sql` line 56). Both staging and final tables are dropped via direct SQL `DROP TABLE IF EXISTS` in the service layer (best-effort, with error logging).
+
+**Rationale**: The database initialization script already defines the FK constraint with `ON DELETE CASCADE`, ensuring that deleting an IntegrityLink automatically removes associated IntegrityLinkRule rows. No migration or model changes needed.
 
 **Alternative**: Keep orphan rules and clean on read. Rejected — orphan rules are data integrity violations.
 
@@ -83,11 +86,19 @@ The frontend dashboard (`integrity-link-list` feature) already lists JDDs via th
 ## Migration Plan
 
 1. Deploy backend with new DELETE endpoint
-2. Verify `integrity_link_rule` FK has `ON DELETE CASCADE` (add Alembic migration if missing)
-3. Deploy frontend with hover-state delete button
-4. No rollback complexity — no data schema changes in the happy path
+2. Deploy frontend with hover-state delete button
+3. No rollback complexity — no schema changes needed
 
 ## Open Questions
 
-- Does `integrity_link_rule.integrity_link_id` already have `ON DELETE CASCADE`? → verify in Alembic migrations before implementing
-- Should the staging table also be dropped, or only the final table? → per Jira story: "suppression table données" refers to the published final table; staging is separate
+~~Does `integrity_link_rule.integrity_link_id` already have `ON DELETE CASCADE`? → verify in Alembic migrations before implementing~~
+
+**RESOLVED**: ✅ FK constraint HAS `ON DELETE CASCADE` in database initialization script (`docker/datadir/database/130-datakern.sql` line 56). No migration needed. Note: SQLModel definition doesn't specify `ondelete='CASCADE'` but the actual database schema is correct.
+
+~~Should the staging table also be dropped, or only the final table? → per Jira story: "suppression table données" refers to the published final table; staging is separate~~
+
+**RESOLVED**: ✅ New Jira requirement: "suppression table données (staging et finale, selon l'état du JDD)" - Delete BOTH tables according to JDD state. In practice:
+
+- Final table: Always attempt to drop if `final_table_name` is set (published data)
+- Staging table: Always attempt to drop with `IF EXISTS` (usually already cleaned post-ingestion, but may linger if ingestion failed)
+- Both operations are best-effort with error logging

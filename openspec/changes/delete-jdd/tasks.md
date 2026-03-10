@@ -1,7 +1,6 @@
-## 1. Database Prerequisite
+## 1. Database Verification
 
-- [ ] 1.1 Verify `datakern.integrity_link_rule` FK `integrity_link_id` has `ON DELETE CASCADE` in Alembic migrations
-- [ ] 1.2 If missing, create an Alembic migration in `apps/backend/` to add `ON DELETE CASCADE` to `integrity_link_rule.integrity_link_id`
+- [x] 1.1 Verify `datakern.integrity_link_rule` FK `integrity_link_id` has `ON DELETE CASCADE` → ✅ Confirmed present in `docker/datadir/database/130-datakern.sql` line 56
 
 ## 2. Backend — Service Layer
 
@@ -11,9 +10,10 @@
 - [ ] 2.4 Create `apps/backend/src/services/jdd_deletion_service.py` with `delete_jdd(integrity_link, session)`:
   - If `schedule` is set: call `delete_dag()` — raise HTTP 500 on failure (blocking step)
   - Call `delete_layer()` — best-effort
-  - Drop `{org_schema}.{final_table_name}` with `DROP TABLE IF EXISTS` — best-effort
+  - Drop final table with `DROP TABLE IF EXISTS {org_schema}.{final_table_name}` — best-effort
+  - Drop staging table with `DROP TABLE IF EXISTS staging.{staging_table_name}` — best-effort (usually already cleaned, captures failed ingestion orphans)
   - Call `delete_record()` — best-effort
-  - Delete IntegrityLink from DB (cascade removes IntegrityLinkRule rows)
+  - Delete IntegrityLink from DB (cascade removes IntegrityLinkRule rows via FK constraint)
 
 ## 3. Backend — API Route
 
