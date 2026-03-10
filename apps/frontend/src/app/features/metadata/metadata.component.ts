@@ -1,6 +1,14 @@
 import { CommonModule } from '@angular/common'
-import { Component, effect, inject, OnInit } from '@angular/core'
-import { toSignal } from '@angular/core/rxjs-interop'
+import {
+  Component,
+  DestroyRef,
+  effect,
+  inject,
+  OnInit,
+  signal
+} from '@angular/core'
+import { RouterLink } from '@angular/router'
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import {
   iconoirNumber1Square,
@@ -15,8 +23,29 @@ import {
   RecordFormComponent,
   RecordsRepositoryInterface
 } from 'geonetwork-ui'
-import { combineLatest, firstValueFrom, map, take, tap } from 'rxjs'
+import {
+  combineLatest,
+  firstValueFrom,
+  from,
+  interval,
+  map,
+  switchMap,
+  take,
+  takeWhile,
+  tap
+} from 'rxjs'
+import { Api } from '../../core/api/api'
+import {
+  getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
+  getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
+  getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet
+} from '../../core/api/functions'
+import { DagRunState } from '../../core/api/models'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
+import { marker } from '@biesbjerg/ngx-translate-extract-marker'
+
+marker('metadata.processing.queued')
+marker('metadata.processing.running')
 
 @Component({
   selector: 'app-metadata',
@@ -26,7 +55,8 @@ import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
     ButtonComponent,
     TranslateDirective,
     TranslatePipe,
-    RecordFormComponent
+    RecordFormComponent,
+    RouterLink
   ],
   templateUrl: './metadata.component.html',
   styleUrl: './metadata.component.css',
@@ -43,6 +73,12 @@ export class MetadataComponent implements OnInit {
   private recordsRepository = inject(RecordsRepositoryInterface)
   protected editor = inject(EditorFacade)
   readonly store = inject(IntegrityLinkStore)
+  private api = inject(Api)
+  private destroyRef = inject(DestroyRef)
+
+  processingStatus = signal<DagRunState | null>(null)
+  processingStatusLoaded = signal(false)
+  processingDagRunId = signal<string | null>(null)
 
   isRecordLoaded = toSignal(this.editor.record$.pipe(map((record) => !!record)))
   pages = toSignal(
@@ -59,8 +95,8 @@ export class MetadataComponent implements OnInit {
   constructor() {
     effect(() => {
       const integrityLink = this.store.integrityLink()
-      if (integrityLink) {
-        this.loadMetadata(integrityLink.metadata_id)
+      if (integrityLink && !this.processingStatusLoaded()) {
+        this.loadProcessingStatus(integrityLink.id)
       }
     })
   }
@@ -87,6 +123,88 @@ export class MetadataComponent implements OnInit {
         .subscribe()
     } catch (error) {
       console.error('Error loading metadata:', error)
+    }
+  }
+
+  private async loadProcessingStatus(intlinkId: string): Promise<void> {
+    try {
+      const response = await this.api.invoke(
+        getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
+        { dag_id: 'process_dag', intlink_id: intlinkId, limit: 1 }
+      )
+
+      const latestRun = response.dag_runs[0] ?? null
+      if (!latestRun) {
+        this.processingStatusLoaded.set(true)
+        return
+      }
+
+      this.processingDagRunId.set(latestRun.dag_run_id)
+      this.processingStatus.set(latestRun.state)
+      this.processingStatusLoaded.set(true)
+
+      if (latestRun.state === 'success') {
+        const integrityLink = this.store.integrityLink()
+        if (integrityLink?.metadata_id) {
+          this.loadMetadata(integrityLink.metadata_id)
+        }
+      } else if (
+        latestRun.state === 'queued' ||
+        latestRun.state === 'running'
+      ) {
+        this.startPollingStatus(intlinkId, latestRun.dag_run_id)
+      }
+    } catch (error) {
+      console.error('Error loading processing status:', error)
+      this.processingStatusLoaded.set(true)
+    }
+  }
+
+  private startPollingStatus(intlinkId: string, dagRunId: string): void {
+    interval(2000)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        switchMap(() =>
+          from(
+            this.api.invoke(
+              getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
+              {
+                dag_id: 'process_dag',
+                dag_run_id: dagRunId
+              }
+            )
+          )
+        ),
+        takeWhile(
+          (status: DagRunState) => status === 'queued' || status === 'running',
+          true
+        )
+      )
+      .subscribe({
+        next: async (status: DagRunState) => {
+          this.processingStatus.set(status)
+          if (status === 'success') {
+            await this.reloadIntegrityLink(intlinkId)
+            const integrityLink = this.store.integrityLink()
+            if (integrityLink?.metadata_id) {
+              this.loadMetadata(integrityLink.metadata_id)
+            }
+          }
+        },
+        error: (error) =>
+          console.error('Error polling processing status:', error)
+      })
+  }
+
+  private async reloadIntegrityLink(intlinkId: string): Promise<void> {
+    try {
+      const updated = await this.api.invoke(
+        getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet,
+        { integrity_link_id: intlinkId }
+      )
+      this.store.integrityLink.set(updated)
+    } catch (error) {
+      console.error('Error reloading integrity link:', error)
     }
   }
 

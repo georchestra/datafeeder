@@ -87,7 +87,7 @@ async def get_current_user(
         raise credentials_exception
     return user
 
-CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
 ```
 
 ## Role-Based Access
@@ -101,7 +101,7 @@ class UserRole(str, Enum):
     MODERATOR = "moderator"
 
 def require_roles(*roles: UserRole):
-    async def role_checker(current_user: CurrentUser) -> User:
+    async def role_checker(current_user: CurrentUserDep) -> User:
         if current_user.role not in roles:
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,

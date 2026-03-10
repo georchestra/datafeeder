@@ -5,6 +5,21 @@
       store.integrityLink()?.integrity_title
     }}</span>
   </h1>
+  @if (mutationError()) {
+  <app-ui-alert-box
+    type="error"
+    [title]="'authorizations.error.mutation.title' | translate"
+    [message]="'authorizations.error.mutation.message' | translate"
+    (dismissed)="mutationError.set(null)"
+  />
+  } @if (loadError()) {
+  <app-ui-alert-box
+    type="error"
+    [dismissible]="false"
+    [title]="'authorizations.error.load.title' | translate"
+    [message]="'authorizations.error.load.message' | translate"
+  />
+  } @else {
   <div class="grid flex-1 min-h-0 grid-cols-2 gap-6">
     <div class="rounded-lg border border-gray-300">
       <div
@@ -88,4 +103,5 @@
       </div>
     </div>
   </div>
+  }
 </div>

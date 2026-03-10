@@ -6,6 +6,11 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import HTTPException
 
+from src.api.routes.ingestion.integrity_link import (
+    delete_integrity_link_rule,
+    toggle_publish_gn_integrity_link,
+    upsert_integrity_link_rule,
+)
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import (
@@ -24,6 +29,7 @@ def _geo_ctx() -> GeorchestraContext:
         email="",
         firstname="",
         lastname="",
+        organization="",
     )
 
 
@@ -39,8 +45,6 @@ class TestUpsertIntegrityLinkRule:
         return str(uuid4())
 
     def test_create_new_rule(self, mock_session: MagicMock, integrity_link_id: str) -> None:
-        from src.api.routes.ingestion.integrity_link import upsert_integrity_link_rule
-
         # IntegrityLink exists
         mock_session.get.return_value = IntegrityLink(
             id=UUID(integrity_link_id),
@@ -50,10 +54,13 @@ class TestUpsertIntegrityLinkRule:
             staging_table_name="staging_test",
         )
 
-        # No existing rule found
-        mock_exec_result = MagicMock()
-        mock_exec_result.first.return_value = None
-        mock_session.exec.return_value = mock_exec_result
+        # First exec call: compute_effective_access → "OWNER"
+        # Second exec call: look up existing rule → None (no rule exists)
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        mock_session.exec.side_effect = [access_mock, no_rule_mock]
 
         body = UpsertRuleRequest(
             group_or_role="GROUP_1",
@@ -65,6 +72,7 @@ class TestUpsertIntegrityLinkRule:
             session=mock_session,
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
+            org_id=None,
             body=body,
         )
 
@@ -78,8 +86,6 @@ class TestUpsertIntegrityLinkRule:
         assert added_rule.rule_value == RuleValue.READ
 
     def test_update_existing_rule(self, mock_session: MagicMock, integrity_link_id: str) -> None:
-        from src.api.routes.ingestion.integrity_link import upsert_integrity_link_rule
-
         mock_session.get.return_value = IntegrityLink(
             id=UUID(integrity_link_id),
             integrity_owner="testuser",
@@ -95,9 +101,13 @@ class TestUpsertIntegrityLinkRule:
             rule_type=RuleType.DATA,
             rule_value=RuleValue.READ,
         )
-        mock_exec_result = MagicMock()
-        mock_exec_result.first.return_value = existing_rule
-        mock_session.exec.return_value = mock_exec_result
+        # First exec call: compute_effective_access → "OWNER"
+        # Second exec call: look up existing rule → existing_rule
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        rule_mock = MagicMock()
+        rule_mock.first.return_value = existing_rule
+        mock_session.exec.side_effect = [access_mock, rule_mock]
 
         body = UpsertRuleRequest(
             group_or_role="GROUP_1",
@@ -109,6 +119,7 @@ class TestUpsertIntegrityLinkRule:
             session=mock_session,
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
+            org_id=None,
             body=body,
         )
 
@@ -117,8 +128,6 @@ class TestUpsertIntegrityLinkRule:
         mock_session.refresh.assert_called_once_with(existing_rule)
 
     def test_integrity_link_not_found(self, mock_session: MagicMock) -> None:
-        from src.api.routes.ingestion.integrity_link import upsert_integrity_link_rule
-
         mock_session.get.return_value = None
 
         body = UpsertRuleRequest(
@@ -132,6 +141,7 @@ class TestUpsertIntegrityLinkRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=str(uuid4()),
+                org_id=None,
                 body=body,
             )
 
@@ -151,8 +161,6 @@ class TestDeleteIntegrityLinkRule:
         return str(uuid4())
 
     def test_delete_existing_rule(self, mock_session: MagicMock, integrity_link_id: str) -> None:
-        from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
-
         mock_session.get.side_effect = [
             IntegrityLink(
                 id=UUID(integrity_link_id),
@@ -169,11 +177,13 @@ class TestDeleteIntegrityLinkRule:
                 rule_value=RuleValue.READ,
             ),  # second call: rule
         ]
+        mock_session.exec.return_value.first.return_value = "OWNER"
 
         response = delete_integrity_link_rule(
             session=mock_session,
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
+            org_id=None,
             rule_id=7,
         )
 
@@ -182,8 +192,6 @@ class TestDeleteIntegrityLinkRule:
         mock_session.commit.assert_called_once()
 
     def test_integrity_link_not_found(self, mock_session: MagicMock) -> None:
-        from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
-
         mock_session.get.return_value = None
 
         with pytest.raises(HTTPException) as exc_info:
@@ -191,6 +199,7 @@ class TestDeleteIntegrityLinkRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=str(uuid4()),
+                org_id=None,
                 rule_id=1,
             )
 
@@ -198,8 +207,6 @@ class TestDeleteIntegrityLinkRule:
         assert exc_info.value.detail == "IntegrityLink not found"
 
     def test_rule_not_found(self, mock_session: MagicMock, integrity_link_id: str) -> None:
-        from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
-
         mock_session.get.side_effect = [
             IntegrityLink(
                 id=UUID(integrity_link_id),
@@ -210,12 +217,14 @@ class TestDeleteIntegrityLinkRule:
             ),  # integrity_link exists
             None,  # rule not found
         ]
+        mock_session.exec.return_value.first.return_value = "OWNER"
 
         with pytest.raises(HTTPException) as exc_info:
             delete_integrity_link_rule(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
+                org_id=None,
                 rule_id=999,
             )
 
@@ -225,8 +234,6 @@ class TestDeleteIntegrityLinkRule:
     def test_rule_belongs_to_different_integrity_link(
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
-        from src.api.routes.ingestion.integrity_link import delete_integrity_link_rule
-
         other_link_id = uuid4()
         mock_session.get.side_effect = [
             IntegrityLink(
@@ -244,12 +251,14 @@ class TestDeleteIntegrityLinkRule:
                 rule_value=RuleValue.READ,
             ),
         ]
+        mock_session.exec.return_value.first.return_value = "OWNER"
 
         with pytest.raises(HTTPException) as exc_info:
             delete_integrity_link_rule(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
+                org_id=None,
                 rule_id=7,
             )
 
@@ -269,8 +278,6 @@ class TestTogglePublishGnIntegrityLink:
         return str(uuid4())
 
     def test_publish_success(self, mock_session: MagicMock, integrity_link_id: str) -> None:
-        from src.api.routes.ingestion.integrity_link import toggle_publish_gn_integrity_link
-
         integrity_link = IntegrityLink(
             id=UUID(integrity_link_id),
             integrity_owner="testuser",
@@ -303,8 +310,6 @@ class TestTogglePublishGnIntegrityLink:
         mock_session.refresh.assert_called_once()
 
     def test_unpublish_success(self, mock_session: MagicMock, integrity_link_id: str) -> None:
-        from src.api.routes.ingestion.integrity_link import toggle_publish_gn_integrity_link
-
         integrity_link = IntegrityLink(
             id=UUID(integrity_link_id),
             integrity_owner="testuser",
@@ -337,8 +342,6 @@ class TestTogglePublishGnIntegrityLink:
         mock_session.refresh.assert_called_once()
 
     def test_integrity_link_not_found(self, mock_session: MagicMock) -> None:
-        from src.api.routes.ingestion.integrity_link import toggle_publish_gn_integrity_link
-
         mock_session.get.return_value = None
 
         with pytest.raises(HTTPException) as exc_info:
@@ -353,8 +356,6 @@ class TestTogglePublishGnIntegrityLink:
         assert exc_info.value.detail == "IntegrityLink not found"
 
     def test_no_metadata_id(self, mock_session: MagicMock, integrity_link_id: str) -> None:
-        from src.api.routes.ingestion.integrity_link import toggle_publish_gn_integrity_link
-
         mock_session.get.return_value = IntegrityLink(
             id=UUID(integrity_link_id),
             integrity_owner="testuser",
@@ -380,8 +381,6 @@ class TestTogglePublishGnIntegrityLink:
     def test_metadata_service_failure(
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
-        from src.api.routes.ingestion.integrity_link import toggle_publish_gn_integrity_link
-
         mock_session.get.return_value = IntegrityLink(
             id=UUID(integrity_link_id),
             integrity_owner="testuser",

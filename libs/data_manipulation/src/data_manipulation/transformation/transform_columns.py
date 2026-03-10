@@ -8,7 +8,6 @@ absent from the DataFrame when these functions are called.
 
 import logging
 
-import geopandas as gpd
 import pandas as pd
 
 from data_manipulation.models import CastType, ColumnConfig
@@ -47,7 +46,7 @@ def _parse_bool_from_strings(series: pd.Series) -> pd.Series:
             return False
         return None
 
-    result = series.map(_to_bool).astype("boolean")
+    result = series.map(_to_bool).astype("boolean")  # pyright: ignore[reportUnknownMemberType]
     na_count = int(result.isna().sum())
     if na_count > 0:
         logger.warning(f"Boolean cast: {na_count} value(s) could not be parsed and were set to NA")
@@ -55,9 +54,9 @@ def _parse_bool_from_strings(series: pd.Series) -> pd.Series:
 
 
 def rename_columns(
-    df: gpd.GeoDataFrame | pd.DataFrame,
+    df: pd.DataFrame,
     columns: list[ColumnConfig],
-) -> gpd.GeoDataFrame | pd.DataFrame:
+) -> pd.DataFrame:
     """Rename columns in the DataFrame according to column configurations.
 
     Only renames non-excluded columns that have a non-None ``new_name``.
@@ -85,9 +84,9 @@ def rename_columns(
 
 
 def cast_column_types(
-    df: gpd.GeoDataFrame | pd.DataFrame,
+    df: pd.DataFrame,
     columns: list[ColumnConfig],
-) -> gpd.GeoDataFrame | pd.DataFrame:
+) -> pd.DataFrame:
     """Cast column types according to column configurations.
 
     Applied in-memory after the data is fetched.  Excluded columns are already
@@ -135,10 +134,10 @@ def cast_column_types(
                     df[effective_name] = col.astype(bool)  # type: ignore[union-attr]
             elif cast_type == CastType.NUMERIC:
                 df = df.copy()
-                df[effective_name] = pd.to_numeric(df[effective_name], errors="coerce")
+                df[effective_name] = pd.to_numeric(df[effective_name], errors="coerce")  # pyright: ignore[reportUnknownMemberType]
             elif cast_type == CastType.TEXT:
                 df = df.copy()
-                df[effective_name] = df[effective_name].astype(str)
+                df[effective_name] = df[effective_name].astype(str)  # pyright: ignore[reportUnknownMemberType]
             elif cast_type == CastType.DATE:
                 df = df.copy()
                 df[effective_name] = pd.to_datetime(df[effective_name], errors="coerce")  # type: ignore[arg-type]

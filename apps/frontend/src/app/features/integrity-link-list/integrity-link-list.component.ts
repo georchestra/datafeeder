@@ -79,7 +79,12 @@ export class IntegrityLinkListComponent {
     this.loadIntegrityLinks(true)
   }
 
-  onRowClick(id: string): void {
-    this.router.navigate(['/', id, 'edit'])
+  onRowClick(link: IntegrityLinkListItem): void {
+    if (link.access_level === 'READ') return
+    this.router.navigate(['/', link.id, 'edit'])
+  }
+
+  isReadOnly(link: IntegrityLinkListItem): boolean {
+    return link.access_level === 'READ'
   }
 }

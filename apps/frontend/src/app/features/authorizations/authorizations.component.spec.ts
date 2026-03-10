@@ -229,6 +229,94 @@ describe('AuthorizationsComponent', () => {
     )
   })
 
+  // ─── Error handling ──────────────────────────────────────────────────────
+  // Matrix coverage (frontend-behavior-matrix.md — Page: /:id/authorizations):
+  //   403 on GET rules → loadError signal set, rules stays empty       ✅
+  //   403 on PUT/DELETE rule → mutationError signal set                ✅
+
+  describe('Error handling', () => {
+    it('should set loadError and leave rules empty when listRules API returns 403 (✅)', async () => {
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.reject({ status: 403, message: 'Forbidden' })
+        if (fn === listGroupsMetadataGroupsGet) return Promise.resolve([])
+        if (fn === listGroupsDataGroupsGet) return Promise.resolve([])
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+
+      await vi.waitFor(() => expect(component.loadError()).not.toBeNull())
+      expect(component.rules()).toEqual([])
+    })
+
+    it('should set mutationError and leave rules unchanged when upsert returns 403 (✅)', async () => {
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (fn === listGroupsMetadataGroupsGet)
+          return Promise.resolve(mockGeonetworkGroups)
+        if (fn === listGroupsDataGroupsGet)
+          return Promise.resolve(mockGeoserverGroups)
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        if (
+          fn ===
+          upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut
+        )
+          return Promise.reject({ status: 403, message: 'Forbidden' })
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+
+      await vi.waitFor(() => expect(component.rules().length).toBe(2))
+
+      await component.onMetadataRuleChange({
+        group: { id: 'org-1', label: 'Organization A' },
+        value: 'WRITE'
+      })
+
+      expect(component.mutationError()).not.toBeNull()
+      // rules unchanged — loadRules was not called after the failed upsert
+      expect(component.rules().length).toBe(2)
+    })
+
+    it('should clear loadError when subsequent load succeeds', async () => {
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.reject({ status: 403 })
+        if (fn === listGroupsMetadataGroupsGet) return Promise.resolve([])
+        if (fn === listGroupsDataGroupsGet) return Promise.resolve([])
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+
+      await vi.waitFor(() => expect(component.loadError()).not.toBeNull())
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        return Promise.resolve([])
+      })
+      ;(component as any).loadRules(intlinkId)
+
+      await vi.waitFor(() => expect(component.loadError()).toBeNull())
+      expect(component.rules().length).toBe(2)
+    })
+  })
+
   describe('onTogglePublishGn', () => {
     it('should call toggle publish API with publish=true and update signals on success', async () => {
       const updatedLink = {

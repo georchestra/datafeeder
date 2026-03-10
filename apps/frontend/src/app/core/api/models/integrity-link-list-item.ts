@@ -8,6 +8,10 @@ import { ImportType } from '../models/import-type'
  * Response model for integrity link in list view (excludes sensitive fields).
  */
 export interface IntegrityLinkListItem {
+  /**
+   * User's effective access level: ADMIN, OWNER, WRITE, or READ
+   */
+  access_level?: string | null
   created_at: string | null
   data_id: string | null
   final_table_name: string | null

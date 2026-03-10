@@ -5,6 +5,7 @@ from geoservercloud.models.datastore import PostGisDataStore
 from geoservercloud.models.featuretype import FeatureType
 from geoservercloud.services import RestService
 from pydantic import BaseModel  # type: ignore[import-untyped]
+from pyproj import Transformer  # type: ignore[import-untyped]
 
 from data_manipulation.utils import compute_bbox_from_postgis_stextent_string, sanitize_name
 
@@ -216,8 +217,6 @@ def update_layer_bbox(
     }
 
     if native_epsg != 4326:
-        from pyproj import Transformer  # type: ignore[import-untyped]
-
         transformer = Transformer.from_crs(f"EPSG:{native_epsg}", "EPSG:4326", always_xy=True)
         minx_ll, miny_ll = transformer.transform(parsed_bbox["minx"], parsed_bbox["miny"])
         maxx_ll, maxy_ll = transformer.transform(parsed_bbox["maxx"], parsed_bbox["maxy"])

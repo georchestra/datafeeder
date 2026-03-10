@@ -36,14 +36,25 @@
     <div class="flex flex-col gap-2">
       @for (link of integrityLinks(); track link.id) {
       <div
-        class="flex cursor-pointer rounded-md bg-beige py-3 transition-colors hover:bg-gray-100"
-        (click)="onRowClick(link.id)"
+        [class]="
+          isReadOnly(link)
+            ? 'flex rounded-md bg-beige py-3 transition-colors opacity-60 cursor-default'
+            : 'flex cursor-pointer rounded-md bg-beige py-3 transition-colors hover:bg-gray-100'
+        "
+        (click)="onRowClick(link)"
       >
         <div class="pl-2 w-28 pr-4 text-sm text-gray-600">
           {{ link.created_at | date : 'dd/MM/yyyy' }}
         </div>
         <div class="flex-1 pr-4 text-sm text-gray-600">
           {{ link.integrity_title }}
+          @if (isReadOnly(link)) {
+          <span
+            class="ml-2 inline-block rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-500"
+          >
+            {{ 'integrityLinks.readOnly' | translate }}
+          </span>
+          }
         </div>
         <div class="w-48 text-sm text-gray-600">
           {{ link.integrity_owner }}

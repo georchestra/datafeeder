@@ -3,9 +3,13 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import select
 
-from src.api.deps import DatafeederSessionDep, GeorchestraContextDep
+from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.config import get_settings
 from src.core.logging import get_logger
+from src.core.security import (
+    AccessLevel,
+    load_authorized_integrity_link,
+)
 from src.models.data_import import IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, UpsertRuleRequest
@@ -24,18 +28,21 @@ router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
 )
 def get_integrity_link(
     session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
     include_transformation: bool = Query(
         False,
         description="Include the integrity_transformation field in the response",
     ),
 ) -> IntegrityLinkResponse:
     """Get an IntegrityLink entity by its ID."""
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    integrity_link, effective = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, session, org_id
+    )
 
     response = IntegrityLinkResponse.model_validate(integrity_link)
+    response.access_level = effective.value
 
     if not include_transformation:
         response.integrity_transformation = None
@@ -53,11 +60,12 @@ def list_integrity_link_rules(
     session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
 ) -> list[IntegrityLinkRule]:
     """List all rules for a given IntegrityLink."""
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
+    )
 
     statement = select(IntegrityLinkRule).where(
         IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
@@ -74,12 +82,13 @@ def upsert_integrity_link_rule(
     session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
     body: UpsertRuleRequest,
 ) -> IntegrityLinkRule:
     """Create or update a rule for a given IntegrityLink."""
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
+    )
 
     statement = select(IntegrityLinkRule).where(
         IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id),
@@ -116,12 +125,13 @@ def delete_integrity_link_rule(
     session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
     rule_id: int,
 ) -> Response:
     """Delete a rule from a given IntegrityLink."""
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
+    )
 
     rule = session.get(IntegrityLinkRule, rule_id)
     if not rule or rule.integrity_link_id != UUID(integrity_link_id):

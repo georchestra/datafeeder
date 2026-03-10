@@ -3,6 +3,7 @@
     class="flex shrink-0 flex-col justify-between border-r border-gray-200 bg-white px-4 py-6 w-64 overflow-y-auto"
   >
     <div class="flex flex-col gap-1">
+      <!-- Metadata Sheet — always enabled (requires at least METADATA_WRITE to reach this page) -->
       <a
         [routerLink]="['edit']"
         routerLinkActive="bg-secondary-active font-semibold"
@@ -10,6 +11,9 @@
       >
         {{ 'sidebar.metadataSheet' | translate }}
       </a>
+
+      <!-- Authorizations — owner/admin only -->
+      @if (store.isOwnerOrAdmin()) {
       <a
         [routerLink]="['authorizations']"
         routerLinkActive="bg-secondary-active font-semibold"
@@ -17,11 +21,23 @@
       >
         {{ 'sidebar.accessRights' | translate }}
       </a>
+      } @else {
+      <span
+        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+      >
+        {{ 'sidebar.accessRights' | translate }}
+      </span>
+      }
+
+      <!-- Recurrence — always disabled (not yet implemented) -->
       <span
         class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
       >
         {{ 'sidebar.recurrencePlanning' | translate }}
       </span>
+
+      <!-- Events — owner/admin only -->
+      @if (store.isOwnerOrAdmin()) {
       <a
         [routerLink]="['events']"
         routerLinkActive="bg-secondary-active font-semibold"
@@ -29,6 +45,14 @@
       >
         {{ 'sidebar.eventsAndStatuses' | translate }}
       </a>
+      } @else {
+      <span
+        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+      >
+        {{ 'sidebar.eventsAndStatuses' | translate }}
+      </span>
+      }
+
       <hr class="my-2 border-gray-200" />
       <a
         [routerLink]="['/']"
@@ -37,6 +61,9 @@
         {{ 'integrityLinks.dashboard' | translate }}
       </a>
     </div>
+
+    <!-- Reconfigure — hidden for non-owner/non-admin -->
+    @if (store.isOwnerOrAdmin()) {
     <div>
       <button
         type="button"
@@ -47,9 +74,23 @@
         {{ 'sidebar.reconfigureDataset' | translate }}
       </button>
     </div>
+    }
   </nav>
 
   <div class="flex-grow overflow-y-auto px-11 py-5 flex flex-col">
+    @if (store.loadError()) {
+    <app-ui-alert-box
+      type="error"
+      [dismissible]="false"
+      [title]="
+        'intlinkLayout.error.' + store.loadError() + '.title' | translate
+      "
+      [message]="
+        'intlinkLayout.error.' + store.loadError() + '.message' | translate
+      "
+    />
+    } @else {
     <router-outlet></router-outlet>
+    }
   </div>
 </div>

@@ -23,12 +23,13 @@ from shapely.geometry.base import BaseGeometry
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.orm.attributes import flag_modified
 
-from src.api.deps import DatafeederSessionDep, DataSessionDep
+from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.callback import build_callback_url
 from src.core.config import get_staging_schema
 from src.core.db import data_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
+from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.models import (
     StagingResponse,
 )
@@ -100,7 +101,6 @@ class _ImportSourceResult:
 
 async def _process_import_source(
     type: "ImportType",
-    dag_run_id: str,
     url: Optional[str] = None,
     file: Optional[UploadFile] = None,
     auth_enabled: bool = False,
@@ -125,7 +125,7 @@ async def _process_import_source(
                 raise HTTPException(status_code=400, detail="File is required")
 
             source_file_name, source_file_type, file_url = await upload_file_to_temp(
-                file, rand_id=dag_run_id
+                file, rand_id=str(uuid4())
             )
             source = file_url
             url = file_url
@@ -361,15 +361,12 @@ async def submit_staging(
     Returns:
         StagingResponse with integrity link ID, DAG ID, DAG run ID, and current DAG run status
     """
-    dag_run_id = str(uuid4())
-
     url = url.strip() if url else None
     username = username.strip() if username else None
     password = password.strip() if password else None
 
     import_source = await _process_import_source(
         type=type,
-        dag_run_id=dag_run_id,
         url=url,
         file=file,
         auth_enabled=auth_enabled,
@@ -405,8 +402,10 @@ async def submit_staging(
     session.commit()
     session.refresh(integrity_link)
 
+    integrity_link_id_as_string = str(integrity_link.id)
+
     logger.info(
-        f"Created IntegrityLink {integrity_link.id} for DAG run {dag_run_id} | "
+        f"Created IntegrityLink {integrity_link.id} for DAG run {integrity_link_id_as_string} | "
         f"owner={sec_username} | org={sec_org} | table={staging_table_name}"
     )
 
@@ -416,7 +415,7 @@ async def submit_staging(
         source=import_source.source,
         import_type=type,
         encrypted_password=encrypted_password,
-        dag_run_id=dag_run_id,
+        dag_run_id=integrity_link_id_as_string,
     )
 
 
@@ -461,15 +460,12 @@ async def edit_staging(
     Returns:
         StagingResponse with integrity link ID, DAG ID, DAG run ID, and current DAG run status
     """
-    dag_run_id = str(uuid4())
-
     url = url.strip() if url else None
     username = username.strip() if username else None
     password = password.strip() if password else None
 
     import_source = await _process_import_source(
         type=type,
-        dag_run_id=dag_run_id,
         url=url,
         file=file,
         auth_enabled=auth_enabled,
@@ -511,6 +507,8 @@ async def edit_staging(
     session.refresh(integrity_link)
 
     _remove_staging_table(old_staging_table_name)
+
+    dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}"
 
     logger.info(
         f"Updated IntegrityLink {integrity_link.id} | "
@@ -585,8 +583,6 @@ def dag_failure_callback(
 
     if integrity_link.staging_table_name:
         try:
-            from data_manipulation.validators import validate_table_name
-
             validate_table_name(integrity_link.staging_table_name, context="staging")
             schema = get_staging_schema()
             table = Table(integrity_link.staging_table_name, MetaData(schema=schema))
@@ -654,7 +650,9 @@ def _resolve_columns(
 def get_staging_metadata(
     data_session: DataSessionDep,
     datafeeder_session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
 ) -> StagingMetadataResponse:
     """
     Get metadata of the staging table.
@@ -666,14 +664,15 @@ def get_staging_metadata(
     Args:
         data_session: Data database session (injected)
         datafeeder_session: Datafeeder database session (injected)
+        geo_ctx: geOrchestra security context
         integrity_link_id: IntegrityLink UUID (required)
 
     Returns:
         Metadata of the staging table
     """
-    integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    integrity_link, _ = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, org_id
+    )
 
     staging_table_name = integrity_link.staging_table_name
     source_import_type = integrity_link.source_import_type
@@ -719,7 +718,9 @@ def get_staging_metadata(
 def edit_staging_metadata(
     data_session: DataSessionDep,
     datafeeder_session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
     config: StagingMetadata = Body(
         ...,
         description="Staging configuration including columns, file type, projection, and title",
@@ -735,6 +736,7 @@ def edit_staging_metadata(
     Args:
         data_session: Data database session (injected)
         datafeeder_session: Datafeeder database session (injected)
+        geo_ctx: geOrchestra security context
         integrity_link_id: IntegrityLink UUID (required)
         config: Staging configuration with columns (ColumnConfig list), file_type,
                 force_projection, and title
@@ -742,9 +744,9 @@ def edit_staging_metadata(
     Returns:
         Updated staging metadata with saved column configurations
     """
-    integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    integrity_link, _ = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, org_id
+    )
 
     if config.columns:
         # Validate column names: no empty names and no duplicates (after rename).
@@ -795,7 +797,9 @@ def edit_staging_metadata(
     return get_staging_metadata(
         data_session=data_session,
         datafeeder_session=datafeeder_session,
+        geo_ctx=geo_ctx,
         integrity_link_id=integrity_link_id,
+        org_id=org_id,
     )
 
 
@@ -803,7 +807,9 @@ def edit_staging_metadata(
 def get_staging_preview(
     data_session: DataSessionDep,
     datafeeder_session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
+    org_id: OrgIdDep,
     limit: int = Query(10, description="Number of rows to preview"),
     raw: bool = Query(
         False,
@@ -846,9 +852,9 @@ def get_staging_preview(
         Preview data from the staging table, transformed based on saved config
     """
 
-    integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    integrity_link, _ = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, org_id
+    )
 
     staging_table_name = integrity_link.staging_table_name
     if not staging_table_name:

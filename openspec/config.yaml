@@ -1,0 +1,97 @@
+schema: spec-driven
+
+context: |
+  # DataFeeder — Project Context
+
+  ## Domain
+  DataFeeder is a data-ingestion and lifecycle-management module for the
+  geOrchestra platform. It guides users through connecting data sources,
+  previewing/transforming data, ingesting it, publishing via GeoServer,
+  and managing metadata via GeoNetwork.
+
+  ## Tech Stack
+  - **Backend**: Python 3.12, FastAPI, SQLModel (Pydantic V2 + SQLAlchemy),
+    PostgreSQL, async everywhere. Linting: Ruff (100 char lines) + Pyright.
+  - **Frontend**: Angular 20 (standalone components, signals, zoneless change
+    detection, OnPush), NgRx for state, Tailwind CSS 3, vitest for tests,
+    ngx-translate for i18n. Linting: ESLint + Prettier.
+  - **ELT**: Apache Airflow 3.x with TaskAPI decorators (@dag, @task, @task_group).
+  - **Shared lib**: libs/data_manipulation (Python, used by backend + ELT).
+  - **Infrastructure**: Docker + docker-compose, geOrchestra gateway for auth.
+
+  ## Architecture Principles (from constitution v1.4.0)
+  1. **API-First** — backend REST API is the primary contract; endpoints before UI.
+  2. **Component Modularity** — Backend, Frontend, ELT are loosely coupled.
+     GeoServer/GeoNetwork/Frontend are optional; Backend + ELT form the minimal system.
+  3. **Monorepo** — apps/backend, apps/frontend, apps/elt, libs/data_manipulation.
+  4. **Testing** — pytest (>80% coverage critical paths), vitest for frontend,
+     integration tests for API contracts and shared lib changes.
+  5. **Code Quality** — Ruff + Pyright (Python), ESLint + Prettier (TS).
+     `make fix-all-python`, `npm run format`.
+  6. **Angular Architecture** — Atomic design (atoms→molecules→organisms),
+     smart/presentational separation, feature modules, ≤200 lines per component,
+     NgRx state management, signals where appropriate.
+  7. **Minimal Comments** — Self-documenting code. Comments explain "why" not "what".
+  8. **Security** — geOrchestra gateway auth via headers. Users belong to groups.
+     integrity_link table is source of truth for data lineage.
+  9. **Design System** — Figma design file is the UI source of truth.
+     Use Figma MCP for extracting component specs during implementation.
+
+  ## Backend Layering
+  API (routes) → Services (business logic) → Models/Core (downward only).
+  - api/routes/ — HTTP concerns only, delegates to services.
+  - services/ — framework-agnostic business logic.
+  - models/ — SQLModel data structures.
+  - core/ — config, db, security, logging.
+
+  ## Frontend Layering
+  - core/ — singleton services, auth, layout (import once).
+  - shared/ — reusable presentational components, pipes, directives.
+  - features/ — self-contained feature modules with own routing/state.
+
+  ## Key Entities
+  - IntegrityLink — links staging data, final datasets, and metadata.
+  - IntegrityLinkRule — permission rule granting group access (READ/WRITE)
+    on a dimension (METADATA/DATA) of a dataset.
+  - User — identified by username + group membership from gateway headers.
+
+  ## Functional Vision
+  Two modules: Ingestion Tunnel (guided source→preview→transform→ingest)
+  and Data Publisher (dashboard for managing existing datasets: metadata,
+  rights, recurrence, event journal).
+
+  ## Monorepo Structure
+  ```
+  apps/backend/    — FastAPI application
+  apps/frontend/   — Angular 20 application
+  apps/elt/        — Airflow DAGs
+  libs/data_manipulation/ — Shared Python library
+  specs/           — Feature specifications (speckit legacy)
+  openspec/        — OpenSpec change management
+  ```
+
+rules:
+  proposal:
+    - "Keep proposals concise (1-2 pages max)"
+    - "Reference the constitution principles that apply to this change"
+    - "Identify if the change is backend-only, frontend-only, or full-stack"
+    - "Call out breaking API changes explicitly with **BREAKING** tag"
+  specs:
+    - "User stories MUST be prioritized (P1, P2, P3) and independently testable"
+    - "Use Given/When/Then format for acceptance scenarios"
+    - "Requirements use MUST/SHALL for normative, and MUST NOT for prohibitions"
+    - "Include edge cases section"
+    - "Specs are written in French when describing user-facing behavior (project convention)"
+    - "Key entities section required when feature involves data model changes"
+  design:
+    - "Must pass constitution check before proceeding (API-first, component independence, architecture layering, testing, security, design compliance)"
+    - "Include exact file paths following backend/frontend architecture structure"
+    - "Reference Figma mockups for frontend design decisions"
+    - "Include database migration strategy if data model changes are needed"
+  tasks:
+    - "Group tasks by user story to enable independent implementation"
+    - "Mark parallelizable tasks with [P]"
+    - "Include exact file paths in task descriptions"
+    - "Phase 1: shared infrastructure, Phase 2: foundational prerequisites, then user story phases"
+    - "Each task should be completable in a single session"
+    - "Include checkpoint markers between phases"

@@ -1,5 +1,7 @@
 """Tests for database identifier validators."""
 
+import re
+
 import pytest
 
 from data_manipulation.validators import (
@@ -167,8 +169,6 @@ class TestIdentifierPattern:
 
     def test_pattern_matches_valid_identifiers(self):
         """Test that the regex pattern matches valid identifiers."""
-        import re
-
         valid_identifiers = [
             "a",
             "abc",
@@ -181,8 +181,6 @@ class TestIdentifierPattern:
 
     def test_pattern_rejects_invalid_identifiers(self):
         """Test that the regex pattern rejects invalid identifiers."""
-        import re
-
         invalid_identifiers = [
             "123",  # Starts with number
             "ABC",  # Uppercase

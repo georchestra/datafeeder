@@ -141,6 +141,10 @@ class IntegrityLinkListItem(BaseModel):
     last_retrieval_timestamp: datetime | None
     schedule: str | None
     schedule_enabled: bool
+    access_level: str | None = Field(
+        default=None,
+        description="User's effective access level: ADMIN, OWNER, WRITE, or READ",
+    )
 
     @field_validator("id", mode="before")
     @classmethod
@@ -182,3 +186,4 @@ class IntegrityLinkResponse(BaseModel):
     schedule_enabled: bool
     created_at: datetime | None
     gn_is_published: bool | None
+    access_level: str | None = None

@@ -1,6 +1,7 @@
 """Tests for data ingestion utilities in data_manipulation library."""
 
 from unittest.mock import MagicMock, Mock, patch
+from urllib.error import URLError
 
 import geopandas as gpd
 import pytest
@@ -328,8 +329,6 @@ class TestIngestDataFromFtpIntoPostgis:
         mock_engine: Mock,
     ) -> None:
         """Test ingestion from FTP raises exception on authentication failure."""
-        from urllib.error import URLError
-
         mock_urlretrieve.side_effect = URLError("530 Login incorrect")
 
         with pytest.raises(Exception, match="FTP authentication failed"):
@@ -344,8 +343,6 @@ class TestIngestDataFromFtpIntoPostgis:
         mock_engine: Mock,
     ) -> None:
         """Test ingestion from FTP raises exception when file not found."""
-        from urllib.error import URLError
-
         mock_urlretrieve.side_effect = URLError("550 No such file")
 
         with pytest.raises(Exception, match="FTP file not found"):
@@ -360,8 +357,6 @@ class TestIngestDataFromFtpIntoPostgis:
         mock_engine: Mock,
     ) -> None:
         """Test ingestion from FTP raises exception on connection timeout."""
-        from urllib.error import URLError
-
         mock_urlretrieve.side_effect = URLError("Connection timed out")
 
         with pytest.raises(Exception, match="FTP connection timeout"):
@@ -376,8 +371,6 @@ class TestIngestDataFromFtpIntoPostgis:
         mock_engine: Mock,
     ) -> None:
         """Test ingestion from FTP raises exception when connection is refused."""
-        from urllib.error import URLError
-
         mock_urlretrieve.side_effect = URLError("Connection refused")
 
         with pytest.raises(Exception, match="FTP connection refused"):

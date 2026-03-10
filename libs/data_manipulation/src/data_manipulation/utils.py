@@ -2,6 +2,7 @@
 
 import logging
 import re
+import unicodedata
 from typing import Union
 
 import requests
@@ -43,8 +44,6 @@ def sanitize_name(name: str) -> str:
         >>> sanitize_name("_MyOrg_")
         'myorg'
     """
-    import unicodedata
-
     # Normalize and remove accents
     sanitized = unicodedata.normalize("NFKD", name)
     sanitized = "".join(c for c in sanitized if not unicodedata.combining(c))

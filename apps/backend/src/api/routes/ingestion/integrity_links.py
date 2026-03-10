@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Query
-from sqlmodel import select
+from typing import Any
 
-from src.api.deps import DatafeederSessionDep, GeorchestraContextDep
+from fastapi import APIRouter, Query
+from sqlalchemy import exists
+from sqlmodel import or_, select
+
+from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.logging import get_logger
+from src.core.security import build_access_expr
 from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
 from src.models.integrity_link import IntegrityLink
+from src.models.integrity_link_rule import IntegrityLinkRule, RuleType
 
 router = APIRouter(prefix="/ingestion/integrity-links", tags=["Ingestion"])
 logger = get_logger()
@@ -22,14 +27,16 @@ BATCH_SIZE = 100  # Fixed batch size for lazy loading
 def list_integrity_links(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
+    org_id: OrgIdDep,
     offset: int = Query(0, ge=0, description="Number of items to skip (for lazy loading)"),
     search: str | None = Query(None, description="Filter by integrity title (case-insensitive)"),
 ) -> IntegrityLinkListResponse:
     """
     List integrity links with role-based access control.
 
-    - Normal users see only their own integrity links (integrity_owner == username)
     - Administrators see all integrity links
+    - Owners see their own integrity links
+    - Users see datasets where their organization has a METADATA permission rule
 
     Args:
         session: Database session (injected)
@@ -41,13 +48,25 @@ def list_integrity_links(
     """
     is_admin = geo_ctx.is_administrator()
 
-    # Build query based on user role
-    query = select(IntegrityLink)
+    access_expr = build_access_expr(geo_ctx.username, org_id, is_admin)
+    query = select(IntegrityLink, access_expr)
 
     if not is_admin:
-        # Non-admins only see their own integrity links
-        query = query.where(IntegrityLink.integrity_owner == geo_ctx.username)
+        # Non-admins see: own datasets + datasets with METADATA rules for their org
+        conditions: list[Any] = [IntegrityLink.integrity_owner == geo_ctx.username]
+        if org_id:
+            conditions.append(
+                exists(
+                    select(IntegrityLinkRule.id).where(
+                        IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
+                        IntegrityLinkRule.rule_type == RuleType.METADATA,
+                        IntegrityLinkRule.group_or_role == org_id,
+                    )
+                )
+            )
+        query = query.where(or_(*conditions))
 
+    # Apply search filter if provided
     if search:
         query = query.where(IntegrityLink.integrity_title.ilike(f"%{search}%"))  # type: ignore[union-attr]
 
@@ -58,20 +77,22 @@ def list_integrity_links(
     query = query.offset(offset).limit(BATCH_SIZE + 1)
 
     results = session.exec(query).all()
-
-    # Check if there are more items
     has_more = len(results) > BATCH_SIZE
-
-    # Only return up to BATCH_SIZE items
-    items = results[:BATCH_SIZE]
+    rows = results[:BATCH_SIZE]
 
     logger.info(
-        f"Listed {len(items)} integrity links for user '{geo_ctx.username}' "
+        f"Listed {len(rows)} integrity links for user '{geo_ctx.username}' "
         f"(admin={is_admin}, offset={offset}, has_more={has_more}, search={search!r})"
     )
 
+    items: list[IntegrityLinkListItem] = []
+    for link, access_level in rows:
+        item = IntegrityLinkListItem.model_validate(link)
+        item.access_level = access_level
+        items.append(item)
+
     return IntegrityLinkListResponse(
-        items=[IntegrityLinkListItem.model_validate(link) for link in items],
+        items=items,
         has_more=has_more,
         offset=offset,
     )

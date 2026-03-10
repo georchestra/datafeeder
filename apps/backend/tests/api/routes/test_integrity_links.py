@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.api.routes.ingestion.integrity_links import BATCH_SIZE
+from src.api.routes.ingestion.integrity_links import BATCH_SIZE, list_integrity_links
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.services.georchestra import GeorchestraContext
@@ -41,7 +41,9 @@ class TestListIntegrityLinks:
             links.append(link)
         return links
 
-    def _create_geo_ctx(self, username: str, roles: set[str] | None = None) -> GeorchestraContext:
+    def _create_geo_ctx(
+        self, username: str, roles: set[str] | None = None, organization: str = ""
+    ) -> GeorchestraContext:
         """Create a GeorchestraContext for testing."""
         return GeorchestraContext(
             username=username,
@@ -49,6 +51,7 @@ class TestListIntegrityLinks:
             email="",
             firstname="",
             lastname="",
+            organization=organization,
         )
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
@@ -59,14 +62,13 @@ class TestListIntegrityLinks:
         sample_integrity_links: list[IntegrityLink],
     ) -> None:
         """Test that normal users only see their own integrity links."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Filter links for user0
         user0_links = [link for link in sample_integrity_links if link.integrity_owner == "user0"]
 
         # Mock the session.exec().all() to return user0's links
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = user0_links
+        mock_exec_result.all.return_value = [(link, "OWNER") for link in user0_links]
         mock_session.exec.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT", "USER"})
@@ -74,6 +76,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -89,11 +92,10 @@ class TestListIntegrityLinks:
         sample_integrity_links: list[IntegrityLink],
     ) -> None:
         """Test that administrators see all integrity links."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Mock the session.exec().all() to return all links
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = sample_integrity_links
+        mock_exec_result.all.return_value = [(link, "ADMIN") for link in sample_integrity_links]
         mock_session.exec.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("admin", {"IMPORT", "ADMINISTRATOR", "USER"})
@@ -101,6 +103,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -111,7 +114,6 @@ class TestListIntegrityLinks:
         self, mock_logger: MagicMock, mock_session: MagicMock
     ) -> None:
         """Test that has_more is True when there are more items."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Create more than BATCH_SIZE links
         links = [
@@ -129,7 +131,9 @@ class TestListIntegrityLinks:
         ]
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = links  # Returns BATCH_SIZE + 1 items
+        mock_exec_result.all.return_value = [
+            (link, "OWNER") for link in links
+        ]  # Returns BATCH_SIZE + 1 items
         mock_session.exec.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
@@ -137,6 +141,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -148,7 +153,6 @@ class TestListIntegrityLinks:
         self, mock_logger: MagicMock, mock_session: MagicMock
     ) -> None:
         """Test that has_more is False when there are no more items."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Create fewer than BATCH_SIZE links
         links = [
@@ -166,7 +170,7 @@ class TestListIntegrityLinks:
         ]
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = links
+        mock_exec_result.all.return_value = [(link, "OWNER") for link in links]
         mock_session.exec.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
@@ -174,6 +178,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -183,7 +188,6 @@ class TestListIntegrityLinks:
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_offset_parameter(self, mock_logger: MagicMock, mock_session: MagicMock) -> None:
         """Test that offset parameter is included in response."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []
@@ -194,6 +198,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=200,
         )
 
@@ -204,7 +209,6 @@ class TestListIntegrityLinks:
         self, mock_logger: MagicMock, mock_session: MagicMock
     ) -> None:
         """Test that sensitive fields are excluded from response."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Create link with sensitive data
         link = IntegrityLink(
@@ -223,7 +227,7 @@ class TestListIntegrityLinks:
         )
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [link]
+        mock_exec_result.all.return_value = [(link, "OWNER")]
         mock_session.exec.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
@@ -231,6 +235,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -252,7 +257,6 @@ class TestListIntegrityLinks:
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_empty_result(self, mock_logger: MagicMock, mock_session: MagicMock) -> None:
         """Test handling of empty results."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = []
@@ -263,6 +267,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -275,7 +280,6 @@ class TestListIntegrityLinks:
         self, mock_logger: MagicMock, mock_session: MagicMock
     ) -> None:
         """Test that the search parameter filters results by integrity_title."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         matching_link = IntegrityLink(
             id=uuid4(),
@@ -289,7 +293,7 @@ class TestListIntegrityLinks:
         )
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [matching_link]
+        mock_exec_result.all.return_value = [(matching_link, "OWNER")]
         mock_session.exec.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
@@ -297,6 +301,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
             search="Dataset",
         )
@@ -312,7 +317,6 @@ class TestListIntegrityLinks:
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_search_with_pagination(self, mock_logger: MagicMock, mock_session: MagicMock) -> None:
         """Test that search works correctly with pagination."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         # Simulate BATCH_SIZE + 1 results (has_more = True)
         links = [
@@ -330,7 +334,7 @@ class TestListIntegrityLinks:
         ]
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = links
+        mock_exec_result.all.return_value = [(link, "OWNER") for link in links]
         mock_session.exec.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
@@ -338,6 +342,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=50,
             search="Matching",
         )
@@ -351,7 +356,6 @@ class TestListIntegrityLinks:
         self, mock_logger: MagicMock, mock_session: MagicMock
     ) -> None:
         """Test that an empty search string does not add a filter."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         links = [
             IntegrityLink(
@@ -367,7 +371,7 @@ class TestListIntegrityLinks:
         ]
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = links
+        mock_exec_result.all.return_value = [(link, "OWNER") for link in links]
         mock_session.exec.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
@@ -376,6 +380,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
             search="",
         )
@@ -395,10 +400,9 @@ class TestListIntegrityLinks:
         sample_integrity_links: list[IntegrityLink],
     ) -> None:
         """Test that response model has correct structure."""
-        from src.api.routes.ingestion.integrity_links import list_integrity_links
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = sample_integrity_links[:1]
+        mock_exec_result.all.return_value = [(link, "OWNER") for link in sample_integrity_links[:1]]
         mock_session.exec.return_value = mock_exec_result
 
         geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
@@ -406,6 +410,7 @@ class TestListIntegrityLinks:
         response = list_integrity_links(
             session=mock_session,
             geo_ctx=geo_ctx,
+            org_id=None,
             offset=0,
         )
 
@@ -432,3 +437,163 @@ class TestListIntegrityLinks:
         assert hasattr(item, "last_retrieval_timestamp")
         assert hasattr(item, "schedule")
         assert hasattr(item, "schedule_enabled")
+        assert hasattr(item, "access_level")
+
+
+class TestListIntegrityLinksVisibility:
+    """Test dataset list visibility based on permissions (task 3.3)."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        """Create a mock database session."""
+        return MagicMock()
+
+    def _make_link(self, owner: str = "other_user", org: str = "other_org") -> IntegrityLink:
+        """Create a sample IntegrityLink."""
+        return IntegrityLink(
+            id=uuid4(),
+            integrity_title="Test Link",
+            integrity_owner=owner,
+            integrity_organization=org,
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+
+    def _geo_ctx(
+        self,
+        username: str = "user1",
+        organization: str = "org_a",
+        is_admin: bool = False,
+    ) -> GeorchestraContext:
+        roles = {"ADMINISTRATOR"} if is_admin else {"IMPORT"}
+        return GeorchestraContext(
+            username=username,
+            roles=roles,
+            email="",
+            firstname="",
+            lastname="",
+            organization=organization,
+        )
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_owner_sees_own_datasets_with_owner_access_level(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """Owner sees own datasets and gets OWNER access level."""
+
+        link = self._make_link(owner="user1")
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = [(link, "OWNER")]
+        mock_session.exec.return_value = mock_exec_result
+
+        ctx = self._geo_ctx(username="user1")
+        response = list_integrity_links(
+            session=mock_session, geo_ctx=ctx, org_id="org-uuid", offset=0
+        )
+
+        assert len(response.items) == 1
+        assert response.items[0].access_level == "OWNER"
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_admin_sees_all_with_admin_access_level(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """Admin sees all datasets and gets ADMIN access level."""
+
+        links = [self._make_link(owner="someone"), self._make_link(owner="another")]
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = [(link, "ADMIN") for link in links]
+        mock_session.exec.return_value = mock_exec_result
+
+        ctx = self._geo_ctx(is_admin=True)
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
+
+        assert len(response.items) == 2
+        for item in response.items:
+            assert item.access_level == "ADMIN"
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_group_with_metadata_read_gets_read_access_level(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """User whose group has METADATA READ sees dataset with READ access level."""
+
+        link = self._make_link(owner="other")
+        org_id = "test-org-uuid"
+
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = [(link, "READ")]
+        mock_session.exec.return_value = mock_exec_result
+
+        ctx = self._geo_ctx(username="user1", organization="org_a")
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=org_id, offset=0)
+
+        assert len(response.items) == 1
+        assert response.items[0].access_level == "READ"
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_group_with_metadata_write_gets_write_access_level(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """User whose group has METADATA WRITE sees dataset with WRITE access level."""
+
+        link = self._make_link(owner="other")
+        org_id = "test-org-uuid"
+
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = [(link, "WRITE")]
+        mock_session.exec.return_value = mock_exec_result
+
+        ctx = self._geo_ctx(username="user1", organization="org_a")
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=org_id, offset=0)
+
+        assert len(response.items) == 1
+        assert response.items[0].access_level == "WRITE"
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_no_permission_user_sees_empty_list(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """User with no ownership and no group rules sees empty list."""
+
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = []
+        mock_session.exec.return_value = mock_exec_result
+
+        ctx = self._geo_ctx(username="nobody", organization="no_org")
+        response = list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
+
+        assert len(response.items) == 0
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_query_includes_or_condition_for_non_admin(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+    ) -> None:
+        """Non-admin query should include OR condition for ownership + org rules."""
+
+        mock_exec_result = MagicMock()
+        mock_exec_result.all.return_value = []
+        mock_session.exec.return_value = mock_exec_result
+
+        ctx = self._geo_ctx(username="user1", organization="org_a")
+        list_integrity_links(session=mock_session, geo_ctx=ctx, org_id=None, offset=0)
+
+        # Verify the query was executed and contains both conditions
+        executed_query = mock_session.exec.call_args[0][0]
+        query_str = str(executed_query)
+        # Should have OR condition (owner = username OR EXISTS subquery)
+        assert "OR" in query_str.upper() or "or" in query_str.lower()

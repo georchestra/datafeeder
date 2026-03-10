@@ -226,13 +226,13 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 
 # Dependency for database session
 DbSession = Annotated[AsyncSession, Depends(get_db)]
-CurrentUser = Annotated[UserModel, Depends(get_current_user)]
+CurrentUserDep = Annotated[UserModel, Depends(get_current_user)]
 
 # List posts (GET /posts)
 @router.get("/", response_model=list[PostRead])
 async def list_posts(
     db: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentUserDep,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),
 ):
@@ -251,7 +251,7 @@ async def list_posts(
 async def create_post(
     post_data: PostCreate,
     db: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentUserDep,
 ):
     """Analogous to ViewSet.create()"""
     post = PostModel(**post_data.model_dump(), author_id=current_user.id)
@@ -265,7 +265,7 @@ async def create_post(
 async def get_post(
     post_id: int,
     db: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentUserDep,
 ):
     """Analogous to ViewSet.retrieve()"""
     result = await db.execute(
@@ -285,7 +285,7 @@ async def update_post(
     post_id: int,
     post_data: PostUpdate,
     db: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentUserDep,
 ):
     """Analogous to ViewSet.update()"""
     result = await db.execute(
@@ -311,7 +311,7 @@ async def update_post(
 async def delete_post(
     post_id: int,
     db: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentUserDep,
 ):
     """Analogous to ViewSet.destroy()"""
     result = await db.execute(
@@ -332,7 +332,7 @@ async def delete_post(
 async def publish_post(
     post_id: int,
     db: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentUserDep,
 ):
     """Analogous to @action(detail=True)"""
     result = await db.execute(
@@ -353,7 +353,7 @@ async def publish_post(
 @router.get("/actions/recent", response_model=list[PostRead])
 async def recent_posts(
     db: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentUserDep,
     limit: int = Query(10, le=50),
 ):
     """Analogous to @action(detail=False)"""

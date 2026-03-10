@@ -12,6 +12,7 @@ import {
   Event,
   EventsListComponent
 } from '../../shared/components/events-list/events-list.component'
+import { UiAlertBoxComponent } from '../../shared/components/ui-alert-box/ui-alert-box.component'
 import { downloadTextBlob } from '../../shared/utils/download.util'
 import { getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet } from '../../core/api/functions'
 
@@ -19,7 +20,12 @@ const DAG_RUNGS_PAGE_SIZE = 20
 
 @Component({
   selector: 'app-events',
-  imports: [CommonModule, EventsListComponent, TranslatePipe],
+  imports: [
+    CommonModule,
+    EventsListComponent,
+    UiAlertBoxComponent,
+    TranslatePipe
+  ],
   templateUrl: './events.component.html',
   styleUrl: './events.component.css'
 })
@@ -30,6 +36,8 @@ export class EventsComponent implements OnInit {
   intlink_id = this.store.intlinkId()
   events = signal<Event[]>([])
   downloadingEventId = signal<string | null>(null)
+  loadError = signal<string | null>(null)
+  downloadError = signal<string | null>(null)
 
   ngOnInit(): void {
     if (this.intlink_id) {
@@ -38,6 +46,7 @@ export class EventsComponent implements OnInit {
   }
 
   private async loadDagRuns(intlinkId: string): Promise<void> {
+    this.loadError.set(null)
     try {
       const response: DagRunCollectionResponse = await this.api.invoke(
         getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
@@ -69,6 +78,7 @@ export class EventsComponent implements OnInit {
       )
     } catch (error) {
       console.error('Error loading DAG runs:', error)
+      this.loadError.set('events.error.load')
     }
   }
 
@@ -103,6 +113,7 @@ export class EventsComponent implements OnInit {
     dag_id: string
     dag_run_id: string
   }) {
+    this.downloadError.set(null)
     this.downloadingEventId.set(dag_run_id)
     try {
       const logs = await this.api.invoke(
@@ -110,9 +121,11 @@ export class EventsComponent implements OnInit {
         { dag_id: 'process_dag', dag_run_id: dag_run_id }
       )
       downloadTextBlob(logs, `logs_${dag_id}_${dag_run_id}.txt`)
-      this.downloadingEventId.set(null)
     } catch (error) {
       console.error('Failed to fetch event logs:', error)
+      this.downloadError.set('events.error.downloadLogs')
+    } finally {
+      this.downloadingEventId.set(null)
     }
   }
 

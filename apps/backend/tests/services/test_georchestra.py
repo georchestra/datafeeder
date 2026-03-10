@@ -18,6 +18,7 @@ class TestGeorchestraContextHasRole:
             email="",
             firstname="",
             lastname="",
+            organization="",
         )
         assert ctx.has_role("ADMIN") is True
         assert ctx.has_role("USER") is True
@@ -30,6 +31,7 @@ class TestGeorchestraContextHasRole:
             email="",
             firstname="",
             lastname="",
+            organization="",
         )
         assert ctx.has_role("administrator") is True
         assert ctx.has_role("Administrator") is True
@@ -43,6 +45,7 @@ class TestGeorchestraContextHasRole:
             email="",
             firstname="",
             lastname="",
+            organization="",
         )
         assert ctx.has_role("ADMIN") is False
         assert ctx.has_role("ADMINISTRATOR") is False
@@ -55,6 +58,7 @@ class TestGeorchestraContextHasRole:
             email="",
             firstname="",
             lastname="",
+            organization="",
         )
         assert ctx.has_role("ADMIN") is False
 
@@ -70,6 +74,7 @@ class TestGeorchestraContextIsAdministrator:
             email="",
             firstname="",
             lastname="",
+            organization="",
         )
         assert ctx.is_administrator() is True
 
@@ -81,6 +86,7 @@ class TestGeorchestraContextIsAdministrator:
             email="",
             firstname="",
             lastname="",
+            organization="",
         )
         assert ctx.is_administrator() is True
 
@@ -92,6 +98,7 @@ class TestGeorchestraContextIsAdministrator:
             email="",
             firstname="",
             lastname="",
+            organization="",
         )
         assert ctx.is_administrator() is False
 
@@ -103,6 +110,7 @@ class TestGeorchestraContextIsAdministrator:
             email="",
             firstname="",
             lastname="",
+            organization="",
         )
         assert ctx.is_administrator() is False
 
@@ -149,6 +157,14 @@ class TestGetGeorchestraContext:
 
         assert ctx.lastname == "Doe"
 
+    def test_extracts_organization_from_header(self, mock_request: MagicMock) -> None:
+        """Test that organization is extracted from sec-org header."""
+        mock_request.headers = {"sec-org": "my_org"}
+
+        ctx = get_georchestra_context(mock_request)
+
+        assert ctx.organization == "my_org"
+
     def test_extracts_all_fields(self, mock_request: MagicMock) -> None:
         """Test that all fields are extracted correctly."""
         mock_request.headers = {
@@ -157,6 +173,7 @@ class TestGetGeorchestraContext:
             "sec-email": "jdoe@example.com",
             "sec-firstname": "John",
             "sec-lastname": "Doe",
+            "sec-org": "my_org",
         }
 
         ctx = get_georchestra_context(mock_request)
@@ -166,6 +183,7 @@ class TestGetGeorchestraContext:
         assert ctx.email == "jdoe@example.com"
         assert ctx.firstname == "John"
         assert ctx.lastname == "Doe"
+        assert ctx.organization == "my_org"
 
     def test_missing_headers_return_empty_strings(self, mock_request: MagicMock) -> None:
         """Test that missing headers result in empty strings."""
@@ -177,6 +195,7 @@ class TestGetGeorchestraContext:
         assert ctx.email == ""
         assert ctx.firstname == ""
         assert ctx.lastname == ""
+        assert ctx.organization == ""
         assert ctx.roles == set()
 
 
@@ -253,3 +272,37 @@ class TestRoleParsing:
         ctx = get_georchestra_context(mock_request)
 
         assert ctx.roles == {"IMPORT", "USER", "ADMIN"}
+
+    def test_strips_role_prefix_injected_by_gateway(self, mock_request: MagicMock) -> None:
+        """Test that ROLE_ prefix injected by the geOrchestra gateway is stripped.
+
+        The geOrchestra gateway follows Spring Security naming convention and injects
+        roles with a ROLE_ prefix (e.g. ROLE_ADMINISTRATOR, ROLE_IMPORT).
+        The backend should normalize these to their bare names.
+        """
+        mock_request.headers = {"sec-roles": "ROLE_ADMINISTRATOR;ROLE_IMPORT;ROLE_USER"}
+
+        ctx = get_georchestra_context(mock_request)
+
+        assert ctx.roles == {"ADMINISTRATOR", "IMPORT", "USER"}
+
+    def test_strips_role_prefix_case_insensitive(self, mock_request: MagicMock) -> None:
+        """Test ROLE_ prefix stripping is case-insensitive (header is normalized to upper first)."""
+        mock_request.headers = {"sec-roles": "role_administrator;role_import"}
+
+        ctx = get_georchestra_context(mock_request)
+
+        assert ctx.roles == {"ADMINISTRATOR", "IMPORT"}
+
+    def test_is_administrator_true_with_gateway_role_prefix(self, mock_request: MagicMock) -> None:
+        """Test that is_administrator() works when gateway injects ROLE_ prefixed roles."""
+        mock_request.headers = {
+            "sec-username": "testadmin",
+            "sec-roles": "ROLE_ADMINISTRATOR;ROLE_SUPERUSER;ROLE_USER;ROLE_IMPORT",
+        }
+
+        ctx = get_georchestra_context(mock_request)
+
+        assert ctx.is_administrator() is True
+        assert ctx.has_role("ADMINISTRATOR") is True
+        assert ctx.has_role("IMPORT") is True

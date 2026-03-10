@@ -5,6 +5,21 @@
       store.integrityLink()?.integrity_title
     }}</span>
   </h1>
+  @if (loadError()) {
+  <app-ui-alert-box
+    type="error"
+    [title]="'events.error.load.title' | translate"
+    [message]="'events.error.load.message' | translate"
+    (dismissed)="loadError.set(null)"
+  />
+  } @if (downloadError()) {
+  <app-ui-alert-box
+    type="error"
+    [title]="'events.error.downloadLogs.title' | translate"
+    [message]="'events.error.downloadLogs.message' | translate"
+    (dismissed)="downloadError.set(null)"
+  />
+  }
   <app-events-list
     [events]="events()"
     [reference]="intlink_id || ''"
