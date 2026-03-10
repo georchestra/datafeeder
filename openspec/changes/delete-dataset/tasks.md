@@ -7,7 +7,7 @@
 - [x] 2.1 Add `delete_dag()` method to `apps/backend/src/services/airflow_client.py` using the existing `DAGApi`; treat 404 as success, raise on other errors
 - [x] 2.2 Add `delete_layer()` method to `apps/backend/src/services/geoserver.py`; treat 404 as success, log other errors
 - [x] 2.3 Add `delete_record()` method to `apps/backend/src/services/metadata_service.py` (GeoNetwork); treat 404 as success, log other errors
-- [ ] 2.4 Create `apps/backend/src/services/dataset_deletion_service.py` with `delete_dataset(integrity_link, session)`:
+- [x] 2.4 Create `apps/backend/src/services/dataset_deletion_service.py` with `delete_dataset(integrity_link, session)`:
   - If `schedule` is set: call `delete_dag()` — raise HTTP 500 on failure (blocking step)
   - Call `delete_layer()` — best-effort
   - Drop final table with `DROP TABLE IF EXISTS {org_schema}.{final_table_name}` — best-effort
