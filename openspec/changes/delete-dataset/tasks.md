@@ -37,8 +37,8 @@
 
 ## 5. Frontend — API Client Update
 
-- [ ] 5.1 Add `DELETE /ingestion/integrity-link/{id}` to `apps/frontend/openapi.json` (or regenerate from backend)
-- [ ] 5.2 Run `ng-openapi-gen` to regenerate `apps/frontend/src/app/core/api/fn/ingestion/` with the new delete function
+- [x] 5.1 Add `DELETE /ingestion/integrity-link/{id}` to `apps/frontend/openapi.json` (or regenerate from backend)
+- [x] 5.2 Run `ng-openapi-gen` to regenerate `apps/frontend/src/app/core/api/fn/ingestion/` with the new delete function
 
 ## 6. Frontend — UI: Hover-State Delete Button
 
@@ -46,21 +46,21 @@
 
 **Implementation**: Use Figma MCP to extract exact visual specifications during implementation
 
-- [ ] 6.1 Update `apps/frontend/src/app/features/integrity-link-list/integrity-link-list.component.html`:
+- [x] 6.1 Update `apps/frontend/src/app/features/integrity-link-list/integrity-link-list.component.html`:
   - Add `(mouseenter)` / `(mouseleave)` binding on each row to track hovered row ID
   - Add trash icon button (`iconoirTrash` from `@ng-icons/iconoir`) visible only when `hoveredId === link.id`
   - Button triggers `deleteIntegrityLink(link.id)` on click
   - **Use Figma MCP to extract exact styling, positioning, and hover state styling from design**
-- [ ] 6.2 Update `apps/frontend/src/app/features/integrity-link-list/integrity-link-list.component.ts`:
+- [x] 6.2 Update `apps/frontend/src/app/features/integrity-link-list/integrity-link-list.component.ts`:
   - Add `hoveredId = signal<string | null>(null)` for hover state
   - Add `deleting = signal<string | null>(null)` to prevent double-click
   - Implement `deleteIntegrityLink(id)`: call API, on success filter item from `integrityLinks` signal
   - Register `iconoirTrash` in `provideIcons()`
-- [ ] 6.3 Add i18n keys for delete action in `apps/frontend/translations/` (`dashboard.delete_dataset`, `dashboard.delete_dataset_confirm`)
+- [x] 6.3 Add i18n keys for delete action in `apps/frontend/translations/` (`dashboard.delete_dataset`, `dashboard.delete_dataset_confirm`)
 
 ## 7. Frontend — Tests
 
-- [ ] 7.1 Add/update vitest tests in `apps/frontend/src/app/features/integrity-link-list/integrity-link-list.component.spec.ts`:
+- [x] 7.1 Add/update vitest tests in `apps/frontend/src/app/features/integrity-link-list/integrity-link-list.component.spec.ts`:
   - Trash icon hidden by default, visible on hover
   - Calls delete API on click
   - Removes item from list on success
