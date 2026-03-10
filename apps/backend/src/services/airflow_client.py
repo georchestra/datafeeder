@@ -8,6 +8,7 @@ from airflow_client.client.api.event_log_api import EventLogApi
 from airflow_client.client.api.task_instance_api import TaskInstanceApi
 from airflow_client.client.api_client import ApiClient
 from airflow_client.client.configuration import Configuration
+from airflow_client.client.exceptions import NotFoundException
 from pydantic import BaseModel
 
 from ..core.config import get_settings
@@ -18,6 +19,7 @@ __all__ = [
     "get_dag_api",
     "get_event_log_api",
     "get_task_instance_api",
+    "delete_dag",
 ]
 
 
@@ -124,3 +126,23 @@ def _get_cached_task_instance_api() -> TaskInstanceApi:
 def get_task_instance_api() -> TaskInstanceApi:
     _refresh_caches_if_token_expired()
     return _get_cached_task_instance_api()
+
+
+def delete_dag(dag_id: str) -> None:
+    """
+    Delete a DAG from Airflow.
+
+    Treats 404 (DAG not found) as success since the end goal is achieved.
+    Raises an exception for other errors.
+
+    Args:
+        dag_id: The ID of the DAG to delete
+
+    Raises:
+        Exception: If the deletion fails for reasons other than 404
+    """
+    try:
+        get_dag_api().delete_dag(dag_id)
+    except NotFoundException:
+        # DAG doesn't exist — treat as success since the goal is to ensure it's not there
+        pass
