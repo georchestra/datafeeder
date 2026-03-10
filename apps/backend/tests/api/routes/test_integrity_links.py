@@ -17,7 +17,7 @@ class TestListIntegrityLinks:
 
     @pytest.fixture
     def mock_session(self) -> MagicMock:
-        """Create a mock datakern database session."""
+        """Create a mock datafeeder database session."""
         return MagicMock()
 
     @pytest.fixture
@@ -60,7 +60,7 @@ class TestListIntegrityLinks:
         )
 
     def _setup_session(self, mock_session: MagicMock, links: list[IntegrityLink]) -> None:
-        """Set up datakern session mock to return (link, access_level) 2-tuples via .all()."""
+        """Set up datafeeder session mock to return (link, access_level) 2-tuples via .all()."""
         mock_exec = MagicMock()
         mock_exec.all.return_value = [(link, "OWNER") for link in links]
         mock_session.execute.return_value = mock_exec
