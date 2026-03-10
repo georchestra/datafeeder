@@ -18,6 +18,8 @@
   "authorizations.ruleValue.write": "Écriture",
   "authorizations.title": "Droits d’accès à la donnée",
   "common.loading": "Chargement...",
+  "dashboard.delete_dataset": "Supprimer le jeu de données",
+  "dashboard.delete_dataset_confirm": "Êtes-vous sûr de vouloir supprimer ce jeu de données ? Cette action est irréversible.",
   "domain.contact.role.author": "Auteur",
   "domain.contact.role.collaborator": "Collaborateur",
   "domain.contact.role.contributor": "Contributeur",

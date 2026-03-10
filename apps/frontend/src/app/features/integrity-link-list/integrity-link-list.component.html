@@ -42,6 +42,8 @@
             : 'flex cursor-pointer rounded-md bg-beige py-3 transition-colors hover:bg-gray-100'
         "
         (click)="onRowClick(link)"
+        (mouseenter)="hoveredId.set(link.id)"
+        (mouseleave)="hoveredId.set(null)"
       >
         <div class="pl-2 w-28 pr-4 text-sm text-gray-2">
           {{ link.created_at | date : 'dd/MM/yyyy' }}
@@ -65,6 +67,21 @@
         <div class="w-48 text-sm text-gray-2">
           {{ link.integrity_owner }}
         </div>
+        @if (!isReadOnly(link)) {
+        <div class="flex w-10 items-center justify-center pr-2">
+          @if (hoveredId() === link.id) {
+          <button
+            type="button"
+            class="rounded p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+            [disabled]="deleting() === link.id"
+            [attr.aria-label]="'dashboard.delete_dataset' | translate"
+            (click)="deleteIntegrityLink($event, link.id)"
+          >
+            <ng-icon name="iconoirTrash" size="1.1em"></ng-icon>
+          </button>
+          }
+        </div>
+        }
       </div>
       }
     </div>

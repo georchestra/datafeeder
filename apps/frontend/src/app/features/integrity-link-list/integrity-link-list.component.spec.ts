@@ -59,7 +59,9 @@ describe('IntegrityLinkListComponent', () => {
           en: {
             'integrityLinks.title': 'Integrity Links',
             'integrityLinks.loadMore': 'Load More',
-            'integrityLinks.noItems': 'No items'
+            'integrityLinks.noItems': 'No items',
+            'dashboard.delete_dataset': 'Delete dataset',
+            'dashboard.delete_dataset_confirm': 'Are you sure?'
           }
         })
           .withDefaultLanguage('en')
@@ -631,6 +633,133 @@ describe('IntegrityLinkListComponent', () => {
       // Existing items should be preserved
       expect(component.integrityLinks().length).toBe(2)
       expect(component.integrityLinks()[0].id).toBe('1')
+    })
+  })
+
+  describe('Delete Dataset', () => {
+    const setupWithItems = async (items: IntegrityLinkListItem[]) => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      const req = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      req.flush({ items, has_more: false, offset: 0 })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      return { fixture, component }
+    }
+
+    it('should hide trash icon by default (hoveredId is null)', async () => {
+      const { component } = await setupWithItems([createMockItem('1')])
+      expect(component.hoveredId()).toBeNull()
+    })
+
+    it('should show trash icon when hoveredId matches row id', async () => {
+      const { component } = await setupWithItems([createMockItem('1')])
+      component.hoveredId.set('1')
+      expect(component.hoveredId()).toBe('1')
+    })
+
+    it('should call DELETE API on deleteIntegrityLink when confirmed', async () => {
+      const { component } = await setupWithItems([
+        createMockItem('1'),
+        createMockItem('2')
+      ])
+
+      vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+      const event = new MouseEvent('click')
+      vi.spyOn(event, 'stopPropagation')
+
+      component.deleteIntegrityLink(event, '1')
+
+      expect(event.stopPropagation).toHaveBeenCalled()
+
+      const deleteReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-link/1'
+      )
+      expect(deleteReq.request.method).toBe('DELETE')
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    })
+
+    it('should remove item from list on successful delete (204)', async () => {
+      const { component } = await setupWithItems([
+        createMockItem('1'),
+        createMockItem('2')
+      ])
+
+      expect(component.integrityLinks().length).toBe(2)
+
+      vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+      component.deleteIntegrityLink(new MouseEvent('click'), '1')
+
+      const deleteReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-link/1'
+      )
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(component.integrityLinks().length).toBe(1)
+      expect(component.integrityLinks()[0].id).toBe('2')
+    })
+
+    it('should NOT remove item from list on API failure', async () => {
+      const { component } = await setupWithItems([
+        createMockItem('1'),
+        createMockItem('2')
+      ])
+
+      expect(component.integrityLinks().length).toBe(2)
+
+      vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+      component.deleteIntegrityLink(new MouseEvent('click'), '1')
+
+      const deleteReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-link/1'
+      )
+      deleteReq.error(new ProgressEvent('Network error'), {
+        status: 500,
+        statusText: 'Server Error'
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(component.integrityLinks().length).toBe(2)
+    })
+
+    it('should NOT call API when user cancels confirm dialog', async () => {
+      const { component } = await setupWithItems([createMockItem('1')])
+
+      vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+      component.deleteIntegrityLink(new MouseEvent('click'), '1')
+
+      httpMock.expectNone('http://localhost:8000/ingestion/integrity-link/1')
+
+      expect(component.integrityLinks().length).toBe(1)
+    })
+
+    it('should reset deleting signal after completion', async () => {
+      const { component } = await setupWithItems([createMockItem('1')])
+
+      vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+      component.deleteIntegrityLink(new MouseEvent('click'), '1')
+
+      const deleteReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-link/1'
+      )
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(component.deleting()).toBeNull()
     })
   })
 })

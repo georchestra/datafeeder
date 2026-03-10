@@ -18,6 +18,8 @@
   "authorizations.ruleValue.write": "Write",
   "authorizations.title": "Authorizations",
   "common.loading": "",
+  "dashboard.delete_dataset": "",
+  "dashboard.delete_dataset_confirm": "",
   "domain.contact.role.author": "",
   "domain.contact.role.collaborator": "",
   "domain.contact.role.contributor": "",
