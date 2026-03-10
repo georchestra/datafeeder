@@ -8,6 +8,7 @@ from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRun
 
 from src.core.task_executor import BaseTaskExecutor, TaskRunInfo, TaskStatus
 from src.services.airflow_client import get_dag_run_api
+from src.services.airflow_logs import generate_failed_dag_run_logs
 
 
 def _convert_airflow_status(airflow_status: DagRunState) -> TaskStatus:
@@ -110,7 +111,6 @@ class AirflowTaskExecutor(BaseTaskExecutor):
     def get_task_logs(self, task_id: str, run_id: str) -> str:
         """Get logs for a task in Airflow."""
         # This would need to be implemented using the Airflow logs service
-        from src.services.airflow_logs import generate_failed_dag_run_logs
 
         try:
             logs = generate_failed_dag_run_logs(task_id, run_id)

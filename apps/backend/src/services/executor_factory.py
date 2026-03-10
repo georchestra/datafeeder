@@ -5,6 +5,7 @@ from functools import lru_cache
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.core.task_executor import BaseTaskExecutor, TaskExecutorType
+from src.services.executors.airflow_executor import AirflowTaskExecutor
 
 logger = get_logger()
 
@@ -23,8 +24,6 @@ def get_task_executor() -> BaseTaskExecutor:
     logger.info(f"Using task executor: {executor_type}")
 
     if executor_type == TaskExecutorType.AIRFLOW:
-        from src.services.executors.airflow_executor import AirflowTaskExecutor
-
         return AirflowTaskExecutor()
 
     else:

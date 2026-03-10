@@ -37,7 +37,7 @@
       </span>
 
       <!-- Events — owner/admin only -->
-      @if (store.isOwnerOrAdmin() && enabled_features().includes('events')) {
+      @if (store.isOwnerOrAdmin()) {
       <a
         [routerLink]="['events']"
         routerLinkActive="bg-secondary-active font-semibold"
