@@ -283,7 +283,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Self:
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
-        self._check_default_secret("POSTGRES_DATAFEEDER_PASSWORD", self.POSTGRES_DATAFEEDER_PASSWORD)
+        self._check_default_secret(
+            "POSTGRES_DATAFEEDER_PASSWORD", self.POSTGRES_DATAFEEDER_PASSWORD
+        )
         self._check_default_secret("ENCRYPTION_KEY", self.ENCRYPTION_KEY)
         return self
 
