@@ -47,6 +47,12 @@ down: ## Stop all services using Docker Compose
 down-v: ## Stop all services and remove volumes using Docker Compose
 	docker compose down -v
 
+down-full: ## Stop all services including GeoServer and GeoNetwork using Docker Compose
+	docker compose --profile geoserver --profile geonetwork down
+
+down-full-v: ## Stop all services including GeoServer and GeoNetwork and remove volumes using Docker Compose
+	docker compose --profile geoserver --profile geonetwork down -v
+
 run-backend: install-python ## Run the backend application
 	cd apps/backend && \
 	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs
