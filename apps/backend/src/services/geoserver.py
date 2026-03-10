@@ -1,9 +1,6 @@
 from typing import Any
 
 from data_manipulation.geoserver import WorkspaceCreationResult
-from src.core.logging import get_logger
-
-logger = get_logger()
 from data_manipulation.geoserver import (
     create_layer as dm_create_layer,
 )
@@ -15,6 +12,10 @@ from data_manipulation.geoserver import (
 )
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
 from pydantic import BaseModel
+
+from src.core.logging import get_logger
+
+logger = get_logger()
 
 
 class WMSUrls(BaseModel):
