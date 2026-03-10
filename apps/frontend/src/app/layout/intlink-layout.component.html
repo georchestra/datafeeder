@@ -82,11 +82,15 @@
     <app-ui-alert-box
       type="error"
       [dismissible]="false"
-      [title]="'intlinkLayout.error.' + store.loadError() + '.title' | translate"
-      [message]="'intlinkLayout.error.' + store.loadError() + '.message' | translate"
+      [title]="
+        'intlinkLayout.error.' + store.loadError() + '.title' | translate
+      "
+      [message]="
+        'intlinkLayout.error.' + store.loadError() + '.message' | translate
+      "
     />
     } @else {
-      <router-outlet></router-outlet>
+    <router-outlet></router-outlet>
     }
   </div>
 </div>

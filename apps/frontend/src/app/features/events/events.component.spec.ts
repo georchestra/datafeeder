@@ -20,7 +20,7 @@ import {
   getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet
 } from '../../core/api/functions'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
-import { IntegrityLinkStore } from '../../layout/integrity-link.store'
+import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import type { Event } from '../../shared/components/event/event.component'
 import { EventsListComponent } from '../../shared/components/events-list/events-list.component'
 import { UiAlertBoxComponent } from '../../shared/components/ui-alert-box/ui-alert-box.component'
