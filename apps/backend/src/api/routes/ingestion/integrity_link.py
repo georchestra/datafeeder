@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import select
 
-from src.api.deps import DatakernSessionDep, GeorchestraContextDep, OrgIdDep
+from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.core.security import (
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
     description="Retrieve an IntegrityLink entity. The integrity_transformation field is excluded by default.",
 )
 def get_integrity_link(
-    session: DatakernSessionDep,
+    session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
     org_id: OrgIdDep,
@@ -57,7 +57,7 @@ def get_integrity_link(
     description="Retrieve all rules associated with a given IntegrityLink.",
 )
 def list_integrity_link_rules(
-    session: DatakernSessionDep,
+    session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
     org_id: OrgIdDep,
@@ -79,7 +79,7 @@ def list_integrity_link_rules(
     summary="Create or update a rule for an IntegrityLink",
 )
 def upsert_integrity_link_rule(
-    session: DatakernSessionDep,
+    session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
     org_id: OrgIdDep,
@@ -122,7 +122,7 @@ def upsert_integrity_link_rule(
     summary="Delete a rule from an IntegrityLink",
 )
 def delete_integrity_link_rule(
-    session: DatakernSessionDep,
+    session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
     org_id: OrgIdDep,
@@ -149,7 +149,7 @@ def delete_integrity_link_rule(
     description="Toggle the publication status of an IntegrityLink for Geonetwork",
 )
 def toggle_publish_gn_integrity_link(
-    session: DatakernSessionDep,
+    session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
     publish: bool = Query(description="Set to true to publish, false to unpublish"),

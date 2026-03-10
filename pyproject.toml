@@ -11,9 +11,9 @@ fmt = "ruff format . --check"
 check= "pyright ."
 
 [project]
-name = "datakern-python-monorepo"
+name = "datafeeder-python-monorepo"
 version = "0.1.0"
-description = "Datakern python monorepo using uv"
+description = "Datafeeder python monorepo using uv"
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = []

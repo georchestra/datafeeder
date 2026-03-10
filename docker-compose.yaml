@@ -1,4 +1,4 @@
 include:
   - docker/compose.georchestra.yaml
-  - docker/compose.datakern.yaml
+  - docker/compose.datafeeder.yaml
   - docker/compose.airflow.yaml

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import exists
 from sqlmodel import or_, select
 
-from src.api.deps import DatakernSessionDep, GeorchestraContextDep, OrgIdDep
+from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.logging import get_logger
 from src.core.security import build_access_expr
 from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
@@ -25,7 +25,7 @@ BATCH_SIZE = 100  # Fixed batch size for lazy loading
     "Normal users see only their own links, administrators see all links.",
 )
 def list_integrity_links(
-    session: DatakernSessionDep,
+    session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     org_id: OrgIdDep,
     offset: int = Query(0, ge=0, description="Number of items to skip (for lazy loading)"),

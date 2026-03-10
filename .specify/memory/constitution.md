@@ -1,4 +1,4 @@
-# DataKern Constitution
+# Datafeeder Constitution
 
 <!--
 Sync Impact Report:
@@ -29,7 +29,7 @@ Sync Impact Report:
 
 ### I. API-First Architecture
 
-DataKern MUST be designed with an API-first approach. The backend REST API is the primary contract between all components and MUST be fully functional independent of any user interface or external tool. All features MUST be accessible via well-documented API endpoints before any UI implementation begins. This ensures tool independence and enables programmatic access to all functionality.
+Datafeeder MUST be designed with an API-first approach. The backend REST API is the primary contract between all components and MUST be fully functional independent of any user interface or external tool. All features MUST be accessible via well-documented API endpoints before any UI implementation begins. This ensures tool independence and enables programmatic access to all functionality.
 
 **Rationale**: Ensures interoperability, enables automation, and prevents vendor lock-in to specific tools or interfaces.
 
@@ -108,7 +108,7 @@ All services MUST be containerized using Docker with docker-compose orchestratio
 
 ## Functional Vision
 
-DataKern delivers a complete data-ingestion and lifecycle-management
+Datafeeder delivers a complete data-ingestion and lifecycle-management
 module for the geOrchestra platform. At the end of the ingestion
 process a dataset MUST be referenced in the platform catalogue,
 diffused via platform services, and available for consultation,
@@ -215,7 +215,7 @@ that the user can diagnose or escalate the issue.
 
 **Rationale**: Codifying the functional vision in the constitution
 ensures that all contributors share a common understanding of what
-DataKern delivers to end users and that design decisions stay aligned
+Datafeeder delivers to end users and that design decisions stay aligned
 with the intended user experience.
 
 ## Application Architecture
@@ -340,13 +340,13 @@ apps/frontend/src/
 
 ## Security & Authentication
 
-DataKern integrates with geOrchestra's security infrastructure via a gateway that handles authentication and authorization. The Backend MUST respect user identity and organization context provided by the gateway. Users MUST only access resources belonging to their organization unless they have administrator privileges. All sensitive configuration MUST be externalized via environment variables or properties files (never committed to version control).
+Datafeeder integrates with geOrchestra's security infrastructure via a gateway that handles authentication and authorization. The Backend MUST respect user identity and organization context provided by the gateway. Users MUST only access resources belonging to their organization unless they have administrator privileges. All sensitive configuration MUST be externalized via environment variables or properties files (never committed to version control).
 
 **Rationale**: Ensures data isolation, complies with organizational access policies, and protects sensitive information.
 
 ## Data Integrity & Traceability
 
-The `datakern.integrity_link` table is the source of truth linking staging data, final datasets, and metadata. Every ingestion operation MUST create an integrity_link record tracking: source information, staging table, final table, timestamps, ownership, and processing status. DAG workflows MUST update integrity_link records via backend callbacks on success or failure. This ensures full traceability from raw ingestion through final publication.
+The `datafeeder.integrity_link` table is the source of truth linking staging data, final datasets, and metadata. Every ingestion operation MUST create an integrity_link record tracking: source information, staging table, final table, timestamps, ownership, and processing status. DAG workflows MUST update integrity_link records via backend callbacks on success or failure. This ensures full traceability from raw ingestion through final publication.
 
 **Rationale**: Enables auditing, facilitates debugging, supports data lineage tracking, and ensures accountability.
 
@@ -374,7 +374,7 @@ All frontend user interface development MUST reference the official Figma design
 
 **Design Resources**:
 
-- **Figma Design File**: [DataKern - Ingestion données](https://www.figma.com/design/IwMxmE9G9D9StF2QLlR1uE/ingestion-donn%C3%A9es)
+- **Figma Design File**: [Datafeeder - Ingestion données](https://www.figma.com/design/IwMxmE9G9D9StF2QLlR1uE/ingestion-donn%C3%A9es)
   - **Note**: This design file contains all UI components and screens organized by code sprints, allowing developers to reference the appropriate sprint section when implementing features
 - **Implementation Tool**: Figma MCP (Model Context Protocol) - Use Figma MCP tools to extract component specifications, styles, and assets directly from the design file during implementation
 

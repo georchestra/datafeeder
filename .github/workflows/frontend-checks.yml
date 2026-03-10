@@ -1,4 +1,4 @@
-name: DataKern CI Frontend
+name: Datafeeder CI Frontend
 run-name: 🩺 Frontend quality checks on ${{ github.event_name == 'pull_request' && 'PR' || '🌱' }} ${{ github.event_name == 'pull_request' && github.event.number || github.ref_name }}
 
 env:
@@ -95,7 +95,7 @@ jobs:
       # - name: Start backend server
       #   working-directory: apps/backend
       #   run: |
-      #     georchestradatadir=/home/runner/work/DataKern/DataKern/docker/datadir uv run fastapi dev src/main.py --host 0.0.0.0 --port 8000 &
+      #     georchestradatadir=/home/runner/work/Datafeeder/Datafeeder/docker/datadir uv run fastapi dev src/main.py --host 0.0.0.0 --port 8000 &
       #     echo "Waiting for backend to be ready..."
       #     timeout 30 bash -c 'until curl -f http://localhost:8000/version; do sleep 1; done'
       #     echo "Backend is ready!"

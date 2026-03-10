@@ -4,7 +4,7 @@ describe('Home Page', () => {
   });
 
   it('should display the home page title', () => {
-    cy.get('h1').should('contain', 'DataKern');
+    cy.get('h1').should('contain', 'Datafeeder');
   });
 
   it('should display the lorem ipsum text', () => {

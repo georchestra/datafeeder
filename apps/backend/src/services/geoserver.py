@@ -96,7 +96,7 @@ class GeoServerService:
         self,
         workspace_name: str,
         datastore_name: str,
-        jndi_reference: str = "jdbc/datakern",
+        jndi_reference: str = "jdbc/datafeeder",
         pg_schema: str | None = None,
     ) -> WorkspaceCreationResult:
         """
@@ -105,7 +105,7 @@ class GeoServerService:
         Args:
             workspace_name: Name of the workspace to create
             datastore_name: Name for the datastore
-            jndi_reference: JNDI reference for database connection (defaults to "jdbc/datakern")
+            jndi_reference: JNDI reference for database connection (defaults to "jdbc/datafeeder")
             pg_schema: PostgreSQL schema name (defaults to workspace_name if None)
 
         Returns:
@@ -117,7 +117,7 @@ class GeoServerService:
             datastore_name=datastore_name,
             jndi_reference=jndi_reference,
             pg_schema=pg_schema,
-            description=f"DataKern datasets for {workspace_name}",
+            description=f"Datafeeder datasets for {workspace_name}",
         )
 
     async def create_layer(

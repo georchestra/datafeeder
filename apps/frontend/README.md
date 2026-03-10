@@ -1,4 +1,4 @@
-# Datakern frontend
+# Datafeeder frontend
 
 The new (geo) data ingestion plateform.
 
@@ -85,13 +85,13 @@ npm run test:e2e:ci # headless mode specially used by the ci
 From the frontend directory:
 
 ```bash
-docker build -t datakern-frontend:latest .
+docker build -t datafeeder-frontend:latest .
 ```
 
 ### Run the Docker container
 
 ```bash
-docker run -p 4200:8080 datakern-frontend:latest
+docker run -p 4200:8080 datafeeder-frontend:latest
 ```
 
 The frontend will be available at http://localhost:4200

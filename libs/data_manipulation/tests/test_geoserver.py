@@ -23,7 +23,7 @@ class TestCreateWorkspace:
         """Test successful workspace and datastore creation."""
         workspace_name = "test_workspace"
         datastore_name = "test_datastore"
-        jndi_reference = "jdbc/datakern"
+        jndi_reference = "jdbc/datafeeder"
         pg_schema = "test_schema"
         description = "Test description"
 
@@ -57,7 +57,7 @@ class TestCreateWorkspace:
                 geoserver=mock_geoserver,
                 workspace_name="test_workspace",
                 datastore_name="test_datastore",
-                jndi_reference="jdbc/datakern",
+                jndi_reference="jdbc/datafeeder",
                 pg_schema="test_schema",
                 description="Test description",
             )
@@ -76,7 +76,7 @@ class TestCreateWorkspace:
                 geoserver=mock_geoserver,
                 workspace_name="test_workspace",
                 datastore_name="test_datastore",
-                jndi_reference="jdbc/datakern",
+                jndi_reference="jdbc/datafeeder",
                 pg_schema="test_schema",
                 description="Test description",
             )

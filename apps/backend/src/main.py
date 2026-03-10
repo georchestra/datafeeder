@@ -30,7 +30,7 @@ def _get_debug_flag() -> bool:
 
 DEBUG = _get_debug_flag()
 
-BACKEND_VERSION = importlib.metadata.version("datakern-backend")
+BACKEND_VERSION = importlib.metadata.version("datafeeder-backend")
 
 app = FastAPI()
 

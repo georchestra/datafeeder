@@ -20,7 +20,7 @@ def get_enum_values(enum_cls: type[Enum]) -> list[str]:
 
 class IntegrityLink(SQLModel, table=True):
     __tablename__: ClassVar[str] = "integrity_link"  # type: ignore[misc]
-    __table_args__ = {"schema": "datakern"}
+    __table_args__ = {"schema": "datafeeder"}
 
     id: Optional[UUID] = Field(
         default=None, primary_key=True, sa_column_kwargs={"server_default": "gen_random_uuid()"}

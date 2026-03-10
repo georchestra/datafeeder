@@ -10,7 +10,7 @@ from sqlmodel import Session
 
 from src.core import security
 from src.core.config import get_settings
-from src.core.db import data_engine, datakern_engine
+from src.core.db import data_engine, datafeeder_engine
 from src.models import TokenPayload, User
 from src.services.console_service import ConsoleService
 from src.services.georchestra import GeorchestraContext, get_georchestra_context
@@ -18,8 +18,8 @@ from src.services.georchestra import GeorchestraContext, get_georchestra_context
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{get_settings().API_V1_STR}/login/access-token")
 
 
-def get_datakern_db() -> Generator[Session, None, None]:
-    with Session(datakern_engine) as session:
+def get_datafeeder_db() -> Generator[Session, None, None]:
+    with Session(datafeeder_engine) as session:
         yield session
 
 
@@ -28,7 +28,7 @@ def get_data_db() -> Generator[Session, None, None]:
         yield session
 
 
-DatakernSessionDep = Annotated[Session, Depends(get_datakern_db)]
+DatafeederSessionDep = Annotated[Session, Depends(get_datafeeder_db)]
 DataSessionDep = Annotated[Session, Depends(get_data_db)]
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
 GeorchestraContextDep = Annotated[GeorchestraContext, Depends(get_georchestra_context)]
@@ -53,7 +53,7 @@ def get_org_id(geo_ctx: GeorchestraContextDep) -> str | None:
 OrgIdDep = Annotated[str | None, Depends(get_org_id)]
 
 
-def get_current_user(session: DatakernSessionDep, token: TokenDep) -> User:
+def get_current_user(session: DatafeederSessionDep, token: TokenDep) -> User:
     try:
         payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=[security.ALGORITHM])  # type: ignore[arg-type]
         token_data = TokenPayload(**payload)

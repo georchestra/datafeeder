@@ -34,16 +34,16 @@ georchestra:
       backend:
         target: ${georchestra.gateway.services.backend.target}
         access-rules:
-        - intercept-url: /datakern-backend/internal/**
+        - intercept-url: /datafeeder-backend/internal/**
           anonymous: false
           allowed-roles: ADMINISTRATOR
-        - intercept-url: /datakern-backend**, /datakern-backend/**
+        - intercept-url: /datafeeder-backend**, /datafeeder-backend/**
           anonymous: false
           allowed-roles: IMPORT
       frontend:
         target: ${georchestra.gateway.services.frontend.target}
         access-rules:
-        - intercept-url: /datakern**, /datakern/**
+        - intercept-url: /datafeeder**, /datafeeder/**
           anonymous: false
           allowed-roles: IMPORT
         headers:

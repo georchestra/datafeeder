@@ -23,7 +23,7 @@ from shapely.geometry.base import BaseGeometry
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.orm.attributes import flag_modified
 
-from src.api.deps import DatakernSessionDep, DataSessionDep, GeorchestraContextDep, OrgIdDep
+from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.callback import build_callback_url
 from src.core.config import get_staging_schema
 from src.core.db import data_engine
@@ -329,7 +329,7 @@ def _extract_url_metadata(
     description="Submit data for staging import by triggering the Airflow staging DAG.",
 )
 async def submit_staging(
-    session: DatakernSessionDep,
+    session: DatafeederSessionDep,
     type: ImportType = Form(...),
     url: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
@@ -426,7 +426,7 @@ async def submit_staging(
     description="Submit data for existing staging import by triggering the Airflow staging DAG.",
 )
 async def edit_staging(
-    session: DatakernSessionDep,
+    session: DatafeederSessionDep,
     integrity_link_id: str,
     type: ImportType = Form(...),
     url: Optional[str] = Form(None),
@@ -527,7 +527,7 @@ async def edit_staging(
 
 @router.post("/dag_success")
 def dag_success_callback(
-    session: DatakernSessionDep,
+    session: DatafeederSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
 ) -> None:
     """
@@ -564,7 +564,7 @@ def dag_success_callback(
 
 @router.post("/dag_failure")
 def dag_failure_callback(
-    datakern_session: DatakernSessionDep,
+    datafeeder_session: DatafeederSessionDep,
     data_session: DataSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
 ) -> None:
@@ -573,11 +573,11 @@ def dag_failure_callback(
     Deletes the IntegrityLink and drops the staging table.
 
     Args:
-        datakern_session: Datakern database session (injected)
+        datafeeder_session: Datafeeder database session (injected)
         data_session: Data database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
     """
-    integrity_link = datakern_session.get(IntegrityLink, UUID(integrity_link_id))
+    integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
@@ -593,8 +593,8 @@ def dag_failure_callback(
         except Exception as e:
             logger.error(f"Error dropping staging table {integrity_link.staging_table_name}: {e}")
 
-    datakern_session.delete(integrity_link)
-    datakern_session.commit()
+    datafeeder_session.delete(integrity_link)
+    datafeeder_session.commit()
 
 
 def _detect_original_projection(
@@ -649,7 +649,7 @@ def _resolve_columns(
 @router.get("/{integrity_link_id}/metadata")
 def get_staging_metadata(
     data_session: DataSessionDep,
-    datakern_session: DatakernSessionDep,
+    datafeeder_session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
     org_id: OrgIdDep,
@@ -663,7 +663,7 @@ def get_staging_metadata(
 
     Args:
         data_session: Data database session (injected)
-        datakern_session: Datakern database session (injected)
+        datafeeder_session: Datafeeder database session (injected)
         geo_ctx: geOrchestra security context
         integrity_link_id: IntegrityLink UUID (required)
 
@@ -671,7 +671,7 @@ def get_staging_metadata(
         Metadata of the staging table
     """
     integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session, org_id
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, org_id
     )
 
     staging_table_name = integrity_link.staging_table_name
@@ -717,7 +717,7 @@ def get_staging_metadata(
 @router.put("/{integrity_link_id}/metadata")
 def edit_staging_metadata(
     data_session: DataSessionDep,
-    datakern_session: DatakernSessionDep,
+    datafeeder_session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
     org_id: OrgIdDep,
@@ -735,7 +735,7 @@ def edit_staging_metadata(
 
     Args:
         data_session: Data database session (injected)
-        datakern_session: Datakern database session (injected)
+        datafeeder_session: Datafeeder database session (injected)
         geo_ctx: geOrchestra security context
         integrity_link_id: IntegrityLink UUID (required)
         config: Staging configuration with columns (ColumnConfig list), file_type,
@@ -745,7 +745,7 @@ def edit_staging_metadata(
         Updated staging metadata with saved column configurations
     """
     integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session, org_id
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, org_id
     )
 
     if config.columns:
@@ -791,12 +791,12 @@ def edit_staging_metadata(
     integrity_link.integrity_transformation = transformation.model_dump(mode="json")
     flag_modified(integrity_link, "integrity_transformation")
 
-    datakern_session.commit()
-    datakern_session.refresh(integrity_link)
+    datafeeder_session.commit()
+    datafeeder_session.refresh(integrity_link)
 
     return get_staging_metadata(
         data_session=data_session,
-        datakern_session=datakern_session,
+        datafeeder_session=datafeeder_session,
         geo_ctx=geo_ctx,
         integrity_link_id=integrity_link_id,
         org_id=org_id,
@@ -806,7 +806,7 @@ def edit_staging_metadata(
 @router.get("/{integrity_link_id}/preview")
 def get_staging_preview(
     data_session: DataSessionDep,
-    datakern_session: DatakernSessionDep,
+    datafeeder_session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
     org_id: OrgIdDep,
@@ -842,7 +842,7 @@ def get_staging_preview(
 
     Args:
         data_session: Data database session (injected)
-        datakern_session: Datakern database session (injected)
+        datafeeder_session: Datafeeder database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         limit: Number of rows to preview (optional, default is 10)
         raw: When true, bypass all transformations and return original data
@@ -853,9 +853,9 @@ def get_staging_preview(
     """
 
     integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datakern_session, org_id
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, org_id
     )
-
+    
     staging_table_name = integrity_link.staging_table_name
     if not staging_table_name:
         raise HTTPException(status_code=500, detail="Staging table name is missing")

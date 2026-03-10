@@ -1,4 +1,4 @@
-# DataKern Project Conventions
+# Datafeeder Project Conventions
 
 Project-specific naming, organization, and integration rules. Always reference actual codebase for current implementation.
 
@@ -51,9 +51,9 @@ Common parameter names:
 - Config: `integrity_transformation`, `config_json`
 - Schedule: `schedule`, `schedule_enabled`
 
-## DataKern Database Integration
+## Datafeeder Database Integration
 
-### Main Table: `datakern.integrity_link`
+### Main Table: `datafeeder.integrity_link`
 
 Query example in [process-dag-generator.py](../../../apps/elt/dags/process-dag-generator.py):
 
@@ -112,8 +112,8 @@ See any DAG file for this pattern.
 
 Pattern:
 1. Get encrypted value from params: `basic_auth_encrypted`
-2. Get encryption key from Variables: `Variable.get("datakern_encryption_key")`
-3. Get datakern engine
+2. Get encryption key from Variables: `Variable.get("datafeeder_encryption_key")`
+3. Get datafeeder engine
 4. Call `decrypt_credentials(conn, encrypted, key)` → returns `(username, password)`
 5. Pass as tuple to ingestion: `auth=(username, password)`
 
@@ -136,7 +136,7 @@ See [apps/elt/dags/process_dag.py](../../../apps/elt/dags/process_dag.py):
 
 ### Dynamic Generation
 See [apps/elt/dags/process-dag-generator.py](../../../apps/elt/dags/process-dag-generator.py):
-1. Query `datakern.integrity_link WHERE schedule_enabled = true`
+1. Query `datafeeder.integrity_link WHERE schedule_enabled = true`
 2. For each row: `create_dag(config)` with `dag_id = f"ingestion_{config['id']}"`
 3. Register in globals: `globals()[dag_id] = create_dag(config)`
 4. Each dynamic DAG triggers `process_dag` with configuration

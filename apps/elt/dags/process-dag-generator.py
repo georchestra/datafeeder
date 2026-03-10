@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from airflow import DAG
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
-from utils import get_datakern_pg_hook
+from utils import get_datafeeder_pg_hook
 
 
 def load_scheduled_integrity_links():
@@ -19,10 +19,10 @@ def load_scheduled_integrity_links():
             source_url,
             source_import_type,
             source_password_encrypted
-        FROM datakern.integrity_link
+        FROM datafeeder.integrity_link
         WHERE schedule NOTNULL AND schedule NOT LIKE ''
     """
-    return get_datakern_pg_hook().get_pandas_df(sql).to_dict(orient="records")
+    return get_datafeeder_pg_hook().get_pandas_df(sql).to_dict(orient="records")
 
 
 def create_dag(config):
@@ -59,7 +59,7 @@ def create_dag(config):
 
 # Create DAGs dynamically
 configs = load_scheduled_integrity_links()
-# Warning: Aiflow may throw psycopg2.errors.UndefinedTable: relation "datakern.integrity_link" does not exist
+# Warning: Aiflow may throw psycopg2.errors.UndefinedTable: relation "datafeeder.integrity_link" does not exist
 # if there's no scheduled integrity links.
 for config in configs:
     dag_id = f"ingestion_{config['id']}"

@@ -6,9 +6,9 @@ fmt = "ruff format . --check"
 "fmt:fix" = "ruff format ."
 
 [project]
-name = "datakern-airflow-elt"
+name = "datafeeder-airflow-elt"
 version = "0.1.0"
-description = "Airflow DAGs for ELT in DataKern"
+description = "Airflow DAGs for ELT in Datafeeder"
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [

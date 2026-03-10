@@ -12,7 +12,7 @@ from data_manipulation.ingestion import (
     ingest_data_from_url_into_postgis,
 )
 from data_manipulation.logging import configure_logging
-from utils import get_data_sql_engine, get_datakern_sql_engine, get_staging_schema
+from utils import get_data_sql_engine, get_datafeeder_sql_engine, get_staging_schema
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -105,13 +105,13 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             encrypted_credentials = params.get("encrypted_credentials")
             if encrypted_credentials:
                 try:
-                    encryption_key = Variable.get("datakern_encryption_key", default=None)
+                    encryption_key = Variable.get("datafeeder_encryption_key", default=None)
                     if not encryption_key:
                         raise AirflowException(
-                            "Encryption key not found in Airflow Variables under 'datakern_encryption_key'"
+                            "Encryption key not found in Airflow Variables under 'datafeeder_encryption_key'"
                         )
 
-                    engine = get_datakern_sql_engine()
+                    engine = get_datafeeder_sql_engine()
 
                     with engine.connect() as conn:
                         username, password = decrypt_credentials(
@@ -159,13 +159,13 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             encrypted_credentials = params.get("encrypted_credentials")
             if encrypted_credentials:
                 try:
-                    encryption_key = Variable.get("datakern_encryption_key", default=None)
+                    encryption_key = Variable.get("datafeeder_encryption_key", default=None)
                     if not encryption_key:
                         raise AirflowException(
-                            "Encryption key not found in Airflow Variables under 'datakern_encryption_key'"
+                            "Encryption key not found in Airflow Variables under 'datafeeder_encryption_key'"
                         )
 
-                    engine = get_datakern_sql_engine()
+                    engine = get_datafeeder_sql_engine()
 
                     with engine.connect() as conn:
                         username, password = decrypt_credentials(

@@ -73,7 +73,7 @@ COPY apps/backend ./apps/backend
 
 # Install production dependencies only, from root of workspace
 # Install all workspace members (backend and its dependencies) without dev dependencies
-RUN uv sync --no-dev --package datakern-backend
+RUN uv sync --no-dev --package datafeeder-backend
 
 RUN chown -R georchestra_user:georchestra_user /app
 USER georchestra_user

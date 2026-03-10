@@ -7,7 +7,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "@datakern/frontend": {
+    "@datafeeder/frontend": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -67,10 +67,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "@datakern/frontend:build:production"
+              "buildTarget": "@datafeeder/frontend:build:production"
             },
             "development": {
-              "buildTarget": "@datakern/frontend:build:development"
+              "buildTarget": "@datafeeder/frontend:build:development"
             }
           },
           "defaultConfiguration": "development"

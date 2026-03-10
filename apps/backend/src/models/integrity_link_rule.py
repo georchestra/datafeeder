@@ -18,11 +18,11 @@ class RuleValue(str, Enum):
 
 class IntegrityLinkRule(SQLModel, table=True):
     __tablename__: ClassVar[str] = "integrity_link_rules"  # type: ignore[misc]
-    __table_args__ = {"schema": "datakern"}
+    __table_args__ = {"schema": "datafeeder"}
 
     id: Optional[int] = Field(default=None, primary_key=True)
     integrity_link_id: Optional[UUID] = Field(
-        default=None, foreign_key="datakern.integrity_link.id"
+        default=None, foreign_key="datafeeder.integrity_link.id"
     )
     rule_type: RuleType
     rule_value: RuleValue = Field(default=RuleValue.READ)
