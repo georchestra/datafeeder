@@ -145,6 +145,7 @@ class IntegrityLinkListItem(BaseModel):
         default=None,
         description="User's effective access level: ADMIN, OWNER, WRITE, or READ",
     )
+    has_final_table: bool = False
 
     @field_validator("id", mode="before")
     @classmethod

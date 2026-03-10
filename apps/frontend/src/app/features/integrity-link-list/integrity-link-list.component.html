@@ -13,11 +13,11 @@
     </div>
 
     @if (loading()) {
-    <p class="text-gray-500">{{ 'common.loading' | translate }}</p>
+    <p class="text-gray-2">{{ 'common.loading' | translate }}</p>
     } @else if (integrityLinks().length === 0 && !searchQuery()) {
-    <p class="text-gray-500">{{ 'integrityLinks.emptyList' | translate }}</p>
+    <p class="text-gray-2">{{ 'integrityLinks.emptyList' | translate }}</p>
     } @else if (integrityLinks().length === 0 && searchQuery()) {
-    <p class="text-gray-500">{{ 'integrityLinks.noResults' | translate }}</p>
+    <p class="text-gray-2">{{ 'integrityLinks.noResults' | translate }}</p>
     } @else {
     <!-- Header -->
     <div class="-mx-7 mb-2 flex border-t border-gray-200 px-7 pt-3">
@@ -43,10 +43,11 @@
         "
         (click)="onRowClick(link)"
       >
-        <div class="pl-2 w-28 pr-4 text-sm text-gray-600">
+        <div class="pl-2 w-28 pr-4 text-sm text-gray-2">
           {{ link.created_at | date : 'dd/MM/yyyy' }}
         </div>
-        <div class="flex-1 pr-4 text-sm text-gray-600">
+        <div class="flex-1 pr-4 text-sm text-gray-2">
+          @if (link.has_final_table) {
           {{ link.integrity_title }}
           @if (isReadOnly(link)) {
           <span
@@ -54,9 +55,14 @@
           >
             {{ 'integrityLinks.readOnly' | translate }}
           </span>
+          } } @else {
+          <span class="text-secondary flex items-center gap-1">
+            <ng-icon name="iconoirChatBubbleWarning" size="1.25em"></ng-icon>
+            {{ 'integrityLinks.noFinalTable' | translate }}
+          </span>
           }
         </div>
-        <div class="w-48 text-sm text-gray-600">
+        <div class="w-48 text-sm text-gray-2">
           {{ link.integrity_owner }}
         </div>
       </div>

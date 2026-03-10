@@ -586,7 +586,7 @@ def dag_failure_callback(
             validate_table_name(integrity_link.staging_table_name, context="staging")
             schema = get_staging_schema()
             table = Table(integrity_link.staging_table_name, MetaData(schema=schema))
-            table.drop(data_session.get_bind(), checkfirst=True)
+            table.drop(data_engine, checkfirst=True)
             data_session.commit()
         except ValueError as e:
             logger.error(f"Invalid staging table name in database: {e}")
@@ -688,12 +688,12 @@ def get_staging_metadata(
     table = Table(
         staging_table_name,
         MetaData(schema=schema),
-        autoload_with=data_session.get_bind(),
+        autoload_with=data_engine,
     )
     row_count = data_session.scalar(select(func.count()).select_from(table)) or 0
     original_projection = _detect_original_projection(
         staging_table_name,
-        data_session.get_bind(),  # type: ignore
+        data_engine,
         schema,
     )
     columns, force_projection_data = _resolve_columns(

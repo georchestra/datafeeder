@@ -18,7 +18,8 @@ describe('IntegrityLinkListComponent', () => {
   // Mock data helper function
   const createMockItem = (
     id: string,
-    accessLevel: string | null = 'OWNER'
+    accessLevel: string | null = 'OWNER',
+    hasFinalTable: boolean = true
   ): IntegrityLinkListItem => ({
     id,
     integrity_title: `Link ${id}`,
@@ -35,7 +36,8 @@ describe('IntegrityLinkListComponent', () => {
     schedule_enabled: false,
     data_id: null,
     metadata_id: null,
-    final_table_name: null,
+    final_table_name: hasFinalTable ? `final_${id}` : null,
+    has_final_table: hasFinalTable,
     access_level: accessLevel
   })
 
@@ -335,6 +337,48 @@ describe('IntegrityLinkListComponent', () => {
       expect(component.isReadOnly(createMockItem('3', 'OWNER'))).toBe(false)
       expect(component.isReadOnly(createMockItem('4', 'ADMIN'))).toBe(false)
       expect(component.isReadOnly(createMockItem('5', null))).toBe(false)
+    })
+
+    it('should navigate to /:id/edit when link has has_final_table=true', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      const navigateSpy = vi.spyOn(router, 'navigate')
+
+      const req = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      req.flush({
+        items: [createMockItem('link-42')],
+        has_more: false,
+        offset: 0
+      })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.onRowClick(createMockItem('link-42', 'OWNER', true))
+
+      expect(navigateSpy).toHaveBeenCalledWith(['/', 'link-42', 'edit'])
+    })
+
+    it('should navigate to /import/:id with step=2 when link has no final table', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      const navigateSpy = vi.spyOn(router, 'navigate')
+
+      const req = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      req.flush({
+        items: [createMockItem('link-42')],
+        has_more: false,
+        offset: 0
+      })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.onRowClick(createMockItem('link-42', 'OWNER', false))
+
+      expect(navigateSpy).toHaveBeenCalledWith(['/', 'import', 'link-42'], {
+        queryParams: { step: 2 }
+      })
     })
   })
 

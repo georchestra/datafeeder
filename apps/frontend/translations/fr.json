@@ -241,6 +241,7 @@
   "integrityLinks.dashboard": "Dashboard des données",
   "integrityLinks.emptyList": "Aucun jeu de données trouvé",
   "integrityLinks.loadMore": "Charger plus",
+  "integrityLinks.noFinalTable": "Ingestion à configurer",
   "integrityLinks.noResults": "Aucun résultat trouvé",
   "integrityLinks.owner": "Propriétaire",
   "integrityLinks.readOnly": "Lecture seule",
