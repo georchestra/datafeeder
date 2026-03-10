@@ -672,7 +672,7 @@ describe('IntegrityLinkListComponent', () => {
       const event = new MouseEvent('click')
       vi.spyOn(event, 'stopPropagation')
 
-      component.deleteIntegrityLink(event, '1')
+      const deletePromise = component.deleteIntegrityLink(event, '1')
 
       expect(event.stopPropagation).toHaveBeenCalled()
 
@@ -682,7 +682,7 @@ describe('IntegrityLinkListComponent', () => {
       expect(deleteReq.request.method).toBe('DELETE')
       deleteReq.flush(null, { status: 204, statusText: 'No Content' })
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await deletePromise
     })
 
     it('should remove item from list on successful delete (204)', async () => {
@@ -695,14 +695,14 @@ describe('IntegrityLinkListComponent', () => {
 
       vi.spyOn(window, 'confirm').mockReturnValue(true)
 
-      component.deleteIntegrityLink(new MouseEvent('click'), '1')
+      const deletePromise = component.deleteIntegrityLink(new MouseEvent('click'), '1')
 
       const deleteReq = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-link/1'
       )
       deleteReq.flush(null, { status: 204, statusText: 'No Content' })
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await deletePromise
 
       expect(component.integrityLinks().length).toBe(1)
       expect(component.integrityLinks()[0].id).toBe('2')
@@ -718,7 +718,7 @@ describe('IntegrityLinkListComponent', () => {
 
       vi.spyOn(window, 'confirm').mockReturnValue(true)
 
-      component.deleteIntegrityLink(new MouseEvent('click'), '1')
+      const deletePromise = component.deleteIntegrityLink(new MouseEvent('click'), '1')
 
       const deleteReq = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-link/1'
@@ -728,7 +728,7 @@ describe('IntegrityLinkListComponent', () => {
         statusText: 'Server Error'
       })
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await deletePromise
 
       expect(component.integrityLinks().length).toBe(2)
     })
@@ -750,14 +750,14 @@ describe('IntegrityLinkListComponent', () => {
 
       vi.spyOn(window, 'confirm').mockReturnValue(true)
 
-      component.deleteIntegrityLink(new MouseEvent('click'), '1')
+      const deletePromise = component.deleteIntegrityLink(new MouseEvent('click'), '1')
 
       const deleteReq = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-link/1'
       )
       deleteReq.flush(null, { status: 204, statusText: 'No Content' })
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await deletePromise
 
       expect(component.deleting()).toBeNull()
     })
