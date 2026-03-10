@@ -69,7 +69,7 @@ class TestListIntegrityLinks:
         self,
         mock_data_session: MagicMock,
         staging_names: list[str],
-        final_names: list[str],
+        final_names: list[str] = [],
     ) -> None:
         """Set up data_session mock to return table names for staging then final queries."""
         mock_staging = MagicMock()
@@ -342,7 +342,7 @@ class TestListIntegrityLinks:
         assert len(response.items) == 1
         assert response.items[0].integrity_title == "My Dataset Import"
 
-        # Verify the query passed to session.exec contains an ilike filter
+        # Verify the query passed to session.execute contains an ilike filter
         executed_query = mock_session.execute.call_args[0][0]
         query_str = str(executed_query)
         assert "ilike" in query_str.lower() or "LIKE" in query_str
@@ -515,6 +515,169 @@ class TestListIntegrityLinks:
 
         assert len(response.items) == 1
         assert response.items[0].has_final_table is False
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_link_excluded_when_staging_table_not_in_db(
+        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        """Links whose staging table no longer exists in the DB are filtered out."""
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Orphaned Link",
+            integrity_owner="user0",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_dropped",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+
+        self._setup_session(mock_session, [link])
+        # DB returns nothing for the candidate — table has been dropped.
+        self._setup_data_session(mock_data_session, [], [])
+
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=geo_ctx,
+            org_id=None,
+            offset=0,
+        )
+
+        assert len(response.items) == 0
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_link_included_via_final_table_only(
+        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        """A link whose staging table is absent from DB is still included when its final table exists."""
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Final Fallback",
+            integrity_owner="user0",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_not_in_db",
+            final_table_name="final_only_table",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+
+        self._setup_session(mock_session, [link])
+        # staging query returns nothing; final query returns the table
+        self._setup_data_session(mock_data_session, [], ["final_only_table"])
+
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=geo_ctx,
+            org_id=None,
+            offset=0,
+        )
+
+        assert len(response.items) == 1
+        assert response.items[0].has_final_table is True
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_link_with_both_tables_only_staging_exists(
+        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        """A link with both table names is included but has_final_table=False when only staging exists."""
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Partial Tables",
+            integrity_owner="user0",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_exists",
+            final_table_name="final_missing",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+
+        self._setup_session(mock_session, [link])
+        # staging exists, final does not
+        self._setup_data_session(mock_data_session, ["staging_exists"], [])
+
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=geo_ctx,
+            org_id=None,
+            offset=0,
+        )
+
+        assert len(response.items) == 1
+        assert response.items[0].has_final_table is False
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_no_db_query_when_no_links(
+        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        """data_session.execute is never called when the page of links is empty."""
+        self._setup_session(mock_session, [])
+
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=geo_ctx,
+            org_id=None,
+            offset=0,
+        )
+
+        assert len(response.items) == 0
+        # No links → no candidates → neither staging nor final query is fired
+        mock_data_session.execute.assert_not_called()
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_only_candidate_names_passed_to_db_query(
+        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        """Only the table names from the fetched links are passed to the IN clause."""
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Scoped Query",
+            integrity_owner="user0",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="my_staging_table",
+            final_table_name="my_final_table",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+
+        self._setup_session(mock_session, [link])
+        self._setup_data_session(mock_data_session, ["my_staging_table"], ["my_final_table"])
+
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=geo_ctx,
+            org_id=None,
+            offset=0,
+        )
+
+        assert mock_data_session.execute.call_count == 2
+
+        staging_query = mock_data_session.execute.call_args_list[0][0][0]
+        final_query = mock_data_session.execute.call_args_list[1][0][0]
+
+        # Use literal_binds to render actual IN values into the SQL string
+        staging_sql = str(staging_query.compile(compile_kwargs={"literal_binds": True}))
+        final_sql = str(final_query.compile(compile_kwargs={"literal_binds": True}))
+
+        assert "my_staging_table" in staging_sql
+        assert "my_final_table" in final_sql
 
 
 class TestListIntegrityLinksVisibility:

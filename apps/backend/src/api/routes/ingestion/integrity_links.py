@@ -88,8 +88,8 @@ def list_integrity_links(
     # Check table existence against data_engine's DB (correct DB in all modes).
     # Using data_session ensures information_schema reflects datadb, not georchestra.
     # Raw Table objects require execute(); exec() only accepts SQLModel SelectOfScalar.
-    staging_candidates = {lnk.staging_table_name for lnk in links if lnk.staging_table_name}
-    final_candidates = {lnk.final_table_name for lnk in links if lnk.final_table_name}
+    staging_candidates = {lnk.staging_table_name for lnk, _ in rows if lnk.staging_table_name}
+    final_candidates = {lnk.final_table_name for lnk, _ in rows if lnk.final_table_name}
 
     staging_tables = (
         set(
