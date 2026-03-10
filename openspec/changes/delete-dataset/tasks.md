@@ -25,7 +25,7 @@
 
 ## 4. Backend — Tests
 
-- [ ] 4.1 Add unit tests in `apps/backend/tests/services/` for `DatasetDeletionService`:
+- [x] 4.1 Add unit tests in `apps/backend/tests/services/` for `DatasetDeletionService`:
   - Happy path: with and without schedule
   - DAG delete failure → HTTP 500, other steps skipped
   - DAG 404 → treated as success
