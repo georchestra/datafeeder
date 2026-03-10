@@ -29,7 +29,7 @@
   - Happy path: with and without schedule
   - DAG delete failure → HTTP 500, other steps skipped
   - DAG 404 → treated as success
-- [ ] 4.2 Add API integration tests in `apps/backend/tests/api/` for `DELETE /ingestion/integrity-link/{id}`:
+- [x] 4.2 Add API integration tests in `apps/backend/tests/api/` for `DELETE /ingestion/integrity-link/{id}`:
   - Owner can delete → 204
   - Non-owner → 403
   - Admin can delete any → 204
