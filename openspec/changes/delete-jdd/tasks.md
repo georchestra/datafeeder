@@ -42,10 +42,15 @@
 
 ## 6. Frontend — UI: Hover-State Delete Button
 
+**Figma Design**: [Hover-triggered delete button](https://www.figma.com/design/IwMxmE9G9D9StF2QLlR1uE/ingestion-donn%C3%A9es?node-id=127-4236&p=f&t=TebrnRWWgdhRvUGf-0) — includes hover states and interaction behaviors
+
+**Implementation**: Use Figma MCP to extract exact visual specifications during implementation
+
 - [ ] 6.1 Update `apps/frontend/src/app/features/integrity-link-list/integrity-link-list.component.html`:
   - Add `(mouseenter)` / `(mouseleave)` binding on each row to track hovered row ID
   - Add trash icon button (`iconoirTrash` from `@ng-icons/iconoir`) visible only when `hoveredId === link.id`
   - Button triggers `deleteIntegrityLink(link.id)` on click
+  - **Use Figma MCP to extract exact styling, positioning, and hover state styling from design**
 - [ ] 6.2 Update `apps/frontend/src/app/features/integrity-link-list/integrity-link-list.component.ts`:
   - Add `hoveredId = signal<string | null>(null)` for hover state
   - Add `deleting = signal<string | null>(null)` to prevent double-click

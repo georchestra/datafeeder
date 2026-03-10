@@ -65,6 +65,12 @@ The frontend dashboard (`integrity-link-list` feature) already lists JDDs via th
 
 **Alternative**: NgRx `deleteJdd` action + effect. Rejected — the feature doesn't use NgRx; introducing it here would be inconsistent.
 
+### 4b. UI Design: Figma mockup with hover states
+
+**Design Reference**: [Figma: Hover-triggered delete button](https://www.figma.com/design/IwMxmE9G9D9StF2QLlR1uE/ingestion-donn%C3%A9es?node-id=127-4236&p=f&t=TebrnRWWgdhRvUGf-0)
+
+**Implementation Note**: Use Figma MCP during implementation to extract exact visual specifications (spacing, colors, sizing, hover states, button positioning). The Figma file includes comments describing the hover behavior and interaction states.
+
 ### 5. Database: no migration needed
 
 **Decision**: Rely on existing `ON DELETE CASCADE` constraint in database schema (`docker/datadir/database/130-datakern.sql` line 56). Both staging and final tables are dropped via direct SQL `DROP TABLE IF EXISTS` in the service layer (best-effort, with error logging).
