@@ -1,6 +1,9 @@
 from typing import Any
 
 from data_manipulation.geoserver import WorkspaceCreationResult
+from src.core.logging import get_logger
+
+logger = get_logger()
 from data_manipulation.geoserver import (
     create_layer as dm_create_layer,
 )
@@ -256,6 +259,36 @@ class GeoServerService:
                 "getmap": all_urls["wms"]["getmap"],
             }
         return result
+
+    def delete_layer(
+        self,
+        workspace_name: str,
+        datastore_name: str,
+        layer_name: str,
+    ) -> None:
+        """Delete a GeoServer feature type (layer).
+
+        Treats 404 as success. Logs and suppresses other errors.
+
+        Args:
+            workspace_name: Name of the GeoServer workspace
+            datastore_name: Name of the datastore
+            layer_name: Name of the feature type / layer to delete
+        """
+        try:
+            _content, status_code = self.geoserver.delete_feature_type(
+                workspace_name, datastore_name, layer_name
+            )
+            if status_code not in (200, 204, 404):
+                logger.error(
+                    f"Unexpected status {status_code} deleting GeoServer layer "
+                    f"{workspace_name}:{layer_name}"
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to delete GeoServer layer {workspace_name}:{layer_name}: {e}",
+                exc_info=True,
+            )
 
     async def update_layer_bbox(
         self,
