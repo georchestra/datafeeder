@@ -855,7 +855,7 @@ def get_staging_preview(
     integrity_link, _ = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, org_id
     )
-    
+
     staging_table_name = integrity_link.staging_table_name
     if not staging_table_name:
         raise HTTPException(status_code=500, detail="Staging table name is missing")

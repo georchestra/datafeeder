@@ -42,6 +42,10 @@ import {
 } from '../../core/api/functions'
 import { DagRunState } from '../../core/api/models'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
+import { marker } from '@biesbjerg/ngx-translate-extract-marker'
+
+marker('metadata.processing.queued')
+marker('metadata.processing.running')
 
 @Component({
   selector: 'app-metadata',
