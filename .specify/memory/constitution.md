@@ -45,19 +45,23 @@ The project is organized as a monorepo with distinct apps (backend, frontend, el
 
 **Rationale**: Facilitates code reuse, ensures consistency across components, simplifies dependency management, and maintains a single source of truth for shared logic.
 
-### IV. Testing & Quality Assurance
+### IV. Mistakes to Avoid
+
+Before starting any implementation, agents MUST consult [mistakes-to-avoid.md](../../../mistakes-to-avoid.md). After discovering and fixing any error during implementation, a correction rule MUST be inferred and appended to that file. This applies to all Speckit workflows.
+
+### V. Testing & Quality Assurance
 
 All components MUST include automated tests. Python applications use pytest with coverage reporting (target: >80% coverage for critical paths). Frontend applications use vitest for unit testing. Tests MUST be run before merging code. Integration tests are required for: API contract changes, inter-service communication, shared library modifications, and database schema changes.
 
 **Rationale**: Prevents regressions, documents expected behavior, enables safe refactoring, and ensures reliability of the data ingestion pipeline.
 
-### V. Code Quality & Standards
+### VI. Code Quality & Standards
 
 All code MUST adhere to project-wide linting and formatting standards. Python code uses Ruff (line length: 100, import sorting enabled) and Pyright for type checking. TypeScript/Angular code uses ESLint and Prettier. All code MUST pass linting, formatting, and type checks before merging. Use `make fix-all-python` and `npm run format` to auto-fix issues.
 
 **Rationale**: Maintains codebase consistency, reduces cognitive load, prevents bugs through static analysis, and improves code reviewability.
 
-### VI. Angular Frontend Component Architecture
+### VII. Angular Frontend Component Architecture
 
 _(Applies specifically to `apps/frontend` - Angular 20 application)_
 
@@ -88,19 +92,19 @@ Angular components MUST follow atomic design principles with clear separation of
 
 **Rationale**: Atomic architecture enhances reusability, simplifies testing, improves code navigation, enables parallel development, and aligns with Angular best practices for scalable applications.
 
-### VII. Minimal Comments Standard
+### VIII. Minimal Comments Standard
 
 **MUST** write self-documenting code that requires minimal comments. Comments **MUST** explain "why" not "what". Comments **MUST NOT** duplicate information already expressed in code. Comments **MUST NOT** reference user stories, task IDs, or implementation metadata in production code.
 
 **Rationale**: Self-documenting code reduces maintenance burden, prevents comment drift, and improves code clarity through better naming and structure.
 
-### VIII. Dependency Management & Build Reproducibility
+### IX. Dependency Management & Build Reproducibility
 
 Python dependencies are managed using uv with workspace support for the monorepo structure. The project requires Python 3.12 exactly. Frontend requires Node.js 22.20.0+. All dependencies MUST be pinned to specific versions (or narrow ranges) to ensure reproducible builds. Lock files MUST be committed and kept up-to-date.
 
 **Rationale**: Ensures consistent development and production environments, prevents dependency conflicts, and enables reliable deployments.
 
-### IX. Containerization & Environment Parity
+### X. Containerization & Environment Parity
 
 All services MUST be containerized using Docker with docker-compose orchestration. Development, testing, and production environments MUST maintain parity through containerization. The Makefile provides standardized commands for environment setup, testing, and deployment. Developers MUST be able to run the full stack locally with `make up-full` or individual services with `make up-light`.
 

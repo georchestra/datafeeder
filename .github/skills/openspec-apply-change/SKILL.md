@@ -25,9 +25,11 @@ Implement tasks from an OpenSpec change.
    Always announce: "Using change: <name>" and how to override (e.g., `/opsx:apply <other>`).
 
 2. **Check status to understand the schema**
+
    ```bash
    openspec status --change "<name>" --json
    ```
+
    Parse the JSON to understand:
    - `schemaName`: The workflow being used (e.g., "spec-driven")
    - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
@@ -56,7 +58,11 @@ Implement tasks from an OpenSpec change.
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
 
-5. **Show current progress**
+5. **Check Mistakes to Avoid**
+
+   Read [mistakes-to-avoid.md](../../../mistakes-to-avoid.md) and apply any matching rules to the upcoming implementation. Do not proceed until this check is complete.
+
+6. **Show current progress**
 
    Display:
    - Schema being used
@@ -64,7 +70,7 @@ Implement tasks from an OpenSpec change.
    - Remaining tasks overview
    - Dynamic instruction from CLI
 
-6. **Implement tasks (loop until done or blocked)**
+7. **Implement tasks (loop until done or blocked)**
 
    For each pending task:
    - Show which task is being worked on
@@ -72,14 +78,14 @@ Implement tasks from an OpenSpec change.
    - Keep changes minimal and focused
    - Mark task complete in the tasks file: `- [ ]` → `- [x]`
    - Continue to next task
-
-   **Pause if:**
+     **After fixing any error during implementation**: infer a correction rule from the fix and append it to [mistakes-to-avoid.md](../../../mistakes-to-avoid.md) as a new table row.
+     **Pause if:**
    - Task is unclear → ask for clarification
    - Implementation reveals a design issue → suggest updating artifacts
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-7. **On completion or pause, show status**
+8. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
@@ -139,6 +145,7 @@ What would you like to do?
 ```
 
 **Guardrails**
+
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
 - If task is ambiguous, pause and ask before implementing

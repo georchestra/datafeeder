@@ -8,11 +8,11 @@ This file is the entry point for AI agents working in this codebase. It points t
 
 Config & project context: `openspec/config.yaml` | Docs: [openspec.dev](https://openspec.dev)
 
-| Action      | Skill                                                                  |
-| ----------- | ---------------------------------------------------------------------- |
-| **Propose** | [openspec-propose](.github/skills/openspec-propose/SKILL.md)           |
-| **Apply**   | [openspec-apply-change](.github/skills/openspec-apply-change/SKILL.md) |
-| **Explore** | [openspec-explore](.github/skills/openspec-explore/SKILL.md)           |
+| Action      | Skill                                                                      |
+| ----------- | -------------------------------------------------------------------------- |
+| **Propose** | [openspec-propose](.github/skills/openspec-propose/SKILL.md)               |
+| **Apply**   | [openspec-apply-change](.github/skills/openspec-apply-change/SKILL.md)     |
+| **Explore** | [openspec-explore](.github/skills/openspec-explore/SKILL.md)               |
 | **Archive** | [openspec-archive-change](.github/skills/openspec-archive-change/SKILL.md) |
 
 ---
@@ -40,14 +40,14 @@ Constitution & memory: [.specify/memory/constitution.md](.specify/memory/constit
 
 ## Commands & Config
 
-| What          | Where                                                  | Purpose                                         |
-| ------------- | ------------------------------------------------------ | ------------------------------------------------ |
-| Makefile      | [Makefile](Makefile)                                   | Top-level commands: `make up-*`, `make test-*`, `make fix-all-python` |
-| Backend       | [apps/backend/pyproject.toml](apps/backend/pyproject.toml) | Python deps & scripts                       |
-| Frontend      | [apps/frontend/package.json](apps/frontend/package.json)   | `npm start`, `npm test`, `npm run format`   |
-| ELT           | [apps/elt/pyproject.toml](apps/elt/pyproject.toml)         | Airflow DAG deps                            |
-| Shared lib    | [libs/data_manipulation/pyproject.toml](libs/data_manipulation/pyproject.toml) | Shared Python library         |
-| Root          | [pyproject.toml](pyproject.toml)                       | Monorepo workspace config                        |
+| What       | Where                                                                          | Purpose                                                               |
+| ---------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| Makefile   | [Makefile](Makefile)                                                           | Top-level commands: `make up-*`, `make test-*`, `make fix-all-python` |
+| Backend    | [apps/backend/pyproject.toml](apps/backend/pyproject.toml)                     | Python deps & scripts                                                 |
+| Frontend   | [apps/frontend/package.json](apps/frontend/package.json)                       | `npm start`, `npm test`, `npm run format`                             |
+| ELT        | [apps/elt/pyproject.toml](apps/elt/pyproject.toml)                             | Airflow DAG deps                                                      |
+| Shared lib | [libs/data_manipulation/pyproject.toml](libs/data_manipulation/pyproject.toml) | Shared Python library                                                 |
+| Root       | [pyproject.toml](pyproject.toml)                                               | Monorepo workspace config                                             |
 
 ---
 
@@ -72,3 +72,11 @@ specs/                # Feature specifications (speckit)
 .specify/
   memory/             # Project memory and constitution (speckit)
 ```
+
+---
+
+## Mistakes to Avoid
+
+A living table of anti-patterns inferred from past implementation errors. Every agent and skill MUST consult this list **before starting any implementation**. Whenever an error is discovered and fixed during implementation, a correction rule MUST be inferred from the fix and appended.
+
+Full list: [mistakes-to-avoid.md](mistakes-to-avoid.md)
