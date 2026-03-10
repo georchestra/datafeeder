@@ -1,6 +1,6 @@
 ## 1. Database Verification
 
-- [x] 1.1 Verify `datakern.integrity_link_rule` FK `integrity_link_id` has `ON DELETE CASCADE` → ✅ Confirmed present in `docker/datadir/database/130-datakern.sql` line 56
+- [x] 1.1 Verify `datafeeder.integrity_link_rule` FK `integrity_link_id` has `ON DELETE CASCADE` → ✅ Confirmed present in `docker/datadir/database/130-datafeeder.sql` line 56
 
 ## 2. Backend — Service Layer
 

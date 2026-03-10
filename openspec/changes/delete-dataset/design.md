@@ -73,7 +73,7 @@ The frontend dashboard (`integrity-link-list` feature) already lists datasets vi
 
 ### 5. Database: no migration needed
 
-**Decision**: Rely on existing `ON DELETE CASCADE` constraint in database schema (`docker/datadir/database/130-datakern.sql` line 56). Both staging and final tables are dropped via direct SQL `DROP TABLE IF EXISTS` in the service layer (best-effort, with error logging).
+**Decision**: Rely on existing `ON DELETE CASCADE` constraint in database schema (`docker/datadir/database/130-datafeeder.sql` line 56). Both staging and final tables are dropped via direct SQL `DROP TABLE IF EXISTS` in the service layer (best-effort, with error logging).
 
 **Rationale**: The database initialization script already defines the FK constraint with `ON DELETE CASCADE`, ensuring that deleting an IntegrityLink automatically removes associated IntegrityLinkRule rows. No migration or model changes needed.
 
@@ -99,7 +99,7 @@ The frontend dashboard (`integrity-link-list` feature) already lists datasets vi
 
 ~~Does `integrity_link_rule.integrity_link_id` already have `ON DELETE CASCADE`? → verify in Alembic migrations before implementing~~
 
-**RESOLVED**: ✅ FK constraint HAS `ON DELETE CASCADE` in database initialization script (`docker/datadir/database/130-datakern.sql` line 56). No migration needed. Note: SQLModel definition doesn't specify `ondelete='CASCADE'` but the actual database schema is correct.
+**RESOLVED**: ✅ FK constraint HAS `ON DELETE CASCADE` in database initialization script (`docker/datadir/database/130-datafeeder.sql` line 56). No migration needed. Note: SQLModel definition doesn't specify `ondelete='CASCADE'` but the actual database schema is correct.
 
 ~~Should the staging table also be dropped, or only the final table? → per Jira story: "suppression table données" refers to the published final table; staging is separate~~
 
