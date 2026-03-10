@@ -1,5 +1,6 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
   input,
   output,
@@ -13,6 +14,7 @@ import {
   inject,
   OnDestroy
 } from '@angular/core'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import {
   FlexibleConnectedPositionStrategy,
   Overlay,
@@ -20,7 +22,7 @@ import {
   OverlayRef
 } from '@angular/cdk/overlay'
 import { TemplatePortal } from '@angular/cdk/portal'
-import { filter } from 'rxjs'
+import { filter, fromEvent } from 'rxjs'
 import { FormsModule } from '@angular/forms'
 import { TranslateService } from '@ngx-translate/core'
 import {
@@ -61,6 +63,7 @@ export class ColumnHeaderComponent implements OnDestroy {
   private readonly overlay = inject(Overlay)
   private readonly vcr = inject(ViewContainerRef)
   private readonly translate = inject(TranslateService)
+  private readonly destroyRef = inject(DestroyRef)
 
   columnConfig = input.required<ColumnConfigOutput>()
   allColumnNames = input<string[]>([])
@@ -152,15 +155,17 @@ export class ColumnHeaderComponent implements OnDestroy {
         hasBackdrop: false
       })
 
-      this.overlayRef
-        .outsidePointerEvents()
+      fromEvent<MouseEvent>(document, 'pointerdown')
         .pipe(
-          filter(
-            (e) =>
-              !this.triggerRef()?.nativeElement.contains(
-                e.target as HTMLElement
-              )
-          )
+          filter(() => this.overlayRef?.hasAttached() ?? false),
+          filter((e) => {
+            const target = e.target as HTMLElement
+            return (
+              !(this.overlayRef?.overlayElement?.contains(target) ?? false) &&
+              !(this.triggerRef()?.nativeElement.contains(target) ?? false)
+            )
+          }),
+          takeUntilDestroyed(this.destroyRef)
         )
         .subscribe(() => this.closeMenu())
     } else {
