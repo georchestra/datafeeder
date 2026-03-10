@@ -21,6 +21,10 @@ Config & project context: `openspec/config.yaml` | Docs: [openspec.dev](https://
 
 Domain-specific agent instructions: [.agents/skills/](.agents/skills/) | OpenSpec skills: [.github/skills/](.github/skills/)
 
+| Skill | Purpose |
+| ----- | ------- |
+| [frontend-api-sync](.agents/skills/frontend-api-sync/SKILL.md) | Regenerate the frontend TypeScript client after backend API changes |
+
 ---
 
 ## Speckit (Feature Specifications)
