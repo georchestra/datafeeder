@@ -1,9 +1,11 @@
 from datetime import datetime, timezone
+from typing import Any
 from uuid import UUID
 
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.database import create_schema, get_available_table_name
+from data_manipulation.models import IntegrityTransformation
 from data_manipulation.utils import sanitize_name
 from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
@@ -27,6 +29,16 @@ from src.services.metadata_service import MetadataService
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
 logger = get_logger()
 settings = get_settings()
+
+
+def _is_geom_excluded(transformation: dict[str, Any] | None) -> bool:
+    """Return True when the geometry column is explicitly excluded in the transformation config."""
+    if not transformation:
+        return False
+    parsed = IntegrityTransformation.model_validate(transformation)
+    return parsed.columns is not None and any(
+        col.original_name == DEFAULT_GEOMETRY_COLUMN and col.excluded for col in parsed.columns
+    )
 
 
 @router.post(
@@ -104,7 +116,9 @@ async def process_staging_data(
     try:
         staging_meta = MetaData(schema=get_staging_schema())
         staging_tbl = Table(staging_table_name, staging_meta, autoload_with=data_engine)
-        is_geographic = DEFAULT_GEOMETRY_COLUMN in staging_tbl.c
+        is_geographic = DEFAULT_GEOMETRY_COLUMN in staging_tbl.c and not _is_geom_excluded(
+            integrity_link.integrity_transformation
+        )
     except Exception:
         is_geographic = False
 
