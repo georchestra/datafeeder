@@ -282,9 +282,10 @@ class TestTogglePublishGnIntegrityLink:
         )
         mock_session.get.return_value = integrity_link
 
-        with patch("src.api.routes.ingestion.integrity_link.get_settings"), patch(
-            "src.api.routes.ingestion.integrity_link.MetadataService"
-        ) as mock_ms_cls:
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
+        ):
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
 
@@ -315,9 +316,10 @@ class TestTogglePublishGnIntegrityLink:
         )
         mock_session.get.return_value = integrity_link
 
-        with patch("src.api.routes.ingestion.integrity_link.get_settings"), patch(
-            "src.api.routes.ingestion.integrity_link.MetadataService"
-        ) as mock_ms_cls:
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
+        ):
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
 
@@ -371,7 +373,9 @@ class TestTogglePublishGnIntegrityLink:
             )
 
         assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == "IntegrityLink has no associated metadata to publish/unpublish"
+        assert (
+            exc_info.value.detail == "IntegrityLink has no associated metadata to publish/unpublish"
+        )
 
     def test_metadata_service_failure(
         self, mock_session: MagicMock, integrity_link_id: str
@@ -387,9 +391,10 @@ class TestTogglePublishGnIntegrityLink:
             metadata_id="some-metadata-uuid",
         )
 
-        with patch("src.api.routes.ingestion.integrity_link.get_settings"), patch(
-            "src.api.routes.ingestion.integrity_link.MetadataService"
-        ) as mock_ms_cls:
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
+        ):
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
             mock_ms.toggle_publish_metadata_record.side_effect = Exception("GeoNetwork error")
