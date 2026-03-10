@@ -17,11 +17,11 @@
 
 ## 3. Backend — API Route
 
-- [ ] 3.1 Add `DELETE /{integrity_link_id}` handler to `apps/backend/src/api/routes/ingestion/integrity_link.py`:
+- [x] 3.1 Add `DELETE /{integrity_link_id}` handler to `apps/backend/src/api/routes/ingestion/integrity_link.py`:
   - Use `load_authorized_integrity_link(id, AccessLevel.OWNER_ONLY, ...)` for permission check
   - Delegate to `DatasetDeletionService.delete_dataset()`
   - Return HTTP 204 on success
-- [ ] 3.2 Run `make fix-all-python` and verify Pyright has no errors on changed files
+- [x] 3.2 Run `make fix-all-python` and verify Pyright has no errors on changed files
 
 ## 4. Backend — Tests
 
