@@ -68,3 +68,28 @@ class ConsoleService:
                 exc_info=True,
             )
             return None
+
+    def get_organization_by_id(self, org_id: str) -> dict[str, Any] | None:
+        """Fetch organization from geOrchestra console API by its UUID.
+
+        Args:
+            org_id: Organization UUID to look up
+
+        Returns:
+            Organization dict if found, None otherwise
+        """
+        try:
+            url = f"{self.console_url}/internal/organizations/id/{org_id}"
+            response = httpx.get(url, timeout=5.0)
+            response.raise_for_status()
+
+            organization: dict[str, Any] = response.json()
+            logger.info(f"Found organization for id '{org_id}': {organization.get('name')}")
+            return organization
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch organization by id '{org_id}': {e}",
+                exc_info=True,
+            )
+            return None

@@ -30,6 +30,50 @@ logger = get_logger()
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
 
 
+def _sync_metadata_sharing(
+    session: DatafeederSessionDep,
+    integrity_link_id: str,
+    integrity_link: IntegrityLink,
+) -> None:
+    """Sync METADATA rules to GeoNetwork sharing privileges (best-effort).
+
+    Called after any rule mutation. Resolves geOrchestra org IDs to org names,
+    then delegates the GeoNetwork API call to MetadataService.sync_record_sharing.
+    Skipped when integrity_link has no associated GeoNetwork record.
+    """
+    if not integrity_link.metadata_id:
+        return
+
+    all_rules = list(
+        session.exec(
+            select(IntegrityLinkRule).where(
+                IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
+            )
+        ).all()
+    )
+
+    settings = get_settings()
+    console = ConsoleService(settings.CONSOLE_URL)
+
+    resolved: list[tuple[str, RuleValue]] = []
+    for rule in all_rules:
+        if rule.rule_type != RuleType.METADATA:
+            continue
+        org = console.get_organization_by_id(rule.group_or_role)
+        if org:
+            resolved.append((org.get("name", ""), rule.rule_value))
+        else:
+            logger.warning("Could not resolve org '%s' for sharing sync", rule.group_or_role)
+
+    metadata_service = MetadataService(
+        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        datadir_path=settings.DATADIR_PATH,
+        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        verify_tls=False,
+    )
+    metadata_service.sync_record_sharing(integrity_link.metadata_id, resolved)
+
+
 @router.get(
     "/{integrity_link_id}",
     response_model=IntegrityLinkResponse,
@@ -100,7 +144,7 @@ def upsert_integrity_link_rule(
     body: UpsertRuleRequest,
 ) -> IntegrityLinkRule:
     """Create or update a rule for a given IntegrityLink."""
-    load_authorized_integrity_link(
+    integrity_link, _ = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
     )
 
@@ -116,6 +160,7 @@ def upsert_integrity_link_rule(
         session.add(existing_rule)
         session.commit()
         session.refresh(existing_rule)
+        _sync_metadata_sharing(session, integrity_link_id, integrity_link)
         return existing_rule
 
     new_rule = IntegrityLinkRule(
@@ -127,6 +172,7 @@ def upsert_integrity_link_rule(
     session.add(new_rule)
     session.commit()
     session.refresh(new_rule)
+    _sync_metadata_sharing(session, integrity_link_id, integrity_link)
     return new_rule
 
 
@@ -143,7 +189,7 @@ def delete_integrity_link_rule(
     rule_id: int,
 ) -> Response:
     """Delete a rule from a given IntegrityLink."""
-    load_authorized_integrity_link(
+    integrity_link, _ = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
     )
 
@@ -153,6 +199,7 @@ def delete_integrity_link_rule(
 
     session.delete(rule)
     session.commit()
+    _sync_metadata_sharing(session, integrity_link_id, integrity_link)
     return Response(status_code=204)
 
 

@@ -273,6 +273,267 @@ class TestDeleteIntegrityLinkRule:
         assert exc_info.value.detail == "Rule not found"
 
 
+class TestSyncAfterUpsertRule:
+    """Test that GeoNetwork sharing is synced after rule mutations."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def integrity_link_id(self) -> str:
+        return str(uuid4())
+
+    def test_sync_called_when_metadata_id_set(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """sync_record_sharing is called after upsert when integrity_link has metadata_id."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            metadata_id="meta-uuid",
+        )
+
+        # Three exec calls: access check, rule lookup, rules for sync
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        rules_mock = MagicMock()
+        rules_mock.all.return_value = [
+            IntegrityLinkRule(
+                id=1,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="org-uuid-1",
+                rule_type=RuleType.METADATA,
+                rule_value=RuleValue.READ,
+            )
+        ]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="org-uuid-1",
+            rule_type=RuleType.METADATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
+        ):
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
+            mock_console.get_organization_by_id.return_value = {"name": "Test Org"}
+
+            mock_ms = MagicMock()
+            mock_ms_cls.return_value = mock_ms
+
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                body=body,
+            )
+
+        mock_ms.sync_record_sharing.assert_called_once_with(
+            "meta-uuid", [("Test Org", RuleValue.READ)]
+        )
+
+    def test_sync_not_called_when_no_metadata_id(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """sync_record_sharing is not called when metadata_id is None."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            metadata_id=None,
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        mock_session.exec.side_effect = [access_mock, no_rule_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="org-uuid-1",
+            rule_type=RuleType.METADATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls:
+            mock_ms = MagicMock()
+            mock_ms_cls.return_value = mock_ms
+
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                body=body,
+            )
+
+        mock_ms.sync_record_sharing.assert_not_called()
+
+    def test_sync_skips_non_metadata_rules(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """Only METADATA rules are passed to sync; DATA rules are ignored."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            metadata_id="meta-uuid",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        rules_mock = MagicMock()
+        rules_mock.all.return_value = [
+            IntegrityLinkRule(
+                id=1,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="org-uuid-1",
+                rule_type=RuleType.DATA,  # DATA rule — should be skipped
+                rule_value=RuleValue.READ,
+            )
+        ]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="org-uuid-1",
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService"),
+            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
+        ):
+            mock_ms = MagicMock()
+            mock_ms_cls.return_value = mock_ms
+
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                body=body,
+            )
+
+        # sync called with empty resolved list (DATA rule filtered out)
+        mock_ms.sync_record_sharing.assert_called_once_with("meta-uuid", [])
+
+
+class TestSyncAfterDeleteRule:
+    """Test that GeoNetwork sharing is synced after rule deletion."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def integrity_link_id(self) -> str:
+        return str(uuid4())
+
+    def test_sync_called_after_delete(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """sync_record_sharing is called after rule deletion."""
+        mock_session.get.side_effect = [
+            IntegrityLink(
+                id=UUID(integrity_link_id),
+                integrity_owner="testuser",
+                integrity_organization="testorg",
+                source_import_type=ImportType.URL,
+                staging_table_name="staging_test",
+                metadata_id="meta-uuid",
+            ),
+            IntegrityLinkRule(
+                id=7,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="org-uuid-1",
+                rule_type=RuleType.METADATA,
+                rule_value=RuleValue.READ,
+            ),
+        ]
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        rules_mock = MagicMock()
+        rules_mock.all.return_value = []  # All rules removed after delete
+        mock_session.exec.side_effect = [access_mock, rules_mock]
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService"),
+            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
+        ):
+            mock_ms = MagicMock()
+            mock_ms_cls.return_value = mock_ms
+
+            delete_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                rule_id=7,
+            )
+
+        # Sync called with empty list — clears all privileges
+        mock_ms.sync_record_sharing.assert_called_once_with("meta-uuid", [])
+
+    def test_sync_not_called_when_no_metadata_id(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """sync_record_sharing is not called when metadata_id is None."""
+        mock_session.get.side_effect = [
+            IntegrityLink(
+                id=UUID(integrity_link_id),
+                integrity_owner="testuser",
+                integrity_organization="testorg",
+                source_import_type=ImportType.URL,
+                staging_table_name="staging_test",
+                metadata_id=None,
+            ),
+            IntegrityLinkRule(
+                id=7,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="org-uuid-1",
+                rule_type=RuleType.METADATA,
+                rule_value=RuleValue.READ,
+            ),
+        ]
+        mock_session.exec.return_value.first.return_value = "OWNER"
+
+        with patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls:
+            mock_ms = MagicMock()
+            mock_ms_cls.return_value = mock_ms
+
+            delete_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                rule_id=7,
+            )
+
+        mock_ms.sync_record_sharing.assert_not_called()
+
+
 class TestTogglePublishGnIntegrityLink:
     """Test the toggle_publish_gn_integrity_link endpoint."""
 

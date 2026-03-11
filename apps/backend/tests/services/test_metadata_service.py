@@ -7,6 +7,7 @@ from lxml import etree
 
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
+from src.models.integrity_link_rule import RuleValue
 from src.services.metadata_service import MetadataService
 
 
@@ -386,6 +387,115 @@ class TestMetadataService:
 
         with pytest.raises(Exception, match="Connection refused"):
             service.toggle_publish_metadata_record("test-uuid-000", publish=False)
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_sync_record_sharing_read_privilege(self, mock_gn_api: MagicMock) -> None:
+        """READ rule → view=True, editing=False, download=False."""
+        mock_session = MagicMock()
+        mock_api_instance = MagicMock()
+        mock_api_instance.session = mock_session
+        mock_api_instance.api_url = "http://test/api"
+        mock_gn_api.return_value = mock_api_instance
+
+        groups_response = MagicMock()
+        groups_response.json.return_value = [{"id": 20, "name": "TestOrg"}]
+        mock_session.get.return_value = groups_response
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test/datadir")
+
+        service.sync_record_sharing("some-uuid", [("TestOrg", RuleValue.READ)])
+
+        mock_api_instance.put_sharing_record.assert_called_once_with(
+            "some-uuid",
+            {
+                "clear": True,
+                "privileges": [
+                    {
+                        "group": 20,
+                        "operations": {
+                            "view": True,
+                            "download": False,
+                            "editing": False,
+                            "notify": False,
+                            "dynamic": False,
+                            "featured": False,
+                        },
+                    }
+                ],
+            },
+        )
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_sync_record_sharing_write_privilege(self, mock_gn_api: MagicMock) -> None:
+        """WRITE rule → view=True, editing=True, download=True."""
+        mock_session = MagicMock()
+        mock_api_instance = MagicMock()
+        mock_api_instance.session = mock_session
+        mock_api_instance.api_url = "http://test/api"
+        mock_gn_api.return_value = mock_api_instance
+
+        groups_response = MagicMock()
+        groups_response.json.return_value = [{"id": 30, "name": "WriteOrg"}]
+        mock_session.get.return_value = groups_response
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test/datadir")
+
+        service.sync_record_sharing("some-uuid", [("WriteOrg", RuleValue.WRITE)])
+
+        call_args = mock_api_instance.put_sharing_record.call_args
+        ops = call_args[0][1]["privileges"][0]["operations"]
+        assert ops["view"] is True
+        assert ops["editing"] is True
+        assert ops["download"] is True
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_sync_record_sharing_always_sets_clear_true(self, mock_gn_api: MagicMock) -> None:
+        """clear=True is always included even for empty privileges."""
+        mock_api_instance = MagicMock()
+        mock_gn_api.return_value = mock_api_instance
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test/datadir")
+
+        service.sync_record_sharing("some-uuid", [])
+
+        mock_api_instance.put_sharing_record.assert_called_once_with(
+            "some-uuid", {"clear": True, "privileges": []}
+        )
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_sync_record_sharing_skips_unresolvable_group(self, mock_gn_api: MagicMock) -> None:
+        """Org with no matching GN group is silently skipped."""
+        mock_session = MagicMock()
+        mock_api_instance = MagicMock()
+        mock_api_instance.session = mock_session
+        mock_api_instance.api_url = "http://test/api"
+        mock_gn_api.return_value = mock_api_instance
+
+        groups_response = MagicMock()
+        groups_response.json.return_value = [{"id": 10, "name": "OtherOrg"}]
+        mock_session.get.return_value = groups_response
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test/datadir")
+
+        # "UnknownOrg" does not exist in GN groups
+        service.sync_record_sharing("some-uuid", [("UnknownOrg", RuleValue.READ)])
+
+        # put_sharing_record called with empty privileges (group skipped)
+        mock_api_instance.put_sharing_record.assert_called_once_with(
+            "some-uuid", {"clear": True, "privileges": []}
+        )
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_sync_record_sharing_gn_error_logged_not_raised(self, mock_gn_api: MagicMock) -> None:
+        """GeoNetwork errors are caught and logged, not re-raised."""
+        mock_api_instance = MagicMock()
+        mock_api_instance.put_sharing_record.side_effect = Exception("GN unavailable")
+        mock_gn_api.return_value = mock_api_instance
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test/datadir")
+
+        # Should not raise
+        service.sync_record_sharing("some-uuid", [])
 
     @patch("src.services.metadata_service.GnApi")
     def test_set_record_ownership_user_groups_no_fallback(self, mock_gn_api: MagicMock) -> None:

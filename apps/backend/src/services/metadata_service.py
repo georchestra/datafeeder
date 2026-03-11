@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
+from src.models.integrity_link_rule import RuleValue
 
 logger = get_logger()
 
@@ -381,6 +382,54 @@ class MetadataService:
                 f"Failed to delete metadata record {metadata_uuid}: {e}",
                 exc_info=True,
             )
+
+    def sync_record_sharing(
+        self,
+        metadata_uuid: str,
+        privileges: list[tuple[str, RuleValue]],
+    ) -> None:
+        """Sync sharing privileges to a GeoNetwork record.
+
+        Args:
+            metadata_uuid: UUID of the GeoNetwork record
+            privileges: Pre-resolved list of (org_name, rule_value) tuples.
+                        Caller is responsible for resolving geOrchestra org IDs to names.
+
+        Replaces all existing record privileges (clear=True). Errors are logged, not raised.
+        """
+        gn_privileges: list[dict[str, Any]] = []
+
+        for org_name, rule_value in privileges:
+            gn_group_id = self._resolve_group_by_org_name(self.gn_api.session, org_name)
+            if gn_group_id is None:
+                logger.warning("No GN group found for org '%s', skipping", org_name)
+                continue
+
+            is_write = rule_value == RuleValue.WRITE
+            gn_privileges.append(
+                {
+                    "group": gn_group_id,
+                    "operations": {
+                        "view": True,
+                        "download": is_write,
+                        "editing": is_write,
+                        "notify": False,
+                        "dynamic": False,
+                        "featured": False,
+                    },
+                }
+            )
+
+        sharing = {"clear": True, "privileges": gn_privileges}
+        try:
+            self.gn_api.put_sharing_record(metadata_uuid, sharing)
+            logger.info(
+                "Synced sharing for record %s: %d privilege(s)",
+                metadata_uuid,
+                len(gn_privileges),
+            )
+        except Exception as e:
+            logger.error("Failed to sync GN sharing for %s: %s", metadata_uuid, e, exc_info=True)
 
     def toggle_publish_metadata_record(self, metadata_uuid: str, publish: bool) -> None:
         """Toggle publication status of a metadata record in GeoNetwork.
