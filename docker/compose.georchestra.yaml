@@ -175,6 +175,8 @@ services:
       ES_JAVA_OPTS: -Xms512m -Xmx512m
 
   datahub:
+    profiles:
+      - geonetwork
     image: geonetwork/geonetwork-ui-datahub:latest
     healthcheck:
       test: ["CMD-SHELL", "curl -s -f http://localhost:80/datahub/ >/dev/null || exit 1"]
