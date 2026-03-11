@@ -106,6 +106,10 @@ export class IntegrityLinkListComponent {
     return link.access_level === 'READ'
   }
 
+  canDelete(link: IntegrityLinkListItem): boolean {
+    return link.access_level === 'OWNER' || link.access_level === 'ADMIN'
+  }
+
   async deleteIntegrityLink(event: Event, id: string): Promise<void> {
     event.stopPropagation()
     if (this.deleting()) return

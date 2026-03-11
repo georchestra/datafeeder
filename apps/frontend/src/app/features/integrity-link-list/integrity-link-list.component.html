@@ -33,13 +33,13 @@
     </div>
 
     <!-- Rows -->
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-1">
       @for (link of integrityLinks(); track link.id) {
       <div
         [class]="
           isReadOnly(link)
-            ? 'flex rounded-md bg-beige py-3 transition-colors opacity-60 cursor-default'
-            : 'flex cursor-pointer rounded-md bg-beige py-3 transition-colors hover:bg-gray-100'
+            ? 'flex rounded-md bg-beige h-[34px] items-center transition-colors opacity-60 cursor-default'
+            : 'flex cursor-pointer rounded-md bg-beige h-[34px] items-center transition-colors hover:bg-gray-100'
         "
         (click)="onRowClick(link)"
         (mouseenter)="hoveredId.set(link.id)"
@@ -67,12 +67,11 @@
         <div class="w-48 text-sm text-gray-2">
           {{ link.integrity_owner }}
         </div>
-        @if (!isReadOnly(link)) {
-        <div class="flex w-10 items-center justify-center pr-2">
-          @if (hoveredId() === link.id) {
+        <div class="flex w-[44px] shrink-0 items-center justify-center">
+          @if (canDelete(link) && hoveredId() === link.id) {
           <button
             type="button"
-            class="rounded p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex items-center justify-center rounded bg-white p-1 text-primary transition-colors hover:bg-[#FACED2] disabled:cursor-not-allowed disabled:opacity-50"
             [disabled]="deleting() === link.id"
             [attr.aria-label]="'dashboard.delete_dataset' | translate"
             (click)="deleteIntegrityLink($event, link.id)"
@@ -81,7 +80,6 @@
           </button>
           }
         </div>
-        }
       </div>
       }
     </div>
