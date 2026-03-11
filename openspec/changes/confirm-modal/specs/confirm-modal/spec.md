@@ -2,7 +2,7 @@
 
 ### Requirement: Modal de confirmation pour actions destructives
 
-Le système SHALL afficher une boîte de dialogue modale de confirmation avant d'exécuter une action destructive (ex. suppression d'un jeu de données). La modale remplace l'utilisation de `window.confirm()`.
+Le système SHALL afficher une boîte de dialogue modale de confirmation avant d'exécuter une action destructive (ex. suppression d'un jeu de données). La modale utilise `ConfirmationDialogComponent` de `geonetwork-ui`, ouverte via `MatDialog`.
 
 #### Scenario: Affichage de la modale
 
@@ -68,7 +68,7 @@ La modale SHALL piéger le focus à l'intérieur de la boîte de dialogue tant q
 
 ### Requirement: Intégration dans le flux de suppression d'un jeu de données
 
-Le composant `integrity-link-list` SHALL utiliser la modale de confirmation à la place de `window.confirm()` lors de la suppression d'un jeu de données.
+Le composant `integrity-link-list` SHALL utiliser `ConfirmationDialogComponent` de `geonetwork-ui` à la place de `window.confirm()` lors de la suppression d'un jeu de données.
 
 #### Scenario: Suppression confirmée via la modale
 

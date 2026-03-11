@@ -4,16 +4,16 @@ The dataset delete action uses `window.confirm()` for user confirmation — a na
 
 ## What Changes
 
-- **New shared `ConfirmModalComponent`** — a reusable Angular standalone component for destructive-action confirmation dialogs, built on Angular CDK Dialog (already a dependency) with Tailwind CSS styling
-- **Replace `window.confirm()`** in `integrity-link-list` — the delete flow uses the new modal instead of the native dialog
-- **i18n integration** — title, message, and button labels are passed as translation keys or resolved strings; no hardcoded text
-- **Accessible by default** — focus trap, keyboard (Escape to cancel), ARIA roles via CDK Dialog
+- **Reuse `ConfirmationDialogComponent`** from `geonetwork-ui` — the library already used for `ButtonComponent`; no new component to build or maintain
+- **Replace `window.confirm()`** in `integrity-link-list` — the delete flow opens `ConfirmationDialogComponent` via `MatDialog` (already a direct dependency)
+- **i18n integration** — title, message, and button labels are resolved by the caller via `TranslateService`; no hardcoded text
+- **Accessible by default** — focus trap, keyboard (Escape to cancel), focus starts on Cancel button for destructive actions
 
 ## Capabilities
 
 ### New Capabilities
 
-- `confirm-modal`: Reusable confirmation modal dialog for destructive actions — built on Angular CDK Dialog, Tailwind-styled, signal-compatible, i18n-friendly. Configurable title, message, confirm/cancel labels and variants (danger, warning).
+- `confirm-modal`: In-app confirmation modal for destructive actions — uses `ConfirmationDialogComponent` from `geonetwork-ui` opened via `MatDialog`. No new component built; caller provides translated title, message, and button labels.
 
 ### Modified Capabilities
 
@@ -22,7 +22,6 @@ The dataset delete action uses `window.confirm()` for user confirmation — a na
 ## Impact
 
 - **Frontend only** — no backend, ELT, or database changes
-- `apps/frontend/src/app/shared/components/confirm-modal/` — new shared component
-- `apps/frontend/src/app/features/integrity-link-list/` — updated to use modal instead of `window.confirm()`
-- `apps/frontend/translations/` — new i18n keys for modal content
-- `@angular/cdk/dialog` is already a transitive dep via `@angular/cdk: 20.2.14` — no new packages needed
+- `apps/frontend/src/app/features/integrity-link-list/` — updated to use `MatDialog.open(ConfirmationDialogComponent)` instead of `window.confirm()`
+- `apps/frontend/translations/` — existing i18n keys reused; no new keys needed
+- `geonetwork-ui: 2.9.0-dev.60c0e5e0d` and `@angular/material: 20.2.14` are both direct dependencies — no new packages needed
