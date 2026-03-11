@@ -113,7 +113,7 @@ export class IntegrityLinkListComponent {
     event.stopPropagation()
     if (this.deleting()) return
     const confirmed = window.confirm(
-      this.translate.instant('dashboard.delete_dataset_confirm')
+      this.translate.instant('dashboard.deleteDatasetConfirm')
     )
     if (!confirmed) return
     this.deleting.set(id)

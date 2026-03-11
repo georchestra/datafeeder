@@ -71,7 +71,7 @@
             type="button"
             class="hidden group-hover:flex items-center justify-center rounded bg-white p-1 text-primary transition-colors hover:bg-[#FACED2] disabled:cursor-not-allowed disabled:opacity-50"
             [disabled]="deleting() === link.id"
-            [attr.aria-label]="'dashboard.delete_dataset' | translate"
+            [attr.aria-label]="'dashboard.deleteDataset' | translate"
             (click)="deleteIntegrityLink($event, link.id)"
           >
             <ng-icon name="iconoirTrash" size="1.1em"></ng-icon>
