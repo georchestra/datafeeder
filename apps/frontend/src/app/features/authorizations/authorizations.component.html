@@ -29,14 +29,14 @@
         "
       >
         <gn-ui-check-toggle
-          [value]="isPublishedGn()"
+          [value]="isPublishedMetadata()"
           (toggled)="onTogglePublishGn($event)"
           [label]="'authorizations.geonetwork.publicAccess' | translate"
           [title]="'authorizations.geonetwork.publicAccess' | translate"
           class="grow text-base"
         >
         </gn-ui-check-toggle>
-        @if (isPublishing()) {
+        @if (isPublishingMetadata()) {
         <div class="mr-2">
           <gn-ui-spinning-loader></gn-ui-spinning-loader>
         </div>
@@ -60,13 +60,15 @@
         }
       </div>
       <div class="flex flex-col min-h-0 p-6">
-        @if (publishError()) {
+        @if (publishErrorMetadata()) {
         <div class="mb-4">
           <app-ui-alert-box
             type="warning"
-            [title]="'authorizations.geonetwork.publishError.title' | translate"
-            [message]="publishError()!"
-            (dismissed)="publishError.set(null)"
+            [title]="
+              'authorizations.geonetwork.publishErrorMetadata.title' | translate
+            "
+            [message]="publishErrorMetadata()!"
+            (dismissed)="publishErrorMetadata.set(null)"
           />
         </div>
         }
@@ -79,7 +81,7 @@
           [groups]="geonetworkGroups()"
           [rules]="metadataRules()"
           [searchPlaceholder]="'authorizations.geonetwork.search' | translate"
-          [isPublic]="isPublishedGn()"
+          [isPublic]="isPublishedMetadata()"
           (ruleChange)="onMetadataRuleChange($event)"
         />
         }
@@ -87,19 +89,73 @@
     </div>
 
     <div>
-      <div class="flex flex-col min-h-0 rounded-lg border border-gray-300 p-6">
-        <h2 class="text-l font-bold text-gray-900 mb-2">
-          {{ 'authorizations.geoserver' | translate }}
-        </h2>
-        @if (intlinkId) {
-        <app-authorization-rules
-          class="flex-1 min-h-0 flex flex-col"
-          [groups]="geoserverGroups()"
-          [rules]="dataRules()"
-          [searchPlaceholder]="'authorizations.geoserver.search' | translate"
-          (ruleChange)="onDataRuleChange($event)"
-        />
-        }
+      <div class="flex flex-col min-h-0 rounded-lg border border-gray-300">
+        <div
+          class="flex items-center gap-2 p-2 border-b border-gray-300"
+          [ngClass]="
+            store.integrityLink()?.gs_is_published
+              ? 'bg-green-600/5'
+              : 'bg-beige'
+          "
+        >
+          <gn-ui-check-toggle
+            [value]="isPublishedData()"
+            (toggled)="onTogglePublishGs($event)"
+            [label]="'authorizations.geoserver.publicAccess' | translate"
+            [title]="'authorizations.geoserver.publicAccess' | translate"
+            class="grow text-base"
+          >
+          </gn-ui-check-toggle>
+          @if (isPublishingData()) {
+          <div class="mr-2">
+            <gn-ui-spinning-loader class="w-2 h-2"></gn-ui-spinning-loader>
+          </div>
+          } @else {
+          <span
+            class="rounded px-3 py-1 flex items-center text-white"
+            [class.bg-green-600]="store.integrityLink()?.gs_is_published"
+            [class.bg-gray-500]="!store.integrityLink()?.gs_is_published"
+          >
+            @if (store.integrityLink()?.gs_is_published) {
+            {{
+              'authorizations.geoserver.publicAccess.value.public' | translate
+            }}
+            } @else {
+            {{
+              'authorizations.geoserver.publicAccess.value.restricted'
+                | translate
+            }}
+            }
+          </span>
+          }
+        </div>
+        <div class="flex flex-col min-h-0 p-6">
+          @if (publishErrorData()) {
+          <div class="mb-4">
+            <app-ui-alert-box
+              type="warning"
+              [title]="
+                'authorizations.geoserver.publishErrorData.title' | translate
+              "
+              [message]="publishErrorData()!"
+              (dismissed)="publishErrorData.set(null)"
+            />
+          </div>
+          }
+          <h2 class="text-l font-bold text-gray-900 mb-2">
+            {{ 'authorizations.geoserver' | translate }}
+          </h2>
+          @if (intlinkId) {
+          <app-authorization-rules
+            class="flex-1 min-h-0 flex flex-col"
+            [groups]="geoserverGroups()"
+            [rules]="dataRules()"
+            [searchPlaceholder]="'authorizations.geoserver.search' | translate"
+            [isPublic]="isPublishedData()"
+            (ruleChange)="onDataRuleChange($event)"
+          />
+          }
+        </div>
       </div>
     </div>
   </div>

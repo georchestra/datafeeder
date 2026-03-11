@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS datafeeder.integrity_link(
     schedule varchar(63) NULL,
     schedule_enabled boolean DEFAULT FALSE,
     gn_is_published boolean DEFAULT FALSE,
+    gs_is_published boolean DEFAULT FALSE,
     created_at timestamp DEFAULT CURRENT_TIMESTAMP
 );
 

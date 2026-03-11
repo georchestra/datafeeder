@@ -2,7 +2,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.services.geoserver import GeoServerService  # type: ignore[attr-defined]
+from src.services.geoserver import (  # type: ignore[attr-defined]
+    _ACL_HEADERS,  # type: ignore[attr-defined]
+    ACL_ROLE_EVERYONE,
+    AclAccessType,
+    GeoServerAclError,
+    GeoServerService,
+)
 
 
 class TestGeoServerService:
@@ -340,3 +346,327 @@ class TestGeoServerService:
         # Verify ogcfeatures URL is present
         assert result.ogcfeatures is not None
         assert table_name in result.ogcfeatures
+
+
+class TestAclLayerGet:
+    """Tests for acl_layer_get."""
+
+    def test_returns_roles_when_rule_exists(
+        self, service: GeoServerService, rest_client: MagicMock
+    ) -> None:
+        rest_client.get.return_value.status_code = 200
+        rest_client.get.return_value.json.return_value = {"geor.my_layer.r": "ROLE_IMPORT,*"}
+
+        result = service.acl_layer_get("geor.my_layer", AclAccessType.READ)
+
+        assert result == ["ROLE_IMPORT", "*"]
+
+    def test_returns_none_when_rule_missing(
+        self, service: GeoServerService, rest_client: MagicMock
+    ) -> None:
+        rest_client.get.return_value.status_code = 200
+        rest_client.get.return_value.json.return_value = {}
+
+        result = service.acl_layer_get("geor.my_layer", AclAccessType.READ)
+
+        assert result is None
+
+    def test_raises_on_http_error(self, service: GeoServerService, rest_client: MagicMock) -> None:
+        rest_client.get.return_value.status_code = 403
+        rest_client.get.return_value.text = "Forbidden"
+
+        with pytest.raises(GeoServerAclError) as exc_info:
+            service.acl_layer_get("geor.my_layer", AclAccessType.READ)
+
+        assert exc_info.value.status_code == 403
+
+    def test_trims_whitespace_from_roles(
+        self, service: GeoServerService, rest_client: MagicMock
+    ) -> None:
+        rest_client.get.return_value.status_code = 200
+        rest_client.get.return_value.json.return_value = {"geor.my_layer.r": " ROLE_IMPORT , * "}
+
+        result = service.acl_layer_get("geor.my_layer", AclAccessType.READ)
+
+        assert result == ["ROLE_IMPORT", "*"]
+
+    """Tests for _acl_write (POST / PUT)."""
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://test.example.com/geoserver",
+                username="testuser",
+                password="testpass",
+                public_url="http://test.example.com",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    @pytest.fixture
+    def rest_client(self, service: GeoServerService) -> MagicMock:
+        client = MagicMock()
+        service.geoserver.rest_service.rest_client = client
+        return client
+
+    def test_post_success(self, service: GeoServerService, rest_client: MagicMock) -> None:
+        rest_client.post.return_value.status_code = 200
+
+        service._acl_write("POST", {"geor.my_layer.r": "ROLE_IMPORT"})  # type: ignore[misc]
+
+        rest_client.post.assert_called_once()
+
+    def test_post_raises_409(self, service: GeoServerService, rest_client: MagicMock) -> None:
+        rest_client.post.return_value.status_code = 409
+        rest_client.post.return_value.text = "Conflict"
+
+        with pytest.raises(GeoServerAclError) as exc_info:
+            service._acl_write("POST", {"geor.my_layer.r": "ROLE_IMPORT"})  # type: ignore[misc]
+
+        assert exc_info.value.status_code == 409
+
+    def test_put_success(self, service: GeoServerService, rest_client: MagicMock) -> None:
+        rest_client.put.return_value.status_code = 200
+
+        service._acl_write("PUT", {"geor.my_layer.r": "ROLE_IMPORT"})  # type: ignore[misc]
+
+        rest_client.put.assert_called_once()
+
+    def test_put_raises_on_http_error(
+        self, service: GeoServerService, rest_client: MagicMock
+    ) -> None:
+        rest_client.put.return_value.status_code = 500
+        rest_client.put.return_value.text = "Server Error"
+
+        with pytest.raises(GeoServerAclError) as exc_info:
+            service._acl_write("PUT", {"geor.my_layer.r": "ROLE_IMPORT"})  # type: ignore[misc]
+
+        assert exc_info.value.status_code == 500
+
+    def test_post_passes_params(self, service: GeoServerService, rest_client: MagicMock) -> None:
+        rest_client.post.return_value.status_code = 200
+        params = {"key": "value"}
+
+        service._acl_write("POST", {"geor.my_layer.r": "ROLE_IMPORT"}, params=params)  # type: ignore[misc]
+
+        _, kwargs = rest_client.post.call_args
+        assert kwargs["params"] == params
+
+
+class TestAclLayerPostPut:
+    """Tests for acl_layer_post and acl_layer_put (delegates to _acl_write)."""
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://test.example.com/geoserver",
+                username="testuser",
+                password="testpass",
+                public_url="http://test.example.com",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    def test_acl_layer_post_builds_correct_body(self, service: GeoServerService) -> None:
+        service._acl_write = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_post("geor.my_layer", AclAccessType.READ, ["ROLE_IMPORT"])
+
+        service._acl_write.assert_called_once_with("POST", {"geor.my_layer.r": "ROLE_IMPORT"})  # type: ignore[misc]
+
+    def test_acl_layer_post_multiple_roles(self, service: GeoServerService) -> None:
+        service._acl_write = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_post(
+            "geor.my_layer", AclAccessType.WRITE, ["ROLE_IMPORT", "ROLE_ADMINISTRATOR"]
+        )
+
+        call_body = service._acl_write.call_args[0][1]  # type: ignore[misc]
+        roles_str = call_body["geor.my_layer.w"]
+        assert set(roles_str.split(",")) == {"ROLE_IMPORT", "ROLE_ADMINISTRATOR"}
+
+    def test_acl_layer_put_builds_correct_body(self, service: GeoServerService) -> None:
+        service._acl_write = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_put("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
+
+        service._acl_write.assert_called_once_with("PUT", {"geor.my_layer.r": "*"})  # type: ignore[misc]
+
+
+class TestAclLayerDelete:
+    """Tests for acl_layer_delete."""
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://test.example.com/geoserver",
+                username="testuser",
+                password="testpass",
+                public_url="http://test.example.com",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    @pytest.fixture
+    def rest_client(self, service: GeoServerService) -> MagicMock:
+        client = MagicMock()
+        service.geoserver.rest_service.rest_client = client
+        return client
+
+    def test_delete_success(self, service: GeoServerService, rest_client: MagicMock) -> None:
+        rest_client.delete.return_value.status_code = 200
+
+        service.acl_layer_delete("geor.my_layer", AclAccessType.READ)
+
+        rest_client.delete.assert_called_once_with(
+            "/rest/security/acl/layers/geor.my_layer.r",
+            headers=_ACL_HEADERS,
+        )
+
+    def test_delete_raises_on_http_error(
+        self, service: GeoServerService, rest_client: MagicMock
+    ) -> None:
+        rest_client.delete.return_value.status_code = 404
+        rest_client.delete.return_value.text = "Not found"
+
+        with pytest.raises(GeoServerAclError) as exc_info:
+            service.acl_layer_delete("geor.my_layer", AclAccessType.READ)
+
+        assert exc_info.value.status_code == 404
+
+
+class TestAclLayerAddRule:
+    """Tests for acl_layer_add_rule (upsert logic)."""
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://test.example.com/geoserver",
+                username="testuser",
+                password="testpass",
+                public_url="http://test.example.com",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    def test_post_succeeds_directly(self, service: GeoServerService) -> None:
+        service.acl_layer_post = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_add_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
+
+        service.acl_layer_post.assert_called_once_with(
+            "geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE]
+        )
+
+    def test_merges_roles_on_409(self, service: GeoServerService) -> None:
+        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(409, "Conflict"))  # type: ignore[method-assign]
+        service.acl_layer_get = MagicMock(return_value=["ROLE_IMPORT"])  # type: ignore[method-assign]
+        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_add_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
+
+        service.acl_layer_get.assert_called_once_with("geor.my_layer", AclAccessType.READ)
+        put_roles = service.acl_layer_put.call_args[0][2]
+        assert set(put_roles) == {"ROLE_IMPORT", ACL_ROLE_EVERYONE}
+
+    def test_get_returns_none_on_409_treated_as_empty(self, service: GeoServerService) -> None:
+        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(409, "Conflict"))  # type: ignore[method-assign]
+        service.acl_layer_get = MagicMock(return_value=None)  # type: ignore[method-assign]
+        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_add_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
+
+        put_roles = service.acl_layer_put.call_args[0][2]
+        assert set(put_roles) == {ACL_ROLE_EVERYONE}
+
+    def test_reraises_non_409_error(self, service: GeoServerService) -> None:
+        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(500, "Server error"))  # type: ignore[method-assign]
+
+        with pytest.raises(GeoServerAclError) as exc_info:
+            service.acl_layer_add_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
+
+        assert exc_info.value.status_code == 500
+
+
+class TestAclLayerRemoveRule:
+    """Tests for acl_layer_remove_rule."""
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://test.example.com/geoserver",
+                username="testuser",
+                password="testpass",
+                public_url="http://test.example.com",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    def test_updates_with_remaining_roles(self, service: GeoServerService) -> None:
+        service.acl_layer_get = MagicMock(return_value=["ROLE_IMPORT", ACL_ROLE_EVERYONE])  # type: ignore[method-assign]
+        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
+        service.acl_layer_delete = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_remove_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
+
+        service.acl_layer_put.assert_called_once_with(
+            "geor.my_layer", AclAccessType.READ, ["ROLE_IMPORT"]
+        )
+        service.acl_layer_delete.assert_not_called()
+
+    def test_deletes_when_no_roles_remain(self, service: GeoServerService) -> None:
+        service.acl_layer_get = MagicMock(return_value=[ACL_ROLE_EVERYONE])  # type: ignore[method-assign]
+        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
+        service.acl_layer_delete = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_remove_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
+
+        service.acl_layer_delete.assert_called_once_with("geor.my_layer", AclAccessType.READ)
+        service.acl_layer_put.assert_not_called()
+
+    def test_get_returns_none_treated_as_empty(self, service: GeoServerService) -> None:
+        service.acl_layer_get = MagicMock(return_value=None)  # type: ignore[method-assign]
+        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
+        service.acl_layer_delete = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_remove_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
+
+        service.acl_layer_delete.assert_called_once()
+        service.acl_layer_put.assert_not_called()
+
+
+class TestAclLayerPublishUnpublish:
+    """Tests for acl_layer_publish and acl_layer_unpublish."""
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://test.example.com/geoserver",
+                username="testuser",
+                password="testpass",
+                public_url="http://test.example.com",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    def test_publish_calls_add_rule_with_everyone(self, service: GeoServerService) -> None:
+        service.acl_layer_add_rule = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_publish("geor.my_layer", AclAccessType.READ)
+
+        service.acl_layer_add_rule.assert_called_once_with(
+            "geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE]
+        )
+
+    def test_unpublish_calls_delete(self, service: GeoServerService) -> None:
+        service.acl_layer_delete = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_unpublish("geor.my_layer", AclAccessType.READ)
+
+        service.acl_layer_delete.assert_called_once_with("geor.my_layer", AclAccessType.READ)

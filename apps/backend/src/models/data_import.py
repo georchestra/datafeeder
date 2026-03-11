@@ -12,6 +12,7 @@ from geojson_pydantic.geometries import Geometry
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.task_executor import TaskStatus
+from src.models.integrity_link_rule import IntegrityLinkRule
 
 
 class ImportType(str, Enum):
@@ -188,4 +189,12 @@ class IntegrityLinkResponse(BaseModel):
     schedule_enabled: bool
     created_at: datetime | None
     gn_is_published: bool | None
+    gs_is_published: bool | None
     access_level: str | None = None
+
+
+class IntegrityLinkGsPublishResponse(IntegrityLinkResponse):
+    """IntegrityLinkResponse augmented with GeoServer ACL read roles after a publish/unpublish operation."""
+
+    gs_read_roles: list[str] | None = None
+    rules: list[IntegrityLinkRule] = []

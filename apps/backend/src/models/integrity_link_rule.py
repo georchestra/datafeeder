@@ -5,6 +5,9 @@ from uuid import UUID
 from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
 
+GROUP_OR_ROLE_EVERYONE = "*"
+"""Wildcard value for group_or_role meaning the rule applies to everyone (anonymous included)."""
+
 
 class RuleType(str, Enum):
     DATA = "DATA"

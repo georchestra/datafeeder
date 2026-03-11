@@ -15,6 +15,7 @@ import {
   listGroupsMetadataGroupsGet,
   listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet,
   togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut,
+  togglePublishGsIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGsPut,
   upsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut
 } from '../../core/api/functions'
 import { GroupItem, IntegrityLinkRule, RuleType } from '../../core/api/models'
@@ -35,9 +36,16 @@ marker('authorizations.title')
 marker('authorizations.geonetwork.publicAccess')
 marker('authorizations.geonetwork.publicAccess.value.public')
 marker('authorizations.geonetwork.publicAccess.value.restricted')
-marker('authorizations.geonetwork.publishError.title')
-marker('authorizations.geonetwork.publishError.defaultMessage')
+marker('authorizations.geonetwork.publishErrorMetadata.title')
+marker('authorizations.geonetwork.publishErrorMetadata.defaultMessage')
+marker('authorizations.geoserver.publicAccess')
+marker('authorizations.geoserver.publicAccess.value.public')
+marker('authorizations.geoserver.publicAccess.value.restricted')
+marker('authorizations.geoserver.publishErrorMetadata.title')
+marker('authorizations.geoserver.publishErrorMetadata.defaultMessage')
+marker('authorizations.geoserver.publishErrorData.title')
 marker('i18nerror.publish.geonetwork')
+marker('i18nerror.publish.geoserver')
 
 @Component({
   selector: 'app-authorizations',
@@ -65,9 +73,12 @@ export class AuthorizationsComponent implements OnInit {
   geoserverGroups = signal<GroupItem[]>([])
   loadError = signal<string | null>(null)
   mutationError = signal<string | null>(null)
-  isPublishedGn = signal<boolean>(false)
-  isPublishing = signal<boolean>(false)
-  publishError = signal<string | null>(null)
+  isPublishedMetadata = signal<boolean>(false)
+  isPublishedData = signal<boolean>(false)
+  isPublishingMetadata = signal<boolean>(false)
+  isPublishingData = signal<boolean>(false)
+  publishErrorMetadata = signal<string | null>(null)
+  publishErrorData = signal<string | null>(null)
 
   metadataRules = computed(() =>
     this.rules().filter((r) => r.rule_type === this.metadataRuleType)
@@ -80,7 +91,8 @@ export class AuthorizationsComponent implements OnInit {
     effect(() => {
       const integrityLink = this.store.integrityLink()
       if (integrityLink) {
-        this.isPublishedGn.set(integrityLink.gn_is_published ?? false)
+        this.isPublishedMetadata.set(integrityLink.gn_is_published ?? false)
+        this.isPublishedData.set(integrityLink.gs_is_published ?? false)
       }
     })
   }
@@ -102,15 +114,15 @@ export class AuthorizationsComponent implements OnInit {
   }
 
   async onTogglePublishGn(publish: boolean): Promise<void> {
-    const previousValue = this.isPublishedGn()
+    const previousValue = this.isPublishedMetadata()
     if (!this.intlinkId) return
 
     // Clear any previous error
-    this.publishError.set(null)
+    this.publishErrorMetadata.set(null)
 
     // Optimistically update the UI
-    this.isPublishedGn.set(publish)
-    this.isPublishing.set(true)
+    this.isPublishedMetadata.set(publish)
+    this.isPublishingMetadata.set(true)
 
     try {
       const response = await this.api.invoke(
@@ -121,14 +133,14 @@ export class AuthorizationsComponent implements OnInit {
         }
       )
       // Update signal with the response value
-      this.isPublishedGn.set(response.gn_is_published ?? false)
+      this.isPublishedMetadata.set(response.gn_is_published ?? false)
       this.store.integrityLink.set(response)
     } catch (error) {
       console.error('Failed to toggle publish status:', error)
 
       // Set error message
       let errorMessage = this.translate.instant(
-        'authorizations.geonetwork.publishError.defaultMessage'
+        'authorizations.geonetwork.publishErrorMetadata.defaultMessage'
       )
 
       // Check if error has a detail property (i18n key from backend)
@@ -138,17 +150,64 @@ export class AuthorizationsComponent implements OnInit {
         errorMessage = error.message
       }
 
-      this.publishError.set(errorMessage)
+      this.publishErrorMetadata.set(errorMessage)
 
       // Force re-render by setting to opposite first, then back to previous
-      this.isPublishedGn.set(!previousValue)
+      this.isPublishedMetadata.set(!previousValue)
       setTimeout(() => {
-        this.isPublishedGn.set(
+        this.isPublishedMetadata.set(
           this.store.integrityLink()?.gn_is_published ?? false
         )
       }, 0)
     } finally {
-      this.isPublishing.set(false)
+      this.isPublishingMetadata.set(false)
+    }
+  }
+
+  async onTogglePublishGs(publish: boolean): Promise<void> {
+    const previousValue = this.isPublishedData()
+    if (!this.intlinkId) return
+
+    this.publishErrorData.set(null)
+    this.isPublishedData.set(publish)
+    this.isPublishingData.set(true)
+
+    try {
+      const response = await this.api.invoke(
+        togglePublishGsIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGsPut,
+        {
+          integrity_link_id: this.intlinkId,
+          publish: publish
+        }
+      )
+      this.isPublishedData.set(response.gs_is_published ?? false)
+      this.store.integrityLink.set(response)
+      if (response.rules !== undefined) {
+        this.rules.set(response.rules)
+      }
+    } catch (error) {
+      console.error('Failed to toggle GeoServer publish status:', error)
+
+      let errorMessage = this.translate.instant(
+        'authorizations.geoserver.publishErrorData.defaultMessage'
+      )
+
+      if (error.error?.detail) {
+        errorMessage = this.translate.instant(error.error.detail)
+      } else if (error instanceof Error) {
+        errorMessage = error.message
+      }
+
+      this.publishErrorData.set(errorMessage)
+
+      this.isPublishedData.set(!previousValue)
+      setTimeout(() => {
+        this.isPublishedData.set(
+          this.store.integrityLink()?.gs_is_published ?? false
+        )
+      }, 0)
+    } finally {
+      this.isPublishingData.set(false)
     }
   }
 
