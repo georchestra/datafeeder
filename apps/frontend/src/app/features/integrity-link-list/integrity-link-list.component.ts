@@ -42,7 +42,6 @@ export class IntegrityLinkListComponent {
   hasMore = signal<boolean>(false)
   loadingMore = signal<boolean>(false)
   searchQuery = signal('')
-  hoveredId = signal<string | null>(null)
   deleting = signal<string | null>(null)
 
   private searchSubject = new Subject<string>()

@@ -38,12 +38,10 @@
       <div
         [class]="
           isReadOnly(link)
-            ? 'flex rounded-md bg-beige h-[34px] items-center transition-colors opacity-60 cursor-default'
-            : 'flex cursor-pointer rounded-md bg-beige h-[34px] items-center transition-colors hover:bg-gray-100'
+            ? 'group flex rounded-md bg-beige h-[34px] items-center transition-colors opacity-60 cursor-default'
+            : 'group flex cursor-pointer rounded-md bg-beige h-[34px] items-center transition-colors hover:bg-gray-100'
         "
         (click)="onRowClick(link)"
-        (mouseenter)="hoveredId.set(link.id)"
-        (mouseleave)="hoveredId.set(null)"
       >
         <div class="pl-2 w-28 pr-4 text-sm text-gray-2">
           {{ link.created_at | date : 'dd/MM/yyyy' }}
@@ -68,10 +66,10 @@
           {{ link.integrity_owner }}
         </div>
         <div class="flex w-[44px] shrink-0 items-center justify-center">
-          @if (canDelete(link) && hoveredId() === link.id) {
+          @if (canDelete(link)) {
           <button
             type="button"
-            class="flex items-center justify-center rounded bg-white p-1 text-primary transition-colors hover:bg-[#FACED2] disabled:cursor-not-allowed disabled:opacity-50"
+            class="hidden group-hover:flex items-center justify-center rounded bg-white p-1 text-primary transition-colors hover:bg-[#FACED2] disabled:cursor-not-allowed disabled:opacity-50"
             [disabled]="deleting() === link.id"
             [attr.aria-label]="'dashboard.delete_dataset' | translate"
             (click)="deleteIntegrityLink($event, link.id)"
