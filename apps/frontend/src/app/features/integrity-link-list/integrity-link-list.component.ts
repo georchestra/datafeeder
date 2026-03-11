@@ -4,7 +4,10 @@ import { Router } from '@angular/router'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs'
+import { firstValueFrom } from 'rxjs'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
+import { MatDialog } from '@angular/material/dialog'
+import { ConfirmationDialogComponent } from 'geonetwork-ui'
 import { Api } from '../../core/api/api'
 import {
   deleteIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdDelete,
@@ -36,6 +39,7 @@ export class IntegrityLinkListComponent {
   private api = inject(Api)
   private router = inject(Router)
   private translate = inject(TranslateService)
+  private matDialog = inject(MatDialog)
 
   integrityLinks = signal<IntegrityLinkListItem[]>([])
   loading = signal<boolean>(true)
@@ -112,9 +116,16 @@ export class IntegrityLinkListComponent {
   async deleteIntegrityLink(event: Event, id: string): Promise<void> {
     event.stopPropagation()
     if (this.deleting()) return
-    const confirmed = window.confirm(
-      this.translate.instant('dashboard.deleteDatasetConfirm')
-    )
+    const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
+      data: {
+        title: this.translate.instant('dashboard.deleteDataset'),
+        message: this.translate.instant('dashboard.deleteDatasetConfirm'),
+        confirmText: this.translate.instant('common.delete'),
+        cancelText: this.translate.instant('common.cancel'),
+        focusCancel: 'cancel'
+      }
+    })
+    const confirmed = await firstValueFrom(dialogRef.afterClosed())
     if (!confirmed) return
     this.deleting.set(id)
     try {

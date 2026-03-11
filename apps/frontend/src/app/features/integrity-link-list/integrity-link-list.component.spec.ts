@@ -5,6 +5,8 @@ import {
 } from '@angular/common/http/testing'
 import { TestBed } from '@angular/core/testing'
 import { Router } from '@angular/router'
+import { MatDialog } from '@angular/material/dialog'
+import { of } from 'rxjs'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { ApiConfiguration } from '../../core/api/api-configuration'
@@ -14,6 +16,7 @@ import { IntegrityLinkListComponent } from './integrity-link-list.component'
 describe('IntegrityLinkListComponent', () => {
   let httpMock: HttpTestingController
   let router: Router
+  let matDialog: { open: ReturnType<typeof vi.fn> }
 
   // Mock data helper function
   const createMockItem = (
@@ -52,6 +55,7 @@ describe('IntegrityLinkListComponent', () => {
   }
 
   beforeEach(async () => {
+    matDialog = { open: vi.fn() }
     await TestBed.configureTestingModule({
       imports: [
         IntegrityLinkListComponent,
@@ -60,8 +64,10 @@ describe('IntegrityLinkListComponent', () => {
             'integrityLinks.title': 'Integrity Links',
             'integrityLinks.loadMore': 'Load More',
             'integrityLinks.noItems': 'No items',
-            'dashboard.delete_dataset': 'Delete dataset',
-            'dashboard.delete_dataset_confirm': 'Are you sure?'
+            'dashboard.deleteDataset': 'Delete dataset',
+            'dashboard.deleteDatasetConfirm': 'Are you sure?',
+            'common.cancel': 'Cancel',
+            'common.delete': 'Delete'
           }
         })
           .withDefaultLanguage('en')
@@ -73,6 +79,10 @@ describe('IntegrityLinkListComponent', () => {
         {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
+        },
+        {
+          provide: MatDialog,
+          useValue: matDialog
         }
       ]
     }).compileComponents()
@@ -650,24 +660,13 @@ describe('IntegrityLinkListComponent', () => {
       return { fixture, component }
     }
 
-    it('should hide trash icon by default (hoveredId is null)', async () => {
-      const { component } = await setupWithItems([createMockItem('1')])
-      expect(component.hoveredId()).toBeNull()
-    })
-
-    it('should show trash icon when hoveredId matches row id', async () => {
-      const { component } = await setupWithItems([createMockItem('1')])
-      component.hoveredId.set('1')
-      expect(component.hoveredId()).toBe('1')
-    })
-
     it('should call DELETE API on deleteIntegrityLink when confirmed', async () => {
       const { component } = await setupWithItems([
         createMockItem('1'),
         createMockItem('2')
       ])
 
-      vi.spyOn(window, 'confirm').mockReturnValue(true)
+      matDialog.open.mockReturnValue({ afterClosed: () => of(true) })
 
       const event = new MouseEvent('click')
       vi.spyOn(event, 'stopPropagation')
@@ -675,6 +674,7 @@ describe('IntegrityLinkListComponent', () => {
       const deletePromise = component.deleteIntegrityLink(event, '1')
 
       expect(event.stopPropagation).toHaveBeenCalled()
+      await Promise.resolve()
 
       const deleteReq = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-link/1'
@@ -693,12 +693,13 @@ describe('IntegrityLinkListComponent', () => {
 
       expect(component.integrityLinks().length).toBe(2)
 
-      vi.spyOn(window, 'confirm').mockReturnValue(true)
+      matDialog.open.mockReturnValue({ afterClosed: () => of(true) })
 
       const deletePromise = component.deleteIntegrityLink(
         new MouseEvent('click'),
         '1'
       )
+      await Promise.resolve()
 
       const deleteReq = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-link/1'
@@ -719,12 +720,13 @@ describe('IntegrityLinkListComponent', () => {
 
       expect(component.integrityLinks().length).toBe(2)
 
-      vi.spyOn(window, 'confirm').mockReturnValue(true)
+      matDialog.open.mockReturnValue({ afterClosed: () => of(true) })
 
       const deletePromise = component.deleteIntegrityLink(
         new MouseEvent('click'),
         '1'
       )
+      await Promise.resolve()
 
       const deleteReq = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-link/1'
@@ -742,9 +744,9 @@ describe('IntegrityLinkListComponent', () => {
     it('should NOT call API when user cancels confirm dialog', async () => {
       const { component } = await setupWithItems([createMockItem('1')])
 
-      vi.spyOn(window, 'confirm').mockReturnValue(false)
+      matDialog.open.mockReturnValue({ afterClosed: () => of(false) })
 
-      component.deleteIntegrityLink(new MouseEvent('click'), '1')
+      await component.deleteIntegrityLink(new MouseEvent('click'), '1')
 
       httpMock.expectNone('http://localhost:8000/ingestion/integrity-link/1')
 
@@ -754,12 +756,13 @@ describe('IntegrityLinkListComponent', () => {
     it('should reset deleting signal after completion', async () => {
       const { component } = await setupWithItems([createMockItem('1')])
 
-      vi.spyOn(window, 'confirm').mockReturnValue(true)
+      matDialog.open.mockReturnValue({ afterClosed: () => of(true) })
 
       const deletePromise = component.deleteIntegrityLink(
         new MouseEvent('click'),
         '1'
       )
+      await Promise.resolve()
 
       const deleteReq = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-link/1'

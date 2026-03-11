@@ -17,6 +17,8 @@
   "authorizations.ruleValue.read": "Lecture",
   "authorizations.ruleValue.write": "Écriture",
   "authorizations.title": "Droits d’accès à la donnée",
+  "common.cancel": "Annuler",
+  "common.delete": "Supprimer",
   "common.loading": "Chargement...",
   "dashboard.deleteDataset": "Supprimer le jeu de données",
   "dashboard.deleteDatasetConfirm": "Êtes-vous sûr de vouloir supprimer ce jeu de données ? Cette action est irréversible.",

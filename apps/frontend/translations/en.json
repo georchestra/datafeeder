@@ -17,6 +17,8 @@
   "authorizations.ruleValue.read": "Read",
   "authorizations.ruleValue.write": "Write",
   "authorizations.title": "Authorizations",
+  "common.cancel": "Cancel",
+  "common.delete": "Delete",
   "common.loading": "Loading...",
   "dashboard.deleteDataset": "Delete dataset",
   "dashboard.deleteDatasetConfirm": "Are you sure you want to delete this dataset? This action cannot be undone.",
