@@ -6,10 +6,29 @@
       <!-- Metadata Sheet — always enabled (requires at least METADATA_WRITE to reach this page) -->
       <a
         [routerLink]="['edit']"
-        routerLinkActive="bg-secondary-active font-semibold"
-        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+        routerLinkActive="bg-secondary-active/40 font-semibold"
+        #rla="routerLinkActive"
+        class="rounded-md p-2 text-base text-secondary hover:bg-secondary-hover"
       >
         {{ 'sidebar.metadataSheet' | translate }}
+        @if (rla.isActive) {
+        <button
+          type="button"
+          (click)="saveEdits()"
+          class="mt-2 w-full flex items-center justify-center rounded-full font-medium bg-secondary-active text-gray-900 hover:bg-secondary hover:text-gray-100 disabled:bg-secondary-active/40 disabled:text-secondary disabled:cursor-not-allowed"
+          [disabled]="isSaving()"
+        >
+          <div class="my-1.5 flex items-center justify-center gap-1">
+            <ng-icon name="iconoirFloppyDisk" size="16"></ng-icon>
+            <span>Sauvegarder</span>
+          </div>
+          @if (isSaving()) {
+          <div class="ml-2">
+            <gn-ui-spinning-loader></gn-ui-spinning-loader>
+          </div>
+          }
+        </button>
+        }
       </a>
 
       <!-- Authorizations — owner/admin only -->

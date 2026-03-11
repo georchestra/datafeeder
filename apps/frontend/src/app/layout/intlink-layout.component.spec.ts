@@ -6,6 +6,8 @@ import { TranslateTestingModule } from 'ngx-translate-testing'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
 import { IntlinkLayoutComponent } from './intlink-layout.component'
 import { IntegrityLinkResponse } from '../core/api/models'
+import { of, throwError } from 'rxjs'
+import { EditorFacade, RecordsRepositoryInterface } from 'geonetwork-ui'
 
 /**
  * Creates a lightweight store mock using Angular signals/computed.
@@ -57,6 +59,15 @@ describe('IntlinkLayoutComponent', () => {
   const setupComponent = async (accessLevel: string | null = null) => {
     const store = createStore(accessLevel)
 
+    const mockEditor = {
+      record$: of({ id: 'test-record' }),
+      recordSource$: of('xml-source')
+    }
+
+    const mockRepo = {
+      saveRecord: vi.fn().mockReturnValue(of({}))
+    }
+
     await TestBed.configureTestingModule({
       imports: [
         IntlinkLayoutComponent,
@@ -75,7 +86,9 @@ describe('IntlinkLayoutComponent', () => {
       ],
       providers: [
         provideRouter([]),
-        { provide: IntegrityLinkStore, useValue: store }
+        { provide: IntegrityLinkStore, useValue: store },
+        { provide: EditorFacade, useValue: mockEditor },
+        { provide: RecordsRepositoryInterface, useValue: mockRepo }
       ]
     })
       .overrideComponent(IntlinkLayoutComponent, {
@@ -219,6 +232,44 @@ describe('IntlinkLayoutComponent', () => {
       fixture.detectChanges()
       const content = fixture.nativeElement.querySelector('div.flex-grow')
       expect(content.querySelector('app-ui-alert-box')).not.toBeNull()
+    })
+  })
+
+  describe('Save Edits Behavior', () => {
+    it('should call saveRecord with correct parameters', async () => {
+      const { fixture, store } = await setupComponent('OWNER')
+      const repo = TestBed.inject(RecordsRepositoryInterface)
+
+      fixture.componentInstance.saveEdits()
+
+      expect(repo.saveRecord).toHaveBeenCalledWith(
+        { id: 'test-record' },
+        'xml-source',
+        false
+      )
+    })
+
+    it('should log success message on successful save', async () => {
+      const { fixture } = await setupComponent('OWNER')
+      const logSpy = vi.spyOn(console, 'log')
+
+      fixture.componentInstance.saveEdits()
+
+      expect(logSpy).toHaveBeenCalledWith('Edits saved successfully')
+    })
+
+    it('should log error message when save fails', async () => {
+      const { fixture } = await setupComponent('OWNER')
+      const repo = TestBed.inject(RecordsRepositoryInterface)
+      const logSpy = vi.spyOn(console, 'log')
+
+      vi.mocked(repo.saveRecord).mockReturnValueOnce(
+        throwError(() => new Error('API Error'))
+      )
+
+      fixture.componentInstance.saveEdits()
+
+      expect(logSpy).toHaveBeenCalledWith('Failed to save edits')
     })
   })
 })
