@@ -695,7 +695,10 @@ describe('IntegrityLinkListComponent', () => {
 
       vi.spyOn(window, 'confirm').mockReturnValue(true)
 
-      const deletePromise = component.deleteIntegrityLink(new MouseEvent('click'), '1')
+      const deletePromise = component.deleteIntegrityLink(
+        new MouseEvent('click'),
+        '1'
+      )
 
       const deleteReq = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-link/1'
@@ -718,7 +721,10 @@ describe('IntegrityLinkListComponent', () => {
 
       vi.spyOn(window, 'confirm').mockReturnValue(true)
 
-      const deletePromise = component.deleteIntegrityLink(new MouseEvent('click'), '1')
+      const deletePromise = component.deleteIntegrityLink(
+        new MouseEvent('click'),
+        '1'
+      )
 
       const deleteReq = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-link/1'
@@ -750,7 +756,10 @@ describe('IntegrityLinkListComponent', () => {
 
       vi.spyOn(window, 'confirm').mockReturnValue(true)
 
-      const deletePromise = component.deleteIntegrityLink(new MouseEvent('click'), '1')
+      const deletePromise = component.deleteIntegrityLink(
+        new MouseEvent('click'),
+        '1'
+      )
 
       const deleteReq = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-link/1'

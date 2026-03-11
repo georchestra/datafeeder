@@ -11,7 +11,11 @@ import {
   listIntegrityLinksIngestionIntegrityLinksGet
 } from '../../core/api/functions'
 import { IntegrityLinkListItem } from '../../core/api/models'
-import { iconoirPlus, iconoirChatBubbleWarning, iconoirTrash } from '@ng-icons/iconoir'
+import {
+  iconoirPlus,
+  iconoirChatBubbleWarning,
+  iconoirTrash
+} from '@ng-icons/iconoir'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 
 const DEBOUNCE_TIME = 300
