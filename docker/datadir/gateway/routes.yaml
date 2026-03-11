@@ -36,10 +36,20 @@ spring:
         uri: ${georchestra.gateway.services.geonetwork.target}
         predicates:
           - Path=/geonetwork/**
+        filters:
+          - name: CookieAffinity
+            args:
+              name: XSRF-TOKEN
+              from: /geonetwork
+              to: /datahub
       - id: geoserver
         uri: ${georchestra.gateway.services.geoserver.target}
         predicates:
           - Path=/geoserver/**
+      - id: datahub
+        uri: ${georchestra.gateway.services.datahub.target}
+        predicates:
+          - Path=/datahub/**
 
 georchestra.gateway.services:
 #  backend.target: http://datafeeder-backend:8000/
@@ -51,3 +61,4 @@ georchestra.gateway.services:
   console.target: http://console:8080/
   geoserver.target: http://${GEOSERVER_HOST:geoserver}:8080/
   geonetwork.target: http://${GEONETWORK_HOST:geonetwork}:8080/geonetwork/
+  datahub.target: http://datahub/datahub/

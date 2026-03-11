@@ -7,7 +7,7 @@ from geoservercloud.services import RestService
 from pydantic import BaseModel  # type: ignore[import-untyped]
 from pyproj import Transformer  # type: ignore[import-untyped]
 
-from data_manipulation.utils import compute_bbox_from_postgis_stextent_string, sanitize_name
+from data_manipulation.utils import sanitize_name
 
 
 class WorkspaceCreationResult(BaseModel):  # type: ignore[misc]
@@ -91,7 +91,7 @@ def create_layer(
     abstract: str | None = None,
     epsg: int = 4326,
     is_geographic: bool = True,
-    bbox: str = "",
+    bbox: dict[str, float] = {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0},
 ) -> None:
     """
     Create a feature type (layer) in GeoServer from a database table.
@@ -126,25 +126,16 @@ def create_layer(
 
     try:
         native_bounding_box = {
-            "minx": -1.0,
-            "miny": -1.0,
-            "maxx": 0.0,
-            "maxy": 0.0,
+            **bbox,
             "crs": {"$": f"EPSG:{epsg}", "@class": "projected"},
         }
         lat_lon_bounding_box = {
-            "minx": -1.0,
-            "miny": -1.0,
-            "maxx": 0.0,
-            "maxy": 0.0,
-            "crs": f"EPSG:{epsg}",
+            **bbox,
+            "crs": "EPSG:4326",
         }
         if is_geographic:
-            parsed_bbox = compute_bbox_from_postgis_stextent_string(bbox)
-            native_bounding_box["minx"] = lat_lon_bounding_box["minx"] = parsed_bbox["minx"]
-            native_bounding_box["miny"] = lat_lon_bounding_box["miny"] = parsed_bbox["miny"]
-            native_bounding_box["maxx"] = lat_lon_bounding_box["maxx"] = parsed_bbox["maxx"]
-            native_bounding_box["maxy"] = lat_lon_bounding_box["maxy"] = parsed_bbox["maxy"]
+            native_bounding_box = _get_native_bbox_from_bbox_string(bbox, epsg)
+            lat_lon_bounding_box = _get_ll_bbox_from_native_bbox(bbox, epsg)
 
         feature_type = FeatureType(
             name=table_name,
@@ -187,7 +178,7 @@ def update_layer_bbox(
     workspace_name: str,
     datastore_name: str,
     table_name: str,
-    bbox: str,
+    bbox: dict[str, float],
     native_epsg: int = 4326,
 ) -> None:
     """
@@ -208,31 +199,6 @@ def update_layer_bbox(
     workspace_name = sanitize_name(workspace_name)
     table_name = sanitize_name(table_name)
 
-    parsed_bbox = compute_bbox_from_postgis_stextent_string(bbox)
-
-    crs_class = "projected" if native_epsg != 4326 else "geographic"
-    native_bounding_box = {
-        **parsed_bbox,
-        "crs": {"$": f"EPSG:{native_epsg}", "@class": crs_class},
-    }
-
-    if native_epsg != 4326:
-        transformer = Transformer.from_crs(f"EPSG:{native_epsg}", "EPSG:4326", always_xy=True)
-        minx_ll, miny_ll = transformer.transform(parsed_bbox["minx"], parsed_bbox["miny"])
-        maxx_ll, maxy_ll = transformer.transform(parsed_bbox["maxx"], parsed_bbox["maxy"])
-        lat_lon_bounding_box: dict[str, object] = {
-            "minx": minx_ll,
-            "miny": miny_ll,
-            "maxx": maxx_ll,
-            "maxy": maxy_ll,
-            "crs": "EPSG:4326",
-        }
-    else:
-        lat_lon_bounding_box = {
-            **parsed_bbox,
-            "crs": "EPSG:4326",
-        }
-
     feature_type = FeatureType(
         name=table_name,
         native_name=table_name,
@@ -240,8 +206,8 @@ def update_layer_bbox(
         store_name=datastore_name,
         srs=f"EPSG:{native_epsg}",
         epsg_code=native_epsg,
-        native_bounding_box=native_bounding_box,
-        lat_lon_bounding_box=lat_lon_bounding_box,
+        native_bounding_box=_get_native_bbox_from_bbox_string(bbox, native_epsg),
+        lat_lon_bounding_box=_get_ll_bbox_from_native_bbox(bbox, native_epsg),
     )
 
     rest_service = RestService(
@@ -249,3 +215,34 @@ def update_layer_bbox(
         auth=geoserver.auth,  # type: ignore[reportUnknownMemberType]
     )
     rest_service.create_feature_type(feature_type)
+
+
+def _get_native_bbox_from_bbox_string(
+    parsed_bbox: dict[str, float], native_epsg: int
+) -> dict[str, object]:
+    crs_class = "projected" if native_epsg != 4326 else "geographic"
+    return {
+        **parsed_bbox,
+        "crs": {"$": f"EPSG:{native_epsg}", "@class": crs_class},
+    }
+
+
+def _get_ll_bbox_from_native_bbox(
+    native_bbox: dict[str, float], native_epsg: int
+) -> dict[str, object]:
+    if native_epsg != 4326:
+        transformer = Transformer.from_crs(f"EPSG:{native_epsg}", "EPSG:4326", always_xy=True)
+        minx_ll, miny_ll = transformer.transform(native_bbox["minx"], native_bbox["miny"])
+        maxx_ll, maxy_ll = transformer.transform(native_bbox["maxx"], native_bbox["maxy"])
+        return {
+            "minx": minx_ll,
+            "miny": miny_ll,
+            "maxx": maxx_ll,
+            "maxy": maxy_ll,
+            "crs": "EPSG:4326",
+        }
+    else:
+        return {
+            **native_bbox,
+            "crs": "EPSG:4326",
+        }

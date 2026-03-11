@@ -114,7 +114,7 @@ class TestGeoServerService:
             abstract=abstract,
             epsg=4326,
             is_geographic=True,
-            bbox="",
+            bbox={"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0},
         )
 
         # Verify return value structure
@@ -322,7 +322,7 @@ class TestGeoServerService:
             abstract=abstract,
             epsg=4326,
             is_geographic=False,
-            bbox="",
+            bbox={"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0},
         )
 
         # Verify return value structure

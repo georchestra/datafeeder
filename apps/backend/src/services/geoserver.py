@@ -129,7 +129,7 @@ class GeoServerService:
         abstract: str,
         epsg: int = 4326,
         is_geographic: bool = True,
-        bbox: str = "",
+        bbox: dict[str, float] = {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0},
     ) -> LayerCreationResult:
         """
         Create a WFS and WMS layer from a database table.
@@ -262,7 +262,7 @@ class GeoServerService:
         workspace_name: str,
         datastore_name: str,
         table_name: str,
-        bbox: str,
+        bbox: dict[str, float],
         native_epsg: int = 4326,
     ) -> None:
         """

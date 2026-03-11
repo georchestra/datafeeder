@@ -255,7 +255,7 @@ class TestProcessPermission:
         body = ProcessRequest(integrity_link_id=INTLINK_ID, title="Test")
 
         with pytest.raises(HTTPException) as exc_info:
-            await process_staging_data(
+            process_staging_data(
                 body,
                 session,
                 _ctx(),
@@ -275,7 +275,7 @@ class TestProcessPermission:
         body = ProcessRequest(integrity_link_id=INTLINK_ID, title="Test")
 
         with pytest.raises(HTTPException) as exc_info:
-            await process_staging_data(
+            process_staging_data(
                 body,
                 session,
                 _write_ctx(),
