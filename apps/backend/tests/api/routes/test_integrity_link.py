@@ -327,7 +327,10 @@ class TestSyncAfterUpsertRule:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_organization_by_id.return_value = {"name": "Test Org"}
+            mock_console.get_organization_by_id.return_value = {
+                "shortName": "C2C",
+                "name": "Camptocamp",
+            }
 
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
@@ -340,9 +343,7 @@ class TestSyncAfterUpsertRule:
                 body=body,
             )
 
-        mock_ms.sync_record_sharing.assert_called_once_with(
-            "meta-uuid", [("Test Org", RuleValue.READ)]
-        )
+        mock_ms.sync_record_sharing.assert_called_once_with("meta-uuid", [("C2C", RuleValue.READ)])
 
     def test_sync_not_called_when_no_metadata_id(
         self, mock_session: MagicMock, integrity_link_id: str

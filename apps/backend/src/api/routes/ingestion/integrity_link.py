@@ -61,7 +61,7 @@ def _sync_metadata_sharing(
             continue
         org = console.get_organization_by_id(rule.group_or_role)
         if org:
-            resolved.append((org.get("name", ""), rule.rule_value))
+            resolved.append((org.get("shortName", ""), rule.rule_value))
         else:
             logger.warning("Could not resolve org '%s' for sharing sync", rule.group_or_role)
 
