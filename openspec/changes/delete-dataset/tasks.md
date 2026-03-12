@@ -68,7 +68,7 @@
 
 ## 8. Validation
 
-- [ ] 8.1 Manual smoke test: delete a dataset as owner → verify row disappears and resources are removed
-- [ ] 8.2 Manual test: attempt delete as non-owner → verify 403 and row stays in list
-- [ ] 8.3 Manual test: delete a dataset with a recurrent schedule → verify DAG is removed from Airflow
+- [x] 8.1 Manual smoke test: delete a dataset as owner → verify row disappears and resources are removed
+- [x] 8.2 Manual test: attempt delete as non-owner → verify 403 and row stays in list
+- [x] 8.3 Manual test: delete a dataset with a recurrent schedule → verify DAG is removed from Airflow
 - [ ] 8.4 Verify network trace for DAG deletion failure → backend returns 500, dataset remains in list (validates GSMEL-866 acceptance per Jira notes)
