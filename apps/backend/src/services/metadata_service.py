@@ -43,8 +43,8 @@ class MetadataService:
             metadata_default_group_name: Fallback group name when user has no non-system groups
         """
         self.gn_api: Any = GnApi(api_url=gn_api_url, credentials=credentials, verifytls=verify_tls)
-        self.template_path: str = f"{datadir_path}/datafeeder/metadata_template-19115-3.xml"
-        self.xslt_path: str = f"{datadir_path}/datafeeder/metadata_transform-19115-3.xsl"
+        self.template_path: str = f"{datadir_path}/datafeeder-python/metadata_template-19115-3.xml"
+        self.xslt_path: str = f"{datadir_path}/datafeeder-python/metadata_transform-19115-3.xsl"
         self.org_based_sync: bool = org_based_sync
         self.metadata_default_group_name: str = metadata_default_group_name
 
