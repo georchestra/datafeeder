@@ -220,10 +220,9 @@ def update_layer_bbox(
 def _get_native_bbox_from_bbox_string(
     parsed_bbox: dict[str, float], native_epsg: int
 ) -> dict[str, object]:
-    crs_class = "projected" if native_epsg != 4326 else "geographic"
     return {
         **parsed_bbox,
-        "crs": {"$": f"EPSG:{native_epsg}", "@class": crs_class},
+        "crs": {"$": f"EPSG:{native_epsg}", "@class": "projected"},
     }
 
 
