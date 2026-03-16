@@ -390,7 +390,7 @@ class TestMetadataService:
 
     @patch("src.services.metadata_service.GnApi")
     def test_sync_record_sharing_read_privilege(self, mock_gn_api: MagicMock) -> None:
-        """READ rule → view=True, editing=False, download=False."""
+        """READ rule → view=True, editing=False, download=True."""
         mock_session = MagicMock()
         mock_api_instance = MagicMock()
         mock_api_instance.session = mock_session
@@ -414,7 +414,7 @@ class TestMetadataService:
                         "group": 20,
                         "operations": {
                             "view": True,
-                            "download": False,
+                            "download": True,
                             "editing": False,
                             "notify": False,
                             "dynamic": False,
@@ -463,8 +463,8 @@ class TestMetadataService:
         )
 
     @patch("src.services.metadata_service.GnApi")
-    def test_sync_record_sharing_skips_unresolvable_group(self, mock_gn_api: MagicMock) -> None:
-        """Org with no matching GN group is silently skipped."""
+    def test_sync_record_sharing_raises_on_unresolvable_group(self, mock_gn_api: MagicMock) -> None:
+        """Org with no matching GN group raises ValueError."""
         mock_session = MagicMock()
         mock_api_instance = MagicMock()
         mock_api_instance.session = mock_session
@@ -477,25 +477,20 @@ class TestMetadataService:
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test/datadir")
 
-        # "UnknownOrg" does not exist in GN groups
-        service.sync_record_sharing("some-uuid", [("UnknownOrg", RuleValue.READ)])
-
-        # put_sharing_record called with empty privileges (group skipped)
-        mock_api_instance.put_sharing_record.assert_called_once_with(
-            "some-uuid", {"clear": True, "privileges": []}
-        )
+        with pytest.raises(ValueError, match="No GN group found for org 'UnknownOrg'"):
+            service.sync_record_sharing("some-uuid", [("UnknownOrg", RuleValue.READ)])
 
     @patch("src.services.metadata_service.GnApi")
-    def test_sync_record_sharing_gn_error_logged_not_raised(self, mock_gn_api: MagicMock) -> None:
-        """GeoNetwork errors are caught and logged, not re-raised."""
+    def test_sync_record_sharing_gn_error_is_raised(self, mock_gn_api: MagicMock) -> None:
+        """GeoNetwork API errors are propagated to the caller."""
         mock_api_instance = MagicMock()
         mock_api_instance.put_sharing_record.side_effect = Exception("GN unavailable")
         mock_gn_api.return_value = mock_api_instance
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test/datadir")
 
-        # Should not raise
-        service.sync_record_sharing("some-uuid", [])
+        with pytest.raises(Exception, match="GN unavailable"):
+            service.sync_record_sharing("some-uuid", [])
 
     @patch("src.services.metadata_service.GnApi")
     def test_set_record_ownership_user_groups_no_fallback(self, mock_gn_api: MagicMock) -> None:

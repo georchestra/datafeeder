@@ -327,10 +327,9 @@ class TestSyncAfterUpsertRule:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_organization_by_id.return_value = {
-                "shortName": "C2C",
-                "name": "Camptocamp",
-            }
+            mock_console.get_all_organizations.return_value = [
+                {"id": "org-uuid-1", "shortName": "C2C", "name": "Camptocamp"}
+            ]
 
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
@@ -437,6 +436,183 @@ class TestSyncAfterUpsertRule:
 
         # sync called with empty resolved list (DATA rule filtered out)
         mock_ms.sync_record_sharing.assert_called_once_with("meta-uuid", [])
+
+    def test_raises_500_when_console_cannot_resolve_org(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """Unresolvable org ID causes HTTPException(500, i18nerror.sync.geonetwork)."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            metadata_id="meta-uuid",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        rules_mock = MagicMock()
+        rules_mock.all.return_value = [
+            IntegrityLinkRule(
+                id=1,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="org-uuid-unknown",
+                rule_type=RuleType.METADATA,
+                rule_value=RuleValue.READ,
+            )
+        ]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="org-uuid-unknown",
+            rule_type=RuleType.METADATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.ingestion.integrity_link.MetadataService"),
+        ):
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
+            # org-uuid-unknown is not in the returned list
+            mock_console.get_all_organizations.return_value = [
+                {"id": "org-uuid-1", "shortName": "C2C"}
+            ]
+
+            with pytest.raises(HTTPException) as exc_info:
+                upsert_integrity_link_rule(
+                    session=mock_session,
+                    georchestra_context=_geo_ctx(),
+                    integrity_link_id=integrity_link_id,
+                    org_id=None,
+                    body=body,
+                )
+
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.detail == "i18nerror.sync.geonetwork"
+
+    def test_raises_500_when_console_call_fails(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """Console API failure causes HTTPException(500, i18nerror.sync.geonetwork)."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            metadata_id="meta-uuid",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        rules_mock = MagicMock()
+        rules_mock.all.return_value = [
+            IntegrityLinkRule(
+                id=1,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="org-uuid-1",
+                rule_type=RuleType.METADATA,
+                rule_value=RuleValue.READ,
+            )
+        ]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="org-uuid-1",
+            rule_type=RuleType.METADATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.ingestion.integrity_link.MetadataService"),
+        ):
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
+            mock_console.get_all_organizations.side_effect = Exception("Console unavailable")
+
+            with pytest.raises(HTTPException) as exc_info:
+                upsert_integrity_link_rule(
+                    session=mock_session,
+                    georchestra_context=_geo_ctx(),
+                    integrity_link_id=integrity_link_id,
+                    org_id=None,
+                    body=body,
+                )
+
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.detail == "i18nerror.sync.geonetwork"
+
+    def test_raises_500_when_geonetwork_sync_fails(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """GeoNetwork sync failure causes HTTPException(500, i18nerror.sync.geonetwork)."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            metadata_id="meta-uuid",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        rules_mock = MagicMock()
+        rules_mock.all.return_value = [
+            IntegrityLinkRule(
+                id=1,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="org-uuid-1",
+                rule_type=RuleType.METADATA,
+                rule_value=RuleValue.READ,
+            )
+        ]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="org-uuid-1",
+            rule_type=RuleType.METADATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
+        ):
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
+            mock_console.get_all_organizations.return_value = [
+                {"id": "org-uuid-1", "shortName": "C2C"}
+            ]
+
+            mock_ms = MagicMock()
+            mock_ms_cls.return_value = mock_ms
+            mock_ms.sync_record_sharing.side_effect = Exception("GeoNetwork down")
+
+            with pytest.raises(HTTPException) as exc_info:
+                upsert_integrity_link_rule(
+                    session=mock_session,
+                    georchestra_context=_geo_ctx(),
+                    integrity_link_id=integrity_link_id,
+                    org_id=None,
+                    body=body,
+                )
+
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.detail == "i18nerror.sync.geonetwork"
 
 
 class TestSyncAfterDeleteRule:

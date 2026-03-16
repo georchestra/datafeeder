@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import httpx
+import pytest
 
 from src.services.console_service import ConsoleService
 
@@ -82,3 +83,36 @@ class TestConsoleService:
         result = service.get_organization("org1")
 
         assert result is None
+
+    @patch("src.services.console_service.httpx.get")
+    def test_get_all_organizations_success(self, mock_get: MagicMock) -> None:
+        """Test successful retrieval of all organizations."""
+        orgs = [
+            {"id": "uuid-1", "shortName": "C2C", "name": "Camptocamp"},
+            {"id": "uuid-2", "shortName": "GEO", "name": "GeoOrg"},
+        ]
+        mock_response = MagicMock()
+        mock_response.json.return_value = orgs
+        mock_get.return_value = mock_response
+
+        service = ConsoleService("http://console.example.com")
+        result = service.get_all_organizations()
+
+        assert result == orgs
+        mock_get.assert_called_once_with(
+            "http://console.example.com/internal/organizations", timeout=5.0
+        )
+
+    @patch("src.services.console_service.httpx.get")
+    def test_get_all_organizations_http_error_raises(self, mock_get: MagicMock) -> None:
+        """Test that HTTP errors are propagated."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Internal Server Error", request=MagicMock(), response=MagicMock(status_code=500)
+        )
+        mock_get.return_value = mock_response
+
+        service = ConsoleService("http://console.example.com")
+
+        with pytest.raises(httpx.HTTPStatusError):
+            service.get_all_organizations()

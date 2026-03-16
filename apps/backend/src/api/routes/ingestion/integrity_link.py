@@ -35,11 +35,14 @@ def _sync_metadata_sharing(
     integrity_link_id: str,
     integrity_link: IntegrityLink,
 ) -> None:
-    """Sync METADATA rules to GeoNetwork sharing privileges (best-effort).
+    """Sync METADATA rules to GeoNetwork sharing privileges.
 
     Called after any rule mutation. Resolves geOrchestra org IDs to org names,
     then delegates the GeoNetwork API call to MetadataService.sync_record_sharing.
     Skipped when integrity_link has no associated GeoNetwork record.
+
+    Raises:
+        HTTPException(500): If any org cannot be resolved or the GeoNetwork sync fails.
     """
     if not integrity_link.metadata_id:
         return
@@ -55,15 +58,23 @@ def _sync_metadata_sharing(
     settings = get_settings()
     console = ConsoleService(settings.CONSOLE_URL)
 
+    try:
+        all_orgs = console.get_all_organizations()
+    except Exception:
+        logger.error("Failed to fetch organizations from Console", exc_info=True)
+        raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
+
+    orgs_by_id = {org["id"]: org.get("shortName", "") for org in all_orgs if org.get("id")}
+
     resolved: list[tuple[str, RuleValue]] = []
     for rule in all_rules:
         if rule.rule_type != RuleType.METADATA:
             continue
-        org = console.get_organization_by_id(rule.group_or_role)
-        if org:
-            resolved.append((org.get("shortName", ""), rule.rule_value))
-        else:
-            logger.warning("Could not resolve org '%s' for sharing sync", rule.group_or_role)
+        short_name = orgs_by_id.get(rule.group_or_role)
+        if short_name is None:
+            logger.error("Could not resolve org '%s' for sharing sync", rule.group_or_role)
+            raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
+        resolved.append((short_name, rule.rule_value))
 
     metadata_service = MetadataService(
         gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
@@ -71,7 +82,15 @@ def _sync_metadata_sharing(
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         verify_tls=False,
     )
-    metadata_service.sync_record_sharing(integrity_link.metadata_id, resolved)
+    try:
+        metadata_service.sync_record_sharing(integrity_link.metadata_id, resolved)
+    except Exception:
+        logger.error(
+            "Failed to sync GN sharing for integrity_link %s",
+            integrity_link_id,
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
 
 
 @router.get(
