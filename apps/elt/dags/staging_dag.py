@@ -28,9 +28,6 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
     callback_url = params.get("failure_callback_url")
 
     if callback_url:
-        reason = context.get("reason", "")
-        if reason:
-            callback_url = f"{callback_url}&reason={reason}"
         call_callback(callback_url, "failure")
 
 
