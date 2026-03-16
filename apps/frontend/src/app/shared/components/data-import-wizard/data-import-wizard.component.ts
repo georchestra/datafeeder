@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { MatButtonToggleModule } from '@angular/material/button-toggle'
 import { MatTabsModule } from '@angular/material/tabs'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
+import { Location } from '@angular/common'
 import { ActivatedRoute, Router } from '@angular/router'
 import {
   iconoirMap,
@@ -67,6 +68,9 @@ marker('i18nerror.transformation.geometry_creation_failed')
 marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
 marker('import.metadataPublication.error')
+marker('import.datasetLoadError.not_found')
+marker('import.datasetLoadError.forbidden')
+marker('import.datasetLoadError.server_error')
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 120000
@@ -118,6 +122,7 @@ export class DataImportWizardComponent {
   private translate = inject(TranslateService)
   private router = inject(Router)
   private route = inject(ActivatedRoute)
+  private location = inject(Location)
 
   integrityLinkStore = inject(IntegrityLinkStore)
 
@@ -164,6 +169,8 @@ export class DataImportWizardComponent {
     const initialTab = stepParam === 2 ? 1 : 0
     this.selectedTabIndex.set(initialTab)
 
+    this.handleIntegrityLinkLoadError()
+
     this.renameSubject
       .pipe(debounceTime(400), takeUntilDestroyed())
       .subscribe(({ originalName, newName }) => {
@@ -206,6 +213,17 @@ export class DataImportWizardComponent {
         this.previewErrorExtent.set(null)
       }
     })
+  }
+
+  private handleIntegrityLinkLoadError(): void {
+    const intlinkId = this.route.snapshot.params['intlink_id']
+    const loadError = this.integrityLinkStore.loadError()
+    if (intlinkId && loadError) {
+      this.importError.set(
+        this.translate.instant(`import.datasetLoadError.${loadError}`)
+      )
+      this.location.replaceState('/import')
+    }
   }
 
   validFtp(source: SourceData): boolean {

@@ -3,6 +3,7 @@ import {
   HttpTestingController,
   provideHttpClientTesting
 } from '@angular/common/http/testing'
+import { Location } from '@angular/common'
 import { signal } from '@angular/core'
 import { TestBed, fakeAsync, tick } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
@@ -17,6 +18,7 @@ describe('DataImportWizardComponent', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
+    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -24,6 +26,7 @@ describe('DataImportWizardComponent', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -150,6 +153,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
+    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -171,6 +175,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -785,6 +790,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
+    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -807,6 +813,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -1158,6 +1165,7 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
+    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -1165,6 +1173,7 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -1414,6 +1423,7 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
+    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -1449,6 +1459,7 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -1592,6 +1603,7 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
+    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -1614,6 +1626,7 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -1739,6 +1752,7 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
+    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -1746,6 +1760,7 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -1858,6 +1873,7 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
     TestBed.overrideProvider(ActivatedRoute, {
       useValue: {
         snapshot: {
+          params: {},
           queryParamMap: { get: (key: string) => (key === 'step' ? '2' : null) }
         }
       }
@@ -1867,3 +1883,143 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
     expect(component.selectedTabIndex()).toBe(1)
   })
 })
+
+describe('DataImportWizardComponent - Dataset load error (stale reconfigure)', () => {
+  let mockIntegrityLinkStore: {
+    intlinkId: ReturnType<typeof signal<string | null>>
+    integrityLink: ReturnType<typeof signal>
+    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
+    setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+  }
+  let mockLocation: { replaceState: ReturnType<typeof vi.fn> }
+
+  beforeEach(async () => {
+    mockIntegrityLinkStore = {
+      intlinkId: signal<string | null>(null),
+      integrityLink: signal(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
+      setAndLoadIntegrityLink: vi.fn()
+    }
+    mockLocation = { replaceState: vi.fn() }
+
+    await TestBed.configureTestingModule({
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.error': 'Error',
+            'import.datasetLoadError.not_found':
+              'This dataset no longer exists. It may have been deleted by an administrator.',
+            'import.datasetLoadError.forbidden':
+              'You do not have permission to access this dataset.',
+            'import.datasetLoadError.server_error':
+              'An unexpected error occurred while loading the dataset. Please try again later.'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler()),
+        NoopAnimationsModule
+      ],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore },
+        { provide: Location, useValue: mockLocation }
+      ]
+    }).compileComponents()
+  })
+
+  it('should set importError when intlink_id param is present and store has loadError = not_found', () => {
+    mockIntegrityLinkStore.loadError.set('not_found')
+    TestBed.overrideProvider(ActivatedRoute, {
+      useValue: {
+        snapshot: {
+          params: { intlink_id: 'deleted-uuid' },
+          queryParamMap: { get: () => null }
+        }
+      }
+    })
+
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    expect(component.importError()).toBe(
+      'This dataset no longer exists. It may have been deleted by an administrator.'
+    )
+  })
+
+  it('should call location.replaceState("/import") to strip the dead UUID from the URL', () => {
+    mockIntegrityLinkStore.loadError.set('not_found')
+    TestBed.overrideProvider(ActivatedRoute, {
+      useValue: {
+        snapshot: {
+          params: { intlink_id: 'deleted-uuid' },
+          queryParamMap: { get: () => null }
+        }
+      }
+    })
+
+    TestBed.createComponent(DataImportWizardComponent)
+
+    expect(mockLocation.replaceState).toHaveBeenCalledWith('/import')
+  })
+
+  it('should render the alert box when importError is set from store loadError', async () => {
+    mockIntegrityLinkStore.loadError.set('not_found')
+    TestBed.overrideProvider(ActivatedRoute, {
+      useValue: {
+        snapshot: {
+          params: { intlink_id: 'deleted-uuid' },
+          queryParamMap: { get: () => null }
+        }
+      }
+    })
+
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    fixture.detectChanges()
+    await fixture.whenStable()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    expect(compiled.querySelector('app-ui-alert-box')).toBeTruthy()
+  })
+
+  it('should not set importError and not call replaceState when no intlink_id param is present', () => {
+    mockIntegrityLinkStore.loadError.set('not_found')
+    TestBed.overrideProvider(ActivatedRoute, {
+      useValue: {
+        snapshot: {
+          params: {},
+          queryParamMap: { get: () => null }
+        }
+      }
+    })
+
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    expect(component.importError()).toBeNull()
+    expect(mockLocation.replaceState).not.toHaveBeenCalled()
+  })
+
+  it('should not set importError and not call replaceState when loadError is null', () => {
+    mockIntegrityLinkStore.loadError.set(null)
+    TestBed.overrideProvider(ActivatedRoute, {
+      useValue: {
+        snapshot: {
+          params: { intlink_id: 'some-uuid' },
+          queryParamMap: { get: () => null }
+        }
+      }
+    })
+
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    expect(component.importError()).toBeNull()
+    expect(mockLocation.replaceState).not.toHaveBeenCalled()
+  })
+})
+
+

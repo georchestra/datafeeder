@@ -72,3 +72,13 @@
 - [x] 8.2 Manual test: attempt delete as non-owner → verify 403 and row stays in list
 - [x] 8.3 Manual test: delete a dataset with a recurrent schedule → verify DAG is removed from Airflow
 - [ ] 8.4 Verify network trace for DAG deletion failure → backend returns 500, dataset remains in list (validates GSMEL-866 acceptance per Jira notes)
+
+## 9. Post-Implementation Bug Fix — Stale Reconfigure After Admin Deletion
+
+**Scenario**: An admin deletes a user's dataset while the user is on `intlink-layout`. The user then clicks "Reconfigure" in the sidebar, which navigates to `/import/:intlink_id`. The resolver calls `/api/ingestion/integrity-link/{id}`, gets 404, and sets `store.loadError = 'not_found'`, but the import wizard renders without surfacing the error — the user sees a blank wizard instead of feedback.
+
+- [x] 9.1 In `DataImportWizardComponent` (`apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`):
+  - Inject `Location` from `@angular/common`
+  - Extract a private `handleIntegrityLinkLoadError()` method: when `route.snapshot.params['intlink_id']` is set and `integrityLinkStore.loadError()` is non-null, set `importError()` with the translated message and call `location.replaceState('/import')` to strip the dead UUID from the URL
+  - Call `handleIntegrityLinkLoadError()` from the constructor
+- [x] 9.3 Update vitest tests: add `location` mock with `replaceState` spy; assert it is called with `'/import'` when store has `loadError = 'not_found'` and a route param is present; assert it is NOT called when no route param or no loadError
