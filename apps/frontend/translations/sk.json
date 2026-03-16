@@ -178,7 +178,7 @@
   "i18nerror.publish.geonetwork": "",
   "i18nerror.publish.geoserver": "",
   "i18nerror.sync.geonetwork": "",
-  "i18nerror.staging.timeout": "",
+  "i18nerror.staging.timeout": "Skúste to neskôr alebo s menšou množinou údajov.",
   "i18nerror.transformation.columns_both_required": "",
   "i18nerror.transformation.geometry_creation_failed": "",
   "i18nerror.transformation.projection_application_failed": "",
