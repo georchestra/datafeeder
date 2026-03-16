@@ -12,9 +12,8 @@ from unittest.mock import ANY, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from fastapi import HTTPException
-
 from airflow_client.client.models.dag_run_state import DagRunState
+from fastapi import HTTPException
 
 from src.api.routes.airflow import get_dag_run_by_intlink, get_dag_run_logs, get_dag_run_status
 from src.api.routes.ingestion.integrity_link import (
