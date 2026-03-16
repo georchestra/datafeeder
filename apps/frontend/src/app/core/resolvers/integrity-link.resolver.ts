@@ -1,5 +1,10 @@
 import { inject } from '@angular/core'
-import { ActivatedRouteSnapshot, RedirectCommand, ResolveFn, Router } from '@angular/router'
+import {
+  ActivatedRouteSnapshot,
+  RedirectCommand,
+  ResolveFn,
+  Router
+} from '@angular/router'
 import { IntegrityLinkStore } from '../stores/integrity-link.store'
 import { IntegrityLinkResponse } from '../api/models'
 
@@ -40,4 +45,5 @@ function createIntegrityLinkResolver(
 
 export const IntegrityLinkResolver = createIntegrityLinkResolver()
 
-export const IntegrityLinkResolverWithRedirect = createIntegrityLinkResolver('/import')
+export const IntegrityLinkResolverWithRedirect =
+  createIntegrityLinkResolver('/import')

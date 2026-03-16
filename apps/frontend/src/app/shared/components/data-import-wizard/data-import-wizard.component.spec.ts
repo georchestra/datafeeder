@@ -10,6 +10,7 @@ import { ActivatedRoute, provideRouter } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { ApiConfiguration } from '../../../core/api/api-configuration'
+import { FileType, ImportType } from '../../../core/api/models'
 import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { DataImportWizardComponent } from './data-import-wizard.component'
 
@@ -17,7 +18,9 @@ describe('DataImportWizardComponent', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
-    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
+    loadError: ReturnType<
+      typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
+    >
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -25,7 +28,9 @@ describe('DataImportWizardComponent', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
-      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
+        null
+      ),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -152,7 +157,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
-    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
+    loadError: ReturnType<
+      typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
+    >
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -174,7 +181,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
-      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
+        null
+      ),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -789,7 +798,9 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
-    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
+    loadError: ReturnType<
+      typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
+    >
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -812,7 +823,9 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
-      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
+        null
+      ),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -1164,7 +1177,9 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
-    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
+    loadError: ReturnType<
+      typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
+    >
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -1172,7 +1187,9 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
-      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
+        null
+      ),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -1422,14 +1439,19 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
-    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
+    loadError: ReturnType<
+      typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
+    >
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
   const mockMetadata = {
     title: 'test.csv',
-    file_type: 'csv',
+    file_type: 'csv' as FileType,
     force_projection: null,
+    has_final_table: false,
+    import_type: 'url' as ImportType,
+    row_count: 2,
     columns: [
       {
         original_name: 'col1',
@@ -1458,7 +1480,9 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
-      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
+        null
+      ),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -1602,14 +1626,19 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
-    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
+    loadError: ReturnType<
+      typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
+    >
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
   const mockMetadata = {
     title: 'test.csv',
-    file_type: 'csv',
+    file_type: 'csv' as FileType,
     force_projection: null,
+    has_final_table: false,
+    import_type: 'url' as ImportType,
+    row_count: 1,
     columns: [
       {
         original_name: 'col1',
@@ -1625,7 +1654,9 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
-      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
+        null
+      ),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -1751,7 +1782,9 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
-    loadError: ReturnType<typeof signal<'forbidden' | 'not_found' | 'server_error' | null>>
+    loadError: ReturnType<
+      typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
+    >
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
   }
 
@@ -1759,7 +1792,9 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
     mockIntegrityLinkStore = {
       intlinkId: signal<string | null>(null),
       integrityLink: signal(null),
-      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
+        null
+      ),
       setAndLoadIntegrityLink: vi.fn()
     }
 
@@ -1887,9 +1922,7 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
       mockIntegrityLinkStore.loadError.set('not_found')
       const fixture = TestBed.createComponent(DataImportWizardComponent)
       const component = fixture.componentInstance
-      expect(component.importError()).toBe(
-        'import.datasetLoadError.not_found'
-      )
+      expect(component.importError()).toBe('import.datasetLoadError.not_found')
     })
 
     it('should clear store loadError after reading it', () => {
@@ -1916,9 +1949,9 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
       mockIntegrityLinkStore.loadError.set('server_error')
       const fixture = TestBed.createComponent(DataImportWizardComponent)
       const component = fixture.componentInstance
-      expect(component.importError()).toBe('import.datasetLoadError.server_error')
+      expect(component.importError()).toBe(
+        'import.datasetLoadError.server_error'
+      )
     })
   })
 })
-
-

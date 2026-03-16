@@ -1,23 +1,36 @@
 import { signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
-import { ActivatedRouteSnapshot, RedirectCommand, Router, provideRouter } from '@angular/router'
+import {
+  ActivatedRouteSnapshot,
+  RedirectCommand,
+  Router,
+  provideRouter
+} from '@angular/router'
 import { IntegrityLinkStore } from '../stores/integrity-link.store'
 import {
   IntegrityLinkResolver,
   IntegrityLinkResolverWithRedirect
 } from './integrity-link.resolver'
 
-function makeRoute(params: Record<string, string> = {}, parentParams: Record<string, string> = {}): ActivatedRouteSnapshot {
+function makeRoute(
+  params: Record<string, string> = {},
+  parentParams: Record<string, string> = {}
+): ActivatedRouteSnapshot {
   return {
     params,
-    parent: parentParams && Object.keys(parentParams).length ? { params: parentParams } : null
+    parent:
+      parentParams && Object.keys(parentParams).length
+        ? { params: parentParams }
+        : null
   } as unknown as ActivatedRouteSnapshot
 }
 
-function createMockStore(overrides: Partial<{
-  loadIntegrityLink: (id: string) => Promise<any>
-  clearIntegrityLink: () => void
-}> = {}) {
+function createMockStore(
+  overrides: Partial<{
+    loadIntegrityLink: (id: string) => Promise<any>
+    clearIntegrityLink: () => void
+  }> = {}
+) {
   return {
     intlinkId: signal<string | null>(null),
     integrityLink: signal(null),
@@ -44,7 +57,9 @@ describe('IntegrityLinkResolver', () => {
 
   it('should load integrity link when intlink_id param is present', async () => {
     const route = makeRoute({ intlink_id: 'uuid-1' })
-    const result = await TestBed.runInInjectionContext(() => IntegrityLinkResolver(route, {} as any))
+    const result = await TestBed.runInInjectionContext(() =>
+      IntegrityLinkResolver(route, {} as any)
+    )
 
     expect(mockStore.loadIntegrityLink).toHaveBeenCalledWith('uuid-1')
     expect(result).toEqual({ id: 'uuid-1' })
@@ -52,14 +67,18 @@ describe('IntegrityLinkResolver', () => {
 
   it('should load integrity link from parent params', async () => {
     const route = makeRoute({}, { intlink_id: 'uuid-parent' })
-    await TestBed.runInInjectionContext(() => IntegrityLinkResolver(route, {} as any))
+    await TestBed.runInInjectionContext(() =>
+      IntegrityLinkResolver(route, {} as any)
+    )
 
     expect(mockStore.loadIntegrityLink).toHaveBeenCalledWith('uuid-parent')
   })
 
   it('should clear store and return undefined when no intlink_id', async () => {
     const route = makeRoute()
-    const result = await TestBed.runInInjectionContext(() => IntegrityLinkResolver(route, {} as any))
+    const result = await TestBed.runInInjectionContext(() =>
+      IntegrityLinkResolver(route, {} as any)
+    )
 
     expect(mockStore.clearIntegrityLink).toHaveBeenCalled()
     expect(result).toBeUndefined()
@@ -69,7 +88,9 @@ describe('IntegrityLinkResolver', () => {
     mockStore.loadIntegrityLink = vi.fn().mockRejectedValue({ status: 404 })
     const route = makeRoute({ intlink_id: 'uuid-missing' })
 
-    const result = await TestBed.runInInjectionContext(() => IntegrityLinkResolver(route, {} as any))
+    const result = await TestBed.runInInjectionContext(() =>
+      IntegrityLinkResolver(route, {} as any)
+    )
 
     expect(mockStore.clearIntegrityLink).toHaveBeenCalled()
     expect(result).toBeUndefined()
@@ -103,7 +124,9 @@ describe('IntegrityLinkResolverWithRedirect', () => {
 
     expect(mockStore.clearIntegrityLink).toHaveBeenCalled()
     expect(result).toBeInstanceOf(RedirectCommand)
-    expect((result as RedirectCommand).redirectTo).toEqual(router.parseUrl('/import'))
+    expect((result as RedirectCommand).redirectTo).toEqual(
+      router.parseUrl('/import')
+    )
   })
 
   it('should return RedirectCommand to /import on 403', async () => {
