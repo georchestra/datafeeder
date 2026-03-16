@@ -13,5 +13,8 @@ GEOSERVER_URL=http://localhost:8080/geoserver
 GEOSERVER_USER=testadmin
 GEOSERVER_PASSWORD=testadmin
 
-# Airflow staging timeout (seconds)
+
+# Airflow staging timeout (seconds).
+# NOTE: Airflow loads env vars from ../.env, so set/override STAGING_TIMEOUT_SECONDS there
+# if you want this timeout to be configurable for Airflow.
 STAGING_TIMEOUT_SECONDS=3600
