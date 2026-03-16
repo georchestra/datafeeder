@@ -530,8 +530,6 @@ export class DataImportWizardComponent {
           return throwError(() => error)
         }),
         switchMap((response: DagRunStatusResponse) => {
-          console.log('Polled import status:', response.status)
-
           if (response.status === ImportStatus.FAILED) {
             const key = response.reason ?? 'import.dataSource.failedError'
             const errorMsg = this.translate.instant(key)
