@@ -181,6 +181,7 @@
   "i18nerror.transformation.columns_both_required": "Les colonnes X et Y sont toutes deux requises pour la création de géométrie",
   "i18nerror.transformation.geometry_creation_failed": "Erreur lors de la création des géométries à partir des colonnes spécifiées",
   "i18nerror.transformation.projection_application_failed": "Erreur lors de l'application de la projection au GeoDataFrame",
+  "i18nerror.staging.timeout": "Le délai d'attente du traitement a expiré. Votre fichier est peut-être trop volumineux ou le serveur est surchargé.",
   "import.columnAction.menu.changeType": "Changer le type",
   "import.columnAction.menu.filter": "Filtrer la colonne",
   "import.columnAction.menu.remove": "Retirer la colonne",

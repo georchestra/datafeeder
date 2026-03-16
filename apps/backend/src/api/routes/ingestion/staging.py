@@ -613,6 +613,7 @@ def dag_failure_callback(
     datafeeder_session: DatafeederSessionDep,
     data_session: DataSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
+    reason: str | None = Query(None, description="Failure reason"),
 ) -> None:
     """
     Failure callback endpoint called by Airflow DAG on failure.

@@ -70,6 +70,13 @@ class StatusResponse(BaseModel):
     status: TaskStatus
 
 
+class DagRunStatusResponse(BaseModel):
+    """Response model for DAG run status endpoint with optional failure reason"""
+
+    status: DagRunState
+    reason: str | None = None
+
+
 class ColumnMetadata(BaseModel):
     """Metadata for a single column (legacy: use ColumnConfig for full configuration)"""
 

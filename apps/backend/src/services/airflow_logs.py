@@ -13,6 +13,42 @@ from fastapi import HTTPException
 from .airflow_client import get_task_instance_api
 
 
+def get_failed_dag_run_reason(dag_id: str, dag_run_id: str) -> str | None:
+    """Return a short reason string for a failed DAG run.
+
+    - If no task is in 'failed' state (e.g. dagrun_timeout killed running tasks), returns 'timeout'.
+    - Otherwise parses the log of the first failed task to find the last AirflowException line.
+    """
+    try:
+        failed_tis: TaskInstanceCollectionResponse = get_task_instance_api().get_task_instances(
+            dag_id=dag_id, dag_run_id=dag_run_id, state=["failed"]
+        )
+        if not failed_tis.task_instances:
+            return "timeout"
+
+        ti: TaskInstanceResponse = failed_tis.task_instances[0]
+        dag_run_logs: TaskInstancesLogResponse = get_task_instance_api().get_log(
+            dag_id=dag_id,
+            dag_run_id=dag_run_id,
+            task_id=ti.task_id,
+            try_number=ti.try_number,
+            full_content=True,
+        )
+        log_entries = dag_run_logs.content.actual_instance
+        if not log_entries:
+            return None
+
+        for entry in reversed(log_entries):
+            text = entry if isinstance(entry, str) else str(getattr(entry, "event", ""))
+            if "AirflowException:" in text:
+                # Extract the part after "AirflowException:"
+                return text.split("AirflowException:", 1)[-1].strip()
+
+        return None
+    except Exception:
+        return None
+
+
 def generate_failed_dag_run_logs(dag_id: str, dag_run_id: str) -> str:
     try:
         failed_task_instances: TaskInstanceCollectionResponse = (

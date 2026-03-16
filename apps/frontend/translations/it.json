@@ -181,6 +181,7 @@
   "i18nerror.transformation.columns_both_required": "",
   "i18nerror.transformation.geometry_creation_failed": "",
   "i18nerror.transformation.projection_application_failed": "",
+  "i18nerror.staging.timeout": "",
   "import.columnAction.menu.changeType": "Cambia tipo",
   "import.columnAction.menu.filter": "Filtra colonna",
   "import.columnAction.menu.remove": "Rimuovi colonna",

@@ -12,3 +12,6 @@ BACKEND_HOST=http://datafeeder-backend:8000
 GEOSERVER_URL=http://localhost:8080/geoserver
 GEOSERVER_USER=testadmin
 GEOSERVER_PASSWORD=testadmin
+
+# Airflow staging timeout (seconds)
+STAGING_TIMEOUT_SECONDS=3600

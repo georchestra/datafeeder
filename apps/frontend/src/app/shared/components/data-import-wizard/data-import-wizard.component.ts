@@ -42,6 +42,7 @@ import {
 import type {
   ColumnConfigInput,
   DagRunState,
+  DagRunStatusResponse,
   ForceProjection,
   StagingResponse,
   StagingMetadataResponse,
@@ -71,6 +72,7 @@ marker('import.dataSource.error.extent')
 marker('i18nerror.transformation.geometry_creation_failed')
 marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
+marker('i18nerror.staging.timeout')
 marker('import.metadataPublication.error')
 marker('import.datasetLoadError.not_found')
 marker('import.datasetLoadError.forbidden')
@@ -510,8 +512,9 @@ export class DataImportWizardComponent {
           )
         ),
         takeWhile(
-          (status: DagRunState) =>
-            status === ImportStatus.QUEUED || status === ImportStatus.RUNNING,
+          (response: DagRunStatusResponse) =>
+            response.status === ImportStatus.QUEUED ||
+            response.status === ImportStatus.RUNNING,
           true
         ),
         timeout(MAX_POLL_TIME_MS),
@@ -526,14 +529,22 @@ export class DataImportWizardComponent {
           }
           return throwError(() => error)
         }),
-        switchMap((status: DagRunState) => {
-          if (status === ImportStatus.FAILED) {
-            const errorMsg = this.translate.instant(
-              'import.dataSource.failedError'
+        switchMap((response: DagRunStatusResponse) => {
+          console.log('Polled import status:', response.status)
+
+          if (response.status === ImportStatus.FAILED) {
+            const key = response.reason ?? 'import.dataSource.failedError'
+            const errorMsg = this.translate.instant(key)
+            return throwError(
+              () =>
+                new Error(
+                  errorMsg !== key
+                    ? errorMsg
+                    : this.translate.instant('import.dataSource.failedError')
+                )
             )
-            return throwError(() => new Error(errorMsg))
           }
-          return of(status)
+          return of(response)
         })
       )
     )

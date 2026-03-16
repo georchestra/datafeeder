@@ -12,6 +12,11 @@ export interface DagFailureCallbackIngestionStagingDagFailurePost$Params {
    * IntegrityLink ID
    */
   integrity_link_id: string
+
+  /**
+   * Failure reason
+   */
+  reason?: string | null
 }
 
 export function dagFailureCallbackIngestionStagingDagFailurePost(
@@ -27,6 +32,7 @@ export function dagFailureCallbackIngestionStagingDagFailurePost(
   )
   if (params) {
     rb.query('integrity_link_id', params.integrity_link_id, {})
+    rb.query('reason', params.reason, {})
   }
 
   return http

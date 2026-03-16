@@ -8,6 +8,9 @@ from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.core.task_executor import TaskStatus
 from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
+from src.models.data_import import DagRunStatusResponse
+from src.services.airflow_client import get_dag_run_api
+from src.services.airflow_logs import generate_failed_dag_run_logs, get_failed_dag_run_reason
 
 router = APIRouter(prefix="/airflow", tags=["Airflow"])
 
