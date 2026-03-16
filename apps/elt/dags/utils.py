@@ -43,11 +43,11 @@ def get_staging_schema() -> str:
 
 
 def get_staging_timeout() -> timedelta:
-    """Get the staging task execution timeout from STAGING_TIMEOUT_SECONDS env var, defaulting to 3600s."""
+    """Get the staging task execution timeout from STAGING_TIMEOUT_SECONDS env var, defaulting to 600s."""
     try:
-        seconds = int(os.environ.get("STAGING_TIMEOUT_SECONDS", "3600"))
+        seconds = int(os.environ.get("STAGING_TIMEOUT_SECONDS", "600"))
         if seconds <= 0:
             raise ValueError
     except ValueError:
-        seconds = 3600
+        seconds = 600
     return timedelta(seconds=seconds)

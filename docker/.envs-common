@@ -17,4 +17,4 @@ GEOSERVER_PASSWORD=testadmin
 # Airflow staging timeout (seconds).
 # NOTE: Airflow loads env vars from ../.env, so set/override STAGING_TIMEOUT_SECONDS there
 # if you want this timeout to be configurable for Airflow.
-STAGING_TIMEOUT_SECONDS=3600
+STAGING_TIMEOUT_SECONDS=600
