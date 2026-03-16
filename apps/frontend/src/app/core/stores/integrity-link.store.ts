@@ -29,6 +29,7 @@ export class IntegrityLinkStore {
 
       this.intlinkId.set(intlinkId)
       this.integrityLink.set(integrityLink)
+      this.loadError.set(null)
 
       return integrityLink
     } catch (error: any) {

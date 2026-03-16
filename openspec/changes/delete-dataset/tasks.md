@@ -75,10 +75,18 @@
 
 ## 9. Post-Implementation Bug Fix — Stale Reconfigure After Admin Deletion
 
-**Scenario**: An admin deletes a user's dataset while the user is on `intlink-layout`. The user then clicks "Reconfigure" in the sidebar, which navigates to `/import/:intlink_id`. The resolver calls `/api/ingestion/integrity-link/{id}`, gets 404, and sets `store.loadError = 'not_found'`, but the import wizard renders without surfacing the error — the user sees a blank wizard instead of feedback.
+**Scenario**: An admin deletes a user's dataset while the user is on `intlink-layout`. The user then clicks "Reconfigure" in the sidebar, which navigates to `/import/:intlink_id`. The resolver calls `/api/ingestion/integrity-link/{id}`, gets a 404, but the wizard component renders without surfacing the error.
 
-- [x] 9.1 In `DataImportWizardComponent` (`apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts`):
-  - Inject `Location` from `@angular/common`
-  - Extract a private `handleIntegrityLinkLoadError()` method: when `route.snapshot.params['intlink_id']` is set and `integrityLinkStore.loadError()` is non-null, set `importError()` with the translated message and call `location.replaceState('/import')` to strip the dead UUID from the URL
-  - Call `handleIntegrityLinkLoadError()` from the constructor
-- [x] 9.3 Update vitest tests: add `location` mock with `replaceState` spy; assert it is called with `'/import'` when store has `loadError = 'not_found'` and a route param is present; assert it is NOT called when no route param or no loadError
+**Approach**: Resolver-layer redirect using Angular's `RedirectCommand`. A `createIntegrityLinkResolver(redirectOnError?)` factory produces both the shared resolver (no redirect) and a specialized `ImportIntegrityLinkResolver` (redirects to `/import` on error). Navigation is intercepted before the component mounts — no URL manipulation needed.
+
+- [x] 9.1 Refactor `apps/frontend/src/app/core/resolvers/integrity-link.resolver.ts` into a `createIntegrityLinkResolver(redirectOnError?: string)` factory:
+  - On error (catch), call `integrityLinkStore.clearIntegrityLink()` and, if `redirectOnError` is set, return `new RedirectCommand(router.parseUrl(redirectOnError))`
+  - Export `IntegrityLinkResolver = createIntegrityLinkResolver()` (unchanged behavior for `intlink-layout` routes)
+  - Export `IntegrityLinkResolverWithRedirect = createIntegrityLinkResolver('/import')` (redirects on 404/403/500 for `import/:intlink_id`)
+  - Update `app.routes.ts` to use `IntegrityLinkResolverWithRedirect` for the `import/:intlink_id` route
+  - Clear `loadError` on successful load in `IntegrityLinkStore.loadIntegrityLink()`
+  - In `DataImportWizardComponent`, add `handleIntegrityLinkLoadError()`: reads `store.loadError()` on init, translates it into `importError`, then clears `store.loadError`
+- [x] 9.2 Add i18n keys `import.datasetLoadError.not_found`, `import.datasetLoadError.forbidden`, `import.datasetLoadError.server_error` to all 8 translation files (en/fr/de/nl/it/pt/es/sk) with proper native-language translations
+- [x] 9.3 Add tests:
+  - `apps/frontend/src/app/core/resolvers/integrity-link.resolver.spec.ts` (new): 9 tests covering `IntegrityLinkResolver` (basic load, parent params, no id, error→undefined) and `IntegrityLinkResolverWithRedirect` (404/403/500→`RedirectCommand('/import')`, success, no id)
+  - `DataImportWizardComponent` spec: 5 new tests in `handleIntegrityLinkLoadError` describe block; 79 tests total pass

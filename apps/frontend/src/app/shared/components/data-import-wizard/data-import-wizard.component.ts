@@ -4,7 +4,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { MatButtonToggleModule } from '@angular/material/button-toggle'
 import { MatTabsModule } from '@angular/material/tabs'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
-import { Location } from '@angular/common'
 import { ActivatedRoute, Router } from '@angular/router'
 import {
   iconoirMap,
@@ -122,7 +121,6 @@ export class DataImportWizardComponent {
   private translate = inject(TranslateService)
   private router = inject(Router)
   private route = inject(ActivatedRoute)
-  private location = inject(Location)
 
   integrityLinkStore = inject(IntegrityLinkStore)
 
@@ -168,7 +166,6 @@ export class DataImportWizardComponent {
     const stepParam = Number(this.route.snapshot.queryParamMap.get('step') ?? 1)
     const initialTab = stepParam === 2 ? 1 : 0
     this.selectedTabIndex.set(initialTab)
-
     this.handleIntegrityLinkLoadError()
 
     this.renameSubject
@@ -216,13 +213,12 @@ export class DataImportWizardComponent {
   }
 
   private handleIntegrityLinkLoadError(): void {
-    const intlinkId = this.route.snapshot.params['intlink_id']
     const loadError = this.integrityLinkStore.loadError()
-    if (intlinkId && loadError) {
+    if (loadError) {
       this.importError.set(
         this.translate.instant(`import.datasetLoadError.${loadError}`)
       )
-      this.location.replaceState('/import')
+      this.integrityLinkStore.loadError.set(null)
     }
   }
 

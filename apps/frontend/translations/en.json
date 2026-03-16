@@ -233,7 +233,7 @@
   "import.datasetPreviewTable.previewError": "Preview not available. Please check your configuration.",
   "import.metadataPublication.error": "",
   "import.datasetLoadError.forbidden": "You do not have permission to access this dataset.",
-  "import.datasetLoadError.not_found": "This dataset no longer exists. It may have been deleted by an administrator.",
+  "import.datasetLoadError.not_found": "This dataset no longer exists. It may have been deleted by its owner or an administrator.",
   "import.datasetLoadError.server_error": "An unexpected error occurred while loading the dataset. Please try again later.",
   "input.file.dropFileLabel": "or drop it here",
   "input.file.orInputUrl": "Or import a file from a link",
