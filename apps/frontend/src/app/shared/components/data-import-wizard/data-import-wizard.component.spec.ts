@@ -242,11 +242,20 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     status: 'queued'
   }
 
-  const mockStatusRunning: string = 'running'
+  const mockStatusRunning: { status: string; reason: null } = {
+    status: 'running',
+    reason: null
+  }
 
-  const mockStatusFinished: string = 'success'
+  const mockStatusFinished: { status: string; reason: null } = {
+    status: 'success',
+    reason: null
+  }
 
-  const mockStatusFailed: string = 'failed'
+  const mockStatusFailed: { status: string; reason: null } = {
+    status: 'failed',
+    reason: null
+  }
 
   beforeEach(async () => {
     mockIntegrityLinkStore = {
@@ -267,7 +276,8 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
             'import.dataSource.failedError': 'An error occured',
             'import.dataSource.missingUrl': 'Missing URL',
             'import.dataSource.processing': 'Processing...',
-            'import.dataSource.sending': 'Sending...'
+            'import.dataSource.sending': 'Sending...',
+            'i18nerror.staging.timeout': 'Processing timeout expired'
           }
         })
           .withDefaultLanguage('en')
