@@ -1,7 +1,6 @@
 """Ingestion task group."""
 
 import logging
-from datetime import timedelta
 from typing import Any, Literal
 
 from airflow.exceptions import AirflowException
@@ -20,7 +19,6 @@ from utils import (
     get_datafeeder_sql_engine,
     get_source_sql_engine,
     get_staging_schema,
-    get_staging_timeout,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,7 +61,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                 case _:
                     raise AirflowException(f"Unsupported source_type: {source_type}")
 
-        @task(task_id="file_ingest_step", execution_timeout=timedelta(seconds=3600))
+        @task(task_id="file_ingest_step")
         def file_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
             ti = context.get("ti")
@@ -147,7 +145,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from URL: {e}")
 
-        @task(task_id="ftp_ingest_step", execution_timeout=get_staging_timeout())
+        @task(task_id="ftp_ingest_step")
         def ftp_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
             ti = context.get("ti")
