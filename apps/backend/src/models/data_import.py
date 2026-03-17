@@ -3,7 +3,6 @@ from enum import Enum
 from typing import Any
 from uuid import UUID
 
-from airflow_client.client.models.dag_run_state import DagRunState
 from data_manipulation.models import CastType as CastType
 from data_manipulation.models import ColumnConfig as ColumnConfig
 from data_manipulation.models import ColumnFilter as ColumnFilter
@@ -11,6 +10,8 @@ from data_manipulation.models import FilterOperator as FilterOperator
 from geojson_pydantic import Feature, FeatureCollection
 from geojson_pydantic.geometries import Geometry
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from src.core.task_executor import TaskStatus
 
 
 class ImportType(str, Enum):
@@ -56,7 +57,7 @@ class StagingResponse(BaseModel):
     integrity_link_id: str
     dag_id: str
     dag_run_id: str
-    status: DagRunState
+    status: TaskStatus
 
 
 class ProcessResponse(BaseModel):
@@ -65,13 +66,13 @@ class ProcessResponse(BaseModel):
     integrity_link_id: str
     dag_id: str
     dag_run_id: str
-    status: DagRunState
+    status: TaskStatus
 
 
 class StatusResponse(BaseModel):
     """Response model for status endpoint"""
 
-    status: DagRunState
+    status: TaskStatus
 
 
 class ColumnMetadata(BaseModel):

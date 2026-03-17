@@ -96,6 +96,14 @@ The ELT application uses Apache Airflow for data orchestration and workflow mana
 - **Airflow API Documentation**: http://localhost:8081/docs
 - **Credentials**: `airflow/airflow`
 
+### Task Executors: Airflow 
+
+DataKern only supports one task execution engines: **Airflow** (default) and. 
+
+- **Airflow**: Full-featured workflow orchestration with web UI, suitable for complex workflows
+
+We will consider adding support for other task execution engines in the future based on user feedback and demand.
+
 ### GeoServer and GeoNetwork
 
 These services are included in the full setup of Datafeeder for geospatial data management.

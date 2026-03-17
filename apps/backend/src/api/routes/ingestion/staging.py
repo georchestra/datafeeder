@@ -7,7 +7,6 @@ from uuid import UUID, uuid4
 import geopandas as gpd
 import pandas as pd
 import requests
-from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from data_manipulation import (
     IntegrityTransformation,
     detect_column_type_from_sqla,
@@ -43,7 +42,7 @@ from src.models.data_import import (
     StagingPreviewResponse,
 )
 from src.models.integrity_link import IntegrityLink
-from src.services.airflow_client import get_dag_run_api
+from src.services.executor_factory import get_task_executor
 from src.services.files import delete_temp_file, upload_file_to_temp
 
 logger = get_logger()
@@ -174,7 +173,7 @@ async def _process_import_source(
     )
 
 
-def _trigger_staging_dag(
+def _trigger_staging_task(
     integrity_link: "IntegrityLink",
     staging_table_name: str,
     source: str,
@@ -198,30 +197,26 @@ def _trigger_staging_dag(
     )
 
     try:
-        dag_run_response = get_dag_run_api().trigger_dag_run(
-            dag_id="staging_dag",
-            trigger_dag_run_post_body=TriggerDAGRunPostBody(
-                dag_run_id=dag_run_id,
-                conf={
-                    "source": source,
-                    "source_type": import_type.value.upper(),
-                    "staging_table_name": staging_table_name,
-                    "encrypted_credentials": encrypted_password,
-                    "success_callback_url": success_callback_url,
-                    "failure_callback_url": failure_callback_url,
-                },
-            ),
+        executor = get_task_executor()
+        task_info = executor.trigger_staging_task(
+            run_id=dag_run_id,
+            staging_table_name=staging_table_name,
+            source=str(source),
+            source_type=import_type.value.upper(),
+            success_callback_url=success_callback_url,
+            failure_callback_url=failure_callback_url,
+            encrypted_credentials=encrypted_password,
         )
 
         return StagingResponse(
             integrity_link_id=str(integrity_link.id),
-            dag_id=dag_run_response.dag_id,
-            dag_run_id=dag_run_response.dag_run_id,
-            status=dag_run_response.state,
+            dag_id=task_info.task_id,
+            dag_run_id=task_info.run_id,
+            status=task_info.status,
         )
     except Exception as e:
-        logger.error(f"Error triggering Airflow DAG: {e}")
-        raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
+        logger.error(f"Error triggering task: {e}")
+        raise HTTPException(status_code=500, detail=f"Task execution error: {e}")
 
 
 def _extract_filetype(filename: str) -> FileType | None:
@@ -409,7 +404,7 @@ async def submit_staging(
         f"owner={sec_username} | org={sec_org} | table={staging_table_name}"
     )
 
-    return _trigger_staging_dag(
+    return _trigger_staging_task(
         integrity_link=integrity_link,
         staging_table_name=staging_table_name,
         source=import_source.source,
@@ -515,7 +510,7 @@ async def edit_staging(
         f"owner={integrity_link.integrity_owner} | org={integrity_link.integrity_organization} | table={staging_table_name}"
     )
 
-    return _trigger_staging_dag(
+    return _trigger_staging_task(
         integrity_link=integrity_link,
         staging_table_name=staging_table_name,
         source=import_source.source,

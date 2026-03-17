@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.database import create_schema, get_available_table_name
 from data_manipulation.models import IntegrityTransformation
@@ -25,8 +24,8 @@ from src.models import (
     ProcessResponse,
 )
 from src.models.integrity_link import IntegrityLink
-from src.services.airflow_client import get_dag_run_api
 from src.services.console_service import ConsoleService
+from src.services.executor_factory import get_task_executor
 from src.services.geoserver import GeoServerService  # type: ignore[attr-defined]
 from src.services.metadata_service import MetadataService
 
@@ -213,29 +212,25 @@ def process_staging_data(
     failure_callback_url = build_callback_url("/ingestion/process/dag_failure", callback_params)
 
     try:
-        dag_run_response = get_dag_run_api().trigger_dag_run(
-            dag_id="process_dag",
-            trigger_dag_run_post_body=TriggerDAGRunPostBody(
-                dag_run_id=dag_run_id,
-                conf={
-                    "staging_table_name": staging_table_name,
-                    "final_table_name": final_table_name,
-                    "integrity_transformation": integrity_link.integrity_transformation or {},
-                    "success_callback_url": success_callback_url,
-                    "failure_callback_url": failure_callback_url,
-                    "last_retrieval_timestamp": integrity_link.last_retrieval_timestamp,
-                },
-            ),
+        executor = get_task_executor()
+        task_info = executor.trigger_process_task(
+            run_id=dag_run_id,
+            staging_table_name=staging_table_name,
+            final_table_name=final_table_name,
+            integrity_transformation=integrity_link.integrity_transformation or {},
+            success_callback_url=success_callback_url,
+            failure_callback_url=failure_callback_url,
+            last_retrieval_timestamp=integrity_link.last_retrieval_timestamp,
         )
 
         return ProcessResponse(
             integrity_link_id=request.integrity_link_id,
-            dag_id=dag_run_response.dag_id,
-            dag_run_id=dag_run_response.dag_run_id,
-            status=dag_run_response.state,
+            dag_id=task_info.task_id,
+            dag_run_id=task_info.run_id,
+            status=task_info.status,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
+        raise HTTPException(status_code=500, detail=f"Task execution error: {e}")
 
 
 @router.post("/dag_success")

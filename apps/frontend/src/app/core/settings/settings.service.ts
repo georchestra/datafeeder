@@ -9,6 +9,7 @@ export interface ProjectionSetting {
 
 export interface AppSettings {
   projections?: ProjectionSetting[]
+  enabled_features?: string[]
 }
 
 @Injectable({

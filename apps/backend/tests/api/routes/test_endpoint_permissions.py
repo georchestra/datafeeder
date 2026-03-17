@@ -374,29 +374,29 @@ class TestAirflowDagRunStatusPermission:
 
         assert exc_info.value.status_code == 403
 
-    @patch("src.api.routes.airflow.get_dag_run_api")
-    def test_returns_result_for_read_group_user(self, mock_api: MagicMock) -> None:
+    @patch("src.api.routes.airflow.get_task_executor")
+    def test_returns_result_for_read_group_user(self, mock_executor: MagicMock) -> None:
         session = _mock_session_with_rule(_link(), RuleValue.READ)
-        mock_api.return_value.get_dag_run.return_value.state = MagicMock()
+        mock_executor.return_value.get_task_status.return_value.status = MagicMock()
 
         result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _read_ctx(), ORG_UUID)
 
         assert result is not None
 
-    @patch("src.api.routes.airflow.get_dag_run_api")
-    def test_returns_result_for_owner(self, mock_api: MagicMock) -> None:
+    @patch("src.api.routes.airflow.get_task_executor")
+    def test_returns_result_for_owner(self, mock_executor: MagicMock) -> None:
         session = _mock_session(_link(), access_result="OWNER")
-        mock_state = MagicMock()
-        mock_api.return_value.get_dag_run.return_value.state = mock_state
+        mock_status = MagicMock()
+        mock_executor.return_value.get_task_status.return_value.status = mock_status
 
         result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _owner_ctx(), None)
 
-        assert result is mock_state
+        assert result is mock_status
 
-    @patch("src.api.routes.airflow.get_dag_run_api")
-    def test_returns_result_for_admin(self, mock_api: MagicMock) -> None:
+    @patch("src.api.routes.airflow.get_task_executor")
+    def test_returns_result_for_admin(self, mock_executor: MagicMock) -> None:
         session = _mock_session(_link(), access_result="ADMIN")
-        mock_api.return_value.get_dag_run.return_value.state = MagicMock()
+        mock_executor.return_value.get_task_status.return_value.status = MagicMock()
 
         result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _admin_ctx(), None)
 
@@ -428,28 +428,28 @@ class TestAirflowDagRunLogsPermission:
 
         assert exc_info.value.status_code == 403
 
-    @patch("src.api.routes.airflow.generate_failed_dag_run_logs")
-    def test_returns_result_for_read_group_user(self, mock_logs: MagicMock) -> None:
+    @patch("src.api.routes.airflow.get_task_executor")
+    def test_returns_result_for_read_group_user(self, mock_executor: MagicMock) -> None:
         session = _mock_session_with_rule(_link(), RuleValue.READ)
-        mock_logs.return_value = "some log output"
+        mock_executor.return_value.get_task_logs.return_value = "some log output"
 
         result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _read_ctx(), ORG_UUID)
 
         assert result == "some log output"
 
-    @patch("src.api.routes.airflow.generate_failed_dag_run_logs")
-    def test_returns_result_for_owner(self, mock_logs: MagicMock) -> None:
+    @patch("src.api.routes.airflow.get_task_executor")
+    def test_returns_result_for_owner(self, mock_executor: MagicMock) -> None:
         session = _mock_session(_link(), access_result="OWNER")
-        mock_logs.return_value = "some log output"
+        mock_executor.return_value.get_task_logs.return_value = "some log output"
 
         result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _owner_ctx(), None)
 
         assert result == "some log output"
 
-    @patch("src.api.routes.airflow.generate_failed_dag_run_logs")
-    def test_returns_result_for_admin(self, mock_logs: MagicMock) -> None:
+    @patch("src.api.routes.airflow.get_task_executor")
+    def test_returns_result_for_admin(self, mock_executor: MagicMock) -> None:
         session = _mock_session(_link(), access_result="ADMIN")
-        mock_logs.return_value = "some log output"
+        mock_executor.return_value.get_task_logs.return_value = "some log output"
 
         result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _admin_ctx(), None)
 
