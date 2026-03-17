@@ -356,6 +356,32 @@ class MetadataService:
         )
         return self._resolve_group_by_org_name(session, self.metadata_default_group_name)
 
+    def delete_record(self, metadata_uuid: str) -> None:
+        """Delete a metadata record from GeoNetwork.
+
+        Treats 404 as success. Logs and suppresses other errors.
+
+        Args:
+            metadata_uuid: UUID of the metadata record to delete
+        """
+        try:
+            session = self.gn_api.session
+            response = session.delete(f"{self.gn_api.api_url}/records/{metadata_uuid}")
+            if response.status_code == 404:
+                logger.info(f"Metadata record not found (already deleted): {metadata_uuid}")
+                return
+            if response.status_code not in (200, 204):
+                logger.error(
+                    f"Unexpected status {response.status_code} deleting metadata record {metadata_uuid}"
+                )
+            else:
+                logger.info(f"Deleted metadata record: {metadata_uuid}")
+        except Exception as e:
+            logger.error(
+                f"Failed to delete metadata record {metadata_uuid}: {e}",
+                exc_info=True,
+            )
+
     def toggle_publish_metadata_record(self, metadata_uuid: str, publish: bool) -> None:
         """Toggle publication status of a metadata record in GeoNetwork.
 

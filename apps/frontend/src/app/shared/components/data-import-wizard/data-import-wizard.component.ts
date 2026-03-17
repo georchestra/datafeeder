@@ -67,6 +67,9 @@ marker('i18nerror.transformation.geometry_creation_failed')
 marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
 marker('import.metadataPublication.error')
+marker('import.datasetLoadError.not_found')
+marker('import.datasetLoadError.forbidden')
+marker('import.datasetLoadError.server_error')
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 120000
@@ -163,6 +166,7 @@ export class DataImportWizardComponent {
     const stepParam = Number(this.route.snapshot.queryParamMap.get('step') ?? 1)
     const initialTab = stepParam === 2 ? 1 : 0
     this.selectedTabIndex.set(initialTab)
+    this.handleIntegrityLinkLoadError()
 
     this.renameSubject
       .pipe(debounceTime(400), takeUntilDestroyed())
@@ -206,6 +210,16 @@ export class DataImportWizardComponent {
         this.previewErrorExtent.set(null)
       }
     })
+  }
+
+  private handleIntegrityLinkLoadError(): void {
+    const loadError = this.integrityLinkStore.loadError()
+    if (loadError) {
+      this.importError.set(
+        this.translate.instant(`import.datasetLoadError.${loadError}`)
+      )
+      this.integrityLinkStore.loadError.set(null)
+    }
   }
 
   validFtp(source: SourceData): boolean {

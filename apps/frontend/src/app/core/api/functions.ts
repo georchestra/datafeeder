@@ -3,8 +3,6 @@
 
 export type { HealthCheckUtilsHealthCheckGet$Params as HealthCheckUtilsHealthCheckGet$Params } from './fn/utils/health-check-utils-health-check-get'
 export { healthCheckUtilsHealthCheckGet as healthCheckUtilsHealthCheckGet } from './fn/utils/health-check-utils-health-check-get'
-export type { GetDagRunsAirflowDagsDagIdRunsGet$Params as GetDagRunsAirflowDagsDagIdRunsGet$Params } from './fn/airflow/get-dag-runs-airflow-dags-dag-id-runs-get'
-export { getDagRunsAirflowDagsDagIdRunsGet as getDagRunsAirflowDagsDagIdRunsGet } from './fn/airflow/get-dag-runs-airflow-dags-dag-id-runs-get'
 export type { GetDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet$Params as GetDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet$Params } from './fn/airflow/get-dag-run-by-intlink-airflow-dags-dag-id-runs-intlink-id-get'
 export { getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet as getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet } from './fn/airflow/get-dag-run-by-intlink-airflow-dags-dag-id-runs-intlink-id-get'
 export type { GetDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet$Params as GetDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet$Params } from './fn/airflow/get-dag-run-status-airflow-dags-dag-id-runs-dag-run-id-status-get'
@@ -37,6 +35,8 @@ export type { ListIntegrityLinksIngestionIntegrityLinksGet$Params as ListIntegri
 export { listIntegrityLinksIngestionIntegrityLinksGet as listIntegrityLinksIngestionIntegrityLinksGet } from './fn/ingestion/list-integrity-links-ingestion-integrity-links-get'
 export type { GetIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet$Params as GetIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet$Params } from './fn/ingestion/get-integrity-link-ingestion-integrity-link-integrity-link-id-get'
 export { getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet as getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet } from './fn/ingestion/get-integrity-link-ingestion-integrity-link-integrity-link-id-get'
+export type { DeleteIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdDelete$Params as DeleteIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdDelete$Params } from './fn/ingestion/delete-integrity-link-ingestion-integrity-link-integrity-link-id-delete'
+export { deleteIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdDelete as deleteIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdDelete } from './fn/ingestion/delete-integrity-link-ingestion-integrity-link-integrity-link-id-delete'
 export type { ListIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet$Params as ListIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet$Params } from './fn/ingestion/list-integrity-link-rules-ingestion-integrity-link-integrity-link-id-rules-get'
 export { listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet as listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet } from './fn/ingestion/list-integrity-link-rules-ingestion-integrity-link-integrity-link-id-rules-get'
 export type { UpsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut$Params as UpsertIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesPut$Params } from './fn/ingestion/upsert-integrity-link-rule-ingestion-integrity-link-integrity-link-id-rules-put'

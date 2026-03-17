@@ -16,6 +16,7 @@ from fastapi import HTTPException
 
 from src.api.routes.airflow import get_dag_run_by_intlink, get_dag_run_logs, get_dag_run_status
 from src.api.routes.ingestion.integrity_link import (
+    delete_integrity_link,
     delete_integrity_link_rule,
     get_integrity_link,
     list_integrity_link_rules,
@@ -620,3 +621,110 @@ class TestGetStagingPreviewPermission:
             get_staging_preview(MagicMock(), MagicMock(), _ctx(), INTLINK_ID, None)
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_WRITE, ANY, ANY, ANY)
+
+
+# ────────────────────────────────────────────────────────
+# DELETE /ingestion/integrity-link/{id}  (OWNER_ONLY)
+# ────────────────────────────────────────────────────────
+
+
+class TestDeleteIntegrityLinkPermission:
+    def test_returns_403_for_unauthorized_user(self) -> None:
+        session = _mock_session(_link())
+
+        with pytest.raises(HTTPException) as exc_info:
+            delete_integrity_link(session, _ctx(), INTLINK_ID, None)
+
+        assert exc_info.value.status_code == 403
+
+    def test_returns_403_for_non_owner(self) -> None:
+        """A writer (group rule) cannot delete — OWNER_ONLY endpoint."""
+        session = _mock_session_with_rule(_link(), RuleValue.WRITE)
+
+        with pytest.raises(HTTPException) as exc_info:
+            delete_integrity_link(session, _write_ctx(), INTLINK_ID, ORG_UUID)
+
+        assert exc_info.value.status_code == 403
+
+    @patch("src.api.routes.ingestion.integrity_link.DatasetDeletionService")
+    @patch("src.api.routes.ingestion.integrity_link.GeoServerService")
+    @patch("src.api.routes.ingestion.integrity_link.MetadataService")
+    @patch("src.api.routes.ingestion.integrity_link.get_settings")
+    def test_returns_204_for_owner(
+        self,
+        mock_settings: MagicMock,
+        mock_metadata_svc: MagicMock,
+        mock_geoserver_svc: MagicMock,
+        mock_deletion_svc_cls: MagicMock,
+    ) -> None:
+        """Owner can delete their own dataset."""
+        session = _mock_session(_link(), access_result="OWNER")
+        mock_deletion_svc = MagicMock()
+        mock_deletion_svc_cls.return_value = mock_deletion_svc
+
+        response = delete_integrity_link(session, _owner_ctx(), INTLINK_ID, None)
+
+        assert response.status_code == 204
+        mock_deletion_svc.delete_dataset.assert_called_once()
+
+    @patch("src.api.routes.ingestion.integrity_link.DatasetDeletionService")
+    @patch("src.api.routes.ingestion.integrity_link.GeoServerService")
+    @patch("src.api.routes.ingestion.integrity_link.MetadataService")
+    @patch("src.api.routes.ingestion.integrity_link.get_settings")
+    def test_returns_204_for_admin(
+        self,
+        mock_settings: MagicMock,
+        mock_metadata_svc: MagicMock,
+        mock_geoserver_svc: MagicMock,
+        mock_deletion_svc_cls: MagicMock,
+    ) -> None:
+        """Admin can delete any dataset."""
+        session = _mock_session(_link(), access_result="ADMIN")
+        mock_deletion_svc = MagicMock()
+        mock_deletion_svc_cls.return_value = mock_deletion_svc
+
+        response = delete_integrity_link(session, _admin_ctx(), INTLINK_ID, None)
+
+        assert response.status_code == 204
+        mock_deletion_svc.delete_dataset.assert_called_once()
+
+    def test_returns_404_for_unknown_id(self) -> None:
+        """Unknown integrity_link_id returns 404."""
+        session = _mock_session(None)  # no link found
+
+        with pytest.raises(HTTPException) as exc_info:
+            delete_integrity_link(session, _owner_ctx(), str(uuid4()), None)
+
+        assert exc_info.value.status_code == 404
+
+    @patch("src.api.routes.ingestion.integrity_link.DatasetDeletionService")
+    @patch("src.api.routes.ingestion.integrity_link.GeoServerService")
+    @patch("src.api.routes.ingestion.integrity_link.MetadataService")
+    @patch("src.api.routes.ingestion.integrity_link.get_settings")
+    def test_returns_500_on_dag_deletion_failure(
+        self,
+        mock_settings: MagicMock,
+        mock_metadata_svc: MagicMock,
+        mock_geoserver_svc: MagicMock,
+        mock_deletion_svc_cls: MagicMock,
+    ) -> None:
+        """DAG deletion failure returns HTTP 500."""
+        session = _mock_session(_link(), access_result="OWNER")
+        mock_deletion_svc = MagicMock()
+        mock_deletion_svc.delete_dataset.side_effect = Exception("Airflow error")
+        mock_deletion_svc_cls.return_value = mock_deletion_svc
+
+        with pytest.raises(HTTPException) as exc_info:
+            delete_integrity_link(session, _owner_ctx(), INTLINK_ID, None)
+
+        assert exc_info.value.status_code == 500
+
+    @patch("src.api.routes.ingestion.integrity_link.load_authorized_integrity_link")
+    def test_requires_owner_only_access_level(self, mock_load: MagicMock) -> None:
+        """Verify endpoint passes AccessLevel.OWNER_ONLY."""
+        mock_load.side_effect = HTTPException(status_code=403)
+
+        with pytest.raises(HTTPException):
+            delete_integrity_link(MagicMock(), _ctx(), INTLINK_ID, None)
+
+        mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.OWNER_ONLY, ANY, ANY, ANY)

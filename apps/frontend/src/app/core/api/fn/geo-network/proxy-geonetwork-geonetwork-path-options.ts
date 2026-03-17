@@ -7,27 +7,23 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-import { DagRunCollectionResponse } from '../../models/dag-run-collection-response'
-
-export interface GetDagRunsAirflowDagsDagIdRunsGet$Params {
-  dag_id: string
-  limit?: number
+export interface ProxyGeonetworkGeonetworkPathOptions$Params {
+  path: string
 }
 
-export function getDagRunsAirflowDagsDagIdRunsGet(
+export function proxyGeonetworkGeonetworkPathOptions(
   http: HttpClient,
   rootUrl: string,
-  params: GetDagRunsAirflowDagsDagIdRunsGet$Params,
+  params: ProxyGeonetworkGeonetworkPathOptions$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<DagRunCollectionResponse>> {
+): Observable<StrictHttpResponse<any>> {
   const rb = new requestBuilders(
     rootUrl,
-    getDagRunsAirflowDagsDagIdRunsGet.PATH,
+    proxyGeonetworkGeonetworkPathOptions.PATH,
     'get'
   )
   if (params) {
-    rb.path('dag_id', params.dag_id, {})
-    rb.query('limit', params.limit, {})
+    rb.path('path', params.path, {})
   }
 
   return http
@@ -37,9 +33,9 @@ export function getDagRunsAirflowDagsDagIdRunsGet(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<DagRunCollectionResponse>
+        return r as StrictHttpResponse<any>
       })
     )
 }
 
-getDagRunsAirflowDagsDagIdRunsGet.PATH = '/airflow/dags/{dag_id}/runs'
+proxyGeonetworkGeonetworkPathOptions.PATH = '/geonetwork/{path}'

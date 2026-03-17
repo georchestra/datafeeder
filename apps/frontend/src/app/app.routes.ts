@@ -1,6 +1,9 @@
 import { Route } from '@angular/router'
 import { MainLayoutComponent } from './layout/main-layout.component'
-import { IntegrityLinkResolver } from './core/resolvers/integrity-link.resolver'
+import {
+  IntegrityLinkResolverWithRedirect,
+  IntegrityLinkResolver
+} from './core/resolvers/integrity-link.resolver'
 
 export const appRoutes: Route[] = [
   {
@@ -31,7 +34,7 @@ export const appRoutes: Route[] = [
             (m) => m.ImportComponent
           ),
         resolve: {
-          integrityLink: IntegrityLinkResolver
+          integrityLink: IntegrityLinkResolverWithRedirect
         }
       },
       {

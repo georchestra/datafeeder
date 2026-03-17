@@ -5,6 +5,8 @@ import {
 } from '@angular/common/http/testing'
 import { TestBed } from '@angular/core/testing'
 import { Router } from '@angular/router'
+import { MatDialog } from '@angular/material/dialog'
+import { of } from 'rxjs'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { ApiConfiguration } from '../../core/api/api-configuration'
@@ -14,6 +16,7 @@ import { IntegrityLinkListComponent } from './integrity-link-list.component'
 describe('IntegrityLinkListComponent', () => {
   let httpMock: HttpTestingController
   let router: Router
+  let matDialog: { open: ReturnType<typeof vi.fn> }
 
   // Mock data helper function
   const createMockItem = (
@@ -52,6 +55,7 @@ describe('IntegrityLinkListComponent', () => {
   }
 
   beforeEach(async () => {
+    matDialog = { open: vi.fn() }
     await TestBed.configureTestingModule({
       imports: [
         IntegrityLinkListComponent,
@@ -59,7 +63,11 @@ describe('IntegrityLinkListComponent', () => {
           en: {
             'integrityLinks.title': 'Integrity Links',
             'integrityLinks.loadMore': 'Load More',
-            'integrityLinks.noItems': 'No items'
+            'integrityLinks.noItems': 'No items',
+            'dashboard.deleteDataset': 'Delete dataset',
+            'dashboard.deleteDatasetConfirm': 'Are you sure?',
+            'common.cancel': 'Cancel',
+            'common.delete': 'Delete'
           }
         })
           .withDefaultLanguage('en')
@@ -71,6 +79,10 @@ describe('IntegrityLinkListComponent', () => {
         {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
+        },
+        {
+          provide: MatDialog,
+          useValue: matDialog
         }
       ]
     }).compileComponents()
@@ -631,6 +643,135 @@ describe('IntegrityLinkListComponent', () => {
       // Existing items should be preserved
       expect(component.integrityLinks().length).toBe(2)
       expect(component.integrityLinks()[0].id).toBe('1')
+    })
+  })
+
+  describe('Delete Dataset', () => {
+    const setupWithItems = async (items: IntegrityLinkListItem[]) => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      const req = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      req.flush({ items, has_more: false, offset: 0 })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      return { fixture, component }
+    }
+
+    it('should call DELETE API on deleteIntegrityLink when confirmed', async () => {
+      const { component } = await setupWithItems([
+        createMockItem('1'),
+        createMockItem('2')
+      ])
+
+      matDialog.open.mockReturnValue({ afterClosed: () => of(true) })
+
+      const event = new MouseEvent('click')
+      vi.spyOn(event, 'stopPropagation')
+
+      const deletePromise = component.deleteIntegrityLink(event, '1')
+
+      expect(event.stopPropagation).toHaveBeenCalled()
+      await Promise.resolve()
+
+      const deleteReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-link/1'
+      )
+      expect(deleteReq.request.method).toBe('DELETE')
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' })
+
+      await deletePromise
+    })
+
+    it('should remove item from list on successful delete (204)', async () => {
+      const { component } = await setupWithItems([
+        createMockItem('1'),
+        createMockItem('2')
+      ])
+
+      expect(component.integrityLinks().length).toBe(2)
+
+      matDialog.open.mockReturnValue({ afterClosed: () => of(true) })
+
+      const deletePromise = component.deleteIntegrityLink(
+        new MouseEvent('click'),
+        '1'
+      )
+      await Promise.resolve()
+
+      const deleteReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-link/1'
+      )
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' })
+
+      await deletePromise
+
+      expect(component.integrityLinks().length).toBe(1)
+      expect(component.integrityLinks()[0].id).toBe('2')
+    })
+
+    it('should NOT remove item from list on API failure', async () => {
+      const { component } = await setupWithItems([
+        createMockItem('1'),
+        createMockItem('2')
+      ])
+
+      expect(component.integrityLinks().length).toBe(2)
+
+      matDialog.open.mockReturnValue({ afterClosed: () => of(true) })
+
+      const deletePromise = component.deleteIntegrityLink(
+        new MouseEvent('click'),
+        '1'
+      )
+      await Promise.resolve()
+
+      const deleteReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-link/1'
+      )
+      deleteReq.error(new ProgressEvent('Network error'), {
+        status: 500,
+        statusText: 'Server Error'
+      })
+
+      await deletePromise
+
+      expect(component.integrityLinks().length).toBe(2)
+    })
+
+    it('should NOT call API when user cancels confirm dialog', async () => {
+      const { component } = await setupWithItems([createMockItem('1')])
+
+      matDialog.open.mockReturnValue({ afterClosed: () => of(false) })
+
+      await component.deleteIntegrityLink(new MouseEvent('click'), '1')
+
+      httpMock.expectNone('http://localhost:8000/ingestion/integrity-link/1')
+
+      expect(component.integrityLinks().length).toBe(1)
+    })
+
+    it('should reset deleting signal after completion', async () => {
+      const { component } = await setupWithItems([createMockItem('1')])
+
+      matDialog.open.mockReturnValue({ afterClosed: () => of(true) })
+
+      const deletePromise = component.deleteIntegrityLink(
+        new MouseEvent('click'),
+        '1'
+      )
+      await Promise.resolve()
+
+      const deleteReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-link/1'
+      )
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' })
+
+      await deletePromise
+
+      expect(component.deleting()).toBeNull()
     })
   })
 })

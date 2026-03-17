@@ -13,6 +13,8 @@ from src.core.security import (
 from src.models.data_import import IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, UpsertRuleRequest
+from src.services.dataset_deletion_service import DatasetDeletionService
+from src.services.geoserver import GeoServerService
 from src.services.metadata_service import MetadataService
 
 logger = get_logger()
@@ -200,3 +202,55 @@ def toggle_publish_gn_integrity_link(
         )
 
     return IntegrityLinkResponse.model_validate(integrity_link)
+
+
+@router.delete(
+    "/{integrity_link_id}",
+    status_code=204,
+    summary="Delete a dataset and all associated resources",
+    description=(
+        "Deletes the dataset and triggers cleanup of: Airflow DAG (if scheduled), "
+        "GeoServer layer, data tables, GeoNetwork record, and the IntegrityLink row. "
+        "DAG deletion is the only blocking step — failure returns HTTP 500. "
+        "All other steps are best-effort."
+    ),
+)
+def delete_integrity_link(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    integrity_link_id: str,
+    org_id: OrgIdDep,
+) -> Response:
+    """Delete a dataset and all associated resources."""
+    integrity_link, _ = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, org_id
+    )
+
+    settings = get_settings()
+    geoserver_service = GeoServerService(
+        base_url=settings.GEOSERVER_URL,
+        username=settings.GEOSERVER_USER,
+        password=settings.GEOSERVER_PASSWORD,
+        public_url=settings.DATA_PUBLIC_URL,
+    )
+    metadata_service = MetadataService(
+        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        datadir_path=settings.DATADIR_PATH,
+        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        verify_tls=False,
+    )
+    deletion_service = DatasetDeletionService(
+        geoserver_service=geoserver_service,
+        metadata_service=metadata_service,
+    )
+
+    try:
+        deletion_service.delete_dataset(integrity_link, session)
+    except Exception as e:
+        logger.error(
+            f"Failed to delete dataset {integrity_link_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to delete dataset: {e}")
+
+    return Response(status_code=204)

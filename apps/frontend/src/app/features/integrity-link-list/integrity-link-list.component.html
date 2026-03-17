@@ -33,13 +33,13 @@
     </div>
 
     <!-- Rows -->
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-1">
       @for (link of integrityLinks(); track link.id) {
       <div
         [class]="
           isReadOnly(link)
-            ? 'flex rounded-md bg-beige py-3 transition-colors opacity-60 cursor-default'
-            : 'flex cursor-pointer rounded-md bg-beige py-3 transition-colors hover:bg-gray-100'
+            ? 'group flex rounded-md bg-beige h-[34px] items-center transition-colors opacity-60 cursor-default'
+            : 'group flex cursor-pointer rounded-md bg-beige h-[34px] items-center transition-colors hover:bg-gray-100'
         "
         (click)="onRowClick(link)"
       >
@@ -64,6 +64,19 @@
         </div>
         <div class="w-48 text-sm text-gray-2">
           {{ link.integrity_owner }}
+        </div>
+        <div class="flex w-[44px] shrink-0 items-center justify-center">
+          @if (canDelete(link)) {
+          <button
+            type="button"
+            class="flex items-center justify-center rounded bg-white p-1 text-primary opacity-0 transition-colors hover:bg-[#FACED2] group-hover:opacity-100 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-50"
+            [disabled]="deleting() !== null"
+            [attr.aria-label]="'dashboard.deleteDataset' | translate"
+            (click)="deleteIntegrityLink($event, link.id)"
+          >
+            <ng-icon name="iconoirTrash" size="1.1em"></ng-icon>
+          </button>
+          }
         </div>
       </div>
       }
