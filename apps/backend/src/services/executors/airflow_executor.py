@@ -112,10 +112,5 @@ class AirflowTaskExecutor(BaseTaskExecutor):
 
     def get_task_logs(self, task_id: str, run_id: str) -> str:
         """Get logs for a task in Airflow."""
-        # This would need to be implemented using the Airflow logs service
+        return generate_failed_dag_run_logs(task_id, run_id)
 
-        try:
-            logs = generate_failed_dag_run_logs(task_id, run_id)
-            return logs
-        except Exception as e:
-            return f"Error retrieving logs: {str(e)}"
