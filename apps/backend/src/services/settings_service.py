@@ -4,9 +4,9 @@ import json
 from functools import lru_cache
 from typing import Any
 
-from src.core.task_executor import TaskExecutorType
 from src.core.config import get_settings
 from src.core.logging import get_logger
+from src.core.task_executor import TaskExecutorType
 
 logger = get_logger()
 

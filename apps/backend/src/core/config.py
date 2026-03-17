@@ -22,9 +22,9 @@ from pydantic import (
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 from typing_extensions import Self
 
-from src.core.task_executor import TaskExecutorType
 from src.core.logging import get_logger
 from src.core.paths import get_default_datadir
+from src.core.task_executor import TaskExecutorType
 from src.plugins.PropertiesConfigSettingsSource import PropertiesConfigSettingsSource
 
 logger = get_logger()

@@ -73,7 +73,6 @@ class AirflowTaskExecutor(BaseTaskExecutor):
         integrity_transformation: dict[str, Any] | None = None,
         success_callback_url: str | None = None,
         failure_callback_url: str | None = None,
-        encrypted_credentials: str | None = None,
         last_retrieval_timestamp: datetime | None = None,
     ) -> TaskRunInfo:
         """Trigger a process task in Airflow."""
@@ -113,4 +112,3 @@ class AirflowTaskExecutor(BaseTaskExecutor):
     def get_task_logs(self, task_id: str, run_id: str) -> str:
         """Get logs for a task in Airflow."""
         return generate_failed_dag_run_logs(task_id, run_id)
-
