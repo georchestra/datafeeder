@@ -43,7 +43,7 @@ georchestra:
       frontend:
         target: ${georchestra.gateway.services.frontend.target}
         access-rules:
-        - intercept-url: /datafeeder**, /datafeeder/**
+        - intercept-url: /dataset**, /dataset/**
           anonymous: false
           allowed-roles: IMPORT
         headers:
