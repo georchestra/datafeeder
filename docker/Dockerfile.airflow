@@ -11,13 +11,13 @@ WORKDIR /app
 
 RUN uv run poe install && uv build libs/data_manipulation
 
-FROM apache/airflow:3.1.7 as airflow_prod
+FROM apache/airflow:3.1.8 as airflow_prod
 # copy the built wheel directory from builder and install any wheels found
 COPY --from=builder --chown=airflow /app/dist/ /tmp/dist
 COPY --chown=airflow ../apps/elt/dags/ /opt/airflow/dags/
 RUN pip install --no-cache-dir /tmp/dist/*.whl
 
-FROM apache/airflow:3.1.7 as airflow_dev
+FROM apache/airflow:3.1.8 as airflow_dev
 
 # Dependencies from libs/data_manipulation/pyproject.toml
 RUN pip install \
