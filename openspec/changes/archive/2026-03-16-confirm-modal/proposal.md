@@ -23,5 +23,5 @@ The dataset delete action uses `window.confirm()` for user confirmation — a na
 
 - **Frontend only** — no backend, ELT, or database changes
 - `apps/frontend/src/app/features/integrity-link-list/` — updated to use `MatDialog.open(ConfirmationDialogComponent)` instead of `window.confirm()`
-- `apps/frontend/translations/` — existing i18n keys reused; no new keys needed
+- `apps/frontend/translations/` — new i18n keys added (`common.cancel`, `common.delete`, `dashboard.deleteDataset`, `dashboard.deleteDatasetConfirm`)
 - `geonetwork-ui: 2.9.0-dev.60c0e5e0d` and `@angular/material: 20.2.14` are both direct dependencies — no new packages needed

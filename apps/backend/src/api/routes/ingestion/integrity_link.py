@@ -251,6 +251,6 @@ def delete_integrity_link(
             f"Failed to delete dataset {integrity_link_id}: {e}",
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail="Failed to delete dataset: DAG deletion error")
+        raise HTTPException(status_code=500, detail=f"Failed to delete dataset: {e}")
 
     return Response(status_code=204)

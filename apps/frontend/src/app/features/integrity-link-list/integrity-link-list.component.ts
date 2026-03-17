@@ -115,6 +115,7 @@ export class IntegrityLinkListComponent {
 
   async deleteIntegrityLink(event: Event, id: string): Promise<void> {
     event.stopPropagation()
+    ;(event.currentTarget as HTMLElement)?.blur()
     if (this.deleting()) return
     const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
       data: {

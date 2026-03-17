@@ -4,11 +4,11 @@ Users need the ability to delete their own datasets from the dashboard to comple
 
 ## What Changes
 
-- **New DELETE endpoint** `DELETE /api/dataset/{id}` — removes the dataset and triggers full resource cleanup
+- **New DELETE endpoint** `DELETE /api/ingestion/integrity-link/{id}` — removes the dataset and triggers full resource cleanup
 - **Permission check** — only the dataset owner or an admin can delete; returns 403 for unauthorized attempts
 - **Cascading cleanup** — deletion triggers sequential removal of: Airflow DAG (if recurrent), GeoServer layer, data table, GeoNetwork record, integrity link (via `ON DELETE CASCADE`)
 - **Error handling** — DAG deletion is the only blocking step: if it fails, the backend returns an error and no further cleanup is performed; subsequent steps are best-effort without rollback
-- **Frontend delete action** — a trash icon button appears on row hover in the dataset list; confirmation handled via the existing UI pattern; disappears from list on success
+- **Frontend delete action** — a trash icon button appears on row hover in the dataset list; confirmation handled via `ConfirmationDialogComponent` (`MatDialog`); row removed from the signals-based list on success
 - **Admin override** — administrators can delete any dataset regardless of ownership
 
 ## Capabilities

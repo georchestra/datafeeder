@@ -69,8 +69,8 @@
           @if (canDelete(link)) {
           <button
             type="button"
-            class="hidden group-hover:flex items-center justify-center rounded bg-white p-1 text-primary transition-colors hover:bg-[#FACED2] disabled:cursor-not-allowed disabled:opacity-50"
-            [disabled]="deleting() === link.id"
+            class="flex items-center justify-center rounded bg-white p-1 text-primary opacity-0 transition-colors hover:bg-[#FACED2] group-hover:opacity-100 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-50"
+            [disabled]="deleting() !== null"
             [attr.aria-label]="'dashboard.deleteDataset' | translate"
             (click)="deleteIntegrityLink($event, link.id)"
           >

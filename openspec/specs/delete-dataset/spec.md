@@ -32,7 +32,7 @@ Un administrateur SHALL pouvoir supprimer n'importe quel dataset, quel que soit 
 
 ### Requirement: Nettoyage des ressources associées lors de la suppression
 
-Lors de la suppression d'un dataset, le système SHALL nettoyer toutes les ressources associées dans l'ordre suivant : DAG Airflow (si récurrence), couche GeoServer, table de données finale, fiche GeoNetwork, enregistrement IntegrityLink (avec cascade sur IntegrityLinkRule).
+Lors de la suppression d'un dataset, le système SHALL nettoyer toutes les ressources associées dans l'ordre suivant : DAG Airflow (si récurrence), couche GeoServer, table de données finale, table de staging (best-effort, pour capturer les orphelins d'ingestions échouées), fiche GeoNetwork, enregistrement IntegrityLink (avec cascade sur IntegrityLinkRule).
 
 #### Scenario: Suppression complète d'un dataset avec récurrence
 
@@ -40,6 +40,7 @@ Lors de la suppression d'un dataset, le système SHALL nettoyer toutes les resso
 - **THEN** le DAG Airflow correspondant est supprimé
 - **THEN** la couche GeoServer est supprimée
 - **THEN** la table de données finale est supprimée
+- **THEN** la table de staging est supprimée (best-effort — `DROP TABLE IF EXISTS`)
 - **THEN** la fiche GeoNetwork est supprimée
 - **THEN** l'enregistrement IntegrityLink est supprimé de la base de données
 - **THEN** les IntegrityLinkRules associées sont supprimées par cascade
@@ -48,7 +49,7 @@ Lors de la suppression d'un dataset, le système SHALL nettoyer toutes les resso
 
 - **WHEN** un dataset sans `schedule` est supprimé
 - **THEN** aucune opération Airflow n'est tentée
-- **THEN** les autres ressources (GeoServer, table, GeoNetwork, IntegrityLink) sont supprimées
+- **THEN** les autres ressources (GeoServer, table, table de staging, GeoNetwork, IntegrityLink) sont supprimées
 
 #### Scenario: Ressource GeoServer ou GeoNetwork introuvable
 
