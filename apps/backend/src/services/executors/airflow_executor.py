@@ -1,5 +1,6 @@
 """Airflow task executor implementation."""
 
+import logging
 from datetime import datetime
 from typing import Any
 
@@ -10,6 +11,8 @@ from src.core.task_executor import BaseTaskExecutor, TaskRunInfo, TaskStatus
 from src.services.airflow_client import get_dag_run_api
 from src.services.airflow_logs import generate_failed_dag_run_logs
 
+logger = logging.getLogger(__name__)
+
 
 def _convert_airflow_status(airflow_status: DagRunState) -> TaskStatus:
     """Convert Airflow DAG run state to unified TaskStatus."""
@@ -19,7 +22,11 @@ def _convert_airflow_status(airflow_status: DagRunState) -> TaskStatus:
         DagRunState.SUCCESS: TaskStatus.SUCCESS,
         DagRunState.FAILED: TaskStatus.FAILED,
     }
-    return mapping.get(airflow_status, TaskStatus.QUEUED)
+    mapped = mapping.get(airflow_status)
+    if mapped is None:
+        logger.warning("Couldn't map %s to TaskStatus, fallback to QUEUED", airflow_status.value)
+        return TaskStatus.QUEUED
+    return mapped
 
 
 class AirflowTaskExecutor(BaseTaskExecutor):

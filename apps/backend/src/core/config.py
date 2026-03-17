@@ -22,6 +22,7 @@ from pydantic import (
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 from typing_extensions import Self
 
+from src.core.task_executor import TaskExecutorType
 from src.core.logging import get_logger
 from src.core.paths import get_default_datadir
 from src.plugins.PropertiesConfigSettingsSource import PropertiesConfigSettingsSource
@@ -109,7 +110,7 @@ class Settings(BaseSettings):
     )
 
     # Task Executor Configuration (AIRFLOW)
-    TASK_EXECUTOR: Literal["AIRFLOW"] = "AIRFLOW"
+    TASK_EXECUTOR: TaskExecutorType = TaskExecutorType.AIRFLOW
 
     # Airflow configuration
     AIRFLOW_URL: str = "http://localhost:8081/airflow"

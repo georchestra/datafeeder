@@ -4,6 +4,7 @@ import json
 from functools import lru_cache
 from typing import Any
 
+from src.core.task_executor import TaskExecutorType
 from src.core.config import get_settings
 from src.core.logging import get_logger
 
@@ -30,7 +31,7 @@ class SettingsService:
             projections = []
 
         enabled_features = []
-        if self._settings.TASK_EXECUTOR == "AIRFLOW":
+        if self._settings.TASK_EXECUTOR == TaskExecutorType.AIRFLOW:
             enabled_features.append("scheduling")
             enabled_features.append("events")
 
