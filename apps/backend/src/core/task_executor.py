@@ -76,13 +76,10 @@ class BaseTaskExecutor(ABC):
         self,
         run_id: str,
         staging_table_name: str | None = None,
-        source: str | None = None,
-        source_type: str | None = None,
         final_table_name: str = "",
         integrity_transformation: dict[str, Any] | None = None,
         success_callback_url: str | None = None,
         failure_callback_url: str | None = None,
-        encrypted_credentials: str | None = None,
         last_retrieval_timestamp: datetime | None = None,
     ) -> TaskRunInfo:
         """
@@ -91,13 +88,10 @@ class BaseTaskExecutor(ABC):
         Args:
             run_id: Unique identifier for this run
             staging_table_name: Name of existing staging table
-            source: Source path or URL for re-ingestion
-            source_type: Type of source for re-ingestion
             final_table_name: Name of the final table to create
             integrity_transformation: JSON configuration for transformations
             success_callback_url: URL to call on success
             failure_callback_url: URL to call on failure
-            encrypted_credentials: Encrypted credentials if needed
 
         Returns:
             TaskRunInfo with task details
