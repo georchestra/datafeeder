@@ -380,7 +380,7 @@ def write_data_to_postgis(
         table_name: Name of the target table
         engine: SQLAlchemy engine
         schema: PostgreSQL schema name (optional)
-        create_id: If True, add a 'datafeeder_id' UUID column as primary key
+        create_id: If True, add an 'id_datafeeder' UUID column as primary key
     """
     # Validate identifiers to prevent SQL injection
     validate_table_name(table_name)
