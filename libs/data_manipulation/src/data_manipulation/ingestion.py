@@ -436,14 +436,14 @@ def write_data_to_postgis(
                 conn.execute(
                     text(
                         f'ALTER TABLE "{schema}"."{table_name}" '
-                        f"ADD COLUMN datafeeder_id UUID DEFAULT gen_random_uuid() NOT NULL"
+                        f"ADD COLUMN id_datafeeder UUID DEFAULT gen_random_uuid() NOT NULL"
                     )
                 )
                 conn.execute(
-                    text(f'ALTER TABLE "{schema}"."{table_name}" ADD PRIMARY KEY (datafeeder_id)')
+                    text(f'ALTER TABLE "{schema}"."{table_name}" ADD PRIMARY KEY (id_datafeeder)')
                 )
                 conn.commit()
-            logger.info(f"Added 'datafeeder_id' UUID primary key column to {schema}.{table_name}")
+            logger.info(f"Added 'id_datafeeder' UUID primary key column to {schema}.{table_name}")
 
         # Log the number of inserted rows
         row_count = _get_table_row_count(table_name, engine, schema)
