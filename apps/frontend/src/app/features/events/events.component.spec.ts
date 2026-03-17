@@ -20,9 +20,11 @@ import {
   getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet
 } from '../../core/api/functions'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
+import type { IntegrityLinkResponse } from '../../core/api/models/integrity-link-response'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import type { Event } from '../../shared/components/event/event.component'
 import { EventsListComponent } from '../../shared/components/events-list/events-list.component'
+import { RecurrenceSelectorComponent } from '../../shared/components/recurrence-selector/recurrence-selector.component'
 import { UiAlertBoxComponent } from '../../shared/components/ui-alert-box/ui-alert-box.component'
 import { EventsComponent } from './events.component'
 
@@ -38,6 +40,16 @@ vi.mock('../../shared/utils/download.util', () => ({
   template: ''
 })
 class MockUiAlertBoxComponent {}
+
+@Component({
+  selector: 'app-recurrence-selector',
+  standalone: true,
+  template: ''
+})
+class MockRecurrenceSelectorComponent {
+  @Input() currentRecurrence: unknown = null
+  @Input() disabled: boolean = false
+}
 
 @Component({
   selector: 'app-events-list',
@@ -79,6 +91,33 @@ const makeDagRun = (id: string, state = 'success') => ({
   run_after: null
 })
 
+const makeIntegrityLink = (
+  overrides: Partial<IntegrityLinkResponse> = {}
+): IntegrityLinkResponse =>
+  ({
+    id: 'test-intlink-id',
+    data_id: null,
+    metadata_id: null,
+    integrity_title: null,
+    integrity_owner: 'testuser',
+    integrity_organization: 'testorg',
+    source_import_type: 'url',
+    source_url: 'http://example.com/data.geojson',
+    source_file_name: null,
+    source_file_type: null,
+    source_username: null,
+    staging_table_name: 'staging_test',
+    staging_retrieve_time: null,
+    final_table_name: null,
+    last_retrieval_timestamp: null,
+    schedule: null,
+    schedule_enabled: false,
+    preset_id: null,
+    created_at: null,
+    gn_is_published: null,
+    ...overrides
+  } as IntegrityLinkResponse)
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('EventsComponent', () => {
@@ -113,8 +152,20 @@ describe('EventsComponent', () => {
       ]
     })
       .overrideComponent(EventsComponent, {
-        remove: { imports: [EventsListComponent, UiAlertBoxComponent] },
-        add: { imports: [MockEventsListComponent, MockUiAlertBoxComponent] }
+        remove: {
+          imports: [
+            EventsListComponent,
+            UiAlertBoxComponent,
+            RecurrenceSelectorComponent
+          ]
+        },
+        add: {
+          imports: [
+            MockEventsListComponent,
+            MockUiAlertBoxComponent,
+            MockRecurrenceSelectorComponent
+          ]
+        }
       })
       .compileComponents()
 
@@ -273,6 +324,66 @@ describe('EventsComponent', () => {
 
       expect(component.downloadingEventId()).toBeNull()
       expect(component.downloadError()).not.toBeNull()
+    })
+  })
+
+  // ─── Recurrence display ──────────────────────────────────────────────────
+
+  describe('Recurrence display', () => {
+    it('should expose recurrence from store when a known preset is set', () => {
+      store.integrityLink.set(
+        makeIntegrityLink({
+          schedule: '0 4 * * *',
+          preset_id: 'EVERY_DAY',
+          schedule_enabled: true
+        })
+      )
+
+      const { component } = createComponent()
+
+      expect(component.recurrence()).toEqual({
+        cron: '0 4 * * *',
+        preset_id: 'EVERY_DAY'
+      })
+    })
+
+    it('should expose custom cron recurrence when preset_id is null', () => {
+      store.integrityLink.set(
+        makeIntegrityLink({
+          schedule: '30 2 15 * *',
+          preset_id: null,
+          schedule_enabled: true
+        })
+      )
+
+      const { component } = createComponent()
+
+      expect(component.recurrence()).toEqual({
+        cron: '30 2 15 * *',
+        preset_id: null
+      })
+    })
+
+    it('should return null recurrence when integrityLink is not loaded', () => {
+      store.integrityLink.set(null)
+
+      const { component } = createComponent()
+
+      expect(component.recurrence()).toBeNull()
+    })
+
+    it('should return null recurrence when schedule_enabled is false', () => {
+      store.integrityLink.set(
+        makeIntegrityLink({
+          schedule: '0 4 * * *',
+          preset_id: 'EVERY_DAY',
+          schedule_enabled: false
+        })
+      )
+
+      const { component } = createComponent()
+
+      expect(component.recurrence()).toBeNull()
     })
   })
 

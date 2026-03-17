@@ -51,12 +51,29 @@
             </div>
             }
 
-            <app-dataset-title
-              #titleConfig
-              [metadata]="selectedTabIndex() === 1 ? metadata() : undefined"
-              (validated)="onValidateDataset($event)"
-              (titleChanged)="onTitleChanged($event)"
-            />
+            <div class="flex flex-wrap items-end">
+              <div class="flex-1 min-w-[400px]">
+                <app-dataset-title
+                  #titleConfig
+                  [metadata]="selectedTabIndex() === 1 ? metadata() : undefined"
+                  (validated)="onValidateDataset($event)"
+                  (titleChanged)="onTitleChanged($event)"
+                />
+              </div>
+
+              @if (isRemoteSource()) {
+              <div class="p-6 shrink-0 w-[400px]">
+                <h2 class="text-lg font-medium text-gray-900 mb-2">
+                  {{ 'import.recurrence.label' | translate }}
+                </h2>
+                <app-recurrence-selector
+                  [presets]="recurrencePresets()"
+                  [selectedPresetId]="selectedPresetId()"
+                  (presetChange)="selectedPresetId.set($event)"
+                />
+              </div>
+              }
+            </div>
           </div>
         </mat-tab>
       </mat-tab-group>

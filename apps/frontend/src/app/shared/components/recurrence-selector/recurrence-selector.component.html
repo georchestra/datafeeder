@@ -1,0 +1,33 @@
+<mat-form-field
+  appearance="outline"
+  subscriptSizing="dynamic"
+  class="w-full"
+  [matTooltip]="tooltipLabel()"
+  [matTooltipShowDelay]="1000"
+  [matTooltipHideDelay]="1000"
+>
+  <mat-select
+    [value]="selectValue()"
+    [disabled]="disabled()"
+    (valueChange)="presetChange.emit($event === '' ? null : $event)"
+    data-test="recurrence-select"
+  >
+    <mat-option value="">
+      {{ 'recurrence.none' | translate }}
+    </mat-option>
+
+    @for (preset of presets(); track preset.id) {
+    <mat-option [value]="preset.id">
+      {{ 'recurrence.preset.' + preset.id | translate }}
+    </mat-option>
+    } @if (shouldShowPresetFallback()) {
+    <mat-option [value]="currentRecurrence()!.preset_id">
+      {{ displayLabel() }}
+    </mat-option>
+    } @if (isCustomCron()) {
+    <mat-option [value]="customCronValue">
+      {{ displayLabel() }}
+    </mat-option>
+    }
+  </mat-select>
+</mat-form-field>

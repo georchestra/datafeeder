@@ -7,23 +7,22 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface ProxyGeonetworkGeonetworkPathOptions$Params {
-  path: string
-}
+import { RecurrencePresetItem } from '../../models/recurrence-preset-item'
 
-export function proxyGeonetworkGeonetworkPathOptions(
+export interface ListRecurrencePresetsIngestionRecurrencePresetsGet$Params {}
+
+export function listRecurrencePresetsIngestionRecurrencePresetsGet(
   http: HttpClient,
   rootUrl: string,
-  params: ProxyGeonetworkGeonetworkPathOptions$Params,
+  params?: ListRecurrencePresetsIngestionRecurrencePresetsGet$Params,
   context?: HttpContext
-): Observable<StrictHttpResponse<any>> {
+): Observable<StrictHttpResponse<Array<RecurrencePresetItem>>> {
   const rb = new requestBuilders(
     rootUrl,
-    proxyGeonetworkGeonetworkPathOptions.PATH,
+    listRecurrencePresetsIngestionRecurrencePresetsGet.PATH,
     'get'
   )
   if (params) {
-    rb.path('path', params.path, {})
   }
 
   return http
@@ -33,9 +32,10 @@ export function proxyGeonetworkGeonetworkPathOptions(
     .pipe(
       filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
       map((r: HttpResponse<any>) => {
-        return r as StrictHttpResponse<any>
+        return r as StrictHttpResponse<Array<RecurrencePresetItem>>
       })
     )
 }
 
-proxyGeonetworkGeonetworkPathOptions.PATH = '/geonetwork/{path}'
+listRecurrencePresetsIngestionRecurrencePresetsGet.PATH =
+  '/ingestion/recurrence-presets'

@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from src.api.routes.ingestion.integrity_link import (
     delete_integrity_link_rule,
+    get_integrity_link,
     toggle_publish_gn_integrity_link,
     upsert_integrity_link_rule,
 )
@@ -19,6 +20,7 @@ from src.models.integrity_link_rule import (
     RuleValue,
     UpsertRuleRequest,
 )
+from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
 
 
@@ -408,3 +410,68 @@ class TestTogglePublishGnIntegrityLink:
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "i18nerror.publish.geonetwork"
+
+
+class TestGetIntegrityLinkPresetId:
+    """Test that get_integrity_link populates preset_id on the response."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    def _link(self, link_id: str, schedule: str | None) -> IntegrityLink:
+        return IntegrityLink(
+            id=UUID(link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            schedule=schedule,
+            schedule_enabled=schedule is not None,
+        )
+
+    def test_known_preset_returns_preset_id(self, mock_session: MagicMock) -> None:
+        link_id = str(uuid4())
+        cron = RecurrencePreset.EVERY_DAY.cron
+        mock_session.get.return_value = self._link(link_id, cron)
+        mock_session.exec.return_value.first.return_value = "OWNER"
+
+        result = get_integrity_link(
+            session=mock_session,
+            geo_ctx=_geo_ctx(),
+            integrity_link_id=link_id,
+            org_id=None,
+        )
+
+        assert result.schedule == cron
+        assert result.preset_id == "EVERY_DAY"
+
+    def test_null_schedule_returns_preset_id_null(self, mock_session: MagicMock) -> None:
+        link_id = str(uuid4())
+        mock_session.get.return_value = self._link(link_id, None)
+        mock_session.exec.return_value.first.return_value = "OWNER"
+
+        result = get_integrity_link(
+            session=mock_session,
+            geo_ctx=_geo_ctx(),
+            integrity_link_id=link_id,
+            org_id=None,
+        )
+
+        assert result.schedule is None
+        assert result.preset_id is None
+
+    def test_custom_cron_returns_preset_id_null(self, mock_session: MagicMock) -> None:
+        link_id = str(uuid4())
+        mock_session.get.return_value = self._link(link_id, "30 2 15 * *")
+        mock_session.exec.return_value.first.return_value = "OWNER"
+
+        result = get_integrity_link(
+            session=mock_session,
+            geo_ctx=_geo_ctx(),
+            integrity_link_id=link_id,
+            org_id=None,
+        )
+
+        assert result.schedule == "30 2 15 * *"
+        assert result.preset_id is None

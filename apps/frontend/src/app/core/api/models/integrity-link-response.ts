@@ -3,6 +3,7 @@
 
 import { FileType } from '../models/file-type'
 import { ImportType } from '../models/import-type'
+import { RecurrencePreset } from '../models/recurrence-preset'
 
 /**
  * Response model for IntegrityLink entity.
@@ -22,6 +23,7 @@ export interface IntegrityLinkResponse {
   } | null
   last_retrieval_timestamp: string | null
   metadata_id: string | null
+  preset_id?: RecurrencePreset | null
   schedule: string | null
   schedule_enabled: boolean
   source_file_name: string | null

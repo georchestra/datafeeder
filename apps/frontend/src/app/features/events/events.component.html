@@ -1,10 +1,23 @@
 <div class="bg-white flex flex-col gap-2.5 rounded-lg px-6 pt-6 pb-16">
-  <h1 class="text-xl font-bold text-gray-900 mb-4">
-    {{ 'events.title' | translate }}
-    <span class="text-black font-extrabold">{{
-      store.integrityLink()?.integrity_title
-    }}</span>
-  </h1>
+  <div class="mb-4">
+    <h1 class="text-xl font-bold text-gray-900 mb-4">
+      {{ 'events.title' | translate }}
+      <span class="text-black font-extrabold">{{
+        store.integrityLink()?.integrity_title
+      }}</span>
+    </h1>
+
+    <div class="shrink-0 w-[400px]">
+      <h2 class="text-lg font-medium text-gray-900 mb-2">
+        {{ 'import.recurrence.label' | translate }}
+      </h2>
+      <app-recurrence-selector
+        [currentRecurrence]="recurrence()"
+        [disabled]="true"
+      />
+    </div>
+  </div>
+
   @if (loadError()) {
   <app-ui-alert-box
     type="error"
@@ -20,6 +33,7 @@
     (dismissed)="downloadError.set(null)"
   />
   }
+
   <app-events-list
     [events]="events()"
     [reference]="intlink_id || ''"

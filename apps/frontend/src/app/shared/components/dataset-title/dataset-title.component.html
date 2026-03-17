@@ -5,7 +5,11 @@
   </h2>
 
   <form [formGroup]="form" class="space-y-4">
-    <mat-form-field appearance="outline" class="w-full">
+    <mat-form-field
+      appearance="outline"
+      subscriptSizing="dynamic"
+      class="w-full"
+    >
       <input
         matInput
         formControlName="title"

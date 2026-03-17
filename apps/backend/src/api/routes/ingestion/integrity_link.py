@@ -13,6 +13,7 @@ from src.core.security import (
 from src.models.data_import import IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, UpsertRuleRequest
+from src.models.recurrence import RecurrencePreset
 from src.services.dataset_deletion_service import DatasetDeletionService
 from src.services.geoserver import GeoServerService
 from src.services.metadata_service import MetadataService
@@ -43,8 +44,12 @@ def get_integrity_link(
         integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, session, org_id
     )
 
-    response = IntegrityLinkResponse.model_validate(integrity_link)
-    response.access_level = effective.value
+    preset = (
+        RecurrencePreset.from_cron(integrity_link.schedule) if integrity_link.schedule else None
+    )
+    response = IntegrityLinkResponse.model_validate(integrity_link).model_copy(
+        update={"access_level": effective.value, "preset_id": preset},
+    )
 
     if not include_transformation:
         response.integrity_transformation = None
