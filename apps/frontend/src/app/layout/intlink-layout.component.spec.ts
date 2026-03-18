@@ -236,6 +236,10 @@ describe('IntlinkLayoutComponent', () => {
   })
 
   describe('Save Edits Behavior', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
     it('should call saveRecord with correct parameters', async () => {
       const { fixture, store } = await setupComponent('OWNER')
       const repo = TestBed.inject(RecordsRepositoryInterface)
