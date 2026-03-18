@@ -20,7 +20,9 @@
         >
           <div class="my-1.5 flex items-center justify-center gap-1">
             <ng-icon name="iconoirFloppyDisk" size="16"></ng-icon>
-            <span class="font-medium text-xs">{{ 'sidebar.metadataSheet.save' | translate }}</span>
+            <span class="font-medium text-xs">{{
+              'sidebar.metadataSheet.save' | translate
+            }}</span>
           </div>
         </button>
         @if (isSaving()) {
