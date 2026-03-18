@@ -271,6 +271,7 @@
   "sidebar.accessRights": "",
   "sidebar.eventsAndStatuses": "",
   "sidebar.metadataSheet": "",
+  "sidebar.metadataSheet.save": "",
   "sidebar.reconfigureDataset": "",
   "sidebar.recurrencePlanning": "",
   "status.type.error": "",

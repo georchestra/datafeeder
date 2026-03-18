@@ -15,12 +15,12 @@
         <button
           type="button"
           (click)="saveEdits()"
-          class="mt-2 w-full flex items-center justify-center rounded-full font-medium bg-secondary-active text-gray-900 hover:bg-secondary hover:text-gray-100 disabled:bg-secondary-active/40 disabled:text-secondary disabled:cursor-not-allowed"
+          class="mt-2 w-full flex items-center justify-center rounded-full bg-secondary-active text-gray-900 hover:bg-secondary hover:text-gray-100 disabled:bg-secondary-active/40 disabled:text-secondary disabled:cursor-not-allowed"
           [disabled]="isSaving()"
         >
           <div class="my-1.5 flex items-center justify-center gap-1">
             <ng-icon name="iconoirFloppyDisk" size="16"></ng-icon>
-            <span>Sauvegarder</span>
+            <span class="font-medium text-xs">{{ 'sidebar.metadataSheet.save' | translate }}</span>
           </div>
         </button>
         @if (isSaving()) {

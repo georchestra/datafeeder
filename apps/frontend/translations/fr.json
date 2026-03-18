@@ -271,6 +271,7 @@
   "sidebar.accessRights": "Droits d'accès",
   "sidebar.eventsAndStatuses": "Évènements & statuts",
   "sidebar.metadataSheet": "Fiche métadonnée",
+  "sidebar.metadataSheet.save": "Sauvegarder",
   "sidebar.reconfigureDataset": "Reconfigurer le jeu de donnée",
   "sidebar.recurrencePlanning": "Planification de récurrence",
   "status.type.error": "Erreur",

@@ -271,6 +271,7 @@
   "sidebar.accessRights": "Access rights",
   "sidebar.eventsAndStatuses": "Events & statuses",
   "sidebar.metadataSheet": "Metadata sheet",
+  "sidebar.metadataSheet.save": "Save",
   "sidebar.reconfigureDataset": "Reconfigure dataset",
   "sidebar.recurrencePlanning": "Recurrence planning",
   "status.type.error": "Error",
