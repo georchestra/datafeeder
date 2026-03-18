@@ -9,7 +9,7 @@ import {
   RecordsRepositoryInterface,
   SpinningLoaderComponent
 } from 'geonetwork-ui'
-import { switchMap, take, withLatestFrom } from 'rxjs'
+import { finalize, switchMap, take, withLatestFrom } from 'rxjs'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
 import { UiAlertBoxComponent } from '../shared/components/ui-alert-box/ui-alert-box.component'
 
@@ -53,20 +53,21 @@ export class IntlinkLayoutComponent {
     this.isSaving.set(true)
     this.editor.record$
       .pipe(
-        take(1),
         withLatestFrom(this.editor.recordSource$),
+        take(1),
         switchMap(([record, recordSource]) =>
           this.recordsRepository.saveRecord(record, recordSource, false)
-        )
+        ),
+        finalize(() => {
+          this.isSaving.set(false)
+        })
       )
       .subscribe({
         next: () => {
-          this.isSaving.set(false)
           //TODO: show success message
           console.log('Edits saved successfully')
         },
         error: () => {
-          this.isSaving.set(false)
           //TODO: show error message
           console.log('Failed to save edits')
         }
