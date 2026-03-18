@@ -85,11 +85,12 @@ def process_staging_data(
     if not staging_table_name:
         raise HTTPException(status_code=400, detail="Staging table name not found in IntegrityLink")
 
+    title = request.title or "No title"
     dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}_manual"
     final_table_name = (
         integrity_link.final_table_name
         if integrity_link.last_retrieval_timestamp is not None
-        else get_available_table_name(data_engine, "data", sanitize_name(request.title)[:53])
+        else get_available_table_name(data_engine, "data", sanitize_name(title)[:53])
     )
     if not final_table_name:
         raise HTTPException(
@@ -101,14 +102,14 @@ def process_staging_data(
     try:
         validate_table_name(final_table_name, context="final")
     except ValueError as e:
-        logger.error(f"Generated invalid final table name from title '{request.title}': {e}")
+        logger.error(f"Generated invalid final table name from title '{title}': {e}")
         raise HTTPException(
             status_code=400,
             detail=f"Title produces invalid table name: {e}",
         )
 
-    # Set integrity_title (raw request.title)
-    integrity_link.integrity_title = request.title
+    # Set integrity_title
+    integrity_link.integrity_title = title
 
     # --- Prepare layer URLs and GeoNetwork metadata ---
     workspace_name = integrity_link.integrity_organization.lower()
