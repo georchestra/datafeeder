@@ -6,6 +6,8 @@ services:
     build:
       context: ../apps/frontend
       dockerfile: Dockerfile
+#    environment:
+#        - OVERRIDE_BASE_HREF=ds
     ports:
       - "8001:8080"
 

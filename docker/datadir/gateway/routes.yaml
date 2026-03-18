@@ -10,7 +10,7 @@ spring:
         predicates:
           - Path=/
         filters:
-          - RedirectTo=307, /datafeeder/
+          - RedirectTo=307, /dataset/
       - id: backend
         uri: ${georchestra.gateway.services.backend.target}
         predicates:
@@ -20,10 +20,10 @@ spring:
       - id: frontend
         uri: ${georchestra.gateway.services.frontend.target}
         predicates:
-        - Path=/datafeeder/**
+        - Path=/dataset/**
         filters:
         # https://github.com/spring-cloud/spring-cloud-gateway/issues/1748
-        - RewritePath=/datafeeder,/datafeeder/
+        - RewritePath=/dataset,/dataset/
       - id: airflow
         uri: ${georchestra.gateway.services.airflow.target}
         predicates:
@@ -54,8 +54,8 @@ spring:
 georchestra.gateway.services:
 #  backend.target: http://datafeeder-backend:8000/
   backend.target: http://host.docker.internal:8000/
-#  frontend.target: http://datafeeder-frontend:8080/datafeeder/
-  frontend.target: http://host.docker.internal:4200/datafeeder/
+#  frontend.target: http://datafeeder-frontend:8080/
+  frontend.target: http://host.docker.internal:4200/
   airflow.target: http://airflow-apiserver:8081/airflow
   # airflow.target: http://localhost:8081/airflow
   console.target: http://console:8080/
