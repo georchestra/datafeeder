@@ -1,6 +1,6 @@
 ## Why
 
-Operations in the ingestion module (metadata save, publish/unpublish, rights editing, recurrence, deletion) are fire-and-forget with no guaranteed success — when they fail, the user currently receives no feedback. This leaves the interface in an inconsistent state and the user unaware that their action had no effect.
+Operations in the datafeeder module (metadata save, publish/unpublish, rights editing, deletion) are fire-and-forget with no guaranteed success — when they fail, the user currently receives no feedback. This leaves the interface in an inconsistent state and the user unaware that their action had no effect.
 
 ## What Changes
 
@@ -11,8 +11,8 @@ Operations in the ingestion module (metadata save, publish/unpublish, rights edi
   - Metadata save
   - GeoNetwork / GeoServer publish and unpublish
   - GeoNetwork / GeoServer rights editing
-  - Recurrence editing
   - Dataset deletion
+  - Recurrence editing *(not yet implemented — toast wiring to be added when the feature is built)*
 
 ## Capabilities
 
@@ -25,7 +25,8 @@ Operations in the ingestion module (metadata save, publish/unpublish, rights edi
 ## Impact
 
 - **Frontend-only change** (apps/frontend/).
-- New shared `ErrorToastService` (core or shared layer) and `ErrorToastComponent` (shared, overlay/portal-based).
-- Feature components for metadata, publish, rights, recurrence, and deletion will emit errors via the new service instead of silently failing.
+- New `ErrorToastStore` in `core/stores/` and `ErrorToastComponent` in `shared/components/` (overlay-based).
+- Feature components for metadata, publish, rights, and deletion will emit errors via the new store instead of silently failing.
+- Recurrence editing is not yet implemented; toast wiring will be added when that feature is built.
 - No backend or API changes required.
-- Aligned with Angular Architecture principle: smart/presentational separation — the toast component is purely presentational; the service manages state via NgRx or a dedicated signal store.
+- Aligned with Angular Architecture principle: smart/presentational separation — the toast component is purely presentational; the store manages state via Angular signals.
