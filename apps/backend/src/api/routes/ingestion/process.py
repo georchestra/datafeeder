@@ -44,6 +44,15 @@ def _is_geom_excluded(transformation: dict[str, Any] | None) -> bool:
     )
 
 
+def _normalize_title(raw: str | None, fallback: str = "No title") -> str:
+    """Strip whitespace from title; return fallback when the result is empty."""
+    if raw is not None:
+        stripped = raw.strip()
+        if stripped:
+            return stripped
+    return fallback
+
+
 @router.post(
     "/",
     response_model=ProcessResponse,
@@ -85,7 +94,7 @@ def process_staging_data(
     if not staging_table_name:
         raise HTTPException(status_code=400, detail="Staging table name not found in IntegrityLink")
 
-    title = request.title or "No title"
+    title = _normalize_title(request.title)
     dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}_manual"
     final_table_name = (
         integrity_link.final_table_name

@@ -190,7 +190,7 @@
   "import.configuration.datasetTitle": "Data title",
   "import.configuration.datasetTitlePlaceholder": "Enter a title for your dataset",
   "import.configuration.loading": "Data loading...",
-  "import.configuration.maxLengthTitle": "100 characters maximum",
+  "import.configuration.maxLengthTitle": "255 characters maximum",
   "import.configuration.minLengthTitle": "3 characters minimum",
   "import.configuration.requiredTitle": "The title is required",
   "import.dataSource.chooseType": "Choose how you want to import your data",

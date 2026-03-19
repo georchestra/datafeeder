@@ -190,7 +190,7 @@
   "import.configuration.datasetTitle": "Titre de la donnée",
   "import.configuration.datasetTitlePlaceholder": "Entrez un titre pour votre jeu de données",
   "import.configuration.loading": "Chargement des données...",
-  "import.configuration.maxLengthTitle": "100 caractères maximum",
+  "import.configuration.maxLengthTitle": "255 caractères maximum",
   "import.configuration.minLengthTitle": "3 caractères minimum",
   "import.configuration.requiredTitle": "Le titre est requis",
   "import.dataSource.chooseType": "Choisissez par quel biais vous souhaitez importer votre donnée",
