@@ -13,7 +13,7 @@ The Figma design (node 1119:21582 / 1119:22005) shows a persistent, dismissable 
 ## Goals / Non-Goals
 
 **Goals:**
-- A single, reusable toast store and component covering all currently-implemented operation types (metadata save, publish/unpublish, rights editing, deletion).
+- A single, reusable toast store and component covering all currently-implemented operation types (metadata save, GeoNetwork publish/unpublish, GeoNetwork/GeoServer rights editing, deletion).
 - Toasts are persistent (stay until dismissed) and survive Angular router navigation.
 - When an error is triggered by a button, that button becomes interactive again immediately.
 - Messages include the operation name using i18n keys via ngx-translate.
@@ -57,13 +57,13 @@ The following feature services/effects will catch errors and call `errorToastSto
 | Operation | Operation key | Location |
 |---|---|---|
 | Metadata save | `metadataSave` | metadata feature service / NgRx effect |
-| GN publish | `gnPublish` | publish feature service / NgRx effect |
-| GS publish | `gsPublish` | publish feature service / NgRx effect |
-| GN/GS unpublish | `gngsUnpublish` | publish feature service / NgRx effect |
-| GN rights edit | `gnRightsEdit` | rights feature service / NgRx effect |
-| GS rights edit | `gsRightsEdit` | rights feature service / NgRx effect |
-| Recurrence edit | `recurrenceEdit` | recurrence feature service / NgRx effect *(not yet implemented)* |
-| Deletion | `deletion` | delete feature service / NgRx effect |
+| GN publish | `gnPublish` | authorizations component |
+| GN unpublish | `gnUnpublish` | authorizations component |
+| GN rights edit | `gnRightsEdit` | authorizations component |
+| GS rights edit | `gsRightsEdit` | authorizations component |
+| Deletion | `deletion` | integrity-link-list component |
+| GS publish/unpublish | `gsPublish` / `gsUnpublish` | *(not yet implemented)* |
+| Recurrence edit | `recurrenceEdit` | *(not yet implemented)* |
 
 ## Risks / Trade-offs
 
@@ -80,7 +80,7 @@ No data migration required. This is a pure frontend addition:
 4. Add source i18n keys and run `npm run i18n:extract` to register them in all translation files.
 5. Wire each implemented feature's error handler to call `errorToastStore.add(key)`.
 6. Re-enable buttons on error in each feature component.
-7. Wire recurrence editing when that feature is implemented.
+7. Wire GeoServer publish/unpublish and recurrence editing when those features are implemented.
 
 Rollback: revert the PR. No state is persisted outside the browser session.
 

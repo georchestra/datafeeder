@@ -24,8 +24,7 @@
 - [ ] 4.1 Add `i18n` marker attributes in the template for all operation name strings:
   - `errors.operation.metadataSave`
   - `errors.operation.gnPublish`
-  - `errors.operation.gsPublish`
-  - `errors.operation.gngsUnpublish`
+  - `errors.operation.gnUnpublish`
   - `errors.operation.gnRightsEdit`
   - `errors.operation.gsRightsEdit`
   - `errors.operation.deletion`
@@ -38,13 +37,12 @@
 - [ ] 5.2 In the error handler, call `errorToastStore.add('metadataSave')`
 - [ ] 5.3 Ensure the save button's `loading` signal is set back to `false` on error
 
-## 6. Wire publish / unpublish (GN + GS)
+## 6. Wire GeoNetwork publish / unpublish
 
-- [ ] 6.1 Locate publish/unpublish NgRx effects or service calls
+- [ ] 6.1 Locate the publish/unpublish call in `authorizations.component.ts` (`onTogglePublishGn`)
 - [ ] 6.2 Wire GN publish error → `errorToastStore.add('gnPublish')`
-- [ ] 6.3 Wire GS publish error → `errorToastStore.add('gsPublish')`
-- [ ] 6.4 Wire unpublish error → `errorToastStore.add('gngsUnpublish')`
-- [ ] 6.5 Re-enable publish/unpublish buttons on error
+- [ ] 6.3 Wire GN unpublish error → `errorToastStore.add('gnUnpublish')`
+- [ ] 6.4 Re-enable the publish/unpublish toggle on error
 
 ## 7. Wire rights editing (GN + GS)
 
@@ -68,8 +66,15 @@
 - [ ] 9.4 Verify each toast dismisses independently
 - [ ] 9.5 Run `npm run lint` and `npm run test` — no regressions
 
+## Future (when GeoServer publish/unpublish is implemented)
+
+- [ ] F.1 Wire GS publish error → `errorToastStore.add('gsPublish')` in the authorizations feature
+- [ ] F.2 Wire GS unpublish error → `errorToastStore.add('gsUnpublish')`
+- [ ] F.3 Add `errors.operation.gsPublish` and `errors.operation.gsUnpublish` i18n keys and run `npm run i18n:extract`
+- [ ] F.4 Re-enable the GS publish/unpublish toggle on error
+
 ## Future (when recurrence editing is implemented)
 
-- [ ] F.1 Wire recurrence edit error → `errorToastStore.add('recurrenceEdit')` in the recurrence feature
-- [ ] F.2 Add `errors.operation.recurrenceEdit` i18n key and run `npm run i18n:extract`
-- [ ] F.3 Re-enable recurrence edit button on error
+- [ ] F.5 Wire recurrence edit error → `errorToastStore.add('recurrenceEdit')` in the recurrence feature
+- [ ] F.6 Add `errors.operation.recurrenceEdit` i18n key and run `npm run i18n:extract`
+- [ ] F.7 Re-enable recurrence edit button on error

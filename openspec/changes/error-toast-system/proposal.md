@@ -9,10 +9,12 @@ Operations in the datafeeder module (metadata save, publish/unpublish, rights ed
 - When an operation triggered by a button click fails, the triggering button is re-enabled so the user can retry.
 - The following operations must show an error toast on failure:
   - Metadata save
-  - GeoNetwork / GeoServer publish and unpublish
+  - GeoNetwork publish and unpublish
   - GeoNetwork / GeoServer rights editing
   - Dataset deletion
-  - Recurrence editing *(not yet implemented — toast wiring to be added when the feature is built)*
+- The following operations are not yet implemented and will be wired when built:
+  - GeoServer publish and unpublish *(backend endpoint and model field don't exist yet)*
+  - Recurrence editing
 
 ## Capabilities
 
@@ -26,7 +28,7 @@ Operations in the datafeeder module (metadata save, publish/unpublish, rights ed
 
 - **Frontend-only change** (apps/frontend/).
 - New `ErrorToastStore` in `core/stores/` and `ErrorToastComponent` in `shared/components/` (overlay-based).
-- Feature components for metadata, publish, rights, and deletion will emit errors via the new store instead of silently failing.
-- Recurrence editing is not yet implemented; toast wiring will be added when that feature is built.
+- Feature components for metadata save, GeoNetwork publish/unpublish, GeoNetwork/GeoServer rights editing, and deletion will emit errors via the new store instead of silently failing.
+- GeoServer publish/unpublish and recurrence editing are not yet implemented; toast wiring will be added when those features are built.
 - No backend or API changes required.
 - Aligned with Angular Architecture principle: smart/presentational separation — the toast component is purely presentational; the store manages state via Angular signals.
