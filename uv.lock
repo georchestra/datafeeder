@@ -690,7 +690,7 @@ requires-dist = [
     { name = "data-manipulation", editable = "libs/data_manipulation" },
     { name = "fastapi", extras = ["standard"], specifier = "==0.117.0" },
     { name = "geojson-pydantic", specifier = ">=1.0.0" },
-    { name = "geonetwork", git = "https://github.com/camptocamp/python-geonetwork.git?branch=sharing_endpoint" },
+    { name = "geonetwork", git = "https://github.com/camptocamp/python-geonetwork.git" },
     { name = "geoservercloud", git = "https://github.com/camptocamp/python-geoservercloud.git" },
     { name = "jproperties", specifier = "==2.1.2" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.2" },
@@ -936,7 +936,7 @@ wheels = [
 [[package]]
 name = "geonetwork"
 version = "0.1.1"
-source = { git = "https://github.com/camptocamp/python-geonetwork.git#0590531798fa385e537571f8e1eb2a7798e6aed8" }
+source = { git = "https://github.com/camptocamp/python-geonetwork.git#e43ab3b926339454ec2aeaabc8e38a2aebf7d0dd" }
 dependencies = [
     { name = "requests" },
     { name = "types-requests" },

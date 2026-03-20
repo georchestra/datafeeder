@@ -45,7 +45,7 @@ dev = [
 [tool.uv.sources]
 data_manipulation = { workspace = true }
 geoservercloud = { git = "https://github.com/camptocamp/python-geoservercloud.git" }
-geonetwork = { git = "https://github.com/camptocamp/python-geonetwork.git", branch = "sharing_endpoint" }
+geonetwork = { git = "https://github.com/camptocamp/python-geonetwork.git" }
 
 [tool.ruff]
 extend = "../../ruff.toml"
