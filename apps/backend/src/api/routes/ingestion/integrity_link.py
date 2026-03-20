@@ -113,12 +113,11 @@ def _sync_data_sharing(
 ) -> None:
     """Sync DATA rules to GeoServer layer ACL.
 
-    Called after any rule mutation. Builds role lists from DATA rules
-    and delegates to GeoServerService.sync_layer_acl.
+    Resolves role UUIDs to role names via ConsoleService before syncing.
     Skipped when integrity_link has no published layer (final_table_name absent).
 
     Raises:
-        HTTPException(500): If the GeoServer ACL sync fails.
+        HTTPException(500): If role resolution or GeoServer ACL sync fails.
     """
     if not integrity_link.final_table_name:
         return
@@ -131,13 +130,27 @@ def _sync_data_sharing(
         ).all()
     )
 
-    resolved: list[tuple[str, RuleValue]] = [
-        (rule.group_or_role, rule.rule_value)
-        for rule in all_rules
-        if rule.rule_type == RuleType.DATA
-    ]
-
     settings = get_settings()
+    console = ConsoleService(settings.CONSOLE_URL)
+
+    try:
+        all_roles = console.get_all_roles()
+    except Exception:
+        logger.error("Failed to fetch roles from Console", exc_info=True)
+        raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
+
+    roles_by_id = {role["id"]: role.get("name", "") for role in all_roles if role.get("id")}
+
+    resolved: list[tuple[str, RuleValue]] = []
+    for rule in all_rules:
+        if rule.rule_type != RuleType.DATA:
+            continue
+        role_name = roles_by_id.get(rule.group_or_role)
+        if not role_name:
+            logger.error("Could not resolve role '%s' for GeoServer ACL sync", rule.group_or_role)
+            raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
+        resolved.append((role_name, rule.rule_value))
+
     workspace = integrity_link.integrity_organization.lower()
 
     geoserver_service = GeoServerService(
