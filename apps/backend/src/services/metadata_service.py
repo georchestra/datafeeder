@@ -401,10 +401,15 @@ class MetadataService:
             ValueError: If a GeoNetwork group cannot be resolved for an org name.
             Exception: If the GeoNetwork API call fails.
         """
+        resp = self.gn_api.session.get(f"{self.gn_api.api_url}/groups")
+        resp.raise_for_status()
+        groups = resp.json()
+        group_id_by_name = {g["name"].lower(): g["id"] for g in groups}
+
         gn_privileges: list[dict[str, Any]] = []
 
         for org_name, rule_value in privileges:
-            gn_group_id = self._resolve_group_by_org_name(self.gn_api.session, org_name)
+            gn_group_id = group_id_by_name.get(org_name.lower())
             if gn_group_id is None:
                 raise ValueError(f"No GN group found for org '{org_name}'")
 

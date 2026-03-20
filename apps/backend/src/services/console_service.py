@@ -77,8 +77,13 @@ class ConsoleService:
 
         Raises:
             httpx.HTTPError: On network or HTTP errors.
+            ValueError: If the response body is not valid JSON.
         """
         url = f"{self.console_url}/internal/organizations"
         response = httpx.get(url, timeout=5.0)
         response.raise_for_status()
-        return response.json()  # type: ignore[no-any-return]
+        try:
+            return response.json()  # type: ignore[no-any-return]
+        except ValueError as exc:
+            logger.error("Console returned invalid JSON from %s", url)
+            raise ValueError(f"Console returned invalid JSON from {url}") from exc

@@ -71,7 +71,7 @@ def _sync_metadata_sharing(
         if rule.rule_type != RuleType.METADATA:
             continue
         short_name = orgs_by_id.get(rule.group_or_role)
-        if short_name is None:
+        if not short_name:
             logger.error("Could not resolve org '%s' for sharing sync", rule.group_or_role)
             raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
         resolved.append((short_name, rule.rule_value))

@@ -116,3 +116,15 @@ class TestConsoleService:
 
         with pytest.raises(httpx.HTTPStatusError):
             service.get_all_organizations()
+
+    @patch("src.services.console_service.httpx.get")
+    def test_get_all_organizations_invalid_json_raises(self, mock_get: MagicMock) -> None:
+        """Test that malformed JSON response raises ValueError with a clear message."""
+        mock_response = MagicMock()
+        mock_response.json.side_effect = ValueError("No JSON object could be decoded")
+        mock_get.return_value = mock_response
+
+        service = ConsoleService("http://console.example.com")
+
+        with pytest.raises(ValueError, match="Console returned invalid JSON from"):
+            service.get_all_organizations()
