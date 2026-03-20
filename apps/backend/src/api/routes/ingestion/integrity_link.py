@@ -113,7 +113,7 @@ def _sync_data_sharing(
 ) -> None:
     """Sync DATA rules to GeoServer layer ACL.
 
-    Resolves role UUIDs to role names via ConsoleService before syncing.
+    Resolves role UUIDs to role names via DATA_FETCH_GROUPS_URL before syncing.
     Skipped when integrity_link has no published layer (final_table_name absent).
 
     Raises:
@@ -131,15 +131,19 @@ def _sync_data_sharing(
     )
 
     settings = get_settings()
-    console = ConsoleService(settings.CONSOLE_URL)
-
     try:
-        all_roles = console.get_all_roles()
-    except Exception:
-        logger.error("Failed to fetch roles from Console", exc_info=True)
+        groups = fetch_groups(
+            url=settings.DATA_FETCH_GROUPS_URL,
+            id_field=settings.DATA_GROUPS_IDENTIFIER,
+            label_field=settings.DATA_GROUPS_LABEL,
+            username=settings.DATA_FETCH_GROUPS_USERNAME,
+            password=settings.DATA_FETCH_GROUPS_PASSWORD,
+        )
+    except HTTPException:
+        logger.error("Failed to fetch data groups from %s", settings.DATA_FETCH_GROUPS_URL)
         raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
 
-    roles_by_id = {role["id"]: role.get("name", "") for role in all_roles if role.get("id")}
+    roles_by_id = {g.id: g.label for g in groups}
 
     resolved: list[tuple[str, RuleValue]] = []
     for rule in all_rules:
