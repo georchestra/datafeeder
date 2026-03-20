@@ -106,6 +106,57 @@ def _sync_metadata_sharing(
         raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
 
 
+def _sync_data_sharing(
+    session: DatafeederSessionDep,
+    integrity_link_id: str,
+    integrity_link: IntegrityLink,
+) -> None:
+    """Sync DATA rules to GeoServer layer ACL.
+
+    Called after any rule mutation. Builds role lists from DATA rules
+    and delegates to GeoServerService.sync_layer_acl.
+    Skipped when integrity_link has no published layer (final_table_name absent).
+
+    Raises:
+        HTTPException(500): If the GeoServer ACL sync fails.
+    """
+    if not integrity_link.final_table_name:
+        return
+
+    all_rules = list(
+        session.exec(
+            select(IntegrityLinkRule).where(
+                IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
+            )
+        ).all()
+    )
+
+    resolved: list[tuple[str, RuleValue]] = [
+        (rule.group_or_role, rule.rule_value)
+        for rule in all_rules
+        if rule.rule_type == RuleType.DATA
+    ]
+
+    settings = get_settings()
+    workspace = integrity_link.integrity_organization.lower()
+
+    geoserver_service = GeoServerService(
+        base_url=settings.GEOSERVER_URL,
+        username=settings.GEOSERVER_USER,
+        password=settings.GEOSERVER_PASSWORD,
+        public_url=settings.DATA_PUBLIC_URL,
+    )
+    try:
+        geoserver_service.sync_layer_acl(workspace, integrity_link.final_table_name, resolved)
+    except Exception:
+        logger.error(
+            "Failed to sync GeoServer ACL for integrity_link %s",
+            integrity_link_id,
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
+
+
 @router.get(
     "/{integrity_link_id}",
     response_model=IntegrityLinkResponse,
@@ -193,6 +244,7 @@ def upsert_integrity_link_rule(
         session.commit()
         session.refresh(existing_rule)
         _sync_metadata_sharing(session, integrity_link_id, integrity_link)
+        _sync_data_sharing(session, integrity_link_id, integrity_link)
         return existing_rule
 
     new_rule = IntegrityLinkRule(
@@ -205,6 +257,7 @@ def upsert_integrity_link_rule(
     session.commit()
     session.refresh(new_rule)
     _sync_metadata_sharing(session, integrity_link_id, integrity_link)
+    _sync_data_sharing(session, integrity_link_id, integrity_link)
     return new_rule
 
 
@@ -232,6 +285,7 @@ def delete_integrity_link_rule(
     session.delete(rule)
     session.commit()
     _sync_metadata_sharing(session, integrity_link_id, integrity_link)
+    _sync_data_sharing(session, integrity_link_id, integrity_link)
     return Response(status_code=204)
 
 

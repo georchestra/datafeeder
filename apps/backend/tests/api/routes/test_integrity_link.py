@@ -807,6 +807,264 @@ class TestSyncAfterDeleteRule:
         mock_ms.sync_record_sharing.assert_not_called()
 
 
+class TestSyncDataSharingAfterUpsert:
+    """Test that GeoServer ACL is synced after rule mutations."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def integrity_link_id(self) -> str:
+        return str(uuid4())
+
+    def test_gs_sync_called_when_layer_exists(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """sync_layer_acl is called with DATA rules when final_table_name is set."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="MyOrg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            final_table_name="my_layer",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        data_rules_mock = MagicMock()
+        data_rules_mock.all.return_value = [
+            IntegrityLinkRule(
+                id=1,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="ROLE_IMPORT",
+                rule_type=RuleType.DATA,
+                rule_value=RuleValue.READ,
+            )
+        ]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, data_rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="ROLE_IMPORT",
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
+        ):
+            mock_gs = MagicMock()
+            mock_gs_cls.return_value = mock_gs
+
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                body=body,
+            )
+
+        mock_gs.sync_layer_acl.assert_called_once_with(
+            "myorg", "my_layer", [("ROLE_IMPORT", RuleValue.READ)]
+        )
+
+    def test_gs_sync_not_called_when_no_layer(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """sync_layer_acl is not called when final_table_name is None."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="MyOrg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            final_table_name=None,
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        mock_session.exec.side_effect = [access_mock, no_rule_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="ROLE_IMPORT",
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls:
+            mock_gs = MagicMock()
+            mock_gs_cls.return_value = mock_gs
+
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                body=body,
+            )
+
+        mock_gs.sync_layer_acl.assert_not_called()
+
+    def test_gs_sync_filters_metadata_rules(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """Only DATA rules are passed to GeoServer; METADATA rules are ignored."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="MyOrg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            final_table_name="my_layer",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        all_rules_mock = MagicMock()
+        all_rules_mock.all.return_value = [
+            IntegrityLinkRule(
+                id=1,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="ROLE_IMPORT",
+                rule_type=RuleType.DATA,
+                rule_value=RuleValue.READ,
+            ),
+            IntegrityLinkRule(
+                id=2,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="org-uuid-1",
+                rule_type=RuleType.METADATA,  # should be filtered out
+                rule_value=RuleValue.READ,
+            ),
+        ]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, all_rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="ROLE_IMPORT",
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
+        ):
+            mock_gs = MagicMock()
+            mock_gs_cls.return_value = mock_gs
+
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                body=body,
+            )
+
+        mock_gs.sync_layer_acl.assert_called_once_with(
+            "myorg", "my_layer", [("ROLE_IMPORT", RuleValue.READ)]
+        )
+
+    def test_gs_sync_raises_500_on_failure(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """sync_layer_acl failure causes HTTPException(500, i18nerror.sync.geoserver)."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="MyOrg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            final_table_name="my_layer",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        data_rules_mock = MagicMock()
+        data_rules_mock.all.return_value = []
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, data_rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="ROLE_IMPORT",
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
+        ):
+            mock_gs = MagicMock()
+            mock_gs_cls.return_value = mock_gs
+            mock_gs.sync_layer_acl.side_effect = Exception("GeoServer down")
+
+            with pytest.raises(HTTPException) as exc_info:
+                upsert_integrity_link_rule(
+                    session=mock_session,
+                    georchestra_context=_geo_ctx(),
+                    integrity_link_id=integrity_link_id,
+                    org_id=None,
+                    body=body,
+                )
+
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.detail == "i18nerror.sync.geoserver"
+
+    def test_gs_sync_called_after_delete(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """sync_layer_acl is triggered after rule deletion."""
+        mock_session.get.side_effect = [
+            IntegrityLink(
+                id=UUID(integrity_link_id),
+                integrity_owner="testuser",
+                integrity_organization="MyOrg",
+                source_import_type=ImportType.URL,
+                staging_table_name="staging_test",
+                final_table_name="my_layer",
+            ),
+            IntegrityLinkRule(
+                id=7,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="ROLE_IMPORT",
+                rule_type=RuleType.DATA,
+                rule_value=RuleValue.READ,
+            ),
+        ]
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        data_rules_mock = MagicMock()
+        data_rules_mock.all.return_value = []  # all rules removed after delete
+        mock_session.exec.side_effect = [access_mock, data_rules_mock]
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
+        ):
+            mock_gs = MagicMock()
+            mock_gs_cls.return_value = mock_gs
+
+            delete_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                rule_id=7,
+            )
+
+        mock_gs.sync_layer_acl.assert_called_once_with("myorg", "my_layer", [])
+
+
 class TestTogglePublishGnIntegrityLink:
     """Test the toggle_publish_gn_integrity_link endpoint."""
 

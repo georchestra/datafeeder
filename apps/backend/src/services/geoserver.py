@@ -1,6 +1,7 @@
 from enum import StrEnum
 from typing import Any
 
+import httpx
 from data_manipulation.geoserver import WorkspaceCreationResult
 from data_manipulation.geoserver import (
     create_layer as dm_create_layer,
@@ -15,6 +16,7 @@ from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
 from pydantic import BaseModel
 
 from src.core.logging import get_logger
+from src.models.integrity_link_rule import RuleValue
 
 logger = get_logger()
 
@@ -92,7 +94,7 @@ class GeoServerService:
             password=password,
         )
         self.public_url = public_url
-        self._base_url = base_url
+        self.base_url = base_url
         self._auth = (username, password)
 
     async def workspace_exists(self, workspace_name: str) -> bool:
@@ -322,6 +324,58 @@ class GeoServerService:
                 f"Failed to delete GeoServer layer {workspace_name}:{layer_name}: {e}",
                 exc_info=True,
             )
+
+    def sync_layer_acl(
+        self,
+        workspace: str,
+        layer_name: str,
+        privileges: list[tuple[str, RuleValue]],
+    ) -> None:
+        """Sync GeoServer ACL rules for a layer from DataKern sharing rules.
+
+        Replaces the read and write ACL rules for the given layer.
+        Roles with READ access are concatenated into the .r rule;
+        roles with WRITE access into the .w rule.
+        If no roles exist for an access level, the corresponding ACL rule is deleted.
+
+        Args:
+            workspace: GeoServer workspace name
+            layer_name: GeoServer layer/feature type name
+            privileges: List of (role_name, rule_value) tuples
+
+        Raises:
+            httpx.HTTPError: If the GeoServer ACL API call fails.
+        """
+        read_roles = [r for r, v in privileges if v == RuleValue.READ]
+        write_roles = [r for r, v in privileges if v == RuleValue.WRITE]
+
+        for suffix, roles in [("r", read_roles), ("w", write_roles)]:
+            key = f"{workspace}.{layer_name}.{suffix}"
+            if roles:
+                self._upsert_acl_rule(key, ",".join(roles))
+            else:
+                self._delete_acl_rule(key)
+
+        logger.info(
+            "Synced GeoServer ACL for %s:%s — read: %s, write: %s",
+            workspace,
+            layer_name,
+            read_roles,
+            write_roles,
+        )
+
+    def _upsert_acl_rule(self, key: str, roles_str: str) -> None:
+        url = f"{self.base_url}/rest/security/acl/layers"
+        resp = httpx.post(url, json={key: roles_str}, auth=self._auth, timeout=10.0)
+        if resp.status_code == 409:
+            resp = httpx.put(url, json={key: roles_str}, auth=self._auth, timeout=10.0)
+        resp.raise_for_status()
+
+    def _delete_acl_rule(self, key: str) -> None:
+        url = f"{self.base_url}/rest/security/acl/layers/{key}"
+        resp = httpx.delete(url, auth=self._auth, timeout=10.0)
+        if resp.status_code != 404:
+            resp.raise_for_status()
 
     async def update_layer_bbox(
         self,

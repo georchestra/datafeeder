@@ -1,7 +1,9 @@
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
+from src.models.integrity_link_rule import RuleValue
 from src.services.geoserver import (  # type: ignore[attr-defined]
     _ACL_HEADERS,  # type: ignore[attr-defined]
     ACL_ROLE_EVERYONE,
@@ -390,8 +392,6 @@ class TestAclLayerGet:
 
         assert result == ["ROLE_IMPORT", "*"]
 
-    """Tests for _acl_write (POST / PUT)."""
-
     @pytest.fixture
     def service(self) -> GeoServerService:
         with patch("src.services.geoserver.GeoServerCloud"):
@@ -670,3 +670,186 @@ class TestAclLayerPublishUnpublish:
         service.acl_layer_unpublish("geor.my_layer", AclAccessType.READ)
 
         service.acl_layer_delete.assert_called_once_with("geor.my_layer", AclAccessType.READ)
+
+
+class TestSyncLayerAcl:
+    """Tests for GeoServerService.sync_layer_acl and _delete_acl_rule."""
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://gs.example.com/geoserver",
+                username="admin",
+                password="secret",
+                public_url="http://gs.example.com/geoserver",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    def _ok(self, status_code: int = 200) -> MagicMock:
+        resp = MagicMock()
+        resp.status_code = status_code
+        resp.raise_for_status.return_value = None
+        return resp
+
+    def _error(self, status_code: int) -> MagicMock:
+        resp = MagicMock()
+        resp.status_code = status_code
+        resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "error", request=MagicMock(), response=MagicMock()
+        )
+        return resp
+
+    @patch("httpx.post")
+    @patch("httpx.delete")
+    def test_sync_read_rule_posts_r_rule(
+        self, mock_delete: MagicMock, mock_post: MagicMock, service: GeoServerService
+    ) -> None:
+        mock_post.return_value = self._ok(200)
+
+        service.sync_layer_acl("myws", "mylayer", [("ROLE_IMPORT", RuleValue.READ)])
+
+        mock_post.assert_any_call(
+            "http://gs.example.com/geoserver/rest/security/acl/layers",
+            json={"myws.mylayer.r": "ROLE_IMPORT"},
+            auth=("admin", "secret"),
+            timeout=10.0,
+        )
+        # .w key has no roles → DELETE called
+        mock_delete.assert_any_call(
+            "http://gs.example.com/geoserver/rest/security/acl/layers/myws.mylayer.w",
+            auth=("admin", "secret"),
+            timeout=10.0,
+        )
+
+    @patch("httpx.post")
+    @patch("httpx.delete")
+    def test_sync_write_rule_posts_w_rule(
+        self, mock_delete: MagicMock, mock_post: MagicMock, service: GeoServerService
+    ) -> None:
+        mock_post.return_value = self._ok(200)
+
+        service.sync_layer_acl("myws", "mylayer", [("ROLE_EDITOR", RuleValue.WRITE)])
+
+        mock_post.assert_any_call(
+            "http://gs.example.com/geoserver/rest/security/acl/layers",
+            json={"myws.mylayer.w": "ROLE_EDITOR"},
+            auth=("admin", "secret"),
+            timeout=10.0,
+        )
+        mock_delete.assert_any_call(
+            "http://gs.example.com/geoserver/rest/security/acl/layers/myws.mylayer.r",
+            auth=("admin", "secret"),
+            timeout=10.0,
+        )
+
+    @patch("httpx.post")
+    @patch("httpx.delete")
+    def test_sync_multiple_roles_same_access(
+        self, mock_delete: MagicMock, mock_post: MagicMock, service: GeoServerService
+    ) -> None:
+        mock_post.return_value = self._ok(200)
+
+        service.sync_layer_acl(
+            "myws",
+            "mylayer",
+            [("ROLE_A", RuleValue.READ), ("ROLE_B", RuleValue.READ)],
+        )
+
+        mock_post.assert_any_call(
+            "http://gs.example.com/geoserver/rest/security/acl/layers",
+            json={"myws.mylayer.r": "ROLE_A,ROLE_B"},
+            auth=("admin", "secret"),
+            timeout=10.0,
+        )
+
+    @patch("httpx.put")
+    @patch("httpx.post")
+    @patch("httpx.delete")
+    def test_sync_409_falls_back_to_put(
+        self,
+        mock_delete: MagicMock,
+        mock_post: MagicMock,
+        mock_put: MagicMock,
+        service: GeoServerService,
+    ) -> None:
+        mock_post.return_value = self._error(409)
+        mock_post.return_value.status_code = 409
+        mock_post.return_value.raise_for_status.return_value = None
+        mock_put.return_value = self._ok(200)
+
+        service.sync_layer_acl("myws", "mylayer", [("ROLE_IMPORT", RuleValue.READ)])
+
+        mock_put.assert_any_call(
+            "http://gs.example.com/geoserver/rest/security/acl/layers",
+            json={"myws.mylayer.r": "ROLE_IMPORT"},
+            auth=("admin", "secret"),
+            timeout=10.0,
+        )
+
+    @patch("httpx.delete")
+    def test_sync_empty_privileges_deletes_both_rules(
+        self, mock_delete: MagicMock, service: GeoServerService
+    ) -> None:
+        mock_delete.return_value = self._ok(200)
+
+        service.sync_layer_acl("myws", "mylayer", [])
+
+        assert mock_delete.call_count == 2
+        mock_delete.assert_any_call(
+            "http://gs.example.com/geoserver/rest/security/acl/layers/myws.mylayer.r",
+            auth=("admin", "secret"),
+            timeout=10.0,
+        )
+        mock_delete.assert_any_call(
+            "http://gs.example.com/geoserver/rest/security/acl/layers/myws.mylayer.w",
+            auth=("admin", "secret"),
+            timeout=10.0,
+        )
+
+    @patch("httpx.delete")
+    def test_sync_delete_treats_404_as_success(
+        self, mock_delete: MagicMock, service: GeoServerService
+    ) -> None:
+        mock_delete.return_value = self._error(404)
+        mock_delete.return_value.status_code = 404
+
+        # Should not raise
+        service._delete_acl_rule("myws.mylayer.r")  # type: ignore[reportPrivateUsage]
+
+        mock_delete.assert_called_once()
+
+    @patch("httpx.delete")
+    def test_sync_delete_raises_on_other_errors(
+        self, mock_delete: MagicMock, service: GeoServerService
+    ) -> None:
+        mock_delete.return_value = self._error(500)
+
+        with pytest.raises(httpx.HTTPStatusError):
+            service._delete_acl_rule("myws.mylayer.r")  # type: ignore[reportPrivateUsage]
+
+    @patch("httpx.post")
+    @patch("httpx.delete")
+    def test_sync_write_only_deletes_read_rule(
+        self, mock_delete: MagicMock, mock_post: MagicMock, service: GeoServerService
+    ) -> None:
+        mock_post.return_value = self._ok(200)
+        mock_delete.return_value = self._ok(200)
+
+        service.sync_layer_acl("myws", "mylayer", [("ROLE_EDITOR", RuleValue.WRITE)])
+
+        # Only .w posted
+        assert mock_post.call_count == 1
+        mock_post.assert_called_with(
+            "http://gs.example.com/geoserver/rest/security/acl/layers",
+            json={"myws.mylayer.w": "ROLE_EDITOR"},
+            auth=("admin", "secret"),
+            timeout=10.0,
+        )
+        # .r deleted
+        mock_delete.assert_called_with(
+            "http://gs.example.com/geoserver/rest/security/acl/layers/myws.mylayer.r",
+            auth=("admin", "secret"),
+            timeout=10.0,
+        )
