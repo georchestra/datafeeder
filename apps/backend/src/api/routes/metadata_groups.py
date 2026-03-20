@@ -21,4 +21,5 @@ def list_groups(geo_ctx: GeorchestraContextDep) -> list[GroupItem]:
         label_field=settings.METADATA_GROUPS_LABEL,
         username=settings.METADATA_FETCH_GROUPS_USERNAME,
         password=settings.METADATA_FETCH_GROUPS_PASSWORD,
+        filter_regex=settings.METADATA_GROUPS_LABEL_FILTER_REGEX,
     )

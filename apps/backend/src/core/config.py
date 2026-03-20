@@ -193,10 +193,11 @@ class Settings(BaseSettings):
 
     # Metadata groups (for authorization UI)
     METADATA_FETCH_GROUPS_URL: str = "http://localhost:8080/console/internal/organizations"
-    METADATA_GROUPS_IDENTIFIER: str = "id"
+    METADATA_GROUPS_IDENTIFIER: str = "name"
     METADATA_GROUPS_LABEL: str = "name"
     METADATA_FETCH_GROUPS_USERNAME: str = ""
     METADATA_FETCH_GROUPS_PASSWORD: str = ""
+    METADATA_GROUPS_LABEL_FILTER_REGEX: str = ""
 
     # Data groups (for GeoServer authorization UI)
     DATA_FETCH_GROUPS_URL: str = "http://localhost:8080/console/internal/roles"
@@ -204,6 +205,7 @@ class Settings(BaseSettings):
     DATA_GROUPS_LABEL: str = "name"
     DATA_FETCH_GROUPS_USERNAME: str = ""
     DATA_FETCH_GROUPS_PASSWORD: str = ""
+    DATA_GROUPS_LABEL_FILTER_REGEX: str = ""
 
     # Email Configuration
     SMTP_TLS: bool = True

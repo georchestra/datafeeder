@@ -1,3 +1,5 @@
+import re
+
 import httpx
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -18,6 +20,7 @@ def fetch_groups(
     label_field: str,
     username: str = "",
     password: str = "",
+    filter_regex: str = "",
 ) -> list[GroupItem]:
     """Fetch groups from an upstream JSON API and map to GroupItem list."""
     auth = None
@@ -38,8 +41,15 @@ def fetch_groups(
         )
 
     items = response.json()
+    try:
+        label_pattern = re.compile(filter_regex) if filter_regex else None
+    except re.error as e:
+        raise HTTPException(status_code=400, detail=f"Invalid filter_regex: {e}")
+
     return [
         GroupItem(id=str(item[id_field]), label=str(item[label_field]))
         for item in items
-        if id_field in item and label_field in item
+        if id_field in item
+        and label_field in item
+        and (label_pattern is None or label_pattern.search(str(item[label_field])))
     ]

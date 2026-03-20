@@ -80,6 +80,7 @@ def _sync_metadata_sharing(
         gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        org_based_sync=settings.ORG_BASED_SYNC,
         verify_tls=False,
     )
     try:
@@ -315,6 +316,7 @@ def delete_integrity_link(
         gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        org_based_sync=settings.ORG_BASED_SYNC,
         verify_tls=False,
     )
     deletion_service = DatasetDeletionService(
