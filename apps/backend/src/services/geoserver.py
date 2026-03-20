@@ -325,6 +325,18 @@ class GeoServerService:
                 exc_info=True,
             )
 
+    @staticmethod
+    def _to_geoserver_role(role: str) -> str:
+        """Ensure role name has ROLE_ prefix as required by GeoServer ACL.
+
+        geOrchestra strips ROLE_ from header values; GeoServer requires it.
+        Idempotent: already-prefixed values pass through unchanged.
+        """
+        upper = role.strip().upper()
+        if not upper.startswith("ROLE_"):
+            return f"ROLE_{upper}"
+        return upper
+
     def sync_layer_acl(
         self,
         workspace: str,
@@ -346,8 +358,8 @@ class GeoServerService:
         Raises:
             httpx.HTTPError: If the GeoServer ACL API call fails.
         """
-        read_roles = [r for r, v in privileges if v == RuleValue.READ]
-        write_roles = [r for r, v in privileges if v == RuleValue.WRITE]
+        read_roles = [self._to_geoserver_role(r) for r, v in privileges if v == RuleValue.READ]
+        write_roles = [self._to_geoserver_role(r) for r, v in privileges if v == RuleValue.WRITE]
 
         for suffix, roles in [("r", read_roles), ("w", write_roles)]:
             key = f"{workspace}.{layer_name}.{suffix}"

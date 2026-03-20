@@ -853,3 +853,26 @@ class TestSyncLayerAcl:
             auth=("admin", "secret"),
             timeout=10.0,
         )
+
+    def test_to_geoserver_role_adds_prefix(self, service: GeoServerService) -> None:
+        assert service._to_geoserver_role("IMPORT") == "ROLE_IMPORT"  # type: ignore[reportPrivateUsage]
+
+    def test_to_geoserver_role_idempotent(self, service: GeoServerService) -> None:
+        assert service._to_geoserver_role("ROLE_IMPORT") == "ROLE_IMPORT"  # type: ignore[reportPrivateUsage]
+
+    @patch("httpx.post")
+    @patch("httpx.delete")
+    def test_sync_role_without_prefix_gets_prefixed(
+        self, mock_delete: MagicMock, mock_post: MagicMock, service: GeoServerService
+    ) -> None:
+        """Bare role name stored in DB is prefixed before sending to GeoServer ACL."""
+        mock_post.return_value = self._ok(200)
+
+        service.sync_layer_acl("myws", "mylayer", [("IMPORT", RuleValue.READ)])
+
+        mock_post.assert_any_call(
+            "http://gs.example.com/geoserver/rest/security/acl/layers",
+            json={"myws.mylayer.r": "ROLE_IMPORT"},
+            auth=("admin", "secret"),
+            timeout=10.0,
+        )
