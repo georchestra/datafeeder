@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import HTTPException
 
+from src.api.routes.groups_common import GroupItem
 from src.api.routes.ingestion.integrity_link import (
     delete_integrity_link_rule,
     get_integrity_link,
@@ -322,14 +323,10 @@ class TestSyncAfterUpsertRule:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
             patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
-            mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
-            mock_console.get_all_organizations.return_value = [
-                {"id": "org-uuid-1", "shortName": "C2C", "name": "Camptocamp"}
-            ]
+            mock_fetch_groups.return_value = [GroupItem(id="org-uuid-1", label="C2C")]
 
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
@@ -420,9 +417,11 @@ class TestSyncAfterUpsertRule:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService"),
+            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
             patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
+            mock_fetch_groups.return_value = []
+
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
 
@@ -474,15 +473,11 @@ class TestSyncAfterUpsertRule:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
             patch("src.api.routes.ingestion.integrity_link.MetadataService"),
         ):
-            mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             # org-uuid-unknown is not in the returned list
-            mock_console.get_all_organizations.return_value = [
-                {"id": "org-uuid-1", "shortName": "C2C"}
-            ]
+            mock_fetch_groups.return_value = [GroupItem(id="org-uuid-1", label="C2C")]
 
             with pytest.raises(HTTPException) as exc_info:
                 upsert_integrity_link_rule(
@@ -533,12 +528,10 @@ class TestSyncAfterUpsertRule:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
             patch("src.api.routes.ingestion.integrity_link.MetadataService"),
         ):
-            mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
-            mock_console.get_all_organizations.side_effect = Exception("Console unavailable")
+            mock_fetch_groups.side_effect = HTTPException(status_code=502, detail="upstream error")
 
             with pytest.raises(HTTPException) as exc_info:
                 upsert_integrity_link_rule(
@@ -589,14 +582,10 @@ class TestSyncAfterUpsertRule:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
             patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
-            mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
-            mock_console.get_all_organizations.return_value = [
-                {"id": "org-uuid-1", "shortName": "C2C"}
-            ]
+            mock_fetch_groups.return_value = [GroupItem(id="org-uuid-1", label="C2C")]
 
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
@@ -656,9 +645,11 @@ class TestSyncAfterDeleteRule:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService"),
+            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
             patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
+            mock_fetch_groups.return_value = []
+
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
 

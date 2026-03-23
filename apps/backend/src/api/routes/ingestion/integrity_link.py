@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import select
 
 from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, GeoServerServiceDep, OrgIdDep
+from src.api.routes.groups_common import fetch_groups
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.core.security import (
@@ -37,15 +38,17 @@ def _sync_metadata_sharing(
 ) -> None:
     """Sync METADATA rules to GeoNetwork sharing privileges.
 
-    Called after any rule mutation. Resolves geOrchestra org IDs to org names,
-    then delegates the GeoNetwork API call to MetadataService.sync_record_sharing.
+    Called after any rule mutation. Resolves group_or_role IDs to GeoNetwork group names
+    via METADATA_FETCH_GROUPS_URL, then delegates to MetadataService.sync_record_sharing.
     Skipped when integrity_link has no associated GeoNetwork record.
 
     Raises:
-        HTTPException(500): If any org cannot be resolved or the GeoNetwork sync fails.
+        HTTPException(500): If any group cannot be resolved or the GeoNetwork sync fails.
     """
     if not integrity_link.metadata_id:
         return
+
+    settings = get_settings()
 
     all_rules = list(
         session.exec(
@@ -55,26 +58,30 @@ def _sync_metadata_sharing(
         ).all()
     )
 
-    settings = get_settings()
-    console = ConsoleService(settings.CONSOLE_URL)
-
     try:
-        all_orgs = console.get_all_organizations()
-    except Exception:
-        logger.error("Failed to fetch organizations from Console", exc_info=True)
+        groups = fetch_groups(
+            url=settings.METADATA_FETCH_GROUPS_URL,
+            id_field=settings.METADATA_GROUPS_IDENTIFIER,
+            label_field=settings.METADATA_GROUPS_LABEL,
+            username=settings.METADATA_FETCH_GROUPS_USERNAME,
+            password=settings.METADATA_FETCH_GROUPS_PASSWORD,
+            filter_regex=settings.METADATA_GROUPS_LABEL_FILTER_REGEX,
+        )
+    except HTTPException:
+        logger.error("Failed to fetch metadata groups from %s", settings.METADATA_FETCH_GROUPS_URL)
         raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
 
-    orgs_by_id = {org["id"]: org.get("shortName", "") for org in all_orgs if org.get("id")}
+    groups_by_id = {g.id: g.label for g in groups}
 
     resolved: list[tuple[str, RuleValue]] = []
     for rule in all_rules:
         if rule.rule_type != RuleType.METADATA:
             continue
-        short_name = orgs_by_id.get(rule.group_or_role)
-        if not short_name:
-            logger.error("Could not resolve org '%s' for sharing sync", rule.group_or_role)
+        gn_group_name = groups_by_id.get(rule.group_or_role)
+        if not gn_group_name:
+            logger.error("Could not resolve group '%s' for sharing sync", rule.group_or_role)
             raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
-        resolved.append((short_name, rule.rule_value))
+        resolved.append((gn_group_name, rule.rule_value))
 
     metadata_service = MetadataService(
         gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
