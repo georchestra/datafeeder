@@ -40,7 +40,7 @@ import {
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
   getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet
 } from '../../core/api/functions'
-import { DagRunState, TaskStatus } from '../../core/api/models'
+import { TaskStatus } from '../../core/api/models'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
