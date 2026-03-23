@@ -26,7 +26,7 @@ import {
   switchMap,
   takeWhile,
   throwError,
-  timeout,
+  timeout
 } from 'rxjs'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import { Api } from '../../../core/api/api'

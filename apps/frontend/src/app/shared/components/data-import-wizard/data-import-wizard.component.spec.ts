@@ -242,20 +242,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     status: 'queued'
   }
 
-  const mockStatusRunning: { status: string; reason: null } = {
-    status: 'running',
-    reason: null
-  }
-
-  const mockStatusFinished: { status: string; reason: null } = {
-    status: 'success',
-    reason: null
-  }
-
-  const mockStatusFailed: { status: string; reason: null } = {
-    status: 'failed',
-    reason: null
-  }
+  const mockStatusRunning = 'running'
+  const mockStatusFinished = 'success'
+  const mockStatusFailed = 'failed'
 
   beforeEach(async () => {
     mockIntegrityLinkStore = {
@@ -277,7 +266,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
             'import.dataSource.missingUrl': 'Missing URL',
             'import.dataSource.processing': 'Processing...',
             'import.dataSource.sending': 'Sending...',
-            'i18nerror.staging.timeout': 'Processing timeout expired'
+            'import.dataSource.timeoutError': 'Processing timeout expired'
           }
         })
           .withDefaultLanguage('en')
@@ -567,8 +556,13 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       await new Promise((resolve) => setTimeout(resolve, 600))
 
       httpMock
-        .expectOne((r) => r.url.includes('/airflow/dags'))
+        .expectOne((r) => r.url.includes('/status'))
         .flush(mockStatusFailed)
+
+      // Wait for the /note request to be triggered after FAILED status
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      httpMock.expectOne((r) => r.url.includes('/note')).flush(null)
+
       await promise
     } catch (error) {
       // Expected to throw
