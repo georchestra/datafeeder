@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote
 from uuid import uuid4
 
 from airflow.exceptions import AirflowException
@@ -32,7 +33,7 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
     callback_url = params.get("failure_callback_url")
     if callback_url:
         reason: str = context.get("reason", "")
-        call_callback(f"{callback_url}&reason={reason}", "failure")
+        call_callback(f"{callback_url}&reason={quote(reason)}", "failure")
 
 
 @dag(
