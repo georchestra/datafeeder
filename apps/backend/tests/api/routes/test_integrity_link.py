@@ -288,7 +288,10 @@ class TestSyncAfterUpsertRule:
     def test_sync_called_when_metadata_id_set(
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
-        """sync_record_sharing is called after upsert when integrity_link has metadata_id."""
+        """sync_record_sharing is called after upsert when integrity_link has metadata_id.
+
+        Uses mixed-case group_or_role vs lowercase GroupItem.id to verify case-insensitive lookup.
+        """
         mock_session.get.return_value = IntegrityLink(
             id=UUID(integrity_link_id),
             integrity_owner="testuser",
@@ -308,7 +311,7 @@ class TestSyncAfterUpsertRule:
             IntegrityLinkRule(
                 id=1,
                 integrity_link_id=UUID(integrity_link_id),
-                group_or_role="org-uuid-1",
+                group_or_role="Org-Uuid-1",  # mixed case — must still resolve
                 rule_type=RuleType.METADATA,
                 rule_value=RuleValue.READ,
             )
@@ -316,7 +319,7 @@ class TestSyncAfterUpsertRule:
         mock_session.exec.side_effect = [access_mock, no_rule_mock, rules_mock]
 
         body = UpsertRuleRequest(
-            group_or_role="org-uuid-1",
+            group_or_role="Org-Uuid-1",
             rule_type=RuleType.METADATA,
             rule_value=RuleValue.READ,
         )
@@ -326,7 +329,7 @@ class TestSyncAfterUpsertRule:
             patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
             patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
-            mock_fetch_groups.return_value = [GroupItem(id="org-uuid-1", label="C2C")]
+            mock_fetch_groups.return_value = [GroupItem(id="org-uuid-1", label="C2C")]  # lowercase id
 
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms

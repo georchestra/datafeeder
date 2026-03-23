@@ -71,13 +71,13 @@ def _sync_metadata_sharing(
         logger.error("Failed to fetch metadata groups from %s", settings.METADATA_FETCH_GROUPS_URL)
         raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
 
-    groups_by_id = {g.id: g.label for g in groups}
+    groups_by_id = {g.id.lower(): g.label for g in groups}
 
     resolved: list[tuple[str, RuleValue]] = []
     for rule in all_rules:
         if rule.rule_type != RuleType.METADATA:
             continue
-        gn_group_name = groups_by_id.get(rule.group_or_role)
+        gn_group_name = groups_by_id.get(rule.group_or_role.lower())
         if not gn_group_name:
             logger.error("Could not resolve group '%s' for sharing sync", rule.group_or_role)
             raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
