@@ -538,18 +538,16 @@ export class DataImportWizardComponent {
                 { dag_id: dagId, dag_run_id: dagRunId }
               )
             ).pipe(
-              switchMap((note) =>
-                throwError(
-                  () =>
-                    new Error(
-                      this.translate.instant(
-                        note === 'timed_out'
-                          ? 'import.dataSource.timeoutError'
-                          : 'import.dataSource.failedError'
-                      )
-                    )
+              catchError(() => of(null)),
+              switchMap((note) => {
+                const messageKey =
+                  note === 'timed_out'
+                    ? 'import.dataSource.timeoutError'
+                    : 'import.dataSource.failedError'
+                return throwError(
+                  () => new Error(this.translate.instant(messageKey))
                 )
-              )
+              })
             )
           }
           return of(response)
