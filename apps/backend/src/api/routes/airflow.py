@@ -1,4 +1,4 @@
-import asyncio
+import time
 
 from airflow_client.client.exceptions import NotFoundException
 from airflow_client.client.models.dag_run_collection_response import DAGRunCollectionResponse
@@ -92,7 +92,7 @@ def get_dag_run_note(
             note = executor.get_task_note(dag_id, dag_run_id)
             if note is not None:
                 break
-            await asyncio.sleep(_NOTE_POLL_INTERVAL_S)
+            time.sleep(_NOTE_POLL_INTERVAL_S)
         if note != "timed_out":
             return None
         return note
