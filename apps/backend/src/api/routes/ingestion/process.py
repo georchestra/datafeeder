@@ -13,7 +13,13 @@ from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import MetaData, Table, func, select
 
-from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, OrgIdDep
+from src.api.deps import (
+    DatafeederSessionDep,
+    DataSessionDep,
+    GeorchestraContextDep,
+    GeoServerServiceDep,
+    OrgIdDep,
+)
 from src.core.callback import build_callback_url
 from src.core.config import get_settings, get_staging_schema
 from src.core.db import data_engine
@@ -26,7 +32,6 @@ from src.models import (
 from src.models.integrity_link import IntegrityLink
 from src.services.console_service import ConsoleService
 from src.services.executor_factory import get_task_executor
-from src.services.geoserver import GeoServerService  # type: ignore[attr-defined]
 from src.services.metadata_service import MetadataService
 
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
@@ -55,6 +60,7 @@ def process_staging_data(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     org_id: OrgIdDep,
+    geoserver_service: GeoServerServiceDep,
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_email: str = Header("", alias="sec-email", include_in_schema=False),
     sec_firstname: str = Header("", alias="sec-firstname", include_in_schema=False),
@@ -127,12 +133,6 @@ def process_staging_data(
     if integrity_link.metadata_id is None:
         try:
             # Compute layer URLs — pure string building, no GeoServer API call
-            geoserver_service = GeoServerService(
-                base_url=settings.GEOSERVER_URL,
-                username=settings.GEOSERVER_USER,
-                password=settings.GEOSERVER_PASSWORD,
-                public_url=settings.DATA_PUBLIC_URL,
-            )
             layer_urls = geoserver_service.build_layer_urls_for_metadata(
                 workspace_name=workspace_name,
                 table_name=final_table_name,
@@ -236,6 +236,7 @@ def process_staging_data(
 @router.post("/dag_success")
 async def dag_success_callback(
     datafeeder_session: DatafeederSessionDep,
+    geoserver_service: GeoServerServiceDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
 ) -> None:
@@ -266,13 +267,6 @@ async def dag_success_callback(
 
     # Create GeoServer workspace, datastore, and layer with actual bbox
     try:
-        geoserver_service = GeoServerService(
-            base_url=settings.GEOSERVER_URL,
-            username=settings.GEOSERVER_USER,
-            password=settings.GEOSERVER_PASSWORD,
-            public_url=settings.DATA_PUBLIC_URL,
-        )
-
         workspace_exists = await geoserver_service.workspace_exists(workspace_name)
         datastore_exists = await geoserver_service.datastore_exists(workspace_name, datastore_name)
 

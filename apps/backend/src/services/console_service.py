@@ -18,6 +18,32 @@ class ConsoleService:
         """
         self.console_url = console_url
 
+    def get_role_labels(self, role_ids: list[str]) -> list[str]:
+        """Resolve role IDs to GeoServer-compatible role labels (ROLE_xxx format).
+
+        Fetches all roles from the console API and returns the names matching the given IDs,
+        prefixed with "ROLE_" as expected by GeoServer ACL.
+
+        Args:
+            role_ids: List of role IDs stored in IntegrityLinkRule.group_or_role.
+
+        Returns:
+            List of role labels in "ROLE_<name>" format. IDs with no matching role are skipped.
+        """
+        try:
+            url = f"{self.console_url}/internal/roles"
+            response = httpx.get(url, timeout=5.0)
+            response.raise_for_status()
+            all_roles: list[dict[str, Any]] = response.json()
+        except Exception as e:
+            logger.warning(f"Failed to fetch roles from console API: {e}", exc_info=True)
+            return []
+
+        id_to_name = {
+            str(r["id"]): str(r["name"]) for r in all_roles if r.get("id") and r.get("name")
+        }
+        return [f"ROLE_{id_to_name[rid]}" for rid in role_ids if rid in id_to_name]
+
     def get_organization(self, org_short_name: str) -> dict[str, Any] | None:
         """Fetch organization from geOrchestra console API.
 

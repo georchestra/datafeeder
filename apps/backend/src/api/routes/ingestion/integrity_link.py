@@ -3,18 +3,25 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import select
 
-from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, OrgIdDep
+from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, GeoServerServiceDep, OrgIdDep
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.core.security import (
     AccessLevel,
     load_authorized_integrity_link,
 )
-from src.models.data_import import IntegrityLinkResponse
+from src.models.data_import import IntegrityLinkGsPublishResponse, IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
-from src.models.integrity_link_rule import IntegrityLinkRule, UpsertRuleRequest
+from src.models.integrity_link_rule import (
+    GROUP_OR_ROLE_EVERYONE,
+    IntegrityLinkRule,
+    RuleType,
+    RuleValue,
+    UpsertRuleRequest,
+)
+from src.services.console_service import ConsoleService
 from src.services.dataset_deletion_service import DatasetDeletionService
-from src.services.geoserver import GeoServerService
+from src.services.geoserver import AclAccessType, GeoServerAclError, GeoServerService
 from src.services.metadata_service import MetadataService
 
 logger = get_logger()
@@ -254,3 +261,127 @@ def delete_integrity_link(
         raise HTTPException(status_code=500, detail=f"Failed to delete dataset: {e}")
 
     return Response(status_code=204)
+
+
+@router.put(
+    "/{integrity_link_id}/publish-gs",
+    response_model=IntegrityLinkGsPublishResponse,
+    summary="Publish or unpublish an IntegrityLink on GeoServer",
+    description=(
+        "Toggle the publication status of an IntegrityLink layer on GeoServer (ACL READ rule). "
+        "**Note:** restricting access (unpublish) only has effect if GeoServer does not have a "
+        "global rule granting read access to everyone (e.g. `*.*.r = *`). "
+        "If such a global rule exists, removing the layer-level rule will not prevent public access."
+    ),
+)
+def toggle_publish_gs_integrity_link(
+    session: DatafeederSessionDep,
+    georchestra_context: GeorchestraContextDep,
+    org_id: OrgIdDep,
+    geoserver_service: GeoServerServiceDep,
+    integrity_link_id: str,
+    publish: bool = Query(description="Set to true to publish, false to unpublish"),
+) -> IntegrityLinkGsPublishResponse:
+    """Publish or unpublish an IntegrityLink layer on GeoServer by managing its ACL read rule."""
+    integrity_link, _ = load_authorized_integrity_link(
+        integrity_link_id,
+        AccessLevel.OWNER_ONLY,
+        georchestra_context,
+        session,
+        org_id,
+    )
+    if not integrity_link.final_table_name:
+        raise HTTPException(
+            status_code=400,
+            detail="IntegrityLink has no associated layer to publish/unpublish",
+        )
+
+    acl_layer_name = GeoServerService.make_acl_layer_name(
+        integrity_link.integrity_organization, integrity_link.final_table_name
+    )
+    gs_read_roles: list[str] | None = None
+    try:
+        if publish:
+            geoserver_service.acl_layer_publish(
+                layer_name=acl_layer_name,
+                access_type=AclAccessType.READ,
+            )
+            session.add(
+                IntegrityLinkRule(
+                    integrity_link_id=UUID(integrity_link_id),
+                    rule_type=RuleType.DATA,
+                    rule_value=RuleValue.READ,
+                    group_or_role=GROUP_OR_ROLE_EVERYONE,
+                )
+            )
+        else:
+            existing_read_rules = session.exec(
+                select(IntegrityLinkRule).where(
+                    IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id),
+                    IntegrityLinkRule.rule_type == RuleType.DATA,
+                    IntegrityLinkRule.rule_value == RuleValue.READ,
+                )
+            ).all()
+            other_roles = [
+                r.group_or_role
+                for r in existing_read_rules
+                if r.group_or_role != GROUP_OR_ROLE_EVERYONE
+            ]
+            geoserver_service.acl_layer_unpublish(
+                layer_name=acl_layer_name,
+                access_type=AclAccessType.READ,
+            )
+
+            if other_roles:
+                settings = get_settings()
+                console_service = ConsoleService(settings.CONSOLE_URL)
+                geoserver_roles = console_service.get_role_labels(other_roles)
+                if geoserver_roles:
+                    geoserver_service.acl_layer_add_rule(
+                        layer_name=acl_layer_name,
+                        access_type=AclAccessType.READ,
+                        roles=geoserver_roles,
+                    )
+            for rule in existing_read_rules:
+                if rule.group_or_role == GROUP_OR_ROLE_EVERYONE:
+                    session.delete(rule)
+
+        gs_read_roles = geoserver_service.acl_layer_get(
+            layer_name=acl_layer_name,
+            access_type=AclAccessType.READ,
+        )
+        action = "Published" if publish else "Unpublished"
+        logger.info(
+            f"{action} GeoServer layer {integrity_link.integrity_organization}/{integrity_link.final_table_name} "
+            f"for IntegrityLink {integrity_link_id}"
+        )
+
+        integrity_link.gs_is_published = publish
+        session.add(integrity_link)
+        session.commit()
+        session.refresh(integrity_link)
+
+    except Exception as e:
+        response_body: str | None = None
+        if isinstance(e, GeoServerAclError):
+            response_body = e.body
+        logger.error(
+            f"Failed to {'publish' if publish else 'unpublish'} GeoServer layer for IntegrityLink {integrity_link_id}: {e}"
+            + (f" — GeoServer response: {response_body}" if response_body else ""),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="i18nerror.publish.geoserver",
+        )
+
+    response = IntegrityLinkGsPublishResponse.model_validate(integrity_link)
+    response.gs_read_roles = gs_read_roles
+    response.rules = list(
+        session.exec(
+            select(IntegrityLinkRule).where(
+                IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
+            )
+        ).all()
+    )
+    return response
