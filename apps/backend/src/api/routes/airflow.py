@@ -61,7 +61,7 @@ def get_dag_run_status(
 
 
 @router.get("/dags/{dag_id}/runs/{dag_run_id}/note", response_model=str | None)
-async def get_dag_run_note(
+def get_dag_run_note(
     dag_id: str,
     dag_run_id: str,
     session: DatafeederSessionDep,
