@@ -26,9 +26,9 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
     """Callback when staging_dag fails."""
     params = context.get("params", {})
     callback_url = params.get("failure_callback_url")
-
     if callback_url:
-        call_callback(callback_url, "failure")
+        reason: str = context.get("reason", "")
+        call_callback(f"{callback_url}&reason={reason}", "failure")
 
 
 @dag(

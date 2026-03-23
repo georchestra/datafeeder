@@ -225,7 +225,7 @@
   "import.dataSource.processing": "",
   "import.dataSource.processingMessage": "",
   "import.dataSource.sending": "",
-  "import.dataSource.timeoutError": "",
+  "import.dataSource.timeoutError": "Por favor, inténtelo más tarde o con un conjunto de datos más pequeño",
   "import.dataSource.title": "",
   "import.dataSource.unknownError": "",
   "import.dataSource.unsupportedSourceType": "",

@@ -14,7 +14,17 @@ export interface DagFailureCallbackIngestionStagingDagFailurePost$Params {
   integrity_link_id: string
 
   /**
-   * Failure reason
+   * DAG ID
+   */
+  dag_id: string
+
+  /**
+   * DAG run ID
+   */
+  dag_run_id: string
+
+  /**
+   * Failure reason from Airflow context
    */
   reason?: string | null
 }
@@ -32,6 +42,8 @@ export function dagFailureCallbackIngestionStagingDagFailurePost(
   )
   if (params) {
     rb.query('integrity_link_id', params.integrity_link_id, {})
+    rb.query('dag_id', params.dag_id, {})
+    rb.query('dag_run_id', params.dag_run_id, {})
     rb.query('reason', params.reason, {})
   }
 

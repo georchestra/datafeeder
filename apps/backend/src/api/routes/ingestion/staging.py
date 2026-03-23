@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 import geopandas as gpd
 import pandas as pd
 import requests
+from airflow_client.client.models.dag_run_patch_body import DAGRunPatchBody
 from data_manipulation import (
     IntegrityTransformation,
     detect_column_type_from_sqla,
@@ -44,6 +45,7 @@ from src.models.data_import import (
     StagingPreviewResponse,
 )
 from src.models.integrity_link import IntegrityLink
+from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
 from src.services.files import delete_temp_file, upload_file_to_temp
 
@@ -224,7 +226,11 @@ def _trigger_staging_task(
     Returns:
         StagingResponse with integrity link ID, DAG ID, DAG run ID, and current status
     """
-    callback_params = {"integrity_link_id": str(integrity_link.id)}
+    callback_params = {
+        "integrity_link_id": str(integrity_link.id),
+        "dag_id": "staging_dag",
+        "dag_run_id": dag_run_id,
+    }
     success_callback_url = build_callback_url("/ingestion/staging/dag_success", callback_params)
     failure_callback_url = build_callback_url("/ingestion/staging/dag_failure", callback_params)
 
@@ -613,7 +619,9 @@ def dag_failure_callback(
     datafeeder_session: DatafeederSessionDep,
     data_session: DataSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
-    reason: str | None = Query(None, description="Failure reason"),
+    dag_id: str = Query(..., description="DAG ID"),
+    dag_run_id: str = Query(..., description="DAG run ID"),
+    reason: str | None = Query(None, description="Failure reason from Airflow context"),
 ) -> None:
     """
     Failure callback endpoint called by Airflow DAG on failure.
@@ -624,6 +632,18 @@ def dag_failure_callback(
         data_session: Data database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
     """
+    logger.info(
+        f"dag_failure_callback | integrity_link_id={integrity_link_id} dag_run_id={dag_run_id} reason={reason!r}"
+    )
+    if reason:
+        try:
+            get_dag_run_api().patch_dag_run(
+                dag_id=dag_id,
+                dag_run_id=dag_run_id,
+                dag_run_patch_body=DAGRunPatchBody(note=reason),
+            )
+        except Exception as e:
+            logger.error(f"Failed to set dag_run note: {e}")
     integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")

@@ -26,7 +26,7 @@ import {
   switchMap,
   takeWhile,
   throwError,
-  timeout
+  timeout,
 } from 'rxjs'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import { Api } from '../../../core/api/api'
@@ -34,6 +34,7 @@ import {
   getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet,
   getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
+  getDagRunNoteAirflowDagsDagIdRunsDagRunIdNoteGet,
   submitStagingIngestionStagingPost,
   processStagingDataIngestionProcessPost,
   editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut,
@@ -42,7 +43,7 @@ import {
 import type {
   ColumnConfigInput,
   DagRunState,
-  DagRunStatusResponse,
+  TaskStatus,
   ForceProjection,
   StagingResponse,
   StagingMetadataResponse,
@@ -512,9 +513,9 @@ export class DataImportWizardComponent {
           )
         ),
         takeWhile(
-          (response: DagRunStatusResponse) =>
-            response.status === ImportStatus.QUEUED ||
-            response.status === ImportStatus.RUNNING,
+          (response: TaskStatus) =>
+            response === ImportStatus.QUEUED ||
+            response === ImportStatus.RUNNING,
           true
         ),
         timeout(MAX_POLL_TIME_MS),
@@ -529,17 +530,26 @@ export class DataImportWizardComponent {
           }
           return throwError(() => error)
         }),
-        switchMap((response: DagRunStatusResponse) => {
-          if (response.status === ImportStatus.FAILED) {
-            const key = response.reason ?? 'import.dataSource.failedError'
-            const errorMsg = this.translate.instant(key)
-            return throwError(
-              () =>
-                new Error(
-                  errorMsg !== key
-                    ? errorMsg
-                    : this.translate.instant('import.dataSource.failedError')
+        switchMap((response: TaskStatus) => {
+          if (response === ImportStatus.FAILED) {
+            return from(
+              this.api.invoke(
+                getDagRunNoteAirflowDagsDagIdRunsDagRunIdNoteGet,
+                { dag_id: dagId, dag_run_id: dagRunId }
+              )
+            ).pipe(
+              switchMap((note) =>
+                throwError(
+                  () =>
+                    new Error(
+                      this.translate.instant(
+                        note === 'timed_out'
+                          ? 'import.dataSource.timeoutError'
+                          : 'import.dataSource.failedError'
+                      )
+                    )
                 )
+              )
             )
           }
           return of(response)

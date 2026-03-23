@@ -225,7 +225,7 @@
   "import.dataSource.processing": "Traitement en cours...",
   "import.dataSource.processingMessage": "Le jeu de données est en cours de traitement",
   "import.dataSource.sending": "Envoi en cours...",
-  "import.dataSource.timeoutError": "Délai d'attente dépassé",
+  "import.dataSource.timeoutError": "Veuillez réessayer ultérieurement ou avec un jeu de données plus petit",
   "import.dataSource.title": "Ajouter un jeu de données",
   "import.dataSource.unknownError": "Une erreur est survenue",
   "import.dataSource.unsupportedSourceType": "Type de source non supporté",

@@ -225,7 +225,7 @@
   "import.dataSource.processing": "Processing...",
   "import.dataSource.processingMessage": "The dataset is being processed",
   "import.dataSource.sending": "Sending...",
-  "import.dataSource.timeoutError": "Timeout exceeded",
+  "import.dataSource.timeoutError": "Please try again later or with a smaller dataset",
   "import.dataSource.title": "Add a dataset",
   "import.dataSource.unknownError": "An unknown error occurred",
   "import.dataSource.unsupportedSourceType": "Unsupported source type",

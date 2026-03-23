@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+from airflow_client.client.models.dag_run_patch_body import DAGRunPatchBody
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.database import create_schema, get_available_table_name
 from data_manipulation.models import IntegrityTransformation
@@ -30,6 +31,7 @@ from src.models import (
     ProcessResponse,
 )
 from src.models.integrity_link import IntegrityLink
+from src.services.airflow_client import get_dag_run_api
 from src.services.console_service import ConsoleService
 from src.services.executor_factory import get_task_executor
 from src.services.metadata_service import MetadataService
@@ -228,6 +230,8 @@ def process_staging_data(
     callback_params = {
         "integrity_link_id": str(integrity_link.id),
         "final_table_name": final_table_name,
+        "dag_id": "process_dag",
+        "dag_run_id": dag_run_id,
     }
 
     # Build callback URLs
@@ -390,7 +394,10 @@ async def dag_failure_callback(
     data_session: DataSessionDep,
     datafeeder_session: DatafeederSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
+    dag_id: str = Query(..., description="DAG ID"),
+    dag_run_id: str = Query(..., description="DAG run ID"),
     final_table_name: str = Query(None, description="Final table name (if created)"),
+    reason: str | None = Query(None, description="Failure reason from Airflow context"),
 ) -> None:
     """
     Failure callback endpoint called by Airflow DAG on failure.
@@ -433,5 +440,14 @@ async def dag_failure_callback(
     # For now, we just log the failure
     logger.error(
         f"Process DAG failure for IntegrityLink {integrity_link.id} | "
-        f"final_table={final_table_name}"
+        f"final_table={final_table_name} | reason={reason!r}"
     )
+    if reason:
+        try:
+            get_dag_run_api().patch_dag_run(
+                dag_id=dag_id,
+                dag_run_id=dag_run_id,
+                dag_run_patch_body=DAGRunPatchBody(note=reason),
+            )
+        except Exception as e:
+            logger.error(f"Failed to set dag_run note: {e}")

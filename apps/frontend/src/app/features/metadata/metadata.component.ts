@@ -40,7 +40,7 @@ import {
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
   getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet
 } from '../../core/api/functions'
-import { DagRunState, DagRunStatusResponse } from '../../core/api/models'
+import { DagRunState, TaskStatus } from '../../core/api/models'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
@@ -76,7 +76,7 @@ export class MetadataComponent implements OnInit {
   private api = inject(Api)
   private destroyRef = inject(DestroyRef)
 
-  processingStatus = signal<DagRunState | null>(null)
+  processingStatus = signal<TaskStatus | null>(null)
   processingStatusLoaded = signal(false)
   processingDagRunId = signal<string | null>(null)
 
@@ -176,15 +176,15 @@ export class MetadataComponent implements OnInit {
           )
         ),
         takeWhile(
-          (response: DagRunStatusResponse) =>
-            response.status === 'queued' || response.status === 'running',
+          (response: TaskStatus) =>
+            response === 'queued' || response === 'running',
           true
         )
       )
       .subscribe({
-        next: async (response: DagRunStatusResponse) => {
-          this.processingStatus.set(response.status)
-          if (response.status === 'success') {
+        next: async (response: TaskStatus) => {
+          this.processingStatus.set(response)
+          if (response === 'success') {
             await this.reloadIntegrityLink(intlinkId)
             const integrityLink = this.store.integrityLink()
             if (integrityLink?.metadata_id) {
