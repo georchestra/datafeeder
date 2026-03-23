@@ -50,4 +50,4 @@ def get_staging_timeout() -> timedelta:
             raise ValueError
     except ValueError:
         seconds = 600
-    return timedelta(seconds=1)
+    return timedelta(seconds=seconds)

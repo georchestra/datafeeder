@@ -42,7 +42,6 @@ import {
 } from '../../../core/api/functions'
 import type {
   ColumnConfigInput,
-  DagRunState,
   TaskStatus,
   ForceProjection,
   StagingResponse,
