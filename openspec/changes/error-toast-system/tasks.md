@@ -1,16 +1,16 @@
 ## 1. ErrorToastStore (core/stores)
 
-- [ ] 1.1 Create `apps/frontend/src/app/core/stores/error-toast.store.ts` with `toasts = signal<ErrorToast[]>([])`, `add(operationKey: string): void` and `remove(id: string): void` methods
-- [ ] 1.2 Define `ErrorToast` interface `{ id: string; operationKey: string }` in `apps/frontend/src/app/core/models/error-toast.model.ts`
+- [ ] 1.1 Create `apps/frontend/src/app/core/stores/error-toast.store.ts` with `toasts = signal<ErrorToast[]>([])`, `add(operationKey: string, error?: unknown): void` and `remove(id: string): void` methods; `add()` computes `translationKey` as `error.error.detail` (when `error` is an `HttpErrorResponse` with a string `detail`) or `errors.operation.${operationKey}` otherwise
+- [ ] 1.2 Define `ErrorToast` interface `{ id: string; translationKey: string }` in `apps/frontend/src/app/core/models/error-toast.model.ts`
 - [ ] 1.3 Register `ErrorToastStore` as `providedIn: 'root'`
-- [ ] 1.4 Write vitest unit tests for `ErrorToastStore`: add, remove, stacking order
+- [ ] 1.4 Write vitest unit tests for `ErrorToastStore`: add, remove, stacking order, error detail override, fallback when no detail
 
 ## 2. ErrorToastComponent (shared)
 
 - [ ] 2.1 Use the Figma MCP to retrieve the exact design spec for nodes `1119:21582` and `1119:22005` in file `IwMxmE9G9D9StF2QLlR1uE` before implementing the component
 - [ ] 2.2 Create `apps/frontend/src/app/shared/components/error-toast/error-toast.component.ts` as a standalone OnPush presentational component
 - [ ] 2.3 Inject `ErrorToastStore` and expose `toasts` signal; emit dismiss to call `remove(id)`
-- [ ] 2.4 Implement template matching Figma design: orange/peach background (`#ffe5c8`), red border, warning-triangle icon, operation message via `translate` pipe, close (×) button; stack toasts vertically with most recent at bottom
+- [ ] 2.4 Implement template matching Figma design: orange/peach background (`#ffe5c8`), red border, warning-triangle icon, `toast.translationKey | translate` message, close (×) button; stack toasts vertically with most recent at bottom
 - [ ] 2.5 Style with Tailwind classes; fixed overlay positioning (floats above all content)
 - [ ] 2.6 Write vitest unit tests: renders toasts, dismiss button calls store, stacking order
 
@@ -40,8 +40,8 @@
 ## 6. Wire GeoNetwork publish / unpublish
 
 - [ ] 6.1 Locate the publish/unpublish call in `authorizations.component.ts` (`onTogglePublishGn`)
-- [ ] 6.2 Wire GN publish error → `errorToastStore.add('gnPublish')`
-- [ ] 6.3 Wire GN unpublish error → `errorToastStore.add('gnUnpublish')`
+- [ ] 6.2 Wire GN publish error → `errorToastStore.add('gnPublish', error)` (passes error so backend `detail` is used as translation key when present)
+- [ ] 6.3 Wire GN unpublish error → `errorToastStore.add('gnUnpublish', error)`
 - [ ] 6.4 Re-enable the publish/unpublish toggle on error
 
 ## 7. Wire rights editing (GN + GS)
