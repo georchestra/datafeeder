@@ -7,11 +7,11 @@
 
 ## 2. ErrorToastComponent (shared)
 
-- [ ] 2.1 Use the Figma MCP to retrieve the exact design spec for nodes `1119:21582` and `1119:22005` in file `IwMxmE9G9D9StF2QLlR1uE` before implementing the component
-- [ ] 2.2 Create `apps/frontend/src/app/shared/components/error-toast/error-toast.component.ts` as a standalone OnPush presentational component
-- [ ] 2.3 Inject `ErrorToastStore` and expose `toasts` signal; emit dismiss to call `remove(id)`
-- [ ] 2.4 Implement template matching Figma design: orange/peach background (`#ffe5c8`), red border, warning-triangle icon, `toast.translationKey | translate` message, close (×) button; stack toasts vertically with most recent at bottom
-- [ ] 2.5 Style with Tailwind classes; fixed overlay positioning (floats above all content)
+- [x] 2.1 Use the Figma MCP to retrieve the exact design spec for nodes `1119:21582` and `1119:22005` in file `IwMxmE9G9D9StF2QLlR1uE` before implementing the component
+- [x] 2.2 Create `apps/frontend/src/app/shared/components/error-toast/error-toast.component.ts` as a standalone OnPush presentational component
+- [x] 2.3 Inject `ErrorToastStore` and expose `toasts` signal; emit dismiss to call `remove(id)`
+- [x] 2.4 Implement template matching Figma design: orange/peach background (`#ffe5c8`), red border, warning-triangle icon, `toast.translationKey | translate` message, close (×) button; stack toasts vertically with most recent at bottom
+- [x] 2.5 Style with Tailwind classes; fixed overlay positioning (floats above all content)
 - [ ] 2.6 Write vitest unit tests: renders toasts, dismiss button calls store, stacking order
 
 ## 3. Mount in root layout
