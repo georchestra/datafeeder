@@ -72,7 +72,7 @@
 - [ ] 10.2 Verify toast persists across navigation (go to another route while toast is visible)
 - [ ] 10.3 Verify multiple simultaneous toasts stack correctly with most recent at bottom
 - [ ] 10.4 Verify each toast dismisses independently
-- [ ] 10.5 Run `npm run lint` and `npm run test` — no regressions
+- [x] 10.5 Run `npm run lint` and `npm run test` — no regressions
 
 ## Future (when recurrence editing is implemented)
 

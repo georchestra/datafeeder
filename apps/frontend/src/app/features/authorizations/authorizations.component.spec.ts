@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing'
+import { HttpErrorResponse } from '@angular/common/http'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { Api } from '../../core/api/api'
@@ -13,6 +14,7 @@ import {
 } from '../../core/api/functions'
 import { GroupItem, IntegrityLinkRule } from '../../core/api/models'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
+import { ErrorToastStore } from '../../core/stores/error-toast.store'
 import { AuthorizationsComponent } from './authorizations.component'
 
 describe('AuthorizationsComponent', () => {
@@ -46,6 +48,7 @@ describe('AuthorizationsComponent', () => {
 
   let apiInvokeSpy: ReturnType<typeof vi.fn>
   let store: IntegrityLinkStore
+  let toastStore: ErrorToastStore
 
   const createComponent = () => {
     const fixture = TestBed.createComponent(AuthorizationsComponent)
@@ -109,6 +112,7 @@ describe('AuthorizationsComponent', () => {
     }).compileComponents()
 
     store = TestBed.inject(IntegrityLinkStore)
+    toastStore = TestBed.inject(ErrorToastStore)
     store.intlinkId.set(intlinkId)
     store.integrityLink.set({
       integrity_link_id: intlinkId,
@@ -288,7 +292,10 @@ describe('AuthorizationsComponent', () => {
         value: 'WRITE'
       })
 
-      expect(component.mutationError()).not.toBeNull()
+      expect(toastStore.toasts().length).toBe(1)
+      expect(toastStore.toasts()[0].translationKey).toBe(
+        'errors.operation.gnRightsEdit'
+      )
       // rules unchanged — loadRules was not called after the failed upsert
       expect(component.rules().length).toBe(2)
     })
@@ -402,7 +409,7 @@ describe('AuthorizationsComponent', () => {
       expect(component.publishErrorMetadata()).toBeNull()
     })
 
-    it('should set publishError with default message on generic error', async () => {
+    it('should add gnPublish toast on generic error', async () => {
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (fn === listGroupsMetadataGroupsGet)
           return Promise.resolve(mockGeonetworkGroups)
@@ -425,11 +432,14 @@ describe('AuthorizationsComponent', () => {
 
       await component.onTogglePublishGn(true)
 
-      expect(component.publishErrorMetadata()).toBe('Network error')
+      expect(toastStore.toasts().length).toBe(1)
+      expect(toastStore.toasts()[0].translationKey).toBe(
+        'errors.operation.gnPublish'
+      )
       expect(component.isPublishingMetadata()).toBe(false)
     })
 
-    it('should set publishError with translated i18n key from backend detail', async () => {
+    it('should add gnPublish toast with backend detail as translation key', async () => {
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (fn === listGroupsMetadataGroupsGet)
           return Promise.resolve(mockGeonetworkGroups)
@@ -444,9 +454,12 @@ describe('AuthorizationsComponent', () => {
           fn ===
           togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut
         )
-          return Promise.reject({
-            error: { detail: 'i18nerror.publish.geonetwork' }
-          })
+          return Promise.reject(
+            new HttpErrorResponse({
+              error: { detail: 'i18nerror.publish.geonetwork' },
+              status: 400
+            })
+          )
         return Promise.resolve(null)
       })
 
@@ -454,8 +467,9 @@ describe('AuthorizationsComponent', () => {
 
       await component.onTogglePublishGn(true)
 
-      expect(component.publishErrorMetadata()).toBe(
-        'Error publishing metadata to GeoNetwork'
+      expect(toastStore.toasts().length).toBe(1)
+      expect(toastStore.toasts()[0].translationKey).toBe(
+        'i18nerror.publish.geonetwork'
       )
       expect(component.isPublishingMetadata()).toBe(false)
     })
@@ -611,7 +625,7 @@ describe('AuthorizationsComponent', () => {
       expect(component.publishErrorData()).toBeNull()
     })
 
-    it('should set publishErrorData with default message on generic error', async () => {
+    it('should add gsPublish toast on generic error', async () => {
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (fn === listGroupsMetadataGroupsGet)
           return Promise.resolve(mockGeonetworkGroups)
@@ -634,11 +648,14 @@ describe('AuthorizationsComponent', () => {
 
       await component.onTogglePublishGs(true)
 
-      expect(component.publishErrorData()).toBe('Network error')
+      expect(toastStore.toasts().length).toBe(1)
+      expect(toastStore.toasts()[0].translationKey).toBe(
+        'errors.operation.gsPublish'
+      )
       expect(component.isPublishingData()).toBe(false)
     })
 
-    it('should set publishErrorData with translated i18n key from backend detail', async () => {
+    it('should add gsPublish toast with backend detail as translation key', async () => {
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (fn === listGroupsMetadataGroupsGet)
           return Promise.resolve(mockGeonetworkGroups)
@@ -653,9 +670,12 @@ describe('AuthorizationsComponent', () => {
           fn ===
           togglePublishGsIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGsPut
         )
-          return Promise.reject({
-            error: { detail: 'i18nerror.publish.geoserver' }
-          })
+          return Promise.reject(
+            new HttpErrorResponse({
+              error: { detail: 'i18nerror.publish.geoserver' },
+              status: 400
+            })
+          )
         return Promise.resolve(null)
       })
 
@@ -663,8 +683,9 @@ describe('AuthorizationsComponent', () => {
 
       await component.onTogglePublishGs(true)
 
-      expect(component.publishErrorData()).toBe(
-        'Error publishing layer to GeoServer'
+      expect(toastStore.toasts().length).toBe(1)
+      expect(toastStore.toasts()[0].translationKey).toBe(
+        'i18nerror.publish.geoserver'
       )
       expect(component.isPublishingData()).toBe(false)
     })
@@ -766,7 +787,7 @@ describe('AuthorizationsComponent', () => {
 
       // Should revert back to false after error
       await vi.waitFor(() => expect(component.isPublishedData()).toBe(false))
-      expect(component.publishErrorData()).not.toBeNull()
+      expect(toastStore.toasts().length).toBe(1)
     })
 
     it('should update rules signal from response.rules on success', async () => {
