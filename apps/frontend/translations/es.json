@@ -222,7 +222,6 @@
   "import.dataSource.validationError": "",
   "import.datasetConfiguration.previewTitle": "",
   "import.datasetConfiguration.title": "",
-  "import.datasetConfiguration.untitled": "",
   "import.datasetLoadError.forbidden": "No tiene permisos para acceder a este conjunto de datos.",
   "import.datasetLoadError.not_found": "Este conjunto de datos ya no existe. Es posible que haya sido eliminado por su propietario o por un administrador.",
   "import.datasetLoadError.server_error": "Se ha producido un error inesperado al cargar el conjunto de datos. Por favor, inténtelo de nuevo más tarde.",

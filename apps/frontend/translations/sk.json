@@ -222,7 +222,6 @@
   "import.dataSource.validationError": "",
   "import.datasetConfiguration.previewTitle": "",
   "import.datasetConfiguration.title": "",
-  "import.datasetConfiguration.untitled": "",
   "import.datasetLoadError.forbidden": "Nemáte oprávnenie na prístup k tomuto súboru údajov.",
   "import.datasetLoadError.not_found": "Tento súbor údajov už neexistuje. Mohol byť odstránený jeho vlastníkom alebo správcom.",
   "import.datasetLoadError.server_error": "Pri načítaní súboru údajov sa vyskytla neočakávaná chyba. Skúste to prosím neskôr.",
