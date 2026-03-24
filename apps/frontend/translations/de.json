@@ -229,7 +229,6 @@
   "import.dataSource.validationError": "",
   "import.datasetConfiguration.previewTitle": "",
   "import.datasetConfiguration.title": "",
-  "import.datasetConfiguration.untitled": "",
   "import.datasetLoadError.forbidden": "Sie haben keine Berechtigung, auf diesen Datensatz zuzugreifen.",
   "import.datasetLoadError.not_found": "Dieser Datensatz existiert nicht mehr. Er wurde möglicherweise vom Eigentümer oder einem Administrator gelöscht.",
   "import.datasetLoadError.server_error": "Beim Laden des Datensatzes ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",

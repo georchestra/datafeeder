@@ -47,7 +47,7 @@ class ProcessRequest(BaseModel):
     """Request model for final import endpoint"""
 
     integrity_link_id: str
-    title: str
+    title: str | None = None
     # config: TransformationConfig
     # cron_schedule: str | None
 
