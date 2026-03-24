@@ -33,9 +33,9 @@
 
 ## 5. Wire metadata save
 
-- [ ] 5.1 Locate the metadata save NgRx effect or service call in the metadata feature
-- [ ] 5.2 In the error handler, call `errorToastStore.add('metadataSave')`
-- [ ] 5.3 Ensure the save button's `loading` signal is set back to `false` on error
+- [x] 5.1 Locate the metadata save NgRx effect or service call in the metadata feature
+- [x] 5.2 In the error handler, call `errorToastStore.add('metadataSave')`
+- [x] 5.3 Ensure the save button's `loading` signal is set back to `false` on error
 
 ## 6. Wire GeoNetwork publish / unpublish
 
