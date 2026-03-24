@@ -62,7 +62,8 @@ The following feature services/effects will catch errors and call `errorToastSto
 | GN rights edit | `gnRightsEdit` | authorizations component |
 | GS rights edit | `gsRightsEdit` | authorizations component |
 | Deletion | `deletion` | integrity-link-list component |
-| GS publish/unpublish | `gsPublish` / `gsUnpublish` | *(not yet implemented)* |
+| GS publish | `gsPublish` | authorizations component (`onTogglePublishGs`) |
+| GS unpublish | `gsUnpublish` | authorizations component (`onTogglePublishGs`) |
 | Recurrence edit | `recurrenceEdit` | *(not yet implemented)* |
 
 ## Risks / Trade-offs
@@ -80,7 +81,7 @@ No data migration required. This is a pure frontend addition:
 4. Add source i18n keys and run `npm run i18n:extract` to register them in all translation files.
 5. Wire each implemented feature's error handler to call `errorToastStore.add(key)`.
 6. Re-enable buttons on error in each feature component.
-7. Wire GeoServer publish/unpublish and recurrence editing when those features are implemented.
+7. Wire recurrence editing when that feature is implemented.
 
 Rollback: revert the PR. No state is persisted outside the browser session.
 

@@ -10,10 +10,10 @@ Operations in the datafeeder module (metadata save, publish/unpublish, rights ed
 - The following operations must show an error toast on failure:
   - Metadata save
   - GeoNetwork publish and unpublish
+  - GeoServer publish and unpublish
   - GeoNetwork / GeoServer rights editing
   - Dataset deletion
 - The following operations are not yet implemented and will be wired when built:
-  - GeoServer publish and unpublish *(backend endpoint and model field don't exist yet)*
   - Recurrence editing
 
 ## Capabilities
