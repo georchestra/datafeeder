@@ -12,7 +12,7 @@
 - [x] 2.3 Inject `ErrorToastStore` and expose `toasts` signal; emit dismiss to call `remove(id)`
 - [x] 2.4 Implement template matching Figma design: orange/peach background (`#ffe5c8`), red border, warning-triangle icon, `toast.translationKey | translate` message, close (×) button; stack toasts vertically with most recent at bottom
 - [x] 2.5 Style with Tailwind classes; fixed overlay positioning (floats above all content)
-- [ ] 2.6 Write vitest unit tests: renders toasts, dismiss button calls store, stacking order
+- [x] 2.6 Write vitest unit tests: renders toasts, dismiss button calls store, stacking order
 
 ## 3. Mount in root layout
 
