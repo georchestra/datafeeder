@@ -99,7 +99,7 @@ def process_staging_data(
     final_table_name = (
         integrity_link.final_table_name
         if integrity_link.last_retrieval_timestamp is not None
-        else get_available_table_name(data_engine, "data", sanitize_name(title)[:53])
+        else get_available_table_name(data_engine, "data", sanitize_name(title))
     )
     if not final_table_name:
         raise HTTPException(
