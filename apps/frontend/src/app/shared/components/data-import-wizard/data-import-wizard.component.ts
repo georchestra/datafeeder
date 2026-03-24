@@ -69,6 +69,8 @@ import type { RecurrencePresetItem } from '../../../core/api/models/recurrence-p
 
 marker('import.dataSource.error')
 marker('import.dataSource.error.extent')
+marker('i18nerror.import.dataSource.timeoutError')
+marker('i18nerror.import.dataSource.failedError')
 marker('i18nerror.transformation.geometry_creation_failed')
 marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
@@ -423,6 +425,10 @@ export class DataImportWizardComponent {
           this.translate.instant('import.dataSource.unknownError')
         )
       }
+
+      if (!this.integrityLinkStore.integrityLink()?.last_retrieval_timestamp) {
+        this.integrityLinkStore.clearIntegrityLink()
+      }
     } finally {
       this.importing.set(false)
       this.polling.set(false)
@@ -522,7 +528,9 @@ export class DataImportWizardComponent {
             return throwError(
               () =>
                 new Error(
-                  this.translate.instant('import.dataSource.timeoutError')
+                  this.translate.instant(
+                    'i18nerror.import.dataSource.timeoutError'
+                  )
                 )
             )
           }
@@ -539,9 +547,7 @@ export class DataImportWizardComponent {
               catchError(() => of(null)),
               switchMap((note) => {
                 const messageKey =
-                  note === 'timed_out'
-                    ? 'import.dataSource.timeoutError'
-                    : 'import.dataSource.failedError'
+                  note ?? 'i18nerror.import.dataSource.failedError'
                 return throwError(
                   () => new Error(this.translate.instant(messageKey))
                 )

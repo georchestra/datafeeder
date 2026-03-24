@@ -22,6 +22,7 @@ describe('DataImportWizardComponent', () => {
       typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
     >
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+    clearIntegrityLink: ReturnType<typeof vi.fn>
   }
 
   beforeEach(async () => {
@@ -31,7 +32,8 @@ describe('DataImportWizardComponent', () => {
       loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
         null
       ),
-      setAndLoadIntegrityLink: vi.fn()
+      setAndLoadIntegrityLink: vi.fn(),
+      clearIntegrityLink: vi.fn()
     }
 
     await TestBed.configureTestingModule({
@@ -232,6 +234,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
     >
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+    clearIntegrityLink: ReturnType<typeof vi.fn>
   }
 
   // Mock data constants
@@ -253,7 +256,8 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
         null
       ),
-      setAndLoadIntegrityLink: vi.fn()
+      setAndLoadIntegrityLink: vi.fn(),
+      clearIntegrityLink: vi.fn()
     }
 
     await TestBed.configureTestingModule({
@@ -262,11 +266,12 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         NoopAnimationsModule,
         TranslateTestingModule.withTranslations({
           en: {
-            'import.dataSource.failedError': 'An error occured',
+            'i18nerror.import.dataSource.failedError': 'An error occured',
             'import.dataSource.missingUrl': 'Missing URL',
             'import.dataSource.processing': 'Processing...',
             'import.dataSource.sending': 'Sending...',
-            'import.dataSource.timeoutError': 'Processing timeout expired'
+            'i18nerror.import.dataSource.timeoutError':
+              'Processing timeout expired'
           }
         })
           .withDefaultLanguage('en')
@@ -877,6 +882,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
       typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
     >
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+    clearIntegrityLink: ReturnType<typeof vi.fn>
   }
 
   // Mock data constants
@@ -901,7 +907,8 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
       loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
         null
       ),
-      setAndLoadIntegrityLink: vi.fn()
+      setAndLoadIntegrityLink: vi.fn(),
+      clearIntegrityLink: vi.fn()
     }
 
     await TestBed.configureTestingModule({
@@ -910,12 +917,12 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
         NoopAnimationsModule,
         TranslateTestingModule.withTranslations({
           en: {
-            'import.dataSource.failedError': 'An error occurred',
+            'i18nerror.import.dataSource.failedError': 'An error occurred',
             'import.dataSource.missingUrl': 'Missing URL',
             'import.dataSource.processing': 'Processing...',
             'import.dataSource.sending': 'Sending...',
             'import.dataSource.validation': 'Validating...',
-            'import.dataSource.timeoutError': 'Timeout error',
+            'i18nerror.import.dataSource.timeoutError': 'Timeout error',
             'import.dataSource.unknownError': 'Unknown error',
             'import.dataSource.fileImportNotImplemented':
               'File import not implemented',
@@ -1256,6 +1263,7 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
       typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
     >
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+    clearIntegrityLink: ReturnType<typeof vi.fn>
   }
 
   beforeEach(async () => {
@@ -1265,7 +1273,8 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
       loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
         null
       ),
-      setAndLoadIntegrityLink: vi.fn()
+      setAndLoadIntegrityLink: vi.fn(),
+      clearIntegrityLink: vi.fn()
     }
 
     await TestBed.configureTestingModule({

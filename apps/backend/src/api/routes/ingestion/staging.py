@@ -129,11 +129,17 @@ async def _process_import_source(
             if file is None:
                 raise HTTPException(status_code=400, detail="File is required")
 
-            source_file_name, source_file_type, file_url = await upload_file_to_temp(
-                file, rand_id=str(uuid4())
-            )
-            source = file_url
-            url = file_url
+            try:
+                source_file_name, source_file_type, file_url = await upload_file_to_temp(
+                    file, rand_id=str(uuid4())
+                )
+                source = file_url
+                url = file_url
+            except Exception as e:
+                logger.error(f"Error processing uploaded file: {e}")
+                raise HTTPException(
+                    status_code=500, detail="i18nerror.import.dataSource.failedError"
+                )
 
         case ImportType.URL:
             if not url:
@@ -648,20 +654,25 @@ def dag_failure_callback(
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    if integrity_link.staging_table_name:
-        try:
-            validate_table_name(integrity_link.staging_table_name, context="staging")
-            schema = get_staging_schema()
-            table = Table(integrity_link.staging_table_name, MetaData(schema=schema))
-            table.drop(data_engine, checkfirst=True)
-            data_session.commit()
-        except ValueError as e:
-            logger.error(f"Invalid staging table name in database: {e}")
-        except Exception as e:
-            logger.error(f"Error dropping staging table {integrity_link.staging_table_name}: {e}")
+    is_rerun = integrity_link.last_retrieval_timestamp is not None  # it is a rerun/reconfig
 
-    datafeeder_session.delete(integrity_link)
-    datafeeder_session.commit()
+    if not is_rerun:
+        if integrity_link.staging_table_name:
+            try:
+                validate_table_name(integrity_link.staging_table_name, context="staging")
+                schema = get_staging_schema()
+                table = Table(integrity_link.staging_table_name, MetaData(schema=schema))
+                table.drop(data_engine, checkfirst=True)
+                data_session.commit()
+            except ValueError as e:
+                logger.error(f"Invalid staging table name in database: {e}")
+            except Exception as e:
+                logger.error(
+                    f"Error dropping staging table {integrity_link.staging_table_name}: {e}"
+                )
+
+        datafeeder_session.delete(integrity_link)
+        datafeeder_session.commit()
 
 
 def _detect_original_projection(

@@ -95,7 +95,7 @@ def get_dag_run_note(
             time.sleep(_NOTE_POLL_INTERVAL_S)
         if note != "timed_out":
             return None
-        return note
+        return "i18nerror.import.dataSource.timeoutError"
     except NotFoundException:
         raise HTTPException(status_code=404, detail=f"DAG run not found: {dag_id}/{dag_run_id}")
     except Exception as e:
