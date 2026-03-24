@@ -39,17 +39,17 @@
 
 ## 6. Wire GeoNetwork publish / unpublish
 
-- [ ] 6.1 Locate the publish/unpublish call in `authorizations.component.ts` (`onTogglePublishGn`)
-- [ ] 6.2 Wire GN publish error → `errorToastStore.add('gnPublish', error)` (passes error so backend `detail` is used as translation key when present)
-- [ ] 6.3 Wire GN unpublish error → `errorToastStore.add('gnUnpublish', error)`
-- [ ] 6.4 Re-enable the publish/unpublish toggle on error
+- [x] 6.1 Locate the publish/unpublish call in `authorizations.component.ts` (`onTogglePublishGn`)
+- [x] 6.2 Wire GN publish error → `errorToastStore.add('gnPublish', error)` (passes error so backend `detail` is used as translation key when present)
+- [x] 6.3 Wire GN unpublish error → `errorToastStore.add('gnUnpublish', error)`
+- [x] 6.4 Re-enable the publish/unpublish toggle on error
 
 ## 7. Wire rights editing (GN + GS)
 
-- [ ] 7.1 Locate rights editing NgRx effects or service calls
-- [ ] 7.2 Wire GN rights error → `errorToastStore.add('gnRightsEdit')`
-- [ ] 7.3 Wire GS rights error → `errorToastStore.add('gsRightsEdit')`
-- [ ] 7.4 Re-enable rights editing buttons on error
+- [x] 7.1 Locate rights editing NgRx effects or service calls
+- [x] 7.2 Wire GN rights error → `errorToastStore.add('gnRightsEdit')`
+- [x] 7.3 Wire GS rights error → `errorToastStore.add('gsRightsEdit')`
+- [x] 7.4 Re-enable rights editing buttons on error
 
 ## 8. Wire dataset deletion
 
@@ -60,11 +60,11 @@
 
 ## 9. Wire GeoServer publish / unpublish
 
-- [ ] 9.1 Locate `onTogglePublishGs` in `authorizations.component.ts`
-- [ ] 9.2 Wire GS publish error → `errorToastStore.add('gsPublish', error)`
-- [ ] 9.3 Wire GS unpublish error → `errorToastStore.add('gsUnpublish', error)`
-- [ ] 9.4 Re-enable the GS publish/unpublish toggle on error
-- [ ] 9.5 Add `errors.operation.gsPublish` and `errors.operation.gsUnpublish` i18n keys and run `npm run i18n:extract`
+- [x] 9.1 Locate `onTogglePublishGs` in `authorizations.component.ts`
+- [x] 9.2 Wire GS publish error → `errorToastStore.add('gsPublish', error)`
+- [x] 9.3 Wire GS unpublish error → `errorToastStore.add('gsUnpublish', error)`
+- [x] 9.4 Re-enable the GS publish/unpublish toggle on error
+- [x] 9.5 Add `errors.operation.gsPublish` and `errors.operation.gsUnpublish` i18n keys and run `npm run i18n:extract`
 
 ## 10. End-to-end verification
 

@@ -7,7 +7,7 @@ import {
   inject,
   signal
 } from '@angular/core'
-import { TranslatePipe, TranslateService } from '@ngx-translate/core'
+import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../../core/api/api'
 import {
   deleteIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesRuleIdDelete,
@@ -20,6 +20,7 @@ import {
 } from '../../core/api/functions'
 import { GroupItem, IntegrityLinkRule, RuleType } from '../../core/api/models'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
+import { ErrorToastStore } from '../../core/stores/error-toast.store'
 import {
   AuthorizationRulesComponent,
   RuleChangeEvent
@@ -63,7 +64,8 @@ marker('i18nerror.publish.geoserver')
 export class AuthorizationsComponent implements OnInit {
   private api = inject(Api)
   readonly store = inject(IntegrityLinkStore)
-  private translate = inject(TranslateService)
+  private errorToastStore = inject(ErrorToastStore)
+
   private readonly metadataRuleType: RuleType = 'METADATA'
   private readonly dataRuleType: RuleType = 'DATA'
 
@@ -137,20 +139,7 @@ export class AuthorizationsComponent implements OnInit {
       this.store.integrityLink.set(response)
     } catch (error) {
       console.error('Failed to toggle publish status:', error)
-
-      // Set error message
-      let errorMessage = this.translate.instant(
-        'authorizations.geonetwork.publishErrorMetadata.defaultMessage'
-      )
-
-      // Check if error has a detail property (i18n key from backend)
-      if (error.error?.detail) {
-        errorMessage = this.translate.instant(error.error.detail)
-      } else if (error instanceof Error) {
-        errorMessage = error.message
-      }
-
-      this.publishErrorMetadata.set(errorMessage)
+      this.errorToastStore.add(publish ? 'gnPublish' : 'gnUnpublish', error)
 
       // Force re-render by setting to opposite first, then back to previous
       this.isPublishedMetadata.set(!previousValue)
@@ -187,18 +176,7 @@ export class AuthorizationsComponent implements OnInit {
       }
     } catch (error) {
       console.error('Failed to toggle GeoServer publish status:', error)
-
-      let errorMessage = this.translate.instant(
-        'authorizations.geoserver.publishErrorData.defaultMessage'
-      )
-
-      if (error.error?.detail) {
-        errorMessage = this.translate.instant(error.error.detail)
-      } else if (error instanceof Error) {
-        errorMessage = error.message
-      }
-
-      this.publishErrorData.set(errorMessage)
+      this.errorToastStore.add(publish ? 'gsPublish' : 'gsUnpublish', error)
 
       this.isPublishedData.set(!previousValue)
       setTimeout(() => {
@@ -248,7 +226,9 @@ export class AuthorizationsComponent implements OnInit {
       await this.loadRules(this.intlinkId)
     } catch (error) {
       console.error('Failed to update rule:', error)
-      this.mutationError.set('authorizations.error.mutation')
+      this.errorToastStore.add(
+        ruleType === this.metadataRuleType ? 'gnRightsEdit' : 'gsRightsEdit'
+      )
     }
   }
 
