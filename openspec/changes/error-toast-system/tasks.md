@@ -53,10 +53,10 @@
 
 ## 8. Wire dataset deletion
 
-- [ ] 8.1 Locate the delete NgRx effect or service call
-- [ ] 8.2 Wire deletion error → `errorToastStore.add('deletion')`
-- [ ] 8.3 Ensure the dataset row remains in the list on error
-- [ ] 8.4 Re-enable the delete icon / confirm button on error
+- [x] 8.1 Locate the delete NgRx effect or service call
+- [x] 8.2 Wire deletion error → `errorToastStore.add('deletion')`
+- [x] 8.3 Ensure the dataset row remains in the list on error
+- [x] 8.4 Re-enable the delete icon / confirm button on error
 
 ## 9. Wire GeoServer publish / unpublish
 
