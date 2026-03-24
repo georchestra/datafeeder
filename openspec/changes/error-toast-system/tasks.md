@@ -1,8 +1,8 @@
 ## 1. ErrorToastStore (core/stores)
 
-- [ ] 1.1 Create `apps/frontend/src/app/core/stores/error-toast.store.ts` with `toasts = signal<ErrorToast[]>([])`, `add(operationKey: string, error?: unknown): void` and `remove(id: string): void` methods; `add()` computes `translationKey` as `error.error.detail` (when `error` is an `HttpErrorResponse` with a string `detail`) or `errors.operation.${operationKey}` otherwise
+- [x] 1.1 Create `apps/frontend/src/app/core/stores/error-toast.store.ts` with `toasts = signal<ErrorToast[]>([])`, `add(operationKey: string, error?: unknown): void` and `remove(id: string): void` methods; `add()` computes `translationKey` as `error.error.detail` (when `error` is an `HttpErrorResponse` with a string `detail`) or `errors.operation.${operationKey}` otherwise
 - [x] 1.2 Define `ErrorToast` interface `{ id: string; translationKey: string }` in `apps/frontend/src/app/core/models/error-toast.model.ts`
-- [ ] 1.3 Register `ErrorToastStore` as `providedIn: 'root'`
+- [x] 1.3 Register `ErrorToastStore` as `providedIn: 'root'`
 - [ ] 1.4 Write vitest unit tests for `ErrorToastStore`: add, remove, stacking order, error detail override, fallback when no detail
 
 ## 2. ErrorToastComponent (shared)
