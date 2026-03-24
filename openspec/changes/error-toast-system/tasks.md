@@ -21,15 +21,15 @@
 
 ## 4. i18n keys
 
-- [ ] 4.1 Add `i18n` marker attributes in the template for all operation name strings:
+- [x] 4.1 Add `i18n` marker attributes in the template for all operation name strings:
   - `errors.operation.metadataSave`
   - `errors.operation.gnPublish`
   - `errors.operation.gnUnpublish`
   - `errors.operation.gnRightsEdit`
   - `errors.operation.gsRightsEdit`
   - `errors.operation.deletion`
-- [ ] 4.2 Run `npm run i18n:extract` to register keys in all translation files in alphabetical order
-- [ ] 4.3 Fill in French and English translations for the extracted keys
+- [x] 4.2 Run `npm run i18n:extract` to register keys in all translation files in alphabetical order
+- [x] 4.3 Fill in French and English translations for the extracted keys
 
 ## 5. Wire metadata save
 
