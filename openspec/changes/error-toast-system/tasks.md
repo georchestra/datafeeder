@@ -16,8 +16,8 @@
 
 ## 3. Mount in root layout
 
-- [ ] 3.1 Identify the root layout component (AppComponent or datafeeder shell) that is alive across all datafeeder routes
-- [ ] 3.2 Add `<app-error-toast />` to the root layout template
+- [x] 3.1 Identify the root layout component (AppComponent or datafeeder shell) that is alive across all datafeeder routes
+- [x] 3.2 Add `<app-error-toast />` to the root layout template
 
 ## 4. i18n keys
 
