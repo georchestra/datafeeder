@@ -5,7 +5,8 @@ import { ErrorToastComponent } from './error-toast.component'
 import { ErrorToastStore } from '../../../core/stores/error-toast.store'
 
 const translations = {
-  'errors.operation.metadataSave': 'La sauvegarde des métadonnées a rencontré une erreur',
+  'errors.operation.metadataSave':
+    'La sauvegarde des métadonnées a rencontré une erreur',
   'errors.operation.deletion': 'La suppression a rencontré une erreur'
 }
 

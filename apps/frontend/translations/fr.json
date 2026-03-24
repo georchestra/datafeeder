@@ -14,7 +14,6 @@
   "authorizations.geoserver.publicAccess": "Accès public pour les utilisateurs GeoServer",
   "authorizations.geoserver.publicAccess.value.public": "Public",
   "authorizations.geoserver.publicAccess.value.restricted": "Restreint",
-  "authorizations.geoserver.publishErrorData.defaultMessage": "",
   "authorizations.geoserver.publishErrorData.title": "Échec de la publication GeoServer",
   "authorizations.geoserver.publishErrorMetadata.defaultMessage": "Une erreur est survenue lors de la publication ou dépublication de la couche sur GeoServer. Veuillez réessayer.",
   "authorizations.geoserver.publishErrorMetadata.title": "Échec de la publication",

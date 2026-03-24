@@ -16,7 +16,7 @@ export class ErrorToastStore {
     } else {
       translationKey = `errors.operation.${operationKey}`
     }
-    const id = crypto.randomUUID()
+    const id = globalThis.crypto.randomUUID()
     this.toasts.update((toasts) => [...toasts, { id, translationKey }])
   }
 

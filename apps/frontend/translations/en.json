@@ -14,7 +14,6 @@
   "authorizations.geoserver.publicAccess": "Public access for GeoServer users",
   "authorizations.geoserver.publicAccess.value.public": "Public",
   "authorizations.geoserver.publicAccess.value.restricted": "Restricted",
-  "authorizations.geoserver.publishErrorData.defaultMessage": "",
   "authorizations.geoserver.publishErrorData.title": "GeoServer publication failed",
   "authorizations.geoserver.publishErrorMetadata.defaultMessage": "An error occurred while publishing or unpublishing the layer on GeoServer. Please try again.",
   "authorizations.geoserver.publishErrorMetadata.title": "Publication failed",

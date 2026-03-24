@@ -14,7 +14,6 @@
   "authorizations.geoserver.publicAccess": "",
   "authorizations.geoserver.publicAccess.value.public": "",
   "authorizations.geoserver.publicAccess.value.restricted": "",
-  "authorizations.geoserver.publishErrorData.defaultMessage": "",
   "authorizations.geoserver.publishErrorData.title": "",
   "authorizations.geoserver.publishErrorMetadata.defaultMessage": "",
   "authorizations.geoserver.publishErrorMetadata.title": "",
