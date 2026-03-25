@@ -39,8 +39,7 @@ NS_19139 = {
 }
 
 _CODELIST_URL = (
-    "http://standards.iso.org/iso/19115/resources/Codelists/"
-    "cat/codelists.xml#CI_DateTypeCode"
+    "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_DateTypeCode"
 )
 
 
@@ -427,8 +426,7 @@ class MetadataService:
 
         # --- citation-level cit:date ---
         citations = root.xpath(
-            "mdb:identificationInfo/mri:MD_DataIdentification"
-            "/mri:citation/cit:CI_Citation",
+            "mdb:identificationInfo/mri:MD_DataIdentification/mri:citation/cit:CI_Citation",
             namespaces=ns,
         )
         for citation in citations:
@@ -440,15 +438,11 @@ class MetadataService:
             if cit_existing:
                 cit_existing[0].text = revision_date.strftime("%Y-%m-%d")
             else:
-                cit_date_wrapper: _Element = etree.SubElement(
-                    citation, f"{{{ns['cit']}}}date"
-                )
-                ci_date_el: _Element = etree.SubElement(
-                    cit_date_wrapper, f"{{{ns['cit']}}}CI_Date"
-                )
+                cit_date_wrapper: _Element = etree.SubElement(citation, f"{{{ns['cit']}}}date")
+                ci_date_el: _Element = etree.SubElement(cit_date_wrapper, f"{{{ns['cit']}}}CI_Date")
                 cit_d: _Element = etree.SubElement(ci_date_el, f"{{{ns['cit']}}}date")
-                etree.SubElement(cit_d, f"{{{ns['gco']}}}Date").text = (
-                    revision_date.strftime("%Y-%m-%d")
+                etree.SubElement(cit_d, f"{{{ns['gco']}}}Date").text = revision_date.strftime(
+                    "%Y-%m-%d"
                 )
                 cit_dt: _Element = etree.SubElement(ci_date_el, f"{{{ns['cit']}}}dateType")
                 etree.SubElement(
@@ -463,13 +457,11 @@ class MetadataService:
         date_str = revision_date.strftime("%Y-%m-%d")
         ns = NS_19139
         codelist_19139 = (
-            "http://standards.iso.org/iso/19139/resources/codelist/"
-            "gmxCodelists.xml#CI_DateTypeCode"
+            "http://standards.iso.org/iso/19139/resources/codelist/gmxCodelists.xml#CI_DateTypeCode"
         )
 
         citations = root.xpath(
-            "gmd:identificationInfo/gmd:MD_DataIdentification"
-            "/gmd:citation/gmd:CI_Citation",
+            "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation",
             namespaces=ns,
         )
         for citation in citations:
@@ -481,12 +473,8 @@ class MetadataService:
             if existing:
                 existing[0].text = date_str
             else:
-                date_wrapper: _Element = etree.SubElement(
-                    citation, f"{{{ns['gmd']}}}date"
-                )
-                ci_date_el: _Element = etree.SubElement(
-                    date_wrapper, f"{{{ns['gmd']}}}CI_Date"
-                )
+                date_wrapper: _Element = etree.SubElement(citation, f"{{{ns['gmd']}}}date")
+                ci_date_el: _Element = etree.SubElement(date_wrapper, f"{{{ns['gmd']}}}CI_Date")
                 d_el: _Element = etree.SubElement(ci_date_el, f"{{{ns['gmd']}}}date")
                 etree.SubElement(d_el, f"{{{ns['gco']}}}Date").text = date_str
                 dt_el: _Element = etree.SubElement(ci_date_el, f"{{{ns['gmd']}}}dateType")

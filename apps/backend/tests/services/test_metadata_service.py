@@ -787,7 +787,9 @@ class TestUpdateRevisionDateEndToEnd:
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        service.update_revision_date("uuid-123", datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc))
+        service.update_revision_date(
+            "uuid-123", datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+        )
 
         mock_api.get_metadataxml.assert_called_once_with("uuid-123")
         mock_session.put.assert_called_once()
@@ -857,8 +859,7 @@ class TestGenerateMetadataCreationDate:
 
         # No revision mdb:dateInfo should exist
         revision_nodes = root.xpath(
-            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
-            "/@codeListValue='revision']",
+            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode/@codeListValue='revision']",
             namespaces=NS_19115_3,
         )
         assert len(revision_nodes) == 0
