@@ -78,15 +78,15 @@ wheels = [
 
 [[package]]
 name = "apache-airflow"
-version = "3.1.6"
+version = "3.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "apache-airflow-core" },
     { name = "apache-airflow-task-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/69/de/aabead886e921ff6d534b419b86611793a5432eb9d407c37f59e0b6c31ec/apache_airflow-3.1.6.tar.gz", hash = "sha256:196ac8c893fae8003f511c62b3a89931ed751ed743743f32029cbd3958d24091", size = 28999, upload-time = "2026-01-13T09:37:14.647Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/66/f7/d4197de17a52c1bb5fe59ae00cfa40e4cc9070c2dbf58c51cdc5d88d21a6/apache_airflow-3.1.8.tar.gz", hash = "sha256:b64f56aff0c30ebd271412f521376847c311df042a93fefb34f16e8fe9a9b20c", size = 28782, upload-time = "2026-03-11T19:28:09.165Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b9/41/84d05638c6a1ef5bb0fe655e042fb0919b4910fa649a9cbf3a1252456dfd/apache_airflow-3.1.6-py3-none-any.whl", hash = "sha256:eaa7d3b79aebc614950fb388b5d4bd0fe3669bce88dac7854d7e3fdfce3870cf", size = 12721, upload-time = "2026-01-13T09:36:44.264Z" },
+    { url = "https://files.pythonhosted.org/packages/fa/31/c5fe03351b9a7d0d2cb7cb4b7f4cddb88ebc9efe47140d03d10adb8ea1f6/apache_airflow-3.1.8-py3-none-any.whl", hash = "sha256:efa5aa4c088544d49b7ef02b45651ec7d906f6e7537b55bebc311efac6f9a477", size = 12607, upload-time = "2026-03-11T19:27:55.99Z" },
 ]
 
 [[package]]
@@ -105,7 +105,7 @@ wheels = [
 
 [[package]]
 name = "apache-airflow-core"
-version = "3.1.6"
+version = "3.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "a2wsgi" },
@@ -173,9 +173,9 @@ dependencies = [
     { name = "uuid6" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8b/e7/59fbb89bf71d127076d4dd58cb403459bd699a0f7febc53025a071e750f5/apache_airflow_core-3.1.6.tar.gz", hash = "sha256:442c6e2818f0905dcb087a9257c75804ec5a4216fb6330a6e5550c62515bacf3", size = 4163657, upload-time = "2026-01-13T09:37:34.235Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9e/af/da5fb7c65674bc489f883c5aca2cfecb1179db86e68739f2273f15bac5d5/apache_airflow_core-3.1.8.tar.gz", hash = "sha256:484aa133b3a8684d64e0bac4f0354938a430bd9e4a7bcc2f142b3e59fc8c2a1c", size = 4191284, upload-time = "2026-03-11T19:28:12.338Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/b5/04d30ce8bb4fea2a817107276efb20d3c1034f7699faba414cbd13c38b9c/apache_airflow_core-3.1.6-py3-none-any.whl", hash = "sha256:8021583e6ceb7cb98202035477a6cb7aa3c9a9b472174949ad1db597786ac35f", size = 5393156, upload-time = "2026-01-13T09:37:12.275Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/b6/98bc3878830bf85506ebf9ef6fef842ee3ce1b72e74cf9acf9d805712d2c/apache_airflow_core-3.1.8-py3-none-any.whl", hash = "sha256:ba8593b64eb11608ae16b2378700afdacc2c1be9dfd03719860aa3a118556ac6", size = 3910176, upload-time = "2026-03-11T19:28:07.083Z" },
 ]
 
 [[package]]
@@ -264,7 +264,7 @@ wheels = [
 
 [[package]]
 name = "apache-airflow-task-sdk"
-version = "1.1.6"
+version = "1.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "apache-airflow-core" },
@@ -286,9 +286,9 @@ dependencies = [
     { name = "structlog" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/40/4a/d3ee4e7845630e73b7a39ccee3453b9056ebcbe3939e794fc294a7548dc8/apache_airflow_task_sdk-1.1.6.tar.gz", hash = "sha256:731e7931d18de3f53438eac36e93b43a06e126ec675b0c13d727a8b75892eb5a", size = 1285666, upload-time = "2026-01-13T09:37:56.043Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/38/bf/d437471dce6ffa15c8847d277cdb114e41e7076e0eb22e806d5d335f37c0/apache_airflow_task_sdk-1.1.8.tar.gz", hash = "sha256:d9b6027906a0e179c7ddc550c13717663785460a539b933741f22c47d10f4930", size = 1291245, upload-time = "2026-03-11T19:28:21.262Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/c0/a2fdb9b10dcd4c539f3470392108a57af133343e5562bc0be36ad2f1e666/apache_airflow_task_sdk-1.1.6-py3-none-any.whl", hash = "sha256:a9f97272f878c65133074da740062beaa7d422bf0b6a46c1abc98861ef601390", size = 304130, upload-time = "2026-01-13T09:37:47.316Z" },
+    { url = "https://files.pythonhosted.org/packages/fa/a9/9055473ca151dd630d0da2959f82ce2da13baf3a8cde6d7d5e3fdc5cd69e/apache_airflow_task_sdk-1.1.8-py3-none-any.whl", hash = "sha256:bd4d971b7450a297b4c9f59410b1d6bce482c349cd187b393a5b8842a2af57e3", size = 305695, upload-time = "2026-03-11T19:28:19.132Z" },
 ]
 
 [[package]]
@@ -622,7 +622,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "apache-airflow", specifier = "==3.1.6" },
+    { name = "apache-airflow", specifier = "==3.1.8" },
     { name = "apache-airflow-providers-postgres", specifier = "==6.5.0" },
     { name = "data-manipulation", editable = "libs/data_manipulation" },
 ]
@@ -1756,11 +1756,11 @@ wheels = [
 
 [[package]]
 name = "pyjwt"
-version = "2.12.0"
+version = "2.12.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a8/10/e8192be5f38f3e8e7e046716de4cae33d56fd5ae08927a823bb916be36c1/pyjwt-2.12.0.tar.gz", hash = "sha256:2f62390b667cd8257de560b850bb5a883102a388829274147f1d724453f8fb02", size = 102511, upload-time = "2026-03-12T17:15:30.831Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/27/a3b6e5bf6ff856d2509292e95c8f57f0df7017cf5394921fc4e4ef40308a/pyjwt-2.12.1.tar.gz", hash = "sha256:c74a7a2adf861c04d002db713dd85f84beb242228e671280bf709d765b03672b", size = 102564, upload-time = "2026-03-13T19:27:37.25Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/70/70f895f404d363d291dcf62c12c85fdd47619ad9674ac0f53364d035925a/pyjwt-2.12.0-py3-none-any.whl", hash = "sha256:9bb459d1bdd0387967d287f5656bf7ec2b9a26645d1961628cda1764e087fd6e", size = 29700, upload-time = "2026-03-12T17:15:29.257Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/7a/8dd906bd22e79e47397a61742927f6747fe93242ef86645ee9092e610244/pyjwt-2.12.1-py3-none-any.whl", hash = "sha256:28ca37c070cad8ba8cd9790cd940535d40274d22f80ab87f3ac6a713e6e8454c", size = 29726, upload-time = "2026-03-13T19:27:35.677Z" },
 ]
 
 [[package]]
