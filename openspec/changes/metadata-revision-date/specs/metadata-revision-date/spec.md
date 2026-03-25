@@ -1,17 +1,16 @@
 ## ADDED Requirements
 
-### Requirement: Date de révision à la création initiale de la fiche
-Le système DOIT définir la date de révision dans la fiche de métadonnées lors de la première ingestion. La date de révision DOIT être égale à la date de création du jeu de données. Elle DOIT être présente à deux niveaux : au niveau métadonnée (`mdb:dateInfo`) et au niveau citation (`cit:CI_Citation/cit:date`).
+### Requirement: Date de création correcte à la création initiale de la fiche
+Le système DOIT définir correctement la date de création (`mdb:dateInfo` avec `codeListValue="creation"`) dans la fiche de métadonnées lors de la première ingestion. La date de création DOIT correspondre à la date de création du jeu de données. Le template XML NE DOIT PAS contenir de date de révision à la création initiale.
 
-#### Scenario: Première ingestion avec création de fiche
+#### Scenario: Première ingestion avec date de création correcte
 - **WHEN** un utilisateur lance l'ingestion d'un nouveau jeu de données via le tunnel d'ingestion
-- **THEN** la fiche de métadonnées générée contient une `mdb:dateInfo` avec `codeListValue="revision"` dont la valeur est la date de création du jeu de données
-- **AND** la citation (`mri:citation/cit:CI_Citation`) contient un élément `cit:date` avec `codeListValue="revision"` dont la valeur est la date de création du jeu de données
+- **THEN** la fiche de métadonnées générée contient une `mdb:dateInfo` avec `codeListValue="creation"` dont la valeur correspond à la date de création du jeu de données
+- **AND** la fiche NE contient PAS de `mdb:dateInfo` avec `codeListValue="revision"`
 
-#### Scenario: Vérification du format de la date de révision initiale
+#### Scenario: Format de la date de création
 - **WHEN** la fiche de métadonnées est générée lors de la première ingestion
-- **THEN** la date de révision au niveau `mdb:dateInfo` est au format `YYYY-MM-DDTHH:MM:SS` dans un élément `gco:DateTime`
-- **AND** la date de révision au niveau citation est au format `YYYY-MM-DD` dans un élément `gco:Date`
+- **THEN** la date de création au niveau `mdb:dateInfo` est au format `YYYY-MM-DDTHH:MM:SS` dans un élément `gco:DateTime`
 
 ### Requirement: Mise à jour de la date de révision sur récurrence
 Le système DOIT mettre à jour la date de révision dans la fiche de métadonnées GeoNetwork après chaque exécution réussie d'une ingestion récurrente. Si une date de révision existe déjà, elle DOIT être remplacée. Si elle n'existe pas encore, elle DOIT être ajoutée.
@@ -39,6 +38,19 @@ Le système DOIT mettre à jour la date de révision dans la fiche de métadonn�
 - **WHEN** un utilisateur reconfigure un jeu de données existant via le tunnel d'ingestion
 - **AND** le traitement se termine avec succès
 - **THEN** la date de révision dans la fiche de métadonnées est mise à jour avec la date et l'heure courantes (UTC)
+
+### Requirement: Sauvegarde sans modification du statut de publication
+La mise à jour de la date de révision DOIT utiliser l'API de sauvegarde de GeoNetwork (save) et NON la republication. Le statut de publication de la fiche NE DOIT PAS être modifié par la mise à jour de la date de révision.
+
+#### Scenario: Sauvegarde préservant le statut publié
+- **WHEN** une fiche de métadonnées publiée reçoit une mise à jour de date de révision
+- **THEN** le système utilise l'endpoint de sauvegarde GeoNetwork (PUT `/records/{uuid}`)
+- **AND** le statut de publication de la fiche reste inchangé (publiée)
+
+#### Scenario: Sauvegarde préservant le statut non publié
+- **WHEN** une fiche de métadonnées non publiée reçoit une mise à jour de date de révision
+- **THEN** le système utilise l'endpoint de sauvegarde GeoNetwork (PUT `/records/{uuid}`)
+- **AND** le statut de publication de la fiche reste inchangé (non publiée)
 
 ### Requirement: Support des schémas ISO 19115-3 et ISO 19139
 Le système DOIT supporter la mise à jour de la date de révision pour les fiches de métadonnées au format ISO 19115-3 et ISO 19139.

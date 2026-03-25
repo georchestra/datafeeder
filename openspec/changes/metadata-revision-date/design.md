@@ -2,7 +2,7 @@
 
 GeoNetwork metadata records store citation dates including creation, publication, and revision. In the current implementation:
 
-- **Initial ingestion** generates metadata via XSLT transformation of an ISO 19115-3 template. The `mdb:dateInfo[revision]` field remains at the template default (`1970-01-01`) because the XSLT 2.0 `format-dateTime()` calls are commented out (lxml supports XSLT 1.0 only) and no `revisionDate` property is passed from Python. The citation dates (`cit:date[1]` = creation, `cit:date[2]` = publication) are populated but no citation revision date exists.
+- **Initial ingestion** generates metadata via XSLT transformation of an ISO 19115-3 template. The `mdb:dateInfo[creation]` field remains at the template default (`1970-01-01`) because the XSLT 2.0 `format-dateTime()` calls are commented out (lxml supports XSLT 1.0 only) and no XSLT 1.0 template populates it. The template also contains a `mdb:dateInfo[revision]` placeholder that should not be present at initial creation. The citation dates (`cit:date[1]` = creation, `cit:date[2]` = publication) are populated but the metadata-level creation date is not.
 - **Recurrence** (scheduled re-ingestion) calls `dag_success_callback` which updates `last_retrieval_timestamp` but never touches the GeoNetwork record.
 - **Reconfiguration** (re-processing through the tunnel with an existing metadata record) skips metadata creation entirely (`if integrity_link.metadata_id is None:` guard).
 - There is no `update_revision_date()` or record-patching method in `MetadataService`.
@@ -12,27 +12,28 @@ The ticket (GSMEL-979) requires that both ISO 19115-3 and ISO 19139 schemas are 
 ## Goals / Non-Goals
 
 **Goals:**
-- Set revision date correctly on initial metadata generation (same as creation date)
+- Fix the creation date (`mdb:dateInfo[creation]`) on initial metadata generation (instead of `1970-01-01`)
+- Remove the revision date placeholder from the XML template (no revision date at initial creation)
 - Update the revision date in the GeoNetwork record after each successful recurrence run
 - Update the revision date after a successful reconfiguration
 - Support both ISO 19115-3 and ISO 19139 metadata schemas when patching revision dates
-- Add a citation-level revision date (`cit:date` with `codeListValue="revision"`) in addition to the metadata-level `mdb:dateInfo[revision]`
+- Use GeoNetwork save (not re-publish) when updating revision dates — save preserves the record without altering its publication status
 
 **Non-Goals:**
 - Frontend changes (no UI for revision dates)
 - Modifying the recurrence DAG logic itself (only the backend callback changes)
 - Supporting schemas other than ISO 19115-3 and ISO 19139
-- Changing when or how creation/publication dates are set beyond fixing the initial `1970-01-01` default
+- Setting a revision date at initial creation (only on subsequent updates)
 
 ## Decisions
 
-### D1: Patch-in-place via GeoNetwork API (fetch → modify → re-upload)
+### D1: Patch-in-place via GeoNetwork API (fetch → modify → save)
 
-Fetch the existing XML record from GeoNetwork, parse it, locate or insert the revision date element, then re-upload with `uuidprocessing="OVERWRITE"`.
+Fetch the existing XML record from GeoNetwork, parse it, locate or insert the revision date element, then save using the GeoNetwork record save endpoint (PUT `/records/{uuid}`). This is distinct from `publish_metadata()` which uses `upload_metadata()` with `OVERWRITE` — save updates the record content without affecting its publication status.
 
-**Why**: The existing `publish_metadata()` already uses `OVERWRITE` mode. Fetching the current record ensures we preserve any manual edits made in GeoNetwork. A full re-generation from template would overwrite external changes.
+**Why**: GeoNetwork distinguishes between "save" (update record XML) and "publish" (make record visible/public). Using save preserves the current publication state. Fetching the current record ensures we preserve any manual edits made in GeoNetwork.
 
-**Alternative considered**: Re-generate metadata from template with updated properties. Rejected because it would overwrite any manual metadata edits made directly in GeoNetwork.
+**Alternative considered**: Re-upload with `upload_metadata(uuidprocessing="OVERWRITE")`. Rejected because it could alter publication status and is heavier than a simple save.
 
 ### D2: Dual schema detection via root namespace
 
@@ -51,17 +52,15 @@ Add a single method `update_revision_date(metadata_uuid: str, revision_date: dat
 2. Detects the schema (19115-3 vs 19139)
 3. Finds the existing revision date element, or creates one if absent
 4. Sets the date value to the provided timestamp
-5. Re-uploads the modified XML
+5. Saves the modified XML via GeoNetwork save endpoint (PUT `/records/{uuid}`, not re-publish)
 
-**Why**: Follows the existing service layer pattern. Keeps the XML manipulation in `MetadataService` where all metadata operations live.
+**Why**: Follows the existing service layer pattern. Keeps the XML manipulation in `MetadataService` where all metadata operations live. Using save instead of re-publish avoids altering the record's publication status.
 
-### D4: Fix initial generation — add `revisionDate` property and XSLT template
+### D4: Fix initial generation — remove revision date, fix creation date
 
-In `generate_metadata()`, add a `revisionDate` property (set to `creationDate`) and add XSLT 1.0 templates to populate:
-- `mdb:dateInfo[2]` (metadata-level revision) from `$props//revisionDate`
-- A new third `cit:date` element with `codeListValue="revision"` in the citation
+In the XML template, remove the `mdb:dateInfo` element with `codeListValue="revision"` — a revision date should not exist at initial creation (the data hasn't been revised yet). Add an XSLT 1.0 template to populate `mdb:dateInfo[1]` (creation) from `$props//creationDate`, replacing the hardcoded `1970-01-01` placeholder. The creation date is already set in Python as `integrity_link.created_at`.
 
-**Why**: Fixes the `1970-01-01` default. Uses the same XSLT 1.0 approach as the existing creation/publication date templates (no XSLT 2.0 functions needed — the date string is pre-formatted in Python).
+**Why**: The revision date is semantically different from creation — it only makes sense after the data has been updated at least once. The creation date fix uses the same XSLT 1.0 approach as existing templates.
 
 ### D5: Call update in `dag_success_callback` (recurrence + reconfiguration)
 
@@ -87,5 +86,5 @@ If `update_revision_date()` fails, log a warning but do not fail the callback. T
 ## Risks / Trade-offs
 
 - **[GeoNetwork API availability]** → If GeoNetwork is temporarily unavailable during callback, the revision date won't be updated. Mitigation: log a warning. The date will be corrected on the next recurrence run.
-- **[Concurrent edits]** → If someone edits the record in GeoNetwork while we fetch-modify-upload, their changes could be lost. Mitigation: the time window is very small (fetch-modify-upload in same call). Acceptable risk for this use case.
+- **[Concurrent edits]** → If someone edits the record in GeoNetwork while we fetch-modify-save, their changes could be lost. Mitigation: the time window is very small (fetch-modify-save in same call). Acceptable risk for this use case.
 - **[ISO 19139 records]** → We only generate 19115-3 templates, but existing records may be in 19139 format. The update method must handle both, but we won't have 19139 records to test internally. Mitigation: the namespace detection + XPath approach is well-documented in ISO standards.
