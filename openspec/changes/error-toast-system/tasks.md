@@ -66,13 +66,20 @@
 - [x] 9.4 Re-enable the GS publish/unpublish toggle on error
 - [x] 9.5 Add `errors.operation.gsPublish` and `errors.operation.gsUnpublish` i18n keys and run `npm run i18n:extract`
 
-## 10. End-to-end verification
+## 10. Fix toast positioning relative to app container
 
-- [ ] 10.1 Manually trigger each operation failure (mock or dev environment) and verify the correct toast appears
-- [ ] 10.2 Verify toast persists across navigation (go to another route while toast is visible)
-- [ ] 10.3 Verify multiple simultaneous toasts stack correctly with most recent at bottom
-- [ ] 10.4 Verify each toast dismisses independently
-- [x] 10.5 Run `npm run lint` and `npm run test` — no regressions
+- [ ] 10.0.1 Add `relative` to the outer div in `main-layout.component.html` (the `div.bg-beige.h-full` wrapper)
+- [ ] 10.0.2 Move `<app-error-toast />` inside that outer div (currently a sibling after it)
+- [ ] 10.0.3 In `error-toast.component.html`, change `fixed` → `absolute` and replace `top-36` with `top-4` (no longer needed to dodge an external header)
+
+## 11. End-to-end verification
+
+- [ ] 11.1 Manually trigger each operation failure (mock or dev environment) and verify the correct toast appears
+- [ ] 11.2 Verify toast persists across navigation (go to another route while toast is visible)
+- [ ] 11.3 Verify multiple simultaneous toasts stack correctly with most recent at bottom
+- [ ] 11.4 Verify each toast dismisses independently
+- [ ] 11.5 Verify toast position is not affected by the geOrchestra header (visible within app bounds, not overlapping header)
+- [x] 11.6 Run `npm run lint` and `npm run test` — no regressions
 
 ## Future (when recurrence editing is implemented)
 

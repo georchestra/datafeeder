@@ -33,6 +33,16 @@ Le toast d'erreur SHALL rester affiché même si l'utilisateur navigue vers une 
 - **WHEN** l'utilisateur clique sur le bouton de fermeture du toast
 - **THEN** le toast disparaît
 
+### Requirement: Positionnement du toast dans la zone applicative
+
+Le toast d'erreur SHALL être positionné à l'intérieur du conteneur de l'application, indépendamment de tout en-tête injecté au-dessus de la racine de l'application (par ex. l'en-tête geOrchestra).
+
+#### Scenario: Toast visible dans la zone applicative avec en-tête externe
+
+- **GIVEN** l'application est déployée dans un contexte où un en-tête externe (geOrchestra) est injecté au-dessus de `<app-root>`
+- **WHEN** un toast d'erreur est affiché
+- **THEN** le toast est visible à l'intérieur de la zone applicative, sans chevaucher l'en-tête externe
+
 ### Requirement: Empilement des toasts multiples
 
 Si plusieurs erreurs surviennent, les toasts SHALL s'empiler, le toast le plus récent apparaissant en bas de la liste.

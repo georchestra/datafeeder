@@ -52,9 +52,11 @@ The store holds `toasts = signal<ErrorToast[]>([])` where each `ErrorToast` has 
 
 ### 3. Component location: `shared/components/error-toast/`
 
-The `ErrorToastComponent` is purely presentational (receives `toasts` via input signal, emits `dismiss` events). It is mounted once in `AppComponent` (or the main layout component) so it stays alive across routes.
+The `ErrorToastComponent` is purely presentational (receives `toasts` via input signal, emits `dismiss` events). It is mounted inside the outer div of `MainLayoutComponent` so it stays alive across routes.
 
-**Layout**: absolutely positioned overlay (fixed, bottom-right or centered per Figma), using `z-index` to float above all content. No CDK Overlay dependency — the component is simply rendered in the root layout template.
+**Layout**: `position: absolute` overlay within a `position: relative` container (the outer `div.h-full` of `main-layout.component.html`). `<app-error-toast />` is placed inside that div. Using `z-index` to float above all content. No CDK Overlay dependency.
+
+**Why not `position: fixed`**: the datafeeder app is deployed inside geOrchestra, which injects a page-level header above `<app-root>`. A `fixed` overlay is positioned relative to the viewport, so its `top` offset would need to hard-code the header height — fragile and environment-dependent. An `absolute` overlay inside a `relative` container that begins below the geOrchestra header is naturally independent of any header injected above the app root.
 
 ### 4. Button re-enable pattern
 
@@ -80,7 +82,7 @@ The following feature services/effects will catch errors and call `errorToastSto
 
 - **Multiple simultaneous errors** → Toasts stack (most recent at bottom). No limit enforced; edge case where many errors fire at once may produce a long list. Mitigation: acceptable per spec; user can dismiss each one.
 - **Operation key typos** → A missing translation key shows the key itself in production. Mitigation: add the translation keys in the same PR as the service; lint/test will catch missing keys if a translation guard is added.
-- **Root layout assumption** → Mounting `ErrorToastComponent` in `AppComponent` works only if all datafeeder views share that root. If modal/dialog routes use a different outlet, the component may not render. Mitigation: verify layout structure during implementation; if needed, mount in the datafeeder shell component instead.
+- **Root layout assumption** → `ErrorToastComponent` is mounted inside `MainLayoutComponent`'s outer div. All datafeeder views are rendered through the router outlet in that same div, so the component is present for every route. If modal/dialog routes use a different outlet, the component may not render — verify during implementation.
 
 ## Migration Plan
 
@@ -98,5 +100,4 @@ Rollback: revert the PR. No state is persisted outside the browser session.
 
 ## Open Questions
 
-- Which component is the "root layout" for the datafeeder module? (`AppComponent`, a shell component, or a named router outlet host?) → Clarify during implementation to pick the right mount point.
 - Should deletion error use a specific message that includes the dataset title, or is the generic operation-name message sufficient? → Default to generic (consistent with spec); can be enhanced later.
