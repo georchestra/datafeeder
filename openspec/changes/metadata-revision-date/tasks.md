@@ -13,7 +13,7 @@
 
 ## 3. Integrate into ingestion callbacks
 
-- [ ] 3.1 In `dag_success_callback` (`apps/backend/src/api/routes/ingestion/process.py`), instantiate `MetadataService` and call `update_revision_date()` when `integrity_link.metadata_id is not None`, with soft failure (log warning on error)
+- [x] 3.1 In `dag_success_callback` (`apps/backend/src/api/routes/ingestion/process.py`), instantiate `MetadataService` and call `update_revision_date()` when `integrity_link.metadata_id is not None`, with soft failure (log warning on error)
 
 ## 4. Testing
 
