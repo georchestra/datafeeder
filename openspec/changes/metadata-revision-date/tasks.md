@@ -5,11 +5,11 @@
 
 ## 2. Implement `update_revision_date()` method
 
-- [ ] 2.1 Add namespace maps for ISO 19115-3 and ISO 19139 as class constants in `MetadataService` (`apps/backend/src/services/metadata_service.py`)
-- [ ] 2.2 Implement `_detect_schema(root)` private method that returns the schema type based on root element namespace
-- [ ] 2.3 Implement `_update_revision_date_19115_3(root, date)` that locates or inserts the revision date in `mdb:dateInfo` and `mri:citation/cit:CI_Citation/cit:date`
-- [ ] 2.4 Implement `_update_revision_date_19139(root, date)` that locates or inserts the revision date in `gmd:identificationInfo/.../gmd:CI_Citation/gmd:date`
-- [ ] 2.5 Implement `update_revision_date(metadata_uuid, revision_date)` public method that fetches XML from GeoNetwork, detects schema, calls the appropriate updater, and saves via GeoNetwork save endpoint (PUT `/records/{uuid}`, not re-publish)
+- [x] 2.1 Add namespace maps for ISO 19115-3 and ISO 19139 as class constants in `MetadataService` (`apps/backend/src/services/metadata_service.py`)
+- [x] 2.2 Implement `_detect_schema(root)` private method that returns the schema type based on root element namespace
+- [x] 2.3 Implement `_update_revision_date_19115_3(root, date)` that locates or inserts the revision date in `mdb:dateInfo` and `mri:citation/cit:CI_Citation/cit:date`
+- [x] 2.4 Implement `_update_revision_date_19139(root, date)` that locates or inserts the revision date in `gmd:identificationInfo/.../gmd:CI_Citation/gmd:date`
+- [x] 2.5 Implement `update_revision_date(metadata_uuid, revision_date)` public method that fetches XML from GeoNetwork, detects schema, calls the appropriate updater, and saves via GeoNetwork save endpoint (PUT `/records/{uuid}`, not re-publish)
 
 ## 3. Integrate into ingestion callbacks
 
