@@ -1,6 +1,6 @@
 ## 1. Fix initial metadata generation
 
-- [ ] 1.1 Remove the `mdb:dateInfo` element with `codeListValue="revision"` from `docker/datadir/datafeeder-python/metadata_template-19115-3.xml`
+- [x] 1.1 Remove the `mdb:dateInfo` element with `codeListValue="revision"` from `docker/datadir/datafeeder-python/metadata_template-19115-3.xml`
 - [ ] 1.2 Add XSLT 1.0 template in `docker/datadir/datafeeder-python/metadata_transform-19115-3.xsl` to populate `mdb:dateInfo[1]` (creation) from `$props//creationDate`
 
 ## 2. Implement `update_revision_date()` method
