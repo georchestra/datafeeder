@@ -11,7 +11,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms'
 import { MatFormFieldModule } from '@angular/material/form-field'
 import { MatInputModule } from '@angular/material/input'
 import { MatTableModule } from '@angular/material/table'
-import { TranslatePipe, TranslateService } from '@ngx-translate/core'
+import { TranslatePipe } from '@ngx-translate/core'
 import type { StagingMetadataResponse } from '../../../core/api/models'
 
 @Component({
@@ -29,7 +29,6 @@ import type { StagingMetadataResponse } from '../../../core/api/models'
 })
 export class DatasetTitleComponent {
   private fb = inject(FormBuilder)
-  private translate = inject(TranslateService)
 
   validated = output<string>()
   titleChanged = output<string>()
@@ -42,7 +41,7 @@ export class DatasetTitleComponent {
       validators: [
         Validators.required,
         Validators.minLength(3),
-        Validators.maxLength(100)
+        Validators.maxLength(255)
       ]
     })
   })
@@ -54,9 +53,7 @@ export class DatasetTitleComponent {
     effect(() => {
       const meta = this.metadata()
       if (meta) {
-        const title =
-          meta.title ||
-          this.translate.instant('import.datasetConfiguration.untitled')
+        const title = meta.title ?? ''
         this.form.patchValue({ title }, { emitEvent: false })
       }
     })

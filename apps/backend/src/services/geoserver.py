@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Any
 
 from data_manipulation.geoserver import WorkspaceCreationResult
@@ -16,6 +17,35 @@ from pydantic import BaseModel
 from src.core.logging import get_logger
 
 logger = get_logger()
+
+# All ACL calls use self.geoserver.rest_service.rest_client (geoservercloud, requests-based, sync).
+# Accept-Encoding: identity is required to prevent GeoServer's ByteArrayMessageConverter (OGC API)
+# from intercepting PUT/POST requests and throwing "Reading is not supported".
+_ACL_HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "Accept-Encoding": "identity",
+}
+
+
+class GeoServerAclError(Exception):
+    """Raised when a GeoServer ACL API call returns an HTTP error."""
+
+    def __init__(self, status_code: int, body: str) -> None:
+        super().__init__(f"HTTP {status_code}: {body}")
+        self.status_code = status_code
+        self.body = body
+
+
+class AclAccessType(StrEnum):
+    """GeoServer layer ACL access type."""
+
+    READ = "r"
+    WRITE = "w"
+
+
+ACL_ROLE_EVERYONE = "*"
+"""GeoServer ACL wildcard role granting access to everyone (anonymous included)."""
 
 
 class WMSUrls(BaseModel):
@@ -62,6 +92,8 @@ class GeoServerService:
             password=password,
         )
         self.public_url = public_url
+        self._base_url = base_url
+        self._auth = (username, password)
 
     async def workspace_exists(self, workspace_name: str) -> bool:
         """
@@ -317,3 +349,171 @@ class GeoServerService:
             bbox=bbox,
             native_epsg=native_epsg,
         )
+
+    @staticmethod
+    def make_acl_layer_name(workspace: str, layer: str) -> str:
+        """Build the layer name string expected by the GeoServer ACL API.
+
+        Args:
+            workspace: The workspace name, e.g. "psc".
+            layer: The layer name, e.g. "layer_1821c889_b558_4088_b2ca_65979501860fgeojson".
+
+        Returns:
+            A dot-separated string in the format "workspace.layer".
+        """
+        return f"{workspace.lower()}.{layer}"
+
+    def acl_layer_get(self, layer_name: str, access_type: AclAccessType) -> list[str] | None:
+        """Return the roles for a specific layer ACL rule from GeoServer.
+
+        Args:
+            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
+            access_type: The access type to look up (READ or WRITE).
+
+        Returns:
+            List of roles if the rule exists, None otherwise.
+        """
+        rule_key = f"{layer_name}.{access_type}"
+        rest_client = self.geoserver.rest_service.rest_client  # type: ignore[attr-defined]
+        response = rest_client.get("/rest/security/acl/layers", headers=_ACL_HEADERS)
+        if response.status_code >= 400:
+            raise GeoServerAclError(response.status_code, response.text)
+        all_rules: dict[str, str] = response.json()
+        roles_str = all_rules.get(rule_key)
+        if roles_str is None:
+            return None
+        return [r.strip() for r in roles_str.split(",")]
+
+    def _acl_write(
+        self, method: str, body: dict[str, str], params: dict[str, str] | None = None
+    ) -> None:
+        """POST or PUT to GeoServer ACL layers endpoint via geoservercloud rest_client.
+
+        Raises:
+            GeoServerAclError: on any non-2xx HTTP response (except 409 on POST).
+        """
+        rest_client = self.geoserver.rest_service.rest_client  # type: ignore[attr-defined]
+        if method == "POST":
+            response = rest_client.post(
+                "/rest/security/acl/layers", json=body, headers=_ACL_HEADERS, params=params
+            )
+            if response.status_code == 409:
+                raise GeoServerAclError(response.status_code, response.text)
+        else:
+            response = rest_client.put(
+                "/rest/security/acl/layers", json=body, headers=_ACL_HEADERS, params=params
+            )
+        if response.status_code >= 400:
+            raise GeoServerAclError(response.status_code, response.text)
+
+    def acl_layer_post(self, layer_name: str, access_type: AclAccessType, roles: list[str]) -> None:
+        """Insert a new layer ACL rule in GeoServer.
+
+        Args:
+            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
+            access_type: The access type (READ or WRITE).
+            roles: List of roles to grant, e.g. ["ROLE_IMPORT"].
+
+        Raises:
+            GeoServerAclError: 409 if the rule already exists.
+        """
+        rule_key = f"{layer_name}.{access_type}"
+        self._acl_write("POST", {rule_key: ",".join(roles)})
+
+    def acl_layer_put(self, layer_name: str, access_type: AclAccessType, roles: list[str]) -> None:
+        """Update an existing layer ACL rule in GeoServer.
+
+        Args:
+            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
+            access_type: The access type (READ or WRITE).
+            roles: New list of roles, e.g. ["ROLE_ADMINISTRATOR", "ROLE_IMPORT"].
+
+        Raises:
+            GeoServerAclError: 422 if the rule does not exist.
+        """
+        rule_key = f"{layer_name}.{access_type}"
+        self._acl_write("PUT", {rule_key: ",".join(roles)})
+
+    def acl_layer_delete(self, layer_name: str, access_type: AclAccessType) -> None:
+        """Delete a layer ACL rule from GeoServer.
+
+        Args:
+            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
+            access_type: The access type to delete (READ or WRITE).
+        """
+        rule_key = f"{layer_name}.{access_type}"
+        rest_client = self.geoserver.rest_service.rest_client  # type: ignore[attr-defined]
+        response = rest_client.delete(f"/rest/security/acl/layers/{rule_key}", headers=_ACL_HEADERS)
+        if response.status_code >= 400:
+            raise GeoServerAclError(response.status_code, response.text)
+
+    def acl_layer_add_rule(
+        self, layer_name: str, access_type: AclAccessType, roles: list[str]
+    ) -> None:
+        """Insert or update a layer ACL rule in GeoServer.
+
+        Tries to insert the rule with POST. If GeoServer returns 409 (rule already exists),
+        fetches the existing roles with GET, merges them with the new ones, then updates
+        with PUT.
+
+        Args:
+            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
+            access_type: The access type (READ or WRITE).
+            roles: List of roles to grant.
+        """
+        try:
+            self.acl_layer_post(layer_name, access_type, roles)
+        except GeoServerAclError as e:
+            if e.status_code == 409:
+                existing = self.acl_layer_get(layer_name, access_type) or []
+                merged = list({*existing, *roles})
+                self.acl_layer_put(layer_name, access_type, merged)
+            else:
+                raise
+
+    def acl_layer_remove_rule(
+        self, layer_name: str, access_type: AclAccessType, roles: list[str]
+    ) -> None:
+        """Remove specific roles from an existing layer ACL rule in GeoServer.
+
+        Fetches the current roles with GET, removes the given roles, then updates
+        with PUT. If no roles remain after removal, deletes the rule entirely.
+
+        Args:
+            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
+            access_type: The access type (READ or WRITE).
+            roles: List of roles to remove.
+        """
+        existing = self.acl_layer_get(layer_name, access_type) or []
+        remaining = [r for r in existing if r not in roles]
+        if remaining:
+            self.acl_layer_put(layer_name, access_type, remaining)
+        else:
+            self.acl_layer_delete(layer_name, access_type)
+
+    def acl_layer_publish(self, layer_name: str, access_type: AclAccessType) -> None:
+        """Make a layer publicly accessible by granting the EVERYONE role.
+
+        Uses acl_layer_add_rule so the EVERYONE role is merged with any existing roles.
+
+        Args:
+            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
+            access_type: The access type to publish (READ or WRITE).
+        """
+        self.acl_layer_add_rule(layer_name, access_type, [ACL_ROLE_EVERYONE])
+
+    def acl_layer_unpublish(self, layer_name: str, access_type: AclAccessType) -> None:
+        """Remove public access to a layer by deleting the ACL rule entirely.
+
+        **Important caveat — global GeoServer rules take precedence.**
+        This method only manages the per-layer ACL rule for `layer_name`. If GeoServer
+        has a global rule that grants read access to everyone (e.g. ``*.*.r = *``), removing
+        the layer-level rule will have no practical effect: the dataset will remain publicly
+        readable because the global rule still applies. Restricting access therefore only works
+        as expected when the global ACL does *not* grant unrestricted read access by default.
+
+        Args:
+            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
+            access_type: The access type to unpublish (READ or WRITE).
+        """
+        self.acl_layer_delete(layer_name, access_type)

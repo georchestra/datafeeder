@@ -14,6 +14,7 @@ from src.core.db import data_engine, datafeeder_engine
 from src.models import TokenPayload, User
 from src.services.console_service import ConsoleService
 from src.services.georchestra import GeorchestraContext, get_georchestra_context
+from src.services.geoserver import GeoServerService
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{get_settings().API_V1_STR}/login/access-token")
 
@@ -51,6 +52,19 @@ def get_org_id(geo_ctx: GeorchestraContextDep) -> str | None:
 
 
 OrgIdDep = Annotated[str | None, Depends(get_org_id)]
+
+
+def get_geoserver_service() -> GeoServerService:
+    settings = get_settings()
+    return GeoServerService(
+        base_url=settings.GEOSERVER_URL,
+        username=settings.GEOSERVER_USER,
+        password=settings.GEOSERVER_PASSWORD,
+        public_url=settings.DATA_PUBLIC_URL,
+    )
+
+
+GeoServerServiceDep = Annotated[GeoServerService, Depends(get_geoserver_service)]
 
 
 def get_current_user(session: DatafeederSessionDep, token: TokenDep) -> User:

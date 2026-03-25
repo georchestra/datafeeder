@@ -650,6 +650,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
+    { name = "requests" },
     { name = "sqlmodel" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -679,6 +680,7 @@ requires-dist = [
     { name = "pydantic", specifier = "==2.12.5" },
     { name = "pydantic-settings", specifier = "==2.12.0" },
     { name = "pyjwt", specifier = "==2.12.0" },
+    { name = "requests", specifier = ">=2.32.0" },
     { name = "sqlmodel", specifier = "==0.0.27" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.38.0" },
 ]
@@ -898,7 +900,7 @@ wheels = [
 [[package]]
 name = "geonetwork"
 version = "0.1.1"
-source = { git = "https://github.com/camptocamp/python-geonetwork.git#a685c14a2e39d66ddc5ac1daab830931e5fab998" }
+source = { git = "https://github.com/camptocamp/python-geonetwork.git#0590531798fa385e537571f8e1eb2a7798e6aed8" }
 dependencies = [
     { name = "requests" },
     { name = "types-requests" },

@@ -12,6 +12,7 @@ from geojson_pydantic.geometries import Geometry
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.task_executor import TaskStatus
+from src.models.integrity_link_rule import IntegrityLinkRule
 from src.models.recurrence import RecurrencePreset
 
 
@@ -40,8 +41,9 @@ class ProcessRequest(BaseModel):
     """Request model for final import endpoint"""
 
     integrity_link_id: str
-    title: str
+    title: str | None = None
     recurrence: RecurrencePreset | None = None
+    title: str | None = None
 
 
 class StagingResponse(BaseModel):
@@ -182,4 +184,12 @@ class IntegrityLinkResponse(BaseModel):
     preset_id: RecurrencePreset | None = None
     created_at: datetime | None
     gn_is_published: bool | None
+    gs_is_published: bool | None
     access_level: str | None = None
+
+
+class IntegrityLinkGsPublishResponse(IntegrityLinkResponse):
+    """IntegrityLinkResponse augmented with GeoServer ACL read roles after a publish/unpublish operation."""
+
+    gs_read_roles: list[str] | None = None
+    rules: list[IntegrityLinkRule] = []

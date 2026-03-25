@@ -3,18 +3,19 @@
 
 import { FileType } from '../models/file-type'
 import { ImportType } from '../models/import-type'
-import { RecurrencePreset } from '../models/recurrence-preset'
+import { IntegrityLinkRule } from '../models/integrity-link-rule'
 
 /**
- * Response model for IntegrityLink entity.
+ * IntegrityLinkResponse augmented with GeoServer ACL read roles after a publish/unpublish operation.
  */
-export interface IntegrityLinkResponse {
+export interface IntegrityLinkGsPublishResponse {
   access_level?: string | null
   created_at: string | null
   data_id: string | null
   final_table_name: string | null
   gn_is_published: boolean | null
   gs_is_published: boolean | null
+  gs_read_roles?: Array<string> | null
   id: string
   integrity_organization: string
   integrity_owner: string
@@ -24,7 +25,7 @@ export interface IntegrityLinkResponse {
   } | null
   last_retrieval_timestamp: string | null
   metadata_id: string | null
-  preset_id?: RecurrencePreset | null
+  rules?: Array<IntegrityLinkRule>
   schedule: string | null
   schedule_enabled: boolean
   source_file_name: string | null

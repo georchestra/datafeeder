@@ -174,6 +174,8 @@ class Settings(BaseSettings):
         default="testadmin",
         validation_alias=AliasChoices("geonetworkPassword", "GEONETWORK_PASSWORD"),
     )
+    # This is odd, apparently any UUID works as XSRF token
+    GEONETWORK_XSRF_TOKEN: str = "c9f33266-e242-4198-a18c-b01290dce5f1"
     ORG_BASED_SYNC: bool = Field(
         default=True,
         validation_alias=AliasChoices("orgBasedSync", "ORG_BASED_SYNC"),

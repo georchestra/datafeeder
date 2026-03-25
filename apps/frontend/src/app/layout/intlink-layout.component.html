@@ -6,17 +6,37 @@
       <!-- Metadata Sheet — always enabled (requires at least METADATA_WRITE to reach this page) -->
       <a
         [routerLink]="['edit']"
-        routerLinkActive="bg-secondary-active font-semibold"
-        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
+        #rla="routerLinkActive"
+        class="rounded-md p-2 text-base text-secondary hover:bg-secondary-hover"
       >
         {{ 'sidebar.metadataSheet' | translate }}
+        @if (rla.isActive) {
+        <button
+          type="button"
+          (click)="saveEdits()"
+          class="mt-2 w-full flex items-center justify-center rounded-full bg-secondary-active text-gray-900 hover:bg-secondary hover:text-gray-100 disabled:bg-secondary-active/40 disabled:text-secondary disabled:cursor-not-allowed"
+          [disabled]="isSaving()"
+        >
+          <div class="my-1.5 flex items-center justify-center gap-1">
+            <ng-icon name="iconoirFloppyDisk" size="16"></ng-icon>
+            <span class="font-medium text-xs">{{
+              'sidebar.metadataSheet.save' | translate
+            }}</span>
+          </div>
+        </button>
+        @if (isSaving()) {
+        <div class="mt-2 w-full flex items-center justify-center">
+          <gn-ui-spinning-loader></gn-ui-spinning-loader>
+        </div>
+        } }
       </a>
 
       <!-- Authorizations — owner/admin only -->
       @if (store.isOwnerOrAdmin()) {
       <a
         [routerLink]="['authorizations']"
-        routerLinkActive="bg-secondary-active font-semibold"
+        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
         class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
       >
         {{ 'sidebar.accessRights' | translate }}
@@ -40,7 +60,7 @@
       @if (store.isOwnerOrAdmin()) {
       <a
         [routerLink]="['events']"
-        routerLinkActive="bg-secondary-active font-semibold"
+        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
         class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
       >
         {{ 'sidebar.eventsAndStatuses' | translate }}

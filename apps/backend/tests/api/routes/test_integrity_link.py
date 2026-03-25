@@ -1,5 +1,6 @@
 """Tests for integrity_link API routes (single link endpoints)."""
 
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
 
@@ -10,11 +11,14 @@ from src.api.routes.ingestion.integrity_link import (
     delete_integrity_link_rule,
     get_integrity_link,
     toggle_publish_gn_integrity_link,
+    toggle_publish_gs_integrity_link,
     upsert_integrity_link_rule,
 )
+from src.core.security import EffectiveAccess
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import (
+    GROUP_OR_ROLE_EVERYONE,
     IntegrityLinkRule,
     RuleType,
     RuleValue,
@@ -22,6 +26,7 @@ from src.models.integrity_link_rule import (
 )
 from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
+from src.services.geoserver import GeoServerAclError
 
 
 def _geo_ctx() -> GeorchestraContext:
@@ -288,6 +293,7 @@ class TestTogglePublishGnIntegrityLink:
             staging_table_name="staging_test",
             metadata_id="some-metadata-uuid",
             gn_is_published=False,
+            gs_is_published=False,
         )
         mock_session.get.return_value = integrity_link
 
@@ -320,6 +326,7 @@ class TestTogglePublishGnIntegrityLink:
             staging_table_name="staging_test",
             metadata_id="some-metadata-uuid",
             gn_is_published=True,
+            gs_is_published=False,
         )
         mock_session.get.return_value = integrity_link
 
@@ -410,6 +417,256 @@ class TestTogglePublishGnIntegrityLink:
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "i18nerror.publish.geonetwork"
+
+
+class TestTogglePublishGsIntegrityLink:
+    """Test the toggle_publish_gs_integrity_link endpoint."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def integrity_link_id(self) -> str:
+        return str(uuid4())
+
+    @pytest.fixture(autouse=True)
+    def patch_load_authorized(self, mock_session: MagicMock) -> Iterator[None]:
+        """Bypass load_authorized_integrity_link: return the mocked integrity link or 404."""
+
+        def _load(integrity_link_id: str, *args: object, **kwargs: object):
+            il = mock_session.get.return_value
+            if il is None:
+                raise HTTPException(status_code=404, detail="IntegrityLink not found")
+            return il, EffectiveAccess.OWNER
+
+        with patch(
+            "src.api.routes.ingestion.integrity_link.load_authorized_integrity_link",
+            side_effect=_load,
+        ):
+            yield
+
+    def test_publish_success(self, mock_session: MagicMock, integrity_link_id: str) -> None:
+        integrity_link = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            final_table_name="final_test",
+            gs_is_published=False,
+        )
+        mock_session.get.return_value = integrity_link
+
+        mock_gs = MagicMock()
+        mock_gs.acl_layer_publish = MagicMock()
+        mock_gs.acl_layer_get = MagicMock(return_value=["*", "GROUP_1"])
+
+        # Only exec: query final rules after commit for the response
+        final_rules_mock = MagicMock()
+        final_rules_mock.all.return_value = []
+        mock_session.exec.side_effect = [final_rules_mock]
+
+        toggle_publish_gs_integrity_link(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            org_id=None,
+            geoserver_service=mock_gs,
+            integrity_link_id=integrity_link_id,
+            publish=True,
+        )
+
+        mock_gs.acl_layer_publish.assert_called_once()
+        mock_gs.acl_layer_get.assert_called_once()
+        mock_session.delete.assert_not_called()
+        mock_session.add.assert_called()
+        mock_session.commit.assert_called_once()
+        mock_session.refresh.assert_called_once()
+        assert integrity_link.gs_is_published is True
+
+    def test_unpublish_success_no_other_roles(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """When only EVERYONE rule exists, unpublish removes the ACL rule entirely."""
+        integrity_link = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            final_table_name="final_test",
+            gs_is_published=True,
+        )
+        mock_session.get.return_value = integrity_link
+        everyone_rule = IntegrityLinkRule(
+            id=2,
+            integrity_link_id=UUID(integrity_link_id),
+            group_or_role=GROUP_OR_ROLE_EVERYONE,
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+
+        mock_gs = MagicMock()
+        mock_gs.acl_layer_unpublish = MagicMock()
+        mock_gs.acl_layer_get = MagicMock(return_value=None)
+
+        # First exec: query existing READ rules
+        # Second exec: query final rules after commit for the response
+        rules_mock = MagicMock()
+        rules_mock.all.return_value = [everyone_rule]
+        final_rules_mock = MagicMock()
+        final_rules_mock.all.return_value = []
+        mock_session.exec.side_effect = [rules_mock, final_rules_mock]
+
+        toggle_publish_gs_integrity_link(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            org_id=None,
+            geoserver_service=mock_gs,
+            integrity_link_id=integrity_link_id,
+            publish=False,
+        )
+
+        mock_gs.acl_layer_unpublish.assert_called_once()
+        mock_gs.acl_layer_get.assert_called_once()
+        mock_session.delete.assert_called_once_with(everyone_rule)
+        mock_session.commit.assert_called_once()
+        mock_session.refresh.assert_called_once()
+        assert integrity_link.gs_is_published is False
+
+    def test_unpublish_success_with_other_roles(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """When other group rules exist, unpublish restores GeoServer ACL to those roles only."""
+        integrity_link = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            final_table_name="final_test",
+            gs_is_published=True,
+        )
+        mock_session.get.return_value = integrity_link
+        everyone_rule = IntegrityLinkRule(
+            id=2,
+            integrity_link_id=UUID(integrity_link_id),
+            group_or_role=GROUP_OR_ROLE_EVERYONE,
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+        group_rule = IntegrityLinkRule(
+            id=3,
+            integrity_link_id=UUID(integrity_link_id),
+            group_or_role="GROUP_1",
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+        ):
+            mock_gs = MagicMock()
+            mock_gs.acl_layer_add_rule = MagicMock()
+            mock_gs.acl_layer_get = MagicMock(return_value=["ROLE_GROUP_1"])
+
+            mock_console = MagicMock()
+            mock_console.get_role_labels.return_value = ["ROLE_GROUP_1"]
+            mock_console_cls.return_value = mock_console
+
+            # First exec: query existing READ rules
+            # Second exec: query final rules after commit for the response
+            rules_mock = MagicMock()
+            rules_mock.all.return_value = [everyone_rule, group_rule]
+            final_rules_mock = MagicMock()
+            final_rules_mock.all.return_value = [group_rule]
+            mock_session.exec.side_effect = [rules_mock, final_rules_mock]
+
+            toggle_publish_gs_integrity_link(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                org_id=None,
+                geoserver_service=mock_gs,
+                integrity_link_id=integrity_link_id,
+                publish=False,
+            )
+
+        mock_gs.acl_layer_add_rule.assert_called_once()
+        call_args = mock_gs.acl_layer_add_rule.call_args
+        assert call_args.kwargs["roles"] == ["ROLE_GROUP_1"]
+        mock_gs.acl_layer_get.assert_called_once()
+        mock_session.delete.assert_called_once_with(everyone_rule)
+        mock_session.commit.assert_called_once()
+        mock_session.refresh.assert_called_once()
+        assert integrity_link.gs_is_published is False
+
+    def test_integrity_link_not_found(self, mock_session: MagicMock) -> None:
+        mock_session.get.return_value = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            toggle_publish_gs_integrity_link(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                org_id=None,
+                geoserver_service=MagicMock(),
+                integrity_link_id=str(uuid4()),
+                publish=True,
+            )
+
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.detail == "IntegrityLink not found"
+
+    def test_no_final_table_name(self, mock_session: MagicMock, integrity_link_id: str) -> None:
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            final_table_name=None,
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            toggle_publish_gs_integrity_link(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                org_id=None,
+                geoserver_service=MagicMock(),
+                integrity_link_id=integrity_link_id,
+                publish=True,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail == "IntegrityLink has no associated layer to publish/unpublish"
+
+    def test_geoserver_service_failure(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            final_table_name="final_test",
+        )
+
+        mock_gs = MagicMock()
+        mock_gs.acl_layer_publish = MagicMock(side_effect=GeoServerAclError(500, "GeoServer error"))
+
+        with pytest.raises(HTTPException) as exc_info:
+            toggle_publish_gs_integrity_link(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                org_id=None,
+                geoserver_service=mock_gs,
+                integrity_link_id=integrity_link_id,
+                publish=True,
+            )
+
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.detail == "i18nerror.publish.geoserver"
 
 
 class TestGetIntegrityLinkPresetId:
