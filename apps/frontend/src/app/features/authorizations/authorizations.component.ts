@@ -134,7 +134,9 @@ export class AuthorizationsComponent implements OnInit {
       )
       // Update signal with the response value
       this.isPublishedMetadata.set(response.gn_is_published ?? false)
-      this.store.integrityLink.set(response)
+      this.store.integrityLink.update((link) =>
+        link ? { ...link, gn_is_published: response.gn_is_published } : link
+      )
     } catch (error) {
       console.error('Failed to toggle publish status:', error)
 
@@ -181,7 +183,9 @@ export class AuthorizationsComponent implements OnInit {
         }
       )
       this.isPublishedData.set(response.gs_is_published ?? false)
-      this.store.integrityLink.set(response)
+      this.store.integrityLink.update((link) =>
+        link ? { ...link, gs_is_published: response.gs_is_published } : link
+      )
       if (response.rules !== undefined) {
         this.rules.set(response.rules)
       }
