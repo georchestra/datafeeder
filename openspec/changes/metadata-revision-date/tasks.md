@@ -17,9 +17,9 @@
 
 ## 4. Testing
 
-- [ ] 4.1 [P] Unit tests for `_detect_schema()` with ISO 19115-3, ISO 19139, and unsupported root elements
-- [ ] 4.2 [P] Unit tests for `_update_revision_date_19115_3()` — insert when absent, replace when present
-- [ ] 4.3 [P] Unit tests for `_update_revision_date_19139()` — insert when absent, replace when present
-- [ ] 4.4 Unit test for `update_revision_date()` — mock GeoNetwork fetch/save, verify end-to-end flow
-- [ ] 4.5 Unit test for `generate_metadata()` — verify creation date is set correctly (not `1970-01-01`) and no revision date is present
-- [ ] 4.6 Run `make fix-all-python` to ensure linting/formatting compliance
+- [x] 4.1 [P] Unit tests for `_detect_schema()` with ISO 19115-3, ISO 19139, and unsupported root elements
+- [x] 4.2 [P] Unit tests for `_update_revision_date_19115_3()` — insert when absent, replace when present
+- [x] 4.3 [P] Unit tests for `_update_revision_date_19139()` — insert when absent, replace when present
+- [x] 4.4 Unit test for `update_revision_date()` — mock GeoNetwork fetch/save, verify end-to-end flow
+- [x] 4.5 Unit test for `generate_metadata()` — verify creation date is set correctly (not `1970-01-01`) and no revision date is present
+- [x] 4.6 Run `make fix-all-python` to ensure linting/formatting compliance
