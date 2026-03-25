@@ -37,14 +37,9 @@ marker('authorizations.title')
 marker('authorizations.geonetwork.publicAccess')
 marker('authorizations.geonetwork.publicAccess.value.public')
 marker('authorizations.geonetwork.publicAccess.value.restricted')
-marker('authorizations.geonetwork.publishErrorMetadata.title')
-marker('authorizations.geonetwork.publishErrorMetadata.defaultMessage')
 marker('authorizations.geoserver.publicAccess')
 marker('authorizations.geoserver.publicAccess.value.public')
 marker('authorizations.geoserver.publicAccess.value.restricted')
-marker('authorizations.geoserver.publishErrorMetadata.title')
-marker('authorizations.geoserver.publishErrorMetadata.defaultMessage')
-marker('authorizations.geoserver.publishErrorData.title')
 marker('i18nerror.publish.geonetwork')
 marker('i18nerror.publish.geoserver')
 
@@ -74,13 +69,10 @@ export class AuthorizationsComponent implements OnInit {
   geonetworkGroups = signal<GroupItem[]>([])
   geoserverGroups = signal<GroupItem[]>([])
   loadError = signal<string | null>(null)
-  mutationError = signal<string | null>(null)
   isPublishedMetadata = signal<boolean>(false)
   isPublishedData = signal<boolean>(false)
   isPublishingMetadata = signal<boolean>(false)
   isPublishingData = signal<boolean>(false)
-  publishErrorMetadata = signal<string | null>(null)
-  publishErrorData = signal<string | null>(null)
 
   metadataRules = computed(() =>
     this.rules().filter((r) => r.rule_type === this.metadataRuleType)
@@ -119,9 +111,6 @@ export class AuthorizationsComponent implements OnInit {
     const previousValue = this.isPublishedMetadata()
     if (!this.intlinkId) return
 
-    // Clear any previous error
-    this.publishErrorMetadata.set(null)
-
     // Optimistically update the UI
     this.isPublishedMetadata.set(publish)
     this.isPublishingMetadata.set(true)
@@ -157,7 +146,6 @@ export class AuthorizationsComponent implements OnInit {
     const previousValue = this.isPublishedData()
     if (!this.intlinkId) return
 
-    this.publishErrorData.set(null)
     this.isPublishedData.set(publish)
     this.isPublishingData.set(true)
 
@@ -194,7 +182,6 @@ export class AuthorizationsComponent implements OnInit {
     ruleType: RuleType
   ): Promise<void> {
     if (!this.intlinkId) return
-    this.mutationError.set(null)
     const existingRule = this.rules().find(
       (r) => r.group_or_role === event.group.id && r.rule_type === ruleType
     )

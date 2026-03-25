@@ -243,7 +243,7 @@ describe('AuthorizationsComponent', () => {
   // ─── Error handling ──────────────────────────────────────────────────────
   // Matrix coverage (frontend-behavior-matrix.md — Page: /:id/authorizations):
   //   403 on GET rules → loadError signal set, rules stays empty       ✅
-  //   403 on PUT/DELETE rule → mutationError signal set                ✅
+  //   403 on PUT/DELETE rule → toast added to ErrorToastStore          ✅
 
   describe('Error handling', () => {
     it('should set loadError and leave rules empty when listRules API returns 403 (✅)', async () => {
@@ -264,7 +264,7 @@ describe('AuthorizationsComponent', () => {
       expect(component.rules()).toEqual([])
     })
 
-    it('should set mutationError and leave rules unchanged when upsert returns 403 (✅)', async () => {
+    it('should add toast and leave rules unchanged when upsert returns 403 (✅)', async () => {
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (fn === listGroupsMetadataGroupsGet)
           return Promise.resolve(mockGeonetworkGroups)
@@ -367,7 +367,6 @@ describe('AuthorizationsComponent', () => {
       )
       expect(component.isPublishedMetadata()).toBe(true)
       expect(component.isPublishingMetadata()).toBe(false)
-      expect(component.publishErrorMetadata()).toBeNull()
     })
 
     it('should call toggle publish API with publish=false and update signals on success', async () => {
@@ -406,7 +405,6 @@ describe('AuthorizationsComponent', () => {
       await component.onTogglePublishGn(false)
 
       expect(component.isPublishedMetadata()).toBe(false)
-      expect(component.publishErrorMetadata()).toBeNull()
     })
 
     it('should add gnPublish toast on generic error', async () => {
@@ -472,39 +470,6 @@ describe('AuthorizationsComponent', () => {
         'i18nerror.publish.geonetwork'
       )
       expect(component.isPublishingMetadata()).toBe(false)
-    })
-
-    it('should clear publishError at start of a new toggle call', async () => {
-      const updatedLink = {
-        integrity_link_id: intlinkId,
-        integrity_title: 'Test Link',
-        gn_is_published: true
-      } as any
-
-      apiInvokeSpy.mockImplementation((fn: unknown) => {
-        if (fn === listGroupsMetadataGroupsGet)
-          return Promise.resolve(mockGeonetworkGroups)
-        if (fn === listGroupsDataGroupsGet)
-          return Promise.resolve(mockGeoserverGroups)
-        if (
-          fn ===
-          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
-        )
-          return Promise.resolve(mockRules)
-        if (
-          fn ===
-          togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut
-        )
-          return Promise.resolve(updatedLink)
-        return Promise.resolve(null)
-      })
-
-      const { component } = createComponent()
-      component.publishErrorMetadata.set('Previous error')
-
-      await component.onTogglePublishGn(true)
-
-      expect(component.publishErrorMetadata()).toBeNull()
     })
 
     it('should optimistically update isPublishedMetadata before API resolves', async () => {
@@ -583,7 +548,6 @@ describe('AuthorizationsComponent', () => {
       )
       expect(component.isPublishedData()).toBe(true)
       expect(component.isPublishingData()).toBe(false)
-      expect(component.publishErrorData()).toBeNull()
     })
 
     it('should call toggle publish API with publish=false and update signals on success', async () => {
@@ -622,7 +586,6 @@ describe('AuthorizationsComponent', () => {
       await component.onTogglePublishGs(false)
 
       expect(component.isPublishedData()).toBe(false)
-      expect(component.publishErrorData()).toBeNull()
     })
 
     it('should add gsPublish toast on generic error', async () => {
@@ -688,39 +651,6 @@ describe('AuthorizationsComponent', () => {
         'i18nerror.publish.geoserver'
       )
       expect(component.isPublishingData()).toBe(false)
-    })
-
-    it('should clear publishErrorData at start of a new toggle call', async () => {
-      const updatedLink = {
-        integrity_link_id: intlinkId,
-        integrity_title: 'Test Link',
-        gs_is_published: true
-      } as any
-
-      apiInvokeSpy.mockImplementation((fn: unknown) => {
-        if (fn === listGroupsMetadataGroupsGet)
-          return Promise.resolve(mockGeonetworkGroups)
-        if (fn === listGroupsDataGroupsGet)
-          return Promise.resolve(mockGeoserverGroups)
-        if (
-          fn ===
-          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
-        )
-          return Promise.resolve(mockRules)
-        if (
-          fn ===
-          togglePublishGsIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGsPut
-        )
-          return Promise.resolve(updatedLink)
-        return Promise.resolve(null)
-      })
-
-      const { component } = createComponent()
-      component.publishErrorData.set('Previous error')
-
-      await component.onTogglePublishGs(true)
-
-      expect(component.publishErrorData()).toBeNull()
     })
 
     it('should optimistically update isPublishedData before API resolves', async () => {

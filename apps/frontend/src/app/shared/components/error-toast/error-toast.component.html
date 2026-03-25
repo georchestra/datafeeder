@@ -20,6 +20,7 @@
       class="shrink-0 text-black hover:opacity-70"
       (click)="dismiss(toast.id)"
       data-testid="dismiss-button"
+      [attr.aria-label]="'errors.toast.dismiss' | translate"
     >
       <ng-icon name="iconoirXmark" class="text-2xl" />
     </button>

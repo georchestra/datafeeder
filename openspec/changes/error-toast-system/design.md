@@ -5,6 +5,7 @@ The datafeeder module lets users manage existing datasets: save metadata, publis
 Note: recurrence editing is not yet implemented in the frontend. Toast wiring for that operation will be added when the recurrence feature is built.
 
 The Figma design (node 1119:21582 / 1119:22005) shows a persistent, dismissable toast component with:
+
 - Orange/peach background (`#ffe5c8`), red border, warning-triangle icon, close (×) button.
 - The failed operation name embedded in the message (e.g. "La sauvegarde des métadonnées a rencontré une erreur").
 - Multiple toasts stacked, most recent at the bottom.
@@ -13,6 +14,7 @@ The Figma design (node 1119:21582 / 1119:22005) shows a persistent, dismissable 
 ## Goals / Non-Goals
 
 **Goals:**
+
 - A single, reusable toast store and component covering all currently-implemented operation types (metadata save, GeoNetwork publish/unpublish, GeoNetwork/GeoServer rights editing, deletion).
 - Toasts are persistent (stay until dismissed) and survive Angular router navigation.
 - When an error is triggered by a button, that button becomes interactive again immediately.
@@ -20,6 +22,7 @@ The Figma design (node 1119:21582 / 1119:22005) shows a persistent, dismissable 
 - Component follows Angular architecture: presentational component + smart store.
 
 **Non-Goals:**
+
 - Success toasts / info notifications (out of scope for this ticket).
 - Backend changes — all errors are surfaced from existing HTTP error responses.
 - Auto-dismiss / timeout behavior.
@@ -28,43 +31,50 @@ The Figma design (node 1119:21582 / 1119:22005) shows a persistent, dismissable 
 ## Decisions
 
 ### 1. Store location: `core/stores/`
+
 The toast store is a singleton managing global UI state across navigation. It belongs in `apps/frontend/src/app/core/stores/error-toast.store.ts`, alongside existing stores like `IntegrityLinkStore`.
 
 **Alternatives considered:**
+
 - Shared feature service: would not survive navigation and could not be referenced by multiple feature modules without creating a circular dependency.
 - NgRx store slice: heavier machinery for a simple UI-only list; a signal-based store in `core/stores/` is idiomatic and consistent with the existing architecture.
 
 ### 2. State model: Angular signals
-The store holds `toasts = signal<ErrorToast[]>([])` where each `ErrorToast` has `{ id: string; operationKey: string }`. Components call `errorToastStore.add(operationKey)` and `errorToastStore.remove(id)`.
 
-`operationKey` maps to an ngx-translate key pattern: `errors.operation.<key>` (e.g. `errors.operation.metadataSave`).
+The store holds `toasts = signal<ErrorToast[]>([])` where each `ErrorToast` has `{ id: string; translationKey: string }`. Components call `errorToastStore.add(translationKey)` and `errorToastStore.remove(id)`.
+
+`translationKey` is the full ngx-translate key used for the message (e.g. `errors.operation.metadataSave`). In some cases this may be derived from backend error details (such as an `error.detail` field) as long as it resolves to a valid translation key.
 
 **Alternatives considered:**
+
 - NgRx action/reducer: overkill for ephemeral UI state with no persistence requirement.
 - BehaviorSubject: signals are the Angular 20 idiomatic pattern and integrate better with zoneless OnPush.
 
 ### 3. Component location: `shared/components/error-toast/`
+
 The `ErrorToastComponent` is purely presentational (receives `toasts` via input signal, emits `dismiss` events). It is mounted once in `AppComponent` (or the main layout component) so it stays alive across routes.
 
 **Layout**: absolutely positioned overlay (fixed, bottom-right or centered per Figma), using `z-index` to float above all content. No CDK Overlay dependency — the component is simply rendered in the root layout template.
 
 ### 4. Button re-enable pattern
+
 Feature components that trigger operations use a `loading = signal(false)` pattern. On error, the signal is set back to `false`. No new abstraction needed — this is already the expected pattern in the codebase.
 
 ### 5. Operation coverage
+
 The following feature services/effects will catch errors and call `errorToastStore.add(operationKey)`:
 
-| Operation | Operation key | Location |
-|---|---|---|
-| Metadata save | `metadataSave` | metadata feature service / NgRx effect |
-| GN publish | `gnPublish` | authorizations component |
-| GN unpublish | `gnUnpublish` | authorizations component |
-| GN rights edit | `gnRightsEdit` | authorizations component |
-| GS rights edit | `gsRightsEdit` | authorizations component |
-| Deletion | `deletion` | integrity-link-list component |
-| GS publish | `gsPublish` | authorizations component (`onTogglePublishGs`) |
-| GS unpublish | `gsUnpublish` | authorizations component (`onTogglePublishGs`) |
-| Recurrence edit | `recurrenceEdit` | *(not yet implemented)* |
+| Operation       | Operation key    | Location                                       |
+| --------------- | ---------------- | ---------------------------------------------- |
+| Metadata save   | `metadataSave`   | metadata feature service / NgRx effect         |
+| GN publish      | `gnPublish`      | authorizations component                       |
+| GN unpublish    | `gnUnpublish`    | authorizations component                       |
+| GN rights edit  | `gnRightsEdit`   | authorizations component                       |
+| GS rights edit  | `gsRightsEdit`   | authorizations component                       |
+| Deletion        | `deletion`       | integrity-link-list component                  |
+| GS publish      | `gsPublish`      | authorizations component (`onTogglePublishGs`) |
+| GS unpublish    | `gsUnpublish`    | authorizations component (`onTogglePublishGs`) |
+| Recurrence edit | `recurrenceEdit` | _(not yet implemented)_                        |
 
 ## Risks / Trade-offs
 
@@ -75,6 +85,7 @@ The following feature services/effects will catch errors and call `errorToastSto
 ## Migration Plan
 
 No data migration required. This is a pure frontend addition:
+
 1. Add `ErrorToastStore` to `core/stores/`.
 2. Add `ErrorToastComponent` to `shared/components/`.
 3. Mount `<app-error-toast>` in the root layout template.
