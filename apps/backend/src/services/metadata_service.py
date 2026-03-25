@@ -113,7 +113,7 @@ class MetadataService:
         created_at = integrity_link.created_at or datetime.now(timezone.utc)
         last_retrieval = integrity_link.last_retrieval_timestamp or datetime.now(timezone.utc)
 
-        etree.SubElement(props, "creationDate").text = created_at.strftime("%Y-%m-%d")
+        etree.SubElement(props, "creationDate").text = created_at.strftime("%Y-%m-%dT%H:%M:%S")
         etree.SubElement(props, "metadataPublicationDate").text = last_retrieval.strftime(
             "%Y-%m-%d"
         )

@@ -41,19 +41,11 @@
     </gco:CharacterString>
   </xsl:template>
 
-  <!-- Commented out: XSLT 2.0 functions not supported by lxml (XSLT 1.0 only)
-  <xsl:template match="//mdb:dateInfo[1]/cit:CI_Date/cit:date/gco:DateTime">
+  <xsl:template match="//mdb:dateInfo/cit:CI_Date/cit:date/gco:DateTime">
     <gco:DateTime>
-      <xsl:value-of select="format-dateTime(current-dateTime(), '[Y0001]-[M01]-[D01]T[h01]:[m01]:00.295346Z')" />
+      <xsl:value-of select="$props//creationDate" />
     </gco:DateTime>
   </xsl:template>
-
-  <xsl:template match="//mdb:dateInfo[2]/cit:CI_Date/cit:date/gco:DateTime">
-    <gco:DateTime>
-      <xsl:value-of select="format-dateTime(current-dateTime(), '[Y0001]-[M01]-[D01]T[h01]:[m01]:00.295346Z')" />
-    </gco:DateTime>
-  </xsl:template>
-  -->
 
   <xsl:template
           match="//mdb:identificationInfo/mri:MD_DataIdentification/mri:citation/cit:CI_Citation/cit:title/gco:CharacterString">
