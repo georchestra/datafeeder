@@ -118,6 +118,9 @@ class Settings(BaseSettings):
     AIRFLOW_USERNAME: str = "airflow"
     AIRFLOW_PASSWORD: str = "airflow"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 60 minutes * 24 hours * 8 days = 8 days
+    RECURRENCE_EXECUTION_HOUR: int = (
+        4  # Hour of the day (0-23) when daily/weekly/monthly/yearly recurrences run
+    )
 
     # CORS Configuration
     FRONTEND_HOST: str = "http://localhost:5173"

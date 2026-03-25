@@ -126,6 +126,18 @@ def process_staging_data(
     # Set integrity_title
     integrity_link.integrity_title = title
 
+    # Apply recurrence schedule if provided, or clear it
+    if request.recurrence is not None:
+        integrity_link.schedule = request.recurrence.cron
+        integrity_link.schedule_enabled = True
+        logger.info(
+            f"Recurrence set for IntegrityLink {integrity_link.id}: "
+            f"{request.recurrence} → {request.recurrence.cron}"
+        )
+    else:
+        integrity_link.schedule = None
+        integrity_link.schedule_enabled = False
+
     # --- Prepare layer URLs and GeoNetwork metadata ---
     workspace_name = integrity_link.integrity_organization.lower()
 

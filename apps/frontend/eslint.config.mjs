@@ -34,7 +34,8 @@ export default tseslint.config(
         MouseEvent: 'readonly',
         Event: 'readonly',
         HTMLElement: 'readonly',
-        HTMLInputElement: 'readonly'
+        HTMLInputElement: 'readonly',
+        HTMLSelectElement: 'readonly'
       }
     },
     rules: {

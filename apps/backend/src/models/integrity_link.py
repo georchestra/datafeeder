@@ -51,7 +51,7 @@ class IntegrityLink(SQLModel, table=True):
     staging_retrieve_time: Optional[timedelta] = None
     final_table_name: Optional[str] = Field(default=None, max_length=63, unique=True)
     last_retrieval_timestamp: Optional[datetime] = None
-    schedule: Optional[str] = Field(default=None, max_length=10)
+    schedule: Optional[str] = Field(default=None, max_length=63)
     schedule_enabled: bool = Field(default=False)
     gn_is_published: bool = Field(default=False)
     gs_is_published: bool = Field(default=False)

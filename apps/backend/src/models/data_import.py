@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.task_executor import TaskStatus
 from src.models.integrity_link_rule import IntegrityLinkRule
+from src.models.recurrence import RecurrencePreset
 
 
 class ImportType(str, Enum):
@@ -36,20 +37,13 @@ class FileType(str, Enum):
     ZIP = "zip"
 
 
-class TransformationConfig(BaseModel):
-    """Transformation configuration model"""
-
-    crs: str | None
-    # TODO: add more fields as needed
-
-
 class ProcessRequest(BaseModel):
     """Request model for final import endpoint"""
 
     integrity_link_id: str
     title: str | None = None
-    # config: TransformationConfig
-    # cron_schedule: str | None
+    recurrence: RecurrencePreset | None = None
+    title: str | None = None
 
 
 class StagingResponse(BaseModel):
@@ -187,6 +181,7 @@ class IntegrityLinkResponse(BaseModel):
     last_retrieval_timestamp: datetime | None
     schedule: str | None
     schedule_enabled: bool
+    preset_id: RecurrencePreset | None = None
     created_at: datetime | None
     gn_is_published: bool | None
     gs_is_published: bool | None

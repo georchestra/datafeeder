@@ -43,7 +43,7 @@ class TestAirflowClient:
             "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "sub": "test_user",
         }
-        return jwt.encode(payload, "secret", algorithm="HS256")
+        return jwt.encode(payload, "secret_key_for_testing_only_padding_here", algorithm="HS256")
 
     @pytest.fixture
     def expired_jwt_token(self) -> str:
@@ -52,7 +52,7 @@ class TestAirflowClient:
             "exp": datetime.now(timezone.utc) - timedelta(hours=1),
             "sub": "test_user",
         }
-        return jwt.encode(payload, "secret", algorithm="HS256")
+        return jwt.encode(payload, "secret_key_for_testing_only_padding_here", algorithm="HS256")
 
     def test_given_valid_credentials_when_requesting_new_token_then_returns_token_successfully(
         self, mock_settings: Mock

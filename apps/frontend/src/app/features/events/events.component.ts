@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common'
-import { Component, OnInit, inject, signal } from '@angular/core'
+import { Component, OnInit, computed, inject, signal } from '@angular/core'
 import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../../core/api/api'
 import { getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet } from '../../core/api/fn/airflow/get-dag-run-logs-airflow-dags-dag-id-runs-dag-run-id-logs-get'
@@ -13,6 +13,7 @@ import {
   EventsListComponent
 } from '../../shared/components/events-list/events-list.component'
 import { UiAlertBoxComponent } from '../../shared/components/ui-alert-box/ui-alert-box.component'
+import { RecurrenceSelectorComponent } from '../../shared/components/recurrence-selector/recurrence-selector.component'
 import { downloadTextBlob } from '../../shared/utils/download.util'
 import { getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet } from '../../core/api/functions'
 
@@ -24,6 +25,7 @@ const DAG_RUNGS_PAGE_SIZE = 20
     CommonModule,
     EventsListComponent,
     UiAlertBoxComponent,
+    RecurrenceSelectorComponent,
     TranslatePipe
   ],
   templateUrl: './events.component.html',
@@ -35,6 +37,14 @@ export class EventsComponent implements OnInit {
 
   intlink_id = this.store.intlinkId()
   events = signal<Event[]>([])
+  recurrence = computed(() => {
+    const link = this.store.integrityLink()
+
+    if (!link) return null
+    if (!link.schedule_enabled) return null
+
+    return { cron: link.schedule, preset_id: link.preset_id ?? null }
+  })
   downloadingEventId = signal<string | null>(null)
   loadError = signal<string | null>(null)
   downloadError = signal<string | null>(null)
