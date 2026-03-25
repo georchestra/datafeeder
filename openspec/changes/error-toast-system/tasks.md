@@ -68,9 +68,9 @@
 
 ## 10. Fix toast positioning relative to app container
 
-- [ ] 10.0.1 Add `relative` to the outer div in `main-layout.component.html` (the `div.bg-beige.h-full` wrapper)
-- [ ] 10.0.2 Move `<app-error-toast />` inside that outer div (currently a sibling after it)
-- [ ] 10.0.3 In `error-toast.component.html`, change `fixed` → `absolute` and replace `top-36` with `top-4` (no longer needed to dodge an external header)
+- [x] 10.0.1 Add `relative` to the outer div in `main-layout.component.html` (the `div.bg-beige.h-full` wrapper)
+- [x] 10.0.2 Move `<app-error-toast />` inside that outer div (currently a sibling after it)
+- [x] 10.0.3 In `error-toast.component.html`, change `fixed` → `absolute` and replace `top-36` with `top-4` (no longer needed to dodge an external header)
 
 ## 11. End-to-end verification
 

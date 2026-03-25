@@ -1,11 +1,11 @@
 @if (store.toasts().length > 0) {
 <div
-  class="fixed top-36 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2"
+  class="absolute top-8 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2"
   data-testid="error-toast-overlay"
 >
   @for (toast of store.toasts(); track toast.id) {
   <div
-    class="flex items-center gap-5 bg-[#ffe5c8] border border-[#e30513] rounded-[8px] p-4 w-[474px] shadow-[0px_3px_8px_0px_rgba(9,30,66,0.16),0px_0px_20px_0px_rgba(9,30,66,0.15)]"
+    class="flex items-center gap-5 bg-[#ffe5c8] border border-[#e30513] rounded-[8px] p-3 w-[474px] shadow-[0px_3px_8px_0px_rgba(9,30,66,0.16),0px_0px_20px_0px_rgba(9,30,66,0.15)]"
     data-testid="error-toast"
   >
     <ng-icon
