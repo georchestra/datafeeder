@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -8,7 +9,11 @@ from lxml import etree
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleValue
-from src.services.metadata_service import MetadataService
+from src.services.metadata_service import (
+    NS_19115_3,
+    NS_19139,
+    MetadataService,
+)
 
 
 class TestMetadataService:
@@ -525,3 +530,335 @@ class TestMetadataService:
         service.set_record_ownership("some-uuid", "testuser", "Ignored Org")
 
         mock_session.put.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Helpers for revision-date tests
+# ---------------------------------------------------------------------------
+
+_SAMPLE_19115_3_NO_REVISION = b"""\
+<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
+                 xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
+                 xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0"
+                 xmlns:mri="http://standards.iso.org/iso/19115/-3/mri/1.0">
+  <mdb:dateInfo>
+    <cit:CI_Date>
+      <cit:date><gco:DateTime>2024-01-01T00:00:00</gco:DateTime></cit:date>
+      <cit:dateType>
+        <cit:CI_DateTypeCode codeList="x" codeListValue="creation"/>
+      </cit:dateType>
+    </cit:CI_Date>
+  </mdb:dateInfo>
+  <mdb:identificationInfo>
+    <mri:MD_DataIdentification>
+      <mri:citation>
+        <cit:CI_Citation>
+          <cit:date>
+            <cit:CI_Date>
+              <cit:date><gco:Date>2024-01-01</gco:Date></cit:date>
+              <cit:dateType>
+                <cit:CI_DateTypeCode codeList="x" codeListValue="creation"/>
+              </cit:dateType>
+            </cit:CI_Date>
+          </cit:date>
+        </cit:CI_Citation>
+      </mri:citation>
+    </mri:MD_DataIdentification>
+  </mdb:identificationInfo>
+</mdb:MD_Metadata>
+"""
+
+_SAMPLE_19115_3_WITH_REVISION = b"""\
+<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
+                 xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
+                 xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0"
+                 xmlns:mri="http://standards.iso.org/iso/19115/-3/mri/1.0">
+  <mdb:dateInfo>
+    <cit:CI_Date>
+      <cit:date><gco:DateTime>2024-01-01T00:00:00</gco:DateTime></cit:date>
+      <cit:dateType>
+        <cit:CI_DateTypeCode codeList="x" codeListValue="creation"/>
+      </cit:dateType>
+    </cit:CI_Date>
+  </mdb:dateInfo>
+  <mdb:dateInfo>
+    <cit:CI_Date>
+      <cit:date><gco:DateTime>2024-06-01T10:00:00</gco:DateTime></cit:date>
+      <cit:dateType>
+        <cit:CI_DateTypeCode codeList="x" codeListValue="revision"/>
+      </cit:dateType>
+    </cit:CI_Date>
+  </mdb:dateInfo>
+  <mdb:identificationInfo>
+    <mri:MD_DataIdentification>
+      <mri:citation>
+        <cit:CI_Citation>
+          <cit:date>
+            <cit:CI_Date>
+              <cit:date><gco:Date>2024-01-01</gco:Date></cit:date>
+              <cit:dateType>
+                <cit:CI_DateTypeCode codeList="x" codeListValue="creation"/>
+              </cit:dateType>
+            </cit:CI_Date>
+          </cit:date>
+          <cit:date>
+            <cit:CI_Date>
+              <cit:date><gco:Date>2024-06-01</gco:Date></cit:date>
+              <cit:dateType>
+                <cit:CI_DateTypeCode codeList="x" codeListValue="revision"/>
+              </cit:dateType>
+            </cit:CI_Date>
+          </cit:date>
+        </cit:CI_Citation>
+      </mri:citation>
+    </mri:MD_DataIdentification>
+  </mdb:identificationInfo>
+</mdb:MD_Metadata>
+"""
+
+_SAMPLE_19139_NO_REVISION = b"""\
+<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd"
+                 xmlns:gco="http://www.isotc211.org/2005/gco">
+  <gmd:identificationInfo>
+    <gmd:MD_DataIdentification>
+      <gmd:citation>
+        <gmd:CI_Citation>
+          <gmd:date>
+            <gmd:CI_Date>
+              <gmd:date><gco:Date>2024-01-01</gco:Date></gmd:date>
+              <gmd:dateType>
+                <gmd:CI_DateTypeCode codeList="x" codeListValue="creation"/>
+              </gmd:dateType>
+            </gmd:CI_Date>
+          </gmd:date>
+        </gmd:CI_Citation>
+      </gmd:citation>
+    </gmd:MD_DataIdentification>
+  </gmd:identificationInfo>
+</gmd:MD_Metadata>
+"""
+
+_SAMPLE_19139_WITH_REVISION = b"""\
+<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd"
+                 xmlns:gco="http://www.isotc211.org/2005/gco">
+  <gmd:identificationInfo>
+    <gmd:MD_DataIdentification>
+      <gmd:citation>
+        <gmd:CI_Citation>
+          <gmd:date>
+            <gmd:CI_Date>
+              <gmd:date><gco:Date>2024-01-01</gco:Date></gmd:date>
+              <gmd:dateType>
+                <gmd:CI_DateTypeCode codeList="x" codeListValue="creation"/>
+              </gmd:dateType>
+            </gmd:CI_Date>
+          </gmd:date>
+          <gmd:date>
+            <gmd:CI_Date>
+              <gmd:date><gco:Date>2024-06-01</gco:Date></gmd:date>
+              <gmd:dateType>
+                <gmd:CI_DateTypeCode codeList="x" codeListValue="revision"/>
+              </gmd:dateType>
+            </gmd:CI_Date>
+          </gmd:date>
+        </gmd:CI_Citation>
+      </gmd:citation>
+    </gmd:MD_DataIdentification>
+  </gmd:identificationInfo>
+</gmd:MD_Metadata>
+"""
+
+
+class TestDetectSchema:
+    def test_detects_19115_3(self) -> None:
+        root = etree.fromstring(_SAMPLE_19115_3_NO_REVISION)
+        assert MetadataService._detect_schema(root) == "19115-3"
+
+    def test_detects_19139(self) -> None:
+        root = etree.fromstring(_SAMPLE_19139_NO_REVISION)
+        assert MetadataService._detect_schema(root) == "19139"
+
+    def test_returns_none_for_unsupported(self) -> None:
+        root = etree.fromstring(b"<root/>")
+        assert MetadataService._detect_schema(root) is None
+
+
+class TestUpdateRevisionDate191153:
+    """Tests for _update_revision_date_19115_3."""
+
+    def test_insert_when_absent(self) -> None:
+        root = etree.fromstring(_SAMPLE_19115_3_NO_REVISION)
+        rev_date = datetime(2025, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
+        MetadataService._update_revision_date_19115_3(root, rev_date)
+
+        # metadata-level
+        dt_nodes = root.xpath(
+            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
+            "/@codeListValue='revision']/cit:date/gco:DateTime",
+            namespaces=NS_19115_3,
+        )
+        assert len(dt_nodes) == 1
+        assert dt_nodes[0].text == "2025-03-15T14:30:00"
+
+        # citation-level
+        d_nodes = root.xpath(
+            "mdb:identificationInfo/mri:MD_DataIdentification"
+            "/mri:citation/cit:CI_Citation"
+            "/cit:date/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
+            "/@codeListValue='revision']/cit:date/gco:Date",
+            namespaces=NS_19115_3,
+        )
+        assert len(d_nodes) == 1
+        assert d_nodes[0].text == "2025-03-15"
+
+    def test_replace_when_present(self) -> None:
+        root = etree.fromstring(_SAMPLE_19115_3_WITH_REVISION)
+        rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+        MetadataService._update_revision_date_19115_3(root, rev_date)
+
+        dt_nodes = root.xpath(
+            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
+            "/@codeListValue='revision']/cit:date/gco:DateTime",
+            namespaces=NS_19115_3,
+        )
+        assert len(dt_nodes) == 1
+        assert dt_nodes[0].text == "2025-12-31T23:59:59"
+
+        d_nodes = root.xpath(
+            "mdb:identificationInfo/mri:MD_DataIdentification"
+            "/mri:citation/cit:CI_Citation"
+            "/cit:date/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
+            "/@codeListValue='revision']/cit:date/gco:Date",
+            namespaces=NS_19115_3,
+        )
+        assert len(d_nodes) == 1
+        assert d_nodes[0].text == "2025-12-31"
+
+
+class TestUpdateRevisionDate19139:
+    """Tests for _update_revision_date_19139."""
+
+    def test_insert_when_absent(self) -> None:
+        root = etree.fromstring(_SAMPLE_19139_NO_REVISION)
+        rev_date = datetime(2025, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
+        MetadataService._update_revision_date_19139(root, rev_date)
+
+        d_nodes = root.xpath(
+            "gmd:identificationInfo/gmd:MD_DataIdentification"
+            "/gmd:citation/gmd:CI_Citation"
+            "/gmd:date/gmd:CI_Date[gmd:dateType/gmd:CI_DateTypeCode"
+            "/@codeListValue='revision']/gmd:date/gco:Date",
+            namespaces=NS_19139,
+        )
+        assert len(d_nodes) == 1
+        assert d_nodes[0].text == "2025-03-15"
+
+    def test_replace_when_present(self) -> None:
+        root = etree.fromstring(_SAMPLE_19139_WITH_REVISION)
+        rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+        MetadataService._update_revision_date_19139(root, rev_date)
+
+        d_nodes = root.xpath(
+            "gmd:identificationInfo/gmd:MD_DataIdentification"
+            "/gmd:citation/gmd:CI_Citation"
+            "/gmd:date/gmd:CI_Date[gmd:dateType/gmd:CI_DateTypeCode"
+            "/@codeListValue='revision']/gmd:date/gco:Date",
+            namespaces=NS_19139,
+        )
+        assert len(d_nodes) == 1
+        assert d_nodes[0].text == "2025-12-31"
+
+
+class TestUpdateRevisionDateEndToEnd:
+    """Test update_revision_date() with mocked GeoNetwork calls."""
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_fetch_update_save_19115_3(self, mock_gn_api: MagicMock) -> None:
+        mock_api = MagicMock()
+        mock_api.api_url = "http://test/api"
+        mock_api.get_metadataxml.return_value = _SAMPLE_19115_3_NO_REVISION
+
+        mock_session = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_session.put.return_value = mock_resp
+        mock_api.session = mock_session
+
+        mock_gn_api.return_value = mock_api
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
+        service.update_revision_date("uuid-123", datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc))
+
+        mock_api.get_metadataxml.assert_called_once_with("uuid-123")
+        mock_session.put.assert_called_once()
+
+        call_args = mock_session.put.call_args
+        assert "uuid-123" in call_args[0][0]
+        assert call_args[1]["headers"]["Content-Type"] == "application/xml"
+
+        # Verify the saved XML contains the revision date
+        saved_xml = call_args[1]["data"]
+        root = etree.fromstring(saved_xml)
+        dt_nodes = root.xpath(
+            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
+            "/@codeListValue='revision']/cit:date/gco:DateTime",
+            namespaces=NS_19115_3,
+        )
+        assert dt_nodes[0].text == "2025-06-01T12:00:00"
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_unsupported_schema_skips(self, mock_gn_api: MagicMock) -> None:
+        mock_api = MagicMock()
+        mock_api.api_url = "http://test/api"
+        mock_api.get_metadataxml.return_value = b"<unknown/>"
+        mock_api.session = MagicMock()
+        mock_gn_api.return_value = mock_api
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
+        service.update_revision_date("uuid-999", datetime.now(timezone.utc))
+
+        mock_api.session.put.assert_not_called()
+
+
+class TestGenerateMetadataCreationDate:
+    """Verify creation date is set correctly and no revision date is present."""
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_creation_date_in_generated_metadata(self, mock_gn_api: MagicMock) -> None:
+        datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path=str(datadir),
+        )
+
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Test",
+            integrity_owner="user",
+            integrity_organization="Org",
+            staging_table_name="stg",
+            created_at=datetime(2025, 3, 20, 10, 30, 0, tzinfo=timezone.utc),
+            last_retrieval_timestamp=datetime(2025, 3, 20, 11, 0, 0, tzinfo=timezone.utc),
+            source_import_type=ImportType.URL,
+        )
+
+        xml_str = service.generate_metadata(link)
+        root = etree.fromstring(xml_str.encode())
+
+        # mdb:dateInfo creation should have the real date
+        creation_nodes = root.xpath(
+            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
+            "/@codeListValue='creation']/cit:date/gco:DateTime",
+            namespaces=NS_19115_3,
+        )
+        assert len(creation_nodes) == 1
+        assert creation_nodes[0].text == "2025-03-20T10:30:00"
+
+        # No revision mdb:dateInfo should exist
+        revision_nodes = root.xpath(
+            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
+            "/@codeListValue='revision']",
+            namespaces=NS_19115_3,
+        )
+        assert len(revision_nodes) == 0
