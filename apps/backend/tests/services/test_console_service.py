@@ -128,3 +128,46 @@ class TestConsoleService:
 
         with pytest.raises(ValueError, match="Console returned invalid JSON from"):
             service.get_all_organizations()
+
+    @patch("src.services.console_service.httpx.get")
+    def test_get_all_roles_success(self, mock_get: MagicMock) -> None:
+        """Test successful retrieval of all roles."""
+        roles = [
+            {"id": "uuid-1", "name": "ROLE_ADMIN"},
+            {"id": "uuid-2", "name": "ROLE_USER"},
+        ]
+        mock_response = MagicMock()
+        mock_response.json.return_value = roles
+        mock_get.return_value = mock_response
+
+        service = ConsoleService("http://console.example.com")
+        result = service.get_all_roles()
+
+        assert result == roles
+        mock_get.assert_called_once_with("http://console.example.com/internal/roles", timeout=5.0)
+
+    @patch("src.services.console_service.httpx.get")
+    def test_get_all_roles_http_error_raises(self, mock_get: MagicMock) -> None:
+        """Test that HTTP errors are propagated."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Internal Server Error", request=MagicMock(), response=MagicMock(status_code=500)
+        )
+        mock_get.return_value = mock_response
+
+        service = ConsoleService("http://console.example.com")
+
+        with pytest.raises(httpx.HTTPStatusError):
+            service.get_all_roles()
+
+    @patch("src.services.console_service.httpx.get")
+    def test_get_all_roles_invalid_json_raises(self, mock_get: MagicMock) -> None:
+        """Test that malformed JSON response raises ValueError with a clear message."""
+        mock_response = MagicMock()
+        mock_response.json.side_effect = ValueError("No JSON object could be decoded")
+        mock_get.return_value = mock_response
+
+        service = ConsoleService("http://console.example.com")
+
+        with pytest.raises(ValueError, match="Console returned invalid JSON from"):
+            service.get_all_roles()

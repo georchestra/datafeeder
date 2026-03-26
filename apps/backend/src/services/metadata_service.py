@@ -30,7 +30,7 @@ class MetadataService:
         datadir_path: str,
         credentials: Any = None,
         verify_tls: bool = False,
-        org_based_sync: bool = True,
+        gn_sync_mode: str = "ORG",
         metadata_default_group_name: str = "sample",
     ):
         """Initialize with GeoNetwork API client and paths to metadata files.
@@ -40,13 +40,13 @@ class MetadataService:
             datadir_path: Path to datadir (e.g., /etc/georchestra)
             credentials: Optional GnApi credentials
             verify_tls: Whether to verify TLS certificates
-            org_based_sync: If True, resolve group by org name; if False, use user's GN memberships
+            gn_sync_mode: "ORG" to resolve group by org name; "ROLE" to use user's GN memberships
             metadata_default_group_name: Fallback group name when user has no non-system groups
         """
         self.gn_api: Any = GnApi(api_url=gn_api_url, credentials=credentials, verifytls=verify_tls)
         self.template_path: str = f"{datadir_path}/datafeeder-python/metadata_template-19115-3.xml"
         self.xslt_path: str = f"{datadir_path}/datafeeder-python/metadata_transform-19115-3.xsl"
-        self.org_based_sync: bool = org_based_sync
+        self.org_based_sync: bool = gn_sync_mode == "ORG"
         self.metadata_default_group_name: str = metadata_default_group_name
 
     def generate_metadata(

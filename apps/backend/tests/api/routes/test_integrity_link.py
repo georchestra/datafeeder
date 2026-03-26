@@ -7,7 +7,6 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import HTTPException
 
-from src.api.routes.groups_common import GroupItem
 from src.api.routes.ingestion.integrity_link import (
     delete_integrity_link_rule,
     get_integrity_link,
@@ -285,6 +284,11 @@ class TestSyncAfterUpsertRule:
     def integrity_link_id(self) -> str:
         return str(uuid4())
 
+    def _mock_settings(self, gn_sync_mode: str = "ORG") -> MagicMock:
+        mock_settings = MagicMock()
+        mock_settings.GN_SYNC_MODE = gn_sync_mode
+        return mock_settings
+
     def test_sync_called_when_metadata_id_set(
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
@@ -325,11 +329,18 @@ class TestSyncAfterUpsertRule:
         )
 
         with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings("ORG"),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
-            mock_fetch_groups.return_value = [GroupItem(id="org-uuid-1", label="C2C")]  # lowercase id
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
+            mock_console.get_all_organizations.return_value = [
+                {"id": "org-uuid-1", "name": "C2C"}  # lowercase id
+            ]
 
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
@@ -343,6 +354,69 @@ class TestSyncAfterUpsertRule:
             )
 
         mock_ms.sync_record_sharing.assert_called_once_with("meta-uuid", [("C2C", RuleValue.READ)])
+
+    def test_sync_called_in_role_mode(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """sync_record_sharing resolves group_or_role against roles in ROLE mode."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            metadata_id="meta-uuid",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        rules_mock = MagicMock()
+        rules_mock.all.return_value = [
+            IntegrityLinkRule(
+                id=1,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role="role-uuid-1",
+                rule_type=RuleType.METADATA,
+                rule_value=RuleValue.WRITE,
+            )
+        ]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="role-uuid-1",
+            rule_type=RuleType.METADATA,
+            rule_value=RuleValue.WRITE,
+        )
+
+        with (
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings("ROLE"),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
+        ):
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
+            mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "ROLE_ADMIN"}]
+
+            mock_ms = MagicMock()
+            mock_ms_cls.return_value = mock_ms
+
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                body=body,
+            )
+
+        mock_console.get_all_roles.assert_called_once()
+        mock_ms.sync_record_sharing.assert_called_once_with(
+            "meta-uuid", [("ROLE_ADMIN", RuleValue.WRITE)]
+        )
 
     def test_sync_not_called_when_no_metadata_id(
         self, mock_session: MagicMock, integrity_link_id: str
@@ -419,11 +493,16 @@ class TestSyncAfterUpsertRule:
         )
 
         with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings("ORG"),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
-            mock_fetch_groups.return_value = []
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
+            mock_console.get_all_organizations.return_value = []
 
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
@@ -475,12 +554,17 @@ class TestSyncAfterUpsertRule:
         )
 
         with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings("ORG"),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.MetadataService"),
         ):
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
             # org-uuid-unknown is not in the returned list
-            mock_fetch_groups.return_value = [GroupItem(id="org-uuid-1", label="C2C")]
+            mock_console.get_all_organizations.return_value = [{"id": "org-uuid-1", "name": "C2C"}]
 
             with pytest.raises(HTTPException) as exc_info:
                 upsert_integrity_link_rule(
@@ -530,11 +614,16 @@ class TestSyncAfterUpsertRule:
         )
 
         with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings("ORG"),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.MetadataService"),
         ):
-            mock_fetch_groups.side_effect = HTTPException(status_code=502, detail="upstream error")
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
+            mock_console.get_all_organizations.side_effect = Exception("console error")
 
             with pytest.raises(HTTPException) as exc_info:
                 upsert_integrity_link_rule(
@@ -584,11 +673,16 @@ class TestSyncAfterUpsertRule:
         )
 
         with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings("ORG"),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
-            mock_fetch_groups.return_value = [GroupItem(id="org-uuid-1", label="C2C")]
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
+            mock_console.get_all_organizations.return_value = [{"id": "org-uuid-1", "name": "C2C"}]
 
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
@@ -646,12 +740,20 @@ class TestSyncAfterDeleteRule:
         rules_mock.all.return_value = []  # All rules removed after delete
         mock_session.exec.side_effect = [access_mock, rules_mock]
 
+        mock_settings = MagicMock()
+        mock_settings.GN_SYNC_MODE = "ORG"
+
         with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=mock_settings,
+            ),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
-            mock_fetch_groups.return_value = []
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
+            mock_console.get_all_organizations.return_value = []
 
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms

@@ -241,7 +241,7 @@ class TestMetadataService:
 
     @patch("src.services.metadata_service.GnApi")
     def test_set_record_ownership_user_groups_mode(self, mock_gn_api: MagicMock) -> None:
-        """Test org_based_sync=False uses user's first non-system group."""
+        """Test gn_sync_mode="ROLE" uses user's first non-system group."""
         mock_session = MagicMock()
         mock_api_instance = MagicMock()
         mock_api_instance.session = mock_session
@@ -268,7 +268,7 @@ class TestMetadataService:
         service = MetadataService(
             gn_api_url="http://test/api",
             datadir_path="/test/datadir",
-            org_based_sync=False,
+            gn_sync_mode="ROLE",
         )
 
         # group_name param is ignored in user-groups mode
@@ -281,7 +281,7 @@ class TestMetadataService:
 
     @patch("src.services.metadata_service.GnApi")
     def test_set_record_ownership_user_groups_fallback(self, mock_gn_api: MagicMock) -> None:
-        """Test org_based_sync=False falls back to default group when user has only system groups."""
+        """Test gn_sync_mode="ROLE" falls back to default group when user has only system groups."""
         mock_session = MagicMock()
         mock_api_instance = MagicMock()
         mock_api_instance.session = mock_session
@@ -314,7 +314,7 @@ class TestMetadataService:
         service = MetadataService(
             gn_api_url="http://test/api",
             datadir_path="/test/datadir",
-            org_based_sync=False,
+            gn_sync_mode="ROLE",
             metadata_default_group_name="sample",
         )
 
@@ -494,7 +494,7 @@ class TestMetadataService:
 
     @patch("src.services.metadata_service.GnApi")
     def test_set_record_ownership_user_groups_no_fallback(self, mock_gn_api: MagicMock) -> None:
-        """Test org_based_sync=False with no groups and default group not found → PUT not called."""
+        """Test gn_sync_mode="ROLE" with no groups and default group not found → PUT not called."""
         mock_session = MagicMock()
         mock_api_instance = MagicMock()
         mock_api_instance.session = mock_session
@@ -518,7 +518,7 @@ class TestMetadataService:
         service = MetadataService(
             gn_api_url="http://test/api",
             datadir_path="/test/datadir",
-            org_based_sync=False,
+            gn_sync_mode="ROLE",
             metadata_default_group_name="nonexistent",
         )
 

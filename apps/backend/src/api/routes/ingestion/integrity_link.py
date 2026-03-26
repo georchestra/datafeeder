@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import select
 
 from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, GeoServerServiceDep, OrgIdDep
-from src.api.routes.groups_common import fetch_groups
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.core.security import (
@@ -39,7 +38,8 @@ def _sync_metadata_sharing(
     """Sync METADATA rules to GeoNetwork sharing privileges.
 
     Called after any rule mutation. Resolves group_or_role IDs to GeoNetwork group names
-    via METADATA_FETCH_GROUPS_URL, then delegates to MetadataService.sync_record_sharing.
+    via ConsoleService (organizations or roles depending on GN_SYNC_MODE), then delegates
+    to MetadataService.sync_record_sharing.
     Skipped when integrity_link has no associated GeoNetwork record.
 
     Raises:
@@ -59,19 +59,24 @@ def _sync_metadata_sharing(
     )
 
     try:
-        groups = fetch_groups(
-            url=settings.METADATA_FETCH_GROUPS_URL,
-            id_field=settings.METADATA_GROUPS_IDENTIFIER,
-            label_field=settings.METADATA_GROUPS_LABEL,
-            username=settings.METADATA_FETCH_GROUPS_USERNAME,
-            password=settings.METADATA_FETCH_GROUPS_PASSWORD,
-            filter_regex=settings.METADATA_GROUPS_LABEL_FILTER_REGEX,
-        )
-    except HTTPException:
-        logger.error("Failed to fetch metadata groups from %s", settings.METADATA_FETCH_GROUPS_URL)
+        console_service = ConsoleService(settings.CONSOLE_URL)
+        if settings.GN_SYNC_MODE == "ORG":
+            items = console_service.get_all_organizations()
+            groups_by_id = {
+                item["id"].lower(): item["name"]
+                for item in items
+                if item.get("id") and item.get("name")
+            }
+        else:
+            items = console_service.get_all_roles()
+            groups_by_id = {
+                item["id"].lower(): item["name"]
+                for item in items
+                if item.get("id") and item.get("name")
+            }
+    except Exception:
+        logger.error("Failed to fetch groups from console for GN sync")
         raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
-
-    groups_by_id = {g.id.lower(): g.label for g in groups}
 
     resolved: list[tuple[str, RuleValue]] = []
     for rule in all_rules:
@@ -87,7 +92,7 @@ def _sync_metadata_sharing(
         gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-        org_based_sync=settings.ORG_BASED_SYNC,
+        gn_sync_mode=settings.GN_SYNC_MODE,
         verify_tls=False,
     )
     try:
@@ -323,7 +328,7 @@ def delete_integrity_link(
         gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-        org_based_sync=settings.ORG_BASED_SYNC,
+        gn_sync_mode=settings.GN_SYNC_MODE,
         verify_tls=False,
     )
     deletion_service = DatasetDeletionService(

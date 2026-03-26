@@ -87,3 +87,22 @@ class ConsoleService:
         except ValueError as exc:
             logger.error("Console returned invalid JSON from %s", url)
             raise ValueError(f"Console returned invalid JSON from {url}") from exc
+
+    def get_all_roles(self) -> list[dict[str, Any]]:
+        """Fetch all roles from geOrchestra console API.
+
+        Returns:
+            List of role dicts.
+
+        Raises:
+            httpx.HTTPError: On network or HTTP errors.
+            ValueError: If the response body is not valid JSON.
+        """
+        url = f"{self.console_url}/internal/roles"
+        response = httpx.get(url, timeout=5.0)
+        response.raise_for_status()
+        try:
+            return response.json()  # type: ignore[no-any-return]
+        except ValueError as exc:
+            logger.error("Console returned invalid JSON from %s", url)
+            raise ValueError(f"Console returned invalid JSON from {url}") from exc
