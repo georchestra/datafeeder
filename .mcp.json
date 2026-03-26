@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "~/.claude/plugins/marketplaces/code-review-graph/.venv/bin/code-review-graph",
+      "args": [
+        "serve"
+      ]
+    }
+  }
+}

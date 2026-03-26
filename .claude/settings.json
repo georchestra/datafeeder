@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "code-review-graph": {
+      "source": {
+        "source": "github",
+        "repo": "tirth8205/code-review-graph"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "code-review-graph@code-review-graph": true
+  }
+}
