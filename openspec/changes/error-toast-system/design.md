@@ -2,7 +2,7 @@
 
 The datafeeder module lets users manage existing datasets: save metadata, publish/unpublish via GeoNetwork/GeoServer, edit access rights, configure recurrence, and delete datasets. These operations can fail (network errors, backend validation, external service unavailability), but today the frontend provides no feedback on failure — buttons may return to their idle state silently, leaving the user unaware the operation had no effect.
 
-Note: recurrence editing is not yet implemented in the frontend. Toast wiring for that operation will be added when the recurrence feature is built.
+Note: recurrence editing exists in the ingestion tunnel and reconfiguration flow, but those views already surface errors to the user — no toast wiring needed there. Recurrence editing in the events page (`events.component`) is not yet implemented; toast wiring will be added there when it is built.
 
 The Figma design (node 1119:21582 / 1119:22005) shows a persistent, dismissable toast component with:
 
@@ -76,7 +76,7 @@ The following feature services/effects will catch errors and call `errorToastSto
 | Deletion        | `deletion`       | integrity-link-list component                  |
 | GS publish      | `gsPublish`      | authorizations component (`onTogglePublishGs`) |
 | GS unpublish    | `gsUnpublish`    | authorizations component (`onTogglePublishGs`) |
-| Recurrence edit | `recurrenceEdit` | _(not yet implemented)_                        |
+| Recurrence edit | `recurrenceEdit` | _(not yet implemented in events page — see note above)_ |
 
 ## Risks / Trade-offs
 
@@ -94,7 +94,7 @@ No data migration required. This is a pure frontend addition:
 4. Add source i18n keys and run `npm run i18n:extract` to register them in all translation files.
 5. Wire each implemented feature's error handler to call `errorToastStore.add(key)`.
 6. Re-enable buttons on error in each feature component.
-7. Wire recurrence editing when that feature is implemented.
+7. Wire recurrence editing in `events.component` when that feature is implemented there.
 
 Rollback: revert the PR. No state is persisted outside the browser session.
 

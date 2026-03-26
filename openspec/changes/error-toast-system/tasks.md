@@ -81,8 +81,10 @@
 - [ ] 11.5 Verify toast position is not affected by the geOrchestra header (visible within app bounds, not overlapping header)
 - [x] 11.6 Run `npm run lint` and `npm run test` — no regressions
 
-## Future (when recurrence editing is implemented)
+## Future (when recurrence editing is implemented in the events page)
 
-- [ ] F.1 Wire recurrence edit error → `errorToastStore.add('recurrenceEdit')` in the recurrence feature
+Note: recurrence editing in the ingestion tunnel and reconfiguration flow is already implemented and already surfaces errors to the user — no toast wiring needed there. The tasks below apply only to the recurrence editing feature in `events.component`.
+
+- [ ] F.1 Wire recurrence edit error → `errorToastStore.add('recurrenceEdit')` in `events.component`
 - [ ] F.2 Add `errors.operation.recurrenceEdit` i18n key and run `npm run i18n:extract`
-- [ ] F.3 Re-enable recurrence edit button on error
+- [ ] F.3 Re-enable recurrence edit button on error in `events.component`
