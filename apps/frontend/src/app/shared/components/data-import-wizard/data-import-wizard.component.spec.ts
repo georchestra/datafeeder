@@ -203,7 +203,10 @@ describe('DataImportWizardComponent', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    expect(component.initialDatabaseSource()).toEqual({ schema: 'geo', table: 'rivers' })
+    expect(component.initialDatabaseSource()).toEqual({
+      schema: 'geo',
+      table: 'rivers'
+    })
   })
 
   it('should enable database source when feature flag is absent but link is database type', () => {

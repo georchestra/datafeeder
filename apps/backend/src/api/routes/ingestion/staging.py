@@ -98,7 +98,7 @@ class _ImportSourceResult:
         self.auth_enabled = auth_enabled
 
 
-_DB_IDENTIFIER_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
+DB_IDENTIFIER_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
 
 
 async def _process_import_source(
@@ -169,12 +169,12 @@ async def _process_import_source(
                     status_code=400,
                     detail="Schema and table are required for database import type",
                 )
-            if not _DB_IDENTIFIER_PATTERN.match(db_schema):
+            if not DB_IDENTIFIER_PATTERN.match(db_schema):
                 raise HTTPException(
                     status_code=422,
                     detail=f"Invalid schema name: {db_schema}",
                 )
-            if not _DB_IDENTIFIER_PATTERN.match(db_table):
+            if not DB_IDENTIFIER_PATTERN.match(db_table):
                 raise HTTPException(
                     status_code=422,
                     detail=f"Invalid table name: {db_table}",

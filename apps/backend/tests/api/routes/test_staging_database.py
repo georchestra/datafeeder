@@ -7,7 +7,11 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 
-from src.api.routes.ingestion.staging import _DB_IDENTIFIER_PATTERN, _process_import_source
+from src.api.routes.ingestion.staging import (
+    DB_IDENTIFIER_PATTERN,
+    _process_import_source,  # pyright: ignore[reportPrivateUsage]
+    dag_success_callback,
+)
 from src.models.data_import import ImportType
 
 
@@ -25,7 +29,7 @@ class TestDbIdentifierPattern:
         ],
     )
     def test_valid_names_accepted(self, name: str) -> None:
-        assert _DB_IDENTIFIER_PATTERN.match(name)
+        assert DB_IDENTIFIER_PATTERN.match(name)
 
     @pytest.mark.parametrize(
         "name",
@@ -41,7 +45,7 @@ class TestDbIdentifierPattern:
         ],
     )
     def test_invalid_names_rejected(self, name: str) -> None:
-        assert not _DB_IDENTIFIER_PATTERN.match(name)
+        assert not DB_IDENTIFIER_PATTERN.match(name)
 
 
 class TestProcessImportSourceDatabase:
@@ -117,8 +121,6 @@ class TestDagSuccessCallbackDeleteGuard:
     @patch("src.api.routes.ingestion.staging.delete_temp_file")
     def test_delete_not_called_for_database_source(self, mock_delete: MagicMock) -> None:
         """Verify delete_temp_file is skipped when source_import_type is DATABASE."""
-        from src.api.routes.ingestion.staging import dag_success_callback
-
         mock_integrity_link = MagicMock()
         mock_integrity_link.source_url = "db://geo/rivers"
         mock_integrity_link.source_import_type = ImportType.DATABASE
@@ -134,8 +136,6 @@ class TestDagSuccessCallbackDeleteGuard:
     @patch("src.api.routes.ingestion.staging.delete_temp_file")
     def test_delete_called_for_file_source(self, mock_delete: MagicMock) -> None:
         """Verify delete_temp_file is called when source_import_type is FILE."""
-        from src.api.routes.ingestion.staging import dag_success_callback
-
         mock_integrity_link = MagicMock()
         mock_integrity_link.source_url = "/tmp/somefile.csv"
         mock_integrity_link.source_import_type = ImportType.FILE

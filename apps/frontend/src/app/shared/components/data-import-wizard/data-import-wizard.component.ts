@@ -137,14 +137,21 @@ export class DataImportWizardComponent {
   integrityLinkStore = inject(IntegrityLinkStore)
 
   databaseSourceEnabled = computed(() => {
-    const features = this.settingsService.getSetting<string[]>('enabled_features')
+    const features =
+      this.settingsService.getSetting<string[]>('enabled_features')
     const link = this.integrityLinkStore.integrityLink()
-    return features?.includes('database_source') || link?.source_import_type === 'database'
+    return (
+      features?.includes('database_source') ||
+      link?.source_import_type === 'database'
+    )
   })
 
   initialDatabaseSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
-    if (link?.source_import_type === 'database' && link?.source_url?.startsWith('db://')) {
+    if (
+      link?.source_import_type === 'database' &&
+      link?.source_url?.startsWith('db://')
+    ) {
       const parts = link.source_url.substring(5).split('/', 2)
       if (parts.length === 2) {
         return { schema: parts[0], table: parts[1] }
@@ -277,7 +284,9 @@ export class DataImportWizardComponent {
       (source.type === 'file' && !!source.file) ||
       (source.type === 'url' && !!source.url) ||
       (source.type === 'ftp' && this.validFtp(source)) ||
-      (source.type === 'database' && !!source.dbSchema?.trim() && !!source.dbTable?.trim())
+      (source.type === 'database' &&
+        !!source.dbSchema?.trim() &&
+        !!source.dbTable?.trim())
     )
   })
 

@@ -34,13 +34,15 @@ class SettingsService:
         if self._settings.TASK_EXECUTOR == TaskExecutorType.AIRFLOW:
             enabled_features.append("scheduling")
             enabled_features.append("events")
-        if all([
-            self._settings.POSTGRES_SOURCE_HOST,
-            self._settings.POSTGRES_SOURCE_PORT,
-            self._settings.POSTGRES_SOURCE_USER,
-            self._settings.POSTGRES_SOURCE_PASSWORD,
-            self._settings.POSTGRES_SOURCE_DB,
-        ]):
+        if all(
+            [
+                self._settings.POSTGRES_SOURCE_HOST,
+                self._settings.POSTGRES_SOURCE_PORT,
+                self._settings.POSTGRES_SOURCE_USER,
+                self._settings.POSTGRES_SOURCE_PASSWORD,
+                self._settings.POSTGRES_SOURCE_DB,
+            ]
+        ):
             enabled_features.append("database_source")
 
         settings_dict: dict[str, Any] = {

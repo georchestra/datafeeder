@@ -109,8 +109,11 @@ describe('DataSourceSelectorComponent', () => {
       fixture.componentRef.setInput('databaseSourceEnabled', false)
       fixture.detectChanges()
 
-      const radioButtons = fixture.nativeElement.querySelectorAll('mat-radio-button')
-      const labels = Array.from(radioButtons).map((rb: any) => rb.getAttribute('value'))
+      const radioButtons =
+        fixture.nativeElement.querySelectorAll('mat-radio-button')
+      const labels = Array.from(radioButtons).map((rb: any) =>
+        rb.getAttribute('value')
+      )
       expect(labels).not.toContain('database')
     })
 
@@ -119,8 +122,11 @@ describe('DataSourceSelectorComponent', () => {
       fixture.componentRef.setInput('databaseSourceEnabled', true)
       fixture.detectChanges()
 
-      const radioButtons = fixture.nativeElement.querySelectorAll('mat-radio-button')
-      const labels = Array.from(radioButtons).map((rb: any) => rb.getAttribute('value'))
+      const radioButtons =
+        fixture.nativeElement.querySelectorAll('mat-radio-button')
+      const labels = Array.from(radioButtons).map((rb: any) =>
+        rb.getAttribute('value')
+      )
       expect(labels).toContain('database')
     })
 
