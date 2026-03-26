@@ -531,6 +531,46 @@ describe('AuthorizationsComponent', () => {
 
       expect(component.isPublishingMetadata()).toBe(false)
     })
+
+    it('should only update gn_is_published in the store, preserving other fields', async () => {
+      store.integrityLink.set({
+        integrity_link_id: intlinkId,
+        integrity_title: 'Test Link',
+        gn_is_published: false,
+        gs_is_published: false
+      } as any)
+
+      const updatedLink = {
+        integrity_link_id: intlinkId,
+        gn_is_published: true
+      } as any
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (fn === listGroupsMetadataGroupsGet)
+          return Promise.resolve(mockGeonetworkGroups)
+        if (fn === listGroupsDataGroupsGet)
+          return Promise.resolve(mockGeoserverGroups)
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        if (
+          fn ===
+          togglePublishGnIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGnPut
+        )
+          return Promise.resolve(updatedLink)
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+
+      await component.onTogglePublishGn(true)
+
+      expect(store.integrityLink()?.gn_is_published).toBe(true)
+      expect(store.integrityLink()?.gs_is_published).toBe(false) // other publish field untouched
+      expect((store.integrityLink() as any)?.integrity_title).toBe('Test Link') // other fields preserved
+    })
   })
 
   describe('onTogglePublishGs', () => {
@@ -842,6 +882,46 @@ describe('AuthorizationsComponent', () => {
       await component.onTogglePublishGs(true)
 
       expect(component.rules()).toEqual(mockRules)
+    })
+
+    it('should only update gs_is_published in the store, preserving other fields', async () => {
+      store.integrityLink.set({
+        integrity_link_id: intlinkId,
+        integrity_title: 'Test Link',
+        gn_is_published: false,
+        gs_is_published: false
+      } as any)
+
+      const updatedLink = {
+        integrity_link_id: intlinkId,
+        gs_is_published: true
+      } as any
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (fn === listGroupsMetadataGroupsGet)
+          return Promise.resolve(mockGeonetworkGroups)
+        if (fn === listGroupsDataGroupsGet)
+          return Promise.resolve(mockGeoserverGroups)
+        if (
+          fn ===
+          listIntegrityLinkRulesIngestionIntegrityLinkIntegrityLinkIdRulesGet
+        )
+          return Promise.resolve(mockRules)
+        if (
+          fn ===
+          togglePublishGsIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdPublishGsPut
+        )
+          return Promise.resolve(updatedLink)
+        return Promise.resolve(null)
+      })
+
+      const { component } = createComponent()
+
+      await component.onTogglePublishGs(true)
+
+      expect(store.integrityLink()?.gs_is_published).toBe(true)
+      expect(store.integrityLink()?.gn_is_published).toBe(false) // other publish field untouched
+      expect((store.integrityLink() as any)?.integrity_title).toBe('Test Link') // other fields preserved
     })
   })
 })
