@@ -5,18 +5,18 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from data_manipulation.validators import validate_schema_name, validate_table_name
 from fastapi import HTTPException
 
 from src.api.routes.ingestion.staging import (
-    DB_IDENTIFIER_PATTERN,
     _process_import_source,  # pyright: ignore[reportPrivateUsage]
     dag_success_callback,
 )
 from src.models.data_import import ImportType
 
 
-class TestDbIdentifierPattern:
-    """Test the regex pattern used for schema/table validation."""
+class TestDbIdentifierValidation:
+    """Test schema/table validation via data_manipulation.validators."""
 
     @pytest.mark.parametrize(
         "name",
@@ -28,8 +28,21 @@ class TestDbIdentifierPattern:
             "a" * 63,
         ],
     )
-    def test_valid_names_accepted(self, name: str) -> None:
-        assert DB_IDENTIFIER_PATTERN.match(name)
+    def test_valid_schema_names_accepted(self, name: str) -> None:
+        assert validate_schema_name(name) == name
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "public",
+            "my_data_table",
+            "a",
+            "schema123",
+            "a" * 63,
+        ],
+    )
+    def test_valid_table_names_accepted(self, name: str) -> None:
+        assert validate_table_name(name) == name
 
     @pytest.mark.parametrize(
         "name",
@@ -39,13 +52,17 @@ class TestDbIdentifierPattern:
             "my-schema",
             "_leading_underscore",
             "a" * 64,
-            "",
             "table; DROP TABLE",
             "schema.table",
         ],
     )
     def test_invalid_names_rejected(self, name: str) -> None:
-        assert not DB_IDENTIFIER_PATTERN.match(name)
+        with pytest.raises(ValueError):
+            validate_schema_name(name)
+
+    def test_empty_name_rejected(self) -> None:
+        with pytest.raises(ValueError):
+            validate_schema_name("")
 
 
 class TestProcessImportSourceDatabase:

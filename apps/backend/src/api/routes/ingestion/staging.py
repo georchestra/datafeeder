@@ -16,7 +16,7 @@ from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import ForceProjection as DataManipulationForceProjection
 from data_manipulation.utils import sanitize_name
-from data_manipulation.validators import validate_table_name
+from data_manipulation.validators import validate_schema_name, validate_table_name
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
 from shapely.geometry.base import BaseGeometry
 from sqlalchemy import MetaData, Table, func, select
@@ -98,9 +98,6 @@ class _ImportSourceResult:
         self.auth_enabled = auth_enabled
 
 
-DB_IDENTIFIER_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
-
-
 async def _process_import_source(
     type: "ImportType",
     url: Optional[str] = None,
@@ -169,16 +166,16 @@ async def _process_import_source(
                     status_code=400,
                     detail="Schema and table are required for database import type",
                 )
-            if not DB_IDENTIFIER_PATTERN.match(db_schema):
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Invalid schema name: {db_schema}",
-                )
-            if not DB_IDENTIFIER_PATTERN.match(db_table):
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Invalid table name: {db_table}",
-                )
+            try:
+                validate_schema_name(db_schema)
+            except ValueError as e:
+                raise HTTPException(status_code=422, detail=str(e))
+
+            try:
+                validate_table_name(db_table)
+            except ValueError as e:
+                raise HTTPException(status_code=422, detail=str(e))
+            
             db_uri = f"db://{db_schema}/{db_table}"
             source = db_uri
             url = db_uri
