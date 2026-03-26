@@ -37,7 +37,7 @@ When the user selects the "Database" radio button, the component SHALL display t
 - **AND** the schema and table input fields are shown empty
 
 ### Requirement: Schema and table validation (P1)
-Both schema and table fields MUST be non-empty before the user can proceed to the next step. The wizard "Next" button SHALL be disabled when either field is empty.
+Both schema and table fields MUST be non-empty before the user can proceed to the next step. The wizard "Next" button SHALL be disabled when either field is empty. This is implemented via the `validSource` computed property in `DataImportWizardComponent`, which must include a `type === 'database'` branch that checks both `dbSchema` and `dbTable` are non-empty after trimming.
 
 #### Scenario: Both fields filled
 - **WHEN** the user has entered a non-empty schema name and a non-empty table name
@@ -84,19 +84,20 @@ For database sources, the default user-friendly title SHALL be the table name. T
 - **THEN** the custom title is used instead
 
 ### Requirement: Re-edit pre-fills database fields (P2)
-When a user navigates back to edit an existing database-sourced import (via dashboard or back button), the schema and table fields SHALL be pre-filled with the previously saved values. The "Database" radio button SHALL be selected.
+When a user navigates back to edit an existing database-sourced import (via dashboard or back button), the schema and table fields SHALL be pre-filled by parsing `source_url` (`db://{schema}/{table}`). The "Database" radio button SHALL be selected.
 
 #### Scenario: Re-edit from dashboard
 - **WHEN** the user clicks "Edit" on a database-sourced dataset from the dashboard
 - **THEN** the source selector shows "Database" selected
-- **AND** the schema field contains the previously saved schema name
-- **AND** the table field contains the previously saved table name
+- **AND** the schema field contains the schema parsed from `source_url`
+- **AND** the table field contains the table parsed from `source_url`
 
 #### Scenario: Re-edit when database feature becomes unavailable
 - **WHEN** the user tries to edit a database-sourced dataset
 - **AND** the `database_source` feature flag is no longer in `enabled_features`
-- **THEN** the database radio button is still shown for this specific edit session (since the IntegrityLink already has type=database)
+- **THEN** the database radio button is still shown for this specific edit session (since the IntegrityLink already has `source_import_type=database`)
 - **AND** the user can re-submit with the same or modified schema/table
+- **Note:** The component must check BOTH the feature flag AND the existing IntegrityLink's `source_import_type` to decide whether to render the database radio button. The button is shown if the feature flag is present OR the IntegrityLink is already database-sourced.
 
 ### Requirement: Dashboard navigation rules preserved (P1)
 Database-sourced datasets SHALL follow the same dashboard navigation rules as file/URL/FTP sources (as defined in GSMEL-944). The source type does not affect navigation behavior from step 2 onward.

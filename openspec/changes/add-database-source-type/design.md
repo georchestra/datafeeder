@@ -13,7 +13,7 @@ Figma mockup: `node-id=979-19443` in the ingestion design file.
 **Goals:**
 - Allow users to select "Database" as a source type when the platform has a source DB connection configured
 - Accept schema + table name as free-text inputs (no live DB introspection)
-- Persist schema/table on the IntegrityLink and pass them to the staging DAG
+- Encode schema/table in `source_url` as `db://{schema}/{table}` and pass them to the staging DAG
 - Reuse the same pipeline from step 2 onward (preview, transform, process)
 
 **Non-Goals:**
@@ -37,31 +37,44 @@ Figma mockup: `node-id=979-19443` in the ingestion design file.
 
 ### D2: Feature flag via existing `enabled_features` mechanism
 
-**Decision:** The `SettingsService` checks whether `POSTGRES_SOURCE_HOST` is set (non-null). If so, it adds `"database_source"` to `enabled_features`. The frontend reads this flag to conditionally show the database radio button.
+**Decision:** The `SettingsService` checks whether all five `POSTGRES_SOURCE_*` env vars (`HOST`, `PORT`, `USER`, `PASSWORD`, `DB`) are set and non-empty. If so, it adds `"database_source"` to `enabled_features`. The frontend reads this flag to conditionally show the database radio button.
 
-**Rationale:** Reuses the existing `GET /settings` → `enabled_features` pattern. No new endpoint needed. Existence check only — no connection test, keeping startup fast.
+**Rationale:** Reuses the existing `GET /settings` → `enabled_features` pattern. No new endpoint needed. Requiring all five vars avoids confusing errors when partial config is deployed (user sees the option but staging always fails due to missing connection fields). No connection test, keeping startup fast.
 
 **Alternatives considered:**
 - Dedicated `/capabilities` endpoint: unnecessary indirection for a single boolean.
 - Frontend config file: would duplicate backend config and go stale.
 
-### D3: IntegrityLink model — new `source_db_schema` and `source_db_table` columns
+### D3: No new IntegrityLink columns — encode schema/table in `source_url`
 
-**Decision:** Add two nullable `VARCHAR(63)` columns to `integrity_link`: `source_db_schema` and `source_db_table`. They are populated only when `source_import_type = 'database'`.
+**Decision:** Do NOT add dedicated columns for schema and table. Instead, encode them in the existing `source_url` field as `db://{schema}/{table}`. Parse them back when needed (title fallback, re-edit pre-fill, DAG conf).
 
-**Rationale:** The existing `source_url` / `source_file_name` / `source_file_type` fields don't map well to a database source. Schema and table are distinct identifiers that the staging DAG needs. Keeping them as separate columns (vs. encoding in `source_url`) makes them queryable and avoids parsing.
+**Rationale:** Keeps the model unchanged — no schema migration, no SQL init script changes. The `db://` URI is a simple, parseable format (`schema, table = source_url[5:].split("/")`) that avoids adding columns for a single source type. No existing deployments to migrate, and for local dev the SQL init script stays untouched.
 
-**Migration:** Alembic migration adds two nullable columns — no data backfill needed, fully backwards-compatible.
+**Trade-off:** Consumers must know the `db://` URI convention. Acceptable for V1 with a single consumer (staging DAG). If querying by schema/table becomes important later, columns can be added.
 
 ### D4: Staging endpoint — extend existing `POST/PUT /ingestion/staging`
 
-**Decision:** Add `db_schema` and `db_table` as optional `Form(...)` parameters to both `submit_staging` and `edit_staging`. When `type=database`, they are required (validated in `_process_import_source`). The `_ImportSourceResult.source` field is set to a synthetic identifier `db://{schema}/{table}` for logging/tracing purposes. No file upload or URL handling occurs.
+**Decision:** Add `db_schema` and `db_table` as optional `Form(...)` parameters to both `submit_staging` and `edit_staging`. When `type=database`, they are required (validated in `_process_import_source` with regex `^[a-z][a-z0-9_]{0,62}$`). The `_ImportSourceResult` fields are set as follows:
+- `.source` = `db://{schema}/{table}` (informational trace)
+- `.url` = `db://{schema}/{table}` (stored as `source_url` on IntegrityLink)
+- `.source_file_name` = `None` (not a file)
+- `.source_file_type` = `None`
+- `.auth_enabled` = `False` (credentials are platform-level, not per-import)
 
-**Rationale:** Reuses existing endpoints (API-first, same pipeline). The `source` string passed to Airflow is informational — the DAG reads schema/table from the IntegrityLink or from DAG conf params. No auth encryption needed since credentials come from platform config, not user input.
+No file upload or URL handling occurs.
+
+**Rationale:** Reuses existing endpoints (API-first, same pipeline). The `source_url` string serves as both tracing identifier and the source of truth for schema/table. No auth encryption needed since credentials come from platform config, not user input.
 
 **File changes:**
 - `apps/backend/src/api/routes/ingestion/staging.py` — extend `_process_import_source` and both route handlers
 - `apps/backend/src/models/data_import.py` — no changes needed (ImportType.DATABASE already exists)
+
+### D4b: Guard `delete_temp_file` in `dag_success_callback`
+
+**Decision:** In `dag_success_callback`, guard the `delete_temp_file(integrity_link.source_url)` call with an import type check: only call it when `source_import_type != ImportType.DATABASE`. Database sources store `db://{schema}/{table}` in `source_url`, which is not a file path.
+
+**Rationale:** Without this guard, `delete_temp_file` would attempt to delete a non-existent path `db://...` on every successful database import. The existing try/except would catch it silently, but it's a code smell that logs spurious errors.
 
 ### D5: Frontend — extend `DataSourceSelectorComponent`
 
@@ -75,11 +88,11 @@ Figma mockup: `node-id=979-19443` in the ingestion design file.
 - `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts` — pass `db_schema`/`db_table` in FormData, set title from table name
 - i18n files for new labels
 
-### D6: User-friendly title defaults to table name
+### D6: User-friendly title defaults to table name (parsed from `source_url`)
 
-**Decision:** In `get_staging_metadata`, when `source_import_type == DATABASE`, the title falls back to `source_db_table` (instead of `source_file_name`). In the frontend wizard step 3, the title is pre-filled with the table name.
+**Decision:** In `get_staging_metadata`, the title fallback chain becomes: `integrity_title` → `source_file_name` → table name parsed from `source_url` (when `source_import_type == DATABASE`) → `""`. The table name is extracted by parsing the `db://{schema}/{table}` URI. In the frontend wizard step 3, the title is pre-filled with the table name.
 
-**Rationale:** Consistent with how file sources use the file name as default title. The table name is the most meaningful identifier for the user.
+**Rationale:** `source_file_name` is `None` for database sources (it's not a file), so the fallback reads the table name from `source_url` instead. This avoids repurposing `source_file_name` for non-file semantics. Consistent with how file sources use the file name as default title.
 
 ### D7: Dev environment — reuse shared DB with new connection line
 
@@ -99,4 +112,6 @@ Figma mockup: `node-id=979-19443` in the ingestion design file.
 
 - **[Schema/table SQL injection]** User-provided schema and table names could be injected into SQL. → Mitigation: Validate both fields with the existing `validate_table_name` pattern (alphanumeric + underscores, max 63 chars). The DAG should also validate before using them in queries.
 
-- **[Migration on existing deployments]** Adding nullable columns is safe and non-breaking. → Mitigation: Standard Alembic `op.add_column` with nullable=True, no downtime.
+- **[No schema migration needed]** Schema/table are encoded in the existing `source_url` field, so no new columns and no migration. The SQL init script (`130-datafeeder.sql`) is unchanged.
+
+- **[Recurrence for database sources]** Database sources are treated as remote sources and will show the recurrence selector (same as URL/FTP). This is intentional — the source table may receive new data over time. Note: recurring execution depends on the staging DAG supporting DATABASE source type (GSMEL-869).
