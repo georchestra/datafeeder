@@ -149,6 +149,13 @@ class Settings(BaseSettings):
     POSTGRES_DATA_PASSWORD: str | None = None
     POSTGRES_DATA_DB: str | None = None
 
+    # External source database (for database import type)
+    POSTGRES_SOURCE_HOST: str | None = None
+    POSTGRES_SOURCE_PORT: int | None = None
+    POSTGRES_SOURCE_USER: str | None = None
+    POSTGRES_SOURCE_PASSWORD: str | None = None
+    POSTGRES_SOURCE_DB: str | None = None
+
     # GeoServer
     GEOSERVER_URL: str = Field(
         default="http://localhost:8080/geoserver",

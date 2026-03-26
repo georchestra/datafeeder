@@ -150,6 +150,74 @@ describe('DataImportWizardComponent', () => {
 
     expect(component.validSource()).toBeFalsy()
   })
+
+  it('should return valid source for database type with schema and table', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onSourceChanged({
+      type: 'database',
+      dbSchema: 'geo',
+      dbTable: 'rivers',
+      authEnabled: false
+    })
+
+    expect(component.validSource()).toBeTruthy()
+  })
+
+  it('should return invalid source for database type with empty schema', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onSourceChanged({
+      type: 'database',
+      dbSchema: '',
+      dbTable: 'rivers',
+      authEnabled: false
+    })
+
+    expect(component.validSource()).toBeFalsy()
+  })
+
+  it('should return invalid source for database type with whitespace-only table', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onSourceChanged({
+      type: 'database',
+      dbSchema: 'geo',
+      dbTable: '   ',
+      authEnabled: false
+    })
+
+    expect(component.validSource()).toBeFalsy()
+  })
+
+  it('should detect database source from existing integrity link for re-edit', () => {
+    mockIntegrityLinkStore.integrityLink.set({
+      source_import_type: 'database',
+      source_url: 'db://geo/rivers'
+    })
+
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    expect(component.initialDatabaseSource()).toEqual({ schema: 'geo', table: 'rivers' })
+  })
+
+  it('should enable database source when feature flag is absent but link is database type', () => {
+    mockIntegrityLinkStore.integrityLink.set({
+      source_import_type: 'database',
+      source_url: 'db://geo/rivers'
+    })
+
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    expect(component.databaseSourceEnabled()).toBe(true)
+  })
 })
 
 describe('DataImportWizardComponent - Import and Status Polling', () => {

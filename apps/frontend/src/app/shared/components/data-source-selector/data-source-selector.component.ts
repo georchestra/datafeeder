@@ -1,4 +1,4 @@
-import { Component, inject, output } from '@angular/core'
+import { Component, effect, inject, input, output } from '@angular/core'
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { MatRadioModule } from '@angular/material/radio'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
@@ -30,9 +30,15 @@ marker('import.dataSource.ftp.port')
 marker('import.dataSource.ftp.username')
 marker('import.dataSource.ftp.password')
 marker('import.dataSource.ftp.path')
+marker('import.dataSource.chooseType.database')
+marker('import.dataSource.database.schema')
+marker('import.dataSource.database.table')
+
+export type SourceType = 'url' | 'file' | 'ftp' | 'database'
+export type RadioType = 'file' | 'ftp' | 'database'
 
 export interface SourceData {
-  type: 'url' | 'file' | 'ftp'
+  type: SourceType
   file?: globalThis.File
   url?: string
   authEnabled: boolean
@@ -41,6 +47,8 @@ export interface SourceData {
   ftpHost?: string
   ftpPort?: number
   ftpPath?: string
+  dbSchema?: string
+  dbTable?: string
 }
 
 @Component({
@@ -71,12 +79,15 @@ export interface SourceData {
 export class DataSourceSelectorComponent {
   private fb = inject(FormBuilder)
 
+  databaseSourceEnabled = input<boolean>(false)
+  initialDatabaseSource = input<{ schema: string; table: string } | null>(null)
+
   sourceChanged = output<SourceData>()
 
   form = this.fb.group({
-    radio: this.fb.control<'file' | 'ftp'>('file'),
+    radio: this.fb.control<RadioType>('file'),
     source: this.fb.group({
-      type: this.fb.control<'file' | 'url' | 'ftp'>('file'),
+      type: this.fb.control<SourceType>('file'),
       file: this.fb.control<globalThis.File | null>(null),
       url: this.fb.control<string | null>(null),
       authEnabled: this.fb.control<boolean>(false, { nonNullable: true }),
@@ -84,11 +95,25 @@ export class DataSourceSelectorComponent {
       password: this.fb.control<string | null>(null),
       ftpHost: this.fb.control<string | null>(null),
       ftpPort: this.fb.control<number | null>(null),
-      ftpPath: this.fb.control<string | null>(null)
+      ftpPath: this.fb.control<string | null>(null),
+      dbSchema: this.fb.control<string | null>(null),
+      dbTable: this.fb.control<string | null>(null)
     })
   })
 
   constructor() {
+    effect(() => {
+      const dbSource = this.initialDatabaseSource()
+      if (dbSource) {
+        this.form.controls.radio.setValue('database')
+        this.form.controls.source.patchValue({
+          type: 'database',
+          dbSchema: dbSource.schema,
+          dbTable: dbSource.table
+        })
+      }
+    })
+
     this.form.controls.source.valueChanges.subscribe((value) => {
       this.sourceChanged.emit({
         type: value.type,
@@ -99,7 +124,9 @@ export class DataSourceSelectorComponent {
         password: value.password,
         ftpHost: value.ftpHost,
         ftpPort: value.ftpPort,
-        ftpPath: value.ftpPath
+        ftpPath: value.ftpPath,
+        dbSchema: value.dbSchema,
+        dbTable: value.dbTable
       })
     })
   }
@@ -125,7 +152,9 @@ export class DataSourceSelectorComponent {
       password: null,
       ftpHost: null,
       ftpPort: null,
-      ftpPath: null
+      ftpPath: null,
+      dbSchema: null,
+      dbTable: null
     })
   }
 
@@ -134,7 +163,7 @@ export class DataSourceSelectorComponent {
     this.resetSource()
   }
 
-  handleRadioChange(type: 'file' | 'ftp'): void {
+  handleRadioChange(type: RadioType): void {
     this.resetSource()
     this.form.controls.source.patchValue({ type })
   }

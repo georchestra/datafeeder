@@ -60,7 +60,9 @@ describe('DataSourceSelectorComponent', () => {
       url: 'https://test.com',
       authEnabled: false,
       username: null,
-      password: null
+      password: null,
+      dbSchema: null,
+      dbTable: null
     })
   })
 
@@ -99,6 +101,57 @@ describe('DataSourceSelectorComponent', () => {
     fixture.detectChanges()
 
     expect(component.form.controls.source.controls.url.value).toBeNull()
+  })
+
+  describe('Database source', () => {
+    it('should not show database radio when databaseSourceEnabled is false', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      fixture.componentRef.setInput('databaseSourceEnabled', false)
+      fixture.detectChanges()
+
+      const radioButtons = fixture.nativeElement.querySelectorAll('mat-radio-button')
+      const labels = Array.from(radioButtons).map((rb: any) => rb.getAttribute('value'))
+      expect(labels).not.toContain('database')
+    })
+
+    it('should show database radio when databaseSourceEnabled is true', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      fixture.componentRef.setInput('databaseSourceEnabled', true)
+      fixture.detectChanges()
+
+      const radioButtons = fixture.nativeElement.querySelectorAll('mat-radio-button')
+      const labels = Array.from(radioButtons).map((rb: any) => rb.getAttribute('value'))
+      expect(labels).toContain('database')
+    })
+
+    it('should emit database source data with schema and table', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+      let emittedValue: any
+
+      component.sourceChanged.subscribe((value: any) => (emittedValue = value))
+      component.handleRadioChange('database')
+      component.form.controls.source.controls.dbSchema.setValue('geo')
+      component.form.controls.source.controls.dbTable.setValue('rivers')
+
+      expect(emittedValue.type).toBe('database')
+      expect(emittedValue.dbSchema).toBe('geo')
+      expect(emittedValue.dbTable).toBe('rivers')
+    })
+
+    it('should clear database fields when switching to file', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleRadioChange('database')
+      component.form.controls.source.controls.dbSchema.setValue('geo')
+      component.form.controls.source.controls.dbTable.setValue('rivers')
+
+      component.handleRadioChange('file')
+
+      expect(component.form.controls.source.controls.dbSchema.value).toBeNull()
+      expect(component.form.controls.source.controls.dbTable.value).toBeNull()
+    })
   })
 
   describe('Basic Authentication', () => {
@@ -147,7 +200,9 @@ describe('DataSourceSelectorComponent', () => {
         url: 'https://example.com',
         authEnabled: true,
         username: 'testuser',
-        password: 'testpass'
+        password: 'testpass',
+        dbSchema: null,
+        dbTable: null
       })
     })
   })

@@ -49,6 +49,7 @@ import type {
 } from '../../../core/api/models'
 import type { SourceData } from '../data-source-selector/data-source-selector.component'
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
+import { SettingsService } from '../../../core/settings/settings.service'
 import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
 import type {
@@ -126,6 +127,7 @@ export class DataImportWizardComponent {
   private translate = inject(TranslateService)
   private router = inject(Router)
   private route = inject(ActivatedRoute)
+  private settingsService = inject(SettingsService)
 
   private renameSubject = new Subject<{
     originalName: string
@@ -133,6 +135,23 @@ export class DataImportWizardComponent {
   }>()
 
   integrityLinkStore = inject(IntegrityLinkStore)
+
+  databaseSourceEnabled = computed(() => {
+    const features = this.settingsService.getSetting<string[]>('enabled_features')
+    const link = this.integrityLinkStore.integrityLink()
+    return features?.includes('database_source') || link?.source_import_type === 'database'
+  })
+
+  initialDatabaseSource = computed(() => {
+    const link = this.integrityLinkStore.integrityLink()
+    if (link?.source_import_type === 'database' && link?.source_url?.startsWith('db://')) {
+      const parts = link.source_url.substring(5).split('/', 2)
+      if (parts.length === 2) {
+        return { schema: parts[0], table: parts[1] }
+      }
+    }
+    return null
+  })
 
   selectedTabIndex = signal(0)
   importData = signal<ImportWizardData>(null)
@@ -257,7 +276,8 @@ export class DataImportWizardComponent {
     return (
       (source.type === 'file' && !!source.file) ||
       (source.type === 'url' && !!source.url) ||
-      (source.type === 'ftp' && this.validFtp(source))
+      (source.type === 'ftp' && this.validFtp(source)) ||
+      (source.type === 'database' && !!source.dbSchema?.trim() && !!source.dbTable?.trim())
     )
   })
 
@@ -433,6 +453,12 @@ export class DataImportWizardComponent {
         ftp_path: source.ftpPath.trim(),
         username: source.username.trim(),
         password: source.password.trim()
+      }
+    } else if (source.type === 'database') {
+      body = {
+        type: 'database',
+        db_schema: source.dbSchema?.trim(),
+        db_table: source.dbTable?.trim()
       }
     } else {
       throw new Error(
