@@ -74,11 +74,11 @@
 
 ## 11. End-to-end verification
 
-- [ ] 11.1 Manually trigger each operation failure (mock or dev environment) and verify the correct toast appears
-- [ ] 11.2 Verify toast persists across navigation (go to another route while toast is visible)
-- [ ] 11.3 Verify multiple simultaneous toasts stack correctly with most recent at bottom
-- [ ] 11.4 Verify each toast dismisses independently
-- [ ] 11.5 Verify toast position is not affected by the geOrchestra header (visible within app bounds, not overlapping header)
+- [x] 11.1 Manually trigger each operation failure (mock or dev environment) and verify the correct toast appears
+- [x] 11.2 Verify toast persists across navigation (go to another route while toast is visible)
+- [x] 11.3 Verify multiple simultaneous toasts stack correctly with most recent at bottom
+- [x] 11.4 Verify each toast dismisses independently
+- [x] 11.5 Verify toast position is not affected by the geOrchestra header (visible within app bounds, not overlapping header)
 - [x] 11.6 Run `npm run lint` and `npm run test` — no regressions
 
 ## Future (when recurrence editing is implemented in the events page)
