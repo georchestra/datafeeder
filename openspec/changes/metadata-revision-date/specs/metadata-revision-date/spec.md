@@ -53,17 +53,19 @@ La mise à jour de la date de révision DOIT utiliser l'API de sauvegarde de Geo
 - **AND** le statut de publication de la fiche reste inchangé (non publiée)
 
 ### Requirement: Support des schémas ISO 19115-3 et ISO 19139
-Le système DOIT supporter la mise à jour de la date de révision pour les fiches de métadonnées au format ISO 19115-3 et ISO 19139.
+Le système DOIT supporter la mise à jour de la date de révision du **jeu de données** (et non de la fiche de métadonnées elle-même) pour les fiches au format ISO 19115-3 et ISO 19139. Les éléments de date portant sur la fiche de métadonnées (`mdb:dateInfo` en 19115-3, `gmd:dateStamp` en 19139) NE DOIVENT PAS être modifiés.
 
 #### Scenario: Mise à jour d'une fiche ISO 19115-3
 - **WHEN** la fiche de métadonnées existante est au format ISO 19115-3 (namespace racine `http://standards.iso.org/iso/19115/-3/mdb/2.0`)
-- **THEN** le système localise la date de révision via les XPath ISO 19115-3 (`mdb:dateInfo/cit:CI_Date` avec `codeListValue="revision"` et `mri:citation/cit:CI_Citation/cit:date/cit:CI_Date` avec `codeListValue="revision"`)
-- **AND** met à jour ou insère l'élément de date de révision
+- **THEN** le système localise la date de révision du jeu de données via le XPath `mri:citation/cit:CI_Citation/cit:date/cit:CI_Date` avec `codeListValue="revision"`
+- **AND** met à jour ou insère cet élément de date de révision
+- **AND** l'élément `mdb:dateInfo` (date de la fiche) N'EST PAS modifié
 
 #### Scenario: Mise à jour d'une fiche ISO 19139
 - **WHEN** la fiche de métadonnées existante est au format ISO 19139 (namespace racine `http://www.isotc211.org/2005/gmd`)
-- **THEN** le système localise la date de révision via les XPath ISO 19139 (`gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date` avec `codeListValue="revision"`)
-- **AND** met à jour ou insère l'élément de date de révision
+- **THEN** le système localise la date de révision du jeu de données via le XPath `gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date` avec `codeListValue="revision"`
+- **AND** met à jour ou insère cet élément de date de révision
+- **AND** l'élément `gmd:dateStamp` (date de la fiche) N'EST PAS modifié
 
 #### Scenario: Schéma non supporté
 - **WHEN** la fiche de métadonnées existante n'est ni au format ISO 19115-3 ni au format ISO 19139

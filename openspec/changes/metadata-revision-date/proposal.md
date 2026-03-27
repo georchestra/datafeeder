@@ -8,7 +8,7 @@ The revision date in GeoNetwork metadata records is never set to a meaningful va
 - **Fix creation date on initial ingestion**: ensure the `mdb:dateInfo[creation]` is correctly populated with the dataset creation date (instead of `1970-01-01`).
 - **Update on recurrence**: after a successful recurrence DAG run, update the revision date in the GeoNetwork record to the current timestamp.
 - **Update on reconfiguration**: when a dataset is reconfigured (re-ingested through the tunnel with an existing metadata record), update the revision date.
-- **Support both ISO schemas**: handle revision date updates in both ISO 19115-3 (`mdb:dateInfo`, `cit:CI_Date`) and ISO 19139 (`gmd:dateStamp`, `gmd:CI_Date`) metadata records.
+- **Support both ISO schemas**: handle revision date updates in both ISO 19115-3 (`mri:citation/cit:CI_Citation/cit:date`) and ISO 19139 (`gmd:identificationInfo/.../gmd:CI_Citation/gmd:date`) metadata records — targeting only the **data** revision date, not the metadata record date (`mdb:dateInfo` / `gmd:dateStamp`).
 - **Add a `MetadataService.update_revision_date()` method**: fetch the existing XML from GeoNetwork, locate/insert/replace the revision date element, and save (without re-publishing).
 
 ## Capabilities
