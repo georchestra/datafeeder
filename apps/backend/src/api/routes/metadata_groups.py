@@ -61,7 +61,7 @@ def list_groups(geo_ctx: GeorchestraContextDep) -> list[GroupItem]:
         if not match:
             continue
 
-        new_label = match.group(1) if match.lastindex else match.group(0)
+        new_label = match.group(1) if match.lastindex else item.label
         result.append(GroupItem(id=item.id, label=new_label))
 
     return result
