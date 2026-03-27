@@ -83,6 +83,20 @@ If `update_revision_date()` fails, log a warning but do not fail the callback. T
 
 **Why**: Consistent with how ownership assignment already handles failures (`logger.warning` + continue).
 
+## Known Limitations
+
+### L1: `xlink:href` dateType encoding not supported
+
+The revision date detection XPath (`cit:dateType/cit:CI_DateTypeCode/@codeListValue='revision'`) only matches inline codelist values. Some records — typically imported from external catalogs — encode the date type via `xlink:href` instead:
+
+```xml
+<cit:dateType xlink:href="...#CI_DateTypeCode-revision"/>
+```
+
+In this case the XPath finds no match and falls through to the insert branch, resulting in a **duplicate `CI_Date[revision]`** being appended rather than the existing one being updated.
+
+**Why not fixed**: Records produced by GeoNetwork itself always use inline `codeListValue`. The risk only applies to externally-imported records, which is not the primary datafeeder use case. If this surfaces, the fix is to broaden the detection XPath with `or contains(@xlink:href, 'revision')`.
+
 ## Risks / Trade-offs
 
 - **[GeoNetwork API availability]** → If GeoNetwork is temporarily unavailable during callback, the revision date won't be updated. Mitigation: log a warning. The date will be corrected on the next recurrence run.
