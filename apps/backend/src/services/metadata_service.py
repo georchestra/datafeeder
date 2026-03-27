@@ -386,7 +386,7 @@ class MetadataService:
         Returns:
             Schema identifier string, or None if unsupported.
         """
-        tag = root.tag
+        tag = str(root.tag)
         if "http://standards.iso.org/iso/19115/-3/mdb/2.0" in tag:
             return _SCHEMA_19115_3
         if "http://www.isotc211.org/2005/gmd" in tag:

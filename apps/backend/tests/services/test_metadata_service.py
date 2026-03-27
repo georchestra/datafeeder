@@ -718,15 +718,15 @@ _SAMPLE_19139_WITH_REVISION_DATETIME = b"""\
 class TestDetectSchema:
     def test_detects_19115_3(self) -> None:
         root = etree.fromstring(_SAMPLE_19115_3_NO_REVISION)
-        assert MetadataService._detect_schema(root) == "19115-3"
+        assert MetadataService._detect_schema(root) == "19115-3"  # pyright: ignore[reportPrivateUsage]
 
     def test_detects_19139(self) -> None:
         root = etree.fromstring(_SAMPLE_19139_NO_REVISION)
-        assert MetadataService._detect_schema(root) == "19139"
+        assert MetadataService._detect_schema(root) == "19139"  # pyright: ignore[reportPrivateUsage]
 
     def test_returns_none_for_unsupported(self) -> None:
         root = etree.fromstring(b"<root/>")
-        assert MetadataService._detect_schema(root) is None
+        assert MetadataService._detect_schema(root) is None  # pyright: ignore[reportPrivateUsage]
 
 
 _CITATION_REVISION_XPATH_191153 = (
@@ -743,7 +743,7 @@ class TestUpdateRevisionDate191153:
     def test_insert_when_absent(self) -> None:
         root = etree.fromstring(_SAMPLE_19115_3_NO_REVISION)
         rev_date = datetime(2025, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19115_3(root, rev_date)
+        MetadataService._update_revision_date_19115_3(root, rev_date)  # pyright: ignore[reportPrivateUsage]
 
         # citation-level data revision date is inserted as gco:DateTime
         dt_nodes = root.xpath(_CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
@@ -766,7 +766,7 @@ class TestUpdateRevisionDate191153:
         """Existing gco:Date revision is replaced with gco:DateTime."""
         root = etree.fromstring(_SAMPLE_19115_3_WITH_REVISION)
         rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19115_3(root, rev_date)
+        MetadataService._update_revision_date_19115_3(root, rev_date)  # pyright: ignore[reportPrivateUsage]
 
         dt_nodes = root.xpath(_CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
         assert len(dt_nodes) == 1
@@ -785,7 +785,7 @@ class TestUpdateRevisionDate191153:
         """Existing gco:DateTime revision is updated in place."""
         root = etree.fromstring(_SAMPLE_19115_3_WITH_REVISION_DATETIME)
         rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19115_3(root, rev_date)
+        MetadataService._update_revision_date_19115_3(root, rev_date)  # pyright: ignore[reportPrivateUsage]
 
         dt_nodes = root.xpath(_CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
         assert len(dt_nodes) == 1
@@ -806,7 +806,7 @@ class TestUpdateRevisionDate19139:
     def test_insert_when_absent(self) -> None:
         root = etree.fromstring(_SAMPLE_19139_NO_REVISION)
         rev_date = datetime(2025, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19139(root, rev_date)
+        MetadataService._update_revision_date_19139(root, rev_date)  # pyright: ignore[reportPrivateUsage]
 
         dt_nodes = root.xpath(_CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
         assert len(dt_nodes) == 1
@@ -816,7 +816,7 @@ class TestUpdateRevisionDate19139:
         """Existing gco:Date revision is replaced with gco:DateTime."""
         root = etree.fromstring(_SAMPLE_19139_WITH_REVISION)
         rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19139(root, rev_date)
+        MetadataService._update_revision_date_19139(root, rev_date)  # pyright: ignore[reportPrivateUsage]
 
         dt_nodes = root.xpath(_CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
         assert len(dt_nodes) == 1
@@ -826,7 +826,7 @@ class TestUpdateRevisionDate19139:
         """Existing gco:DateTime revision is updated in place."""
         root = etree.fromstring(_SAMPLE_19139_WITH_REVISION_DATETIME)
         rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19139(root, rev_date)
+        MetadataService._update_revision_date_19139(root, rev_date)  # pyright: ignore[reportPrivateUsage]
 
         dt_nodes = root.xpath(_CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
         assert len(dt_nodes) == 1
