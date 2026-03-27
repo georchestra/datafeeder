@@ -1,6 +1,8 @@
 """Unit tests for data_manipulation.utils module."""
 
-from data_manipulation.utils import sanitize_name
+from unittest.mock import MagicMock, patch
+
+from data_manipulation.utils import resolve_url, sanitize_name
 
 
 class TestSanitizeName:
@@ -99,3 +101,48 @@ class TestSanitizeName:
         # After removing special chars and stripping, if it starts with number, prefix it
         assert sanitize_name("@123test") == "layer_123test"
         assert sanitize_name("_-_9data") == "layer_9data"
+
+
+class TestResolveUrl:
+    """Test cases for the resolve_url function."""
+
+    def _mock_response(self, status_code: int, location: str | None = None) -> MagicMock:
+        response = MagicMock()
+        response.status_code = status_code
+        response.headers = {"Location": location} if location else {}
+        return response
+
+    @patch("data_manipulation.utils.requests.head")
+    def test_no_redirect_returns_original_url(self, mock_head: MagicMock):
+        """Test that a 200 response returns the original URL unchanged."""
+        mock_head.return_value = self._mock_response(200)
+        url = "https://example.com/data.geojson"
+        assert resolve_url(url) == url
+
+    @patch("data_manipulation.utils.requests.head")
+    def test_absolute_redirect_location_returned_as_is(self, mock_head: MagicMock):
+        """Test that an absolute Location header is returned directly."""
+        mock_head.return_value = self._mock_response(302, "https://cdn.example.com/data.geojson")
+        result = resolve_url("https://example.com/data.geojson")
+        assert result == "https://cdn.example.com/data.geojson"
+
+    @patch("data_manipulation.utils.requests.head")
+    def test_relative_redirect_location_made_absolute(self, mock_head: MagicMock):
+        """Test that a relative Location header is resolved against the original URL."""
+        mock_head.return_value = self._mock_response(
+            302, "/delay/5000/https:/gist.githubusercontent.com/file.geojson"
+        )
+        result = resolve_url(
+            "https://app.requestly.io/delay/5000/https://gist.githubusercontent.com/file.geojson"
+        )
+        assert (
+            result
+            == "https://app.requestly.io/delay/5000/https:/gist.githubusercontent.com/file.geojson"
+        )
+
+    @patch("data_manipulation.utils.requests.head")
+    def test_redirect_without_location_returns_original_url(self, mock_head: MagicMock):
+        """Test that a 3xx without Location header returns the original URL."""
+        mock_head.return_value = self._mock_response(301, None)
+        url = "https://example.com/data.geojson"
+        assert resolve_url(url) == url

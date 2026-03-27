@@ -4,6 +4,7 @@ import logging
 import re
 import unicodedata
 from typing import Union
+from urllib.parse import urljoin
 
 import requests
 from geopandas import GeoDataFrame
@@ -80,9 +81,10 @@ def resolve_url(url: str) -> str:
         response = requests.head(url, allow_redirects=False, timeout=10)
         if 300 <= response.status_code < 400:
             location = response.headers.get("Location")
-            logger.info("URL %s redirected to %s", url, location)
             if location:
-                return location
+                absolute_location = urljoin(url, location)
+                logger.info("URL %s redirected to %s", url, absolute_location)
+                return absolute_location
         return url
     except requests.RequestException as e:
         raise ValueError(f"Error checking URL {url}: {e}") from e
