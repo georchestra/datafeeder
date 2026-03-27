@@ -23,3 +23,4 @@
 - [x] 4.4 Unit test for `update_revision_date()` — mock GeoNetwork fetch/save, verify end-to-end flow
 - [x] 4.5 Unit test for `generate_metadata()` — verify creation date is set correctly (not `1970-01-01`) and no revision date is present
 - [x] 4.6 Run `make fix-all-python` to ensure linting/formatting compliance
+- [x] 4.7 Unit tests for `dag_success_callback` revision date integration — `update_revision_date()` called when `metadata_id` is set, skipped when `None`, soft failure does not propagate (`apps/backend/tests/api/routes/test_process.py::TestDagSuccessCallbackRevisionDate`)
