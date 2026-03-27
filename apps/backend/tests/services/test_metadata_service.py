@@ -49,7 +49,7 @@ class TestMetadataService:
     @patch("src.services.metadata_service.etree.parse")
     @patch("src.services.metadata_service.GnApi")
     def test_generate_metadata(
-        self, mock_gn_api: MagicMock, mock_parse: MagicMock, sample_integrity_link: IntegrityLink
+        self, _mock_gn_api: MagicMock, mock_parse: MagicMock, sample_integrity_link: IntegrityLink
     ) -> None:
         """Test metadata XML generation."""
         service = MetadataService(
@@ -842,12 +842,6 @@ class TestUpdateRevisionDateEndToEnd:
         mock_api.api_url = "http://test/api"
         mock_api.get_metadataxml.return_value = _SAMPLE_19115_3_NO_REVISION
 
-        mock_session = MagicMock()
-        mock_resp = MagicMock()
-        mock_resp.raise_for_status = MagicMock()
-        mock_session.put.return_value = mock_resp
-        mock_api.session = mock_session
-
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
@@ -856,14 +850,10 @@ class TestUpdateRevisionDateEndToEnd:
         )
 
         mock_api.get_metadataxml.assert_called_once_with("uuid-123")
-        mock_session.put.assert_called_once()
-
-        call_args = mock_session.put.call_args
-        assert "uuid-123" in call_args[0][0]
-        assert call_args[1]["headers"]["Content-Type"] == "application/xml"
+        mock_api.upload_metadata.assert_called_once()
 
         # Verify the saved XML contains the citation-level data revision date as gco:DateTime
-        saved_xml = call_args[1]["data"]
+        saved_xml = mock_api.upload_metadata.call_args[0][0]
         root = etree.fromstring(saved_xml)
         dt_nodes = root.xpath(_CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
         assert dt_nodes[0].text == "2025-06-01T12:00:00"
@@ -879,14 +869,14 @@ class TestUpdateRevisionDateEndToEnd:
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
         service.update_revision_date("uuid-999", datetime.now(timezone.utc))
 
-        mock_api.session.put.assert_not_called()
+        mock_api.upload_metadata.assert_not_called()
 
 
 class TestGenerateMetadataCreationDate:
     """Verify creation date is set correctly and no revision date is present."""
 
     @patch("src.services.metadata_service.GnApi")
-    def test_creation_date_in_generated_metadata(self, mock_gn_api: MagicMock) -> None:
+    def test_creation_date_in_generated_metadata(self, _mock_gn_api: MagicMock) -> None:
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
 
         service = MetadataService(

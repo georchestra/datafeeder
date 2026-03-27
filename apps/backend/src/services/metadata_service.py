@@ -501,13 +501,10 @@ class MetadataService:
 
         updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
 
-        session = self.gn_api.session
-        resp = session.put(
-            f"{self.gn_api.api_url}/records/{metadata_uuid}",
-            data=updated_xml,
-            headers={"Content-Type": "application/xml"},
-        )
-        resp.raise_for_status()
+        # Use POST /records with OVERWRITE — GeoNetwork does not expose a raw-PUT
+        # record update endpoint. OVERWRITE on an existing record updates the XML
+        # without altering its publication privileges.
+        self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
         logger.info("Updated revision date for metadata record %s", metadata_uuid)
 
     def delete_record(self, metadata_uuid: str) -> None:
