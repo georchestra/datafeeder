@@ -11,6 +11,7 @@ import {
 } from 'geonetwork-ui'
 import { finalize, switchMap, take, withLatestFrom } from 'rxjs'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
+import { ErrorToastStore } from '../core/stores/error-toast.store'
 import { UiAlertBoxComponent } from '../shared/components/ui-alert-box/ui-alert-box.component'
 
 marker('intlinkLayout.error.forbidden.message')
@@ -44,6 +45,7 @@ export class IntlinkLayoutComponent {
 
   private editor = inject(EditorFacade)
   private recordsRepository = inject(RecordsRepositoryInterface)
+  private errorToastStore = inject(ErrorToastStore)
 
   isSaving = signal<boolean>(false)
 
@@ -68,8 +70,7 @@ export class IntlinkLayoutComponent {
           console.log('Edits saved successfully')
         },
         error: () => {
-          //TODO: show error message
-          console.log('Failed to save edits')
+          this.errorToastStore.add('metadataSave')
         }
       })
   }

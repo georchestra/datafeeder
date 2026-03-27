@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
+import { ErrorToastStore } from '../core/stores/error-toast.store'
 import { IntlinkLayoutComponent } from './intlink-layout.component'
 import { IntegrityLinkResponse } from '../core/api/models'
 import { of, throwError } from 'rxjs'
@@ -262,10 +263,10 @@ describe('IntlinkLayoutComponent', () => {
       expect(logSpy).toHaveBeenCalledWith('Edits saved successfully')
     })
 
-    it('should log error message when save fails', async () => {
+    it('should add a metadataSave toast when save fails', async () => {
       const { fixture } = await setupComponent('OWNER')
       const repo = TestBed.inject(RecordsRepositoryInterface)
-      const logSpy = vi.spyOn(console, 'log')
+      const toastStore = TestBed.inject(ErrorToastStore)
 
       vi.mocked(repo.saveRecord).mockReturnValueOnce(
         throwError(() => new Error('API Error'))
@@ -273,7 +274,10 @@ describe('IntlinkLayoutComponent', () => {
 
       fixture.componentInstance.saveEdits()
 
-      expect(logSpy).toHaveBeenCalledWith('Failed to save edits')
+      await vi.waitFor(() => expect(toastStore.toasts().length).toBe(1))
+      expect(toastStore.toasts()[0].translationKey).toBe(
+        'errors.operation.metadataSave'
+      )
     })
   })
 })

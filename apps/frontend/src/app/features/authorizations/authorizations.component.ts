@@ -7,7 +7,7 @@ import {
   inject,
   signal
 } from '@angular/core'
-import { TranslatePipe, TranslateService } from '@ngx-translate/core'
+import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../../core/api/api'
 import {
   deleteIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesRuleIdDelete,
@@ -20,6 +20,7 @@ import {
 } from '../../core/api/functions'
 import { GroupItem, IntegrityLinkRule, RuleType } from '../../core/api/models'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
+import { ErrorToastStore } from '../../core/stores/error-toast.store'
 import {
   AuthorizationRulesComponent,
   RuleChangeEvent
@@ -36,14 +37,9 @@ marker('authorizations.title')
 marker('authorizations.geonetwork.publicAccess')
 marker('authorizations.geonetwork.publicAccess.value.public')
 marker('authorizations.geonetwork.publicAccess.value.restricted')
-marker('authorizations.geonetwork.publishErrorMetadata.title')
-marker('authorizations.geonetwork.publishErrorMetadata.defaultMessage')
 marker('authorizations.geoserver.publicAccess')
 marker('authorizations.geoserver.publicAccess.value.public')
 marker('authorizations.geoserver.publicAccess.value.restricted')
-marker('authorizations.geoserver.publishErrorMetadata.title')
-marker('authorizations.geoserver.publishErrorMetadata.defaultMessage')
-marker('authorizations.geoserver.publishErrorData.title')
 marker('i18nerror.publish.geonetwork')
 marker('i18nerror.publish.geoserver')
 
@@ -63,7 +59,8 @@ marker('i18nerror.publish.geoserver')
 export class AuthorizationsComponent implements OnInit {
   private api = inject(Api)
   readonly store = inject(IntegrityLinkStore)
-  private translate = inject(TranslateService)
+  private errorToastStore = inject(ErrorToastStore)
+
   private readonly metadataRuleType: RuleType = 'METADATA'
   private readonly dataRuleType: RuleType = 'DATA'
 
@@ -72,13 +69,10 @@ export class AuthorizationsComponent implements OnInit {
   geonetworkGroups = signal<GroupItem[]>([])
   geoserverGroups = signal<GroupItem[]>([])
   loadError = signal<string | null>(null)
-  mutationError = signal<string | null>(null)
   isPublishedMetadata = signal<boolean>(false)
   isPublishedData = signal<boolean>(false)
   isPublishingMetadata = signal<boolean>(false)
   isPublishingData = signal<boolean>(false)
-  publishErrorMetadata = signal<string | null>(null)
-  publishErrorData = signal<string | null>(null)
 
   metadataRules = computed(() =>
     this.rules().filter((r) => r.rule_type === this.metadataRuleType)
@@ -117,9 +111,6 @@ export class AuthorizationsComponent implements OnInit {
     const previousValue = this.isPublishedMetadata()
     if (!this.intlinkId) return
 
-    // Clear any previous error
-    this.publishErrorMetadata.set(null)
-
     // Optimistically update the UI
     this.isPublishedMetadata.set(publish)
     this.isPublishingMetadata.set(true)
@@ -139,20 +130,7 @@ export class AuthorizationsComponent implements OnInit {
       )
     } catch (error) {
       console.error('Failed to toggle publish status:', error)
-
-      // Set error message
-      let errorMessage = this.translate.instant(
-        'authorizations.geonetwork.publishErrorMetadata.defaultMessage'
-      )
-
-      // Check if error has a detail property (i18n key from backend)
-      if (error.error?.detail) {
-        errorMessage = this.translate.instant(error.error.detail)
-      } else if (error instanceof Error) {
-        errorMessage = error.message
-      }
-
-      this.publishErrorMetadata.set(errorMessage)
+      this.errorToastStore.add(publish ? 'gnPublish' : 'gnUnpublish', error)
 
       // Force re-render by setting to opposite first, then back to previous
       this.isPublishedMetadata.set(!previousValue)
@@ -170,7 +148,6 @@ export class AuthorizationsComponent implements OnInit {
     const previousValue = this.isPublishedData()
     if (!this.intlinkId) return
 
-    this.publishErrorData.set(null)
     this.isPublishedData.set(publish)
     this.isPublishingData.set(true)
 
@@ -191,18 +168,7 @@ export class AuthorizationsComponent implements OnInit {
       }
     } catch (error) {
       console.error('Failed to toggle GeoServer publish status:', error)
-
-      let errorMessage = this.translate.instant(
-        'authorizations.geoserver.publishErrorData.defaultMessage'
-      )
-
-      if (error.error?.detail) {
-        errorMessage = this.translate.instant(error.error.detail)
-      } else if (error instanceof Error) {
-        errorMessage = error.message
-      }
-
-      this.publishErrorData.set(errorMessage)
+      this.errorToastStore.add(publish ? 'gsPublish' : 'gsUnpublish', error)
 
       this.isPublishedData.set(!previousValue)
       setTimeout(() => {
@@ -220,7 +186,6 @@ export class AuthorizationsComponent implements OnInit {
     ruleType: RuleType
   ): Promise<void> {
     if (!this.intlinkId) return
-    this.mutationError.set(null)
     const existingRule = this.rules().find(
       (r) => r.group_or_role === event.group.id && r.rule_type === ruleType
     )
@@ -252,7 +217,9 @@ export class AuthorizationsComponent implements OnInit {
       await this.loadRules(this.intlinkId)
     } catch (error) {
       console.error('Failed to update rule:', error)
-      this.mutationError.set('authorizations.error.mutation')
+      this.errorToastStore.add(
+        ruleType === this.metadataRuleType ? 'gnRightsEdit' : 'gsRightsEdit'
+      )
     }
   }
 

@@ -105,3 +105,10 @@ Après une suppression réussie, le dataset SHALL disparaître immédiatement de
 - **WHEN** l'utilisateur annule
 - **THEN** aucune requête DELETE n'est envoyée
 - **THEN** la ligne reste dans la liste
+
+#### Scenario: Échec de la suppression côté backend
+
+- **WHEN** l'utilisateur confirme la suppression et la requête DELETE retourne une erreur (HTTP 4xx ou 5xx)
+- **THEN** un toast d'erreur est affiché avec le message "La suppression a rencontré une erreur"
+- **THEN** la ligne reste dans la liste
+- **THEN** l'icône de suppression redevient interactive
