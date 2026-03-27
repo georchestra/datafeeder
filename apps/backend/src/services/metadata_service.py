@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
         _XSLTResultTree,  # pyright: ignore[reportPrivateUsage]
     )
 
+from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleValue
@@ -407,8 +409,11 @@ class MetadataService:
         group_id_by_name = {g["name"].lower(): g["id"] for g in groups}
 
         gn_privileges: list[dict[str, Any]] = []
-
+        settings = get_settings()
         for org_name, rule_value in privileges:
+            if settings.METADATA_GROUPS_LABEL_FILTER_REGEX:
+                search = re.search(settings.METADATA_GROUPS_LABEL_FILTER_REGEX, org_name)
+                org_name = search.group(0) if search else org_name
             gn_group_id = group_id_by_name.get(org_name.lower())
             if gn_group_id is None:
                 raise ValueError(f"No GN group found for org '{org_name}'")

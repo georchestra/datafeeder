@@ -42,4 +42,13 @@ def list_groups(geo_ctx: GeorchestraContextDep) -> list[GroupItem]:
     except re.error as e:
         raise HTTPException(status_code=400, detail=f"Invalid DATA_GROUPS_LABEL_FILTER_REGEX: {e}")
 
-    return [g for g in group_items if pattern.search(g.label)]
+    result: list[GroupItem] = []
+    for item in group_items:
+        match = pattern.search(item.label)
+        if not match:
+            continue
+
+        new_label = match.group(1) if match.lastindex else match.group(0)
+        result.append(GroupItem(id=item.id, label=new_label))
+
+    return result
