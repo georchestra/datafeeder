@@ -399,30 +399,31 @@ class MetadataService:
 
         Only updates the citation-level ``mri:citation/cit:CI_Citation/cit:date``
         element (data revision date). The metadata-level ``mdb:dateInfo`` is not
-        modified.
+        modified. Always writes a ``gco:DateTime``; replaces an existing
+        ``gco:Date`` or ``gco:DateTime`` if present.
         """
+        date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%S")
         ns = NS_19115_3
 
-        # --- citation-level cit:date ---
         citations = root.xpath(
             "mdb:identificationInfo/mri:MD_DataIdentification/mri:citation/cit:CI_Citation",
             namespaces=ns,
         )
         for citation in citations:
-            cit_existing = citation.xpath(
+            existing = citation.xpath(
                 "cit:date/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
-                "/@codeListValue='revision']/cit:date/gco:Date",
+                "/@codeListValue='revision']/cit:date/*[self::gco:DateTime or self::gco:Date]",
                 namespaces=ns,
             )
-            if cit_existing:
-                cit_existing[0].text = revision_date.strftime("%Y-%m-%d")
+            if existing:
+                date_node = existing[0]
+                date_node.tag = f"{{{ns['gco']}}}DateTime"
+                date_node.text = date_str
             else:
                 cit_date_wrapper: _Element = etree.SubElement(citation, f"{{{ns['cit']}}}date")
                 ci_date_el: _Element = etree.SubElement(cit_date_wrapper, f"{{{ns['cit']}}}CI_Date")
                 cit_d: _Element = etree.SubElement(ci_date_el, f"{{{ns['cit']}}}date")
-                etree.SubElement(cit_d, f"{{{ns['gco']}}}Date").text = revision_date.strftime(
-                    "%Y-%m-%d"
-                )
+                etree.SubElement(cit_d, f"{{{ns['gco']}}}DateTime").text = date_str
                 cit_dt: _Element = etree.SubElement(ci_date_el, f"{{{ns['cit']}}}dateType")
                 etree.SubElement(
                     cit_dt,
@@ -432,8 +433,13 @@ class MetadataService:
 
     @staticmethod
     def _update_revision_date_19139(root: _Element, revision_date: datetime) -> None:
-        """Insert or replace the revision date in an ISO 19139 record."""
-        date_str = revision_date.strftime("%Y-%m-%d")
+        """Insert or replace the data revision date in an ISO 19139 record.
+
+        Always writes a ``gco:DateTime``; replaces an existing ``gco:Date`` or
+        ``gco:DateTime`` if present. The metadata-level ``gmd:dateStamp`` is not
+        modified.
+        """
+        date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%S")
         ns = NS_19139
         codelist_19139 = (
             "http://standards.iso.org/iso/19139/resources/codelist/gmxCodelists.xml#CI_DateTypeCode"
@@ -446,16 +452,18 @@ class MetadataService:
         for citation in citations:
             existing = citation.xpath(
                 "gmd:date/gmd:CI_Date[gmd:dateType/gmd:CI_DateTypeCode"
-                "/@codeListValue='revision']/gmd:date/gco:Date",
+                "/@codeListValue='revision']/gmd:date/*[self::gco:DateTime or self::gco:Date]",
                 namespaces=ns,
             )
             if existing:
-                existing[0].text = date_str
+                date_node = existing[0]
+                date_node.tag = f"{{{ns['gco']}}}DateTime"
+                date_node.text = date_str
             else:
                 date_wrapper: _Element = etree.SubElement(citation, f"{{{ns['gmd']}}}date")
                 ci_date_el: _Element = etree.SubElement(date_wrapper, f"{{{ns['gmd']}}}CI_Date")
                 d_el: _Element = etree.SubElement(ci_date_el, f"{{{ns['gmd']}}}date")
-                etree.SubElement(d_el, f"{{{ns['gco']}}}Date").text = date_str
+                etree.SubElement(d_el, f"{{{ns['gco']}}}DateTime").text = date_str
                 dt_el: _Element = etree.SubElement(ci_date_el, f"{{{ns['gmd']}}}dateType")
                 etree.SubElement(
                     dt_el,
