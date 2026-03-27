@@ -57,14 +57,16 @@ Le système DOIT supporter la mise à jour de la date de révision du **jeu de d
 
 #### Scenario: Mise à jour d'une fiche ISO 19115-3
 - **WHEN** la fiche de métadonnées existante est au format ISO 19115-3 (namespace racine `http://standards.iso.org/iso/19115/-3/mdb/2.0`)
-- **THEN** le système localise la date de révision du jeu de données via le XPath `mri:citation/cit:CI_Citation/cit:date/cit:CI_Date` avec `codeListValue="revision"`
-- **AND** met à jour ou insère cet élément de date de révision
+- **THEN** le système localise la date de révision du jeu de données via le XPath `mri:citation/cit:CI_Citation/cit:date/cit:CI_Date` avec `codeListValue="revision"`, en cherchant un sous-élément `gco:DateTime` ou `gco:Date`
+- **AND** si un élément `gco:DateTime` ou `gco:Date` est trouvé, il est remplacé par un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SS`
+- **AND** si aucun `cit:CI_Date[revision]` n'existe, un nouvel élément est inséré avec un `gco:DateTime`
 - **AND** l'élément `mdb:dateInfo` (date de la fiche) N'EST PAS modifié
 
 #### Scenario: Mise à jour d'une fiche ISO 19139
 - **WHEN** la fiche de métadonnées existante est au format ISO 19139 (namespace racine `http://www.isotc211.org/2005/gmd`)
-- **THEN** le système localise la date de révision du jeu de données via le XPath `gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date` avec `codeListValue="revision"`
-- **AND** met à jour ou insère cet élément de date de révision
+- **THEN** le système localise la date de révision du jeu de données via le XPath `gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date` avec `codeListValue="revision"`, en cherchant un sous-élément `gco:DateTime` ou `gco:Date`
+- **AND** si un élément `gco:DateTime` ou `gco:Date` est trouvé, il est remplacé par un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SS`
+- **AND** si aucun `gmd:CI_Date[revision]` n'existe, un nouvel élément est inséré avec un `gco:DateTime`
 - **AND** l'élément `gmd:dateStamp` (date de la fiche) N'EST PAS modifié
 
 #### Scenario: Schéma non supporté
