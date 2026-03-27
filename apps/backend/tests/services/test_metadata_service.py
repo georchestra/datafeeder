@@ -691,16 +691,7 @@ class TestUpdateRevisionDate191153:
         rev_date = datetime(2025, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
         MetadataService._update_revision_date_19115_3(root, rev_date)
 
-        # metadata-level
-        dt_nodes = root.xpath(
-            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
-            "/@codeListValue='revision']/cit:date/gco:DateTime",
-            namespaces=NS_19115_3,
-        )
-        assert len(dt_nodes) == 1
-        assert dt_nodes[0].text == "2025-03-15T14:30:00"
-
-        # citation-level
+        # citation-level data revision date is inserted
         d_nodes = root.xpath(
             "mdb:identificationInfo/mri:MD_DataIdentification"
             "/mri:citation/cit:CI_Citation"
@@ -711,19 +702,20 @@ class TestUpdateRevisionDate191153:
         assert len(d_nodes) == 1
         assert d_nodes[0].text == "2025-03-15"
 
+        # metadata-level mdb:dateInfo is NOT modified
+        dt_nodes = root.xpath(
+            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
+            "/@codeListValue='revision']",
+            namespaces=NS_19115_3,
+        )
+        assert len(dt_nodes) == 0
+
     def test_replace_when_present(self) -> None:
         root = etree.fromstring(_SAMPLE_19115_3_WITH_REVISION)
         rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
         MetadataService._update_revision_date_19115_3(root, rev_date)
 
-        dt_nodes = root.xpath(
-            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
-            "/@codeListValue='revision']/cit:date/gco:DateTime",
-            namespaces=NS_19115_3,
-        )
-        assert len(dt_nodes) == 1
-        assert dt_nodes[0].text == "2025-12-31T23:59:59"
-
+        # citation-level data revision date is updated
         d_nodes = root.xpath(
             "mdb:identificationInfo/mri:MD_DataIdentification"
             "/mri:citation/cit:CI_Citation"
@@ -733,6 +725,15 @@ class TestUpdateRevisionDate191153:
         )
         assert len(d_nodes) == 1
         assert d_nodes[0].text == "2025-12-31"
+
+        # metadata-level mdb:dateInfo[revision] is NOT modified (still original value)
+        dt_nodes = root.xpath(
+            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
+            "/@codeListValue='revision']/cit:date/gco:DateTime",
+            namespaces=NS_19115_3,
+        )
+        assert len(dt_nodes) == 1
+        assert dt_nodes[0].text == "2024-06-01T10:00:00"
 
 
 class TestUpdateRevisionDate19139:
@@ -798,15 +799,17 @@ class TestUpdateRevisionDateEndToEnd:
         assert "uuid-123" in call_args[0][0]
         assert call_args[1]["headers"]["Content-Type"] == "application/xml"
 
-        # Verify the saved XML contains the revision date
+        # Verify the saved XML contains the citation-level data revision date
         saved_xml = call_args[1]["data"]
         root = etree.fromstring(saved_xml)
-        dt_nodes = root.xpath(
-            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
-            "/@codeListValue='revision']/cit:date/gco:DateTime",
+        d_nodes = root.xpath(
+            "mdb:identificationInfo/mri:MD_DataIdentification"
+            "/mri:citation/cit:CI_Citation"
+            "/cit:date/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
+            "/@codeListValue='revision']/cit:date/gco:Date",
             namespaces=NS_19115_3,
         )
-        assert dt_nodes[0].text == "2025-06-01T12:00:00"
+        assert d_nodes[0].text == "2025-06-01"
 
     @patch("src.services.metadata_service.GnApi")
     def test_unsupported_schema_skips(self, mock_gn_api: MagicMock) -> None:
