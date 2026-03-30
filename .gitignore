@@ -24,5 +24,4 @@ apps/elt/logs/**
 
 dist/
 
-.claude
-CLAUDE.md
+.claude/settings.local.json
