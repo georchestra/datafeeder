@@ -25,6 +25,12 @@ Le système DOIT mettre à jour la date de révision dans la fiche de métadonn�
 - **AND** la fiche de métadonnées ne contient pas de date de révision (uniquement création et/ou publication)
 - **THEN** une date de révision est ajoutée à la liste des dates avec la date et l'heure courantes (UTC)
 
+#### Scenario: URL de callback correcte dans le générateur de DAGs planifiés
+- **WHEN** le générateur de DAGs planifiés (`process-dag-generator.py`) crée un DAG de récurrence pour un `IntegrityLink`
+- **THEN** l'URL de callback de succès est construite à partir de la variable d'environnement `BACKEND_URL` et pointe vers l'endpoint `/ingestion/process/dag_success`
+- **AND** l'URL de callback d'échec pointe vers l'endpoint `/ingestion/process/dag_failure`
+- **AND** les paramètres `integrity_link_id` et `final_table_name` sont inclus dans les URLs de callback en tant que query parameters
+
 #### Scenario: Échec de la mise à jour de la date de révision
 - **WHEN** une ingestion récurrente se termine avec succès
 - **AND** la mise à jour de la date de révision dans GeoNetwork échoue (ex. : GeoNetwork indisponible)
