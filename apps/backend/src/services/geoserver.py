@@ -513,6 +513,28 @@ class GeoServerService:
         if response.status_code >= 400:
             raise GeoServerAclError(response.status_code, response.text)
 
+    def acl_layer_set_rule(
+        self, layer_name: str, access_type: AclAccessType, roles: list[str]
+    ) -> None:
+        """Set (replace) a layer ACL rule in GeoServer, overwriting any existing roles.
+
+        Tries to insert the rule with POST. If GeoServer returns 409 (rule already exists),
+        replaces it entirely with PUT — without merging with existing roles.
+        Use this when DataKern is the source of truth and external rules should not be preserved.
+
+        Args:
+            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
+            access_type: The access type (READ or WRITE).
+            roles: List of roles to set.
+        """
+        try:
+            self.acl_layer_post(layer_name, access_type, roles)
+        except GeoServerAclError as e:
+            if e.status_code == 409:
+                self.acl_layer_put(layer_name, access_type, roles)
+            else:
+                raise
+
     def acl_layer_add_rule(
         self, layer_name: str, access_type: AclAccessType, roles: list[str]
     ) -> None:

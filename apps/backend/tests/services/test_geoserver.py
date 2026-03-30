@@ -592,6 +592,51 @@ class TestAclLayerAddRule:
         assert exc_info.value.status_code == 500
 
 
+class TestAclLayerSetRule:
+    """Tests for acl_layer_set_rule (replace, not merge)."""
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://test.example.com/geoserver",
+                username="testuser",
+                password="testpass",
+                public_url="http://test.example.com",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    def test_post_succeeds_directly(self, service: GeoServerService) -> None:
+        service.acl_layer_post = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_set_rule("geor.my_layer", AclAccessType.READ, ["ROLE_IMPORT"])
+
+        service.acl_layer_post.assert_called_once_with(
+            "geor.my_layer", AclAccessType.READ, ["ROLE_IMPORT"]
+        )
+
+    def test_replaces_without_merging_on_409(self, service: GeoServerService) -> None:
+        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(409, "Conflict"))  # type: ignore[method-assign]
+        service.acl_layer_get = MagicMock(return_value=["ROLE_EXISTING"])  # type: ignore[method-assign]
+        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
+
+        service.acl_layer_set_rule("geor.my_layer", AclAccessType.READ, ["ROLE_IMPORT"])
+
+        service.acl_layer_get.assert_not_called()
+        service.acl_layer_put.assert_called_once_with(
+            "geor.my_layer", AclAccessType.READ, ["ROLE_IMPORT"]
+        )
+
+    def test_reraises_non_409_error(self, service: GeoServerService) -> None:
+        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(500, "Server error"))  # type: ignore[method-assign]
+
+        with pytest.raises(GeoServerAclError) as exc_info:
+            service.acl_layer_set_rule("geor.my_layer", AclAccessType.READ, ["ROLE_IMPORT"])
+
+        assert exc_info.value.status_code == 500
+
+
 class TestAclLayerRemoveRule:
     """Tests for acl_layer_remove_rule."""
 

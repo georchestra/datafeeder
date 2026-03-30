@@ -7,7 +7,6 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import HTTPException
 
-from src.api.routes.groups_common import GroupItem
 from src.api.routes.ingestion.integrity_link import (
     delete_integrity_link_rule,
     get_integrity_link,
@@ -856,10 +855,12 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
-            mock_fetch_groups.return_value = [GroupItem(id="role-uuid-1", label="ROLE_GN_REVIEWER")]
+            mock_console = MagicMock()
+            mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
+            mock_console_cls.return_value = mock_console
 
             mock_gs = MagicMock()
             mock_gs_cls.return_value = mock_gs
@@ -959,10 +960,12 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
-            mock_fetch_groups.return_value = [GroupItem(id="role-uuid-1", label="ROLE_GN_REVIEWER")]
+            mock_console = MagicMock()
+            mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
+            mock_console_cls.return_value = mock_console
 
             mock_gs = MagicMock()
             mock_gs_cls.return_value = mock_gs
@@ -1008,10 +1011,12 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
-            mock_fetch_groups.return_value = []
+            mock_console = MagicMock()
+            mock_console.get_all_roles.return_value = []
+            mock_console_cls.return_value = mock_console
 
             mock_gs = MagicMock()
             mock_gs_cls.return_value = mock_gs
@@ -1059,10 +1064,12 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
-            mock_fetch_groups.return_value = []
+            mock_console = MagicMock()
+            mock_console.get_all_roles.return_value = []
+            mock_console_cls.return_value = mock_console
 
             mock_gs = MagicMock()
             mock_gs_cls.return_value = mock_gs
@@ -1114,10 +1121,12 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService"),
         ):
-            mock_fetch_groups.side_effect = HTTPException(status_code=502, detail="upstream error")
+            mock_console = MagicMock()
+            mock_console.get_all_roles.side_effect = Exception("Console unreachable")
+            mock_console_cls.return_value = mock_console
 
             with pytest.raises(HTTPException) as exc_info:
                 upsert_integrity_link_rule(
@@ -1168,11 +1177,13 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.fetch_groups") as mock_fetch_groups,
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService"),
         ):
             # role-uuid-unknown is not in the returned list
-            mock_fetch_groups.return_value = [GroupItem(id="role-uuid-1", label="ROLE_GN_REVIEWER")]
+            mock_console = MagicMock()
+            mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
+            mock_console_cls.return_value = mock_console
 
             with pytest.raises(HTTPException) as exc_info:
                 upsert_integrity_link_rule(
@@ -1482,7 +1493,7 @@ class TestTogglePublishGsIntegrityLink:
             patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
         ):
             mock_gs = MagicMock()
-            mock_gs.acl_layer_add_rule = MagicMock()
+            mock_gs.acl_layer_set_rule = MagicMock()
             mock_gs.acl_layer_get = MagicMock(return_value=["ROLE_GROUP_1"])
 
             mock_console = MagicMock()
@@ -1506,8 +1517,8 @@ class TestTogglePublishGsIntegrityLink:
                 publish=False,
             )
 
-        mock_gs.acl_layer_add_rule.assert_called_once()
-        call_args = mock_gs.acl_layer_add_rule.call_args
+        mock_gs.acl_layer_set_rule.assert_called_once()
+        call_args = mock_gs.acl_layer_set_rule.call_args
         assert call_args.kwargs["roles"] == ["ROLE_GROUP_1"]
         mock_gs.acl_layer_get.assert_called_once()
         mock_session.delete.assert_called_once_with(everyone_rule)

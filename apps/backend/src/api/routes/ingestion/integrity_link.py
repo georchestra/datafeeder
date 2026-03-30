@@ -113,7 +113,7 @@ def _sync_data_sharing(
 ) -> None:
     """Sync DATA rules to GeoServer layer ACL.
 
-    Resolves role UUIDs to role names via DATA_FETCH_GROUPS_URL before syncing.
+    Resolves role UUIDs to ROLE_xxx names via the Console API before syncing.
     Skipped when integrity_link has no published layer (final_table_name absent).
 
     Raises:
@@ -131,25 +131,24 @@ def _sync_data_sharing(
     )
 
     settings = get_settings()
+    console_service = ConsoleService(settings.CONSOLE_URL)
     try:
-        groups = fetch_groups(
-            url=settings.DATA_FETCH_GROUPS_URL,
-            id_field=settings.DATA_GROUPS_IDENTIFIER,
-            label_field=settings.DATA_GROUPS_LABEL,
-            username=settings.DATA_FETCH_GROUPS_USERNAME,
-            password=settings.DATA_FETCH_GROUPS_PASSWORD,
-        )
-    except HTTPException:
-        logger.error("Failed to fetch data groups from %s", settings.DATA_FETCH_GROUPS_URL)
+        all_roles = console_service.get_all_roles()
+    except Exception:
+        logger.error("Failed to fetch roles from console for GeoServer ACL sync")
         raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
 
-    roles_by_id = {g.id: g.label for g in groups}
+    id_to_name = {
+        str(r["id"]): f"ROLE_{r['name']}"
+        for r in all_roles
+        if r.get("id") and r.get("name")
+    }
 
     resolved: list[tuple[str, RuleValue]] = []
     for rule in all_rules:
         if rule.rule_type != RuleType.DATA:
             continue
-        role_name = roles_by_id.get(rule.group_or_role)
+        role_name = id_to_name.get(rule.group_or_role)
         if not role_name:
             logger.error("Could not resolve role '%s' for GeoServer ACL sync", rule.group_or_role)
             raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
@@ -493,7 +492,7 @@ def toggle_publish_gs_integrity_link(
                 console_service = ConsoleService(settings.CONSOLE_URL)
                 geoserver_roles = console_service.get_role_labels(other_roles)
                 if geoserver_roles:
-                    geoserver_service.acl_layer_add_rule(
+                    geoserver_service.acl_layer_set_rule(
                         layer_name=acl_layer_name,
                         access_type=AclAccessType.READ,
                         roles=geoserver_roles,
