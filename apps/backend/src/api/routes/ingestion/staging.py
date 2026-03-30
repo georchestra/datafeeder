@@ -175,7 +175,7 @@ async def _process_import_source(
                 validate_table_name(db_table)
             except ValueError as e:
                 raise HTTPException(status_code=422, detail=str(e))
-            
+
             db_uri = f"db://{db_schema}/{db_table}"
             source = db_uri
             url = db_uri
@@ -714,7 +714,7 @@ def get_staging_metadata(
         and integrity_link.source_url
         and integrity_link.source_url.startswith("db://")
     ):
-        title = integrity_link.source_url[5:].split("/", 1)[-1]
+        title = integrity_link.source_url.removeprefix("db://").split("/", 1)[-1]
     force_projection_data = (
         integrity_link.integrity_transformation.get("force_projection")
         if integrity_link.integrity_transformation
