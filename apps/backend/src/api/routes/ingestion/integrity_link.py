@@ -22,7 +22,7 @@ from src.models.integrity_link_rule import (
 from src.models.recurrence import RecurrencePreset
 from src.services.console_service import ConsoleService
 from src.services.dataset_deletion_service import DatasetDeletionService
-from src.services.geoserver import AclAccessType, GeoServerAclError, GeoServerService
+from src.services.geoserver import ACL_ROLE_EVERYONE, AclAccessType, GeoServerAclError, GeoServerService
 from src.services.metadata_service import MetadataService
 
 logger = get_logger()
@@ -147,6 +147,9 @@ def _sync_data_sharing(
     resolved: list[tuple[str, RuleValue]] = []
     for rule in all_rules:
         if rule.rule_type != RuleType.DATA:
+            continue
+        if rule.group_or_role == GROUP_OR_ROLE_EVERYONE:
+            resolved.append((ACL_ROLE_EVERYONE, rule.rule_value))
             continue
         role_name = id_to_name.get(rule.group_or_role)
         if not role_name:

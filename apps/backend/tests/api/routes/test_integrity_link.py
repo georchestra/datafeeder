@@ -1084,6 +1084,63 @@ class TestSyncDataSharingAfterUpsert:
 
         mock_gs.sync_layer_acl.assert_called_once_with("myorg", "my_layer", [])
 
+    def test_gs_sync_passes_everyone_rule_without_console(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """EVERYONE rule (*) is passed directly to sync without Console resolution."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="MyOrg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            final_table_name="my_layer",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        all_rules_mock = MagicMock()
+        all_rules_mock.all.return_value = [
+            IntegrityLinkRule(
+                id=1,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role=GROUP_OR_ROLE_EVERYONE,
+                rule_type=RuleType.DATA,
+                rule_value=RuleValue.READ,
+            )
+        ]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, all_rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="role-uuid-1",
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+
+        with (
+            patch("src.api.routes.ingestion.integrity_link.get_settings"),
+            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
+        ):
+            mock_console = MagicMock()
+            mock_console.get_all_roles.return_value = []
+            mock_console_cls.return_value = mock_console
+
+            mock_gs = MagicMock()
+            mock_gs_cls.return_value = mock_gs
+
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                body=body,
+            )
+
+        mock_gs.sync_layer_acl.assert_called_once_with("myorg", "my_layer", [("*", RuleValue.READ)])
+
     def test_gs_sync_raises_500_when_console_fails(
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
