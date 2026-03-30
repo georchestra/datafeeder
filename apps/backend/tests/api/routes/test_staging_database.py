@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from src.api.routes.ingestion.staging import (
     _process_import_source,  # pyright: ignore[reportPrivateUsage]
     dag_success_callback,
+    get_staging_metadata,
 )
 from src.models.data_import import ImportType
 
@@ -164,3 +165,89 @@ class TestDagSuccessCallbackDeleteGuard:
         dag_success_callback(session=mock_session, integrity_link_id=str(uuid4()))
 
         mock_delete.assert_called_once_with("/tmp/somefile.csv")
+
+
+class TestGetStagingMetadataTitleFallback:
+    """Test title fallback logic in get_staging_metadata for database sources."""
+
+    @patch("src.api.routes.ingestion.staging.get_staging_schema", return_value="staging")
+    @patch("src.api.routes.ingestion.staging.select")
+    @patch("src.api.routes.ingestion.staging.Table")
+    @patch("src.api.routes.ingestion.staging._resolve_columns")
+    @patch("src.api.routes.ingestion.staging._detect_original_projection")
+    @patch("src.api.routes.ingestion.staging.load_authorized_integrity_link")
+    def test_title_falls_back_to_table_name_from_source_url(
+        self,
+        mock_load: MagicMock,
+        mock_detect_proj: MagicMock,
+        mock_resolve_cols: MagicMock,
+        mock_table: MagicMock,
+        mock_select: MagicMock,
+        mock_get_schema: MagicMock,
+    ) -> None:
+        """Title is the table name parsed from db://{schema}/{table} when no custom title is set."""
+        mock_link = MagicMock()
+        mock_link.integrity_title = None
+        mock_link.source_file_name = None
+        mock_link.source_file_type = None
+        mock_link.source_import_type = ImportType.DATABASE
+        mock_link.source_url = "db://geo/parcels"
+        mock_link.integrity_transformation = None
+        mock_link.final_table_name = None
+        mock_load.return_value = (mock_link, MagicMock())
+        mock_resolve_cols.return_value = ([], None)
+        mock_detect_proj.return_value = None
+
+        data_session = MagicMock()
+        data_session.scalar.return_value = 0
+
+        result = get_staging_metadata(
+            data_session=data_session,
+            datafeeder_session=MagicMock(),
+            geo_ctx=MagicMock(),
+            integrity_link_id=str(uuid4()),
+            org_id=None,
+        )
+
+        assert result.title == "parcels"
+
+    @patch("src.api.routes.ingestion.staging.get_staging_schema", return_value="staging")
+    @patch("src.api.routes.ingestion.staging.select")
+    @patch("src.api.routes.ingestion.staging.Table")
+    @patch("src.api.routes.ingestion.staging._resolve_columns")
+    @patch("src.api.routes.ingestion.staging._detect_original_projection")
+    @patch("src.api.routes.ingestion.staging.load_authorized_integrity_link")
+    def test_custom_title_overrides_table_name(
+        self,
+        mock_load: MagicMock,
+        mock_detect_proj: MagicMock,
+        mock_resolve_cols: MagicMock,
+        mock_table: MagicMock,
+        mock_select: MagicMock,
+        mock_get_schema: MagicMock,
+    ) -> None:
+        """integrity_title takes precedence over table name derived from source_url."""
+        mock_link = MagicMock()
+        mock_link.integrity_title = "Parcelles cadastrales"
+        mock_link.source_file_name = None
+        mock_link.source_file_type = None
+        mock_link.source_import_type = ImportType.DATABASE
+        mock_link.source_url = "db://geo/parcels"
+        mock_link.integrity_transformation = None
+        mock_link.final_table_name = None
+        mock_load.return_value = (mock_link, MagicMock())
+        mock_resolve_cols.return_value = ([], None)
+        mock_detect_proj.return_value = None
+
+        data_session = MagicMock()
+        data_session.scalar.return_value = 0
+
+        result = get_staging_metadata(
+            data_session=data_session,
+            datafeeder_session=MagicMock(),
+            geo_ctx=MagicMock(),
+            integrity_link_id=str(uuid4()),
+            org_id=None,
+        )
+
+        assert result.title == "Parcelles cadastrales"
