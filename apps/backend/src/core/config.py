@@ -176,9 +176,9 @@ class Settings(BaseSettings):
     )
     # This is odd, apparently any UUID works as XSRF token
     GEONETWORK_XSRF_TOKEN: str = "c9f33266-e242-4198-a18c-b01290dce5f1"
-    ORG_BASED_SYNC: bool = Field(
-        default=True,
-        validation_alias=AliasChoices("orgBasedSync", "ORG_BASED_SYNC"),
+    GN_SYNC_MODE: Literal["ORG", "ROLE"] = Field(
+        default="ORG",
+        validation_alias=AliasChoices("gnSyncMode", "GN_SYNC_MODE"),
     )
     METADATA_DEFAULT_GROUP_NAME: str = Field(
         default="sample",
@@ -192,18 +192,10 @@ class Settings(BaseSettings):
     )
 
     # Metadata groups (for authorization UI)
-    METADATA_FETCH_GROUPS_URL: str = "http://localhost:8080/console/internal/organizations"
-    METADATA_GROUPS_IDENTIFIER: str = "id"
-    METADATA_GROUPS_LABEL: str = "name"
-    METADATA_FETCH_GROUPS_USERNAME: str = ""
-    METADATA_FETCH_GROUPS_PASSWORD: str = ""
+    METADATA_GROUPS_LABEL_FILTER_REGEX: str = "((?:VILLE|PROJET|DSP)_?.*)"
 
     # Data groups (for GeoServer authorization UI)
-    DATA_FETCH_GROUPS_URL: str = "http://localhost:8080/console/internal/roles"
-    DATA_GROUPS_IDENTIFIER: str = "id"
-    DATA_GROUPS_LABEL: str = "name"
-    DATA_FETCH_GROUPS_USERNAME: str = ""
-    DATA_FETCH_GROUPS_PASSWORD: str = ""
+    DATA_GROUPS_LABEL_FILTER_REGEX: str = ""
 
     # Email Configuration
     SMTP_TLS: bool = True

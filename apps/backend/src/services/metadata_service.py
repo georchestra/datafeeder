@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -14,8 +15,10 @@ if TYPE_CHECKING:
         _XSLTResultTree,  # pyright: ignore[reportPrivateUsage]
     )
 
+from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
+from src.models.integrity_link_rule import RuleValue
 
 logger = get_logger()
 
@@ -29,7 +32,7 @@ class MetadataService:
         datadir_path: str,
         credentials: Any = None,
         verify_tls: bool = False,
-        org_based_sync: bool = True,
+        gn_sync_mode: str = "ORG",
         metadata_default_group_name: str = "sample",
     ):
         """Initialize with GeoNetwork API client and paths to metadata files.
@@ -39,13 +42,13 @@ class MetadataService:
             datadir_path: Path to datadir (e.g., /etc/georchestra)
             credentials: Optional GnApi credentials
             verify_tls: Whether to verify TLS certificates
-            org_based_sync: If True, resolve group by org name; if False, use user's GN memberships
+            gn_sync_mode: "ORG" to resolve group by org name; "ROLE" to use user's GN memberships
             metadata_default_group_name: Fallback group name when user has no non-system groups
         """
         self.gn_api: Any = GnApi(api_url=gn_api_url, credentials=credentials, verifytls=verify_tls)
         self.template_path: str = f"{datadir_path}/datafeeder-python/metadata_template-19115-3.xml"
         self.xslt_path: str = f"{datadir_path}/datafeeder-python/metadata_transform-19115-3.xsl"
-        self.org_based_sync: bool = org_based_sync
+        self.org_based_sync: bool = gn_sync_mode == "ORG"
         self.metadata_default_group_name: str = metadata_default_group_name
 
     def generate_metadata(
@@ -381,6 +384,63 @@ class MetadataService:
                 f"Failed to delete metadata record {metadata_uuid}: {e}",
                 exc_info=True,
             )
+
+    def sync_record_sharing(
+        self,
+        metadata_uuid: str,
+        privileges: list[tuple[str, RuleValue]],
+    ) -> None:
+        """Sync sharing privileges to a GeoNetwork record.
+
+        Args:
+            metadata_uuid: UUID of the GeoNetwork record
+            privileges: Pre-resolved list of (org_name, rule_value) tuples.
+                        Caller is responsible for resolving geOrchestra org IDs to names.
+
+        Replaces all existing record privileges (clear=True).
+
+        Raises:
+            ValueError: If a GeoNetwork group cannot be resolved for an org name.
+            Exception: If the GeoNetwork API call fails.
+        """
+        resp = self.gn_api.session.get(f"{self.gn_api.api_url}/groups")
+        resp.raise_for_status()
+        groups = resp.json()
+        group_id_by_name = {g["name"].lower(): g["id"] for g in groups}
+
+        gn_privileges: list[dict[str, Any]] = []
+        settings = get_settings()
+        for org_name, rule_value in privileges:
+            if settings.METADATA_GROUPS_LABEL_FILTER_REGEX:
+                search = re.search(settings.METADATA_GROUPS_LABEL_FILTER_REGEX, org_name)
+                if search and search.lastindex:
+                    org_name = search.group(0)
+            gn_group_id = group_id_by_name.get(org_name.lower())
+            if gn_group_id is None:
+                raise ValueError(f"No GN group found for org '{org_name}'")
+
+            is_write = rule_value == RuleValue.WRITE
+            gn_privileges.append(
+                {
+                    "group": gn_group_id,
+                    "operations": {
+                        "view": True,
+                        "download": True,
+                        "editing": is_write,
+                        "notify": False,
+                        "dynamic": False,
+                        "featured": False,
+                    },
+                }
+            )
+
+        sharing = {"clear": True, "privileges": gn_privileges}
+        self.gn_api.put_sharing_record(metadata_uuid, sharing)
+        logger.info(
+            "Synced sharing for record %s: %d privilege(s)",
+            metadata_uuid,
+            len(gn_privileges),
+        )
 
     def toggle_publish_metadata_record(self, metadata_uuid: str, publish: bool) -> None:
         """Toggle publication status of a metadata record in GeoNetwork.

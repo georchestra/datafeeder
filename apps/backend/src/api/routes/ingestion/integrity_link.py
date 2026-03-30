@@ -30,6 +30,82 @@ logger = get_logger()
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
 
 
+def _sync_metadata_sharing(
+    session: DatafeederSessionDep,
+    integrity_link_id: str,
+    integrity_link: IntegrityLink,
+) -> None:
+    """Sync METADATA rules to GeoNetwork sharing privileges.
+
+    Called after any rule mutation. Resolves group_or_role IDs to GeoNetwork group names
+    via ConsoleService (organizations or roles depending on GN_SYNC_MODE), then delegates
+    to MetadataService.sync_record_sharing.
+    Skipped when integrity_link has no associated GeoNetwork record.
+
+    Raises:
+        HTTPException(500): If any group cannot be resolved or the GeoNetwork sync fails.
+    """
+    if not integrity_link.metadata_id:
+        return
+
+    settings = get_settings()
+
+    all_rules = list(
+        session.exec(
+            select(IntegrityLinkRule).where(
+                IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
+            )
+        ).all()
+    )
+
+    try:
+        console_service = ConsoleService(settings.CONSOLE_URL)
+        if settings.GN_SYNC_MODE == "ORG":
+            items = console_service.get_all_organizations()
+            groups_by_id = {
+                item["id"].lower(): item["name"]
+                for item in items
+                if item.get("id") and item.get("name")
+            }
+        else:
+            items = console_service.get_all_roles()
+            groups_by_id = {
+                item["id"].lower(): item["name"]
+                for item in items
+                if item.get("id") and item.get("name")
+            }
+    except Exception:
+        logger.error("Failed to fetch groups from console for GN sync")
+        raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
+
+    resolved: list[tuple[str, RuleValue]] = []
+    for rule in all_rules:
+        if rule.rule_type != RuleType.METADATA:
+            continue
+        gn_group_name = groups_by_id.get(rule.group_or_role.lower())
+        if not gn_group_name:
+            logger.error("Could not resolve group '%s' for sharing sync", rule.group_or_role)
+            raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
+        resolved.append((gn_group_name, rule.rule_value))
+
+    metadata_service = MetadataService(
+        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        datadir_path=settings.DATADIR_PATH,
+        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        gn_sync_mode=settings.GN_SYNC_MODE,
+        verify_tls=False,
+    )
+    try:
+        metadata_service.sync_record_sharing(integrity_link.metadata_id, resolved)
+    except Exception:
+        logger.error(
+            "Failed to sync GN sharing for integrity_link %s",
+            integrity_link_id,
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
+
+
 @router.get(
     "/{integrity_link_id}",
     response_model=IntegrityLinkResponse,
@@ -100,7 +176,7 @@ def upsert_integrity_link_rule(
     body: UpsertRuleRequest,
 ) -> IntegrityLinkRule:
     """Create or update a rule for a given IntegrityLink."""
-    load_authorized_integrity_link(
+    integrity_link, _ = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
     )
 
@@ -116,6 +192,7 @@ def upsert_integrity_link_rule(
         session.add(existing_rule)
         session.commit()
         session.refresh(existing_rule)
+        _sync_metadata_sharing(session, integrity_link_id, integrity_link)
         return existing_rule
 
     new_rule = IntegrityLinkRule(
@@ -127,6 +204,7 @@ def upsert_integrity_link_rule(
     session.add(new_rule)
     session.commit()
     session.refresh(new_rule)
+    _sync_metadata_sharing(session, integrity_link_id, integrity_link)
     return new_rule
 
 
@@ -143,7 +221,7 @@ def delete_integrity_link_rule(
     rule_id: int,
 ) -> Response:
     """Delete a rule from a given IntegrityLink."""
-    load_authorized_integrity_link(
+    integrity_link, _ = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
     )
 
@@ -153,6 +231,7 @@ def delete_integrity_link_rule(
 
     session.delete(rule)
     session.commit()
+    _sync_metadata_sharing(session, integrity_link_id, integrity_link)
     return Response(status_code=204)
 
 
@@ -249,6 +328,7 @@ def delete_integrity_link(
         gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        gn_sync_mode=settings.GN_SYNC_MODE,
         verify_tls=False,
     )
     deletion_service = DatasetDeletionService(

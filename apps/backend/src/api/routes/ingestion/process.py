@@ -181,6 +181,7 @@ def process_staging_data(
                 gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
                 datadir_path=settings.DATADIR_PATH,
                 credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+                gn_sync_mode=settings.GN_SYNC_MODE,
                 verify_tls=False,
             )
 

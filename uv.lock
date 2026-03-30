@@ -936,7 +936,7 @@ wheels = [
 [[package]]
 name = "geonetwork"
 version = "0.1.1"
-source = { git = "https://github.com/camptocamp/python-geonetwork.git#0590531798fa385e537571f8e1eb2a7798e6aed8" }
+source = { git = "https://github.com/camptocamp/python-geonetwork.git#e43ab3b926339454ec2aeaabc8e38a2aebf7d0dd" }
 dependencies = [
     { name = "requests" },
     { name = "types-requests" },
