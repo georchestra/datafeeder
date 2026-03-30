@@ -77,8 +77,8 @@
         {{ 'import.dataSource.database.schema' | translate }}
       </label>
       <gn-ui-text-input
-        [value]="form.get('source.dbSchema')!.value"
-        (valueChange)="form.get('source.dbSchema')!.setValue($event)"
+        [value]="form.controls.source.controls.dbSchema.value"
+        (valueChange)="form.controls.source.controls.dbSchema.setValue($event)"
         placeholder=""
       ></gn-ui-text-input>
     </div>
@@ -88,8 +88,8 @@
         {{ 'import.dataSource.database.table' | translate }}
       </label>
       <gn-ui-text-input
-        [value]="form.get('source.dbTable')!.value"
-        (valueChange)="form.get('source.dbTable')!.setValue($event)"
+        [value]="form.controls.source.controls.dbTable.value"
+        (valueChange)="form.controls.source.controls.dbTable.setValue($event)"
         placeholder=""
       ></gn-ui-text-input>
     </div>
