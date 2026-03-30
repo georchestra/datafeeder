@@ -196,7 +196,7 @@ describe('DataImportWizardComponent', () => {
   it('should detect database source from existing integrity link for re-edit', () => {
     mockIntegrityLinkStore.integrityLink.set({
       source_import_type: 'database',
-      source_url: 'db://geo/rivers'
+      source_url: 'db://SOURCE_DB_1/geo/rivers'
     })
 
     const fixture = TestBed.createComponent(DataImportWizardComponent)
@@ -212,7 +212,7 @@ describe('DataImportWizardComponent', () => {
   it('should enable database source when feature flag is absent but link is database type', () => {
     mockIntegrityLinkStore.integrityLink.set({
       source_import_type: 'database',
-      source_url: 'db://geo/rivers'
+      source_url: 'db://SOURCE_DB_1/geo/rivers'
     })
 
     const fixture = TestBed.createComponent(DataImportWizardComponent)

@@ -7,12 +7,18 @@ from airflow.exceptions import AirflowException
 from airflow.sdk import Variable, task, task_group
 from data_manipulation.encryption import decrypt_credentials
 from data_manipulation.ingestion import (
+    ingest_data_from_database_into_postgis,
     ingest_data_from_file_into_postgis,
     ingest_data_from_ftp_into_postgis,
     ingest_data_from_url_into_postgis,
 )
 from data_manipulation.logging import configure_logging
-from utils import get_data_sql_engine, get_datafeeder_sql_engine, get_staging_schema
+from utils import (
+    get_data_sql_engine,
+    get_datafeeder_sql_engine,
+    get_source_sql_engine,
+    get_staging_schema,
+)
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -49,6 +55,8 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                     return f"{group_id}.url_ingest_step"
                 case "FTP":
                     return f"{group_id}.ftp_ingest_step"
+                case "DATABASE":
+                    return f"{group_id}.database_ingest_step"
                 case _:
                     raise AirflowException(f"Unsupported source_type: {source_type}")
 
@@ -187,6 +195,63 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from FTP: {e}")
 
-        do_branching() >> [file_ingest_step(), ftp_ingest_step(), url_ingest_step()]
+        @task(task_id="database_ingest_step")
+        def database_ingest_step(**context: dict[str, Any]) -> None:
+            params = context.get("params", {})
+            ti = context.get("ti")
+
+            target_table_name = params.get("staging_table_name")
+
+            if not target_table_name and ti:
+                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
+                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
+            else:
+                logger.info(f"Using staging_table_name from params: {target_table_name}")
+
+            if not target_table_name:
+                raise AirflowException("staging_table_name is not provided")
+
+            source = params.get("source", "")
+            # Expected format: db://{db_key}/{schema}/{table}
+            if not source.startswith("db://"):
+                raise AirflowException(
+                    f"Invalid database source URL format: '{source}'. Expected db://{{db_key}}/{{schema}}/{{table}}"
+                )
+
+            try:
+                db_key, source_schema, source_table = source.removeprefix("db://").split("/", 2)
+            except ValueError:
+                raise AirflowException(
+                    f"Invalid database source URL format: '{source}'. Expected db://{{db_key}}/{{schema}}/{{table}}"
+                )
+
+            if not db_key or not source_schema or not source_table:
+                raise AirflowException(
+                    f"Invalid database source URL: db_key, schema, and table must all be non-empty (got '{source}')"
+                )
+
+            try:
+                source_engine = get_source_sql_engine(db_key)
+                target_engine = get_data_sql_engine()
+
+                ingest_data_from_database_into_postgis(
+                    source_schema=source_schema,
+                    source_table=source_table,
+                    source_engine=source_engine,
+                    target_table=target_table_name,
+                    target_engine=target_engine,
+                    target_schema=get_staging_schema(),
+                )
+            except AirflowException:
+                raise
+            except Exception as e:
+                raise AirflowException(f"Failed to ingest data from database {source}: {e}")
+
+        do_branching() >> [
+            file_ingest_step(),
+            ftp_ingest_step(),
+            url_ingest_step(),
+            database_ingest_step(),
+        ]
 
     return _ingestion_impl

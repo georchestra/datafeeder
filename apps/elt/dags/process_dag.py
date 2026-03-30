@@ -57,7 +57,7 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             default=None,
             type=["null", "string"],
             description="Type of source (FILE, URL, etc.) for re-ingestion (optional, if staging_table_name provided)",
-            enum=[None, "FTP", "URL", "OGC_WFS", "FILE"],
+            enum=[None, "DATABASE", "FILE", "FTP", "OGC_WFS", "URL"],
         ),
         "final_table_name": Param(
             default="",

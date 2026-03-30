@@ -29,7 +29,7 @@ Le pipeline existant suit le pattern : raw → staging → transformation → fi
 
 ### D1 : Configuration backend — dictionnaire `SOURCE_DATABASES`
 
-**Choix** : Remplacer les 5 variables `POSTGRES_SOURCE_*` par un champ unique `SOURCE_DATABASES: dict[str, str]` dans `Settings`. Chaque entrée est une paire clé = identifiant logique, valeur = URI de connexion PostgreSQL (ex: `SOURCE_DB_1=postgresql://user:pass@host:5432/db`).
+**Choix** : Remplacer les 5 variables `POSTGRES_SOURCE_*` par un champ unique `SOURCE_DATABASES: dict[str, PostgresDsn]` dans `Settings`. Chaque entrée est une paire clé = identifiant logique, valeur = URI de connexion PostgreSQL validée par Pydantic (ex: `SOURCE_DB_1=postgresql://user:pass@host:5432/db`).
 
 **Rationale** : Le format dictionnaire est extensible (plusieurs BDD à terme) tout en restant simple pour la v1 (une seule entrée). L'URI de connexion est le format standard SQLAlchemy, déjà utilisé pour `POSTGRES_DATA_URI`.
 
@@ -64,11 +64,19 @@ def get_source_sql_engine(db_key: str) -> Engine:
     return PostgresHook(db_key).get_sqlalchemy_engine()
 ```
 
+**Pattern côté backend** : Le module `db.py` initialise au démarrage un `source_engine` et `source_db_key` à partir de la première (et unique en v1) entrée de `SOURCE_DATABASES`. Ces deux constantes sont importées directement dans `staging.py`, évitant d'appeler une fonction sur chaque requête.
+
+```python
+# db.py
+source_db_key, _source_db_value = next(iter(get_settings().SOURCE_DATABASES.items()), (None, None))
+source_engine = create_engine(str(_source_db_value), ...) if _source_db_value else None
+```
+
 ### D4 : Fonction d'ingestion `ingest_data_from_database_into_postgis()`
 
 **Choix** : Nouvelle fonction dans `libs/data_manipulation/src/data_manipulation/ingestion.py` qui :
 1. Parse le `source_url` (`db://{db_key}/{schema}/{table}`) pour extraire la clé BDD, schema et table
-2. Lit la table source via `pd.read_sql_table()` / `gpd.read_postgis()` depuis le `source_engine`
+2. Lit la table source via `pd.read_sql(select(table), ...)` / `gpd.read_postgis()` depuis le `source_engine` (utilise `Table(..., autoload_with=source_engine)` pour inspecter le schéma)
 3. Écrit dans staging via `write_data_to_postgis()` existant sur le `target_engine`
 
 **Signature** :

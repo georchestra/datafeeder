@@ -15,6 +15,15 @@ def get_data_sql_engine() -> Engine:
     return PostgresHook("DATA_PG").get_sqlalchemy_engine()
 
 
+def get_source_sql_engine(db_key: str) -> Engine:
+    """Get SQLAlchemy engine for a source database by its key.
+
+    The db_key matches both the SOURCE_DATABASES backend config key
+    and the Airflow connection name, enabling zero-config multi-DB support.
+    """
+    return PostgresHook(db_key).get_sqlalchemy_engine()
+
+
 def get_datafeeder_sql_engine() -> Engine:
     """Get SQLAlchemy engine for Datafeeder from PostgresHook."""
     return get_datafeeder_pg_hook().get_sqlalchemy_engine()

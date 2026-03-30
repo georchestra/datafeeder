@@ -258,6 +258,49 @@ def ingest_data_from_url_into_postgis(
         raise
 
 
+def ingest_data_from_database_into_postgis(
+    source_schema: str,
+    source_table: str,
+    source_engine: Engine,
+    target_table: str,
+    target_engine: Engine,
+    target_schema: str = DEFAULT_SCHEMA,
+) -> None:
+    """Ingest data from a PostgreSQL table into a PostGIS staging table.
+
+    Args:
+        source_schema: Schema name in the source database
+        source_table: Table name in the source database
+        source_engine: SQLAlchemy engine for the source database
+        target_table: Target table name in the staging database
+        target_engine: SQLAlchemy engine for the staging (data) database
+        target_schema: Target schema (default: public)
+    """
+    validate_schema_name(source_schema)
+    validate_table_name(source_table)
+
+    logger.info(
+        f"Ingesting data from {source_schema}.{source_table} into staging table {target_table}"
+    )
+
+    try:
+        metadata = MetaData(schema=source_schema)
+        table = Table(source_table, metadata, autoload_with=source_engine)
+
+        has_geom = DEFAULT_GEOMETRY_COLUMN in table.c
+        query = select(table)
+
+        if has_geom:
+            data = gpd.read_postgis(query, con=source_engine, geom_col=DEFAULT_GEOMETRY_COLUMN)  # type: ignore[call-overload]
+        else:
+            data = pd.read_sql(query, source_engine)
+
+        write_data_to_postgis(data, target_table, target_engine, target_schema)
+    except Exception as e:
+        logger.error(f"Error ingesting data from {source_schema}.{source_table}: {e}")
+        raise
+
+
 def read_data_from_postgis(
     table_name: str,
     engine: Engine,

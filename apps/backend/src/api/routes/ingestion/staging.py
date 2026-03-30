@@ -12,6 +12,7 @@ from data_manipulation import (
     detect_column_type_from_sqla,
     read_and_transform_data,
 )
+from data_manipulation.database import schema_exists, table_exists
 from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import ForceProjection as DataManipulationForceProjection
@@ -25,7 +26,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, OrgIdDep
 from src.core.callback import build_callback_url
 from src.core.config import get_staging_schema
-from src.core.db import data_engine
+from src.core.db import data_engine, source_db_key, source_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
 from src.core.security import AccessLevel, load_authorized_integrity_link
@@ -177,9 +178,22 @@ async def _process_import_source(
             except ValueError as e:
                 raise HTTPException(status_code=422, detail=str(e))
 
-            db_uri = f"{DB_URI_PREFIX}{db_schema}/{db_table}"
-            source = db_uri
-            url = db_uri
+            if not source_engine or not source_db_key:
+                raise HTTPException(status_code=503, detail="No source database configured")
+
+            if not schema_exists(source_engine, db_schema):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Schema '{db_schema}' not found in source database",
+                )
+            if not table_exists(source_engine, db_schema, db_table):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Table '{db_table}' not found in schema '{db_schema}'",
+                )
+
+            source = f"{DB_URI_PREFIX}{source_db_key}/{db_schema}/{db_table}"
+            url = source
             auth_enabled = False
 
         case ImportType.API:
@@ -189,8 +203,8 @@ async def _process_import_source(
             )
 
     return _ImportSourceResult(
-        source=str(source),
-        url=str(url),
+        source=source,
+        url=url,
         source_file_name=source_file_name,
         source_file_type=source_file_type,
         auth_enabled=auth_enabled,
@@ -714,7 +728,8 @@ def get_staging_metadata(
         and integrity_link.source_import_type == ImportType.DATABASE
         and integrity_link.source_url
     ):
-        title = integrity_link.source_url.removeprefix(DB_URI_PREFIX).split("/", 1)[-1]
+        # source_url format: db://{db_key}/{schema}/{table} — take the last segment
+        title = integrity_link.source_url.rsplit("/", 1)[-1]
     force_projection_data = (
         integrity_link.integrity_transformation.get("force_projection")
         if integrity_link.integrity_transformation

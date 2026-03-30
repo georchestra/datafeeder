@@ -5,32 +5,34 @@ Backend handling of the database source type — configuration, feature flag exp
 ## Requirements
 
 ### Requirement: Source database connection configuration (P1)
-The backend SHALL support an optional external source database connection via environment variables: `POSTGRES_SOURCE_HOST`, `POSTGRES_SOURCE_PORT`, `POSTGRES_SOURCE_USER`, `POSTGRES_SOURCE_PASSWORD`, `POSTGRES_SOURCE_DB`. All fields default to `None`. The database source feature is considered available only when ALL five vars are set and non-empty.
+The backend SHALL support a `SOURCE_DATABASES` dictionary of type `dict[str, PostgresDsn]` in `Settings`, where each key is a logical identifier and each value is a PostgreSQL connection URI validated by Pydantic (`PostgresDsn`). The dictionary is provided as a JSON string via environment variable. In v1, a single entry is used (`SOURCE_DB_1`). The database source feature is considered available when `SOURCE_DATABASES` contains at least one entry.
 
-#### Scenario: Source DB fully configured
-- **WHEN** `POSTGRES_SOURCE_HOST`, `POSTGRES_SOURCE_PORT`, `POSTGRES_SOURCE_USER`, `POSTGRES_SOURCE_PASSWORD`, and `POSTGRES_SOURCE_DB` are all set and non-empty
+The variables `POSTGRES_SOURCE_HOST`, `POSTGRES_SOURCE_PORT`, `POSTGRES_SOURCE_USER`, `POSTGRES_SOURCE_PASSWORD`, `POSTGRES_SOURCE_DB` are removed and replaced by `SOURCE_DATABASES`.
+
+#### Scenario: SOURCE_DATABASES configured with one entry
+- **WHEN** `SOURCE_DATABASES='{"SOURCE_DB_1": "postgresql://user:pass@host:5432/db"}'`
 - **THEN** the database source feature is available
 - **AND** `"database_source"` is included in `enabled_features`
 
-#### Scenario: Source DB not configured
-- **WHEN** `POSTGRES_SOURCE_HOST` is not set or empty
+#### Scenario: SOURCE_DATABASES empty or missing
+- **WHEN** `SOURCE_DATABASES` is not set or is an empty dictionary `{}`
 - **THEN** the database source feature is not available
 - **AND** `"database_source"` is NOT included in `enabled_features`
 
-#### Scenario: Partial configuration
-- **WHEN** `POSTGRES_SOURCE_HOST` is set but any other `POSTGRES_SOURCE_*` field is missing or empty
-- **THEN** the database source feature is NOT available
-- **AND** `"database_source"` is NOT included in `enabled_features`
+#### Scenario: SOURCE_DATABASES with multiple entries (future-proof)
+- **WHEN** `SOURCE_DATABASES='{"SOURCE_DB_1": "postgresql://...", "SOURCE_DB_2": "postgresql://..."}'`
+- **THEN** the database source feature is available
+- **AND** in v1, only the first entry is used implicitly
 
 ### Requirement: Database source feature flag in settings (P1)
-The `GET /settings` endpoint SHALL include `"database_source"` in the `enabled_features` array when all five source database env vars are set and non-empty.
+The `GET /settings` endpoint SHALL include `"database_source"` in the `enabled_features` array when `SOURCE_DATABASES` contains at least one non-empty entry.
 
-#### Scenario: Feature flag present when fully configured
-- **WHEN** all five `POSTGRES_SOURCE_*` vars are set to non-empty values
+#### Scenario: Feature flag present when SOURCE_DATABASES configured
+- **WHEN** `SOURCE_DATABASES` contains at least one entry with a non-empty URI
 - **THEN** `GET /settings` returns `enabled_features` containing `"database_source"`
 
-#### Scenario: Feature flag absent when not configured
-- **WHEN** any `POSTGRES_SOURCE_*` var is not set or empty
+#### Scenario: Feature flag absent when SOURCE_DATABASES empty
+- **WHEN** `SOURCE_DATABASES` is empty or not set
 - **THEN** `GET /settings` returns `enabled_features` without `"database_source"`
 
 ### Requirement: Schema and table input validation (P1)
@@ -57,12 +59,13 @@ The backend SHALL validate `db_schema` and `db_table` fields to prevent SQL inje
 - **THEN** the backend returns HTTP 400 with detail "Schema and table are required for database import type"
 
 ### Requirement: Staging endpoint handles database source type (P1)
-The `POST /ingestion/staging` and `PUT /ingestion/staging/{id}` endpoints SHALL accept `type=database` with `db_schema` and `db_table` form fields. Schema and table are encoded in `source_url` as `db://{schema}/{table}`. No new IntegrityLink columns are added.
+The `POST /ingestion/staging` and `PUT /ingestion/staging/{id}` endpoints SHALL accept `type=database` with `db_schema` and `db_table` form fields. The `source_url` is encoded as `db://{db_key}/{schema}/{table}`. In v1, the database key is the first (and only) key from the `SOURCE_DATABASES` dictionary. No new IntegrityLink columns are added.
 
 #### Scenario: New database source staging
 - **WHEN** `POST /ingestion/staging` is called with `type=database`, `db_schema=geo`, `db_table=rivers`
+- **AND** `SOURCE_DATABASES` contains `SOURCE_DB_1`
 - **THEN** an IntegrityLink is created with `source_import_type=database`
-- **AND** `source_url` is set to `db://geo/rivers`
+- **AND** `source_url` is set to `db://SOURCE_DB_1/geo/rivers`
 - **AND** `source_file_name` is NULL
 - **AND** `source_file_type` is NULL
 - **AND** `source_username` and `source_password_encrypted` are NULL
@@ -70,7 +73,7 @@ The `POST /ingestion/staging` and `PUT /ingestion/staging/{id}` endpoints SHALL 
 
 #### Scenario: Edit database source staging
 - **WHEN** `PUT /ingestion/staging/{id}` is called with `type=database`, `db_schema=geo`, `db_table=lakes`
-- **THEN** the existing IntegrityLink is updated with `source_url=db://geo/lakes`
+- **THEN** the existing IntegrityLink is updated with `source_url=db://SOURCE_DB_1/geo/lakes`
 - **AND** the old staging table is dropped
 - **AND** a new staging DAG is triggered
 
@@ -78,7 +81,7 @@ The `POST /ingestion/staging` and `PUT /ingestion/staging/{id}` endpoints SHALL 
 - **WHEN** an IntegrityLink was created with `type=file`
 - **AND** `PUT /ingestion/staging/{id}` is called with `type=database`, `db_schema=geo`, `db_table=roads`
 - **THEN** the IntegrityLink is updated to `source_import_type=database`
-- **AND** `source_url` is set to `db://geo/roads`
+- **AND** `source_url` is set to `db://SOURCE_DB_1/geo/roads`
 - **AND** `source_file_type` is cleared
 
 #### Scenario: Switch from database to file on edit
@@ -96,7 +99,7 @@ The database source type SHALL NOT use per-import credential encryption. The sou
 - **AND** no credential encryption is attempted
 
 ### Requirement: Guard temp file deletion for database sources (P1)
-The `dag_success_callback` SHALL NOT call `delete_temp_file` when the IntegrityLink's `source_import_type` is `DATABASE`. Database sources store `db://{schema}/{table}` in `source_url`, which is not a file path.
+The `dag_success_callback` SHALL NOT call `delete_temp_file` when the IntegrityLink's `source_import_type` is `DATABASE`. Database sources store `db://{db_key}/{schema}/{table}` in `source_url`, which is not a file path.
 
 #### Scenario: Database source staging succeeds
 - **WHEN** `dag_success_callback` is called for a database-sourced IntegrityLink
@@ -108,10 +111,10 @@ The `dag_success_callback` SHALL NOT call `delete_temp_file` when the IntegrityL
 - **THEN** `delete_temp_file` IS called with `source_url` (existing behavior unchanged)
 
 ### Requirement: Staging metadata title fallback for database source (P1)
-The `GET /ingestion/staging/{id}/metadata` endpoint SHALL return the table name as the default title for database sources when no custom title has been set. The table name is parsed from `source_url` (`db://{schema}/{table}`).
+The `GET /ingestion/staging/{id}/metadata` endpoint SHALL return the table name as the default title for database sources when no custom title has been set. The table name is parsed from `source_url` (`db://{db_key}/{schema}/{table}`).
 
 #### Scenario: Default title from table name
-- **WHEN** `GET /ingestion/staging/{id}/metadata` is called for a database-sourced IntegrityLink with `source_url=db://geo/parcels`
+- **WHEN** `GET /ingestion/staging/{id}/metadata` is called for a database-sourced IntegrityLink with `source_url=db://SOURCE_DB_1/geo/parcels`
 - **AND** no custom `integrity_title` has been set
 - **AND** `source_file_name` is NULL
 - **THEN** the response `title` field is `"parcels"`
@@ -121,10 +124,10 @@ The `GET /ingestion/staging/{id}/metadata` endpoint SHALL return the table name 
 - **THEN** the response `title` field is `"Parcelles cadastrales"`
 
 ### Requirement: Dev environment seed data (P2)
-The development environment SHALL include a SQL seed script that creates a source schema with at least one table containing fake geospatial data, and all five `POSTGRES_SOURCE_*` env vars SHALL be configured in docker-compose to point to this data.
+The development environment SHALL include a SQL seed script that creates a source schema with at least one table containing fake geospatial data, and `SOURCE_DATABASES` SHALL be configured in docker-compose to point to this data.
 
 #### Scenario: Developer starts fresh environment
 - **WHEN** a developer runs `docker-compose up`
 - **THEN** the source database schema is created with seed data
-- **AND** all five `POSTGRES_SOURCE_*` env vars are set
+- **AND** `SOURCE_DATABASES` is configured with at least one entry (e.g., `SOURCE_DB_1`)
 - **AND** `GET /settings` includes `"database_source"` in `enabled_features`

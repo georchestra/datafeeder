@@ -2,7 +2,7 @@
 
 Airflow task and data_manipulation function to copy a table from an external PostgreSQL database into the staging schema. Includes Airflow connection configuration and the ingestion function.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Airflow connection SOURCE_DB_1 (P1)
 The `conn.json` file SHALL contain a `SOURCE_DB_1` entry with the connection URI to the external database. The DAG `utils.py` module SHALL expose a `get_source_sql_engine(db_key: str)` function that returns a `SQLAlchemy Engine` via `PostgresHook(db_key)`. The Airflow connection key SHALL match the key in the backend's `SOURCE_DATABASES` dictionary.
