@@ -4,7 +4,7 @@ Le tunnel d'ingestion supporte actuellement FILE, URL et FTP comme sources. Le t
 
 1. La brique ELT : une tâche Airflow `database_ingest_step` dans le task group `ingestion`
 2. La fonction `ingest_data_from_database_into_postgis()` dans `libs/data_manipulation`
-3. La configuration des connexions : backend (`EXTERNAL_DATABASES`) + Airflow (`conn.json`)
+3. La configuration des connexions : backend (`SOURCE_DATABASES`) + Airflow (`conn.json`)
 4. La résolution de la BDD source depuis l'`IntegrityLink`
 
 Le pipeline existant suit le pattern : raw → staging → transformation → final. L'ingestion depuis BDD doit s'insérer dans ce même pipeline, la seule différence étant la source de données (table PostgreSQL distante au lieu d'un fichier/URL).
@@ -14,7 +14,7 @@ Le pipeline existant suit le pattern : raw → staging → transformation → fi
 **Goals:**
 - Permettre à Airflow de copier une table d'une BDD PostgreSQL externe vers le schéma staging
 - Réutiliser le pipeline de transformation existant (staging → final) sans modification
-- Configurer les connexions de manière centralisée et extensible (dictionnaire `EXTERNAL_DATABASES`)
+- Configurer les connexions de manière centralisée et extensible (dictionnaire `SOURCE_DATABASES`)
 - Supporter les données géographiques ET non-géographiques
 - Fonctionner en dev (docker-compose) et en prod (K8s)
 
@@ -27,9 +27,9 @@ Le pipeline existant suit le pattern : raw → staging → transformation → fi
 
 ## Decisions
 
-### D1 : Configuration backend — dictionnaire `EXTERNAL_DATABASES`
+### D1 : Configuration backend — dictionnaire `SOURCE_DATABASES`
 
-**Choix** : Remplacer les 5 variables `POSTGRES_SOURCE_*` par un champ unique `EXTERNAL_DATABASES: dict[str, str]` dans `Settings`. Chaque entrée est une paire clé = identifiant logique, valeur = URI de connexion PostgreSQL (ex: `EXTERNAL_DB_1=postgresql://user:pass@host:5432/db`).
+**Choix** : Remplacer les 5 variables `POSTGRES_SOURCE_*` par un champ unique `SOURCE_DATABASES: dict[str, str]` dans `Settings`. Chaque entrée est une paire clé = identifiant logique, valeur = URI de connexion PostgreSQL (ex: `SOURCE_DB_1=postgresql://user:pass@host:5432/db`).
 
 **Rationale** : Le format dictionnaire est extensible (plusieurs BDD à terme) tout en restant simple pour la v1 (une seule entrée). L'URI de connexion est le format standard SQLAlchemy, déjà utilisé pour `POSTGRES_DATA_URI`.
 
@@ -37,35 +37,37 @@ Le pipeline existant suit le pattern : raw → staging → transformation → fi
 - Garder les 5 variables `POSTGRES_SOURCE_*` : non extensible, 5 variables par BDD
 - Un fichier de config séparé (YAML/JSON) : overhead inutile, les env vars suffisent
 
-**Impact sur le feature flag** : `database_source` est dans `enabled_features` si `EXTERNAL_DATABASES` contient au moins une entrée.
+**Impact sur le feature flag** : `database_source` est dans `enabled_features` si `SOURCE_DATABASES` contient au moins une entrée.
 
-**Format env var** : `EXTERNAL_DATABASES='{"EXTERNAL_DB_1": "postgresql://user:pass@host:5432/db"}'` (JSON string parsée par Pydantic).
+**Format env var** : `SOURCE_DATABASES='{"SOURCE_DB_1": "postgresql://user:pass@host:5432/db"}'` (JSON string parsée par Pydantic).
 
 ### D2 : Format du `source_url` dans IntegrityLink
 
-**Choix** : Conserver le format existant `db://{schema}/{table}`. En v1 avec une seule BDD, l'identifiant de la BDD est implicite (première/unique entrée du dictionnaire `EXTERNAL_DATABASES`).
+**Choix** : Adopter le format `db://{db_key}/{schema}/{table}` (ex: `db://SOURCE_DB_1/geo/rivers`). L'identifiant de la BDD est explicite dans l'URL, ce qui permet de résoudre la bonne connexion côté Airflow quand plusieurs BDD seront supportées.
 
-**Rationale** : Le format est déjà implémenté et utilisé dans le backend. Le `source` passé au DAG Airflow sera `db://{schema}/{table}`, et le DAG résoudra la connexion via la connexion Airflow `SOURCE_PG`.
+**Rationale** : Rend le `source_url` auto-suffisant — on peut retrouver la BDD, le schéma et la table sans dépendre d'un contexte implicite. Le backend construit l'URL avec la clé de la BDD (en v1 : `SOURCE_DB_1`, seule entrée du dictionnaire). Côté Airflow, la tâche parse l'URL et résout la connexion.
+
+**Impact** : Nécessite de modifier le parsing existant dans `staging.py` (`db://{schema}/{table}` → `db://{db_key}/{schema}/{table}`) et le titre fallback dans `get_staging_metadata`.
 
 **Alternatives considérées** :
-- `db://EXTERNAL_DB_1/{schema}/{table}` : plus explicite, mais surcharge pour la v1 et nécessiterait de modifier le parsing existant du backend
+- `db://{schema}/{table}` (format actuel) : plus simple mais la BDD est implicite, non extensible
 
 ### D3 : Connexion Airflow pour la BDD source
 
-**Choix** : Ajouter une connexion `SOURCE_PG` dans `conn.json` (dev) et comme secret K8s/Helm (prod). La tâche Airflow utilise `PostgresHook("SOURCE_PG")` pour obtenir le `SQLAlchemy Engine`.
+**Choix** : Les connexions Airflow pour les BDD sources utilisent les **mêmes clés** que le dictionnaire `SOURCE_DATABASES` du backend. En v1 : `SOURCE_DB_1` dans `conn.json` (dev) et comme secret K8s/Helm (prod). La tâche Airflow extrait le `db_key` de l'URL et utilise `PostgresHook(db_key)` pour obtenir le `SQLAlchemy Engine`.
 
-**Rationale** : Pattern identique aux connexions `DATA_PG` et `DATAFEEDER_PG` existantes. La connexion Airflow est le mécanisme standard pour gérer les credentials dans Airflow.
+**Rationale** : Aligner les clés backend et Airflow élimine tout mapping intermédiaire. Ajouter une 2e BDD = ajouter une entrée dans `SOURCE_DATABASES` + une connexion Airflow du même nom. Zéro changement de code.
 
 **Nouveaux utilitaires dans `utils.py`** :
 ```python
-def get_source_sql_engine() -> Engine:
-    return PostgresHook("SOURCE_PG").get_sqlalchemy_engine()
+def get_source_sql_engine(db_key: str) -> Engine:
+    return PostgresHook(db_key).get_sqlalchemy_engine()
 ```
 
 ### D4 : Fonction d'ingestion `ingest_data_from_database_into_postgis()`
 
 **Choix** : Nouvelle fonction dans `libs/data_manipulation/src/data_manipulation/ingestion.py` qui :
-1. Parse le `source_url` (`db://{schema}/{table}`) pour extraire schema et table
+1. Parse le `source_url` (`db://{db_key}/{schema}/{table}`) pour extraire la clé BDD, schema et table
 2. Lit la table source via `pd.read_sql_table()` / `gpd.read_postgis()` depuis le `source_engine`
 3. Écrit dans staging via `write_data_to_postgis()` existant sur le `target_engine`
 
@@ -89,21 +91,21 @@ def ingest_data_from_database_into_postgis(
 
 **Choix** : Ajouter un case `"DATABASE"` dans le branching du task group `ingestion` qui appelle `ingest_data_from_database_into_postgis()`.
 
-**Paramètres DAG** : Le `source` du DAG contient `db://{schema}/{table}`. La tâche parse cette URL, obtient le `source_engine` via `get_source_sql_engine()`, et le `target_engine` via `get_data_sql_engine()` existant.
+**Paramètres DAG** : Le `source` du DAG contient `db://{db_key}/{schema}/{table}`. La tâche parse cette URL, obtient le `source_engine` via `get_source_sql_engine(db_key)`, et le `target_engine` via `get_data_sql_engine()` existant.
 
 **Pattern identique** aux autres ingest steps : récupération du `staging_table_name` depuis params ou XCom, appel de la fonction d'ingestion, écriture dans staging.
 
 ### D6 : Environnement de développement
 
-**Choix** : En dev (docker-compose), `SOURCE_PG` pointe vers la même base `datadb` que `DATA_PG` (les données de test sont pré-chargées dans cette base). Le `conn.json` est mis à jour avec l'entrée `SOURCE_PG`.
+**Choix** : En dev (docker-compose), `SOURCE_DB_1` pointe vers la même base `datadb` que `DATA_PG` (les données de test sont pré-chargées dans cette base). Le `conn.json` est mis à jour avec l'entrée `SOURCE_DB_1`.
 
-**Côté backend** : `EXTERNAL_DATABASES` contient `EXTERNAL_DB_1` pointant vers `datadb`.
+**Côté backend** : `SOURCE_DATABASES` contient `SOURCE_DB_1` pointant vers `datadb`.
 
 ## Risks / Trade-offs
 
 **[Risque] Pas de pagination pour les grandes tables** → En v1, `pd.read_sql_table()` charge toute la table en mémoire. Acceptable car les tables DataMEL sont de taille raisonnable. Si besoin futur, on pourra ajouter un chunking par batch.
 
-**[Risque] Connexion unique en v1** → Si on ajoute une 2e BDD, il faudra modifier le format `source_url` et le parsing Airflow. Le dictionnaire `EXTERNAL_DATABASES` côté backend est déjà prêt, mais côté Airflow il faudra ajouter une nouvelle connexion et un mécanisme de résolution.
+**[Info] Architecture multi-BDD prête** → Le format `source_url` (`db://{db_key}/{schema}/{table}`), le dictionnaire `SOURCE_DATABASES` côté backend, et la résolution Airflow via `get_source_sql_engine(db_key)` sont alignés sur la même clé. Ajouter une 2e BDD = ajouter une entrée dans `SOURCE_DATABASES` + une connexion Airflow du même nom. Aucun changement de code nécessaire.
 
 **[Trade-off] Pas de credentials chiffrés pour la BDD source** → Contrairement aux sources URL/FTP où l'utilisateur saisit des credentials, la connexion BDD est pré-configurée par l'admin via la config. Les credentials sont dans l'URI de connexion (env var / secret K8s), pas dans l'IntegrityLink.
 

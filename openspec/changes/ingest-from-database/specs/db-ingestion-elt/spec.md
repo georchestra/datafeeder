@@ -4,16 +4,16 @@ Tâche Airflow et fonction data_manipulation pour copier une table depuis une BD
 
 ## ADDED Requirements
 
-### Requirement: Connexion Airflow SOURCE_PG (P1)
-Le fichier `conn.json` DOIT contenir une entrée `SOURCE_PG` avec l'URI de connexion vers la BDD externe. Le module `utils.py` des DAGs DOIT exposer une fonction `get_source_sql_engine()` qui retourne un `SQLAlchemy Engine` via `PostgresHook("SOURCE_PG")`.
+### Requirement: Connexion Airflow SOURCE_DB_1 (P1)
+Le fichier `conn.json` DOIT contenir une entrée `SOURCE_DB_1` avec l'URI de connexion vers la BDD externe. Le module `utils.py` des DAGs DOIT exposer une fonction `get_source_sql_engine(db_key: str)` qui retourne un `SQLAlchemy Engine` via `PostgresHook(db_key)`. La clé de connexion Airflow DOIT correspondre à la clé du dictionnaire `SOURCE_DATABASES` du backend.
 
-#### Scenario: Connexion SOURCE_PG disponible
-- **WHEN** `conn.json` contient l'entrée `SOURCE_PG` avec une URI PostgreSQL valide
-- **THEN** `get_source_sql_engine()` retourne un `Engine` connecté à la BDD source
+#### Scenario: Connexion SOURCE_DB_1 disponible
+- **WHEN** `conn.json` contient l'entrée `SOURCE_DB_1` avec une URI PostgreSQL valide
+- **THEN** `get_source_sql_engine("SOURCE_DB_1")` retourne un `Engine` connecté à la BDD source
 
-#### Scenario: Connexion SOURCE_PG absente
-- **WHEN** `conn.json` ne contient pas l'entrée `SOURCE_PG`
-- **THEN** `get_source_sql_engine()` lève une exception Airflow
+#### Scenario: Connexion SOURCE_DB_1 absente
+- **WHEN** `conn.json` ne contient pas l'entrée `SOURCE_DB_1`
+- **THEN** `get_source_sql_engine("SOURCE_DB_1")` lève une exception Airflow
 
 ### Requirement: Fonction ingest_data_from_database_into_postgis (P1)
 Le module `libs/data_manipulation/src/data_manipulation/ingestion.py` DOIT exposer une fonction `ingest_data_from_database_into_postgis(source_schema, source_table, source_engine, target_table, target_engine, target_schema)` qui lit une table depuis la BDD source et l'écrit dans le schéma staging de la BDD data via `write_data_to_postgis()`.
@@ -39,13 +39,13 @@ Le module `libs/data_manipulation/src/data_manipulation/ingestion.py` DOIT expos
 - **THEN** la fonction lève une exception
 
 ### Requirement: Tâche Airflow database_ingest_step (P1)
-Le task group `ingestion` DOIT inclure un case `"DATABASE"` dans le branching qui appelle `ingest_data_from_database_into_postgis()`. La tâche DOIT parser le paramètre `source` (format `db://{schema}/{table}`) pour extraire le schéma et la table source.
+Le task group `ingestion` DOIT inclure un case `"DATABASE"` dans le branching qui appelle `ingest_data_from_database_into_postgis()`. La tâche DOIT parser le paramètre `source` (format `db://{db_key}/{schema}/{table}`) pour extraire la clé BDD, le schéma et la table source.
 
 #### Scenario: Branching vers database_ingest_step
-- **WHEN** le DAG staging est déclenché avec `source_type=DATABASE` et `source=db://geo/rivers`
+- **WHEN** le DAG staging est déclenché avec `source_type=DATABASE` et `source=db://SOURCE_DB_1/geo/rivers`
 - **THEN** le branching sélectionne `database_ingest_step`
-- **AND** la tâche parse `source` pour extraire `schema=geo` et `table=rivers`
-- **AND** la tâche appelle `ingest_data_from_database_into_postgis()` avec le `source_engine` depuis `get_source_sql_engine()` et le `target_engine` depuis `get_data_sql_engine()`
+- **AND** la tâche parse `source` pour extraire `db_key=SOURCE_DB_1`, `schema=geo` et `table=rivers`
+- **AND** la tâche appelle `ingest_data_from_database_into_postgis()` avec le `source_engine` depuis `get_source_sql_engine("SOURCE_DB_1")` et le `target_engine` depuis `get_data_sql_engine()`
 - **AND** la table est copiée dans `staging.{staging_table_name}`
 
 #### Scenario: Staging table name depuis params
@@ -58,7 +58,7 @@ Le task group `ingestion` DOIT inclure un case `"DATABASE"` dans le branching qu
 - **THEN** la tâche récupère le nom depuis XCom (`generate_staging_table_name`)
 
 #### Scenario: Source URL mal formée
-- **WHEN** le paramètre `source` ne respecte pas le format `db://{schema}/{table}`
+- **WHEN** le paramètre `source` ne respecte pas le format `db://{db_key}/{schema}/{table}`
 - **THEN** la tâche lève une `AirflowException`
 
 ### Requirement: Pipeline de bout en bout identique aux autres sources (P1)
