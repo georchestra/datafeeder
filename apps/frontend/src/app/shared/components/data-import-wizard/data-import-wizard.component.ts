@@ -466,8 +466,8 @@ export class DataImportWizardComponent {
     } else if (source.type === 'database') {
       body = {
         type: 'database',
-        db_schema: source.dbSchema?.trim(),
-        db_table: source.dbTable?.trim()
+        db_schema: source.dbSchema?.trim() || '',
+        db_table: source.dbTable?.trim() || ''
       }
     } else {
       throw new Error(
