@@ -46,34 +46,36 @@ Le système DOIT mettre à jour la date de révision dans la fiche de métadonn�
 - **THEN** la date de révision dans la fiche de métadonnées est mise à jour avec la date et l'heure courantes (UTC)
 
 ### Requirement: Sauvegarde sans modification du statut de publication
-La mise à jour de la date de révision DOIT utiliser l'API de sauvegarde de GeoNetwork (save) et NON la republication. Le statut de publication de la fiche NE DOIT PAS être modifié par la mise à jour de la date de révision.
+La mise à jour de la date de révision DOIT utiliser `POST /records` avec `uuidProcessing=OVERWRITE` et NON la republication. Le statut de publication de la fiche NE DOIT PAS être modifié par la mise à jour de la date de révision.
+
+**Note**: GeoNetwork met systématiquement à jour `mdb:dateInfo[revision]` (date de la fiche) lors de toute sauvegarde via `POST /records`, en raison du schema plugin `update-fixed-info.xsl`. Ce comportement ne peut pas être désactivé via l'API (`updateDateStamp` n'est supporté que par `PUT /records/batchediting`, pas par `POST /records`). Ce comportement est accepté.
 
 #### Scenario: Sauvegarde préservant le statut publié
 - **WHEN** une fiche de métadonnées publiée reçoit une mise à jour de date de révision
-- **THEN** le système utilise l'endpoint de sauvegarde GeoNetwork (PUT `/records/{uuid}`)
+- **THEN** le système appelle `POST /records` avec `uuidProcessing=OVERWRITE`
 - **AND** le statut de publication de la fiche reste inchangé (publiée)
 
 #### Scenario: Sauvegarde préservant le statut non publié
 - **WHEN** une fiche de métadonnées non publiée reçoit une mise à jour de date de révision
-- **THEN** le système utilise l'endpoint de sauvegarde GeoNetwork (PUT `/records/{uuid}`)
+- **THEN** le système appelle `POST /records` avec `uuidProcessing=OVERWRITE`
 - **AND** le statut de publication de la fiche reste inchangé (non publiée)
 
 ### Requirement: Support des schémas ISO 19115-3 et ISO 19139
-Le système DOIT supporter la mise à jour de la date de révision du **jeu de données** (et non de la fiche de métadonnées elle-même) pour les fiches au format ISO 19115-3 et ISO 19139. Les éléments de date portant sur la fiche de métadonnées (`mdb:dateInfo` en 19115-3, `gmd:dateStamp` en 19139) NE DOIVENT PAS être modifiés.
+Le système DOIT supporter la mise à jour de la date de révision du **jeu de données** pour les fiches au format ISO 19115-3 et ISO 19139. Seuls les éléments de date au niveau de la citation (`mri:citation` en 19115-3, `gmd:CI_Citation` en 19139) DOIVENT être modifiés par le système. Les éléments de date portant sur la fiche de métadonnées elle-même (`mdb:dateInfo` en 19115-3, `gmd:dateStamp` en 19139) NE DOIVENT PAS être modifiés par le code Python — GeoNetwork les met à jour automatiquement lors de la sauvegarde (comportement accepté).
 
 #### Scenario: Mise à jour d'une fiche ISO 19115-3
 - **WHEN** la fiche de métadonnées existante est au format ISO 19115-3 (namespace racine `http://standards.iso.org/iso/19115/-3/mdb/2.0`)
 - **THEN** le système localise la date de révision du jeu de données via le XPath `mri:citation/cit:CI_Citation/cit:date/cit:CI_Date` avec `codeListValue="revision"`, en cherchant un sous-élément `gco:DateTime` ou `gco:Date`
 - **AND** si un élément `gco:DateTime` ou `gco:Date` est trouvé, il est remplacé par un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SSZ`
 - **AND** si aucun `cit:CI_Date[revision]` n'existe, un nouvel élément est inséré avec un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SSZ`
-- **AND** l'élément `mdb:dateInfo` (date de la fiche) N'EST PAS modifié
+- **AND** le code Python ne modifie pas `mdb:dateInfo` (date de la fiche)
 
 #### Scenario: Mise à jour d'une fiche ISO 19139
 - **WHEN** la fiche de métadonnées existante est au format ISO 19139 (namespace racine `http://www.isotc211.org/2005/gmd`)
 - **THEN** le système localise la date de révision du jeu de données via le XPath `gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date` avec `codeListValue="revision"`, en cherchant un sous-élément `gco:DateTime` ou `gco:Date`
 - **AND** si un élément `gco:DateTime` ou `gco:Date` est trouvé, il est remplacé par un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SSZ`
 - **AND** si aucun `gmd:CI_Date[revision]` n'existe, un nouvel élément est inséré avec un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SSZ`
-- **AND** l'élément `gmd:dateStamp` (date de la fiche) N'EST PAS modifié
+- **AND** le code Python ne modifie pas `gmd:dateStamp` (date de la fiche)
 
 #### Scenario: Schéma non supporté
 - **WHEN** la fiche de métadonnées existante n'est ni au format ISO 19115-3 ni au format ISO 19139

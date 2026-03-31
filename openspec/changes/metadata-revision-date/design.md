@@ -29,11 +29,13 @@ The ticket (GSMEL-979) requires that both ISO 19115-3 and ISO 19139 schemas are 
 
 ### D1: Patch-in-place via GeoNetwork API (fetch → modify → save)
 
-Fetch the existing XML record from GeoNetwork, parse it, locate or insert the revision date element, then save using the GeoNetwork record save endpoint (PUT `/records/{uuid}`). This is distinct from `publish_metadata()` which uses `upload_metadata()` with `OVERWRITE` — save updates the record content without affecting its publication status.
+Fetch the existing XML record from GeoNetwork, parse it, locate or insert the revision date element, then save using `gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")`. `OVERWRITE` on an existing record updates the XML without altering its publication status.
 
-**Why**: GeoNetwork distinguishes between "save" (update record XML) and "publish" (make record visible/public). Using save preserves the current publication state. Fetching the current record ensures we preserve any manual edits made in GeoNetwork.
+**Why**: `upload_metadata(OVERWRITE)` is the standard record update path in the `gn_api` library and preserves publication status. Fetching the current record ensures we preserve any manual edits made in GeoNetwork.
 
-**Alternative considered**: Re-upload with `upload_metadata(uuidprocessing="OVERWRITE")`. Rejected because it could alter publication status and is heavier than a simple save.
+**Known limitation**: GeoNetwork's `update-fixed-info.xsl` schema plugin unconditionally overwrites `mdb:dateInfo[revision]` (metadata-level date) from its internal `changeDate` on every save via `POST /records`. The `updateDateStamp` parameter that could prevent this is only supported by `PUT /records/batchediting`, not by `POST /records`. This means GeoNetwork will always update the metadata-level revision date on save — this behaviour is accepted, as it is semantically correct (the metadata record was modified).
+
+**Alternative considered**: `PUT /records/{uuid}?updateDateStamp=false`. Rejected because this endpoint does not exist in GeoNetwork 4.4.8 (Spring returns 405 Method Not Allowed).
 
 ### D2: Dual schema detection via root namespace
 
@@ -52,9 +54,9 @@ Add a single method `update_revision_date(metadata_uuid: str, revision_date: dat
 2. Detects the schema (19115-3 vs 19139)
 3. Finds the existing revision date element, or creates one if absent
 4. Sets the date value to the provided timestamp
-5. Saves the modified XML via GeoNetwork save endpoint (PUT `/records/{uuid}`, not re-publish)
+5. Saves the modified XML via `gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")`
 
-**Why**: Follows the existing service layer pattern. Keeps the XML manipulation in `MetadataService` where all metadata operations live. Using save instead of re-publish avoids altering the record's publication status.
+**Why**: Follows the existing service layer pattern. Keeps the XML manipulation in `MetadataService` where all metadata operations live. `upload_metadata(OVERWRITE)` preserves publication status and is the standard update path in the `gn_api` library.
 
 ### D4: Fix initial generation — remove revision date, fix creation date
 
