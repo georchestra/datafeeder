@@ -192,7 +192,7 @@ class Settings(BaseSettings):
     )
 
     # Metadata groups (for authorization UI)
-    METADATA_GROUPS_LABEL_FILTER_REGEX: str = "((?:VILLE|PROJET|DSP)_?.*)"
+    METADATA_GROUPS_LABEL_FILTER_REGEX: str = ""
 
     # Data groups (for GeoServer authorization UI)
     DATA_GROUPS_LABEL_FILTER_REGEX: str = ""
