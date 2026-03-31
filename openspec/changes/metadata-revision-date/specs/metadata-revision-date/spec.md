@@ -10,7 +10,7 @@ Le système DOIT définir correctement la date de création (`mdb:dateInfo` avec
 
 #### Scenario: Format de la date de création
 - **WHEN** la fiche de métadonnées est générée lors de la première ingestion
-- **THEN** la date de création au niveau `mdb:dateInfo` est au format `YYYY-MM-DDTHH:MM:SS` dans un élément `gco:DateTime`
+- **THEN** la date de création au niveau `mdb:dateInfo` est au format `YYYY-MM-DDTHH:MM:SSZ` dans un élément `gco:DateTime`
 
 ### Requirement: Mise à jour de la date de révision sur récurrence
 Le système DOIT mettre à jour la date de révision dans la fiche de métadonnées GeoNetwork après chaque exécution réussie d'une ingestion récurrente. Si une date de révision existe déjà, elle DOIT être remplacée. Si elle n'existe pas encore, elle DOIT être ajoutée.
@@ -64,15 +64,15 @@ Le système DOIT supporter la mise à jour de la date de révision du **jeu de d
 #### Scenario: Mise à jour d'une fiche ISO 19115-3
 - **WHEN** la fiche de métadonnées existante est au format ISO 19115-3 (namespace racine `http://standards.iso.org/iso/19115/-3/mdb/2.0`)
 - **THEN** le système localise la date de révision du jeu de données via le XPath `mri:citation/cit:CI_Citation/cit:date/cit:CI_Date` avec `codeListValue="revision"`, en cherchant un sous-élément `gco:DateTime` ou `gco:Date`
-- **AND** si un élément `gco:DateTime` ou `gco:Date` est trouvé, il est remplacé par un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SS`
-- **AND** si aucun `cit:CI_Date[revision]` n'existe, un nouvel élément est inséré avec un `gco:DateTime`
+- **AND** si un élément `gco:DateTime` ou `gco:Date` est trouvé, il est remplacé par un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SSZ`
+- **AND** si aucun `cit:CI_Date[revision]` n'existe, un nouvel élément est inséré avec un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SSZ`
 - **AND** l'élément `mdb:dateInfo` (date de la fiche) N'EST PAS modifié
 
 #### Scenario: Mise à jour d'une fiche ISO 19139
 - **WHEN** la fiche de métadonnées existante est au format ISO 19139 (namespace racine `http://www.isotc211.org/2005/gmd`)
 - **THEN** le système localise la date de révision du jeu de données via le XPath `gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:date/gmd:CI_Date` avec `codeListValue="revision"`, en cherchant un sous-élément `gco:DateTime` ou `gco:Date`
-- **AND** si un élément `gco:DateTime` ou `gco:Date` est trouvé, il est remplacé par un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SS`
-- **AND** si aucun `gmd:CI_Date[revision]` n'existe, un nouvel élément est inséré avec un `gco:DateTime`
+- **AND** si un élément `gco:DateTime` ou `gco:Date` est trouvé, il est remplacé par un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SSZ`
+- **AND** si aucun `gmd:CI_Date[revision]` n'existe, un nouvel élément est inséré avec un `gco:DateTime` au format `YYYY-MM-DDTHH:MM:SSZ`
 - **AND** l'élément `gmd:dateStamp` (date de la fiche) N'EST PAS modifié
 
 #### Scenario: Schéma non supporté

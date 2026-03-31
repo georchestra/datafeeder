@@ -133,9 +133,9 @@ class MetadataService:
         created_at = integrity_link.created_at or datetime.now(timezone.utc)
         last_retrieval = integrity_link.last_retrieval_timestamp or datetime.now(timezone.utc)
 
-        etree.SubElement(props, "creationDate").text = created_at.strftime("%Y-%m-%dT%H:%M:%S")
+        etree.SubElement(props, "creationDate").text = created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         etree.SubElement(props, "metadataPublicationDate").text = last_retrieval.strftime(
-            "%Y-%m-%d"
+            "%Y-%m-%dT%H:%M:%SZ"
         )
 
         # Keywords (use title as keyword)
@@ -402,7 +402,7 @@ class MetadataService:
         modified. Always writes a ``gco:DateTime``; replaces an existing
         ``gco:Date`` or ``gco:DateTime`` if present.
         """
-        date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%S")
+        date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         ns = NS_19115_3
 
         citations = root.xpath(
@@ -439,7 +439,7 @@ class MetadataService:
         ``gco:DateTime`` if present. The metadata-level ``gmd:dateStamp`` is not
         modified.
         """
-        date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%S")
+        date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         ns = NS_19139
         codelist_19139 = (
             "http://standards.iso.org/iso/19139/resources/codelist/gmxCodelists.xml#CI_DateTypeCode"
