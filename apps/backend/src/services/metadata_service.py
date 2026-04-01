@@ -474,8 +474,9 @@ class MetadataService:
     def update_revision_date(self, metadata_uuid: str, revision_date: datetime) -> None:
         """Fetch a GeoNetwork record, set its revision date, and save.
 
-        Uses the GeoNetwork save endpoint (PUT /records/{uuid}) to preserve
-        the record's publication status.
+        Uses the GeoNetwork upload endpoint (POST /records with
+        ``uuidprocessing="OVERWRITE"``) via ``GnApi.upload_metadata`` to update
+        the XML while preserving the record's publication status/privileges.
 
         Args:
             metadata_uuid: UUID of the metadata record in GeoNetwork.

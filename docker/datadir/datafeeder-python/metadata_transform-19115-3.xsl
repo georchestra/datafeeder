@@ -114,15 +114,15 @@
 
   <xsl:template
           match="//mdb:identificationInfo/mri:MD_DataIdentification/mri:citation/cit:CI_Citation/cit:date[1]/cit:CI_Date/cit:date/gco:Date">
-    <gco:Date>
+    <gco:DateTime>
       <xsl:value-of select="$props//creationDate" />
-    </gco:Date>
+    </gco:DateTime>
   </xsl:template>
   <xsl:template
           match="//mdb:identificationInfo/mri:MD_DataIdentification/mri:citation/cit:CI_Citation/cit:date[2]/cit:CI_Date/cit:date/gco:Date">
-    <gco:Date>
+    <gco:DateTime>
       <xsl:value-of select="$props//metadataPublicationDate" />
-    </gco:Date>
+    </gco:DateTime>
   </xsl:template>
 
   <xsl:template

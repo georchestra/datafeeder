@@ -369,7 +369,7 @@ async def dag_success_callback(
                 verify_tls=False,
             )
             metadata_service.update_revision_date(
-                str(integrity_link.id), datetime.now(timezone.utc)
+                str(integrity_link.metadata_id), datetime.now(timezone.utc)
             )
         except Exception as e:
             logger.warning(

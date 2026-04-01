@@ -28,7 +28,7 @@ def load_scheduled_integrity_links():
 
 
 def _build_callback_url(route: str, integrity_link_id: str, final_table_name: str) -> str:
-    backend_url = os.environ.get("BACKEND_URL", "http://datafeeder-python-backend-svc:8000")
+    backend_url = os.environ.get("BACKEND_URL", "http://datafeeder-backend:8000")
     params = urlencode(
         {"integrity_link_id": integrity_link_id, "final_table_name": final_table_name}
     )
