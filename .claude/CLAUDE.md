@@ -7,9 +7,29 @@ Data-ingestion & lifecycle-management module for geOrchestra. Monorepo: backend 
 | App | Tech | Path |
 |-----|------|------|
 | Backend | Python 3.12, FastAPI, SQLModel, PostgreSQL, async | `apps/backend/` |
-| Frontend | Angular 20 (standalone, signals, zoneless, OnPush), NgRx, Tailwind 3, vitest | `apps/frontend/` |
+| Frontend | Angular 20 (standalone, signals, zoneless, OnPush), NgRx, Tailwind 3 | `apps/frontend/` |
 | ELT | Airflow 3.x, TaskAPI decorators | `apps/elt/` |
 | Shared lib | Python data processing | `libs/data_manipulation/` |
+
+## Tooling
+
+**Python** (all packages managed via uv workspace):
+- **uv** — package manager & virtualenv. `uv sync --all-packages` installs everything.
+- **poethepoet** (poe) — task runner. Tasks defined in each `pyproject.toml` under `[tool.poe.tasks]`.
+- **Ruff** — linter + formatter (100 char lines). Config: `ruff.toml` at root, extended per package.
+- **Pyright** — type checker. Config: `pyrightconfig.json` at root, extended per package.
+- **pytest** — test runner. `pytest-asyncio` for async tests, `pytest-cov` for coverage.
+- **hatchling** — build backend for `libs/data_manipulation` and `apps/backend`.
+
+**Frontend** (npm):
+- **Angular CLI** (ng) — build, serve, generate.
+- **ESLint** — linter. **Prettier** — formatter.
+- **vitest** — unit tests. **Cypress** — e2e tests.
+- **ng-openapi-gen** — generates TS API client from backend OpenAPI spec.
+- **ngx-translate-extract** — extracts i18n keys to JSON translation files.
+
+**Infrastructure**:
+- **Docker Compose** — orchestrates backend, frontend, PostgreSQL, Airflow, and optionally GeoServer/GeoNetwork.
 
 ## Architecture
 
