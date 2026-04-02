@@ -44,7 +44,20 @@ make down-v                      # Stop + remove volumes
 **Never run these** — ask the user to run them (long-running, token expensive & user own responsability):
 `make up-full`, `make up-light`, `make down`, `make down-v` `make run-backend`, `cd apps/frontend && npm run start`
 
+## Token Efficiency
+
+- Be terse. No preamble, no recap, no trailing summaries. Lead with the action or answer.
+- Read only the lines you need — use `offset` and `limit` on large files.
+- Prefer Glob/Grep over Agent for simple lookups. Use Agent only for multi-step exploration.
+- Batch independent tool calls in a single message.
+- Don't re-read files already in context. Don't echo back code the user can see in the diff.
+- When explaining changes, one sentence per change is enough. Skip unchanged files.
+- Don't generate plans or lists unless asked. Just do the work.
+- When fixing errors, show only the fix, not a diagnosis of what went wrong unless non-obvious.
+
 ## Workflow
 
-Spec Driven Development via OpenSpec. See `agents.md` for skills and full workflow.
-Agent skills: `.agents/skills/` | OpenSpec skills: `.claude/skills/` | OpenSpec config: `openspec/config.yaml`
+Agent skills available here : `.agents/skills`
+Spec Driven Development via OpenSpec :
+- OpenSpec skills: `.claude/skills/`.
+- OpenSpec config: `openspec/config.yaml`
