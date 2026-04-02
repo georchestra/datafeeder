@@ -9,5 +9,5 @@ import { RecurrencePreset } from '../models/recurrence-preset'
 export interface ProcessRequest {
   integrity_link_id: string
   recurrence?: RecurrencePreset | null
-  title: string
+  title?: string | null
 }

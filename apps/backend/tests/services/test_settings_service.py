@@ -3,6 +3,8 @@
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from src.services.settings_service import SettingsService, get_settings_service
 
 
@@ -100,6 +102,79 @@ class TestSettingsService:
         assert service1 is service2
         # get_settings should only be called once due to singleton
         assert mock_get_settings.call_count == 1
+
+    @patch("src.services.settings_service.get_settings")
+    def test_database_source_feature_flag_present_when_all_vars_set(
+        self, mock_get_settings: MagicMock
+    ) -> None:
+        """Test that database_source is in enabled_features when all POSTGRES_SOURCE_* vars are set."""
+        mock_settings = MagicMock()
+        mock_settings.PROJECTIONS = "[]"
+        mock_settings.POSTGRES_SOURCE_HOST = "localhost"
+        mock_settings.POSTGRES_SOURCE_PORT = 5432
+        mock_settings.POSTGRES_SOURCE_USER = "user"
+        mock_settings.POSTGRES_SOURCE_PASSWORD = "pass"
+        mock_settings.POSTGRES_SOURCE_DB = "mydb"
+        mock_get_settings.return_value = mock_settings
+
+        service = SettingsService()
+        result = service.get_all_settings()
+
+        assert "database_source" in result["enabled_features"]
+
+    @pytest.mark.parametrize(
+        "missing_var",
+        [
+            "POSTGRES_SOURCE_HOST",
+            "POSTGRES_SOURCE_PORT",
+            "POSTGRES_SOURCE_USER",
+            "POSTGRES_SOURCE_PASSWORD",
+            "POSTGRES_SOURCE_DB",
+        ],
+    )
+    @patch("src.services.settings_service.get_settings")
+    def test_database_source_feature_flag_absent_when_any_var_missing(
+        self, mock_get_settings: MagicMock, missing_var: str
+    ) -> None:
+        """Test that database_source is NOT in enabled_features when any single var is missing."""
+        all_vars: dict[str, str | int | None] = {
+            "POSTGRES_SOURCE_HOST": "localhost",
+            "POSTGRES_SOURCE_PORT": 5432,
+            "POSTGRES_SOURCE_USER": "user",
+            "POSTGRES_SOURCE_PASSWORD": "pass",
+            "POSTGRES_SOURCE_DB": "mydb",
+        }
+        all_vars[missing_var] = None
+
+        mock_settings = MagicMock()
+        mock_settings.PROJECTIONS = "[]"
+        for key, value in all_vars.items():
+            setattr(mock_settings, key, value)
+        mock_get_settings.return_value = mock_settings
+
+        service = SettingsService()
+        result = service.get_all_settings()
+
+        assert "database_source" not in result["enabled_features"]
+
+    @patch("src.services.settings_service.get_settings")
+    def test_database_source_feature_flag_absent_when_no_vars_set(
+        self, mock_get_settings: MagicMock
+    ) -> None:
+        """Test that database_source is NOT in enabled_features when no vars are set."""
+        mock_settings = MagicMock()
+        mock_settings.PROJECTIONS = "[]"
+        mock_settings.POSTGRES_SOURCE_HOST = None
+        mock_settings.POSTGRES_SOURCE_PORT = None
+        mock_settings.POSTGRES_SOURCE_USER = None
+        mock_settings.POSTGRES_SOURCE_PASSWORD = None
+        mock_settings.POSTGRES_SOURCE_DB = None
+        mock_get_settings.return_value = mock_settings
+
+        service = SettingsService()
+        result = service.get_all_settings()
+
+        assert "database_source" not in result["enabled_features"]
 
     @patch("src.services.settings_service.get_settings")
     def test_projections_structure(self, mock_get_settings: MagicMock) -> None:

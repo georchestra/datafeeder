@@ -16,7 +16,7 @@ from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import ForceProjection as DataManipulationForceProjection
 from data_manipulation.utils import sanitize_name
-from data_manipulation.validators import validate_table_name
+from data_manipulation.validators import validate_schema_name, validate_table_name
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
 from shapely.geometry.base import BaseGeometry
 from sqlalchemy import MetaData, Table, func, select
@@ -33,6 +33,7 @@ from src.models import (
     StagingResponse,
 )
 from src.models.data_import import (
+    DB_URI_PREFIX,
     ColumnConfig,
     FileType,
     ForceProjection,
@@ -108,6 +109,8 @@ async def _process_import_source(
     ftp_host: Optional[str] = None,
     ftp_port: Optional[int] = None,
     ftp_path: Optional[str] = None,
+    db_schema: Optional[str] = None,
+    db_table: Optional[str] = None,
 ) -> _ImportSourceResult:
     """Process the import source and extract file metadata.
 
@@ -158,7 +161,28 @@ async def _process_import_source(
             source_file_type = _extract_filetype(source_file_name)
             auth_enabled = True
 
-        case ImportType.DATABASE | ImportType.API:
+        case ImportType.DATABASE:
+            if not db_schema or not db_table:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Schema and table are required for database import type",
+                )
+            try:
+                validate_schema_name(db_schema)
+            except ValueError as e:
+                raise HTTPException(status_code=422, detail=str(e))
+
+            try:
+                validate_table_name(db_table)
+            except ValueError as e:
+                raise HTTPException(status_code=422, detail=str(e))
+
+            db_uri = f"{DB_URI_PREFIX}{db_schema}/{db_table}"
+            source = db_uri
+            url = db_uri
+            auth_enabled = False
+
+        case ImportType.API:
             logger.error(f"Import type {type.value} not implemented yet")
             raise HTTPException(
                 status_code=501, detail=f"Import type {type.value} not implemented yet"
@@ -334,6 +358,8 @@ async def submit_staging(
     ftp_host: Optional[str] = Form(None),
     ftp_port: Optional[int] = Form(None),
     ftp_path: Optional[str] = Form(None),
+    db_schema: Optional[str] = Form(None),
+    db_table: Optional[str] = Form(None),
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
 ) -> StagingResponse:
@@ -341,7 +367,7 @@ async def submit_staging(
     Submit data for staging import.
 
     Args:
-        type: Import type (file, URL, FTP, etc.)
+        type: Import type (file, URL, FTP, database, etc.)
         url: Optional URL if import type is URL
         file: Optional file upload if import type is file
         auth_enabled: Whether authentication is enabled for the source
@@ -350,6 +376,8 @@ async def submit_staging(
         ftp_host: Optional FTP host if import type is FTP
         ftp_port: Optional FTP port if import type is FTP
         ftp_path: Optional FTP path if import type is FTP
+        db_schema: Optional schema name if import type is database
+        db_table: Optional table name if import type is database
         sec_username: Username from geOrchestra security headers
         sec_org: Organization from geOrchestra security headers
 
@@ -370,6 +398,8 @@ async def submit_staging(
         ftp_host=ftp_host,
         ftp_port=ftp_port,
         ftp_path=ftp_path,
+        db_schema=db_schema.strip() if db_schema else None,
+        db_table=db_table.strip() if db_table else None,
     )
 
     staging_table_name = _generate_staging_table_name()
@@ -432,6 +462,8 @@ async def edit_staging(
     ftp_host: Optional[str] = Form(None),
     ftp_port: Optional[int] = Form(None),
     ftp_path: Optional[str] = Form(None),
+    db_schema: Optional[str] = Form(None),
+    db_table: Optional[str] = Form(None),
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
 ) -> StagingResponse:
@@ -440,7 +472,7 @@ async def edit_staging(
 
     Args:
         integrity_link_id: IntegrityLink UUID to update
-        type: Import type (file, URL, FTP, etc.)
+        type: Import type (file, URL, FTP, database, etc.)
         url: Optional URL if import type is URL
         file: Optional file upload if import type is file
         auth_enabled: Whether authentication is enabled for the source
@@ -449,6 +481,8 @@ async def edit_staging(
         ftp_host: Optional FTP host if import type is FTP
         ftp_port: Optional FTP port if import type is FTP
         ftp_path: Optional FTP path if import type is FTP
+        db_schema: Optional schema name if import type is database
+        db_table: Optional table name if import type is database
         sec_username: Username from geOrchestra security headers
         sec_org: Organization from geOrchestra security headers
 
@@ -469,6 +503,8 @@ async def edit_staging(
         ftp_host=ftp_host,
         ftp_port=ftp_port,
         ftp_path=ftp_path,
+        db_schema=db_schema.strip() if db_schema else None,
+        db_table=db_table.strip() if db_table else None,
     )
 
     staging_table_name = _generate_staging_table_name()
@@ -551,7 +587,7 @@ def dag_success_callback(
     session.refresh(integrity_link)
 
     try:
-        if integrity_link.source_url:
+        if integrity_link.source_url and integrity_link.source_import_type != ImportType.DATABASE:
             delete_temp_file(integrity_link.source_url)
     except Exception as e:
         logger.error(f"Error deleting temp file: {e}")
@@ -673,6 +709,12 @@ def get_staging_metadata(
     source_import_type = integrity_link.source_import_type
     source_file_type = integrity_link.source_file_type
     title = integrity_link.integrity_title or integrity_link.source_file_name or ""
+    if (
+        not title
+        and integrity_link.source_import_type == ImportType.DATABASE
+        and integrity_link.source_url
+    ):
+        title = integrity_link.source_url.removeprefix(DB_URI_PREFIX).split("/", 1)[-1]
     force_projection_data = (
         integrity_link.integrity_transformation.get("force_projection")
         if integrity_link.integrity_transformation

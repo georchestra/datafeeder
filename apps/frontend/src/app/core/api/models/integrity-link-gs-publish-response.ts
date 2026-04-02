@@ -4,6 +4,7 @@
 import { FileType } from '../models/file-type'
 import { ImportType } from '../models/import-type'
 import { IntegrityLinkRule } from '../models/integrity-link-rule'
+import { RecurrencePreset } from '../models/recurrence-preset'
 
 /**
  * IntegrityLinkResponse augmented with GeoServer ACL read roles after a publish/unpublish operation.
@@ -25,6 +26,7 @@ export interface IntegrityLinkGsPublishResponse {
   } | null
   last_retrieval_timestamp: string | null
   metadata_id: string | null
+  preset_id?: RecurrencePreset | null
   rules?: Array<IntegrityLinkRule>
   schedule: string | null
   schedule_enabled: boolean

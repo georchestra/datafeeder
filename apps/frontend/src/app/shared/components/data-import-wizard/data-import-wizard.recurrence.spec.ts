@@ -151,6 +151,17 @@ describe('DataImportWizardComponent — Recurrence', () => {
     expect(component.isRemoteSource()).toBe(true)
   })
 
+  it('should return isRemoteSource true for database source type', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    mockIntegrityLinkStore.integrityLink.set({
+      ...MOCK_INTEGRITY_LINK,
+      source_import_type: 'database'
+    })
+    fixture.detectChanges()
+    expect(component.isRemoteSource()).toBe(true)
+  })
+
   it('should load recurrence presets from the API on init', async () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
