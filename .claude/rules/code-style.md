@@ -1,0 +1,4 @@
+- Self-documenting code. Comments explain "why" not "what". No task IDs or metadata in comments.
+- Specs in French for user-facing behavior.
+- Read `.agents/mistakes-to-avoid.md` before any implementation.
+- After implementation, run `/context:improve` to update mistakes-to-avoid.
