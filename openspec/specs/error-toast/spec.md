@@ -1,66 +1,66 @@
 ## Purpose
 
-Ce module gère l'affichage des messages d'erreur sous forme de toasts persistants dans l'application datafeeder, permettant d'informer l'utilisateur des échecs d'opérations tout en préservant son contexte de navigation.
+Handles displaying error messages as persistent toasts in the datafeeder application, informing the user of operation failures while preserving their navigation context.
 
 ## Requirements
 
-### Requirement: Affichage d'un message d'erreur persistant lors de l'échec d'une opération
+### Requirement: Persistent error toast on operation failure
 
-Le système SHALL afficher un toast d'erreur lorsqu'une des opérations suivantes échoue : sauvegarde des métadonnées, (dé)publication GeoNetwork/GeoServer, édition des droits GeoNetwork/GeoServer, édition de la récurrence, suppression d'un dataset.
+The system SHALL display an error toast when any of the following operations fail: metadata save, GeoNetwork/GeoServer (un)publication, GeoNetwork/GeoServer rights editing, recurrence editing, dataset deletion.
 
-#### Scenario: Échec d'une opération déclenchée par un bouton
+#### Scenario: Operation failure triggered by a button
 
-- **WHEN** l'utilisateur clique sur un bouton déclenchant une opération et que cette opération retourne une erreur
-- **THEN** un toast d'erreur est affiché avec le nom de l'opération dans le message (ex. "La sauvegarde des métadonnées a rencontré une erreur")
-- **THEN** le bouton déclencheur redevient interactif
+- **WHEN** the user clicks a button that triggers an operation and that operation returns an error
+- **THEN** an error toast is displayed with the operation name in the message (e.g. "Metadata save encountered an error")
+- **THEN** the triggering button becomes interactive again
 
-#### Scenario: Affichage du toast avec les éléments visuels attendus
+#### Scenario: Toast displayed with expected visual elements
 
-- **WHEN** un toast d'erreur est affiché
-- **THEN** le toast contient une icône triangle d'avertissement
-- **THEN** le toast contient le message d'erreur incluant le nom de l'opération
-- **THEN** le toast contient un bouton de fermeture (×)
+- **WHEN** an error toast is displayed
+- **THEN** the toast contains a warning triangle icon
+- **THEN** the toast contains the error message including the operation name
+- **THEN** the toast contains a close button (×)
 
-### Requirement: Persistance du toast lors de la navigation
+### Requirement: Toast persistence across navigation
 
-Le toast d'erreur SHALL rester affiché même si l'utilisateur navigue vers une autre page, jusqu'à ce qu'il le ferme explicitement.
+The error toast SHALL remain displayed even if the user navigates to another page, until explicitly closed.
 
-#### Scenario: Navigation après l'apparition d'un toast
+#### Scenario: Navigation after a toast appears
 
-- **WHEN** un toast d'erreur est affiché
-- **WHEN** l'utilisateur navigue vers une autre route
-- **THEN** le toast reste visible
+- **WHEN** an error toast is displayed
+- **WHEN** the user navigates to another route
+- **THEN** the toast remains visible
 
-#### Scenario: Fermeture manuelle du toast
+#### Scenario: Manual toast close
 
-- **WHEN** un toast d'erreur est affiché
-- **WHEN** l'utilisateur clique sur le bouton de fermeture du toast
-- **THEN** le toast disparaît
+- **WHEN** an error toast is displayed
+- **WHEN** the user clicks the toast's close button
+- **THEN** the toast disappears
 
-### Requirement: Positionnement du toast dans la zone applicative
+### Requirement: Toast positioned within the application area
 
-Le toast d'erreur SHALL être positionné à l'intérieur du conteneur de l'application, indépendamment de tout en-tête injecté au-dessus de la racine de l'application (par ex. l'en-tête geOrchestra).
+The error toast SHALL be positioned inside the application container, independently of any header injected above the application root (e.g. the geOrchestra header).
 
-#### Scenario: Toast visible dans la zone applicative avec en-tête externe
+#### Scenario: Toast visible in the application area with an external header
 
-- **GIVEN** l'application est déployée dans un contexte où un en-tête externe (geOrchestra) est injecté au-dessus de `<app-root>`
-- **WHEN** un toast d'erreur est affiché
-- **THEN** le toast est visible à l'intérieur de la zone applicative, sans chevaucher l'en-tête externe
+- **GIVEN** the application is deployed in a context where an external header (geOrchestra) is injected above `<app-root>`
+- **WHEN** an error toast is displayed
+- **THEN** the toast is visible within the application area, without overlapping the external header
 
-### Requirement: Empilement des toasts multiples
+### Requirement: Multiple toast stacking
 
-Si plusieurs erreurs surviennent, les toasts SHALL s'empiler, le toast le plus récent apparaissant en bas de la liste.
+If multiple errors occur, toasts SHALL stack, with the most recent toast appearing at the bottom of the list.
 
-#### Scenario: Deux erreurs successives
+#### Scenario: Two successive errors
 
-- **WHEN** une première opération échoue et un toast est affiché
-- **WHEN** une deuxième opération échoue avant que l'utilisateur ne ferme le premier toast
-- **THEN** deux toasts sont visibles simultanément
-- **THEN** le toast correspondant à la deuxième erreur est positionné en dessous du premier
+- **WHEN** a first operation fails and a toast is displayed
+- **WHEN** a second operation fails before the user closes the first toast
+- **THEN** two toasts are visible simultaneously
+- **THEN** the toast for the second error is positioned below the first
 
-#### Scenario: Fermeture individuelle d'un toast dans une pile
+#### Scenario: Individual close of a toast in a stack
 
-- **WHEN** plusieurs toasts sont affichés
-- **WHEN** l'utilisateur ferme l'un d'eux
-- **THEN** seul ce toast disparaît
-- **THEN** les autres toasts restent affichés
+- **WHEN** multiple toasts are displayed
+- **WHEN** the user closes one of them
+- **THEN** only that toast disappears
+- **THEN** the other toasts remain displayed

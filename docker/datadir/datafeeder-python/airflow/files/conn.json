@@ -1,4 +1,5 @@
 {
   "DATA_PG": "postgresql://postgres:mypassword@datadb/postgres",
-  "DATAFEEDER_PG": "postgresql://georchestra:georchestra@database/georchestra"
+  "DATAFEEDER_PG": "postgresql://georchestra:georchestra@database/georchestra",
+  "SOURCE_DB_1": "postgresql://postgres:mypassword@datadb/postgres"
 }

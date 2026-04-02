@@ -29,9 +29,5 @@ DATAFEEDER_PGPORT=5432
 DATAFEEDER_PGUSER=postgres
 DATAFEEDER_PGPASSWORD=mypassword
 
-# external source database (for database import type)
-POSTGRES_SOURCE_HOST=datadb
-POSTGRES_SOURCE_PORT=5432
-POSTGRES_SOURCE_USER=postgres
-POSTGRES_SOURCE_PASSWORD=mypassword
-POSTGRES_SOURCE_DB=postgres
+# external source databases (for database import type)
+SOURCE_DATABASES={"SOURCE_DB_1": "postgresql://postgres:mypassword@localhost:5433/postgres"}

@@ -14,7 +14,8 @@ from src.api.routes.ingestion.staging import (
     edit_staging,
     get_staging_metadata,
 )
-from src.models.data_import import DB_URI_PREFIX, ImportType
+from data_manipulation.constants import DB_URI_PREFIX
+from src.models.data_import import ImportType
 
 
 class TestDbIdentifierValidation:
@@ -71,17 +72,73 @@ class TestProcessImportSourceDatabase:
     """Test _process_import_source for ImportType.DATABASE."""
 
     @pytest.mark.asyncio
-    async def test_valid_database_source(self) -> None:
+    @patch("src.api.routes.ingestion.staging.table_exists", return_value=True)
+    @patch("src.api.routes.ingestion.staging.schema_exists", return_value=True)
+    @patch(
+        "src.api.routes.ingestion.staging.get_settings",
+        return_value=MagicMock(SOURCE_DATABASES={"SOURCE_DB_1": "postgresql://user:pass@host/db"}),
+    )
+    async def test_valid_database_source(
+        self,
+        mock_settings: MagicMock,
+        mock_engine: MagicMock,
+        mock_schema: MagicMock,
+        mock_table: MagicMock,
+    ) -> None:
         result = await _process_import_source(
             type=ImportType.DATABASE,
             db_schema="geo",
             db_table="rivers",
         )
-        assert result.source == "db://geo/rivers"
-        assert result.url == "db://geo/rivers"
+        assert result.source == "db://SOURCE_DB_1/geo/rivers"
+        assert result.url == "db://SOURCE_DB_1/geo/rivers"
         assert result.source_file_name is None
         assert result.source_file_type is None
         assert result.auth_enabled is False
+
+    @pytest.mark.asyncio
+    @patch("src.api.routes.ingestion.staging.schema_exists", return_value=False)
+    @patch(
+        "src.api.routes.ingestion.staging.get_settings",
+        return_value=MagicMock(SOURCE_DATABASES={"SOURCE_DB_1": "postgresql://user:pass@host/db"}),
+    )
+    async def test_nonexistent_schema_returns_422(
+        self,
+        mock_settings: MagicMock,
+        mock_engine: MagicMock,
+        mock_schema: MagicMock,
+    ) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await _process_import_source(
+                type=ImportType.DATABASE,
+                db_schema="nonexistent",
+                db_table="rivers",
+            )
+        assert exc_info.value.status_code == 422
+        assert "Schema 'nonexistent' not found" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
+    @patch("src.api.routes.ingestion.staging.table_exists", return_value=False)
+    @patch("src.api.routes.ingestion.staging.schema_exists", return_value=True)
+    @patch(
+        "src.api.routes.ingestion.staging.get_settings",
+        return_value=MagicMock(SOURCE_DATABASES={"SOURCE_DB_1": "postgresql://user:pass@host/db"}),
+    )
+    async def test_nonexistent_table_returns_422(
+        self,
+        mock_settings: MagicMock,
+        mock_engine: MagicMock,
+        mock_schema: MagicMock,
+        mock_table: MagicMock,
+    ) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await _process_import_source(
+                type=ImportType.DATABASE,
+                db_schema="geo",
+                db_table="nonexistent",
+            )
+        assert exc_info.value.status_code == 422
+        assert "Table 'nonexistent' not found" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_missing_schema_returns_400(self) -> None:
@@ -192,7 +249,7 @@ class TestGetStagingMetadataTitleFallback:
         mock_link.source_file_name = None
         mock_link.source_file_type = None
         mock_link.source_import_type = ImportType.DATABASE
-        mock_link.source_url = "db://geo/parcels"
+        mock_link.source_url = "db://SOURCE_DB_1/geo/parcels"
         mock_link.integrity_transformation = None
         mock_link.final_table_name = None
         mock_load.return_value = (mock_link, MagicMock())
@@ -233,7 +290,7 @@ class TestGetStagingMetadataTitleFallback:
         mock_link.source_file_name = None
         mock_link.source_file_type = None
         mock_link.source_import_type = ImportType.DATABASE
-        mock_link.source_url = "db://geo/parcels"
+        mock_link.source_url = "db://SOURCE_DB_1/geo/parcels"
         mock_link.integrity_transformation = None
         mock_link.final_table_name = None
         mock_load.return_value = (mock_link, MagicMock())

@@ -6,82 +6,82 @@ Defines how recurring ingestion schedules are configured, validated, stored, and
 
 ## Requirements
 
-### Requirement: Persistance de la récurrence lors du processus d'ingestion
+### Requirement: Recurrence persistence during the ingestion process
 
-Le système DOIT permettre de définir ou d'effacer la récurrence lors de la finalisation de l'ingestion (étape process). Le champ `recurrence` est toujours présent dans la requête (preset ou `null` explicite) — il n'existe pas de distinction entre "non fourni" et "null".
+The system MUST allow setting or clearing a recurrence when finalising ingestion (process step). The `recurrence` field is always present in the request (a preset or explicit `null`) — there is no distinction between "not provided" and "null".
 
-- Si `recurrence` est un preset valide, l'expression cron correspondante est enregistrée dans `IntegrityLink.schedule` et `schedule_enabled` est mis à `true`.
-- Si `recurrence` est `null`, `IntegrityLink.schedule` est mis à `null` et `schedule_enabled` est mis à `false`. Cela permet de supprimer une récurrence existante lors d'une re-configuration.
+- If `recurrence` is a valid preset, the corresponding cron expression is stored in `IntegrityLink.schedule` and `schedule_enabled` is set to `true`.
+- If `recurrence` is `null`, `IntegrityLink.schedule` is set to `null` and `schedule_enabled` is set to `false`. This allows removing an existing recurrence during reconfiguration.
 
-#### Scenario: Soumission du process avec un preset de récurrence
+#### Scenario: Process submitted with a recurrence preset
 
-- **WHEN** l'utilisateur soumet le formulaire de process avec `recurrence: "EVERY_DAY"`
-- **THEN** le champ `schedule` de l'IntegrityLink DOIT contenir `0 4 * * *` et `schedule_enabled` DOIT être `true`
+- **WHEN** the user submits the process form with `recurrence: "EVERY_DAY"`
+- **THEN** the `schedule` field of the IntegrityLink MUST contain `0 4 * * *` and `schedule_enabled` MUST be `true`
 
-#### Scenario: Soumission du process avec recurrence null (suppression)
+#### Scenario: Process submitted with null recurrence (removal)
 
-- **WHEN** l'utilisateur soumet le formulaire de process avec `recurrence: null`
-- **THEN** les champs `schedule` et `schedule_enabled` de l'IntegrityLink DOIVENT être réinitialisés à `null` et `false`
+- **WHEN** the user submits the process form with `recurrence: null`
+- **THEN** the `schedule` and `schedule_enabled` fields of the IntegrityLink MUST be reset to `null` and `false`
 
-#### Scenario: Soumission du process avec un preset invalide
+#### Scenario: Process submitted with an invalid preset
 
-- **WHEN** l'utilisateur soumet le formulaire de process avec `recurrence: "INVALID_VALUE"`
-- **THEN** le backend DOIT rejeter la requête avec une erreur HTTP 422
-
----
-
-### Requirement: Sélecteur de récurrence dans le tunnel d'ingestion (étape 2)
-
-Le tunnel d'ingestion DOIT afficher un sélecteur de récurrence sur l'étape 2 (configuration), uniquement pour les sources distantes (toutes sauf fichier local). Le sélecteur DOIT présenter les presets de récurrence définis par le backend.
-
-#### Scenario: Affichage du sélecteur pour une source distante
-
-- **WHEN** l'utilisateur est à l'étape 2 du tunnel avec une source de type URL, FTP, API ou database
-- **THEN** un sélecteur de récurrence DOIT être visible avec les presets disponibles, et une option vide par défaut (pas de récurrence)
-
-#### Scenario: Masquage du sélecteur pour un fichier local
-
-- **WHEN** l'utilisateur est à l'étape 2 du tunnel avec une source de type fichier local
-- **THEN** le sélecteur de récurrence NE DOIT PAS être affiché
-
-#### Scenario: Sélection par défaut
-
-- **WHEN** le sélecteur de récurrence est affiché
-- **THEN** la valeur par défaut DOIT être vide (aucune récurrence — ingestion one-shot)
-
-#### Scenario: Libellés des options du sélecteur
-
-- **WHEN** le sélecteur affiche les presets
-- **THEN** chaque option DOIT afficher le libellé traduit du preset (ex : « Chaque minute », « Chaque heure », « Chaque jour », « Chaque semaine », « Chaque mois », « Chaque année »)
+- **WHEN** the user submits the process form with `recurrence: "INVALID_VALUE"`
+- **THEN** the backend MUST reject the request with HTTP 422
 
 ---
 
-### Requirement: Exposition de la récurrence dans la réponse IntegrityLink
+### Requirement: Recurrence selector in the ingestion wizard (step 2)
 
-La réponse de `GET /ingestion/integrity-link/{id}` DOIT inclure les champs `preset_id` en plus du champ `schedule` déjà présent, permettant aux consommateurs d'obtenir cron et preset en un seul appel.
+The ingestion wizard MUST display a recurrence selector on step 2 (configuration), only for remote sources (all except local file). The selector MUST present the recurrence presets defined by the backend.
 
-#### Scenario: Récupération d'un IntegrityLink avec une récurrence configurée
+#### Scenario: Selector displayed for a remote source
 
-- **WHEN** l'API reçoit `GET /ingestion/integrity-link/{id}` pour un IntegrityLink dont `schedule` est `"0 4 * * *"`
-- **THEN** la réponse DOIT contenir `schedule: "0 4 * * *"` et `preset_id: "EVERY_DAY"`
+- **WHEN** the user is on step 2 of the wizard with a URL, FTP, API, or database source type
+- **THEN** a recurrence selector MUST be visible with the available presets, and an empty default option (no recurrence)
 
-#### Scenario: Récupération d'un IntegrityLink sans récurrence
+#### Scenario: Selector hidden for a local file
 
-- **WHEN** l'API reçoit `GET /ingestion/integrity-link/{id}` pour un IntegrityLink dont `schedule` est `null`
-- **THEN** la réponse DOIT contenir `schedule: null` et `preset_id: null`
+- **WHEN** the user is on step 2 of the wizard with a local file source type
+- **THEN** the recurrence selector MUST NOT be displayed
 
-#### Scenario: Récupération d'un IntegrityLink avec un cron personnalisé non mappé à un preset
+#### Scenario: Default selection
 
-- **WHEN** l'API reçoit `GET /ingestion/integrity-link/{id}` pour un IntegrityLink dont `schedule` est une expression cron ne correspondant à aucun preset connu
-- **THEN** la réponse DOIT contenir le `schedule` renseigné et `preset_id: null`
+- **WHEN** the recurrence selector is displayed
+- **THEN** the default value MUST be empty (no recurrence — one-shot ingestion)
+
+#### Scenario: Selector option labels
+
+- **WHEN** the selector displays the presets
+- **THEN** each option MUST display the translated preset label (e.g. "Every minute", "Every hour", "Every day", "Every week", "Every month", "Every year")
 
 ---
 
-### Requirement: Agrandissement de la colonne schedule en base
+### Requirement: Recurrence exposure in the IntegrityLink response
 
-Le champ `schedule` de la table `integrity_link` DOIT supporter des expressions cron de longueur suffisante. La contrainte `max_length` DOIT être augmentée de 10 à 20 caractères pour accommoder les expressions cron les plus longues.
+The `GET /ingestion/integrity-link/{id}` response MUST include the `preset_id` field in addition to the existing `schedule` field, allowing consumers to get both cron and preset in a single call.
 
-#### Scenario: Migration de la colonne schedule
+#### Scenario: Retrieving an IntegrityLink with a configured recurrence
 
-- **WHEN** la migration est appliquée
-- **THEN** la colonne `schedule` de `datakern.integrity_link` DOIT être de type `VARCHAR(63)`
+- **WHEN** the API receives `GET /ingestion/integrity-link/{id}` for an IntegrityLink whose `schedule` is `"0 4 * * *"`
+- **THEN** the response MUST contain `schedule: "0 4 * * *"` and `preset_id: "EVERY_DAY"`
+
+#### Scenario: Retrieving an IntegrityLink with no recurrence
+
+- **WHEN** the API receives `GET /ingestion/integrity-link/{id}` for an IntegrityLink whose `schedule` is `null`
+- **THEN** the response MUST contain `schedule: null` and `preset_id: null`
+
+#### Scenario: Retrieving an IntegrityLink with a custom cron not mapped to a preset
+
+- **WHEN** the API receives `GET /ingestion/integrity-link/{id}` for an IntegrityLink whose `schedule` is a cron expression that does not match any known preset
+- **THEN** the response MUST contain the populated `schedule` and `preset_id: null`
+
+---
+
+### Requirement: Schedule column size increase in database
+
+The `schedule` field of the `integrity_link` table MUST support cron expressions of sufficient length. The `max_length` constraint MUST be increased from 10 to 20 characters to accommodate the longest cron expressions.
+
+#### Scenario: Schedule column migration
+
+- **WHEN** the migration is applied
+- **THEN** the `schedule` column of `datakern.integrity_link` MUST be of type `VARCHAR(63)`

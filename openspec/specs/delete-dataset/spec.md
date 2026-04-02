@@ -1,114 +1,114 @@
 ## ADDED Requirements
 
-### Requirement: Suppression d'un dataset par son propriétaire
+### Requirement: Dataset deletion by the owner
 
-Un utilisateur authentifié SHALL pouvoir supprimer un dataset dont il est le propriétaire depuis le tableau de bord de ses données.
+An authenticated user SHALL be able to delete a dataset they own from their data dashboard.
 
-#### Scenario: Suppression réussie par le propriétaire
+#### Scenario: Successful deletion by the owner
 
-- **WHEN** un utilisateur envoie `DELETE /api/ingestion/integrity-link/{id}` pour un dataset dont il est le propriétaire
-- **THEN** le système retourne HTTP 204
-- **THEN** le dataset n'est plus accessible via `GET /api/ingestion/integrity-links/`
+- **WHEN** a user sends `DELETE /api/ingestion/integrity-link/{id}` for a dataset they own
+- **THEN** the system returns HTTP 204
+- **THEN** the dataset is no longer accessible via `GET /api/ingestion/integrity-links/`
 
-#### Scenario: Refus de suppression pour un non-propriétaire
+#### Scenario: Deletion refused for a non-owner
 
-- **WHEN** un utilisateur envoie `DELETE /api/ingestion/integrity-link/{id}` pour un dataset dont il n'est pas le propriétaire
-- **THEN** le système retourne HTTP 403
+- **WHEN** a user sends `DELETE /api/ingestion/integrity-link/{id}` for a dataset they do not own
+- **THEN** the system returns HTTP 403
 
-#### Scenario: Dataset inexistant
+#### Scenario: Non-existent dataset
 
-- **WHEN** un utilisateur envoie `DELETE /api/ingestion/integrity-link/{id}` avec un identifiant inconnu
-- **THEN** le système retourne HTTP 404
+- **WHEN** a user sends `DELETE /api/ingestion/integrity-link/{id}` with an unknown identifier
+- **THEN** the system returns HTTP 404
 
-### Requirement: Suppression par un administrateur
+### Requirement: Deletion by an administrator
 
-Un administrateur SHALL pouvoir supprimer n'importe quel dataset, quel que soit son propriétaire.
+An administrator SHALL be able to delete any dataset regardless of who owns it.
 
-#### Scenario: Suppression par un admin d'un dataset appartenant à un autre utilisateur
+#### Scenario: Admin deletes a dataset belonging to another user
 
-- **WHEN** un administrateur envoie `DELETE /api/ingestion/integrity-link/{id}` pour un dataset appartenant à un autre utilisateur
-- **THEN** le système retourne HTTP 204
-- **THEN** le dataset n'est plus accessible
+- **WHEN** an administrator sends `DELETE /api/ingestion/integrity-link/{id}` for a dataset belonging to another user
+- **THEN** the system returns HTTP 204
+- **THEN** the dataset is no longer accessible
 
-### Requirement: Nettoyage des ressources associées lors de la suppression
+### Requirement: Associated resource cleanup on deletion
 
-Lors de la suppression d'un dataset, le système SHALL nettoyer toutes les ressources associées dans l'ordre suivant : DAG Airflow (si récurrence), couche GeoServer, table de données finale, table de staging (best-effort, pour capturer les orphelins d'ingestions échouées), fiche GeoNetwork, enregistrement IntegrityLink (avec cascade sur IntegrityLinkRule).
+When a dataset is deleted, the system SHALL clean up all associated resources in the following order: Airflow DAG (if recurrence), GeoServer layer, final data table, staging table (best-effort, to capture orphans from failed ingestions), GeoNetwork record, IntegrityLink record (with cascade on IntegrityLinkRule).
 
-#### Scenario: Suppression complète d'un dataset avec récurrence
+#### Scenario: Full deletion of a dataset with recurrence
 
-- **WHEN** un dataset avec un `schedule` défini est supprimé
-- **THEN** le DAG Airflow correspondant est supprimé
-- **THEN** la couche GeoServer est supprimée
-- **THEN** la table de données finale est supprimée
-- **THEN** la table de staging est supprimée (best-effort — `DROP TABLE IF EXISTS`)
-- **THEN** la fiche GeoNetwork est supprimée
-- **THEN** l'enregistrement IntegrityLink est supprimé de la base de données
-- **THEN** les IntegrityLinkRules associées sont supprimées par cascade
+- **WHEN** a dataset with a defined `schedule` is deleted
+- **THEN** the corresponding Airflow DAG is deleted
+- **THEN** the GeoServer layer is deleted
+- **THEN** the final data table is deleted
+- **THEN** the staging table is deleted (best-effort — `DROP TABLE IF EXISTS`)
+- **THEN** the GeoNetwork record is deleted
+- **THEN** the IntegrityLink record is deleted from the database
+- **THEN** the associated IntegrityLinkRules are deleted by cascade
 
-#### Scenario: Suppression d'un dataset sans récurrence
+#### Scenario: Deletion of a dataset without recurrence
 
-- **WHEN** un dataset sans `schedule` est supprimé
-- **THEN** aucune opération Airflow n'est tentée
-- **THEN** les autres ressources (GeoServer, table, table de staging, GeoNetwork, IntegrityLink) sont supprimées
+- **WHEN** a dataset without a `schedule` is deleted
+- **THEN** no Airflow operation is attempted
+- **THEN** the other resources (GeoServer, data table, staging table, GeoNetwork, IntegrityLink) are deleted
 
-#### Scenario: Ressource GeoServer ou GeoNetwork introuvable
+#### Scenario: GeoServer or GeoNetwork resource not found
 
-- **WHEN** une ressource GeoServer ou GeoNetwork est introuvable lors de la suppression
-- **THEN** l'erreur est ignorée (best-effort) et la suppression se poursuit
+- **WHEN** a GeoServer or GeoNetwork resource is not found during deletion
+- **THEN** the error is ignored (best-effort) and deletion continues
 
-### Requirement: Blocage en cas d'échec de suppression du DAG
+### Requirement: Blocked on Airflow DAG deletion failure
 
-Si la suppression du DAG Airflow échoue (hors cas 404), le système SHALL retourner une erreur et interrompre le nettoyage.
+If the Airflow DAG deletion fails (excluding 404), the system SHALL return an error and interrupt the cleanup.
 
-#### Scenario: Échec de suppression du DAG
+#### Scenario: DAG deletion failure
 
-- **WHEN** la suppression du DAG Airflow retourne une erreur autre que 404
-- **THEN** le backend retourne HTTP 500
-- **THEN** aucune autre ressource n'est supprimée
-- **THEN** le dataset reste dans la liste
+- **WHEN** the Airflow DAG deletion returns an error other than 404
+- **THEN** the backend returns HTTP 500
+- **THEN** no other resource is deleted
+- **THEN** the dataset remains in the list
 
-#### Scenario: DAG Airflow introuvable (pas de DAG créé)
+#### Scenario: Airflow DAG not found (no DAG created)
 
-- **WHEN** la suppression du DAG retourne 404 (le DAG n'existe pas dans Airflow)
-- **THEN** l'erreur est ignorée et le nettoyage se poursuit normalement
+- **WHEN** the DAG deletion returns 404 (the DAG does not exist in Airflow)
+- **THEN** the error is ignored and cleanup continues normally
 
-### Requirement: Affichage de l'icône de suppression au survol
+### Requirement: Delete icon displayed on row hover
 
-Dans le tableau de bord des données, l'icône de suppression (corbeille) SHALL apparaître uniquement au survol de la ligne correspondante.
+In the data dashboard, the delete icon (trash) SHALL appear only when hovering over the corresponding row.
 
-#### Scenario: Survol d'une ligne du tableau
+#### Scenario: Row hover
 
-- **WHEN** l'utilisateur survole une ligne du tableau de bord
-- **THEN** une icône corbeille apparaît à droite de la ligne
+- **WHEN** the user hovers over a dashboard row
+- **THEN** a trash icon appears on the right side of the row
 
-#### Scenario: Fin de survol
+#### Scenario: End of hover
 
-- **WHEN** le curseur quitte la ligne
-- **THEN** l'icône corbeille disparaît
+- **WHEN** the cursor leaves the row
+- **THEN** the trash icon disappears
 
-### Requirement: Disparition du dataset de la liste après suppression
+### Requirement: Dataset removed from list after deletion
 
-Après une suppression réussie, le dataset SHALL disparaître immédiatement de la liste sans rechargement complet de la page.
+After a successful deletion, the dataset SHALL disappear immediately from the list without a full page reload.
 
-#### Scenario: Suppression confirmée par l'utilisateur
+#### Scenario: Deletion confirmed by the user
 
-- **WHEN** l'utilisateur clique sur l'icône de suppression
-- **THEN** une boîte de dialogue de confirmation est affichée
-- **WHEN** l'utilisateur confirme la suppression et la requête DELETE retourne HTTP 204
-- **THEN** la ligne correspondante est retirée de la liste affichée
-- **THEN** la liste restante est inchangée
+- **WHEN** the user clicks the delete icon
+- **THEN** a confirmation dialog is displayed
+- **WHEN** the user confirms deletion and the DELETE request returns HTTP 204
+- **THEN** the corresponding row is removed from the displayed list
+- **THEN** the remaining list is unchanged
 
-#### Scenario: Annulation de la suppression par l'utilisateur
+#### Scenario: Deletion cancelled by the user
 
-- **WHEN** l'utilisateur clique sur l'icône de suppression
-- **THEN** une boîte de dialogue de confirmation est affichée
-- **WHEN** l'utilisateur annule
-- **THEN** aucune requête DELETE n'est envoyée
-- **THEN** la ligne reste dans la liste
+- **WHEN** the user clicks the delete icon
+- **THEN** a confirmation dialog is displayed
+- **WHEN** the user cancels
+- **THEN** no DELETE request is sent
+- **THEN** the row remains in the list
 
-#### Scenario: Échec de la suppression côté backend
+#### Scenario: Backend deletion failure
 
-- **WHEN** l'utilisateur confirme la suppression et la requête DELETE retourne une erreur (HTTP 4xx ou 5xx)
-- **THEN** un toast d'erreur est affiché avec le message "La suppression a rencontré une erreur"
-- **THEN** la ligne reste dans la liste
-- **THEN** l'icône de suppression redevient interactive
+- **WHEN** the user confirms deletion and the DELETE request returns an error (HTTP 4xx or 5xx)
+- **THEN** an error toast is displayed with the message "Deletion encountered an error"
+- **THEN** the row remains in the list
+- **THEN** the delete icon becomes interactive again

@@ -149,12 +149,8 @@ class Settings(BaseSettings):
     POSTGRES_DATA_PASSWORD: str | None = None
     POSTGRES_DATA_DB: str | None = None
 
-    # External source database (for database import type)
-    POSTGRES_SOURCE_HOST: str | None = None
-    POSTGRES_SOURCE_PORT: int | None = None
-    POSTGRES_SOURCE_USER: str | None = None
-    POSTGRES_SOURCE_PASSWORD: str | None = None
-    POSTGRES_SOURCE_DB: str | None = None
+    # Source databases for database import type (key → SQLAlchemy URI)
+    SOURCE_DATABASES: dict[str, PostgresDsn] = Field(default_factory=dict)
 
     # GeoServer
     GEOSERVER_URL: str = Field(

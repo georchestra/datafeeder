@@ -13,6 +13,7 @@ from sqlalchemy.engine import Engine
 
 from data_manipulation import IntegrityTransformation, apply_transformations
 from data_manipulation.ingestion import (
+    ingest_data_from_database_into_postgis,
     ingest_data_from_file_into_postgis,
     ingest_data_from_ftp_into_postgis,
     ingest_data_from_url_into_postgis,
@@ -726,3 +727,134 @@ class TestWriteDataToPostgis:
         with patch.object(gdf, "to_postgis", side_effect=Exception("Write failed")):
             with pytest.raises(Exception, match="Write failed"):
                 write_data_to_postgis(gdf, "test_table", mock_engine, "public")
+
+
+class TestIngestDataFromDatabaseIntoPostgis:
+    """Test cases for ingest_data_from_database_into_postgis function."""
+
+    @pytest.fixture
+    def mock_source_engine(self) -> Mock:
+        return Mock(spec=Engine)
+
+    @pytest.fixture
+    def mock_target_engine(self) -> Mock:
+        return Mock(spec=Engine)
+
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion.pd.read_sql")
+    @patch("data_manipulation.ingestion.select")
+    @patch("data_manipulation.ingestion.Table")
+    @patch("data_manipulation.ingestion.MetaData")
+    def test_ingest_non_geographic_table(
+        self,
+        mock_metadata: Mock,
+        mock_table_cls: Mock,
+        mock_select: Mock,
+        mock_read_sql: Mock,
+        mock_write: Mock,
+        mock_source_engine: Mock,
+        mock_target_engine: Mock,
+    ) -> None:
+        """Non-geographic table is read with pd.read_sql and written to staging."""
+        mock_table = MagicMock()
+        mock_table.c.__contains__ = Mock(return_value=False)  # no geom column
+        mock_table_cls.return_value = mock_table
+        df = DataFrame({"id": [1, 2], "name": ["a", "b"]})
+        mock_read_sql.return_value = df
+
+        ingest_data_from_database_into_postgis(
+            source_schema="public",
+            source_table="communes",
+            source_engine=mock_source_engine,
+            target_table="staging_table",
+            target_engine=mock_target_engine,
+            target_schema="staging",
+        )
+
+        mock_read_sql.assert_called_once()
+        mock_write.assert_called_once_with(df, "staging_table", mock_target_engine, "staging")
+
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion.gpd.read_postgis")
+    @patch("data_manipulation.ingestion.select")
+    @patch("data_manipulation.ingestion.Table")
+    @patch("data_manipulation.ingestion.MetaData")
+    def test_ingest_geographic_table(
+        self,
+        mock_metadata: Mock,
+        mock_table_cls: Mock,
+        mock_select: Mock,
+        mock_read_postgis: Mock,
+        mock_write: Mock,
+        mock_source_engine: Mock,
+        mock_target_engine: Mock,
+    ) -> None:
+        """Geographic table (has geom column) is read with gpd.read_postgis."""
+        mock_table = MagicMock()
+        mock_table.c.__contains__ = Mock(return_value=True)  # has geom column
+        mock_table_cls.return_value = mock_table
+        gdf = GeoDataFrame({"id": [1], "geom": [Point(0, 0)]})
+        mock_read_postgis.return_value = gdf
+
+        ingest_data_from_database_into_postgis(
+            source_schema="geo",
+            source_table="rivers",
+            source_engine=mock_source_engine,
+            target_table="staging_table",
+            target_engine=mock_target_engine,
+            target_schema="staging",
+        )
+
+        mock_read_postgis.assert_called_once()
+        mock_write.assert_called_once_with(gdf, "staging_table", mock_target_engine, "staging")
+
+    @patch("data_manipulation.ingestion.Table")
+    @patch("data_manipulation.ingestion.MetaData")
+    def test_source_table_not_found_raises(
+        self,
+        mock_metadata: Mock,
+        mock_table_cls: Mock,
+        mock_source_engine: Mock,
+        mock_target_engine: Mock,
+    ) -> None:
+        """Exception is raised when source table does not exist."""
+        mock_table_cls.side_effect = Exception("Table not found")
+
+        with pytest.raises(Exception, match="Table not found"):
+            ingest_data_from_database_into_postgis(
+                source_schema="public",
+                source_table="inexistant",
+                source_engine=mock_source_engine,
+                target_table="staging_table",
+                target_engine=mock_target_engine,
+            )
+
+    def test_invalid_source_schema_raises(
+        self,
+        mock_source_engine: Mock,
+        mock_target_engine: Mock,
+    ) -> None:
+        """ValueError is raised for invalid schema name."""
+        with pytest.raises(ValueError):
+            ingest_data_from_database_into_postgis(
+                source_schema="Invalid-Schema",
+                source_table="my_table",
+                source_engine=mock_source_engine,
+                target_table="staging_table",
+                target_engine=mock_target_engine,
+            )
+
+    def test_invalid_source_table_raises(
+        self,
+        mock_source_engine: Mock,
+        mock_target_engine: Mock,
+    ) -> None:
+        """ValueError is raised for invalid table name."""
+        with pytest.raises(ValueError):
+            ingest_data_from_database_into_postgis(
+                source_schema="public",
+                source_table="123bad",
+                source_engine=mock_source_engine,
+                target_table="staging_table",
+                target_engine=mock_target_engine,
+            )

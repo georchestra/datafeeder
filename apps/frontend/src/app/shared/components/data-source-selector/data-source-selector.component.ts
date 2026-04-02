@@ -104,7 +104,7 @@ export class DataSourceSelectorComponent {
   constructor() {
     effect(() => {
       const dbSource = this.initialDatabaseSource()
-      if (dbSource) {
+      if (dbSource && !this.form.dirty) {
         this.form.controls.radio.setValue('database')
         this.form.controls.source.patchValue({
           type: 'database',

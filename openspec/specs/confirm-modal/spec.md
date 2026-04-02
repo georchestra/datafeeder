@@ -1,81 +1,81 @@
 ## ADDED Requirements
 
-### Requirement: Modal de confirmation pour actions destructives
+### Requirement: Confirmation modal for destructive actions
 
-Le système SHALL afficher une boîte de dialogue modale de confirmation avant d'exécuter une action destructive (ex. suppression d'un jeu de données). La modale utilise `ConfirmationDialogComponent` de `geonetwork-ui`, ouverte via `MatDialog`.
+The system SHALL display a confirmation dialog modal before executing a destructive action (e.g. deleting a dataset). The modal uses `ConfirmationDialogComponent` from `geonetwork-ui`, opened via `MatDialog`.
 
-#### Scenario: Affichage de la modale
+#### Scenario: Modal display
 
-- **WHEN** l'utilisateur déclenche une action destructive (ex. clic sur le bouton supprimer)
-- **THEN** une modale de confirmation s'affiche par-dessus le contenu, avec un fond semi-transparent bloquant l'interaction avec le reste de l'interface
+- **WHEN** the user triggers a destructive action (e.g. clicks the delete button)
+- **THEN** a confirmation modal appears over the content, with a semi-transparent backdrop blocking interaction with the rest of the interface
 
-#### Scenario: Confirmation de l'action
+#### Scenario: Action confirmed
 
-- **WHEN** l'utilisateur clique sur le bouton de confirmation (ex. "Supprimer")
-- **THEN** la modale se ferme et l'action destructive est exécutée
+- **WHEN** the user clicks the confirmation button (e.g. "Delete")
+- **THEN** the modal closes and the destructive action is executed
 
-#### Scenario: Annulation de l'action
+#### Scenario: Action cancelled
 
-- **WHEN** l'utilisateur clique sur le bouton d'annulation (ex. "Annuler")
-- **THEN** la modale se ferme sans exécuter l'action destructive
+- **WHEN** the user clicks the cancel button (e.g. "Cancel")
+- **THEN** the modal closes without executing the destructive action
 
-#### Scenario: Fermeture par la touche Échap
+#### Scenario: Closed via Escape key
 
-- **WHEN** l'utilisateur appuie sur la touche Échap pendant que la modale est ouverte
-- **THEN** la modale se ferme sans exécuter l'action destructive
+- **WHEN** the user presses the Escape key while the modal is open
+- **THEN** the modal closes without executing the destructive action
 
-#### Scenario: Fermeture par clic sur le fond
+#### Scenario: Closed by clicking the backdrop
 
-- **WHEN** l'utilisateur clique sur le fond semi-transparent en dehors de la modale
-- **THEN** la modale se ferme sans exécuter l'action destructive
+- **WHEN** the user clicks the semi-transparent backdrop outside the modal
+- **THEN** the modal closes without executing the destructive action
 
-### Requirement: Contenu configurable de la modale
+### Requirement: Configurable modal content
 
-La modale SHALL afficher un titre, un message et des libellés de boutons fournis par l'appelant. Elle ne SHALL PAS contenir de texte en dur.
+The modal SHALL display a title, message, and button labels provided by the caller. It SHALL NOT contain hard-coded text.
 
-#### Scenario: Titre et message personnalisés
+#### Scenario: Custom title and message
 
-- **WHEN** la modale est ouverte avec un titre et un message spécifiques
-- **THEN** ces textes s'affichent correctement dans la modale
+- **WHEN** the modal is opened with a specific title and message
+- **THEN** those texts are displayed correctly in the modal
 
-#### Scenario: Libellés de boutons par défaut
+#### Scenario: Default button labels
 
-- **WHEN** aucun libellé personnalisé n'est fourni
-- **THEN** des libellés par défaut sont utilisés ("Confirmer" et "Annuler" ou équivalent en langue active)
+- **WHEN** no custom labels are provided
+- **THEN** default labels are used ("Confirm" and "Cancel" or equivalent in the active language)
 
-### Requirement: Variante visuelle danger
+### Requirement: Danger visual variant
 
-La modale SHALL supporter une variante `danger` qui met en évidence le caractère destructif de l'action via le style du bouton de confirmation (rouge).
+The modal SHALL support a `danger` variant that highlights the destructive nature of the action via the confirmation button style (red).
 
-#### Scenario: Bouton de confirmation en rouge pour variant danger
+#### Scenario: Confirmation button in red for danger variant
 
-- **WHEN** la modale est ouverte avec la variante `danger`
-- **THEN** le bouton de confirmation est affiché en rouge (destructive styling)
+- **WHEN** the modal is opened with the `danger` variant
+- **THEN** the confirmation button is displayed in red (destructive styling)
 
-### Requirement: Accessibilité clavier
+### Requirement: Keyboard accessibility
 
-La modale SHALL piéger le focus à l'intérieur de la boîte de dialogue tant qu'elle est ouverte, et le restituer à l'élément déclencheur à la fermeture.
+The modal SHALL trap focus inside the dialog while open, and restore it to the triggering element on close.
 
-#### Scenario: Focus piégé dans la modale
+#### Scenario: Focus trapped in modal
 
-- **WHEN** la modale est ouverte
-- **THEN** la navigation clavier (Tab) reste confinée aux éléments interactifs de la modale
+- **WHEN** the modal is open
+- **THEN** keyboard navigation (Tab) is confined to the interactive elements within the modal
 
-#### Scenario: Restauration du focus
+#### Scenario: Focus restoration
 
-- **WHEN** la modale se ferme (confirmation ou annulation)
-- **THEN** le focus retourne à l'élément qui a déclenché l'ouverture
+- **WHEN** the modal closes (confirmation or cancellation)
+- **THEN** focus returns to the element that triggered the opening
 
-### Requirement: Intégration dans le flux de suppression d'un jeu de données
+### Requirement: Integration in the dataset deletion flow
 
-Le composant `integrity-link-list` SHALL utiliser `ConfirmationDialogComponent` de `geonetwork-ui` à la place de `window.confirm()` lors de la suppression d'un jeu de données.
+The `integrity-link-list` component SHALL use `ConfirmationDialogComponent` from `geonetwork-ui` instead of `window.confirm()` when deleting a dataset.
 
-#### Scenario: Suppression confirmée via la modale
+#### Scenario: Deletion confirmed via modal
 
-- **WHEN** l'utilisateur confirme la suppression via la modale
-- **THEN** l'appel API de suppression est effectué et la ligne disparaît de la liste
+- **WHEN** the user confirms deletion via the modal
+- **THEN** the deletion API call is made and the row disappears from the list
 
-#### Scenario: Suppression annulée via la modale
+#### Scenario: Deletion cancelled via modal
 
-- **WHEN** l'utilisateur annule la suppression via la modale
-- **THEN** aucun appel API n'est effectué et le jeu de données reste dans la liste
+- **WHEN** the user cancels deletion via the modal
+- **THEN** no API call is made and the dataset remains in the list

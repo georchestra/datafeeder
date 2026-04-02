@@ -153,11 +153,12 @@ export class DataImportWizardComponent {
       link?.source_import_type === 'database' &&
       link?.source_url?.startsWith(DB_URI_PREFIX)
     ) {
+      // format: db://{db_key}/{schema}/{table} — skip the db_key segment
       const parts = link.source_url
         .substring(DB_URI_PREFIX.length)
-        .split('/', 2)
-      if (parts.length === 2) {
-        return { schema: parts[0], table: parts[1] }
+        .split('/', 3)
+      if (parts.length === 3) {
+        return { schema: parts[1], table: parts[2] }
       }
     }
     return null

@@ -2,7 +2,7 @@
 
 import logging
 
-from sqlalchemy import MetaData, Table, text
+from sqlalchemy import MetaData, Table, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.schema import CreateSchema
@@ -48,14 +48,22 @@ def schema_exists(engine: Engine, schema_name: str) -> bool:
     Returns:
         bool: True if schema exists, False otherwise
     """
-    with engine.connect() as conn:
-        result = conn.execute(
-            text(
-                "SELECT schema_name FROM information_schema.schemata WHERE schema_name = :schema_name"
-            ),
-            {"schema_name": schema_name},
-        )
-        return result.fetchone() is not None
+    return inspect(engine).has_schema(schema_name)
+
+
+def table_exists(engine: Engine, schema_name: str, table_name: str) -> bool:
+    """
+    Check if a database table exists in a given schema.
+
+    Args:
+        engine: SQLAlchemy engine instance
+        schema_name: Name of the schema
+        table_name: Name of the table to check
+
+    Returns:
+        bool: True if table exists, False otherwise
+    """
+    return inspect(engine).has_table(table_name, schema=schema_name)
 
 
 def get_available_table_name(engine: Engine, schema_name: str, base_table_name: str) -> str | None:
