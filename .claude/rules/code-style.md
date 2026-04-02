@@ -1,0 +1,2 @@
+- Self-documenting code. Comments explain "why" not "what". No task IDs or metadata in comments.
+- Specs in English for user-facing behavior.
