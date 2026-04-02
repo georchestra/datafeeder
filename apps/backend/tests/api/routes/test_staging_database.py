@@ -14,7 +14,8 @@ from src.api.routes.ingestion.staging import (
     edit_staging,
     get_staging_metadata,
 )
-from src.models.data_import import DB_URI_PREFIX, ImportType
+from data_manipulation.constants import DB_URI_PREFIX
+from src.models.data_import import ImportType
 
 
 class TestDbIdentifierValidation:

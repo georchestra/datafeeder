@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 import geopandas as gpd
 import pandas as pd
 import requests
+from data_manipulation.constants import DB_URI_PREFIX
 from data_manipulation import (
     IntegrityTransformation,
     detect_column_type_from_sqla,
@@ -34,7 +35,6 @@ from src.models import (
     StagingResponse,
 )
 from src.models.data_import import (
-    DB_URI_PREFIX,
     ColumnConfig,
     FileType,
     ForceProjection,

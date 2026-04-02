@@ -26,9 +26,6 @@ class ImportType(str, Enum):
     FTP = "ftp"
 
 
-DB_URI_PREFIX = "db://"
-
-
 class FileType(str, Enum):
     """Supported file types"""
 

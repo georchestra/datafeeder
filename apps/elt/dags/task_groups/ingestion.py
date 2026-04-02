@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from airflow.exceptions import AirflowException
 from airflow.sdk import Variable, task, task_group
+from data_manipulation.constants import DB_URI_PREFIX
 from data_manipulation.encryption import decrypt_credentials
 from data_manipulation.ingestion import (
     ingest_data_from_database_into_postgis,
@@ -213,13 +214,13 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
 
             source = params.get("source", "")
             # Expected format: db://{db_key}/{schema}/{table}
-            if not source.startswith("db://"):
+            if not source.startswith(DB_URI_PREFIX):
                 raise AirflowException(
                     f"Invalid database source URL format: '{source}'. Expected db://{{db_key}}/{{schema}}/{{table}}"
                 )
 
             try:
-                db_key, source_schema, source_table = source.removeprefix("db://").split("/", 2)
+                db_key, source_schema, source_table = source.removeprefix(DB_URI_PREFIX).split("/", 2)
             except ValueError:
                 raise AirflowException(
                     f"Invalid database source URL format: '{source}'. Expected db://{{db_key}}/{{schema}}/{{table}}"
