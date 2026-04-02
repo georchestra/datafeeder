@@ -290,6 +290,7 @@ def ingest_data_from_database_into_postgis(
         has_geom = DEFAULT_GEOMETRY_COLUMN in table.c
         query = select(table)
 
+        # Entire table loaded into memory — not suitable for very large tables without chunking
         if has_geom:
             data = gpd.read_postgis(query, con=source_engine, geom_col=DEFAULT_GEOMETRY_COLUMN)  # type: ignore[call-overload]
         else:

@@ -601,6 +601,7 @@ def dag_success_callback(
     session.refresh(integrity_link)
 
     try:
+        # db:// URIs reference a remote table, not a filesystem path — skip deletion for DATABASE
         if integrity_link.source_url and integrity_link.source_import_type != ImportType.DATABASE:
             delete_temp_file(integrity_link.source_url)
     except Exception as e:
