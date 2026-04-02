@@ -35,13 +35,13 @@ class SettingsService:
             enabled_features.append("scheduling")
             enabled_features.append("events")
         if all(
-            [
+            (
                 self._settings.POSTGRES_SOURCE_HOST,
                 self._settings.POSTGRES_SOURCE_PORT,
                 self._settings.POSTGRES_SOURCE_USER,
                 self._settings.POSTGRES_SOURCE_PASSWORD,
                 self._settings.POSTGRES_SOURCE_DB,
-            ]
+            )
         ):
             enabled_features.append("database_source")
 

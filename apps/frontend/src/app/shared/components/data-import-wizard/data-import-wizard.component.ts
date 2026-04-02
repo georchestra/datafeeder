@@ -78,6 +78,7 @@ marker('import.datasetLoadError.server_error')
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 120000
+const DB_URI_PREFIX = 'db://'
 
 /* eslint-disable no-unused-vars */
 const enum ImportStatus {
@@ -150,9 +151,11 @@ export class DataImportWizardComponent {
     const link = this.integrityLinkStore.integrityLink()
     if (
       link?.source_import_type === 'database' &&
-      link?.source_url?.startsWith('db://')
+      link?.source_url?.startsWith(DB_URI_PREFIX)
     ) {
-      const parts = link.source_url.substring(5).split('/', 2)
+      const parts = link.source_url
+        .substring(DB_URI_PREFIX.length)
+        .split('/', 2)
       if (parts.length === 2) {
         return { schema: parts[0], table: parts[1] }
       }

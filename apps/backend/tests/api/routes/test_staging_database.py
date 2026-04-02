@@ -11,9 +11,10 @@ from fastapi import HTTPException
 from src.api.routes.ingestion.staging import (
     _process_import_source,  # pyright: ignore[reportPrivateUsage]
     dag_success_callback,
+    edit_staging,
     get_staging_metadata,
 )
-from src.models.data_import import ImportType
+from src.models.data_import import DB_URI_PREFIX, ImportType
 
 
 class TestDbIdentifierValidation:
@@ -251,3 +252,62 @@ class TestGetStagingMetadataTitleFallback:
         )
 
         assert result.title == "Parcelles cadastrales"
+
+
+class TestEditStagingDatabase:
+    """Test edit_staging (PUT) with ImportType.DATABASE."""
+
+    @pytest.mark.asyncio
+    @patch("src.api.routes.ingestion.staging._trigger_staging_task")
+    @patch("src.api.routes.ingestion.staging._remove_staging_table")
+    @patch("src.api.routes.ingestion.staging._generate_staging_table_name", return_value="stg_test")
+    async def test_edit_staging_with_database_type(
+        self,
+        mock_gen_table: MagicMock,
+        mock_remove: MagicMock,
+        mock_trigger: MagicMock,
+    ) -> None:
+        """edit_staging updates IntegrityLink fields for a database source."""
+        link_id = uuid4()
+        mock_link = MagicMock()
+        mock_link.id = link_id
+        mock_link.staging_table_name = "stg_old"
+        mock_link.integrity_owner = "testuser"
+        mock_link.integrity_organization = "testorg"
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_link
+
+        mock_trigger.return_value = MagicMock(
+            integrity_link_id=str(link_id),
+            dag_id="staging_dag",
+            dag_run_id="run_1",
+            status="queued",
+        )
+
+        await edit_staging(
+            session=mock_session,
+            integrity_link_id=str(link_id),
+            type=ImportType.DATABASE,
+            url=None,
+            file=None,
+            auth_enabled=False,
+            username=None,
+            password=None,
+            ftp_host=None,
+            ftp_port=None,
+            ftp_path=None,
+            db_schema="geo",
+            db_table="rivers",
+            sec_username="testuser",
+            sec_org="testorg",
+        )
+
+        assert mock_link.source_import_type == ImportType.DATABASE
+        assert mock_link.source_url == f"{DB_URI_PREFIX}geo/rivers"
+        assert mock_link.source_file_name is None
+        assert mock_link.source_file_type is None
+        assert mock_link.staging_table_name == "stg_test"
+        mock_remove.assert_called_once_with("stg_old")
+        mock_session.commit.assert_called_once()
+        mock_trigger.assert_called_once()

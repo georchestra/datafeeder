@@ -33,6 +33,7 @@ from src.models import (
     StagingResponse,
 )
 from src.models.data_import import (
+    DB_URI_PREFIX,
     ColumnConfig,
     FileType,
     ForceProjection,
@@ -176,7 +177,7 @@ async def _process_import_source(
             except ValueError as e:
                 raise HTTPException(status_code=422, detail=str(e))
 
-            db_uri = f"db://{db_schema}/{db_table}"
+            db_uri = f"{DB_URI_PREFIX}{db_schema}/{db_table}"
             source = db_uri
             url = db_uri
             auth_enabled = False
@@ -712,9 +713,8 @@ def get_staging_metadata(
         not title
         and integrity_link.source_import_type == ImportType.DATABASE
         and integrity_link.source_url
-        and integrity_link.source_url.startswith("db://")
     ):
-        title = integrity_link.source_url.removeprefix("db://").split("/", 1)[-1]
+        title = integrity_link.source_url.removeprefix(DB_URI_PREFIX).split("/", 1)[-1]
     force_projection_data = (
         integrity_link.integrity_transformation.get("force_projection")
         if integrity_link.integrity_transformation
