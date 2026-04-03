@@ -22,6 +22,26 @@ from src.models.integrity_link_rule import RuleValue
 
 logger = get_logger()
 
+# ISO schema identifiers used for metadata record detection
+_SCHEMA_19115_3 = "19115-3"
+_SCHEMA_19139 = "19139"
+
+NS_19115_3 = {
+    "mdb": "http://standards.iso.org/iso/19115/-3/mdb/2.0",
+    "mri": "http://standards.iso.org/iso/19115/-3/mri/1.0",
+    "cit": "http://standards.iso.org/iso/19115/-3/cit/2.0",
+    "gco": "http://standards.iso.org/iso/19115/-3/gco/1.0",
+}
+
+NS_19139 = {
+    "gmd": "http://www.isotc211.org/2005/gmd",
+    "gco": "http://www.isotc211.org/2005/gco",
+}
+
+_CODELIST_URL = (
+    "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_DateTypeCode"
+)
+
 
 class MetadataService:
     """Service to generate and publish ISO 19115-3 metadata to GeoNetwork."""
@@ -113,9 +133,9 @@ class MetadataService:
         created_at = integrity_link.created_at or datetime.now(timezone.utc)
         last_retrieval = integrity_link.last_retrieval_timestamp or datetime.now(timezone.utc)
 
-        etree.SubElement(props, "creationDate").text = created_at.strftime("%Y-%m-%d")
+        etree.SubElement(props, "creationDate").text = created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         etree.SubElement(props, "metadataPublicationDate").text = last_retrieval.strftime(
-            "%Y-%m-%d"
+            "%Y-%m-%dT%H:%M:%SZ"
         )
 
         # Keywords (use title as keyword)
@@ -358,6 +378,135 @@ class MetadataService:
             self.metadata_default_group_name,
         )
         return self._resolve_group_by_org_name(session, self.metadata_default_group_name)
+
+    @staticmethod
+    def _detect_schema(root: _Element) -> str | None:
+        """Detect the ISO metadata schema from the root element's namespace tag.
+
+        Returns:
+            Schema identifier string, or None if unsupported.
+        """
+        tag = str(root.tag)
+        if "http://standards.iso.org/iso/19115/-3/mdb/2.0" in tag:
+            return _SCHEMA_19115_3
+        if "http://www.isotc211.org/2005/gmd" in tag:
+            return _SCHEMA_19139
+        return None
+
+    @staticmethod
+    def _update_revision_date_19115_3(root: _Element, revision_date: datetime) -> None:
+        """Insert or replace the data revision date in an ISO 19115-3 record.
+
+        Only updates the citation-level ``mri:citation/cit:CI_Citation/cit:date``
+        element (data revision date). The metadata-level ``mdb:dateInfo`` is not
+        modified. Always writes a ``gco:DateTime``; replaces an existing
+        ``gco:Date`` or ``gco:DateTime`` if present.
+        """
+        date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        ns = NS_19115_3
+
+        citations = root.xpath(
+            "mdb:identificationInfo/mri:MD_DataIdentification/mri:citation/cit:CI_Citation",
+            namespaces=ns,
+        )
+        for citation in citations:
+            existing = citation.xpath(
+                "cit:date/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
+                "/@codeListValue='revision']/cit:date/*[self::gco:DateTime or self::gco:Date]",
+                namespaces=ns,
+            )
+            if existing:
+                date_node = existing[0]
+                date_node.tag = f"{{{ns['gco']}}}DateTime"
+                date_node.text = date_str
+            else:
+                cit_date_wrapper: _Element = etree.SubElement(citation, f"{{{ns['cit']}}}date")
+                ci_date_el: _Element = etree.SubElement(cit_date_wrapper, f"{{{ns['cit']}}}CI_Date")
+                cit_d: _Element = etree.SubElement(ci_date_el, f"{{{ns['cit']}}}date")
+                etree.SubElement(cit_d, f"{{{ns['gco']}}}DateTime").text = date_str
+                cit_dt: _Element = etree.SubElement(ci_date_el, f"{{{ns['cit']}}}dateType")
+                etree.SubElement(
+                    cit_dt,
+                    f"{{{ns['cit']}}}CI_DateTypeCode",
+                    attrib={"codeList": _CODELIST_URL, "codeListValue": "revision"},
+                ).text = "revision"
+
+    @staticmethod
+    def _update_revision_date_19139(root: _Element, revision_date: datetime) -> None:
+        """Insert or replace the data revision date in an ISO 19139 record.
+
+        Always writes a ``gco:DateTime``; replaces an existing ``gco:Date`` or
+        ``gco:DateTime`` if present. The metadata-level ``gmd:dateStamp`` is not
+        modified.
+        """
+        date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        ns = NS_19139
+        codelist_19139 = (
+            "http://standards.iso.org/iso/19139/resources/codelist/gmxCodelists.xml#CI_DateTypeCode"
+        )
+
+        citations = root.xpath(
+            "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation",
+            namespaces=ns,
+        )
+        for citation in citations:
+            existing = citation.xpath(
+                "gmd:date/gmd:CI_Date[gmd:dateType/gmd:CI_DateTypeCode"
+                "/@codeListValue='revision']/gmd:date/*[self::gco:DateTime or self::gco:Date]",
+                namespaces=ns,
+            )
+            if existing:
+                date_node = existing[0]
+                date_node.tag = f"{{{ns['gco']}}}DateTime"
+                date_node.text = date_str
+            else:
+                date_wrapper: _Element = etree.SubElement(citation, f"{{{ns['gmd']}}}date")
+                ci_date_el: _Element = etree.SubElement(date_wrapper, f"{{{ns['gmd']}}}CI_Date")
+                d_el: _Element = etree.SubElement(ci_date_el, f"{{{ns['gmd']}}}date")
+                etree.SubElement(d_el, f"{{{ns['gco']}}}DateTime").text = date_str
+                dt_el: _Element = etree.SubElement(ci_date_el, f"{{{ns['gmd']}}}dateType")
+                etree.SubElement(
+                    dt_el,
+                    f"{{{ns['gmd']}}}CI_DateTypeCode",
+                    attrib={"codeList": codelist_19139, "codeListValue": "revision"},
+                ).text = "revision"
+
+    def update_revision_date(self, metadata_uuid: str, revision_date: datetime) -> None:
+        """Fetch a GeoNetwork record, set its revision date, and save.
+
+        Uses the GeoNetwork upload endpoint (POST /records with
+        ``uuidprocessing="OVERWRITE"``) via ``GnApi.upload_metadata`` to update
+        the XML while preserving the record's publication status/privileges.
+
+        Args:
+            metadata_uuid: UUID of the metadata record in GeoNetwork.
+            revision_date: The datetime to set as revision date.
+        """
+        xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
+        root: _Element = etree.fromstring(xml_bytes)
+
+        schema = self._detect_schema(root)
+        if schema is None:
+            logger.warning(
+                "Unsupported metadata schema for record %s (root tag: %s), "
+                "skipping revision date update",
+                metadata_uuid,
+                root.tag,
+            )
+            return
+
+        if schema == _SCHEMA_19115_3:
+            self._update_revision_date_19115_3(root, revision_date)
+        else:
+            self._update_revision_date_19139(root, revision_date)
+
+        updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
+
+        # Use POST /records with OVERWRITE — GeoNetwork does not expose a raw-PUT
+        # record update endpoint. OVERWRITE on an existing record updates the XML
+        # without altering its publication privileges.
+        self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
+        logger.info("Updated revision date for metadata record %s", metadata_uuid)
 
     def delete_record(self, metadata_uuid: str) -> None:
         """Delete a metadata record from GeoNetwork.

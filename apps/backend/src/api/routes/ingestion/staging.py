@@ -7,12 +7,12 @@ from uuid import UUID, uuid4
 import geopandas as gpd
 import pandas as pd
 import requests
-from data_manipulation.constants import DB_URI_PREFIX
 from data_manipulation import (
     IntegrityTransformation,
     detect_column_type_from_sqla,
     read_and_transform_data,
 )
+from data_manipulation.constants import DB_URI_PREFIX
 from data_manipulation.database import schema_exists, table_exists
 from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging

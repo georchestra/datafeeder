@@ -1,4 +1,6 @@
+import os
 from datetime import datetime, timezone
+from urllib.parse import urlencode
 
 from airflow import DAG
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
@@ -25,6 +27,14 @@ def load_scheduled_integrity_links():
     return get_datafeeder_pg_hook().get_pandas_df(sql).to_dict(orient="records")
 
 
+def _build_callback_url(route: str, integrity_link_id: str, final_table_name: str) -> str:
+    backend_url = os.environ.get("BACKEND_URL", "http://datafeeder-backend:8000")
+    params = urlencode(
+        {"integrity_link_id": integrity_link_id, "final_table_name": final_table_name}
+    )
+    return f"{backend_url}{route}?{params}"
+
+
 def create_dag(config):
     dag_id = f"ingestion_{config['id']}"
     dag = DAG(
@@ -47,8 +57,16 @@ def create_dag(config):
                 "final_table_name": config.get("final_table_name"),
                 "integrity_transformation": config.get("integrity_transformation") or {},
                 "encrypted_credentials": config.get("source_password_encrypted", None),
-                "success_callback_url": f"http://example.com/success/{config['id']}",
-                "failure_callback_url": f"http://example.com/failure/{config['id']}",
+                "success_callback_url": _build_callback_url(
+                    "/ingestion/process/dag_success",
+                    config["id"],
+                    config["final_table_name"],
+                ),
+                "failure_callback_url": _build_callback_url(
+                    "/ingestion/process/dag_failure",
+                    config["id"],
+                    config["final_table_name"],
+                ),
             },
             wait_for_completion=True,
             poke_interval=5,

@@ -84,6 +84,7 @@ x-airflow-common:
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
     AIRFLOW__API_AUTH__JWT_SECRET: 'nty6o8yV+OsnfEvsZ/ehZQ=='
+    BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:8000}
   volumes:
     - ../apps/elt/dags:/opt/airflow/dags
     - ../libs/data_manipulation/src/data_manipulation:/opt/airflow/dags/data_manipulation

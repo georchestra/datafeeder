@@ -359,6 +359,26 @@ async def dag_success_callback(
     datafeeder_session.commit()
     datafeeder_session.refresh(integrity_link)
 
+    # Update revision date in GeoNetwork metadata (soft failure)
+    if integrity_link.metadata_id is not None:
+        try:
+            metadata_service = MetadataService(
+                gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+                datadir_path=settings.DATADIR_PATH,
+                credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+                verify_tls=False,
+            )
+            metadata_service.update_revision_date(
+                str(integrity_link.metadata_id), datetime.now(timezone.utc)
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to update revision date for IntegrityLink %s: %s",
+                integrity_link.id,
+                e,
+                exc_info=True,
+            )
+
     logger.info(
         f"Process DAG success for IntegrityLink {integrity_link.id} | "
         f"final_table={final_table_name}"
