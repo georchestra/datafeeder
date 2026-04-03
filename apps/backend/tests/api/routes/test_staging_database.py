@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from data_manipulation.constants import DB_URI_PREFIX
 from data_manipulation.validators import validate_schema_name, validate_table_name
 from fastapi import HTTPException
 
@@ -14,7 +15,6 @@ from src.api.routes.ingestion.staging import (
     edit_staging,
     get_staging_metadata,
 )
-from data_manipulation.constants import DB_URI_PREFIX
 from src.models.data_import import ImportType
 
 

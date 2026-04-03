@@ -220,7 +220,9 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                 )
 
             try:
-                db_key, source_schema, source_table = source.removeprefix(DB_URI_PREFIX).split("/", 2)
+                db_key, source_schema, source_table = source.removeprefix(DB_URI_PREFIX).split(
+                    "/", 2
+                )
             except ValueError:
                 raise AirflowException(
                     f"Invalid database source URL format: '{source}'. Expected db://{{db_key}}/{{schema}}/{{table}}"
