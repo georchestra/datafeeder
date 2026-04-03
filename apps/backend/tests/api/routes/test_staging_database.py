@@ -74,13 +74,10 @@ class TestProcessImportSourceDatabase:
     @pytest.mark.asyncio
     @patch("src.api.routes.ingestion.staging.table_exists", return_value=True)
     @patch("src.api.routes.ingestion.staging.schema_exists", return_value=True)
-    @patch(
-        "src.api.routes.ingestion.staging.get_settings",
-        return_value=MagicMock(SOURCE_DATABASES={"SOURCE_DB_1": "postgresql://user:pass@host/db"}),
-    )
+    @patch("src.api.routes.ingestion.staging.source_db_key", new="SOURCE_DB_1")
+    @patch("src.api.routes.ingestion.staging.source_engine")
     async def test_valid_database_source(
         self,
-        mock_settings: MagicMock,
         mock_engine: MagicMock,
         mock_schema: MagicMock,
         mock_table: MagicMock,
@@ -98,13 +95,10 @@ class TestProcessImportSourceDatabase:
 
     @pytest.mark.asyncio
     @patch("src.api.routes.ingestion.staging.schema_exists", return_value=False)
-    @patch(
-        "src.api.routes.ingestion.staging.get_settings",
-        return_value=MagicMock(SOURCE_DATABASES={"SOURCE_DB_1": "postgresql://user:pass@host/db"}),
-    )
+    @patch("src.api.routes.ingestion.staging.source_db_key", new="SOURCE_DB_1")
+    @patch("src.api.routes.ingestion.staging.source_engine")
     async def test_nonexistent_schema_returns_422(
         self,
-        mock_settings: MagicMock,
         mock_engine: MagicMock,
         mock_schema: MagicMock,
     ) -> None:
@@ -120,13 +114,10 @@ class TestProcessImportSourceDatabase:
     @pytest.mark.asyncio
     @patch("src.api.routes.ingestion.staging.table_exists", return_value=False)
     @patch("src.api.routes.ingestion.staging.schema_exists", return_value=True)
-    @patch(
-        "src.api.routes.ingestion.staging.get_settings",
-        return_value=MagicMock(SOURCE_DATABASES={"SOURCE_DB_1": "postgresql://user:pass@host/db"}),
-    )
+    @patch("src.api.routes.ingestion.staging.source_db_key", new="SOURCE_DB_1")
+    @patch("src.api.routes.ingestion.staging.source_engine")
     async def test_nonexistent_table_returns_422(
         self,
-        mock_settings: MagicMock,
         mock_engine: MagicMock,
         mock_schema: MagicMock,
         mock_table: MagicMock,
@@ -318,8 +309,15 @@ class TestEditStagingDatabase:
     @patch("src.api.routes.ingestion.staging._trigger_staging_task")
     @patch("src.api.routes.ingestion.staging._remove_staging_table")
     @patch("src.api.routes.ingestion.staging._generate_staging_table_name", return_value="stg_test")
+    @patch("src.api.routes.ingestion.staging.table_exists", return_value=True)
+    @patch("src.api.routes.ingestion.staging.schema_exists", return_value=True)
+    @patch("src.api.routes.ingestion.staging.source_db_key", new="SOURCE_DB_1")
+    @patch("src.api.routes.ingestion.staging.source_engine")
     async def test_edit_staging_with_database_type(
         self,
+        mock_engine: MagicMock,
+        mock_schema: MagicMock,
+        mock_table: MagicMock,
         mock_gen_table: MagicMock,
         mock_remove: MagicMock,
         mock_trigger: MagicMock,
@@ -361,7 +359,7 @@ class TestEditStagingDatabase:
         )
 
         assert mock_link.source_import_type == ImportType.DATABASE
-        assert mock_link.source_url == f"{DB_URI_PREFIX}geo/rivers"
+        assert mock_link.source_url == f"{DB_URI_PREFIX}SOURCE_DB_1/geo/rivers"
         assert mock_link.source_file_name is None
         assert mock_link.source_file_type is None
         assert mock_link.staging_table_name == "stg_test"
