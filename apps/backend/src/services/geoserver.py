@@ -533,30 +533,6 @@ class GeoServerService:
             else:
                 raise
 
-    def acl_layer_add_rule(
-        self, layer_name: str, access_type: AclAccessType, roles: list[str]
-    ) -> None:
-        """Insert or update a layer ACL rule in GeoServer.
-
-        Tries to insert the rule with POST. If GeoServer returns 409 (rule already exists),
-        fetches the existing roles with GET, merges them with the new ones, then updates
-        with PUT.
-
-        Args:
-            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
-            access_type: The access type (READ or WRITE).
-            roles: List of roles to grant.
-        """
-        try:
-            self.acl_layer_post(layer_name, access_type, roles)
-        except GeoServerAclError as e:
-            if e.status_code == 409:
-                existing = self.acl_layer_get(layer_name, access_type) or []
-                merged = list({*existing, *roles})
-                self.acl_layer_put(layer_name, access_type, merged)
-            else:
-                raise
-
     def acl_layer_remove_rule(
         self, layer_name: str, access_type: AclAccessType, roles: list[str]
     ) -> None:
@@ -576,35 +552,3 @@ class GeoServerService:
             self.acl_layer_put(layer_name, access_type, remaining)
         else:
             self.acl_layer_delete(layer_name, access_type)
-
-    def acl_layer_publish(self, layer_name: str, access_type: AclAccessType) -> None:
-        """Make a layer publicly accessible by granting the EVERYONE role.
-
-        Fetches current roles and merges EVERYONE into them so that individual
-        role assignments are preserved. Uses GET+set_rule rather than relying on
-        the 409-based merge in acl_layer_add_rule, which would silently lose
-        existing roles if GeoServer overwrites on POST instead of returning 409.
-
-        Args:
-            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
-            access_type: The access type to publish (READ or WRITE).
-        """
-        existing = self.acl_layer_get(layer_name, access_type) or []
-        roles = list({*existing, ACL_ROLE_EVERYONE})
-        self.acl_layer_set_rule(layer_name, access_type, roles)
-
-    def acl_layer_unpublish(self, layer_name: str, access_type: AclAccessType) -> None:
-        """Remove public access to a layer by deleting the ACL rule entirely.
-
-        **Important caveat — global GeoServer rules take precedence.**
-        This method only manages the per-layer ACL rule for `layer_name`. If GeoServer
-        has a global rule that grants read access to everyone (e.g. ``*.*.r = *``), removing
-        the layer-level rule will have no practical effect: the dataset will remain publicly
-        readable because the global rule still applies. Restricting access therefore only works
-        as expected when the global ACL does *not* grant unrestricted read access by default.
-
-        Args:
-            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
-            access_type: The access type to unpublish (READ or WRITE).
-        """
-        self.acl_layer_delete(layer_name, access_type)

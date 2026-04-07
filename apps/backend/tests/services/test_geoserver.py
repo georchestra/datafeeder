@@ -537,60 +537,6 @@ class TestAclLayerDelete:
         assert exc_info.value.status_code == 404
 
 
-class TestAclLayerAddRule:
-    """Tests for acl_layer_add_rule (upsert logic)."""
-
-    @pytest.fixture
-    def service(self) -> GeoServerService:
-        with patch("src.services.geoserver.GeoServerCloud"):
-            svc = GeoServerService(
-                base_url="http://test.example.com/geoserver",
-                username="testuser",
-                password="testpass",
-                public_url="http://test.example.com",
-            )
-            svc.geoserver = MagicMock()
-            return svc
-
-    def test_post_succeeds_directly(self, service: GeoServerService) -> None:
-        service.acl_layer_post = MagicMock()  # type: ignore[method-assign]
-
-        service.acl_layer_add_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
-
-        service.acl_layer_post.assert_called_once_with(
-            "geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE]
-        )
-
-    def test_merges_roles_on_409(self, service: GeoServerService) -> None:
-        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(409, "Conflict"))  # type: ignore[method-assign]
-        service.acl_layer_get = MagicMock(return_value=["ROLE_IMPORT"])  # type: ignore[method-assign]
-        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
-
-        service.acl_layer_add_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
-
-        service.acl_layer_get.assert_called_once_with("geor.my_layer", AclAccessType.READ)
-        put_roles = service.acl_layer_put.call_args[0][2]
-        assert set(put_roles) == {"ROLE_IMPORT", ACL_ROLE_EVERYONE}
-
-    def test_get_returns_none_on_409_treated_as_empty(self, service: GeoServerService) -> None:
-        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(409, "Conflict"))  # type: ignore[method-assign]
-        service.acl_layer_get = MagicMock(return_value=None)  # type: ignore[method-assign]
-        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
-
-        service.acl_layer_add_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
-
-        put_roles = service.acl_layer_put.call_args[0][2]
-        assert set(put_roles) == {ACL_ROLE_EVERYONE}
-
-    def test_reraises_non_409_error(self, service: GeoServerService) -> None:
-        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(500, "Server error"))  # type: ignore[method-assign]
-
-        with pytest.raises(GeoServerAclError) as exc_info:
-            service.acl_layer_add_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
-
-        assert exc_info.value.status_code == 500
-
-
 class TestAclLayerSetRule:
     """Tests for acl_layer_set_rule (replace, not merge)."""
 
@@ -684,51 +630,6 @@ class TestAclLayerRemoveRule:
         service.acl_layer_put.assert_not_called()
 
 
-class TestAclLayerPublishUnpublish:
-    """Tests for acl_layer_publish and acl_layer_unpublish."""
-
-    @pytest.fixture
-    def service(self) -> GeoServerService:
-        with patch("src.services.geoserver.GeoServerCloud"):
-            svc = GeoServerService(
-                base_url="http://test.example.com/geoserver",
-                username="testuser",
-                password="testpass",
-                public_url="http://test.example.com",
-            )
-            svc.geoserver = MagicMock()
-            return svc
-
-    def test_publish_preserves_existing_roles(self, service: GeoServerService) -> None:
-        """Existing individual roles must be kept when EVERYONE is added."""
-        service.acl_layer_get = MagicMock(return_value=["ROLE_A"])
-        service.acl_layer_set_rule = MagicMock()
-
-        service.acl_layer_publish("geor.my_layer", AclAccessType.READ)
-
-        service.acl_layer_get.assert_called_once_with("geor.my_layer", AclAccessType.READ)
-        call_roles = service.acl_layer_set_rule.call_args[0][2]
-        assert set(call_roles) == {"ROLE_A", ACL_ROLE_EVERYONE}
-
-    def test_publish_no_existing_rule_sets_everyone(self, service: GeoServerService) -> None:
-        """When no rule exists yet, publish creates one with only EVERYONE."""
-        service.acl_layer_get = MagicMock(return_value=None)
-        service.acl_layer_set_rule = MagicMock()
-
-        service.acl_layer_publish("geor.my_layer", AclAccessType.READ)
-
-        service.acl_layer_set_rule.assert_called_once_with(
-            "geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE]
-        )
-
-    def test_unpublish_calls_delete(self, service: GeoServerService) -> None:
-        service.acl_layer_delete = MagicMock()  # type: ignore[method-assign]
-
-        service.acl_layer_unpublish("geor.my_layer", AclAccessType.READ)
-
-        service.acl_layer_delete.assert_called_once_with("geor.my_layer", AclAccessType.READ)
-
-
 class TestSyncLayerAcl:
     """Tests for GeoServerService.sync_layer_acl."""
 
@@ -800,9 +701,7 @@ class TestSyncLayerAcl:
         service.acl_layer_set_rule.assert_any_call(
             "myws.mylayer", AclAccessType.READ, ["ROLE_A", "ROLE_B"]
         )
-        service.acl_layer_set_rule.assert_any_call(
-            "myws.mylayer", AclAccessType.WRITE, ["ROLE_B"]
-        )
+        service.acl_layer_set_rule.assert_any_call("myws.mylayer", AclAccessType.WRITE, ["ROLE_B"])
         service.acl_layer_delete.assert_not_called()
 
     def test_sync_empty_privileges_deletes_both_rules(self, service: GeoServerService) -> None:
@@ -819,9 +718,7 @@ class TestSyncLayerAcl:
     def test_sync_delete_treats_404_as_success(self, service: GeoServerService) -> None:
         """404 from acl_layer_delete (rule already absent) should not propagate."""
         service.acl_layer_set_rule = MagicMock()
-        service.acl_layer_delete = MagicMock(
-            side_effect=GeoServerAclError(404, "Not Found")
-        )
+        service.acl_layer_delete = MagicMock(side_effect=GeoServerAclError(404, "Not Found"))
 
         # Should not raise
         service.sync_layer_acl("myws", "mylayer", [])

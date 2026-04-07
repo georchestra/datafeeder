@@ -22,7 +22,12 @@ from src.models.integrity_link_rule import (
 from src.models.recurrence import RecurrencePreset
 from src.services.console_service import ConsoleService
 from src.services.dataset_deletion_service import DatasetDeletionService
-from src.services.geoserver import ACL_ROLE_EVERYONE, AclAccessType, GeoServerAclError, GeoServerService
+from src.services.geoserver import (
+    ACL_ROLE_EVERYONE,
+    AclAccessType,
+    GeoServerAclError,
+    GeoServerService,
+)
 from src.services.metadata_service import MetadataService
 
 logger = get_logger()
@@ -145,9 +150,7 @@ def _sync_data_sharing(
         raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
 
     id_to_name = {
-        str(r["id"]): f"ROLE_{r['name']}"
-        for r in all_roles
-        if r.get("id") and r.get("name")
+        str(r["id"]): f"ROLE_{r['name']}" for r in all_roles if r.get("id") and r.get("name")
     }
 
     resolved: list[tuple[str, RuleValue]] = []
