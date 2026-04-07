@@ -110,11 +110,17 @@ def _sync_data_sharing(
     session: DatafeederSessionDep,
     integrity_link_id: str,
     integrity_link: IntegrityLink,
+    geoserver_service: GeoServerService | None = None,
 ) -> None:
     """Sync DATA rules to GeoServer layer ACL.
 
     Resolves role UUIDs to ROLE_xxx names via the Console API before syncing.
     Skipped when integrity_link has no published layer (final_table_name absent).
+
+    Args:
+        geoserver_service: Optional pre-built service instance. When None (default),
+            a new instance is created from settings. Pass the injected service when
+            calling from a route handler to allow test mocking.
 
     Raises:
         HTTPException(500): If role resolution or GeoServer ACL sync fails.
@@ -159,12 +165,13 @@ def _sync_data_sharing(
 
     workspace = integrity_link.integrity_organization.lower()
 
-    geoserver_service = GeoServerService(
-        base_url=settings.GEOSERVER_URL,
-        username=settings.GEOSERVER_USER,
-        password=settings.GEOSERVER_PASSWORD,
-        public_url=settings.DATA_PUBLIC_URL,
-    )
+    if geoserver_service is None:
+        geoserver_service = GeoServerService(
+            base_url=settings.GEOSERVER_URL,
+            username=settings.GEOSERVER_USER,
+            password=settings.GEOSERVER_PASSWORD,
+            public_url=settings.DATA_PUBLIC_URL,
+        )
     try:
         geoserver_service.sync_layer_acl(workspace, integrity_link.final_table_name, resolved)
     except Exception:
@@ -460,10 +467,6 @@ def toggle_publish_gs_integrity_link(
     gs_read_roles: list[str] | None = None
     try:
         if publish:
-            geoserver_service.acl_layer_publish(
-                layer_name=acl_layer_name,
-                access_type=AclAccessType.READ,
-            )
             session.add(
                 IntegrityLinkRule(
                     integrity_link_id=UUID(integrity_link_id),
@@ -472,37 +475,20 @@ def toggle_publish_gs_integrity_link(
                     group_or_role=GROUP_OR_ROLE_EVERYONE,
                 )
             )
+            _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
         else:
-            existing_read_rules = session.exec(
+            everyone_rules = session.exec(
                 select(IntegrityLinkRule).where(
                     IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id),
                     IntegrityLinkRule.rule_type == RuleType.DATA,
                     IntegrityLinkRule.rule_value == RuleValue.READ,
+                    IntegrityLinkRule.group_or_role == GROUP_OR_ROLE_EVERYONE,
                 )
             ).all()
-            other_roles = [
-                r.group_or_role
-                for r in existing_read_rules
-                if r.group_or_role != GROUP_OR_ROLE_EVERYONE
-            ]
-            geoserver_service.acl_layer_unpublish(
-                layer_name=acl_layer_name,
-                access_type=AclAccessType.READ,
-            )
-
-            if other_roles:
-                settings = get_settings()
-                console_service = ConsoleService(settings.CONSOLE_URL)
-                geoserver_roles = console_service.get_role_labels(other_roles)
-                if geoserver_roles:
-                    geoserver_service.acl_layer_set_rule(
-                        layer_name=acl_layer_name,
-                        access_type=AclAccessType.READ,
-                        roles=geoserver_roles,
-                    )
-            for rule in existing_read_rules:
-                if rule.group_or_role == GROUP_OR_ROLE_EVERYONE:
-                    session.delete(rule)
+            for rule in everyone_rules:
+                session.delete(rule)
+            session.flush()  # make deletions visible before the sync query
+            _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
 
         gs_read_roles = geoserver_service.acl_layer_get(
             layer_name=acl_layer_name,

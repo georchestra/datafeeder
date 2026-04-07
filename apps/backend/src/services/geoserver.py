@@ -1,7 +1,6 @@
 from enum import StrEnum
 from typing import Any
 
-import httpx
 from data_manipulation.geoserver import WorkspaceCreationResult
 from data_manipulation.geoserver import (
     create_layer as dm_create_layer,
@@ -331,7 +330,10 @@ class GeoServerService:
 
         geOrchestra strips ROLE_ from header values; GeoServer requires it.
         Idempotent: already-prefixed values pass through unchanged.
+        The EVERYONE wildcard ("*") is passed through as-is.
         """
+        if role == ACL_ROLE_EVERYONE:
+            return role  # "*" is the GeoServer ACL wildcard — do not prefix
         upper = role.strip().upper()
         if not upper.startswith("ROLE_"):
             return f"ROLE_{upper}"
@@ -356,17 +358,26 @@ class GeoServerService:
             privileges: List of (role_name, rule_value) tuples
 
         Raises:
-            httpx.HTTPError: If the GeoServer ACL API call fails.
+            GeoServerAclError: If a GeoServer ACL API call fails.
         """
-        read_roles = [self._to_geoserver_role(r) for r, v in privileges if v == RuleValue.READ]
+        # WRITE implies READ: roles with write access must also appear in the read rule.
+        read_roles = [self._to_geoserver_role(r) for r, _ in privileges]
         write_roles = [self._to_geoserver_role(r) for r, v in privileges if v == RuleValue.WRITE]
 
-        for suffix, roles in [("r", read_roles), ("w", write_roles)]:
-            key = f"{workspace}.{layer_name}.{suffix}"
+        acl_layer_name = f"{workspace}.{layer_name}"
+
+        for access_type, roles in [
+            (AclAccessType.READ, read_roles),
+            (AclAccessType.WRITE, write_roles),
+        ]:
             if roles:
-                self._upsert_acl_rule(key, ",".join(roles))
+                self.acl_layer_set_rule(acl_layer_name, access_type, roles)
             else:
-                self._delete_acl_rule(key)
+                try:
+                    self.acl_layer_delete(acl_layer_name, access_type)
+                except GeoServerAclError as e:
+                    if e.status_code != 404:
+                        raise
 
         logger.info(
             "Synced GeoServer ACL for %s:%s — read: %s, write: %s",
@@ -375,19 +386,6 @@ class GeoServerService:
             read_roles,
             write_roles,
         )
-
-    def _upsert_acl_rule(self, key: str, roles_str: str) -> None:
-        url = f"{self.base_url}/rest/security/acl/layers"
-        resp = httpx.post(url, json={key: roles_str}, auth=self._auth, timeout=10.0)
-        if resp.status_code == 409:
-            resp = httpx.put(url, json={key: roles_str}, auth=self._auth, timeout=10.0)
-        resp.raise_for_status()
-
-    def _delete_acl_rule(self, key: str) -> None:
-        url = f"{self.base_url}/rest/security/acl/layers/{key}"
-        resp = httpx.delete(url, auth=self._auth, timeout=10.0)
-        if resp.status_code != 404:
-            resp.raise_for_status()
 
     async def update_layer_bbox(
         self,
@@ -582,13 +580,18 @@ class GeoServerService:
     def acl_layer_publish(self, layer_name: str, access_type: AclAccessType) -> None:
         """Make a layer publicly accessible by granting the EVERYONE role.
 
-        Uses acl_layer_add_rule so the EVERYONE role is merged with any existing roles.
+        Fetches current roles and merges EVERYONE into them so that individual
+        role assignments are preserved. Uses GET+set_rule rather than relying on
+        the 409-based merge in acl_layer_add_rule, which would silently lose
+        existing roles if GeoServer overwrites on POST instead of returning 409.
 
         Args:
             layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
             access_type: The access type to publish (READ or WRITE).
         """
-        self.acl_layer_add_rule(layer_name, access_type, [ACL_ROLE_EVERYONE])
+        existing = self.acl_layer_get(layer_name, access_type) or []
+        roles = list({*existing, ACL_ROLE_EVERYONE})
+        self.acl_layer_set_rule(layer_name, access_type, roles)
 
     def acl_layer_unpublish(self, layer_name: str, access_type: AclAccessType) -> None:
         """Remove public access to a layer by deleting the ACL rule entirely.
