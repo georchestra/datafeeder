@@ -55,6 +55,7 @@ describe('DataImportWizardComponent — Recurrence', () => {
     integrityLink: ReturnType<typeof signal<IntegrityLinkResponse | null>>
     loadError: ReturnType<typeof signal<string | null>>
     setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+    clearIntegrityLink: ReturnType<typeof vi.fn>
   }
   let httpMock: HttpTestingController
 
@@ -63,7 +64,8 @@ describe('DataImportWizardComponent — Recurrence', () => {
       intlinkId: signal<string | null>(null),
       integrityLink: signal<IntegrityLinkResponse | null>(null),
       loadError: signal<string | null>(null),
-      setAndLoadIntegrityLink: vi.fn()
+      setAndLoadIntegrityLink: vi.fn(),
+      clearIntegrityLink: vi.fn()
     }
 
     await TestBed.configureTestingModule({
