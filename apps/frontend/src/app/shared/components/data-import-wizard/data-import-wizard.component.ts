@@ -34,6 +34,7 @@ import {
   getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet,
   getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
+  getDagRunNoteAirflowDagsDagIdRunsDagRunIdNoteGet,
   submitStagingIngestionStagingPost,
   processStagingDataIngestionProcessPost,
   editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut,
@@ -41,7 +42,7 @@ import {
 } from '../../../core/api/functions'
 import type {
   ColumnConfigInput,
-  DagRunState,
+  TaskStatus,
   ForceProjection,
   StagingResponse,
   StagingMetadataResponse,
@@ -68,6 +69,8 @@ import type { RecurrencePresetItem } from '../../../core/api/models/recurrence-p
 
 marker('import.dataSource.error')
 marker('import.dataSource.error.extent')
+marker('i18nerror.import.dataSource.timeoutError')
+marker('i18nerror.import.dataSource.failedError')
 marker('i18nerror.transformation.geometry_creation_failed')
 marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
@@ -422,6 +425,10 @@ export class DataImportWizardComponent {
           this.translate.instant('import.dataSource.unknownError')
         )
       }
+
+      if (!this.integrityLinkStore.integrityLink()?.last_retrieval_timestamp) {
+        this.integrityLinkStore.clearIntegrityLink()
+      }
     } finally {
       this.importing.set(false)
       this.polling.set(false)
@@ -510,8 +517,9 @@ export class DataImportWizardComponent {
           )
         ),
         takeWhile(
-          (status: DagRunState) =>
-            status === ImportStatus.QUEUED || status === ImportStatus.RUNNING,
+          (response: TaskStatus) =>
+            response === ImportStatus.QUEUED ||
+            response === ImportStatus.RUNNING,
           true
         ),
         timeout(MAX_POLL_TIME_MS),
@@ -520,20 +528,33 @@ export class DataImportWizardComponent {
             return throwError(
               () =>
                 new Error(
-                  this.translate.instant('import.dataSource.timeoutError')
+                  this.translate.instant(
+                    'i18nerror.import.dataSource.timeoutError'
+                  )
                 )
             )
           }
           return throwError(() => error)
         }),
-        switchMap((status: DagRunState) => {
-          if (status === ImportStatus.FAILED) {
-            const errorMsg = this.translate.instant(
-              'import.dataSource.failedError'
+        switchMap((response: TaskStatus) => {
+          if (response === ImportStatus.FAILED) {
+            return from(
+              this.api.invoke(
+                getDagRunNoteAirflowDagsDagIdRunsDagRunIdNoteGet,
+                { dag_id: dagId, dag_run_id: dagRunId }
+              )
+            ).pipe(
+              catchError(() => of(null)),
+              switchMap((note) => {
+                const messageKey =
+                  note ?? 'i18nerror.import.dataSource.failedError'
+                return throwError(
+                  () => new Error(this.translate.instant(messageKey))
+                )
+              })
             )
-            return throwError(() => new Error(errorMsg))
           }
-          return of(status)
+          return of(response)
         })
       )
     )

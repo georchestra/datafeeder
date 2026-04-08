@@ -12,7 +12,7 @@ clean-python: ## Clean uv cache and lock file
 
 install-python: ## Install all dependencies using uv + write current user's UID into .env
 	uv run poe install
-	printf 'AIRFLOW_UID=%s\n' "$$(id -u)" > .env
+	@grep -q '^AIRFLOW_UID=' .env && sed -i 's/^AIRFLOW_UID=.*/AIRFLOW_UID='"$$(id -u)"'/' .env || printf 'AIRFLOW_UID=%s\n' "$$(id -u)" >> .env
 
 check-all-python: install-python ## Run all checks: linting, formatting, and type checking
 	-uv run poe lint

@@ -1,3 +1,5 @@
+import time
+
 from airflow_client.client.exceptions import NotFoundException
 from airflow_client.client.models.dag_run_collection_response import DAGRunCollectionResponse
 from fastapi import APIRouter, HTTPException
@@ -10,6 +12,9 @@ from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
 
 router = APIRouter(prefix="/airflow", tags=["Airflow"])
+
+_NOTE_POLL_INTERVAL_S = 2
+_NOTE_MAX_ATTEMPTS = 3
 
 
 @router.get("/dags/{dag_id}/runs/{intlink_id}")
@@ -49,6 +54,48 @@ def get_dag_run_status(
         executor = get_task_executor()
         task_info = executor.get_task_status(dag_id, dag_run_id)
         return task_info.status
+    except NotFoundException:
+        raise HTTPException(status_code=404, detail=f"DAG run not found: {dag_id}/{dag_run_id}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Airflow error: {e}")
+
+
+@router.get("/dags/{dag_id}/runs/{dag_run_id}/note", response_model=str | None)
+def get_dag_run_note(
+    dag_id: str,
+    dag_run_id: str,
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    org_id: OrgIdDep,
+) -> str | None:
+    """
+    Return the note attached to a DAG run, but only if its value is ``"timed_out"``.
+
+    This filter is a security measure: DAG run notes are free-text fields that could
+    inadvertently contain sensitive runtime data (e.g. stack traces, file paths, user
+    inputs). By allow-listing only the known sentinel value we prevent leaking any
+    unintended information to the frontend.
+
+    The endpoint polls Airflow internally (up to ``_NOTE_MAX_ATTEMPTS`` times with
+    ``_NOTE_POLL_INTERVAL_S`` seconds between each attempt) to absorb the latency
+    between the DAG run reaching FAILED state and the failure callback writing the
+    note. The frontend therefore makes a single request and waits for the result.
+    """
+    # Note: this endpoint is intentionally not using auth checking as integrity link
+    # table may have been removed in case of DAG run timeout, but we still want to be
+    # able to check the note to display a proper message in the UI.
+
+    try:
+        executor = get_task_executor()
+        note: str | None = None
+        for _ in range(_NOTE_MAX_ATTEMPTS):
+            note = executor.get_task_note(dag_id, dag_run_id)
+            if note is not None:
+                break
+            time.sleep(_NOTE_POLL_INTERVAL_S)
+        if note != "timed_out":
+            return None
+        return "i18nerror.import.dataSource.timeoutError"
     except NotFoundException:
         raise HTTPException(status_code=404, detail=f"DAG run not found: {dag_id}/{dag_run_id}")
     except Exception as e:

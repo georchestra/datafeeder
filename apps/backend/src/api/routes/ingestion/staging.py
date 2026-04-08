@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 import geopandas as gpd
 import pandas as pd
 import requests
+from airflow_client.client.models.dag_run_patch_body import DAGRunPatchBody
 from data_manipulation import (
     IntegrityTransformation,
     detect_column_type_from_sqla,
@@ -44,6 +45,7 @@ from src.models.data_import import (
     StagingPreviewResponse,
 )
 from src.models.integrity_link import IntegrityLink
+from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
 from src.services.files import delete_temp_file, upload_file_to_temp
 
@@ -127,11 +129,17 @@ async def _process_import_source(
             if file is None:
                 raise HTTPException(status_code=400, detail="File is required")
 
-            source_file_name, source_file_type, file_url = await upload_file_to_temp(
-                file, rand_id=str(uuid4())
-            )
-            source = file_url
-            url = file_url
+            try:
+                source_file_name, source_file_type, file_url = await upload_file_to_temp(
+                    file, rand_id=str(uuid4())
+                )
+                source = file_url
+                url = file_url
+            except Exception as e:
+                logger.error(f"Error processing uploaded file: {e}")
+                raise HTTPException(
+                    status_code=500, detail="i18nerror.import.dataSource.failedError"
+                )
 
         case ImportType.URL:
             if not url:
@@ -224,7 +232,11 @@ def _trigger_staging_task(
     Returns:
         StagingResponse with integrity link ID, DAG ID, DAG run ID, and current status
     """
-    callback_params = {"integrity_link_id": str(integrity_link.id)}
+    callback_params = {
+        "integrity_link_id": str(integrity_link.id),
+        "dag_id": "staging_dag",
+        "dag_run_id": dag_run_id,
+    }
     success_callback_url = build_callback_url("/ingestion/staging/dag_success", callback_params)
     failure_callback_url = build_callback_url("/ingestion/staging/dag_failure", callback_params)
 
@@ -613,6 +625,9 @@ def dag_failure_callback(
     datafeeder_session: DatafeederSessionDep,
     data_session: DataSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
+    dag_id: str = Query(..., description="DAG ID"),
+    dag_run_id: str = Query(..., description="DAG run ID"),
+    reason: str | None = Query(None, description="Failure reason from Airflow context"),
 ) -> None:
     """
     Failure callback endpoint called by Airflow DAG on failure.
@@ -623,24 +638,41 @@ def dag_failure_callback(
         data_session: Data database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
     """
+    logger.info(
+        f"dag_failure_callback | integrity_link_id={integrity_link_id} dag_run_id={dag_run_id} reason={reason!r}"
+    )
+    if reason:
+        try:
+            get_dag_run_api().patch_dag_run(
+                dag_id=dag_id,
+                dag_run_id=dag_run_id,
+                dag_run_patch_body=DAGRunPatchBody(note=reason),
+            )
+        except Exception as e:
+            logger.error(f"Failed to set dag_run note: {e}")
     integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    if integrity_link.staging_table_name:
-        try:
-            validate_table_name(integrity_link.staging_table_name, context="staging")
-            schema = get_staging_schema()
-            table = Table(integrity_link.staging_table_name, MetaData(schema=schema))
-            table.drop(data_engine, checkfirst=True)
-            data_session.commit()
-        except ValueError as e:
-            logger.error(f"Invalid staging table name in database: {e}")
-        except Exception as e:
-            logger.error(f"Error dropping staging table {integrity_link.staging_table_name}: {e}")
+    is_rerun = integrity_link.last_retrieval_timestamp is not None  # it is a rerun/reconfig
 
-    datafeeder_session.delete(integrity_link)
-    datafeeder_session.commit()
+    if not is_rerun:
+        if integrity_link.staging_table_name:
+            try:
+                validate_table_name(integrity_link.staging_table_name, context="staging")
+                schema = get_staging_schema()
+                table = Table(integrity_link.staging_table_name, MetaData(schema=schema))
+                table.drop(data_engine, checkfirst=True)
+                data_session.commit()
+            except ValueError as e:
+                logger.error(f"Invalid staging table name in database: {e}")
+            except Exception as e:
+                logger.error(
+                    f"Error dropping staging table {integrity_link.staging_table_name}: {e}"
+                )
+
+        datafeeder_session.delete(integrity_link)
+        datafeeder_session.commit()
 
 
 def _detect_original_projection(

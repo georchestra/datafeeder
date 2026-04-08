@@ -14,9 +14,24 @@ export interface DagFailureCallbackIngestionProcessDagFailurePost$Params {
   integrity_link_id: string
 
   /**
+   * DAG ID
+   */
+  dag_id: string
+
+  /**
+   * DAG run ID
+   */
+  dag_run_id: string
+
+  /**
    * Final table name (if created)
    */
   final_table_name?: string
+
+  /**
+   * Failure reason from Airflow context
+   */
+  reason?: string | null
 }
 
 export function dagFailureCallbackIngestionProcessDagFailurePost(
@@ -32,7 +47,10 @@ export function dagFailureCallbackIngestionProcessDagFailurePost(
   )
   if (params) {
     rb.query('integrity_link_id', params.integrity_link_id, {})
+    rb.query('dag_id', params.dag_id, {})
+    rb.query('dag_run_id', params.dag_run_id, {})
     rb.query('final_table_name', params.final_table_name, {})
+    rb.query('reason', params.reason, {})
   }
 
   return http

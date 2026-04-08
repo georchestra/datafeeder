@@ -1,3 +1,6 @@
+import os
+from datetime import timedelta
+
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.sdk import Variable
 from sqlalchemy.engine import Engine
@@ -37,3 +40,14 @@ def get_final_schema() -> str:
 def get_staging_schema() -> str:
     """Get the staging schema from Airflow Variable, defaulting to 'staging'."""
     return "staging"
+
+
+def get_staging_timeout() -> timedelta:
+    """Get the staging task execution timeout from AIRFLOW_STAGING_TIMEOUT_SECONDS env var, defaulting to 600s."""
+    try:
+        seconds = int(os.environ.get("AIRFLOW_STAGING_TIMEOUT_SECONDS", "600"))
+        if seconds <= 0:
+            raise ValueError
+    except ValueError:
+        seconds = 600
+    return timedelta(seconds=seconds)

@@ -112,3 +112,8 @@ class AirflowTaskExecutor(BaseTaskExecutor):
     def get_task_logs(self, task_id: str, run_id: str) -> str:
         """Get logs for a task in Airflow."""
         return generate_failed_dag_run_logs(task_id, run_id)
+
+    def get_task_note(self, task_id: str, run_id: str) -> str | None:
+        """Get the note attached to a DAG run in Airflow."""
+        dag_run = get_dag_run_api().get_dag_run(dag_id=task_id, dag_run_id=run_id)
+        return dag_run.note

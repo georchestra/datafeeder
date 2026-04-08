@@ -7,6 +7,8 @@ export type { GetDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet$Params as GetDa
 export { getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet as getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet } from './fn/airflow/get-dag-run-by-intlink-airflow-dags-dag-id-runs-intlink-id-get'
 export type { GetDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet$Params as GetDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet$Params } from './fn/airflow/get-dag-run-status-airflow-dags-dag-id-runs-dag-run-id-status-get'
 export { getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet as getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet } from './fn/airflow/get-dag-run-status-airflow-dags-dag-id-runs-dag-run-id-status-get'
+export type { GetDagRunNoteAirflowDagsDagIdRunsDagRunIdNoteGet$Params as GetDagRunNoteAirflowDagsDagIdRunsDagRunIdNoteGet$Params } from './fn/airflow/get-dag-run-note-airflow-dags-dag-id-runs-dag-run-id-note-get'
+export { getDagRunNoteAirflowDagsDagIdRunsDagRunIdNoteGet as getDagRunNoteAirflowDagsDagIdRunsDagRunIdNoteGet } from './fn/airflow/get-dag-run-note-airflow-dags-dag-id-runs-dag-run-id-note-get'
 export type { GetDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet$Params as GetDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet$Params } from './fn/airflow/get-dag-run-logs-airflow-dags-dag-id-runs-dag-run-id-logs-get'
 export { getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet as getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet } from './fn/airflow/get-dag-run-logs-airflow-dags-dag-id-runs-dag-run-id-logs-get'
 export type { GetSettingsSettingsGet$Params as GetSettingsSettingsGet$Params } from './fn/settings/get-settings-settings-get'

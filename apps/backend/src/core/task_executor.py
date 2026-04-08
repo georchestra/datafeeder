@@ -125,3 +125,17 @@ class BaseTaskExecutor(ABC):
             Task logs as string
         """
         pass
+
+    @abstractmethod
+    def get_task_note(self, task_id: str, run_id: str) -> str | None:
+        """
+        Get the note attached to a task run.
+
+        Args:
+            task_id: Task identifier
+            run_id: Run identifier
+
+        Returns:
+            Note string if present, None otherwise
+        """
+        pass
