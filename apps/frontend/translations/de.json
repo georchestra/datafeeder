@@ -260,7 +260,7 @@
   "integrityLinks.dashboard": "",
   "integrityLinks.emptyList": "",
   "integrityLinks.loadMore": "",
-  "integrityLinks.noFinalTable": "",
+  "integrityLinks.noFinalTable": "Aufnahme zu konfigurieren",
   "integrityLinks.noResults": "",
   "integrityLinks.owner": "",
   "integrityLinks.readOnly": "",

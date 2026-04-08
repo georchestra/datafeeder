@@ -260,7 +260,7 @@
   "integrityLinks.dashboard": "",
   "integrityLinks.emptyList": "",
   "integrityLinks.loadMore": "",
-  "integrityLinks.noFinalTable": "",
+  "integrityLinks.noFinalTable": "Ingestão a configurar",
   "integrityLinks.noResults": "",
   "integrityLinks.owner": "",
   "integrityLinks.readOnly": "",
