@@ -4,7 +4,12 @@ import pytest
 from fastapi import UploadFile
 
 from src.models.data_import import FileType
-from src.services.files import delete_temp_file, get_temp_file_url, strip_file_extension, upload_file_to_temp
+from src.services.files import (
+    delete_temp_file,
+    get_temp_file_url,
+    strip_file_extension,
+    upload_file_to_temp,
+)
 
 
 class TestStripFileExtension:
