@@ -50,7 +50,6 @@ class TestStripFileExtension:
         assert strip_file_extension(".") == "."
 
 
-
 class TestUploadFileToTemp:
     """Test cases for upload_file_to_temp function."""
 
