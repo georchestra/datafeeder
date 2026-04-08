@@ -12,8 +12,9 @@
         {{ 'import.recurrence.label' | translate }}
       </h2>
       <app-recurrence-selector
-        [currentRecurrence]="recurrence()"
-        [disabled]="true"
+        [presets]="recurrencePresets()"
+        [selectedPresetId]="selectedPresetId()"
+        (presetChange)="selectedPresetId.set($event)"
       />
     </div>
   </div>

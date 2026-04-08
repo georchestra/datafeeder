@@ -12,6 +12,7 @@ from src.api.routes.ingestion.integrity_link import (
     get_integrity_link,
     toggle_publish_gn_integrity_link,
     toggle_publish_gs_integrity_link,
+    update_schedule,
     upsert_integrity_link_rule,
 )
 from src.core.security import EffectiveAccess
@@ -1888,3 +1889,95 @@ class TestGetIntegrityLinkPresetId:
 
         assert result.schedule == "30 2 15 * *"
         assert result.preset_id is None
+
+
+class TestUpdateSchedule:
+    """Test the update_schedule PATCH /{integrity_link_id}/schedule endpoint."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def integrity_link_id(self) -> str:
+        return str(uuid4())
+
+    @pytest.fixture(autouse=True)
+    def patch_load_authorized(self, mock_session: MagicMock) -> Iterator[None]:
+        def _load(integrity_link_id: str, *args: object, **kwargs: object):
+            il = mock_session.get.return_value
+            if il is None:
+                raise HTTPException(status_code=404, detail="IntegrityLink not found")
+            return il, EffectiveAccess.OWNER
+
+        with patch(
+            "src.api.routes.ingestion.integrity_link.load_authorized_integrity_link",
+            side_effect=_load,
+        ):
+            yield
+
+    def _link(self, link_id: str) -> IntegrityLink:
+        return IntegrityLink(
+            id=UUID(link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+        )
+
+    def test_set_preset_enables_schedule(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        integrity_link = self._link(integrity_link_id)
+        mock_session.get.return_value = integrity_link
+
+        result = update_schedule(
+            session=mock_session,
+            geo_ctx=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            org_id=None,
+            preset=RecurrencePreset.EVERY_DAY,
+        )
+
+        assert integrity_link.schedule == RecurrencePreset.EVERY_DAY.cron
+        assert integrity_link.schedule_enabled is True
+        mock_session.commit.assert_called_once()
+        mock_session.refresh.assert_called_once_with(integrity_link)
+        assert result.schedule == RecurrencePreset.EVERY_DAY.cron
+        assert result.preset_id == "EVERY_DAY"
+
+    def test_clear_preset_disables_schedule(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        integrity_link = self._link(integrity_link_id)
+        integrity_link.schedule = RecurrencePreset.EVERY_DAY.cron
+        integrity_link.schedule_enabled = True
+        mock_session.get.return_value = integrity_link
+
+        result = update_schedule(
+            session=mock_session,
+            geo_ctx=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            org_id=None,
+            preset=None,
+        )
+
+        assert integrity_link.schedule is None
+        assert integrity_link.schedule_enabled is False
+        mock_session.commit.assert_called_once()
+        assert result.schedule is None
+        assert result.preset_id is None
+
+    def test_not_found_raises_404(self, mock_session: MagicMock, integrity_link_id: str) -> None:
+        mock_session.get.return_value = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_schedule(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                preset=RecurrencePreset.EVERY_WEEK,
+            )
+
+        assert exc_info.value.status_code == 404

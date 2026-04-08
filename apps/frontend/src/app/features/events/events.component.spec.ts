@@ -17,7 +17,8 @@ import { TranslateTestingModule } from 'ngx-translate-testing'
 import { Api } from '../../core/api/api'
 import {
   getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
-  getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet
+  getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet,
+  updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch
 } from '../../core/api/functions'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
 import type { IntegrityLinkResponse } from '../../core/api/models/integrity-link-response'
@@ -233,13 +234,16 @@ describe('EventsComponent', () => {
       expect(component.events()).toEqual([])
     })
 
-    it('should NOT call the API when intlink_id is null', async () => {
+    it('should NOT call the dag runs API when intlink_id is null', async () => {
       store.intlinkId.set(null)
 
       createComponent()
 
       await new Promise((r) => setTimeout(r, 20))
-      expect(apiInvokeSpy).not.toHaveBeenCalled()
+      expect(apiInvokeSpy).not.toHaveBeenCalledWith(
+        getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
+        expect.anything()
+      )
     })
   })
 
@@ -330,10 +334,9 @@ describe('EventsComponent', () => {
   // ─── Recurrence display ──────────────────────────────────────────────────
 
   describe('Recurrence display', () => {
-    it('should expose recurrence from store when a known preset is set', () => {
+    it('should initialize selectedPresetId from store when schedule is enabled', () => {
       store.integrityLink.set(
         makeIntegrityLink({
-          schedule: '0 4 * * *',
           preset_id: 'EVERY_DAY',
           schedule_enabled: true
         })
@@ -341,16 +344,12 @@ describe('EventsComponent', () => {
 
       const { component } = createComponent()
 
-      expect(component.recurrence()).toEqual({
-        cron: '0 4 * * *',
-        preset_id: 'EVERY_DAY'
-      })
+      expect(component.selectedPresetId()).toBe('EVERY_DAY')
     })
 
-    it('should expose custom cron recurrence when preset_id is null', () => {
+    it('should initialize selectedPresetId to null when preset_id is null', () => {
       store.integrityLink.set(
         makeIntegrityLink({
-          schedule: '30 2 15 * *',
           preset_id: null,
           schedule_enabled: true
         })
@@ -358,24 +357,20 @@ describe('EventsComponent', () => {
 
       const { component } = createComponent()
 
-      expect(component.recurrence()).toEqual({
-        cron: '30 2 15 * *',
-        preset_id: null
-      })
+      expect(component.selectedPresetId()).toBeNull()
     })
 
-    it('should return null recurrence when integrityLink is not loaded', () => {
+    it('should initialize selectedPresetId to null when integrityLink is not loaded', () => {
       store.integrityLink.set(null)
 
       const { component } = createComponent()
 
-      expect(component.recurrence()).toBeNull()
+      expect(component.selectedPresetId()).toBeNull()
     })
 
-    it('should return null recurrence when schedule_enabled is false', () => {
+    it('should initialize selectedPresetId to null when schedule_enabled is false', () => {
       store.integrityLink.set(
         makeIntegrityLink({
-          schedule: '0 4 * * *',
           preset_id: 'EVERY_DAY',
           schedule_enabled: false
         })
@@ -383,7 +378,7 @@ describe('EventsComponent', () => {
 
       const { component } = createComponent()
 
-      expect(component.recurrence()).toBeNull()
+      expect(component.selectedPresetId()).toBeNull()
     })
   })
 
@@ -403,6 +398,40 @@ describe('EventsComponent', () => {
         expect(component.events().length).toBe(1)
       })
       expect(component.events()[0].id).toBe('run-new')
+    })
+  })
+
+  // ─── Schedule update ─────────────────────────────────────────────────────
+
+  describe('Schedule update', () => {
+    it('should call PATCH /schedule when selectedPresetId changes to a preset', async () => {
+      const { fixture, component } = createComponent()
+
+      component.selectedPresetId.set('EVERY_DAY')
+      fixture.detectChanges()
+
+      await vi.waitFor(() => {
+        expect(apiInvokeSpy).toHaveBeenCalledWith(
+          updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
+          {
+            integrity_link_id: intlinkId,
+            body: { preset: 'EVERY_DAY' }
+          }
+        )
+      })
+    })
+
+    it('should NOT call PATCH /schedule when intlink_id is null', async () => {
+      store.intlinkId.set(null)
+      const { component } = createComponent()
+
+      component.selectedPresetId.set('EVERY_DAY')
+
+      await new Promise((r) => setTimeout(r, 20))
+      expect(apiInvokeSpy).not.toHaveBeenCalledWith(
+        updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
+        expect.anything()
+      )
     })
   })
 })
