@@ -14,7 +14,7 @@ description = "REST API for data ingestion in Datafeeder"
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
-    "fastapi[standard]==0.117.0",
+    "fastapi[standard]>=0.129.0",
     "uvicorn[standard]==0.38.0",
     "data_manipulation",
     "sqlmodel==0.0.27",

@@ -1,7 +1,7 @@
 """GeoServer layer creation utilities."""
 
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
-from geoservercloud.models.datastore import PostGisDataStore
+from geoservercloud.models.datastore import DataStore
 from geoservercloud.models.featuretype import FeatureType
 from geoservercloud.services import RestService
 from pydantic import BaseModel  # type: ignore[import-untyped]
@@ -60,7 +60,7 @@ def create_workspace(
         "namespace"
     ]["uri"]
     # Create JNDI datastore
-    datastore = PostGisDataStore(
+    datastore = DataStore(
         workspace_name,
         datastore_name,
         connection_parameters={
@@ -73,7 +73,7 @@ def create_workspace(
         type="PostGIS (JNDI)",
         description=description,
     )
-    geoserver.rest_service.create_jndi_datastore(workspace_name=workspace_name, datastore=datastore)
+    geoserver.rest_service.create_datastore(workspace_name=workspace_name, datastore=datastore)
 
     return WorkspaceCreationResult(
         workspace=workspace_name,
