@@ -13,7 +13,10 @@ import {
 import { MatDialog } from '@angular/material/dialog'
 import { finalize, firstValueFrom, switchMap, take, withLatestFrom } from 'rxjs'
 import { Api } from '../core/api/api'
-import { getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet } from '../core/api/functions'
+import {
+  deleteScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete,
+  getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet
+} from '../core/api/functions'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
 import { ErrorToastStore } from '../core/stores/error-toast.store'
 import { UiAlertBoxComponent } from '../shared/components/ui-alert-box/ui-alert-box.component'
@@ -88,6 +91,11 @@ export class IntlinkLayoutComponent {
       })
       const confirmed = await firstValueFrom(dialogRef.afterClosed())
       if (!confirmed) return
+
+      await this.api.invoke(
+        deleteScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete,
+        { integrity_link_id: intlinkId }
+      )
     }
 
     this.router.navigate(['/import', intlinkId])
