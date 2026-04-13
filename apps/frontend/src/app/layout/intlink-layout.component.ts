@@ -1,5 +1,10 @@
 import { Component, inject, signal } from '@angular/core'
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router'
+import {
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet
+} from '@angular/router'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import { iconoirFloppyDisk, iconoirRefreshCircle } from '@ng-icons/iconoir'
@@ -14,7 +19,7 @@ import { MatDialog } from '@angular/material/dialog'
 import { finalize, firstValueFrom, switchMap, take, withLatestFrom } from 'rxjs'
 import { Api } from '../core/api/api'
 import {
-  deleteScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete,
+  deleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete,
   getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet
 } from '../core/api/functions'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
@@ -82,18 +87,20 @@ export class IntlinkLayoutComponent {
 
       const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
         data: {
-          title: this.translate.instant('sidebar.reconfigureDataset.warningTitle'),
+          title: this.translate.instant(
+            'sidebar.reconfigureDataset.warningTitle'
+          ),
           message: this.translate.instant(messageKey),
           confirmText: this.translate.instant('common.continue'),
           cancelText: this.translate.instant('common.cancel'),
-          focusCancel: 'cancel',
-        },
+          focusCancel: 'cancel'
+        }
       })
       const confirmed = await firstValueFrom(dialogRef.afterClosed())
       if (!confirmed) return
 
       await this.api.invoke(
-        deleteScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete,
+        deleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete,
         { integrity_link_id: intlinkId }
       )
     }

@@ -9,6 +9,7 @@ import { IntlinkLayoutComponent } from './intlink-layout.component'
 import { IntegrityLinkResponse } from '../core/api/models'
 import { of, throwError } from 'rxjs'
 import { EditorFacade, RecordsRepositoryInterface } from 'geonetwork-ui'
+import { Api } from '../core/api/api'
 
 /**
  * Creates a lightweight store mock using Angular signals/computed.
@@ -89,7 +90,8 @@ describe('IntlinkLayoutComponent', () => {
         provideRouter([]),
         { provide: IntegrityLinkStore, useValue: store },
         { provide: EditorFacade, useValue: mockEditor },
-        { provide: RecordsRepositoryInterface, useValue: mockRepo }
+        { provide: RecordsRepositoryInterface, useValue: mockRepo },
+        { provide: Api, useValue: { invoke: vi.fn() } }
       ]
     })
       .overrideComponent(IntlinkLayoutComponent, {

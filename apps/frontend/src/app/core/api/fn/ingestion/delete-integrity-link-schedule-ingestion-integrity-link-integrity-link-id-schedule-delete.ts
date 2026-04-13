@@ -7,19 +7,19 @@ import { filter, map } from 'rxjs/operators'
 import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
-export interface DeleteScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete$Params {
+export interface DeleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete$Params {
   integrity_link_id: string
 }
 
-export function deleteScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete(
+export function deleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete(
   http: HttpClient,
   rootUrl: string,
-  params: DeleteScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete$Params,
+  params: DeleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete$Params,
   context?: HttpContext
 ): Observable<StrictHttpResponse<void>> {
   const rb = new requestBuilders(
     rootUrl,
-    deleteScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete.PATH,
+    deleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete.PATH,
     'delete'
   )
   if (params) {
@@ -38,5 +38,5 @@ export function deleteScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelet
     )
 }
 
-deleteScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete.PATH =
+deleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete.PATH =
   '/ingestion/integrity-link/{integrity_link_id}/schedule'
