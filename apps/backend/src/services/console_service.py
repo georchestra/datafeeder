@@ -7,6 +7,10 @@ from src.core.logging import get_logger
 logger = get_logger()
 
 
+class ConsoleServiceError(Exception):
+    """Raised when the geOrchestra Console API is unreachable or returns an error."""
+
+
 class ConsoleService:
     """Service to interact with GeOrchestra Console API."""
 
@@ -76,17 +80,19 @@ class ConsoleService:
             List of role dicts with at minimum 'id' and 'name' keys.
 
         Raises:
-            httpx.HTTPError: On network or HTTP errors.
-            ValueError: If the response body is not valid JSON.
+            ConsoleServiceError: On network errors, HTTP errors, or invalid JSON.
         """
-        url = f"{self.console_url}/internal/roles"
-        response = httpx.get(url, timeout=5.0)
-        response.raise_for_status()
         try:
-            return response.json()  # type: ignore[no-any-return]
-        except ValueError as exc:
-            logger.error("Console returned invalid JSON from %s", url)
-            raise ValueError(f"Console returned invalid JSON from {url}") from exc
+            url = f"{self.console_url}/internal/roles"
+            response = httpx.get(url, timeout=5.0)
+            response.raise_for_status()
+            try:
+                return response.json()  # type: ignore[no-any-return]
+            except ValueError as exc:
+                logger.error("Console returned invalid JSON from %s", url)
+                raise ValueError(f"Console returned invalid JSON from {url}") from exc
+        except Exception as exc:
+            raise ConsoleServiceError(f"Failed to fetch roles from console API: {exc}") from exc
 
     def get_all_organizations(self) -> list[dict[str, Any]]:
         """Fetch all organizations from geOrchestra console API.

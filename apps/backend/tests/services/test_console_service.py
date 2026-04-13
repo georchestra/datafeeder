@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from src.services.console_service import ConsoleService
+from src.services.console_service import ConsoleService, ConsoleServiceError
 
 
 class TestConsoleService:
@@ -148,7 +148,7 @@ class TestConsoleService:
 
     @patch("src.services.console_service.httpx.get")
     def test_get_all_roles_http_error_raises(self, mock_get: MagicMock) -> None:
-        """Test that HTTP errors are propagated."""
+        """HTTP errors are wrapped in ConsoleServiceError."""
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "Internal Server Error", request=MagicMock(), response=MagicMock(status_code=500)
@@ -157,17 +157,27 @@ class TestConsoleService:
 
         service = ConsoleService("http://console.example.com")
 
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(ConsoleServiceError):
             service.get_all_roles()
 
     @patch("src.services.console_service.httpx.get")
     def test_get_all_roles_invalid_json_raises(self, mock_get: MagicMock) -> None:
-        """Test that malformed JSON response raises ValueError with a clear message."""
+        """Malformed JSON response is wrapped in ConsoleServiceError."""
         mock_response = MagicMock()
         mock_response.json.side_effect = ValueError("No JSON object could be decoded")
         mock_get.return_value = mock_response
 
         service = ConsoleService("http://console.example.com")
 
-        with pytest.raises(ValueError, match="Console returned invalid JSON from"):
+        with pytest.raises(ConsoleServiceError):
+            service.get_all_roles()
+
+    @patch("src.services.console_service.httpx.get")
+    def test_get_all_roles_network_error_raises(self, mock_get: MagicMock) -> None:
+        """Network errors are wrapped in ConsoleServiceError."""
+        mock_get.side_effect = httpx.ConnectError("Connection refused")
+
+        service = ConsoleService("http://console.example.com")
+
+        with pytest.raises(ConsoleServiceError, match="Failed to fetch roles from console API"):
             service.get_all_roles()
