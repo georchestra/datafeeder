@@ -266,12 +266,10 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         NoopAnimationsModule,
         TranslateTestingModule.withTranslations({
           en: {
-            'i18nerror.import.dataSource.failedError': 'An error occured',
-            'import.dataSource.missingUrl': 'Missing URL',
+            'import.dataSource.genericError':
+              'The data upload or analysis failed. Please try again.',
             'import.dataSource.processing': 'Processing...',
-            'import.dataSource.sending': 'Sending...',
-            'i18nerror.import.dataSource.timeoutError':
-              'Processing timeout expired'
+            'import.dataSource.sending': 'Sending...'
           }
         })
           .withDefaultLanguage('en')
@@ -573,7 +571,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       // Expected to throw
     }
 
-    expect(component.importError()).toBe('An error occured')
+    expect(component.importError()).toBe(
+      'The data upload or analysis failed. Please try again.'
+    )
     expect(component.selectedTabIndex()).toBe(0)
   })
 
@@ -602,73 +602,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       // Expected to throw
     }
 
-    expect(component.importError()).toBe('Invalid URL format provided')
-    expect(component.selectedTabIndex()).toBe(0)
-  })
-
-  it('should display unknown error on other errors', async () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges()
-
-    component.importData.set({
-      source: {
-        type: 'url',
-        url: 'https://test.com/data.csv',
-        authEnabled: false
-      }
-    })
-
-    try {
-      const promise = component.onConfigureDataset()
-      const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
-      req.error(new ProgressEvent('Network error'))
-      await promise
-    } catch (error) {
-      // Expected to throw
-    }
-
-    expect(component.importError()).toBeTruthy()
-    expect(component.selectedTabIndex()).toBe(0)
-  })
-
-  // Skip this test as it requires waiting 30+ seconds for RxJS timeout to trigger
-  // The timeout functionality is covered by the RxJS timeout operator
-  it.skip('should display error on polling timeout', async () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges()
-
-    component.importData.set({
-      source: {
-        type: 'url',
-        url: 'https://test.com/data.csv',
-        authEnabled: false
-      }
-    })
-
-    try {
-      const promise = component.onConfigureDataset()
-      httpMock
-        .expectOne('http://localhost:8000/ingestion/staging/')
-        .flush(mockImportResponse)
-
-      // Keep polling with 'running' status until timeout (30000ms)
-      // At 500ms intervals, we need 60 iterations to reach 30000ms
-      for (let i = 0; i < 61; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 550))
-        const req = httpMock.match((r) => r.url.includes('/airflow/dags'))
-        if (req.length > 0) {
-          req[0].flush(mockStatusRunning)
-        }
-      }
-
-      await promise
-    } catch (error) {
-      // Expected to timeout
-    }
-
-    expect(component.importError()).toContain("Délai d'attente dépassé")
+    expect(component.importError()).toBe(
+      'The data upload or analysis failed. Please try again.'
+    )
     expect(component.selectedTabIndex()).toBe(0)
   })
 
@@ -683,7 +619,9 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     // The button should be disabled, but we call the method directly to test error handling
     await component.onConfigureDataset()
 
-    expect(component.importError()).toContain('Missing URL')
+    expect(component.importError()).toBe(
+      'The data upload or analysis failed. Please try again.'
+    )
   })
 
   it('should clear previous error on new source change', () => {
@@ -917,17 +855,11 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
         NoopAnimationsModule,
         TranslateTestingModule.withTranslations({
           en: {
-            'i18nerror.import.dataSource.failedError': 'An error occurred',
-            'import.dataSource.missingUrl': 'Missing URL',
+            'import.dataSource.genericError':
+              'The data upload or analysis failed. Please try again.',
             'import.dataSource.processing': 'Processing...',
             'import.dataSource.sending': 'Sending...',
             'import.dataSource.validation': 'Validating...',
-            'i18nerror.import.dataSource.timeoutError': 'Timeout error',
-            'import.dataSource.unknownError': 'Unknown error',
-            'import.dataSource.fileImportNotImplemented':
-              'File import not implemented',
-            'import.dataSource.unsupportedSourceType':
-              'Unsupported source type',
             'import.dataSource.next': 'Configure the dataset',
             'import.dataSource.validate': 'Validate the dataset',
             'import.datasetConfiguration.title': 'Configure the dataset'
@@ -2007,11 +1939,11 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
   })
 
   describe('handleIntegrityLinkLoadError', () => {
-    it('should set importError from translated loadError key on init', () => {
+    it('should set generic importError for any loadError on init', () => {
       mockIntegrityLinkStore.loadError.set('not_found')
       const fixture = TestBed.createComponent(DataImportWizardComponent)
       const component = fixture.componentInstance
-      expect(component.importError()).toBe('import.datasetLoadError.not_found')
+      expect(component.importError()).toBe('import.dataSource.genericError')
     })
 
     it('should clear store loadError after reading it', () => {
@@ -2025,22 +1957,6 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
       const fixture = TestBed.createComponent(DataImportWizardComponent)
       const component = fixture.componentInstance
       expect(component.importError()).toBeNull()
-    })
-
-    it('should set importError for forbidden error', () => {
-      mockIntegrityLinkStore.loadError.set('forbidden')
-      const fixture = TestBed.createComponent(DataImportWizardComponent)
-      const component = fixture.componentInstance
-      expect(component.importError()).toBe('import.datasetLoadError.forbidden')
-    })
-
-    it('should set importError for server_error', () => {
-      mockIntegrityLinkStore.loadError.set('server_error')
-      const fixture = TestBed.createComponent(DataImportWizardComponent)
-      const component = fixture.componentInstance
-      expect(component.importError()).toBe(
-        'import.datasetLoadError.server_error'
-      )
     })
   })
 })

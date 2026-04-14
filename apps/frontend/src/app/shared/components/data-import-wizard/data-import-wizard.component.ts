@@ -69,15 +69,11 @@ import type { RecurrencePresetItem } from '../../../core/api/models/recurrence-p
 
 marker('import.dataSource.error')
 marker('import.dataSource.error.extent')
-marker('i18nerror.import.dataSource.timeoutError')
-marker('i18nerror.import.dataSource.failedError')
+marker('import.dataSource.genericError')
 marker('i18nerror.transformation.geometry_creation_failed')
 marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
 marker('import.metadataPublication.error')
-marker('import.datasetLoadError.not_found')
-marker('import.datasetLoadError.forbidden')
-marker('import.datasetLoadError.server_error')
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 120000
@@ -266,8 +262,9 @@ export class DataImportWizardComponent {
   private handleIntegrityLinkLoadError(): void {
     const loadError = this.integrityLinkStore.loadError()
     if (loadError) {
+      console.log(`Dataset load error: ${loadError}`)
       this.importError.set(
-        this.translate.instant(`import.datasetLoadError.${loadError}`)
+        this.translate.instant('import.dataSource.genericError')
       )
       this.integrityLinkStore.loadError.set(null)
     }
@@ -416,15 +413,10 @@ export class DataImportWizardComponent {
       this.selectedTabIndex.set(1)
       this.previewTabIndex.set(0)
     } catch (error) {
-      if (error instanceof Error && error.message) {
-        this.importError.set(error.message)
-      } else if (error instanceof HttpErrorResponse && error.error?.detail) {
-        this.importError.set(this.translate.instant(error.error.detail))
-      } else {
-        this.importError.set(
-          this.translate.instant('import.dataSource.unknownError')
-        )
-      }
+      console.log(error)
+      this.importError.set(
+        this.translate.instant('import.dataSource.genericError')
+      )
 
       if (!this.integrityLinkStore.integrityLink()?.last_retrieval_timestamp) {
         this.integrityLinkStore.clearIntegrityLink()
@@ -442,7 +434,7 @@ export class DataImportWizardComponent {
     let body: any
     if (source.type === 'file') {
       if (!source.file) {
-        throw new Error(this.translate.instant('import.dataSource.missingFile'))
+        throw new Error('Missing file')
       }
 
       body = {
@@ -451,7 +443,7 @@ export class DataImportWizardComponent {
       }
     } else if (source.type === 'url') {
       if (!source.url) {
-        throw new Error(this.translate.instant('import.dataSource.missingUrl'))
+        throw new Error('Missing URL')
       }
 
       body = {
@@ -463,7 +455,7 @@ export class DataImportWizardComponent {
       }
     } else if (source.type === 'ftp') {
       if (!this.validFtp(source)) {
-        throw new Error(this.translate.instant('import.dataSource.missingUrl'))
+        throw new Error('Missing FTP fields')
       }
 
       body = {
@@ -481,9 +473,7 @@ export class DataImportWizardComponent {
         db_table: source.dbTable?.trim() || ''
       }
     } else {
-      throw new Error(
-        this.translate.instant('import.dataSource.unsupportedSourceType')
-      )
+      throw new Error('Unsupported source type')
     }
 
     if (integrityLinkId) {
@@ -525,14 +515,7 @@ export class DataImportWizardComponent {
         timeout(MAX_POLL_TIME_MS),
         catchError((error) => {
           if (error.name === 'TimeoutError') {
-            return throwError(
-              () =>
-                new Error(
-                  this.translate.instant(
-                    'i18nerror.import.dataSource.timeoutError'
-                  )
-                )
-            )
+            return throwError(() => new Error('Import polling timed out'))
           }
           return throwError(() => error)
         }),
@@ -545,13 +528,9 @@ export class DataImportWizardComponent {
               )
             ).pipe(
               catchError(() => of(null)),
-              switchMap((note) => {
-                const messageKey =
-                  note ?? 'i18nerror.import.dataSource.failedError'
-                return throwError(
-                  () => new Error(this.translate.instant(messageKey))
-                )
-              })
+              switchMap((note) =>
+                throwError(() => new Error(note ?? 'DAG run failed'))
+              )
             )
           }
           return of(response)
