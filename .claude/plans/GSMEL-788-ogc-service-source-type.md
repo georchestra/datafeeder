@@ -20,16 +20,17 @@ Users need to ingest data from WFS or OGC API Features services. Unlike a static
 
 ## Protocol Strategy: WFS vs OGC API Features
 
-GDAL distinguishes the two drivers via a prefix in the source URL:
+GDAL distinguishes the two drivers via a prefix when calling `gpd.read_file`:
 - WFS: `WFS:{service_url}` → GDAL WFS driver (WFS 1.0/1.1/2.0)
 - OGC API Features: `OAPIF:{service_url}` → GDAL OAPIF driver
 
-**Approach**: encode the GDAL prefix into `source_url` on the backend when `import_type == "api"`. This lets `source` travel through the DAG already prefixed — no new column needed for protocol storage, and `gpd.read_file(source, layer=layer_name)` works for both.
+**Approach**: store the protocol separately in a new `source_protocol` column (`'wfs'` or `'ogcFeatures'`). `source_url` stays a clean URL. The GDAL prefix is built at ingestion time from the stored protocol value.
 
 - Frontend sends `service_protocol: 'wfs' | 'ogcFeatures'` in the form body
-- Backend maps: `wfs` → `WFS`, `ogcFeatures` → `OAPIF`
-- Stored `source_url` in IntegrityLink = `WFS:https://...` or `OAPIF:https://...`
-- `initialApiSource` strips the prefix when pre-populating the form on edit
+- Backend stores it in `IntegrityLink.source_protocol`; `source_url` stores the clean URL
+- DAG conf carries `source_protocol` alongside `source`
+- Ingestion function builds `f"{GDAL_PREFIX[protocol]}:{source_url}"` internally
+- `initialApiSource` reads `link.source_url` + `link.source_protocol` directly — no parsing needed
 
 ---
 
@@ -37,9 +38,9 @@ GDAL distinguishes the two drivers via a prefix in the source URL:
 
 | File | Role |
 |------|------|
-| `docker/datadir/database/130-datafeeder.sql` | Add `source_layer` column to DDL |
-| `apps/backend/src/models/integrity_link.py` | Add `source_layer` field |
-| `apps/backend/src/models/data_import.py` | Add `source_layer` to response models; add `layer_name` to `StagingMetadataResponse` |
+| `docker/datadir/database/130-datafeeder.sql` | Add `source_layer` and `source_protocol` columns to DDL |
+| `apps/backend/src/models/integrity_link.py` | Add `source_layer` and `source_protocol` fields |
+| `apps/backend/src/models/data_import.py` | Add `source_layer`, `source_protocol` to response models; add `layer_name` to `StagingMetadataResponse` |
 | `apps/backend/src/api/routes/ingestion/staging.py` | Implement `ImportType.API` case; add form params; set `source_layer` on IntegrityLink |
 | `apps/backend/src/core/task_executor.py` | Add `source_layer` to abstract `trigger_staging_task` |
 | `apps/backend/src/services/executors/airflow_executor.py` | Pass `source_layer` to DAG conf |
@@ -62,21 +63,27 @@ GDAL distinguishes the two drivers via a prefix in the source URL:
 **`docker/datadir/database/130-datafeeder.sql`** — add after `source_file_type`:
 ```sql
 source_layer varchar(256) NULL,
+source_protocol varchar(32) NULL,
 ```
 
 **`apps/backend/src/models/integrity_link.py`** — add after `source_file_type`:
 ```python
 source_layer: Optional[str] = Field(default=None, max_length=256)
+source_protocol: Optional[str] = Field(default=None, max_length=32)
 ```
 
-> For existing dev DBs, run: `ALTER TABLE datafeeder.integrity_link ADD COLUMN source_layer VARCHAR(256);`
+> For existing dev DBs, run:
+> ```sql
+> ALTER TABLE datafeeder.integrity_link ADD COLUMN source_layer VARCHAR(256);
+> ALTER TABLE datafeeder.integrity_link ADD COLUMN source_protocol VARCHAR(32);
+> ```
 
 ### 2. Response models
 
 **`apps/backend/src/models/data_import.py`**:
 
-- Add `source_layer: str | None = None` to `IntegrityLinkListItem` (after `source_url`)
-- Add `source_layer: str | None = None` to `IntegrityLinkResponse` (after `source_url`)
+- Add `source_layer: str | None = None` and `source_protocol: str | None = None` to `IntegrityLinkListItem` (after `source_url`)
+- Add `source_layer: str | None = None` and `source_protocol: str | None = None` to `IntegrityLinkResponse` (after `source_url`)
 - Add `layer_name: str | None = None` to `StagingMetadataResponse` (the frontend reads this to pre-populate the title)
 
 ### 3. Staging endpoint — implement API case
@@ -86,7 +93,9 @@ source_layer: Optional[str] = Field(default=None, max_length=256)
 **Add to `_ImportSourceResult.__init__`**:
 ```python
 source_layer: str | None = None
+source_protocol: str | None = None
 self.source_layer = source_layer
+self.source_protocol = source_protocol
 ```
 
 **Add to `_process_import_source` signature**:
@@ -94,11 +103,6 @@ self.source_layer = source_layer
 service_url: Optional[str] = None,
 layer_name: Optional[str] = None,
 service_protocol: Optional[str] = None,  # 'wfs' | 'ogcFeatures'
-```
-
-**Add a protocol-to-GDAL-prefix map** (module level or inside the function):
-```python
-_GDAL_PREFIX = {"wfs": "WFS", "ogcFeatures": "OAPIF"}
 ```
 
 **Replace the `ImportType.API` stub**:
@@ -109,9 +113,7 @@ case ImportType.API:
             status_code=400,
             detail="Service URL and layer name are required for API import type",
         )
-    gdal_prefix = _GDAL_PREFIX.get(service_protocol or "wfs", "WFS")
-    raw_url = service_url.strip()
-    source = f"{gdal_prefix}:{raw_url}"  # e.g. "WFS:https://..." or "OAPIF:https://..."
+    source = service_url.strip()
     url = source
     source_file_name = layer_name.strip()
     auth_enabled = False
@@ -121,6 +123,7 @@ case ImportType.API:
         source_file_type=None,
         auth_enabled=auth_enabled,
         source_layer=layer_name.strip(),
+        source_protocol=(service_protocol or "wfs").strip(),
     )
 ```
 
@@ -141,11 +144,13 @@ service_protocol=service_protocol,
 **In `submit_staging`**, when creating `IntegrityLink`, add:
 ```python
 source_layer=import_source.source_layer,
+source_protocol=import_source.source_protocol,
 ```
 
 **In `edit_staging`**, after calling `_process_import_source`, update the integrity link:
 ```python
 integrity_link.source_layer = import_source.source_layer
+integrity_link.source_protocol = import_source.source_protocol
 ```
 
 **In `get_staging_metadata`** (line ~758), update the title logic to include API type:
@@ -164,24 +169,31 @@ layer_name=integrity_link.source_layer if integrity_link.source_import_type == I
 **`apps/backend/src/core/task_executor.py`** — add to `trigger_staging_task` abstract signature:
 ```python
 source_layer: str | None = None,
+source_protocol: str | None = None,
 ```
 
 **`apps/backend/src/services/executors/airflow_executor.py`** — add to `conf` dict:
 ```python
 "source_layer": source_layer,
+"source_protocol": source_protocol,
 ```
-And add `source_layer: str | None = None` to the method signature.
+And add `source_layer: str | None = None, source_protocol: str | None = None` to the method signature.
 
 **`apps/backend/src/api/routes/ingestion/staging.py`** — in `_trigger_staging_task`, add `source_layer` param and thread it through to `executor.trigger_staging_task(source_layer=...)`.
 
 ### 5. ELT: staging_dag.py
 
-**`apps/elt/dags/staging_dag.py`** — add `source_layer` Param alongside the existing params:
+**`apps/elt/dags/staging_dag.py`** — add two Params alongside the existing ones:
 ```python
 "source_layer": Param(
     default=None,
     type=["null", "string"],
     description="Layer/feature name for API/WFS import",
+),
+"source_protocol": Param(
+    default=None,
+    type=["null", "string"],
+    description="Service protocol for API import: 'wfs' or 'ogcFeatures'",
 ),
 ```
 
@@ -208,11 +220,14 @@ def api_ingest_step(**context: dict[str, Any]) -> None:
 
     source = params.get("source", "")
     source_layer = params.get("source_layer", "")
+    source_protocol = params.get("source_protocol", "wfs")
     if not source_layer:
         raise AirflowException("source_layer is required for API import")
 
     engine = get_data_sql_engine()
-    ingest_data_from_ogc_service_into_postgis(source, source_layer, target_table_name, engine, schema=get_staging_schema())
+    ingest_data_from_ogc_service_into_postgis(
+        source, source_layer, source_protocol or "wfs", target_table_name, engine, schema=get_staging_schema()
+    )
 ```
 
 Add `ingest_data_from_ogc_service_into_postgis` to the import from `data_manipulation`.
@@ -222,22 +237,28 @@ Add `ingest_data_from_ogc_service_into_postgis` to the import from `data_manipul
 ### 7. ELT: process_dag.py
 
 - Replace `"OGC_WFS"` with `"API"` in the `source_type` enum (line ~61)
-- Add `source_layer` Param:
+- Add two Params:
 ```python
 "source_layer": Param(
     default=None,
     type=["null", "string"],
     description="Layer/feature name for API/WFS import",
 ),
+"source_protocol": Param(
+    default=None,
+    type=["null", "string"],
+    description="Service protocol for API import: 'wfs' or 'ogcFeatures'",
+),
 ```
 
 ### 8. ELT: process-dag-generator.py
 
-**Update SQL** to select `source_layer`:
+**Update SQL** to select both new columns:
 ```sql
 SELECT 
     ...,
     source_layer,
+    source_protocol,
     ...
 FROM datafeeder.integrity_link
 WHERE schedule NOTNULL AND schedule NOT LIKE ''
@@ -246,32 +267,36 @@ WHERE schedule NOTNULL AND schedule NOT LIKE ''
 **Update `conf`** in `TriggerDagRunOperator`:
 ```python
 "source_layer": config.get("source_layer"),
+"source_protocol": config.get("source_protocol"),
 ```
 
 ### 9. data_manipulation: OGC service ingestion
 
 **`libs/data_manipulation/src/data_manipulation/ingestion.py`** — add:
 ```python
+_GDAL_PROTOCOL_PREFIX = {"wfs": "WFS", "ogcFeatures": "OAPIF"}
+
 def ingest_data_from_ogc_service_into_postgis(
-    source: str,
+    service_url: str,
     layer_name: str,
+    protocol: str,
     table_name: str,
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
 ) -> None:
     """Ingest a WFS or OGC API Features layer into PostGIS using GeoPandas/GDAL.
 
-    `source` must already carry the GDAL driver prefix:
-    - WFS 1.x/2.x: "WFS:https://..."
-    - OGC API Features: "OAPIF:https://..."
-    Both are handled transparently by gpd.read_file via GDAL.
+    `protocol` is the service protocol as stored: 'wfs' or 'ogcFeatures'.
+    The GDAL driver prefix (WFS: / OAPIF:) is built internally.
     """
-    logger.info(f"Ingesting OGC layer '{layer_name}' from {source} into {table_name}")
+    gdal_prefix = _GDAL_PROTOCOL_PREFIX.get(protocol, "WFS")
+    gdal_source = f"{gdal_prefix}:{service_url}"
+    logger.info(f"Ingesting OGC layer '{layer_name}' from {gdal_source} into {table_name}")
     try:
-        gdf = gpd.read_file(source, layer=layer_name)
+        gdf = gpd.read_file(gdal_source, layer=layer_name)
         write_data_to_postgis(gdf, table_name, engine, schema)
     except Exception as e:
-        logger.error(f"Error ingesting OGC layer {layer_name} from {source}: {e}")
+        logger.error(f"Error ingesting OGC layer {layer_name} from {gdal_source}: {e}")
         raise
 ```
 
@@ -325,16 +350,10 @@ Also export it in `libs/data_manipulation/src/data_manipulation/__init__.py`.
   ```
 - Add `initialApiSource = computed(...)`:
   ```ts
-  // source_url is stored as "WFS:https://..." or "OAPIF:https://..."
-  const GDAL_TO_PROTOCOL: Record<string, string> = { WFS: 'wfs', OAPIF: 'ogcFeatures' }
-
   initialApiSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
     if (link?.source_import_type === 'api' && link.source_url && link.source_layer) {
-      const colonIdx = link.source_url.indexOf(':')
-      const prefix = colonIdx > 0 ? link.source_url.substring(0, colonIdx) : 'WFS'
-      const url = colonIdx > 0 ? link.source_url.substring(colonIdx + 1) : link.source_url
-      return { url, layerName: link.source_layer, protocol: GDAL_TO_PROTOCOL[prefix] ?? 'wfs' }
+      return { url: link.source_url, layerName: link.source_layer, protocol: link.source_protocol ?? 'wfs' }
     }
     return null
   })
@@ -361,9 +380,9 @@ cd apps/frontend && npm run generate-api
 
 ## API contract changes (summary)
 
-**Staging POST/PUT** — two new optional form fields: `service_url`, `layer_name`.
+**Staging POST/PUT** — three new optional form fields: `service_url`, `layer_name`, `service_protocol`.
 
-**`IntegrityLinkResponse` / `IntegrityLinkListItem`** — new field `source_layer: string | null`.
+**`IntegrityLinkResponse` / `IntegrityLinkListItem`** — new fields `source_layer: string | null`, `source_protocol: string | null`.
 
 **`StagingMetadataResponse`** — new field `layer_name: string | null`.
 
