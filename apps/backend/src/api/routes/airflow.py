@@ -30,7 +30,9 @@ def get_dag_run_by_intlink(
     load_authorized_integrity_link(intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, org_id)
 
     try:
-        dag_runs = get_dag_run_api().get_dag_runs(dag_id, run_id_pattern=f"{intlink_id}_%")
+        dag_runs = get_dag_run_api().get_dag_runs(
+            dag_id, run_id_pattern=f"{intlink_id}_%", order_by=["-start_date"]
+        )
         return dag_runs
     except NotFoundException:
         raise HTTPException(status_code=404, detail=f"DAG not found: {dag_id}")
