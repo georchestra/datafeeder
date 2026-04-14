@@ -58,7 +58,7 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             default=None,
             type=["null", "string"],
             description="Type of source (FILE, URL, etc.) for re-ingestion (optional, if staging_table_name provided)",
-            enum=[None, "DATABASE", "FILE", "FTP", "OGC_WFS", "URL"],
+            enum=[None, "API", "DATABASE", "FILE", "FTP", "URL"],
         ),
         "final_table_name": Param(
             default="",
@@ -92,6 +92,16 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             default=None,
             type=["null", "string"],
             description="Timestamp of last retrieval (ISO format), indicates if this is a re-run (optional)",
+        ),
+        "source_layer": Param(
+            default=None,
+            type=["null", "string"],
+            description="Layer/feature name for API/WFS import",
+        ),
+        "source_protocol": Param(
+            default=None,
+            type=["null", "string"],
+            description="Service protocol for API import: 'wfs' or 'ogcFeatures'",
         ),
     },
     on_success_callback=_dag_success_callback,

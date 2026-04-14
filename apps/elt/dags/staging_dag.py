@@ -73,6 +73,16 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             type=["null", "string"],
             description="Encrypted credentials (base64-encoded pgp_sym_encrypt result)",
         ),
+        "source_layer": Param(
+            default=None,
+            type=["null", "string"],
+            description="Layer/feature name for API/WFS import",
+        ),
+        "source_protocol": Param(
+            default=None,
+            type=["null", "string"],
+            description="Service protocol for API import: 'wfs' or 'ogcFeatures'",
+        ),
     },
     dagrun_timeout=get_staging_timeout(),
     on_success_callback=_dag_success_callback,
