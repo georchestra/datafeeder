@@ -164,6 +164,22 @@ export class DataImportWizardComponent {
     return null
   })
 
+  initialApiSource = computed(() => {
+    const link = this.integrityLinkStore.integrityLink()
+    if (
+      link?.source_import_type === 'api' &&
+      link?.source_url &&
+      link?.source_layer
+    ) {
+      return {
+        url: link.source_url,
+        layerName: link.source_layer,
+        protocol: link.source_protocol ?? 'wfs'
+      }
+    }
+    return null
+  })
+
   selectedTabIndex = signal(0)
   importData = signal<ImportWizardData>(null)
 
@@ -291,7 +307,10 @@ export class DataImportWizardComponent {
       (source.type === 'ftp' && this.validFtp(source)) ||
       (source.type === 'database' &&
         !!source.dbSchema?.trim() &&
-        !!source.dbTable?.trim())
+        !!source.dbTable?.trim()) ||
+      (source.type === 'api' &&
+        !!source.serviceUrl?.trim() &&
+        !!source.layerName?.trim())
     )
   })
 
@@ -472,6 +491,13 @@ export class DataImportWizardComponent {
         type: 'database',
         db_schema: source.dbSchema?.trim() || '',
         db_table: source.dbTable?.trim() || ''
+      }
+    } else if (source.type === 'api') {
+      body = {
+        type: 'api',
+        service_url: source.serviceUrl?.trim() || '',
+        layer_name: source.layerName?.trim() || '',
+        service_protocol: source.serviceProtocol?.trim() || 'wfs'
       }
     } else {
       throw new Error('Unsupported source type')

@@ -19,6 +19,9 @@
         {{ 'import.dataSource.chooseType.database' | translate }}
       </mat-radio-button>
       }
+      <mat-radio-button value="api" class="ml-6">
+        {{ 'import.dataSource.chooseType.api' | translate }}
+      </mat-radio-button>
     </mat-radio-group>
   </form>
 </div>
@@ -94,6 +97,14 @@
       ></gn-ui-text-input>
     </div>
   </div>
+</div>
+} @if (form.controls.radio.value === 'api') {
+<div class="px-9 py-6">
+  <gn-ui-online-service-resource-input
+    [featuresOnly]="true"
+    [service]="currentService()"
+    (serviceChange)="handleServiceChange($event)"
+  />
 </div>
 } @if (form.controls.source.controls.file.value ||
 form.controls.source.controls.url.value) {

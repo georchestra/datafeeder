@@ -207,6 +207,7 @@
   "import.configuration.minLengthTitle": "3 characters minimum",
   "import.configuration.requiredTitle": "The title is required",
   "import.dataSource.chooseType": "Choose how you want to import your data",
+  "import.dataSource.chooseType.api": "Service & OGC API",
   "import.dataSource.chooseType.database": "From a database",
   "import.dataSource.chooseType.file": "From a local or remote file",
   "import.dataSource.chooseType.ftp": "From an FTP",
