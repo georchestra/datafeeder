@@ -18,10 +18,15 @@ import { Api } from '../../core/api/api'
 import {
   getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
   getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet,
+  listRecurrencePresetsIngestionRecurrencePresetsGet,
   updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch
 } from '../../core/api/functions'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
+import { DagRunResponse } from '../../core/api/models/dag-run-response'
+import { DagRunState } from '../../core/api/models/dag-run-state'
+import { DagRunType } from '../../core/api/models/dag-run-type'
 import type { IntegrityLinkResponse } from '../../core/api/models/integrity-link-response'
+import { ErrorToastStore } from '../../core/stores/error-toast.store'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import type { Event } from '../../shared/components/event/event.component'
 import { EventsListComponent } from '../../shared/components/events-list/events-list.component'
@@ -70,7 +75,7 @@ class MockEventsListComponent {
 
 // ─── Test helpers ────────────────────────────────────────────────────────────
 
-const makeDagRun = (id: string, state = 'success') => ({
+const makeDagRun = (id: string, state: DagRunState = 'success'): DagRunResponse => ({
   dag_run_id: id,
   dag_id: 'process_dag',
   dag_display_name: 'Process DAG',
@@ -79,9 +84,9 @@ const makeDagRun = (id: string, state = 'success') => ({
   end_date: '2024-01-01T00:01:00Z',
   duration: 60,
   state,
-  run_type: 'manual',
+  run_type: 'manual' as DagRunType,
   note: null,
-  triggered_by: 'manual',
+  triggered_by: null,
   bundle_version: null,
   conf: null,
   data_interval_start: null,
@@ -89,7 +94,7 @@ const makeDagRun = (id: string, state = 'success') => ({
   last_scheduling_decision: null,
   logical_date: null,
   queued_at: null,
-  run_after: null
+  run_after: '2024-01-01T00:00:00Z'
 })
 
 const makeIntegrityLink = (
@@ -126,11 +131,12 @@ describe('EventsComponent', () => {
 
   let apiInvokeSpy: ReturnType<typeof vi.fn>
   let store: IntegrityLinkStore
+  let toastStore: ErrorToastStore
 
   beforeEach(async () => {
     apiInvokeSpy = vi.fn().mockImplementation((fn: unknown) => {
       if (fn === getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet) {
-        return Promise.resolve<DagRunCollectionResponse>({
+        return Promise.resolve({
           dag_runs: [makeDagRun('run-1'), makeDagRun('run-2')]
         })
       }
@@ -171,6 +177,7 @@ describe('EventsComponent', () => {
       .compileComponents()
 
     store = TestBed.inject(IntegrityLinkStore)
+    toastStore = TestBed.inject(ErrorToastStore)
     store.intlinkId.set(intlinkId)
   })
 
@@ -401,9 +408,40 @@ describe('EventsComponent', () => {
     })
   })
 
+  // ─── Preset loading ──────────────────────────────────────────────────────
+
+  describe('Preset loading', () => {
+    it('should add a toast when preset fetch fails', async () => {
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (fn === getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet)
+          return Promise.resolve({ dag_runs: [] })
+        if (fn === listRecurrencePresetsIngestionRecurrencePresetsGet)
+          return Promise.reject(new Error('Fetch failed'))
+        return Promise.resolve(null)
+      })
+
+      createComponent()
+
+      await vi.waitFor(() => expect(toastStore.toasts().length).toBe(1))
+      expect(toastStore.toasts()[0].translationKey).toBe('errors.operation.loadPresets')
+    })
+  })
+
   // ─── Schedule update ─────────────────────────────────────────────────────
 
   describe('Schedule update', () => {
+    it('should NOT call PATCH /schedule on component init', async () => {
+      const { component } = createComponent()
+
+      // Wait for all async operations from ngOnInit to settle
+      await new Promise((r) => setTimeout(r, 20))
+
+      expect(apiInvokeSpy).not.toHaveBeenCalledWith(
+        updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
+        expect.anything()
+      )
+    })
+
     it('should call PATCH /schedule when selectedPresetId changes to a preset', async () => {
       const { fixture, component } = createComponent()
 

@@ -7,6 +7,7 @@ import {
   signal,
   untracked
 } from '@angular/core'
+import { RecurrencePreset } from '../../core/api/models/recurrence-preset'
 import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../../core/api/api'
 import { getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet } from '../../core/api/fn/airflow/get-dag-run-logs-airflow-dags-dag-id-runs-dag-run-id-logs-get'
@@ -14,6 +15,7 @@ import { DagRunState, RecurrencePresetItem } from '../../core/api/models'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
 import { DagRunResponse } from '../../core/api/models/dag-run-response'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
+import { ErrorToastStore } from '../../core/stores/error-toast.store'
 import { EventType } from '../../shared/components/event-type-badge/event-type-badge.component'
 import {
   Event,
@@ -45,18 +47,26 @@ const DAG_RUNGS_PAGE_SIZE = 20
 export class EventsComponent implements OnInit {
   private api = inject(Api)
   readonly store = inject(IntegrityLinkStore)
+  private errorToastStore = inject(ErrorToastStore)
 
   intlink_id = this.store.intlinkId()
   events = signal<Event[]>([])
   recurrencePresets = signal<RecurrencePresetItem[]>([])
-  selectedPresetId = signal<string | null>(null)
+  readonly selectedPresetId: ReturnType<typeof signal<RecurrencePreset | null>>
   downloadingEventId = signal<string | null>(null)
   loadError = signal<string | null>(null)
   downloadError = signal<string | null>(null)
 
   constructor() {
+    const link = this.store.integrityLink()
+    this.selectedPresetId = signal<RecurrencePreset | null>(
+      link?.schedule_enabled ? (link.preset_id ?? null) : null
+    )
+
+    let initialized = false
     effect(() => {
       const presetId = this.selectedPresetId()
+      if (!initialized) { initialized = true; return }
       const intlinkId = untracked(() => this.intlink_id)
       if (!intlinkId) return
       this.api
@@ -64,10 +74,13 @@ export class EventsComponent implements OnInit {
           updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
           {
             integrity_link_id: intlinkId,
-            body: { preset: (presetId as any) ?? null }
+            body: { preset: presetId }
           }
         )
-        .catch((err) => console.error('Failed to update schedule:', err))
+        .catch((err) => {
+          console.error('Failed to update schedule:', err)
+          this.errorToastStore.add('updateSchedule')
+        })
     })
   }
 
@@ -79,12 +92,10 @@ export class EventsComponent implements OnInit {
     this.api
       .invoke(listRecurrencePresetsIngestionRecurrencePresetsGet, {})
       .then((presets) => this.recurrencePresets.set(presets))
-      .catch(() => {})
-
-    const link = this.store.integrityLink()
-    this.selectedPresetId.set(
-      link?.schedule_enabled ? link.preset_id ?? null : null
-    )
+      .catch((err) => {
+        console.error('Failed to load recurrence presets:', err)
+        this.errorToastStore.add('loadPresets')
+      })
   }
 
   private async loadDagRuns(intlinkId: string): Promise<void> {
