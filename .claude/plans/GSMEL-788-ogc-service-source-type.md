@@ -18,6 +18,19 @@ Users need to ingest data from WFS or OGC API Features services. Unlike a static
 - Frontend `SourceType` does not include `'api'`
 - No SQL column for `source_layer` yet (schema is managed via `docker/datadir/database/130-datafeeder.sql`, no Alembic)
 
+## Protocol Strategy: WFS vs OGC API Features
+
+GDAL distinguishes the two drivers via a prefix in the source URL:
+- WFS: `WFS:{service_url}` → GDAL WFS driver (WFS 1.0/1.1/2.0)
+- OGC API Features: `OAPIF:{service_url}` → GDAL OAPIF driver
+
+**Approach**: encode the GDAL prefix into `source_url` on the backend when `import_type == "api"`. This lets `source` travel through the DAG already prefixed — no new column needed for protocol storage, and `gpd.read_file(source, layer=layer_name)` works for both.
+
+- Frontend sends `service_protocol: 'wfs' | 'ogcFeatures'` in the form body
+- Backend maps: `wfs` → `WFS`, `ogcFeatures` → `OAPIF`
+- Stored `source_url` in IntegrityLink = `WFS:https://...` or `OAPIF:https://...`
+- `initialApiSource` strips the prefix when pre-populating the form on edit
+
 ---
 
 ## Critical Files
@@ -80,6 +93,12 @@ self.source_layer = source_layer
 ```python
 service_url: Optional[str] = None,
 layer_name: Optional[str] = None,
+service_protocol: Optional[str] = None,  # 'wfs' | 'ogcFeatures'
+```
+
+**Add a protocol-to-GDAL-prefix map** (module level or inside the function):
+```python
+_GDAL_PREFIX = {"wfs": "WFS", "ogcFeatures": "OAPIF"}
 ```
 
 **Replace the `ImportType.API` stub**:
@@ -90,7 +109,9 @@ case ImportType.API:
             status_code=400,
             detail="Service URL and layer name are required for API import type",
         )
-    source = service_url.strip()
+    gdal_prefix = _GDAL_PREFIX.get(service_protocol or "wfs", "WFS")
+    raw_url = service_url.strip()
+    source = f"{gdal_prefix}:{raw_url}"  # e.g. "WFS:https://..." or "OAPIF:https://..."
     url = source
     source_file_name = layer_name.strip()
     auth_enabled = False
@@ -107,12 +128,14 @@ case ImportType.API:
 ```python
 service_url: Optional[str] = Form(None),
 layer_name: Optional[str] = Form(None),
+service_protocol: Optional[str] = Form(None),  # 'wfs' | 'ogcFeatures'
 ```
 
 **Thread through** in both calls to `_process_import_source`:
 ```python
 service_url=service_url,
 layer_name=layer_name,
+service_protocol=service_protocol,
 ```
 
 **In `submit_staging`**, when creating `IntegrityLink`, add:
@@ -189,10 +212,10 @@ def api_ingest_step(**context: dict[str, Any]) -> None:
         raise AirflowException("source_layer is required for API import")
 
     engine = get_data_sql_engine()
-    ingest_data_from_wfs_into_postgis(source, source_layer, target_table_name, engine, schema=get_staging_schema())
+    ingest_data_from_ogc_service_into_postgis(source, source_layer, target_table_name, engine, schema=get_staging_schema())
 ```
 
-Add `ingest_data_from_wfs_into_postgis` to the import from `data_manipulation`.
+Add `ingest_data_from_ogc_service_into_postgis` to the import from `data_manipulation`.
 
 **Wire into the task group** alongside the other step tasks.
 
@@ -225,24 +248,30 @@ WHERE schedule NOTNULL AND schedule NOT LIKE ''
 "source_layer": config.get("source_layer"),
 ```
 
-### 9. data_manipulation: WFS ingestion
+### 9. data_manipulation: OGC service ingestion
 
 **`libs/data_manipulation/src/data_manipulation/ingestion.py`** — add:
 ```python
-def ingest_data_from_wfs_into_postgis(
-    service_url: str,
+def ingest_data_from_ogc_service_into_postgis(
+    source: str,
     layer_name: str,
     table_name: str,
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
 ) -> None:
-    """Ingest a WFS or OGC API Features layer into PostGIS using GeoPandas/GDAL."""
-    logger.info(f"Ingesting WFS layer '{layer_name}' from {service_url} into {table_name}")
+    """Ingest a WFS or OGC API Features layer into PostGIS using GeoPandas/GDAL.
+
+    `source` must already carry the GDAL driver prefix:
+    - WFS 1.x/2.x: "WFS:https://..."
+    - OGC API Features: "OAPIF:https://..."
+    Both are handled transparently by gpd.read_file via GDAL.
+    """
+    logger.info(f"Ingesting OGC layer '{layer_name}' from {source} into {table_name}")
     try:
-        gdf = gpd.read_file(f"WFS:{service_url}", layer=layer_name)
+        gdf = gpd.read_file(source, layer=layer_name)
         write_data_to_postgis(gdf, table_name, engine, schema)
     except Exception as e:
-        logger.error(f"Error ingesting WFS layer {layer_name} from {service_url}: {e}")
+        logger.error(f"Error ingesting OGC layer {layer_name} from {source}: {e}")
         raise
 ```
 
@@ -258,8 +287,8 @@ Also export it in `libs/data_manipulation/src/data_manipulation/__init__.py`.
 - Add form controls: `serviceUrl: fb.control<string | null>(null)`, `layerName: fb.control<string | null>(null)`, `serviceProtocol: fb.control<string | null>(null)`
 - Import `OnlineServiceResourceInputComponent, DatasetServiceDistribution` from `'geonetwork-ui'` and add to component `imports`
 - Add `initialApiSource = input<{ url: string; layerName: string; protocol: string } | null>(null)` and an `effect` to pre-populate the form (similar to `initialDatabaseSource`)
-- Add `currentService` signal: `signal<DatasetServiceDistribution>({ type: 'service', url: null, accessServiceProtocol: 'wfs' })`
-- Add `handleServiceChange(service: DatasetServiceDistribution)` method that patches: `serviceUrl: service.url?.toString()`, `layerName: service.identifierInService ?? service.name`, `serviceProtocol: service.accessServiceProtocol`
+- Add `currentService` signal: `signal<DatasetServiceDistribution>({ type: 'service', url: null as unknown as URL, accessServiceProtocol: 'wfs' })`
+- Add `handleServiceChange(service: DatasetServiceDistribution)` method that patches: `serviceUrl: service.url?.toString()`, `layerName: service.identifierInService ?? service.name ?? null`, `serviceProtocol: service.accessServiceProtocol`
 - Add `marker('import.dataSource.chooseType.api')` call
 - Update `resetSource()` to also null out `serviceUrl`, `layerName`, `serviceProtocol`
 - Update `valueChanges` subscription to emit `serviceUrl`, `layerName`, `serviceProtocol`
@@ -286,15 +315,26 @@ Also export it in `libs/data_manipulation/src/data_manipulation/__init__.py`.
 - Add API case to `createImportRequest()`:
   ```ts
   } else if (source.type === 'api') {
-    body = { type: 'api', service_url: source.serviceUrl, layer_name: source.layerName }
+    body = {
+      type: 'api',
+      service_url: source.serviceUrl,
+      layer_name: source.layerName,
+      service_protocol: source.serviceProtocol ?? 'wfs'
+    }
   }
   ```
 - Add `initialApiSource = computed(...)`:
   ```ts
+  // source_url is stored as "WFS:https://..." or "OAPIF:https://..."
+  const GDAL_TO_PROTOCOL: Record<string, string> = { WFS: 'wfs', OAPIF: 'ogcFeatures' }
+
   initialApiSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
     if (link?.source_import_type === 'api' && link.source_url && link.source_layer) {
-      return { url: link.source_url, layerName: link.source_layer, protocol: 'wfs' }
+      const colonIdx = link.source_url.indexOf(':')
+      const prefix = colonIdx > 0 ? link.source_url.substring(0, colonIdx) : 'WFS'
+      const url = colonIdx > 0 ? link.source_url.substring(colonIdx + 1) : link.source_url
+      return { url, layerName: link.source_layer, protocol: GDAL_TO_PROTOCOL[prefix] ?? 'wfs' }
     }
     return null
   })
