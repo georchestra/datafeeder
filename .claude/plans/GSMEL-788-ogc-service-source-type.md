@@ -48,7 +48,7 @@ GDAL distinguishes the two drivers via a prefix when calling `gpd.read_file`:
 | `apps/elt/dags/task_groups/ingestion.py` | Add `api_ingest_step`; update branching |
 | `apps/elt/dags/process_dag.py` | Fix enum: replace `"OGC_WFS"` with `"API"`; add `source_layer` Param |
 | `apps/elt/dags/process-dag-generator.py` | Select + pass `source_layer` in SQL + conf |
-| `libs/data_manipulation/src/data_manipulation/ingestion.py` | Add `ingest_data_from_wfs_into_postgis` |
+| `libs/data_manipulation/src/data_manipulation/ingestion.py` | Add `ingest_data_from_ogc_service_into_postgis` |
 | `apps/frontend/src/app/shared/components/data-source-selector/data-source-selector.component.ts` | Add `'api'` source type + geonetwork-ui component |
 | `apps/frontend/src/app/shared/components/data-source-selector/data-source-selector.component.html` | Radio button + service input section |
 | `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts` | validSource, createImportRequest, initialApiSource, title from layer |
@@ -179,7 +179,18 @@ source_protocol: str | None = None,
 ```
 And add `source_layer: str | None = None, source_protocol: str | None = None` to the method signature.
 
-**`apps/backend/src/api/routes/ingestion/staging.py`** — in `_trigger_staging_task`, add `source_layer` param and thread it through to `executor.trigger_staging_task(source_layer=...)`.
+**`apps/backend/src/api/routes/ingestion/staging.py`** — update `_trigger_staging_task`:
+- Add `source_layer: str | None = None, source_protocol: str | None = None` to signature
+- Pass `source_layer=source_layer, source_protocol=source_protocol` to `executor.trigger_staging_task(...)`
+
+Update the two call sites in `submit_staging` and `edit_staging`:
+```python
+return _trigger_staging_task(
+    ...,
+    source_layer=import_source.source_layer,
+    source_protocol=import_source.source_protocol,
+)
+```
 
 ### 5. ELT: staging_dag.py
 
@@ -232,7 +243,16 @@ def api_ingest_step(**context: dict[str, Any]) -> None:
 
 Add `ingest_data_from_ogc_service_into_postgis` to the import from `data_manipulation`.
 
-**Wire into the task group** alongside the other step tasks.
+**Wire into the task group** — update the dependency line at the bottom of the task group (line ~253):
+```python
+do_branching() >> [
+    file_ingest_step(),
+    ftp_ingest_step(),
+    url_ingest_step(),
+    database_ingest_step(),
+    api_ingest_step(),
+]
+```
 
 ### 7. ELT: process_dag.py
 
@@ -288,6 +308,11 @@ def ingest_data_from_ogc_service_into_postgis(
 
     `protocol` is the service protocol as stored: 'wfs' or 'ogcFeatures'.
     The GDAL driver prefix (WFS: / OAPIF:) is built internally.
+
+    `layer_name` maps directly to the GDAL layer name in both cases:
+    - WFS: the WFS typename (e.g. "ns:buildings"), set as identifierInService by geonetwork-ui
+    - OAPIF: the collection ID (e.g. "buildings"), the `name` from OgcApiEndpoint.allCollections
+    No additional parameters are needed beyond layer=layer_name for basic ingestion.
     """
     gdal_prefix = _GDAL_PROTOCOL_PREFIX.get(protocol, "WFS")
     gdal_source = f"{gdal_prefix}:{service_url}"
@@ -327,9 +352,9 @@ All frontend steps below must use these generated types — no `any`, no manual 
 - Import `OnlineServiceResourceInputComponent, DatasetServiceDistribution` from `'geonetwork-ui'` and add to component `imports`
 - Add `initialApiSource = input<{ url: string; layerName: string; protocol: string } | null>(null)` and an `effect` to pre-populate the form (similar to `initialDatabaseSource`)
 - Add `currentService` signal: `signal<DatasetServiceDistribution>({ type: 'service', url: null as unknown as URL, accessServiceProtocol: 'wfs' })`
-- Add `handleServiceChange(service: DatasetServiceDistribution)` method that patches: `serviceUrl: service.url?.toString()`, `layerName: service.identifierInService ?? service.name ?? null`, `serviceProtocol: service.accessServiceProtocol`
+- Add `handleServiceChange(service: DatasetServiceDistribution)` method that: (a) updates `currentService` to `service` so the component doesn't reset on re-render, and (b) patches the form: `serviceUrl: service.url?.toString()`, `layerName: service.identifierInService ?? service.name ?? null`, `serviceProtocol: service.accessServiceProtocol`
 - Add `marker('import.dataSource.chooseType.api')` call
-- Update `resetSource()` to also null out `serviceUrl`, `layerName`, `serviceProtocol`
+- Update `resetSource()` to also null out `serviceUrl`, `layerName`, `serviceProtocol` AND reset `currentService` back to the initial empty state
 - Update `valueChanges` subscription to emit `serviceUrl`, `layerName`, `serviceProtocol`
 
 **`data-source-selector.component.html`**:
