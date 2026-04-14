@@ -4,7 +4,19 @@
 
 Users need to ingest data from WFS or OGC API Features services. Unlike a static URL, these sources require both a service URL and a layer name. The GeoNetwork-UI `OnlineServiceResourceInputComponent` (with `featuresOnly=true`) handles URL entry + layer discovery/selection. The feature must support recurrence (scheduled refresh) and pre-populate the title (Step 2) with the layer name.
 
-geonetwork-ui is installed locally at `apps/frontend/node_modules/geonetwork-ui`. The component `gn-ui-online-service-resource-input` already has a `featuresOnly` input that limits the protocol picker to WFS + OGC API Features.
+`geonetwork-ui` is installed locally at `apps/frontend/node_modules/geonetwork-ui`. The component `gn-ui-online-service-resource-input` is exported from `'geonetwork-ui'` (confirmed in `index.d.ts`) and accepts a `[service]: DatasetServiceDistribution` input (also from `'geonetwork-ui'`) and emits `(serviceChange): DatasetServiceDistribution`.
+
+---
+
+## Current State
+
+- `ImportType.API = "api"` already exists in `apps/backend/src/models/data_import.py:25`
+- `staging_dag.py` already includes `"API"` in the `source_type` enum
+- `staging.py` has a stub for `ImportType.API` that raises HTTP 501 (line 207)
+- `process_dag.py` uses `"OGC_WFS"` in its enum (must be changed to `"API"`)
+- No `source_layer` field anywhere in the backend or ELT yet
+- Frontend `SourceType` does not include `'api'`
+- No SQL column for `source_layer` yet (schema is managed via `docker/datadir/database/130-datafeeder.sql`, no Alembic)
 
 ---
 
@@ -12,84 +24,136 @@ geonetwork-ui is installed locally at `apps/frontend/node_modules/geonetwork-ui`
 
 | File | Role |
 |------|------|
+| `docker/datadir/database/130-datafeeder.sql` | Add `source_layer` column to DDL |
 | `apps/backend/src/models/integrity_link.py` | Add `source_layer` field |
-| `apps/backend/src/models/data_import.py` | Expose `source_layer` in responses; update `StagingMetadataResponse` |
-| `apps/backend/src/api/routes/ingestion/staging.py` | Implement `ImportType.API` case; add form params |
+| `apps/backend/src/models/data_import.py` | Add `source_layer` to response models; add `layer_name` to `StagingMetadataResponse` |
+| `apps/backend/src/api/routes/ingestion/staging.py` | Implement `ImportType.API` case; add form params; set `source_layer` on IntegrityLink |
 | `apps/backend/src/core/task_executor.py` | Add `source_layer` to abstract `trigger_staging_task` |
 | `apps/backend/src/services/executors/airflow_executor.py` | Pass `source_layer` to DAG conf |
 | `apps/elt/dags/staging_dag.py` | Add `source_layer` Param |
 | `apps/elt/dags/task_groups/ingestion.py` | Add `api_ingest_step`; update branching |
-| `apps/elt/dags/process_dag.py` | Add `source_layer` Param; update enum |
-| `apps/elt/dags/process-dag-generator.py` | Select + pass `source_layer` |
+| `apps/elt/dags/process_dag.py` | Fix enum: replace `"OGC_WFS"` with `"API"`; add `source_layer` Param |
+| `apps/elt/dags/process-dag-generator.py` | Select + pass `source_layer` in SQL + conf |
 | `libs/data_manipulation/src/data_manipulation/ingestion.py` | Add `ingest_data_from_wfs_into_postgis` |
 | `apps/frontend/src/app/shared/components/data-source-selector/data-source-selector.component.ts` | Add `'api'` source type + geonetwork-ui component |
 | `apps/frontend/src/app/shared/components/data-source-selector/data-source-selector.component.html` | Radio button + service input section |
 | `apps/frontend/src/app/shared/components/data-import-wizard/data-import-wizard.component.ts` | validSource, createImportRequest, initialApiSource, title from layer |
-| `apps/frontend/src/app/core/api/` | Regenerate TS client after backend changes |
 | `apps/frontend/src/assets/i18n/en.json` + `fr.json` | New translation keys |
 
 ---
 
 ## Implementation Steps
 
-### 1. Backend: Add `source_layer` to `IntegrityLink`
+### 1. SQL schema + IntegrityLink model
 
-In `apps/backend/src/models/integrity_link.py`, add:
+**`docker/datadir/database/130-datafeeder.sql`** — add after `source_file_type`:
+```sql
+source_layer varchar(256) NULL,
+```
+
+**`apps/backend/src/models/integrity_link.py`** — add after `source_file_type`:
 ```python
 source_layer: Optional[str] = Field(default=None, max_length=256)
 ```
 
-Create an Alembic migration adding the column `source_layer VARCHAR(256)` to `datafeeder.integrity_link`.
+> For existing dev DBs, run: `ALTER TABLE datafeeder.integrity_link ADD COLUMN source_layer VARCHAR(256);`
 
-### 2. Backend: Expose `source_layer` in response models
+### 2. Response models
 
-In `apps/backend/src/models/data_import.py`:
-- Add `source_layer: str | None` to `IntegrityLinkResponse` and `IntegrityLinkListItem`
-- In `StagingMetadataResponse`, add `layer_name: str | None = None` (the backend will populate this from `IntegrityLink.source_layer` when `import_type == API`, so the frontend can use it as the initial title)
+**`apps/backend/src/models/data_import.py`**:
 
-### 3. Backend: Implement `ImportType.API` in staging
+- Add `source_layer: str | None = None` to `IntegrityLinkListItem` (after `source_url`)
+- Add `source_layer: str | None = None` to `IntegrityLinkResponse` (after `source_url`)
+- Add `layer_name: str | None = None` to `StagingMetadataResponse` (the frontend reads this to pre-populate the title)
 
-In `apps/backend/src/api/routes/ingestion/staging.py`:
+### 3. Staging endpoint — implement API case
 
-**Add form parameters** to both `submit_staging` and `edit_staging`:
+**`apps/backend/src/api/routes/ingestion/staging.py`**:
+
+**Add to `_ImportSourceResult.__init__`**:
+```python
+source_layer: str | None = None
+self.source_layer = source_layer
+```
+
+**Add to `_process_import_source` signature**:
+```python
+service_url: Optional[str] = None,
+layer_name: Optional[str] = None,
+```
+
+**Replace the `ImportType.API` stub**:
+```python
+case ImportType.API:
+    if not service_url or not layer_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Service URL and layer name are required for API import type",
+        )
+    source = service_url.strip()
+    url = source
+    source_file_name = layer_name.strip()
+    auth_enabled = False
+    return _ImportSourceResult(
+        source=source, url=url,
+        source_file_name=source_file_name,
+        source_file_type=None,
+        auth_enabled=auth_enabled,
+        source_layer=layer_name.strip(),
+    )
+```
+
+**Add form params** to both `submit_staging` and `edit_staging`:
 ```python
 service_url: Optional[str] = Form(None),
 layer_name: Optional[str] = Form(None),
 ```
 
-**Add to `_process_import_source` signature and body:**
+**Thread through** in both calls to `_process_import_source`:
 ```python
-service_url: Optional[str] = None,
-layer_name: Optional[str] = None,
-```
-```python
-case ImportType.API:
-    if not service_url or not layer_name:
-        raise HTTPException(status_code=400, detail="Service URL and layer name are required for API import type")
-    source = service_url.strip()
-    url = source
-    # source_file_name = layer_name (used as title hint)
-    source_file_name = layer_name.strip()
-    # auth_enabled = False for now (OGC public services)
+service_url=service_url,
+layer_name=layer_name,
 ```
 
-**Set `integrity_link.source_layer`** when creating/updating the IntegrityLink record.
+**In `submit_staging`**, when creating `IntegrityLink`, add:
+```python
+source_layer=import_source.source_layer,
+```
 
-**Pass `source_layer` to `_trigger_staging_task`** (add param, thread through to executor).
+**In `edit_staging`**, after calling `_process_import_source`, update the integrity link:
+```python
+integrity_link.source_layer = import_source.source_layer
+```
 
-### 4. Backend: Task executor and Airflow executor
+**In `get_staging_metadata`** (line ~758), update the title logic to include API type:
+```python
+if not title and integrity_link.source_import_type == ImportType.API and integrity_link.source_layer:
+    title = integrity_link.source_layer
+```
 
-In `apps/backend/src/core/task_executor.py`, add `source_layer: str | None = None` to `trigger_staging_task` abstract method.
+And in `StagingMetadataResponse(...)` construction, add:
+```python
+layer_name=integrity_link.source_layer if integrity_link.source_import_type == ImportType.API else None,
+```
 
-In `apps/backend/src/services/executors/airflow_executor.py`, add `source_layer` to `conf` dict passed to staging DAG.
+### 4. Task executor + Airflow executor
 
-### 5. Backend: Staging metadata endpoint
+**`apps/backend/src/core/task_executor.py`** — add to `trigger_staging_task` abstract signature:
+```python
+source_layer: str | None = None,
+```
 
-In the `get_staging_metadata` endpoint (in `staging.py`), when building `StagingMetadataResponse`, if `import_type == API` and `integrity_link.source_layer` is set, populate `layer_name = integrity_link.source_layer`. The frontend will read `layer_name` as the initial title.
+**`apps/backend/src/services/executors/airflow_executor.py`** — add to `conf` dict:
+```python
+"source_layer": source_layer,
+```
+And add `source_layer: str | None = None` to the method signature.
 
-### 6. ELT: staging_dag.py
+**`apps/backend/src/api/routes/ingestion/staging.py`** — in `_trigger_staging_task`, add `source_layer` param and thread it through to `executor.trigger_staging_task(source_layer=...)`.
 
-Add `source_layer` Param:
+### 5. ELT: staging_dag.py
+
+**`apps/elt/dags/staging_dag.py`** — add `source_layer` Param alongside the existing params:
 ```python
 "source_layer": Param(
     default=None,
@@ -98,45 +162,72 @@ Add `source_layer` Param:
 ),
 ```
 
-### 7. ELT: task_groups/ingestion.py
+### 6. ELT: task_groups/ingestion.py
 
-Update branching to route `"API"` → `api_ingest_step`.
-
-Add `api_ingest_step`:
+**Update `do_branching`** — add `"API"` case:
 ```python
-@task(task_id="api_ingest_step")
-def api_ingest_step(**context):
-    params = context.get("params", {})
-    target_table_name = params.get("staging_table_name")
-    source = params.get("source", "")
-    source_layer = params.get("source_layer", "")
-    ...
-    ingest_data_from_wfs_into_postgis(source, source_layer, target_table_name, engine, schema)
+case "API":
+    return f"{group_id}.api_ingest_step"
 ```
 
-Wire it: `do_branching() >> [..., api_ingest_step()]`
+**Add `api_ingest_step` task** (modeled after `database_ingest_step`):
+```python
+@task(task_id="api_ingest_step")
+def api_ingest_step(**context: dict[str, Any]) -> None:
+    params = context.get("params", {})
+    ti = context.get("ti")
 
-### 8. ELT: process_dag.py
+    target_table_name = params.get("staging_table_name")
+    if not target_table_name and ti:
+        target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
+    if not target_table_name:
+        raise AirflowException("staging_table_name is not provided")
 
-Add `source_layer` Param (type `["null", "string"]`).  
-Update `source_type` enum to include `"API"` (or keep "OGC_WFS" and map from it — align with `ImportType.API.value.upper() == "API"`).
+    source = params.get("source", "")
+    source_layer = params.get("source_layer", "")
+    if not source_layer:
+        raise AirflowException("source_layer is required for API import")
 
-Pass `source_layer` through to the ingestion group via XCom or params.
+    engine = get_data_sql_engine()
+    ingest_data_from_wfs_into_postgis(source, source_layer, target_table_name, engine, schema=get_staging_schema())
+```
 
-### 9. ELT: process-dag-generator.py
+Add `ingest_data_from_wfs_into_postgis` to the import from `data_manipulation`.
 
-Update SQL to also select `source_layer`:
+**Wire into the task group** alongside the other step tasks.
+
+### 7. ELT: process_dag.py
+
+- Replace `"OGC_WFS"` with `"API"` in the `source_type` enum (line ~61)
+- Add `source_layer` Param:
+```python
+"source_layer": Param(
+    default=None,
+    type=["null", "string"],
+    description="Layer/feature name for API/WFS import",
+),
+```
+
+### 8. ELT: process-dag-generator.py
+
+**Update SQL** to select `source_layer`:
 ```sql
-SELECT ..., source_layer, ...
+SELECT 
+    ...,
+    source_layer,
+    ...
 FROM datafeeder.integrity_link
 WHERE schedule NOTNULL AND schedule NOT LIKE ''
 ```
 
-Add `"source_layer": config.get("source_layer")` to the `conf` dict of `TriggerDagRunOperator`.
+**Update `conf`** in `TriggerDagRunOperator`:
+```python
+"source_layer": config.get("source_layer"),
+```
 
-### 10. data_manipulation: WFS ingestion
+### 9. data_manipulation: WFS ingestion
 
-In `libs/data_manipulation/src/data_manipulation/ingestion.py`, add:
+**`libs/data_manipulation/src/data_manipulation/ingestion.py`** — add:
 ```python
 def ingest_data_from_wfs_into_postgis(
     service_url: str,
@@ -155,43 +246,50 @@ def ingest_data_from_wfs_into_postgis(
         raise
 ```
 
-Also export it in `data_manipulation/__init__.py`.
+Also export it in `libs/data_manipulation/src/data_manipulation/__init__.py`.
 
-### 11. Frontend: data-source-selector
+### 10. Frontend: data-source-selector
 
-In `data-source-selector.component.ts`:
-- Add `'api'` to `SourceType` and `RadioType`
+**`data-source-selector.component.ts`**:
+
+- Change `SourceType` to: `'url' | 'file' | 'ftp' | 'database' | 'api'`
+- Change `RadioType` to: `'file' | 'ftp' | 'database' | 'api'`
 - Add to `SourceData`: `serviceUrl?: string`, `layerName?: string`, `serviceProtocol?: string`
-- Add form controls: `serviceUrl`, `layerName`, `serviceProtocol`
-- Import `OnlineServiceResourceInputComponent` from geonetwork-ui and add to `imports`
-- Add `initialApiSource = input<{ url: string; layerName: string; protocol: string } | null>(null)` and an effect to pre-populate the form (like `initialDatabaseSource`)
-- Handle radio change for `'api'` type
-- Handle `serviceChange` event from the geonetwork-ui component: extract `url.toString()`, `identifierInService`, `accessServiceProtocol` and patch the form
+- Add form controls: `serviceUrl: fb.control<string | null>(null)`, `layerName: fb.control<string | null>(null)`, `serviceProtocol: fb.control<string | null>(null)`
+- Import `OnlineServiceResourceInputComponent, DatasetServiceDistribution` from `'geonetwork-ui'` and add to component `imports`
+- Add `initialApiSource = input<{ url: string; layerName: string; protocol: string } | null>(null)` and an `effect` to pre-populate the form (similar to `initialDatabaseSource`)
+- Add `currentService` signal: `signal<DatasetServiceDistribution>({ type: 'service', url: null, accessServiceProtocol: 'wfs' })`
+- Add `handleServiceChange(service: DatasetServiceDistribution)` method that patches: `serviceUrl: service.url?.toString()`, `layerName: service.identifierInService ?? service.name`, `serviceProtocol: service.accessServiceProtocol`
+- Add `marker('import.dataSource.chooseType.api')` call
+- Update `resetSource()` to also null out `serviceUrl`, `layerName`, `serviceProtocol`
+- Update `valueChanges` subscription to emit `serviceUrl`, `layerName`, `serviceProtocol`
 
-In `data-source-selector.component.html`:
-- Add `<mat-radio-button value="api">` for "Service & API OGC"
-- Add a conditional section `@if (radio === 'api')` containing:
-  ```html
-  <gn-ui-online-service-resource-input
-    [featuresOnly]="true"
-    [service]="currentService"
-    (serviceChange)="handleServiceChange($event)"
-  />
-  ```
-- The geonetwork-ui component handles its own internal state; we react to its `serviceChange` output
+**`data-source-selector.component.html`**:
+- Add `<mat-radio-button value="api">{{ 'import.dataSource.chooseType.api' | translate }}</mat-radio-button>`
+- Add conditional section `@if (radio === 'api')`:
+```html
+<gn-ui-online-service-resource-input
+  [featuresOnly]="true"
+  [service]="currentService()"
+  (serviceChange)="handleServiceChange($event)"
+/>
+```
 
-### 12. Frontend: data-import-wizard
+### 11. Frontend: data-import-wizard
 
-In `data-import-wizard.component.ts`:
+**`data-import-wizard.component.ts`**:
+
 - Add API case to `validSource`:
   ```ts
   (source.type === 'api' && !!source.serviceUrl && !!source.layerName)
   ```
 - Add API case to `createImportRequest()`:
   ```ts
-  body = { type: 'api', service_url: source.serviceUrl, layer_name: source.layerName }
+  } else if (source.type === 'api') {
+    body = { type: 'api', service_url: source.serviceUrl, layer_name: source.layerName }
+  }
   ```
-- Add `initialApiSource` computed signal (similar to `initialDatabaseSource`):
+- Add `initialApiSource = computed(...)`:
   ```ts
   initialApiSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
@@ -202,16 +300,17 @@ In `data-import-wizard.component.ts`:
   })
   ```
 - Pass `[initialApiSource]="initialApiSource()"` to `app-data-source-selector`
-- For title pre-population: after `refreshMetadata()`, if `metadata.layer_name` is set and no existing title, set `metadata.title = metadata.layer_name`
+- After `refreshMetadata()` sets `metadata`, if `metadata.layer_name` is set and no existing `integrity_title`, use it as initial title hint (the `title` field in `StagingMetadataResponse` already handles this via the backend)
 
-### 13. Frontend: i18n keys
+### 12. Frontend: i18n keys
 
-Add to both `en.json` and `fr.json`:
+Add to both `apps/frontend/src/assets/i18n/en.json` and `fr.json`:
 ```json
-"import.dataSource.chooseType.api": "Service & API OGC",
+"import.dataSource.chooseType.api": "Service & API OGC"
 ```
+(French: `"Service & API OGC"` — same)
 
-### 14. Regenerate TypeScript API client
+### 13. Regenerate TypeScript API client
 
 After backend OpenAPI contract stabilizes:
 ```sh
