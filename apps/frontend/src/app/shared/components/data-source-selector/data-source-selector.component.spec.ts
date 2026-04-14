@@ -62,7 +62,10 @@ describe('DataSourceSelectorComponent', () => {
       username: null,
       password: null,
       dbSchema: null,
-      dbTable: null
+      dbTable: null,
+      serviceUrl: null,
+      layerName: null,
+      serviceProtocol: null
     })
   })
 
@@ -160,6 +163,151 @@ describe('DataSourceSelectorComponent', () => {
     })
   })
 
+  describe('API (OGC service) source', () => {
+    it('should always show the api radio button', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      fixture.detectChanges()
+
+      const radioButtons =
+        fixture.nativeElement.querySelectorAll('mat-radio-button')
+      const values = Array.from(radioButtons).map((rb: any) =>
+        rb.getAttribute('value')
+      )
+      expect(values).toContain('api')
+    })
+
+    it('should set source type to api when api radio is selected', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleRadioChange('api')
+
+      expect(component.form.controls.source.controls.type.value).toBe('api')
+    })
+
+    it('should update serviceUrl, layerName and serviceProtocol via handleServiceChange', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleServiceChange({
+        type: 'service',
+        url: new URL('https://example.com/wfs'),
+        accessServiceProtocol: 'wfs',
+        identifierInService: 'ns:buildings'
+      } as any)
+
+      expect(component.form.controls.source.controls.serviceUrl.value).toBe(
+        'https://example.com/wfs'
+      )
+      expect(component.form.controls.source.controls.layerName.value).toBe(
+        'ns:buildings'
+      )
+      expect(component.form.controls.source.controls.serviceProtocol.value).toBe(
+        'wfs'
+      )
+    })
+
+    it('should update currentService signal via handleServiceChange', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      const service = {
+        type: 'service' as const,
+        url: new URL('https://example.com/wfs'),
+        accessServiceProtocol: 'wfs' as const,
+        identifierInService: 'ns:buildings'
+      }
+      component.handleServiceChange(service as any)
+
+      expect(component.currentService().url?.toString()).toBe(
+        'https://example.com/wfs'
+      )
+      expect(component.currentService().identifierInService).toBe(
+        'ns:buildings'
+      )
+    })
+
+    it('should emit sourceChanged with api fields after handleServiceChange', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+      let emittedValue: any
+
+      component.handleRadioChange('api')
+      component.sourceChanged.subscribe((value) => (emittedValue = value))
+
+      component.handleServiceChange({
+        type: 'service',
+        url: new URL('https://example.com/ogcapi'),
+        accessServiceProtocol: 'ogcFeatures',
+        identifierInService: 'parcels'
+      } as any)
+
+      expect(emittedValue.type).toBe('api')
+      expect(emittedValue.serviceUrl).toBe('https://example.com/ogcapi')
+      expect(emittedValue.layerName).toBe('parcels')
+      expect(emittedValue.serviceProtocol).toBe('ogcFeatures')
+    })
+
+    it('should clear api fields when switching to file', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleRadioChange('api')
+      component.form.controls.source.patchValue({
+        serviceUrl: 'https://example.com/wfs',
+        layerName: 'ns:buildings',
+        serviceProtocol: 'wfs'
+      })
+
+      component.handleRadioChange('file')
+
+      expect(component.form.controls.source.controls.serviceUrl.value).toBeNull()
+      expect(component.form.controls.source.controls.layerName.value).toBeNull()
+      expect(component.form.controls.source.controls.serviceProtocol.value).toBeNull()
+    })
+
+    it('should reset currentService when switching away from api', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleRadioChange('api')
+      component.handleServiceChange({
+        type: 'service',
+        url: new URL('https://example.com/wfs'),
+        accessServiceProtocol: 'wfs',
+        identifierInService: 'ns:buildings'
+      } as any)
+
+      component.handleRadioChange('file')
+
+      expect(component.currentService().url).toBeNull()
+    })
+
+    it('should pre-populate form from initialApiSource input', async () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      fixture.componentRef.setInput('initialApiSource', {
+        url: 'https://example.com/wfs',
+        layerName: 'ns:buildings',
+        protocol: 'wfs'
+      })
+      fixture.detectChanges()
+      await fixture.whenStable()
+
+      expect(component.form.controls.radio.value).toBe('api')
+      expect(component.form.controls.source.controls.serviceUrl.value).toBe(
+        'https://example.com/wfs'
+      )
+      expect(component.form.controls.source.controls.layerName.value).toBe(
+        'ns:buildings'
+      )
+      expect(component.form.controls.source.controls.serviceProtocol.value).toBe(
+        'wfs'
+      )
+    })
+  })
+
   describe('Basic Authentication', () => {
     it('should have authEnabled defaulting to false', () => {
       const fixture = TestBed.createComponent(DataSourceSelectorComponent)
@@ -208,7 +356,10 @@ describe('DataSourceSelectorComponent', () => {
         username: 'testuser',
         password: 'testpass',
         dbSchema: null,
-        dbTable: null
+        dbTable: null,
+        serviceUrl: null,
+        layerName: null,
+        serviceProtocol: null
       })
     })
   })
