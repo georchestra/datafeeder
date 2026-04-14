@@ -94,12 +94,16 @@ class _ImportSourceResult:
         source_file_name: str | None,
         source_file_type: "FileType | None",
         auth_enabled: bool,
+        source_layer: str | None = None,
+        source_protocol: str | None = None,
     ) -> None:
         self.source = source
         self.url = url
         self.source_file_name = source_file_name
         self.source_file_type = source_file_type
         self.auth_enabled = auth_enabled
+        self.source_layer = source_layer
+        self.source_protocol = source_protocol
 
 
 async def _process_import_source(
@@ -114,6 +118,9 @@ async def _process_import_source(
     ftp_path: Optional[str] = None,
     db_schema: Optional[str] = None,
     db_table: Optional[str] = None,
+    service_url: Optional[str] = None,
+    layer_name: Optional[str] = None,
+    service_protocol: Optional[str] = None,
 ) -> _ImportSourceResult:
     """Process the import source and extract file metadata.
 
@@ -205,9 +212,23 @@ async def _process_import_source(
             auth_enabled = False
 
         case ImportType.API:
-            logger.error(f"Import type {type.value} not implemented yet")
-            raise HTTPException(
-                status_code=501, detail=f"Import type {type.value} not implemented yet"
+            if not service_url or not layer_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Service URL and layer name are required for API import type",
+                )
+            source = service_url.strip()
+            url = source
+            source_file_name = layer_name.strip()
+            auth_enabled = False
+            return _ImportSourceResult(
+                source=source,
+                url=url,
+                source_file_name=source_file_name,
+                source_file_type=None,
+                auth_enabled=auth_enabled,
+                source_layer=layer_name.strip(),
+                source_protocol=(service_protocol or "wfs").strip(),
             )
 
     return _ImportSourceResult(
@@ -226,6 +247,8 @@ def _trigger_staging_task(
     import_type: "ImportType",
     encrypted_password: Optional[str],
     dag_run_id: str,
+    source_layer: Optional[str] = None,
+    source_protocol: Optional[str] = None,
 ) -> "StagingResponse":
     """Trigger the Airflow staging DAG and return the response.
 
@@ -256,6 +279,8 @@ def _trigger_staging_task(
             success_callback_url=success_callback_url,
             failure_callback_url=failure_callback_url,
             encrypted_credentials=encrypted_password,
+            source_layer=source_layer,
+            source_protocol=source_protocol,
         )
 
         return StagingResponse(
@@ -386,6 +411,9 @@ async def submit_staging(
     ftp_path: Optional[str] = Form(None),
     db_schema: Optional[str] = Form(None),
     db_table: Optional[str] = Form(None),
+    service_url: Optional[str] = Form(None),
+    layer_name: Optional[str] = Form(None),
+    service_protocol: Optional[str] = Form(None),
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
 ) -> StagingResponse:
@@ -404,6 +432,9 @@ async def submit_staging(
         ftp_path: Optional FTP path if import type is FTP
         db_schema: Optional schema name if import type is database
         db_table: Optional table name if import type is database
+        service_url: Optional service URL if import type is API (WFS/OGC API Features)
+        layer_name: Optional layer/collection name if import type is API
+        service_protocol: Optional protocol if import type is API ('wfs' or 'ogcFeatures')
         sec_username: Username from geOrchestra security headers
         sec_org: Organization from geOrchestra security headers
 
@@ -426,6 +457,9 @@ async def submit_staging(
         ftp_path=ftp_path,
         db_schema=db_schema.strip() if db_schema else None,
         db_table=db_table.strip() if db_table else None,
+        service_url=service_url,
+        layer_name=layer_name,
+        service_protocol=service_protocol,
     )
 
     staging_table_name = _generate_staging_table_name()
@@ -445,6 +479,8 @@ async def submit_staging(
         source_url=import_source.url,
         source_file_name=import_source.source_file_name,
         source_file_type=import_source.source_file_type,
+        source_layer=import_source.source_layer,
+        source_protocol=import_source.source_protocol,
         source_username=username if import_source.auth_enabled else None,
         source_password_encrypted=encrypted_password if import_source.auth_enabled else None,
         staging_table_name=staging_table_name,
@@ -467,6 +503,8 @@ async def submit_staging(
         import_type=type,
         encrypted_password=encrypted_password,
         dag_run_id=integrity_link_id_as_string,
+        source_layer=import_source.source_layer,
+        source_protocol=import_source.source_protocol,
     )
 
 
@@ -490,6 +528,9 @@ async def edit_staging(
     ftp_path: Optional[str] = Form(None),
     db_schema: Optional[str] = Form(None),
     db_table: Optional[str] = Form(None),
+    service_url: Optional[str] = Form(None),
+    layer_name: Optional[str] = Form(None),
+    service_protocol: Optional[str] = Form(None),
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
 ) -> StagingResponse:
@@ -509,6 +550,9 @@ async def edit_staging(
         ftp_path: Optional FTP path if import type is FTP
         db_schema: Optional schema name if import type is database
         db_table: Optional table name if import type is database
+        service_url: Optional service URL if import type is API (WFS/OGC API Features)
+        layer_name: Optional layer/collection name if import type is API
+        service_protocol: Optional protocol if import type is API ('wfs' or 'ogcFeatures')
         sec_username: Username from geOrchestra security headers
         sec_org: Organization from geOrchestra security headers
 
@@ -531,6 +575,9 @@ async def edit_staging(
         ftp_path=ftp_path,
         db_schema=db_schema.strip() if db_schema else None,
         db_table=db_table.strip() if db_table else None,
+        service_url=service_url,
+        layer_name=layer_name,
+        service_protocol=service_protocol,
     )
 
     staging_table_name = _generate_staging_table_name()
@@ -553,6 +600,8 @@ async def edit_staging(
     integrity_link.source_url = import_source.url
     integrity_link.source_file_name = import_source.source_file_name
     integrity_link.source_file_type = import_source.source_file_type
+    integrity_link.source_layer = import_source.source_layer
+    integrity_link.source_protocol = import_source.source_protocol
     integrity_link.source_username = username if import_source.auth_enabled else None
     integrity_link.source_password_encrypted = (
         encrypted_password if import_source.auth_enabled else None
@@ -579,6 +628,8 @@ async def edit_staging(
         import_type=type,
         encrypted_password=encrypted_password,
         dag_run_id=dag_run_id,
+        source_layer=import_source.source_layer,
+        source_protocol=import_source.source_protocol,
     )
 
 
@@ -767,6 +818,8 @@ def get_staging_metadata(
     ):
         # source_url format: db://{db_key}/{schema}/{table} — take the last segment
         title = integrity_link.source_url.rsplit("/", 1)[-1]
+    if not title and integrity_link.source_import_type == ImportType.API and integrity_link.source_layer:
+        title = integrity_link.source_layer
     force_projection_data = (
         integrity_link.integrity_transformation.get("force_projection")
         if integrity_link.integrity_transformation
@@ -800,6 +853,7 @@ def get_staging_metadata(
         else None,
         original_projection=original_projection,
         has_final_table=integrity_link.final_table_name is not None,
+        layer_name=integrity_link.source_layer if integrity_link.source_import_type == ImportType.API else None,
     )
 
 

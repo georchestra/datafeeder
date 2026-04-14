@@ -53,6 +53,8 @@ class BaseTaskExecutor(ABC):
         success_callback_url: str | None = None,
         failure_callback_url: str | None = None,
         encrypted_credentials: str | None = None,
+        source_layer: str | None = None,
+        source_protocol: str | None = None,
     ) -> TaskRunInfo:
         """
         Trigger a staging task.

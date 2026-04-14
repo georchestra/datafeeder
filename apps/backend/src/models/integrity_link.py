@@ -45,6 +45,8 @@ class IntegrityLink(SQLModel, table=True):
         default=None,
         sa_type=SqlEnum(FileType, values_callable=get_enum_values, nullable=True),
     )
+    source_layer: Optional[str] = Field(default=None, max_length=256)
+    source_protocol: Optional[str] = Field(default=None, max_length=32)
     source_username: Optional[str] = None
     source_password_encrypted: Optional[str] = None
     staging_table_name: str = Field(max_length=63)
