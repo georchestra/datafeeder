@@ -20,9 +20,14 @@ from src.models.integrity_link_rule import (
     UpsertRuleRequest,
 )
 from src.models.recurrence import RecurrencePreset
-from src.services.console_service import ConsoleService
+from src.services.console_service import ConsoleService, ConsoleServiceError
 from src.services.dataset_deletion_service import DatasetDeletionService
-from src.services.geoserver import AclAccessType, GeoServerAclError, GeoServerService
+from src.services.geoserver import (
+    ACL_ROLE_EVERYONE,
+    AclAccessType,
+    GeoServerAclError,
+    GeoServerService,
+)
 from src.services.metadata_service import MetadataService
 
 logger = get_logger()
@@ -104,6 +109,77 @@ def _sync_metadata_sharing(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
+
+
+def _sync_data_sharing(
+    session: DatafeederSessionDep,
+    integrity_link_id: str,
+    integrity_link: IntegrityLink,
+    geoserver_service: GeoServerService | None = None,
+) -> None:
+    """Sync DATA rules to GeoServer layer ACL.
+
+    Resolves role UUIDs to ROLE_xxx names via the Console API before syncing.
+    Skipped when integrity_link has no published layer (final_table_name absent).
+
+    Args:
+        geoserver_service: Optional pre-built service instance. When None (default),
+            a new instance is created from settings. Pass the injected service when
+            calling from a route handler to allow test mocking.
+
+    Raises:
+        HTTPException(500): If role resolution or GeoServer ACL sync fails.
+    """
+    if not integrity_link.final_table_name:
+        return
+
+    all_rules = list(
+        session.exec(
+            select(IntegrityLinkRule).where(
+                IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
+            )
+        ).all()
+    )
+
+    settings = get_settings()
+
+    data_rules = [rule for rule in all_rules if rule.rule_type == RuleType.DATA]
+    uuids_to_resolve = {
+        rule.group_or_role for rule in data_rules if rule.group_or_role != GROUP_OR_ROLE_EVERYONE
+    }
+
+    id_to_name: dict[str, str] = {}
+    if uuids_to_resolve:
+        # Only call Console when at least one non-EVERYONE role needs UUID resolution.
+        # This keeps EVERYONE-only configs resilient to Console outages.
+        console_service = ConsoleService(settings.CONSOLE_URL)
+        all_roles = console_service.get_all_roles()  # raises ConsoleServiceError on failure
+        id_to_name = {
+            str(r["id"]): f"ROLE_{r['name']}" for r in all_roles if r.get("id") and r.get("name")
+        }
+
+    resolved: list[tuple[str, RuleValue]] = []
+    for rule in data_rules:
+        if rule.group_or_role == GROUP_OR_ROLE_EVERYONE:
+            resolved.append((ACL_ROLE_EVERYONE, rule.rule_value))
+            continue
+        role_name = id_to_name.get(rule.group_or_role)
+        if not role_name:
+            raise ConsoleServiceError(
+                f"Could not resolve role '{rule.group_or_role}' for GeoServer ACL sync"
+            )
+        resolved.append((role_name, rule.rule_value))
+
+    workspace = integrity_link.integrity_organization.lower()
+
+    if geoserver_service is None:
+        geoserver_service = GeoServerService(
+            base_url=settings.GEOSERVER_URL,
+            username=settings.GEOSERVER_USER,
+            password=settings.GEOSERVER_PASSWORD,
+            public_url=settings.DATA_PUBLIC_URL,
+        )
+    geoserver_service.sync_layer_acl(workspace, integrity_link.final_table_name, resolved)
 
 
 @router.get(
@@ -190,8 +266,20 @@ def upsert_integrity_link_rule(
     if existing_rule:
         existing_rule.rule_value = body.rule_value
         session.add(existing_rule)
-        session.commit()
+        session.flush()
         session.refresh(existing_rule)
+        if body.rule_type == RuleType.DATA:
+            try:
+                _sync_data_sharing(session, integrity_link_id, integrity_link)
+            except (GeoServerAclError, ConsoleServiceError) as e:
+                logger.error(
+                    "GeoServer sync failed while updating rule for IntegrityLink %s: %s",
+                    integrity_link_id,
+                    e,
+                )
+                session.rollback()
+                raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
+        session.commit()
         _sync_metadata_sharing(session, integrity_link_id, integrity_link)
         return existing_rule
 
@@ -202,8 +290,20 @@ def upsert_integrity_link_rule(
         rule_value=body.rule_value,
     )
     session.add(new_rule)
-    session.commit()
+    session.flush()
     session.refresh(new_rule)
+    if body.rule_type == RuleType.DATA:
+        try:
+            _sync_data_sharing(session, integrity_link_id, integrity_link)
+        except (GeoServerAclError, ConsoleServiceError) as e:
+            logger.error(
+                "GeoServer sync failed while creating rule for IntegrityLink %s: %s",
+                integrity_link_id,
+                e,
+            )
+            session.rollback()
+            raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
+    session.commit()
     _sync_metadata_sharing(session, integrity_link_id, integrity_link)
     return new_rule
 
@@ -229,7 +329,20 @@ def delete_integrity_link_rule(
     if not rule or rule.integrity_link_id != UUID(integrity_link_id):
         raise HTTPException(status_code=404, detail="Rule not found")
 
+    rule_type = rule.rule_type
     session.delete(rule)
+    session.flush()
+    if rule_type == RuleType.DATA:
+        try:
+            _sync_data_sharing(session, integrity_link_id, integrity_link)
+        except (GeoServerAclError, ConsoleServiceError) as e:
+            logger.error(
+                "GeoServer sync failed while deleting rule for IntegrityLink %s: %s",
+                integrity_link_id,
+                e,
+            )
+            session.rollback()
+            raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
     session.commit()
     _sync_metadata_sharing(session, integrity_link_id, integrity_link)
     return Response(status_code=204)
@@ -387,10 +500,6 @@ def toggle_publish_gs_integrity_link(
     gs_read_roles: list[str] | None = None
     try:
         if publish:
-            geoserver_service.acl_layer_publish(
-                layer_name=acl_layer_name,
-                access_type=AclAccessType.READ,
-            )
             session.add(
                 IntegrityLinkRule(
                     integrity_link_id=UUID(integrity_link_id),
@@ -399,37 +508,20 @@ def toggle_publish_gs_integrity_link(
                     group_or_role=GROUP_OR_ROLE_EVERYONE,
                 )
             )
+            _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
         else:
-            existing_read_rules = session.exec(
+            everyone_rules = session.exec(
                 select(IntegrityLinkRule).where(
                     IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id),
                     IntegrityLinkRule.rule_type == RuleType.DATA,
                     IntegrityLinkRule.rule_value == RuleValue.READ,
+                    IntegrityLinkRule.group_or_role == GROUP_OR_ROLE_EVERYONE,
                 )
             ).all()
-            other_roles = [
-                r.group_or_role
-                for r in existing_read_rules
-                if r.group_or_role != GROUP_OR_ROLE_EVERYONE
-            ]
-            geoserver_service.acl_layer_unpublish(
-                layer_name=acl_layer_name,
-                access_type=AclAccessType.READ,
-            )
-
-            if other_roles:
-                settings = get_settings()
-                console_service = ConsoleService(settings.CONSOLE_URL)
-                geoserver_roles = console_service.get_role_labels(other_roles)
-                if geoserver_roles:
-                    geoserver_service.acl_layer_add_rule(
-                        layer_name=acl_layer_name,
-                        access_type=AclAccessType.READ,
-                        roles=geoserver_roles,
-                    )
-            for rule in existing_read_rules:
-                if rule.group_or_role == GROUP_OR_ROLE_EVERYONE:
-                    session.delete(rule)
+            for rule in everyone_rules:
+                session.delete(rule)
+            session.flush()  # make deletions visible before the sync query
+            _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
 
         gs_read_roles = geoserver_service.acl_layer_get(
             layer_name=acl_layer_name,
@@ -447,6 +539,7 @@ def toggle_publish_gs_integrity_link(
         session.refresh(integrity_link)
 
     except Exception as e:
+        session.rollback()
         response_body: str | None = None
         if isinstance(e, GeoServerAclError):
             response_body = e.body

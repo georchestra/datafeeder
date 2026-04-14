@@ -15,6 +15,7 @@ from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
 from pydantic import BaseModel
 
 from src.core.logging import get_logger
+from src.models.integrity_link_rule import RuleValue
 
 logger = get_logger()
 
@@ -92,7 +93,7 @@ class GeoServerService:
             password=password,
         )
         self.public_url = public_url
-        self._base_url = base_url
+        self.base_url = base_url
         self._auth = (username, password)
 
     async def workspace_exists(self, workspace_name: str) -> bool:
@@ -323,6 +324,69 @@ class GeoServerService:
                 exc_info=True,
             )
 
+    @staticmethod
+    def _to_geoserver_role(role: str) -> str:
+        """Ensure role name has ROLE_ prefix as required by GeoServer ACL.
+
+        geOrchestra strips ROLE_ from header values; GeoServer requires it.
+        Idempotent: already-prefixed values pass through unchanged.
+        The EVERYONE wildcard ("*") is passed through as-is.
+        """
+        if role == ACL_ROLE_EVERYONE:
+            return role  # "*" is the GeoServer ACL wildcard — do not prefix
+        upper = role.strip().upper()
+        if not upper.startswith("ROLE_"):
+            return f"ROLE_{upper}"
+        return upper
+
+    def sync_layer_acl(
+        self,
+        workspace: str,
+        layer_name: str,
+        privileges: list[tuple[str, RuleValue]],
+    ) -> None:
+        """Sync GeoServer ACL rules for a layer from DataKern sharing rules.
+
+        Replaces the read and write ACL rules for the given layer.
+        Roles with READ access are concatenated into the .r rule;
+        roles with WRITE access into the .w rule.
+        If no roles exist for an access level, the corresponding ACL rule is deleted.
+
+        Args:
+            workspace: GeoServer workspace name
+            layer_name: GeoServer layer/feature type name
+            privileges: List of (role_name, rule_value) tuples
+
+        Raises:
+            GeoServerAclError: If a GeoServer ACL API call fails.
+        """
+        # WRITE implies READ: roles with write access must also appear in the read rule.
+        read_roles = [self._to_geoserver_role(r) for r, _ in privileges]
+        write_roles = [self._to_geoserver_role(r) for r, v in privileges if v == RuleValue.WRITE]
+
+        acl_layer_name = f"{workspace}.{layer_name}"
+
+        for access_type, roles in [
+            (AclAccessType.READ, read_roles),
+            (AclAccessType.WRITE, write_roles),
+        ]:
+            if roles:
+                self.acl_layer_set_rule(acl_layer_name, access_type, roles)
+            else:
+                try:
+                    self.acl_layer_delete(acl_layer_name, access_type)
+                except GeoServerAclError as e:
+                    if e.status_code != 404:
+                        raise
+
+        logger.info(
+            "Synced GeoServer ACL for %s:%s — read: %s, write: %s",
+            workspace,
+            layer_name,
+            read_roles,
+            write_roles,
+        )
+
     async def update_layer_bbox(
         self,
         workspace_name: str,
@@ -447,27 +511,25 @@ class GeoServerService:
         if response.status_code >= 400:
             raise GeoServerAclError(response.status_code, response.text)
 
-    def acl_layer_add_rule(
+    def acl_layer_set_rule(
         self, layer_name: str, access_type: AclAccessType, roles: list[str]
     ) -> None:
-        """Insert or update a layer ACL rule in GeoServer.
+        """Set (replace) a layer ACL rule in GeoServer, overwriting any existing roles.
 
         Tries to insert the rule with POST. If GeoServer returns 409 (rule already exists),
-        fetches the existing roles with GET, merges them with the new ones, then updates
-        with PUT.
+        replaces it entirely with PUT — without merging with existing roles.
+        Use this when DataKern is the source of truth and external rules should not be preserved.
 
         Args:
             layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
             access_type: The access type (READ or WRITE).
-            roles: List of roles to grant.
+            roles: List of roles to set.
         """
         try:
             self.acl_layer_post(layer_name, access_type, roles)
         except GeoServerAclError as e:
             if e.status_code == 409:
-                existing = self.acl_layer_get(layer_name, access_type) or []
-                merged = list({*existing, *roles})
-                self.acl_layer_put(layer_name, access_type, merged)
+                self.acl_layer_put(layer_name, access_type, roles)
             else:
                 raise
 
@@ -490,30 +552,3 @@ class GeoServerService:
             self.acl_layer_put(layer_name, access_type, remaining)
         else:
             self.acl_layer_delete(layer_name, access_type)
-
-    def acl_layer_publish(self, layer_name: str, access_type: AclAccessType) -> None:
-        """Make a layer publicly accessible by granting the EVERYONE role.
-
-        Uses acl_layer_add_rule so the EVERYONE role is merged with any existing roles.
-
-        Args:
-            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
-            access_type: The access type to publish (READ or WRITE).
-        """
-        self.acl_layer_add_rule(layer_name, access_type, [ACL_ROLE_EVERYONE])
-
-    def acl_layer_unpublish(self, layer_name: str, access_type: AclAccessType) -> None:
-        """Remove public access to a layer by deleting the ACL rule entirely.
-
-        **Important caveat — global GeoServer rules take precedence.**
-        This method only manages the per-layer ACL rule for `layer_name`. If GeoServer
-        has a global rule that grants read access to everyone (e.g. ``*.*.r = *``), removing
-        the layer-level rule will have no practical effect: the dataset will remain publicly
-        readable because the global rule still applies. Restricting access therefore only works
-        as expected when the global ACL does *not* grant unrestricted read access by default.
-
-        Args:
-            layer_name: The layer name in "workspace.layer" format, e.g. "geor.public_layer".
-            access_type: The access type to unpublish (READ or WRITE).
-        """
-        self.acl_layer_delete(layer_name, access_type)
