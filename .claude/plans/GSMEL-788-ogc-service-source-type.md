@@ -302,7 +302,21 @@ def ingest_data_from_ogc_service_into_postgis(
 
 Also export it in `libs/data_manipulation/src/data_manipulation/__init__.py`.
 
-### 10. Frontend: data-source-selector
+### 10. Regenerate TypeScript API client
+
+After completing steps 1–9 (all backend + ELT changes):
+```sh
+cd apps/frontend && npm run generate-api
+```
+
+This updates `apps/frontend/src/app/core/api/` with:
+- `service_url`, `layer_name`, `service_protocol` added to the `SubmitStagingBody` / `EditStagingBody` types
+- `source_layer` and `source_protocol` added to `IntegrityLinkResponse` / `IntegrityLinkListItem`
+- `layer_name` added to `StagingMetadataResponse`
+
+All frontend steps below must use these generated types — no `any`, no manual type definitions.
+
+### 11. Frontend: data-source-selector
 
 **`data-source-selector.component.ts`**:
 
@@ -329,7 +343,7 @@ Also export it in `libs/data_manipulation/src/data_manipulation/__init__.py`.
 />
 ```
 
-### 11. Frontend: data-import-wizard
+### 12. Frontend: data-import-wizard
 
 **`data-import-wizard.component.ts`**:
 
@@ -337,7 +351,7 @@ Also export it in `libs/data_manipulation/src/data_manipulation/__init__.py`.
   ```ts
   (source.type === 'api' && !!source.serviceUrl && !!source.layerName)
   ```
-- Add API case to `createImportRequest()`:
+- Add API case to `createImportRequest()` (the generated `body` type will include these fields after `generate-api`):
   ```ts
   } else if (source.type === 'api') {
     body = {
@@ -348,6 +362,7 @@ Also export it in `libs/data_manipulation/src/data_manipulation/__init__.py`.
     }
   }
   ```
+- `initialApiSource` reads `link.source_layer` and `link.source_protocol` — both available on the generated `IntegrityLinkResponse` type after regeneration
 - Add `initialApiSource = computed(...)`:
   ```ts
   initialApiSource = computed(() => {
@@ -361,7 +376,7 @@ Also export it in `libs/data_manipulation/src/data_manipulation/__init__.py`.
 - Pass `[initialApiSource]="initialApiSource()"` to `app-data-source-selector`
 - After `refreshMetadata()` sets `metadata`, if `metadata.layer_name` is set and no existing `integrity_title`, use it as initial title hint (the `title` field in `StagingMetadataResponse` already handles this via the backend)
 
-### 12. Frontend: i18n keys
+### 13. Frontend: i18n keys
 
 Add to both `apps/frontend/src/assets/i18n/en.json` and `fr.json`:
 ```json
@@ -369,12 +384,6 @@ Add to both `apps/frontend/src/assets/i18n/en.json` and `fr.json`:
 ```
 (French: `"Service & API OGC"` — same)
 
-### 13. Regenerate TypeScript API client
-
-After backend OpenAPI contract stabilizes:
-```sh
-cd apps/frontend && npm run generate-api
-```
 
 ---
 
