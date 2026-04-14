@@ -16,6 +16,7 @@ from data_manipulation.ingestion import (
     ingest_data_from_database_into_postgis,
     ingest_data_from_file_into_postgis,
     ingest_data_from_ftp_into_postgis,
+    ingest_data_from_ogc_service_into_postgis,
     ingest_data_from_url_into_postgis,
     read_data_from_postgis,
     write_data_to_postgis,
@@ -857,4 +858,105 @@ class TestIngestDataFromDatabaseIntoPostgis:
                 source_engine=mock_source_engine,
                 target_table="staging_table",
                 target_engine=mock_target_engine,
+            )
+
+
+class TestIngestDataFromOgcServiceIntoPostgis:
+    """Test ingest_data_from_ogc_service_into_postgis."""
+
+    @pytest.fixture
+    def mock_engine(self) -> Mock:
+        return Mock(spec=Engine)
+
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_wfs_uses_wfs_gdal_prefix(
+        self,
+        mock_read_file: Mock,
+        mock_write: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """WFS protocol produces a WFS: prefixed GDAL source string."""
+        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
+        mock_read_file.return_value = mock_gdf
+
+        ingest_data_from_ogc_service_into_postgis(
+            service_url="https://example.com/wfs",
+            layer_name="ns:buildings",
+            protocol="wfs",
+            table_name="buildings_stg",
+            engine=mock_engine,
+            schema="public",
+        )
+
+        mock_read_file.assert_called_once_with("WFS:https://example.com/wfs", layer="ns:buildings")
+        mock_write.assert_called_once_with(mock_gdf, "buildings_stg", mock_engine, "public")
+
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_ogc_api_features_uses_oapif_gdal_prefix(
+        self,
+        mock_read_file: Mock,
+        mock_write: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """ogcFeatures protocol produces an OAPIF: prefixed GDAL source string."""
+        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
+        mock_read_file.return_value = mock_gdf
+
+        ingest_data_from_ogc_service_into_postgis(
+            service_url="https://example.com/ogcapi",
+            layer_name="parcels",
+            protocol="ogcFeatures",
+            table_name="parcels_stg",
+            engine=mock_engine,
+            schema="public",
+        )
+
+        mock_read_file.assert_called_once_with(
+            "OAPIF:https://example.com/ogcapi", layer="parcels"
+        )
+        mock_write.assert_called_once_with(mock_gdf, "parcels_stg", mock_engine, "public")
+
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_unknown_protocol_falls_back_to_wfs_prefix(
+        self,
+        mock_read_file: Mock,
+        mock_write: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """Unknown protocol value falls back to the WFS: GDAL prefix."""
+        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
+        mock_read_file.return_value = mock_gdf
+
+        ingest_data_from_ogc_service_into_postgis(
+            service_url="https://example.com/wfs",
+            layer_name="ns:rivers",
+            protocol="unknown_protocol",
+            table_name="rivers_stg",
+            engine=mock_engine,
+            schema="public",
+        )
+
+        gdal_source = mock_read_file.call_args.args[0]
+        assert gdal_source.startswith("WFS:")
+
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_read_exception_is_reraised(
+        self,
+        mock_read_file: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """Exceptions from gpd.read_file are propagated to the caller."""
+        mock_read_file.side_effect = RuntimeError("GDAL error")
+
+        with pytest.raises(RuntimeError, match="GDAL error"):
+            ingest_data_from_ogc_service_into_postgis(
+                service_url="https://example.com/wfs",
+                layer_name="ns:buildings",
+                protocol="wfs",
+                table_name="buildings_stg",
+                engine=mock_engine,
+                schema="public",
             )

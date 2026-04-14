@@ -664,8 +664,11 @@ def dag_success_callback(
     session.refresh(integrity_link)
 
     try:
-        # db:// URIs reference a remote table, not a filesystem path — skip deletion for DATABASE
-        if integrity_link.source_url and integrity_link.source_import_type != ImportType.DATABASE:
+        # db:// URIs and service URLs are not temp files — only delete for FILE/URL/FTP sources
+        if integrity_link.source_url and integrity_link.source_import_type not in (
+            ImportType.DATABASE,
+            ImportType.API,
+        ):
             delete_temp_file(integrity_link.source_url)
     except Exception as e:
         logger.error(f"Error deleting temp file: {e}")
