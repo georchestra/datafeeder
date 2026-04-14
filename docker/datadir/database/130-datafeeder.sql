@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS datafeeder.integrity_link(
     source_url text NULL,
     source_file_name varchar(255) NULL,
     source_file_type varchar(10) NULL,
+    source_layer varchar(256) NULL,
+    source_protocol varchar(32) NULL,
     source_username text NULL,
     source_password_encrypted text NULL,
     staging_table_name varchar(63) NOT NULL,
