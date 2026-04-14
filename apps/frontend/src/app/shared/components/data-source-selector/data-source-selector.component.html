@@ -106,7 +106,28 @@
     (serviceChange)="handleServiceChange($event)"
   />
 </div>
-} @if (form.controls.source.controls.file.value ||
+@if (form.controls.source.controls.serviceUrl.value) {
+<div
+  class="px-9 py-6 bg-beige border-gray-600 border-t rounded-b-lg flex items-center"
+>
+  <gn-ui-online-resource-card
+    [onlineResource]="currentService()"
+    class="flex-1"
+  />
+  <gn-ui-button
+    type="light"
+    style="
+      --gn-ui-button-padding: 0px;
+      --gn-ui-button-width: 24px;
+      --gn-ui-button-height: 24px;
+    "
+    class="ml-[20px] shrink-0"
+    (buttonClick)="removeService()"
+    data-test="remove-item"
+    ><span class="material-symbols-outlined gn-ui-icon-medium">close</span>
+  </gn-ui-button>
+</div>
+} } @if (form.controls.source.controls.file.value ||
 form.controls.source.controls.url.value) {
 <div
   class="px-9 py-6 bg-beige border-gray-600 border-t rounded-b-lg flex items-center"

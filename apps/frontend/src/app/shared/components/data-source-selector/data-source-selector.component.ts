@@ -14,6 +14,7 @@ import {
   CheckToggleComponent,
   DatasetServiceDistribution,
   FileInputComponent,
+  OnlineResourceCardComponent,
   OnlineServiceResourceInputComponent,
   TextInputComponent
 } from 'geonetwork-ui'
@@ -77,7 +78,8 @@ const EMPTY_SERVICE: DatasetServiceDistribution = {
     FileInputComponent,
     DataSourceFtpComponent,
     UiInputPasswordComponent,
-    OnlineServiceResourceInputComponent
+    OnlineServiceResourceInputComponent,
+    OnlineResourceCardComponent
   ],
   templateUrl: './data-source-selector.component.html',
   providers: [
@@ -223,6 +225,15 @@ export class DataSourceSelectorComponent {
       username: data.username,
       password: data.password,
       ftpPath: data.path
+    })
+  }
+
+  removeService(): void {
+    this.currentService.set({ ...EMPTY_SERVICE })
+    this.form.controls.source.patchValue({
+      serviceUrl: null,
+      layerName: null,
+      serviceProtocol: null
     })
   }
 

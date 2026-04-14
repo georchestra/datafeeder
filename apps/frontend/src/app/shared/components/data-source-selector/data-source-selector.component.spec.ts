@@ -202,9 +202,9 @@ describe('DataSourceSelectorComponent', () => {
       expect(component.form.controls.source.controls.layerName.value).toBe(
         'ns:buildings'
       )
-      expect(component.form.controls.source.controls.serviceProtocol.value).toBe(
-        'wfs'
-      )
+      expect(
+        component.form.controls.source.controls.serviceProtocol.value
+      ).toBe('wfs')
     })
 
     it('should update currentService signal via handleServiceChange', () => {
@@ -261,9 +261,13 @@ describe('DataSourceSelectorComponent', () => {
 
       component.handleRadioChange('file')
 
-      expect(component.form.controls.source.controls.serviceUrl.value).toBeNull()
+      expect(
+        component.form.controls.source.controls.serviceUrl.value
+      ).toBeNull()
       expect(component.form.controls.source.controls.layerName.value).toBeNull()
-      expect(component.form.controls.source.controls.serviceProtocol.value).toBeNull()
+      expect(
+        component.form.controls.source.controls.serviceProtocol.value
+      ).toBeNull()
     })
 
     it('should reset currentService when switching away from api', () => {
@@ -302,9 +306,84 @@ describe('DataSourceSelectorComponent', () => {
       expect(component.form.controls.source.controls.layerName.value).toBe(
         'ns:buildings'
       )
-      expect(component.form.controls.source.controls.serviceProtocol.value).toBe(
-        'wfs'
+      expect(
+        component.form.controls.source.controls.serviceProtocol.value
+      ).toBe('wfs')
+    })
+
+    it('should show the service input when no service is connected', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleRadioChange('api')
+      fixture.detectChanges()
+
+      expect(
+        fixture.nativeElement.querySelector(
+          'gn-ui-online-service-resource-input'
+        )
+      ).toBeTruthy()
+      expect(
+        fixture.nativeElement.querySelector('gn-ui-online-resource-card')
+      ).toBeNull()
+    })
+
+    it('should show the connected card alongside the input once a service is selected', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleRadioChange('api')
+      component.handleServiceChange({
+        type: 'service',
+        url: new URL('https://example.com/wfs'),
+        accessServiceProtocol: 'wfs',
+        identifierInService: 'ns:buildings'
+      } as any)
+      fixture.detectChanges()
+
+      expect(
+        fixture.nativeElement.querySelector('gn-ui-online-resource-card')
+      ).toBeTruthy()
+      expect(
+        fixture.nativeElement.querySelector(
+          'gn-ui-online-service-resource-input'
+        )
+      ).toBeTruthy()
+    })
+
+    it('should clear service and show input again when remove button is clicked', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleRadioChange('api')
+      component.handleServiceChange({
+        type: 'service',
+        url: new URL('https://example.com/wfs'),
+        accessServiceProtocol: 'wfs',
+        identifierInService: 'ns:buildings'
+      } as any)
+      fixture.detectChanges()
+
+      const button = fixture.nativeElement.querySelector(
+        'gn-ui-button[data-test="remove-item"] > button'
       )
+      button.click()
+      fixture.detectChanges()
+
+      expect(
+        component.form.controls.source.controls.serviceUrl.value
+      ).toBeNull()
+      expect(component.form.controls.source.controls.layerName.value).toBeNull()
+      expect(component.currentService().url).toBeNull()
+      expect(component.form.controls.radio.value).toBe('api')
+      expect(
+        fixture.nativeElement.querySelector(
+          'gn-ui-online-service-resource-input'
+        )
+      ).toBeTruthy()
+      expect(
+        fixture.nativeElement.querySelector('gn-ui-online-resource-card')
+      ).toBeNull()
     })
   })
 
