@@ -10,7 +10,10 @@ export interface BodySubmitStagingIngestionStagingPost {
   ftp_host?: string | null
   ftp_path?: string | null
   ftp_port?: number | null
+  layer_name?: string | null
   password?: string | null
+  service_protocol?: string | null
+  service_url?: string | null
   type: ImportType
   url?: string | null
   username?: string | null
