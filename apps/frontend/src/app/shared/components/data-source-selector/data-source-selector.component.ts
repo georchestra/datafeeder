@@ -132,14 +132,11 @@ export class DataSourceSelectorComponent {
   }
 
   handleFileChange(file: globalThis.File | null): void {
-    this.form.controls.source.patchValue({ file })
+    this.form.controls.source.patchValue({ type: 'file', file, url: null })
   }
 
   handleUrlChange(url: string): void {
-    this.form.controls.source.patchValue({
-      type: 'url',
-      url
-    })
+    this.form.controls.source.patchValue({ type: 'url', url, file: null })
   }
 
   resetSource(): void {
