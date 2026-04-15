@@ -563,7 +563,7 @@ class MetadataService:
             if settings.METADATA_GROUPS_LABEL_FILTER_REGEX:
                 search = re.search(settings.METADATA_GROUPS_LABEL_FILTER_REGEX, org_name)
                 if search and search.lastindex:
-                    org_name = search.group(0)
+                    org_name = search.group(1)
             gn_group_id = group_id_by_name.get(org_name.lower())
             if gn_group_id is None:
                 raise ValueError(f"No GN group found for org '{org_name}'")

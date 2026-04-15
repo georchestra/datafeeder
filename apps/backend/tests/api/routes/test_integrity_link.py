@@ -458,7 +458,7 @@ class TestSyncAfterUpsertRule:
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = [
-                {"id": "org-uuid-1", "name": "C2C"}  # lowercase id
+                {"id": "org-uuid-1", "shortName": "C2C"}  # lowercase id
             ]
 
             mock_ms = MagicMock()
@@ -683,7 +683,9 @@ class TestSyncAfterUpsertRule:
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
             # org-uuid-unknown is not in the returned list
-            mock_console.get_all_organizations.return_value = [{"id": "org-uuid-1", "name": "C2C"}]
+            mock_console.get_all_organizations.return_value = [
+                {"id": "org-uuid-1", "shortName": "C2C"}
+            ]
 
             with pytest.raises(HTTPException) as exc_info:
                 upsert_integrity_link_rule(
@@ -801,7 +803,9 @@ class TestSyncAfterUpsertRule:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_organizations.return_value = [{"id": "org-uuid-1", "name": "C2C"}]
+            mock_console.get_all_organizations.return_value = [
+                {"id": "org-uuid-1", "shortName": "C2C"}
+            ]
 
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
