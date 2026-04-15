@@ -106,14 +106,26 @@
     (serviceChange)="handleServiceChange($event)"
   />
 </div>
-@if (form.controls.source.controls.serviceUrl.value) {
+@if (form.controls.source.controls.layerName.value) {
 <div
   class="px-9 py-6 bg-beige border-gray-600 border-t rounded-b-lg flex items-center"
 >
-  <gn-ui-online-resource-card
-    [onlineResource]="currentService()"
-    class="flex-1"
-  />
+  <div class="gn-ui-card bg-white flex-1">
+    <div
+      class="bg-beige w-[56px] h-[56px] rounded-[4px] text-secondary-darker grid justify-center items-center shrink-0"
+    >
+      <ng-icon name="iconoirAxes"></ng-icon>
+    </div>
+    <div class="flex flex-col justify-center">
+      <div class="text-lg font-bold">
+        {{ form.controls.source.controls.layerName.value }}
+      </div>
+      <div class="text-xs text-gray-500">
+        {{ protocolLabel }} •
+        {{ form.controls.source.controls.layerName.value }}
+      </div>
+    </div>
+  </div>
   <gn-ui-button
     type="light"
     style="

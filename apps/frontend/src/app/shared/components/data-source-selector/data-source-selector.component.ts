@@ -7,14 +7,13 @@ import {
   provideIcons,
   provideNgIconsConfig
 } from '@ng-icons/core'
-import { iconoirAttachment } from '@ng-icons/iconoir'
+import { iconoirAttachment, iconoirAxes } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
 import {
   ButtonComponent,
   CheckToggleComponent,
   DatasetServiceDistribution,
   FileInputComponent,
-  OnlineResourceCardComponent,
   OnlineServiceResourceInputComponent,
   TextInputComponent
 } from 'geonetwork-ui'
@@ -78,13 +77,13 @@ const EMPTY_SERVICE: DatasetServiceDistribution = {
     FileInputComponent,
     DataSourceFtpComponent,
     UiInputPasswordComponent,
-    OnlineServiceResourceInputComponent,
-    OnlineResourceCardComponent
+    OnlineServiceResourceInputComponent
   ],
   templateUrl: './data-source-selector.component.html',
   providers: [
     provideIcons({
-      iconoirAttachment
+      iconoirAttachment,
+      iconoirAxes
     }),
     provideNgIconsConfig({
       size: '2em'
@@ -235,6 +234,11 @@ export class DataSourceSelectorComponent {
       layerName: null,
       serviceProtocol: null
     })
+  }
+
+  get protocolLabel(): string {
+    const protocol = this.form.controls.source.controls.serviceProtocol.value
+    return !protocol || protocol === 'wfs' ? 'WFS' : 'OGC API'
   }
 
   handleServiceChange(service: DatasetServiceDistribution): void {
