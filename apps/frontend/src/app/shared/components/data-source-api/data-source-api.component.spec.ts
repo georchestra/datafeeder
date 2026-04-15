@@ -12,7 +12,9 @@ const mockService: DatasetServiceDistribution = {
   type: 'service',
   url: new URL('https://example.com/oapif'),
   accessServiceProtocol: 'ogcFeatures',
-  identifierInService: 'buildings'
+  identifierInService: 'buildings',
+  name: 'Buildings layer',
+  description: 'Buildings of the city'
 }
 
 describe('DataSourceApiComponent', () => {
@@ -44,6 +46,7 @@ describe('DataSourceApiComponent', () => {
     expect(emitted).toEqual({
       serviceUrl: 'https://example.com/oapif',
       layerName: 'buildings',
+      layerTitle: 'Buildings of the city',
       serviceProtocol: 'ogcFeatures'
     })
   })
@@ -106,7 +109,8 @@ describe('DataSourceApiComponent', () => {
     const component = fixture.componentInstance
     const initial: ApiData = {
       serviceUrl: 'https://example.com/wfs',
-      layerName: 'roads',
+      layerName: 'ns:roads',
+      layerTitle: 'Roads layer',
       serviceProtocol: 'wfs'
     }
 

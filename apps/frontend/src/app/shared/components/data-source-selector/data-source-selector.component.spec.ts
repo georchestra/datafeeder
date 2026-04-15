@@ -204,6 +204,7 @@ describe('DataSourceSelectorComponent', () => {
       component.handleApiDataChange({
         serviceUrl: 'https://example.com/wfs',
         layerName: 'ns:buildings',
+        layerTitle: 'Buildings',
         serviceProtocol: 'wfs'
       })
 
@@ -225,6 +226,7 @@ describe('DataSourceSelectorComponent', () => {
       component.handleApiDataChange({
         serviceUrl: 'https://example.com/wfs',
         layerName: 'ns:buildings',
+        layerTitle: 'Buildings',
         serviceProtocol: 'wfs'
       })
       component.handleApiDataChange(null)
@@ -249,6 +251,7 @@ describe('DataSourceSelectorComponent', () => {
       component.handleApiDataChange({
         serviceUrl: 'https://example.com/ogcapi',
         layerName: 'parcels',
+        layerTitle: 'City parcels',
         serviceProtocol: 'ogcFeatures'
       })
 

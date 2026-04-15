@@ -17,7 +17,7 @@
     </div>
     <div class="flex flex-col justify-center">
       <div class="text-lg font-bold">
-        {{ selectedLayer()!.layerName }}
+        {{ selectedLayer()!.layerTitle || selectedLayer()!.layerName }}
       </div>
       <div class="text-xs text-gray-500">
         {{ protocolLabel }} • {{ selectedLayer()!.layerName }}

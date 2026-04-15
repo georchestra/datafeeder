@@ -14,6 +14,7 @@ import {
 export interface ApiData {
   serviceUrl: string
   layerName: string
+  layerTitle?: string
   serviceProtocol: string
 }
 
@@ -25,7 +26,11 @@ const EMPTY_SERVICE: DatasetServiceDistribution = {
 
 @Component({
   selector: 'app-data-source-api',
-  imports: [NgIconComponent, ButtonComponent, OnlineServiceResourceInputComponent],
+  imports: [
+    NgIconComponent,
+    ButtonComponent,
+    OnlineServiceResourceInputComponent
+  ],
   templateUrl: './data-source-api.component.html',
   providers: [
     provideIcons({ iconoirAxes }),
@@ -63,12 +68,14 @@ export class DataSourceApiComponent {
 
   handleServiceChange(service: DatasetServiceDistribution): void {
     const layerName = service.identifierInService ?? service.name ?? null
+    const layerTitle = service.description ?? service.name ?? undefined
     const serviceUrl = service.url?.toString() ?? null
     const serviceProtocol = service.accessServiceProtocol ?? null
     if (layerName && serviceUrl) {
       const data: ApiData = {
         serviceUrl,
         layerName,
+        layerTitle,
         serviceProtocol: serviceProtocol ?? 'ogcFeatures'
       }
       this.selectedLayer.set(data)
