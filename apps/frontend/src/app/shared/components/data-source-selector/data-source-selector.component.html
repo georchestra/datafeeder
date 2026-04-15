@@ -11,6 +11,9 @@
       <mat-radio-button value="file">
         {{ 'import.dataSource.chooseType.file' | translate }}
       </mat-radio-button>
+      <mat-radio-button value="api" class="ml-6">
+        {{ 'import.dataSource.chooseType.api' | translate }}
+      </mat-radio-button>
       <mat-radio-button value="ftp" class="ml-6">
         {{ 'import.dataSource.chooseType.ftp' | translate }}
       </mat-radio-button>
@@ -19,9 +22,6 @@
         {{ 'import.dataSource.chooseType.database' | translate }}
       </mat-radio-button>
       }
-      <mat-radio-button value="api" class="ml-6">
-        {{ 'import.dataSource.chooseType.api' | translate }}
-      </mat-radio-button>
     </mat-radio-group>
   </form>
 </div>
@@ -70,34 +70,6 @@
     }
   </div>
 </div>
-} @if (form.controls.radio.value === 'ftp') {
-<app-data-source-ftp (ftpDataChanged)="handleFtpDataChange($event)" />
-} @if (form.controls.radio.value === 'database') {
-<div class="px-9 py-6">
-  <div class="flex flex-wrap gap-4">
-    <div class="flex-1 min-w-[300px] max-w-[300px]">
-      <label class="block text-sm font-medium text-gray-700 mb-2">
-        {{ 'import.dataSource.database.schema' | translate }}
-      </label>
-      <gn-ui-text-input
-        [value]="form.controls.source.controls.dbSchema.value"
-        (valueChange)="form.controls.source.controls.dbSchema.setValue($event)"
-        placeholder=""
-      ></gn-ui-text-input>
-    </div>
-
-    <div class="flex-1 min-w-[300px] max-w-[300px]">
-      <label class="block text-sm font-medium text-gray-700 mb-2">
-        {{ 'import.dataSource.database.table' | translate }}
-      </label>
-      <gn-ui-text-input
-        [value]="form.controls.source.controls.dbTable.value"
-        (valueChange)="form.controls.source.controls.dbTable.setValue($event)"
-        placeholder=""
-      ></gn-ui-text-input>
-    </div>
-  </div>
-</div>
 } @if (form.controls.radio.value === 'api') {
 <div class="px-9 py-6">
   <gn-ui-online-service-resource-input
@@ -139,7 +111,35 @@
     ><span class="material-symbols-outlined gn-ui-icon-medium">close</span>
   </gn-ui-button>
 </div>
-} } @if (form.controls.source.controls.file.value ||
+} } @if (form.controls.radio.value === 'ftp') {
+<app-data-source-ftp (ftpDataChanged)="handleFtpDataChange($event)" />
+} @if (form.controls.radio.value === 'database') {
+<div class="px-9 py-6">
+  <div class="flex flex-wrap gap-4">
+    <div class="flex-1 min-w-[300px] max-w-[300px]">
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        {{ 'import.dataSource.database.schema' | translate }}
+      </label>
+      <gn-ui-text-input
+        [value]="form.controls.source.controls.dbSchema.value"
+        (valueChange)="form.controls.source.controls.dbSchema.setValue($event)"
+        placeholder=""
+      ></gn-ui-text-input>
+    </div>
+
+    <div class="flex-1 min-w-[300px] max-w-[300px]">
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        {{ 'import.dataSource.database.table' | translate }}
+      </label>
+      <gn-ui-text-input
+        [value]="form.controls.source.controls.dbTable.value"
+        (valueChange)="form.controls.source.controls.dbTable.setValue($event)"
+        placeholder=""
+      ></gn-ui-text-input>
+    </div>
+  </div>
+</div>
+} @if (form.controls.source.controls.file.value ||
 form.controls.source.controls.url.value) {
 <div
   class="px-9 py-6 bg-beige border-gray-600 border-t rounded-b-lg flex items-center"

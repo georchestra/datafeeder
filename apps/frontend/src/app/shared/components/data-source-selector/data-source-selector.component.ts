@@ -60,7 +60,7 @@ export interface SourceData {
 const EMPTY_SERVICE: DatasetServiceDistribution = {
   type: 'service',
   url: null as unknown as URL,
-  accessServiceProtocol: 'wfs'
+  accessServiceProtocol: 'ogcFeatures'
 }
 
 @Component({
@@ -153,7 +153,7 @@ export class DataSourceSelectorComponent {
           url: new URL(apiSource.url),
           accessServiceProtocol:
             (apiSource.protocol as DatasetServiceDistribution['accessServiceProtocol']) ??
-            'wfs',
+            'ogcFeatures',
           identifierInService: apiSource.layerName
         })
       }
