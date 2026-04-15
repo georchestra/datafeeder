@@ -1,4 +1,11 @@
-import { Component, effect, inject, input, output, signal } from '@angular/core'
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output
+} from '@angular/core'
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { MatRadioModule } from '@angular/material/radio'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
@@ -7,16 +14,18 @@ import {
   provideIcons,
   provideNgIconsConfig
 } from '@ng-icons/core'
-import { iconoirAttachment, iconoirAxes } from '@ng-icons/iconoir'
+import { iconoirAttachment } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
 import {
   ButtonComponent,
   CheckToggleComponent,
-  DatasetServiceDistribution,
   FileInputComponent,
-  OnlineServiceResourceInputComponent,
   TextInputComponent
 } from 'geonetwork-ui'
+import {
+  type ApiData,
+  DataSourceApiComponent
+} from '../data-source-api/data-source-api.component'
 import {
   DataSourceFtpComponent,
   type FTPData
@@ -57,12 +66,6 @@ export interface SourceData {
   serviceProtocol?: string
 }
 
-const EMPTY_SERVICE: DatasetServiceDistribution = {
-  type: 'service',
-  url: null as unknown as URL,
-  accessServiceProtocol: 'ogcFeatures'
-}
-
 @Component({
   selector: 'app-data-source-selector',
   imports: [
@@ -70,24 +73,18 @@ const EMPTY_SERVICE: DatasetServiceDistribution = {
     MatRadioModule,
     TranslatePipe,
     NgIconComponent,
-    TranslatePipe,
     ButtonComponent,
     CheckToggleComponent,
     TextInputComponent,
     FileInputComponent,
     DataSourceFtpComponent,
-    UiInputPasswordComponent,
-    OnlineServiceResourceInputComponent
+    DataSourceApiComponent,
+    UiInputPasswordComponent
   ],
   templateUrl: './data-source-selector.component.html',
   providers: [
-    provideIcons({
-      iconoirAttachment,
-      iconoirAxes
-    }),
-    provideNgIconsConfig({
-      size: '2em'
-    })
+    provideIcons({ iconoirAttachment }),
+    provideNgIconsConfig({ size: '2em' })
   ]
 })
 export class DataSourceSelectorComponent {
@@ -103,7 +100,15 @@ export class DataSourceSelectorComponent {
 
   sourceChanged = output<SourceData>()
 
-  currentService = signal<DatasetServiceDistribution>({ ...EMPTY_SERVICE })
+  apiInitialValue = computed(() => {
+    const src = this.initialApiSource()
+    if (!src) return null
+    return {
+      serviceUrl: src.url,
+      layerName: src.layerName,
+      serviceProtocol: src.protocol
+    }
+  })
 
   form = this.fb.group({
     radio: this.fb.control<RadioType>('file'),
@@ -147,14 +152,6 @@ export class DataSourceSelectorComponent {
           serviceUrl: apiSource.url,
           layerName: apiSource.layerName,
           serviceProtocol: apiSource.protocol
-        })
-        this.currentService.set({
-          type: 'service',
-          url: new URL(apiSource.url),
-          accessServiceProtocol:
-            (apiSource.protocol as DatasetServiceDistribution['accessServiceProtocol']) ??
-            'ogcFeatures',
-          identifierInService: apiSource.layerName
         })
       }
     })
@@ -204,7 +201,6 @@ export class DataSourceSelectorComponent {
       layerName: null,
       serviceProtocol: null
     })
-    this.currentService.set({ ...EMPTY_SERVICE })
   }
 
   removeItem(): void {
@@ -227,26 +223,11 @@ export class DataSourceSelectorComponent {
     })
   }
 
-  removeService(): void {
-    this.currentService.set({ ...EMPTY_SERVICE })
+  handleApiDataChange(data: ApiData | null): void {
     this.form.controls.source.patchValue({
-      serviceUrl: null,
-      layerName: null,
-      serviceProtocol: null
-    })
-  }
-
-  get protocolLabel(): string {
-    const protocol = this.form.controls.source.controls.serviceProtocol.value
-    return !protocol || protocol === 'wfs' ? 'WFS' : 'OGC API'
-  }
-
-  handleServiceChange(service: DatasetServiceDistribution): void {
-    this.currentService.set(service)
-    this.form.controls.source.patchValue({
-      serviceUrl: service.url?.toString() ?? null,
-      layerName: service.identifierInService ?? service.name ?? null,
-      serviceProtocol: service.accessServiceProtocol ?? null
+      serviceUrl: data?.serviceUrl ?? null,
+      layerName: data?.layerName ?? null,
+      serviceProtocol: data?.serviceProtocol ?? null
     })
   }
 }

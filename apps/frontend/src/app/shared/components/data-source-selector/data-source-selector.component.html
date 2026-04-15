@@ -71,47 +71,11 @@
   </div>
 </div>
 } @if (form.controls.radio.value === 'api') {
-<div class="px-9 py-6">
-  <gn-ui-online-service-resource-input
-    [featuresOnly]="true"
-    [service]="currentService()"
-    (serviceChange)="handleServiceChange($event)"
-  />
-</div>
-@if (form.controls.source.controls.layerName.value) {
-<div
-  class="px-9 py-6 bg-beige border-gray-600 border-t rounded-b-lg flex items-center"
->
-  <div class="gn-ui-card bg-white flex-1">
-    <div
-      class="bg-beige w-[56px] h-[56px] rounded-[4px] text-secondary-darker grid justify-center items-center shrink-0"
-    >
-      <ng-icon name="iconoirAxes"></ng-icon>
-    </div>
-    <div class="flex flex-col justify-center">
-      <div class="text-lg font-bold">
-        {{ form.controls.source.controls.layerName.value }}
-      </div>
-      <div class="text-xs text-gray-500">
-        {{ protocolLabel }} •
-        {{ form.controls.source.controls.layerName.value }}
-      </div>
-    </div>
-  </div>
-  <gn-ui-button
-    type="light"
-    style="
-      --gn-ui-button-padding: 0px;
-      --gn-ui-button-width: 24px;
-      --gn-ui-button-height: 24px;
-    "
-    class="ml-[20px] shrink-0"
-    (buttonClick)="removeService()"
-    data-test="remove-item"
-    ><span class="material-symbols-outlined gn-ui-icon-medium">close</span>
-  </gn-ui-button>
-</div>
-} } @if (form.controls.radio.value === 'ftp') {
+<app-data-source-api
+  [initialValue]="apiInitialValue()"
+  (apiDataChanged)="handleApiDataChange($event)"
+/>
+} @if (form.controls.radio.value === 'ftp') {
 <app-data-source-ftp (ftpDataChanged)="handleFtpDataChange($event)" />
 } @if (form.controls.radio.value === 'database') {
 <div class="px-9 py-6">
