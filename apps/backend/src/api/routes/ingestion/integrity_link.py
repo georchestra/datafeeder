@@ -68,9 +68,9 @@ def _sync_metadata_sharing(
         if settings.GN_SYNC_MODE == "ORG":
             items = console_service.get_all_organizations()
             groups_by_id = {
-                item["id"].lower(): item["name"]
+                item["id"].lower(): item["shortName"]
                 for item in items
-                if item.get("id") and item.get("name")
+                if item.get("id") and item.get("shortName")
             }
         else:
             items = console_service.get_all_roles()
