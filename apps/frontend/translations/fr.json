@@ -245,6 +245,7 @@
   "import.datasetPreviewTable.previewError": "Prévisualisation non disponible. Veuillez vérifier votre configuration.",
   "import.metadataPublication.error": "Erreur lors de la publication de la métadonnée, veuillez réessayer.",
   "import.recurrence.label": "Récurrence",
+  "info.operation.metadataSave": "Métadonnées sauvegardées avec succès",
   "input.file.dropFileLabel": "ou déplacez le ici",
   "input.file.orInputUrl": "Ou importez un fichier à partir d'un lien",
   "input.file.selectFileLabel": "Choisissez un fichier",

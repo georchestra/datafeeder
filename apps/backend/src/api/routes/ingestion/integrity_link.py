@@ -10,7 +10,11 @@ from src.core.security import (
     AccessLevel,
     load_authorized_integrity_link,
 )
-from src.models.data_import import IntegrityLinkGsPublishResponse, IntegrityLinkResponse
+from src.models.data_import import (
+    IntegrityLinkGsPublishResponse,
+    IntegrityLinkResponse,
+    UpdateMetadataGnRequest,
+)
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import (
     GROUP_OR_ROLE_EVERYONE,
@@ -214,6 +218,80 @@ def get_integrity_link(
         response.integrity_transformation = None
 
     return response
+
+
+def _sync_title_geoserver(title: str, integrity_link: IntegrityLink) -> None:
+    """Sync the metadata title to the corresponding GeoServer feature type layer."""
+    if not integrity_link.final_table_name:
+        return
+    settings = get_settings()
+    gs = GeoServerService(
+        base_url=settings.GEOSERVER_URL,
+        username=settings.GEOSERVER_USER,
+        password=settings.GEOSERVER_PASSWORD,
+        public_url=settings.DATA_PUBLIC_URL,
+    )
+    workspace = integrity_link.integrity_organization.lower()
+    datastore = f"{workspace}_ds"
+    gs.update_layer_title(workspace, datastore, integrity_link.final_table_name, title)
+
+
+@router.put(
+    "/{integrity_link_id}/metadata-gn",
+    response_model=IntegrityLinkResponse,
+    summary="Save metadata to GeoNetwork and sync title",
+    description=(
+        "Receives the fully serialized metadata XML from the frontend, uploads it to GeoNetwork "
+        "(OVERWRITE), then syncs the title to GeoServer (non blocking) and commits integrity_title "
+        "to the database. DB is committed only when the GeoNetwork sync succeeds."
+    ),
+)
+def update_metadata_gn(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    integrity_link_id: str,
+    org_id: OrgIdDep,
+    body: UpdateMetadataGnRequest,
+) -> IntegrityLinkResponse:
+    """Upload serialized metadata XML to GeoNetwork, then sync title to GeoServer and DB."""
+    integrity_link, _ = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, session, org_id
+    )
+
+    settings = get_settings()
+    metadata_service = MetadataService(
+        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        datadir_path=settings.DATADIR_PATH,
+        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        verify_tls=False,
+    )
+
+    try:
+        metadata_service.upload_metadata_xml(body.serialized_xml.encode("utf-8"))
+    except Exception as e:
+        logger.error(
+            "GeoNetwork upload failed for IntegrityLink %s: %s",
+            integrity_link_id,
+            e,
+        )
+        raise HTTPException(status_code=502, detail="i18nerror.save.geonetwork")
+
+    try:
+        _sync_title_geoserver(body.title, integrity_link)
+    except Exception as e:
+        logger.error(
+            "GeoServer title sync failed for IntegrityLink %s: %s",
+            integrity_link_id,
+            e,
+        )
+
+    integrity_link.integrity_title = body.title
+    session.add(integrity_link)
+    session.flush()
+    session.commit()
+    session.refresh(integrity_link)
+
+    return IntegrityLinkResponse.model_validate(integrity_link)
 
 
 @router.get(

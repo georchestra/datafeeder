@@ -8,14 +8,16 @@ import pytest
 from fastapi import HTTPException
 
 from src.api.routes.ingestion.integrity_link import (
+    _sync_title_geoserver,  # type: ignore[reportPrivateUsage]
     delete_integrity_link_rule,
     get_integrity_link,
     toggle_publish_gn_integrity_link,
     toggle_publish_gs_integrity_link,
+    update_metadata_gn,
     upsert_integrity_link_rule,
 )
 from src.core.security import EffectiveAccess
-from src.models.data_import import ImportType
+from src.models.data_import import ImportType, UpdateMetadataGnRequest
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import (
     GROUP_OR_ROLE_EVERYONE,
@@ -1884,3 +1886,266 @@ class TestGetIntegrityLinkPresetId:
 
         assert result.schedule == "30 2 15 * *"
         assert result.preset_id is None
+
+
+class TestUpdateMetadataGn:
+    """Tests for PUT /{integrity_link_id}/metadata-gn."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def integrity_link_id(self) -> str:
+        return str(uuid4())
+
+    def _link(self, link_id: str) -> IntegrityLink:
+        return IntegrityLink(
+            id=UUID(link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            integrity_title="Old Title",
+        )
+
+    def _body(self, title: str = "New Title") -> UpdateMetadataGnRequest:
+        return UpdateMetadataGnRequest(
+            serialized_xml="<xml>metadata</xml>",
+            title=title,
+        )
+
+    def _mock_settings(self) -> MagicMock:
+        s = MagicMock()
+        s.GEONETWORK_URL = "http://geonetwork"
+        s.DATADIR_PATH = "/datadir"
+        s.GEONETWORK_USERNAME = "admin"
+        s.GEONETWORK_PASSWORD = "password"
+        return s
+
+    def test_uploads_xml_and_commits_title(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """Happy path: XML uploaded to GN and integrity_title committed."""
+        mock_session.get.return_value = self._link(integrity_link_id)
+        mock_session.exec.return_value.first.return_value = "OWNER"
+
+        with (
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings(),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
+        ):
+            mock_ms = MagicMock()
+            mock_ms_cls.return_value = mock_ms
+
+            update_metadata_gn(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                body=self._body("New Title"),
+            )
+
+        mock_ms.upload_metadata_xml.assert_called_once_with(b"<xml>metadata</xml>")
+        # integrity_title updated before commit
+        link = mock_session.add.call_args[0][0]
+        assert link.integrity_title == "New Title"
+        mock_session.commit.assert_called_once()
+        mock_session.refresh.assert_called_once()
+
+    def test_returns_integrity_link_response(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """Endpoint returns an IntegrityLinkResponse built from the refreshed link."""
+        link = self._link(integrity_link_id)
+        mock_session.get.return_value = link
+        mock_session.exec.return_value.first.return_value = "OWNER"
+
+        with (
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings(),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.MetadataService"),
+        ):
+            result = update_metadata_gn(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                body=self._body("New Title"),
+            )
+
+        assert result.id == UUID(integrity_link_id)
+        assert result.integrity_title == "New Title"
+
+    def test_raises_502_when_geonetwork_upload_fails(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """GeoNetwork upload failure → HTTP 502 with i18nerror.save.geonetwork."""
+        mock_session.get.return_value = self._link(integrity_link_id)
+        mock_session.exec.return_value.first.return_value = "OWNER"
+
+        with (
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings(),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
+        ):
+            mock_ms_cls.return_value.upload_metadata_xml.side_effect = Exception("GN down")
+
+            with pytest.raises(HTTPException) as exc_info:
+                update_metadata_gn(
+                    session=mock_session,
+                    geo_ctx=_geo_ctx(),
+                    integrity_link_id=integrity_link_id,
+                    org_id=None,
+                    body=self._body(),
+                )
+
+        assert exc_info.value.status_code == 502
+        assert exc_info.value.detail == "i18nerror.save.geonetwork"
+        mock_session.commit.assert_not_called()
+
+    def test_does_not_commit_when_geonetwork_upload_fails(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """DB is not updated when GeoNetwork upload fails."""
+        link = self._link(integrity_link_id)
+        mock_session.get.return_value = link
+        mock_session.exec.return_value.first.return_value = "OWNER"
+
+        with (
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings(),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
+        ):
+            mock_ms_cls.return_value.upload_metadata_xml.side_effect = Exception("GN down")
+
+            with pytest.raises(HTTPException):
+                update_metadata_gn(
+                    session=mock_session,
+                    geo_ctx=_geo_ctx(),
+                    integrity_link_id=integrity_link_id,
+                    org_id=None,
+                    body=self._body("New Title"),
+                )
+
+        mock_session.commit.assert_not_called()
+        # the same object returned by session.get must not have been mutated
+        assert link.integrity_title == "Old Title"
+
+    def test_geoserver_sync_failure_is_non_blocking(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """GeoServer title sync failure is logged but does not block the commit."""
+        mock_session.get.return_value = self._link(integrity_link_id)
+        mock_session.exec.return_value.first.return_value = "OWNER"
+
+        with (
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings(),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.MetadataService"),
+            patch(
+                "src.api.routes.ingestion.integrity_link._sync_title_geoserver",
+                side_effect=Exception("GeoServer down"),
+            ),
+        ):
+            update_metadata_gn(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                org_id=None,
+                body=self._body("New Title"),
+            )
+
+        # DB commit still happens despite GeoServer failure
+        mock_session.commit.assert_called_once()
+        link = mock_session.add.call_args[0][0]
+        assert link.integrity_title == "New Title"
+
+    def test_raises_404_when_integrity_link_not_found(self, mock_session: MagicMock) -> None:
+        """Unknown integrity_link_id → HTTP 404."""
+        mock_session.get.return_value = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_metadata_gn(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=str(uuid4()),
+                org_id=None,
+                body=self._body(),
+            )
+
+        assert exc_info.value.status_code == 404
+
+
+class TestSyncTitleGeoserver:
+    """Tests for _sync_title_geoserver."""
+
+    def _link(self, final_table_name: str | None = "my_table") -> IntegrityLink:
+        return IntegrityLink(
+            id=uuid4(),
+            integrity_owner="testuser",
+            integrity_organization="TestOrg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+            final_table_name=final_table_name,
+        )
+
+    def _mock_settings(self) -> MagicMock:
+        s = MagicMock()
+        s.GEOSERVER_URL = "http://geoserver"
+        s.GEOSERVER_USER = "admin"
+        s.GEOSERVER_PASSWORD = "password"
+        s.DATA_PUBLIC_URL = "http://public"
+        return s
+
+    def test_skips_when_final_table_name_is_none(self) -> None:
+        """No GeoServer call when the layer has not been published yet."""
+        with patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls:
+            _sync_title_geoserver("Any Title", self._link(final_table_name=None))
+            mock_gs_cls.assert_not_called()
+
+    def test_calls_update_layer_title_with_lowercased_org(self) -> None:
+        """Workspace is the lowercased integrity_organization; datastore follows {workspace}_ds convention."""
+        link = self._link()
+
+        with (
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings(),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
+        ):
+            mock_gs = MagicMock()
+            mock_gs_cls.return_value = mock_gs
+
+            _sync_title_geoserver("New Title", link)
+
+        mock_gs.update_layer_title.assert_called_once_with(
+            "testorg", "testorg_ds", "my_table", "New Title"
+        )
+
+    def test_propagates_geoserver_acl_error(self) -> None:
+        """GeoServerAclError bubbles up so the endpoint can handle it as non-blocking."""
+        link = self._link()
+
+        with (
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_settings",
+                return_value=self._mock_settings(),
+            ),
+            patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
+        ):
+            mock_gs_cls.return_value.update_layer_title.side_effect = GeoServerAclError(500, "err")
+
+            with pytest.raises(GeoServerAclError):
+                _sync_title_geoserver("New Title", link)

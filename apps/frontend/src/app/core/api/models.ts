@@ -48,5 +48,6 @@ export type { StagingMetadataResponse } from './models/staging-metadata-response
 export type { StagingPreviewResponse } from './models/staging-preview-response'
 export type { StagingResponse } from './models/staging-response'
 export type { TaskStatus } from './models/task-status'
+export type { UpdateMetadataGnRequest } from './models/update-metadata-gn-request'
 export type { UpsertRuleRequest } from './models/upsert-rule-request'
 export type { ValidationError } from './models/validation-error'

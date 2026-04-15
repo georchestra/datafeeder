@@ -43,7 +43,13 @@ class ProcessRequest(BaseModel):
     integrity_link_id: str
     title: str | None = None
     recurrence: RecurrencePreset | None = None
-    title: str | None = None
+
+
+class UpdateMetadataGnRequest(BaseModel):
+    """Payload sent by the frontend to save metadata to GeoNetwork and sync the title."""
+
+    serialized_xml: str
+    title: str
 
 
 class StagingResponse(BaseModel):

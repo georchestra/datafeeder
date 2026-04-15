@@ -245,6 +245,7 @@
   "import.datasetPreviewTable.previewError": "Preview not available. Please check your configuration.",
   "import.metadataPublication.error": "",
   "import.recurrence.label": "Recurrence",
+  "info.operation.metadataSave": "Metadata saved successfully",
   "input.file.dropFileLabel": "or drop it here",
   "input.file.orInputUrl": "Or import a file from a link",
   "input.file.selectFileLabel": "Choose a file",

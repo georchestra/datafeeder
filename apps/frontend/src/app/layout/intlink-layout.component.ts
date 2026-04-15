@@ -6,12 +6,14 @@ import { iconoirFloppyDisk, iconoirRefreshCircle } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
 import {
   EditorFacade,
-  RecordsRepositoryInterface,
+  findConverterForDocument,
   SpinningLoaderComponent
 } from 'geonetwork-ui'
-import { finalize, switchMap, take, withLatestFrom } from 'rxjs'
+import { finalize, from, switchMap, take, withLatestFrom } from 'rxjs'
+import { Api } from '../core/api/api'
+import { updateMetadataGnIngestionIntegrityLinkIntegrityLinkIdMetadataGnPut } from '../core/api/functions'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
-import { ErrorToastStore } from '../core/stores/error-toast.store'
+import { OperationToastStore } from '../core/stores/operation-toast.store'
 import { UiAlertBoxComponent } from '../shared/components/ui-alert-box/ui-alert-box.component'
 
 marker('intlinkLayout.error.forbidden.message')
@@ -20,6 +22,7 @@ marker('intlinkLayout.error.not_found.message')
 marker('intlinkLayout.error.not_found.title')
 marker('intlinkLayout.error.server_error.message')
 marker('intlinkLayout.error.server_error.title')
+marker('info.operation.metadataSave')
 
 @Component({
   selector: 'app-intlink-layout',
@@ -44,8 +47,8 @@ export class IntlinkLayoutComponent {
   readonly store = inject(IntegrityLinkStore)
 
   private editor = inject(EditorFacade)
-  private recordsRepository = inject(RecordsRepositoryInterface)
-  private errorToastStore = inject(ErrorToastStore)
+  private api = inject(Api)
+  private operationToastStore = inject(OperationToastStore)
 
   isSaving = signal<boolean>(false)
 
@@ -58,19 +61,39 @@ export class IntlinkLayoutComponent {
         withLatestFrom(this.editor.recordSource$),
         take(1),
         switchMap(([record, recordSource]) =>
-          this.recordsRepository.saveRecord(record, recordSource, false)
+          from(
+            findConverterForDocument(recordSource).writeRecord(
+              record,
+              recordSource
+            )
+          ).pipe(
+            switchMap((serializedXml) =>
+              from(
+                this.api.invoke(
+                  updateMetadataGnIngestionIntegrityLinkIntegrityLinkIdMetadataGnPut,
+                  {
+                    integrity_link_id: this.store.integrityLink()!.id,
+                    body: { serialized_xml: serializedXml, title: record.title }
+                  }
+                )
+              )
+            )
+          )
         ),
         finalize(() => {
           this.isSaving.set(false)
         })
       )
       .subscribe({
-        next: () => {
-          //TODO: show success message
-          console.log('Edits saved successfully')
+        next: (updatedIntlink) => {
+          this.store.integrityLink.update((current) => ({
+            ...current!,
+            integrity_title: updatedIntlink.integrity_title
+          }))
+          this.operationToastStore.addInfo('metadataSave')
         },
         error: () => {
-          this.errorToastStore.add('metadataSave')
+          this.operationToastStore.addError('metadataSave')
         }
       })
   }

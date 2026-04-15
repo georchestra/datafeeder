@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
-import { ErrorToastComponent } from './error-toast.component'
-import { ErrorToastStore } from '../../../core/stores/error-toast.store'
+import { OperationToastComponent } from './operation-toast.component'
+import { OperationToastStore } from '../../../core/stores/operation-toast.store'
 
 const translations = {
   'errors.operation.metadataSave':
@@ -10,47 +10,47 @@ const translations = {
   'errors.operation.deletion': 'La suppression a rencontré une erreur'
 }
 
-describe('ErrorToastComponent', () => {
-  let store: ErrorToastStore
+describe('OperationToastComponent', () => {
+  let store: OperationToastStore
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [
-        ErrorToastComponent,
+        OperationToastComponent,
         TranslateTestingModule.withTranslations({ fr: translations })
           .withDefaultLanguage('fr')
           .withCompiler(new TranslateMessageFormatCompiler())
       ]
     }).compileComponents()
 
-    store = TestBed.inject(ErrorToastStore)
+    store = TestBed.inject(OperationToastStore)
   })
 
   it('should not render the overlay when no toasts', () => {
-    const fixture = TestBed.createComponent(ErrorToastComponent)
+    const fixture = TestBed.createComponent(OperationToastComponent)
     fixture.detectChanges()
     const overlay = fixture.nativeElement.querySelector(
-      '[data-testid="error-toast-overlay"]'
+      '[data-testid="operation-toast-overlay"]'
     )
     expect(overlay).toBeNull()
   })
 
   it('should render a toast when one is added', () => {
-    store.add('metadataSave')
-    const fixture = TestBed.createComponent(ErrorToastComponent)
+    store.addError('metadataSave')
+    const fixture = TestBed.createComponent(OperationToastComponent)
     fixture.detectChanges()
     const toasts = fixture.nativeElement.querySelectorAll(
-      '[data-testid="error-toast"]'
+      '[data-testid="operation-toast"]'
     )
     expect(toasts).toHaveLength(1)
   })
 
   it('should render the translated message', () => {
-    store.add('metadataSave')
-    const fixture = TestBed.createComponent(ErrorToastComponent)
+    store.addError('metadataSave')
+    const fixture = TestBed.createComponent(OperationToastComponent)
     fixture.detectChanges()
     const toast = fixture.nativeElement.querySelector(
-      '[data-testid="error-toast"]'
+      '[data-testid="operation-toast"]'
     )
     expect(toast.textContent).toContain(
       'La sauvegarde des métadonnées a rencontré une erreur'
@@ -58,12 +58,12 @@ describe('ErrorToastComponent', () => {
   })
 
   it('should render multiple toasts in stacking order (oldest first)', () => {
-    store.add('metadataSave')
-    store.add('deletion')
-    const fixture = TestBed.createComponent(ErrorToastComponent)
+    store.addError('metadataSave')
+    store.addError('deletion')
+    const fixture = TestBed.createComponent(OperationToastComponent)
     fixture.detectChanges()
     const toasts = fixture.nativeElement.querySelectorAll(
-      '[data-testid="error-toast"]'
+      '[data-testid="operation-toast"]'
     )
     expect(toasts).toHaveLength(2)
     expect(toasts[0].textContent).toContain(
@@ -75,8 +75,8 @@ describe('ErrorToastComponent', () => {
   })
 
   it('should call store.remove when dismiss button is clicked', () => {
-    store.add('metadataSave')
-    const fixture = TestBed.createComponent(ErrorToastComponent)
+    store.addError('metadataSave')
+    const fixture = TestBed.createComponent(OperationToastComponent)
     fixture.detectChanges()
 
     const dismissBtn = fixture.nativeElement.querySelector(
@@ -89,9 +89,9 @@ describe('ErrorToastComponent', () => {
   })
 
   it('should only remove the dismissed toast', () => {
-    store.add('metadataSave')
-    store.add('deletion')
-    const fixture = TestBed.createComponent(ErrorToastComponent)
+    store.addError('metadataSave')
+    store.addError('deletion')
+    const fixture = TestBed.createComponent(OperationToastComponent)
     fixture.detectChanges()
 
     const dismissBtns = fixture.nativeElement.querySelectorAll(
@@ -101,7 +101,7 @@ describe('ErrorToastComponent', () => {
     fixture.detectChanges()
 
     const toasts = fixture.nativeElement.querySelectorAll(
-      '[data-testid="error-toast"]'
+      '[data-testid="operation-toast"]'
     )
     expect(toasts).toHaveLength(1)
     expect(toasts[0].textContent).toContain(
