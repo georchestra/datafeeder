@@ -328,6 +328,12 @@ def ingest_data_from_ogc_service_into_postgis(
     logger.info(f"Ingesting OGC layer '{layer_name}' from {gdal_source} into {table_name}")
     try:
         gdf = gpd.read_file(gdal_source, layer=layer_name)
+        # OGC API Features collections may have no geometry — treat as tabular data in that case
+        if gdf.geometry.isna().all():
+            logger.info(
+                f"Layer '{layer_name}' has no valid geometries; ingesting as tabular data."
+            )
+            gdf = pd.DataFrame(gdf.drop(columns=str(gdf.geometry.name)))
         write_data_to_postgis(gdf, table_name, engine, schema)
     except Exception as e:
         logger.error(f"Error ingesting OGC layer '{layer_name}' from {gdal_source}: {e}")
