@@ -49,8 +49,8 @@ RUN uv sync --editable
 WORKDIR /app/apps/backend
 EXPOSE 8000
 
-# Run with hot-reload
-CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload",  "--reload-dir", "/app"]
+# Run migrations then start with hot-reload
+CMD ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app"]
 
 # ============================================================================
 # Production stage: Minimal image without dev dependencies
@@ -81,5 +81,5 @@ USER georchestra_user
 WORKDIR /app/apps/backend
 EXPOSE 8000
 
-# Run directly with the venv's uvicorn to avoid re-syncing on every startup
-CMD ["/app/.venv/bin/uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run migrations then start the server
+CMD ["sh", "-c", "/app/.venv/bin/alembic upgrade head && /app/.venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000"]

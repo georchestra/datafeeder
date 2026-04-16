@@ -7,6 +7,9 @@ fmt = "ruff format . --check"
 
 check= "pyright ."
 
+"db:upgrade" = "alembic upgrade head"
+"db:check" = "alembic check"
+
 [project]
 name = "datafeeder-backend"
 version = "0.1.0"
@@ -29,6 +32,7 @@ dependencies = [
     "geojson-pydantic>=1.0.0",
     "chardet>=5.2.0",
     "requests>=2.32.0",
+    "alembic>=1.14",
 ]
 
 [dependency-groups]
