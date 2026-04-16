@@ -913,9 +913,7 @@ class TestIngestDataFromOgcServiceIntoPostgis:
             schema="public",
         )
 
-        mock_read_file.assert_called_once_with(
-            "OAPIF:https://example.com/ogcapi", layer="parcels"
-        )
+        mock_read_file.assert_called_once_with("OAPIF:https://example.com/ogcapi", layer="parcels")
         mock_write.assert_called_once_with(mock_gdf, "parcels_stg", mock_engine, "public")
 
     @patch("data_manipulation.ingestion.write_data_to_postgis")

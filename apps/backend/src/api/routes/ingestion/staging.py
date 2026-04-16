@@ -821,7 +821,11 @@ def get_staging_metadata(
     ):
         # source_url format: db://{db_key}/{schema}/{table} — take the last segment
         title = integrity_link.source_url.rsplit("/", 1)[-1]
-    if not title and integrity_link.source_import_type == ImportType.API and integrity_link.source_layer:
+    if (
+        not title
+        and integrity_link.source_import_type == ImportType.API
+        and integrity_link.source_layer
+    ):
         title = integrity_link.source_layer
     force_projection_data = (
         integrity_link.integrity_transformation.get("force_projection")
@@ -856,7 +860,9 @@ def get_staging_metadata(
         else None,
         original_projection=original_projection,
         has_final_table=integrity_link.final_table_name is not None,
-        layer_name=integrity_link.source_layer if integrity_link.source_import_type == ImportType.API else None,
+        layer_name=integrity_link.source_layer
+        if integrity_link.source_import_type == ImportType.API
+        else None,
     )
 
 
