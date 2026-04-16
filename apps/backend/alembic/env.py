@@ -39,14 +39,14 @@ def get_url() -> str:
     return str(get_settings().POSTGRES_DATAFEEDER_URI)
 
 
-def include_name(name: str | None, type_: IncludeNameType, _parent_names: ParentNamesType) -> bool:
+def include_name(name: str | None, type_: IncludeNameType, parent_names: ParentNamesType) -> bool:
     """Restrict Alembic to the datafeeder schema only.
 
     The public.user table is owned by geOrchestra and must not be managed here.
     """
     if type_ == "schema":
         return name == "datafeeder"
-    return True
+    return parent_names.get("schema_name") == "datafeeder"
 
 
 def run_migrations_offline() -> None:

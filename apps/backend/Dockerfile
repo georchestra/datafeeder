@@ -50,7 +50,7 @@ WORKDIR /app/apps/backend
 EXPOSE 8000
 
 # Run migrations then start with hot-reload
-CMD ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app"]
+CMD ["sh", "-c", "uv run alembic upgrade head && exec uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app"]
 
 # ============================================================================
 # Production stage: Minimal image without dev dependencies
@@ -82,4 +82,4 @@ WORKDIR /app/apps/backend
 EXPOSE 8000
 
 # Run migrations then start the server
-CMD ["sh", "-c", "/app/.venv/bin/alembic upgrade head && /app/.venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "/app/.venv/bin/alembic upgrade head && exec /app/.venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000"]
