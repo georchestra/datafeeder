@@ -1,6 +1,7 @@
 <div class="px-9 py-6">
   <gn-ui-online-service-resource-input
-    [featuresOnly]="true"
+    style="--gn-ui-text-input-padding: 0.8rem"
+    [protocolOptions]="['ogcFeatures', 'wfs']"
     [service]="currentService()"
     (serviceChange)="handleServiceChange($event)"
   />
