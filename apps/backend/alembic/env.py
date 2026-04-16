@@ -3,9 +3,10 @@ from logging.config import fileConfig
 from pathlib import Path
 from typing import Literal, MutableMapping
 
-from alembic import context
 from sqlalchemy import create_engine, pool
 from sqlmodel import SQLModel
+
+from alembic import context
 
 # Make src importable when alembic is run from apps/backend/
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

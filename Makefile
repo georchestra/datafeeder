@@ -49,7 +49,8 @@ down-v: ## Stop all services and remove volumes using Docker Compose
 
 run-backend: install-python ## Run the backend application
 	cd apps/backend && \
-	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs
+	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" sh -c \
+	  'uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs'
 
 docker-build-backend: ## Build the backend Docker image
 	echo "TODO: Implement backend Docker build"
