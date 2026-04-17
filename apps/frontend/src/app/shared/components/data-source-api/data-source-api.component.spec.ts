@@ -120,4 +120,36 @@ describe('DataSourceApiComponent', () => {
     expect(component.selectedLayer()).toEqual(initial)
     expect(component.protocolLabel).toBe('WFS')
   })
+
+  it('should preserve layerTitle when initialValue is updated with the same layerName but no title', () => {
+    const fixture = TestBed.createComponent(DataSourceApiComponent)
+    const component = fixture.componentInstance
+
+    component.handleServiceChange(mockService)
+
+    fixture.componentRef.setInput('initialValue', {
+      serviceUrl: 'https://example.com/oapif',
+      layerName: 'buildings',
+      serviceProtocol: 'ogcFeatures'
+    })
+    fixture.detectChanges()
+
+    expect(component.selectedLayer()?.layerTitle).toBe('Buildings of the city')
+  })
+
+  it('should drop layerTitle when initialValue changes to a different layer', () => {
+    const fixture = TestBed.createComponent(DataSourceApiComponent)
+    const component = fixture.componentInstance
+
+    component.handleServiceChange(mockService)
+
+    fixture.componentRef.setInput('initialValue', {
+      serviceUrl: 'https://example.com/wfs',
+      layerName: 'ns:roads',
+      serviceProtocol: 'wfs'
+    })
+    fixture.detectChanges()
+
+    expect(component.selectedLayer()?.layerTitle).toBeUndefined()
+  })
 })

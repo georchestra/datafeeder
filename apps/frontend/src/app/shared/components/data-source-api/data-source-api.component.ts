@@ -1,4 +1,11 @@
-import { Component, effect, input, output, signal } from '@angular/core'
+import {
+  Component,
+  effect,
+  input,
+  output,
+  signal,
+  untracked
+} from '@angular/core'
 import {
   NgIconComponent,
   provideIcons,
@@ -48,7 +55,11 @@ export class DataSourceApiComponent {
     effect(() => {
       const init = this.initialValue()
       if (init) {
-        this.selectedLayer.set(init)
+        const prev = untracked(() => this.selectedLayer())
+        const layerTitle =
+          init.layerTitle ??
+          (prev?.layerName === init.layerName ? prev?.layerTitle : undefined)
+        this.selectedLayer.set({ ...init, layerTitle })
         this.currentService.set({
           type: 'service',
           url: new URL(init.serviceUrl),
