@@ -476,5 +476,62 @@ describe('EventsComponent', () => {
         expect.anything()
       )
     })
+
+    it('should update the store with preset_id, schedule and schedule_enabled from the response', async () => {
+      store.integrityLink.set(
+        makeIntegrityLink({
+          preset_id: null,
+          schedule: null,
+          schedule_enabled: false
+        })
+      )
+      const { fixture, component } = createComponent()
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (
+          fn ===
+          updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch
+        ) {
+          return Promise.resolve(
+            makeIntegrityLink({
+              preset_id: 'EVERY_DAY',
+              schedule: '0 0 * * *',
+              schedule_enabled: true
+            })
+          )
+        }
+        return Promise.resolve({ dag_runs: [] })
+      })
+
+      component.selectedPresetId.set('EVERY_DAY')
+      fixture.detectChanges()
+
+      await vi.waitFor(() => {
+        expect(store.integrityLink()?.preset_id).toBe('EVERY_DAY')
+        expect(store.integrityLink()?.schedule).toBe('0 0 * * *')
+        expect(store.integrityLink()?.schedule_enabled).toBe(true)
+      })
+    })
+
+    it('should add an error toast when PATCH /schedule fails', async () => {
+      const { fixture, component } = createComponent()
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (
+          fn ===
+          updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch
+        ) {
+          return Promise.reject(new Error('Network error'))
+        }
+        return Promise.resolve({ dag_runs: [] })
+      })
+
+      component.selectedPresetId.set('EVERY_DAY')
+      fixture.detectChanges()
+
+      await vi.waitFor(() => {
+        expect(toastStore.toasts().length).toBeGreaterThan(0)
+      })
+    })
   })
 })
