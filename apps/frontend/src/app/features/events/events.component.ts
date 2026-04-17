@@ -60,13 +60,16 @@ export class EventsComponent implements OnInit {
   constructor() {
     const link = this.store.integrityLink()
     this.selectedPresetId = signal<RecurrencePreset | null>(
-      link?.schedule_enabled ? (link.preset_id ?? null) : null
+      link?.schedule_enabled ? link.preset_id ?? null : null
     )
 
     let initialized = false
     effect(() => {
       const presetId = this.selectedPresetId()
-      if (!initialized) { initialized = true; return }
+      if (!initialized) {
+        initialized = true
+        return
+      }
       const intlinkId = untracked(() => this.intlink_id)
       if (!intlinkId) return
       this.api
@@ -77,6 +80,14 @@ export class EventsComponent implements OnInit {
             body: { preset: presetId }
           }
         )
+        .then((updatedLink) => {
+          this.store.integrityLink.update((current) => ({
+            ...current!,
+            preset_id: updatedLink.preset_id,
+            schedule: updatedLink.schedule,
+            schedule_enabled: updatedLink.schedule_enabled
+          }))
+        })
         .catch((err) => {
           console.error('Failed to update schedule:', err)
           this.errorToastStore.add('updateSchedule')

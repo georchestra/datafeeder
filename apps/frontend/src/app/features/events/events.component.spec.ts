@@ -75,7 +75,10 @@ class MockEventsListComponent {
 
 // ─── Test helpers ────────────────────────────────────────────────────────────
 
-const makeDagRun = (id: string, state: DagRunState = 'success'): DagRunResponse => ({
+const makeDagRun = (
+  id: string,
+  state: DagRunState = 'success'
+): DagRunResponse => ({
   dag_run_id: id,
   dag_id: 'process_dag',
   dag_display_name: 'Process DAG',
@@ -423,7 +426,9 @@ describe('EventsComponent', () => {
       createComponent()
 
       await vi.waitFor(() => expect(toastStore.toasts().length).toBe(1))
-      expect(toastStore.toasts()[0].translationKey).toBe('errors.operation.loadPresets')
+      expect(toastStore.toasts()[0].translationKey).toBe(
+        'errors.operation.loadPresets'
+      )
     })
   })
 
