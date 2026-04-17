@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, Body, HTTPException, Query, Response
 from sqlmodel import select
 
 from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, GeoServerServiceDep, OrgIdDep
@@ -563,3 +563,39 @@ def toggle_publish_gs_integrity_link(
         ).all()
     )
     return response
+
+
+@router.patch(
+    "/{integrity_link_id}/schedule",
+    response_model=IntegrityLinkResponse,
+    summary="Update recurrence schedule",
+    description="Set or clear the recurrence schedule for an IntegrityLink.",
+)
+def update_schedule(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    integrity_link_id: str,
+    org_id: OrgIdDep,
+    preset: RecurrencePreset | None = Body(None, embed=True),
+) -> IntegrityLinkResponse:
+    """Set or clear the recurrence schedule for an IntegrityLink."""
+    integrity_link, effective = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, org_id
+    )
+
+    if preset is not None:
+        integrity_link.schedule = preset.cron
+        integrity_link.schedule_enabled = True
+    else:
+        integrity_link.schedule = None
+        integrity_link.schedule_enabled = False
+
+    session.commit()
+    session.refresh(integrity_link)
+
+    resolved_preset = (
+        RecurrencePreset.from_cron(integrity_link.schedule) if integrity_link.schedule else None
+    )
+    return IntegrityLinkResponse.model_validate(integrity_link).model_copy(
+        update={"access_level": effective.value, "preset_id": resolved_preset}
+    )

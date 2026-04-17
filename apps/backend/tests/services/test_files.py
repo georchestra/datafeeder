@@ -4,7 +4,50 @@ import pytest
 from fastapi import UploadFile
 
 from src.models.data_import import FileType
-from src.services.files import delete_temp_file, get_temp_file_url, upload_file_to_temp
+from src.services.files import (
+    delete_temp_file,
+    get_temp_file_url,
+    strip_file_extension,
+    upload_file_to_temp,
+)
+
+
+class TestStripFileExtension:
+    def test_returns_none_for_none(self) -> None:
+        assert strip_file_extension(None) is None
+
+    def test_no_extension_unchanged(self) -> None:
+        assert strip_file_extension("myfile") == "myfile"
+
+    def test_strips_simple_extension(self) -> None:
+        assert strip_file_extension("data.csv") == "data"
+
+    def test_strips_last_extension_only(self) -> None:
+        assert strip_file_extension("archive.data.csv") == "archive.data"
+
+    def test_strips_extension_with_spaces_in_name(self) -> None:
+        assert strip_file_extension("station_reunion (1).csv") == "station_reunion (1)"
+
+    def test_strips_geojson_extension(self) -> None:
+        assert strip_file_extension("my_layer.geojson") == "my_layer"
+
+    def test_strips_shapefile_extension(self) -> None:
+        assert strip_file_extension("communes.shp") == "communes"
+
+    def test_strips_geopackage_extension(self) -> None:
+        assert strip_file_extension("data.gpkg") == "data"
+
+    def test_hidden_file_dot_prefix_unchanged(self) -> None:
+        assert strip_file_extension(".gitignore") == ".gitignore"
+
+    def test_hidden_file_with_extension(self) -> None:
+        assert strip_file_extension(".hidden.csv") == ".hidden"
+
+    def test_empty_string_unchanged(self) -> None:
+        assert strip_file_extension("") == ""
+
+    def test_dot_only_unchanged(self) -> None:
+        assert strip_file_extension(".") == "."
 
 
 class TestUploadFileToTemp:

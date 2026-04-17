@@ -7,15 +7,18 @@
       }}</span>
     </h1>
 
+    @if (store.integrityLink()?.source_import_type !== 'file') {
     <div class="shrink-0 w-[400px]">
       <h2 class="text-lg font-medium text-gray-900 mb-2">
         {{ 'import.recurrence.label' | translate }}
       </h2>
       <app-recurrence-selector
-        [currentRecurrence]="recurrence()"
-        [disabled]="true"
+        [presets]="recurrencePresets()"
+        [selectedPresetId]="selectedPresetId()"
+        (presetChange)="selectedPresetId.set($any($event))"
       />
     </div>
+    }
   </div>
 
   @if (loadError()) {

@@ -17,10 +17,16 @@ import { TranslateTestingModule } from 'ngx-translate-testing'
 import { Api } from '../../core/api/api'
 import {
   getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
-  getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet
+  getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet,
+  listRecurrencePresetsIngestionRecurrencePresetsGet,
+  updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch
 } from '../../core/api/functions'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
+import { DagRunResponse } from '../../core/api/models/dag-run-response'
+import { DagRunState } from '../../core/api/models/dag-run-state'
+import { DagRunType } from '../../core/api/models/dag-run-type'
 import type { IntegrityLinkResponse } from '../../core/api/models/integrity-link-response'
+import { ErrorToastStore } from '../../core/stores/error-toast.store'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import type { Event } from '../../shared/components/event/event.component'
 import { EventsListComponent } from '../../shared/components/events-list/events-list.component'
@@ -69,7 +75,10 @@ class MockEventsListComponent {
 
 // ─── Test helpers ────────────────────────────────────────────────────────────
 
-const makeDagRun = (id: string, state = 'success') => ({
+const makeDagRun = (
+  id: string,
+  state: DagRunState = 'success'
+): DagRunResponse => ({
   dag_run_id: id,
   dag_id: 'process_dag',
   dag_display_name: 'Process DAG',
@@ -78,9 +87,9 @@ const makeDagRun = (id: string, state = 'success') => ({
   end_date: '2024-01-01T00:01:00Z',
   duration: 60,
   state,
-  run_type: 'manual',
+  run_type: 'manual' as DagRunType,
   note: null,
-  triggered_by: 'manual',
+  triggered_by: null,
   bundle_version: null,
   conf: null,
   data_interval_start: null,
@@ -88,7 +97,7 @@ const makeDagRun = (id: string, state = 'success') => ({
   last_scheduling_decision: null,
   logical_date: null,
   queued_at: null,
-  run_after: null
+  run_after: '2024-01-01T00:00:00Z'
 })
 
 const makeIntegrityLink = (
@@ -125,11 +134,12 @@ describe('EventsComponent', () => {
 
   let apiInvokeSpy: ReturnType<typeof vi.fn>
   let store: IntegrityLinkStore
+  let toastStore: ErrorToastStore
 
   beforeEach(async () => {
     apiInvokeSpy = vi.fn().mockImplementation((fn: unknown) => {
       if (fn === getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet) {
-        return Promise.resolve<DagRunCollectionResponse>({
+        return Promise.resolve({
           dag_runs: [makeDagRun('run-1'), makeDagRun('run-2')]
         })
       }
@@ -170,6 +180,7 @@ describe('EventsComponent', () => {
       .compileComponents()
 
     store = TestBed.inject(IntegrityLinkStore)
+    toastStore = TestBed.inject(ErrorToastStore)
     store.intlinkId.set(intlinkId)
   })
 
@@ -233,13 +244,16 @@ describe('EventsComponent', () => {
       expect(component.events()).toEqual([])
     })
 
-    it('should NOT call the API when intlink_id is null', async () => {
+    it('should NOT call the dag runs API when intlink_id is null', async () => {
       store.intlinkId.set(null)
 
       createComponent()
 
       await new Promise((r) => setTimeout(r, 20))
-      expect(apiInvokeSpy).not.toHaveBeenCalled()
+      expect(apiInvokeSpy).not.toHaveBeenCalledWith(
+        getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
+        expect.anything()
+      )
     })
   })
 
@@ -330,10 +344,9 @@ describe('EventsComponent', () => {
   // ─── Recurrence display ──────────────────────────────────────────────────
 
   describe('Recurrence display', () => {
-    it('should expose recurrence from store when a known preset is set', () => {
+    it('should initialize selectedPresetId from store when schedule is enabled', () => {
       store.integrityLink.set(
         makeIntegrityLink({
-          schedule: '0 4 * * *',
           preset_id: 'EVERY_DAY',
           schedule_enabled: true
         })
@@ -341,16 +354,12 @@ describe('EventsComponent', () => {
 
       const { component } = createComponent()
 
-      expect(component.recurrence()).toEqual({
-        cron: '0 4 * * *',
-        preset_id: 'EVERY_DAY'
-      })
+      expect(component.selectedPresetId()).toBe('EVERY_DAY')
     })
 
-    it('should expose custom cron recurrence when preset_id is null', () => {
+    it('should initialize selectedPresetId to null when preset_id is null', () => {
       store.integrityLink.set(
         makeIntegrityLink({
-          schedule: '30 2 15 * *',
           preset_id: null,
           schedule_enabled: true
         })
@@ -358,24 +367,20 @@ describe('EventsComponent', () => {
 
       const { component } = createComponent()
 
-      expect(component.recurrence()).toEqual({
-        cron: '30 2 15 * *',
-        preset_id: null
-      })
+      expect(component.selectedPresetId()).toBeNull()
     })
 
-    it('should return null recurrence when integrityLink is not loaded', () => {
+    it('should initialize selectedPresetId to null when integrityLink is not loaded', () => {
       store.integrityLink.set(null)
 
       const { component } = createComponent()
 
-      expect(component.recurrence()).toBeNull()
+      expect(component.selectedPresetId()).toBeNull()
     })
 
-    it('should return null recurrence when schedule_enabled is false', () => {
+    it('should initialize selectedPresetId to null when schedule_enabled is false', () => {
       store.integrityLink.set(
         makeIntegrityLink({
-          schedule: '0 4 * * *',
           preset_id: 'EVERY_DAY',
           schedule_enabled: false
         })
@@ -383,7 +388,7 @@ describe('EventsComponent', () => {
 
       const { component } = createComponent()
 
-      expect(component.recurrence()).toBeNull()
+      expect(component.selectedPresetId()).toBeNull()
     })
   })
 
@@ -403,6 +408,130 @@ describe('EventsComponent', () => {
         expect(component.events().length).toBe(1)
       })
       expect(component.events()[0].id).toBe('run-new')
+    })
+  })
+
+  // ─── Preset loading ──────────────────────────────────────────────────────
+
+  describe('Preset loading', () => {
+    it('should add a toast when preset fetch fails', async () => {
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (fn === getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet)
+          return Promise.resolve({ dag_runs: [] })
+        if (fn === listRecurrencePresetsIngestionRecurrencePresetsGet)
+          return Promise.reject(new Error('Fetch failed'))
+        return Promise.resolve(null)
+      })
+
+      createComponent()
+
+      await vi.waitFor(() => expect(toastStore.toasts().length).toBe(1))
+      expect(toastStore.toasts()[0].translationKey).toBe(
+        'errors.operation.loadPresets'
+      )
+    })
+  })
+
+  // ─── Schedule update ─────────────────────────────────────────────────────
+
+  describe('Schedule update', () => {
+    it('should NOT call PATCH /schedule on component init', async () => {
+      const { component } = createComponent()
+
+      // Wait for all async operations from ngOnInit to settle
+      await new Promise((r) => setTimeout(r, 20))
+
+      expect(apiInvokeSpy).not.toHaveBeenCalledWith(
+        updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
+        expect.anything()
+      )
+    })
+
+    it('should call PATCH /schedule when selectedPresetId changes to a preset', async () => {
+      const { fixture, component } = createComponent()
+
+      component.selectedPresetId.set('EVERY_DAY')
+      fixture.detectChanges()
+
+      await vi.waitFor(() => {
+        expect(apiInvokeSpy).toHaveBeenCalledWith(
+          updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
+          {
+            integrity_link_id: intlinkId,
+            body: { preset: 'EVERY_DAY' }
+          }
+        )
+      })
+    })
+
+    it('should NOT call PATCH /schedule when intlink_id is null', async () => {
+      store.intlinkId.set(null)
+      const { component } = createComponent()
+
+      component.selectedPresetId.set('EVERY_DAY')
+
+      await new Promise((r) => setTimeout(r, 20))
+      expect(apiInvokeSpy).not.toHaveBeenCalledWith(
+        updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
+        expect.anything()
+      )
+    })
+
+    it('should update the store with preset_id, schedule and schedule_enabled from the response', async () => {
+      store.integrityLink.set(
+        makeIntegrityLink({
+          preset_id: null,
+          schedule: null,
+          schedule_enabled: false
+        })
+      )
+      const { fixture, component } = createComponent()
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (
+          fn ===
+          updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch
+        ) {
+          return Promise.resolve(
+            makeIntegrityLink({
+              preset_id: 'EVERY_DAY',
+              schedule: '0 0 * * *',
+              schedule_enabled: true
+            })
+          )
+        }
+        return Promise.resolve({ dag_runs: [] })
+      })
+
+      component.selectedPresetId.set('EVERY_DAY')
+      fixture.detectChanges()
+
+      await vi.waitFor(() => {
+        expect(store.integrityLink()?.preset_id).toBe('EVERY_DAY')
+        expect(store.integrityLink()?.schedule).toBe('0 0 * * *')
+        expect(store.integrityLink()?.schedule_enabled).toBe(true)
+      })
+    })
+
+    it('should add an error toast when PATCH /schedule fails', async () => {
+      const { fixture, component } = createComponent()
+
+      apiInvokeSpy.mockImplementation((fn: unknown) => {
+        if (
+          fn ===
+          updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch
+        ) {
+          return Promise.reject(new Error('Network error'))
+        }
+        return Promise.resolve({ dag_runs: [] })
+      })
+
+      component.selectedPresetId.set('EVERY_DAY')
+      fixture.detectChanges()
+
+      await vi.waitFor(() => {
+        expect(toastStore.toasts().length).toBeGreaterThan(0)
+      })
     })
   })
 })

@@ -8,6 +8,22 @@ from src.core.config import get_settings
 from src.models.data_import import FileType
 
 
+def strip_file_extension(name: str | None) -> str | None:
+    """Remove the file extension from a filename (everything after the last dot).
+
+    Hidden-file names starting with a dot (e.g. ".gitignore") are returned as-is
+    because the leading dot is not an extension separator.
+
+    Returns None when the input is None.
+    """
+    if name is None:
+        return None
+    dot_index = name.rfind(".")
+    if dot_index > 0:
+        return name[:dot_index]
+    return name
+
+
 async def upload_file_to_temp(
     file: UploadFile, rand_id: Optional[str] = None
 ) -> tuple[str, FileType, str]:

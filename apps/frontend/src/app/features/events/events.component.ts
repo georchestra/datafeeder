@@ -1,12 +1,21 @@
 import { CommonModule } from '@angular/common'
-import { Component, OnInit, computed, inject, signal } from '@angular/core'
+import {
+  Component,
+  OnInit,
+  effect,
+  inject,
+  signal,
+  untracked
+} from '@angular/core'
+import { RecurrencePreset } from '../../core/api/models/recurrence-preset'
 import { TranslatePipe } from '@ngx-translate/core'
 import { Api } from '../../core/api/api'
 import { getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet } from '../../core/api/fn/airflow/get-dag-run-logs-airflow-dags-dag-id-runs-dag-run-id-logs-get'
-import { DagRunState } from '../../core/api/models'
+import { DagRunState, RecurrencePresetItem } from '../../core/api/models'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
 import { DagRunResponse } from '../../core/api/models/dag-run-response'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
+import { ErrorToastStore } from '../../core/stores/error-toast.store'
 import { EventType } from '../../shared/components/event-type-badge/event-type-badge.component'
 import {
   Event,
@@ -15,7 +24,11 @@ import {
 import { UiAlertBoxComponent } from '../../shared/components/ui-alert-box/ui-alert-box.component'
 import { RecurrenceSelectorComponent } from '../../shared/components/recurrence-selector/recurrence-selector.component'
 import { downloadTextBlob } from '../../shared/utils/download.util'
-import { getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet } from '../../core/api/functions'
+import {
+  getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
+  listRecurrencePresetsIngestionRecurrencePresetsGet,
+  updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch
+} from '../../core/api/functions'
 
 const DAG_RUNGS_PAGE_SIZE = 20
 
@@ -34,25 +47,66 @@ const DAG_RUNGS_PAGE_SIZE = 20
 export class EventsComponent implements OnInit {
   private api = inject(Api)
   readonly store = inject(IntegrityLinkStore)
+  private errorToastStore = inject(ErrorToastStore)
 
   intlink_id = this.store.intlinkId()
   events = signal<Event[]>([])
-  recurrence = computed(() => {
-    const link = this.store.integrityLink()
-
-    if (!link) return null
-    if (!link.schedule_enabled) return null
-
-    return { cron: link.schedule, preset_id: link.preset_id ?? null }
-  })
+  recurrencePresets = signal<RecurrencePresetItem[]>([])
+  readonly selectedPresetId: ReturnType<typeof signal<RecurrencePreset | null>>
   downloadingEventId = signal<string | null>(null)
   loadError = signal<string | null>(null)
   downloadError = signal<string | null>(null)
+
+  constructor() {
+    const link = this.store.integrityLink()
+    this.selectedPresetId = signal<RecurrencePreset | null>(
+      link?.schedule_enabled ? link.preset_id ?? null : null
+    )
+
+    let initialized = false
+    effect(() => {
+      const presetId = this.selectedPresetId()
+      if (!initialized) {
+        initialized = true
+        return
+      }
+      const intlinkId = untracked(() => this.intlink_id)
+      if (!intlinkId) return
+      this.api
+        .invoke(
+          updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
+          {
+            integrity_link_id: intlinkId,
+            body: { preset: presetId }
+          }
+        )
+        .then((updatedLink) => {
+          this.store.integrityLink.update((current) => ({
+            ...current!,
+            preset_id: updatedLink.preset_id,
+            schedule: updatedLink.schedule,
+            schedule_enabled: updatedLink.schedule_enabled
+          }))
+        })
+        .catch((err) => {
+          console.error('Failed to update schedule:', err)
+          this.errorToastStore.add('updateSchedule')
+        })
+    })
+  }
 
   ngOnInit(): void {
     if (this.intlink_id) {
       this.loadDagRuns(this.intlink_id)
     }
+
+    this.api
+      .invoke(listRecurrencePresetsIngestionRecurrencePresetsGet, {})
+      .then((presets) => this.recurrencePresets.set(presets))
+      .catch((err) => {
+        console.error('Failed to load recurrence presets:', err)
+        this.errorToastStore.add('loadPresets')
+      })
   }
 
   private async loadDagRuns(intlinkId: string): Promise<void> {

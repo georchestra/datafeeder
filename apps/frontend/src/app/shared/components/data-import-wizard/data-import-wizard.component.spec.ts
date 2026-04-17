@@ -15,6 +15,7 @@ import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { DataImportWizardComponent } from './data-import-wizard.component'
 
 describe('DataImportWizardComponent', () => {
+  let httpMock: HttpTestingController
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
@@ -53,9 +54,25 @@ describe('DataImportWizardComponent', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
+        {
+          provide: ApiConfiguration,
+          useValue: { rootUrl: 'http://localhost:8000' }
+        },
         { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
       ]
     }).compileComponents()
+
+    httpMock = TestBed.inject(HttpTestingController)
+  })
+
+  afterEach(() => {
+    const pendingRequests = httpMock.match(() => true)
+    pendingRequests.forEach((req) => {
+      if (!req.cancelled) {
+        req.flush([], { status: 200, statusText: 'OK' })
+      }
+    })
+    httpMock.verify()
   })
 
   it('should create', () => {
