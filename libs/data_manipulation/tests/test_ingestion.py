@@ -940,6 +940,31 @@ class TestIngestDataFromOgcServiceIntoPostgis:
         gdal_source = mock_read_file.call_args.args[0]
         assert gdal_source.startswith("WFS:")
 
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_no_geometry_ingests_as_tabular(
+        self,
+        mock_read_file: Mock,
+        mock_write: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """Layers with all-null geometries are ingested as plain tabular DataFrames."""
+        mock_gdf = GeoDataFrame({"col1": [1, 2]}, geometry=gpd.GeoSeries([None, None]))  # type: ignore[arg-type]
+        mock_read_file.return_value = mock_gdf
+
+        ingest_data_from_ogc_service_into_postgis(
+            service_url="https://example.com/ogcapi",
+            layer_name="observations",
+            protocol="ogcFeatures",
+            table_name="observations_stg",
+            engine=mock_engine,
+            schema="public",
+        )
+
+        written = mock_write.call_args.args[0]
+        assert isinstance(written, DataFrame)
+        assert "geometry" not in written.columns
+
     @patch("data_manipulation.ingestion.gpd.read_file")
     def test_read_exception_is_reraised(
         self,

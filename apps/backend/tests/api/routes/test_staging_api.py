@@ -29,7 +29,7 @@ class TestProcessImportSourceApi:
         )
         assert result.source == "https://example.com/wfs"
         assert result.url == "https://example.com/wfs"
-        assert result.source_file_name == "ns:buildings"
+        assert result.source_file_name is None
         assert result.source_file_type is None
         assert result.auth_enabled is False
         assert result.source_layer == "ns:buildings"
@@ -87,6 +87,17 @@ class TestProcessImportSourceApi:
         assert result.source == "https://example.com/wfs"
         assert result.source_layer == "ns:buildings"
         assert result.source_protocol == "wfs"
+
+    @pytest.mark.asyncio
+    async def test_invalid_protocol_returns_400(self) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await _process_import_source(
+                type=ImportType.API,
+                service_url="https://example.com/wfs",
+                layer_name="ns:buildings",
+                service_protocol="http",
+            )
+        assert exc_info.value.status_code == 400
 
 
 class TestDagSuccessCallbackApiSource:

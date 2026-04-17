@@ -217,14 +217,19 @@ async def _process_import_source(
                     status_code=400,
                     detail="Service URL and layer name are required for API import type",
                 )
+            valid_protocols = {"wfs", "ogcFeatures"}
+            if service_protocol and service_protocol.strip() not in valid_protocols:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid service_protocol '{service_protocol}': must be 'wfs' or 'ogcFeatures'",
+                )
             source = service_url.strip()
             url = source
-            source_file_name = layer_name.strip()
             auth_enabled = False
             return _ImportSourceResult(
                 source=source,
                 url=url,
-                source_file_name=source_file_name,
+                source_file_name=None,
                 source_file_type=None,
                 auth_enabled=auth_enabled,
                 source_layer=layer_name.strip(),

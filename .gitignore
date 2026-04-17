@@ -25,3 +25,4 @@ apps/elt/logs/**
 dist/
 
 .claude/settings.local.json
+.claude/plans/
