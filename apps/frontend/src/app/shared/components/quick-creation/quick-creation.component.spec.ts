@@ -146,9 +146,11 @@ describe('QuickCreationComponent', () => {
   })
 
   describe('submit', () => {
+    let navigateSpy: ReturnType<typeof vi.spyOn>
+
     beforeEach(() => {
       component.triggerAction() // open form
-      vi.spyOn(router, 'navigate').mockResolvedValue(true)
+      navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true)
     })
 
     it('does nothing when title is blank', async () => {
@@ -176,7 +178,6 @@ describe('QuickCreationComponent', () => {
     })
 
     it('navigates to the edit page after submit', async () => {
-      const navigateSpy = vi.spyOn(router, 'navigate')
       component.title.set('Mon dataset')
       await component.submit()
       expect(navigateSpy).toHaveBeenCalledWith(['/', 'test-uuid', 'edit'])
