@@ -1,6 +1,3 @@
-from uuid import uuid4
-
-from data_manipulation.utils import sanitize_name
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -42,14 +39,10 @@ def create_empty_dataset(
         raise HTTPException(status_code=422, detail="Title must not be empty")
     settings = get_settings()
 
-    # staging_table_name is required by the model; use a placeholder UUID
-    staging_table_name = sanitize_name(str(uuid4()))
-
     integrity_link = IntegrityLink(
         integrity_owner=geo_ctx.username,
         integrity_organization=geo_ctx.organization,
         source_import_type=ImportType.EMPTY,
-        staging_table_name=staging_table_name,
         integrity_title=title,
     )
     session.add(integrity_link)
