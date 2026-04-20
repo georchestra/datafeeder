@@ -169,10 +169,12 @@ def process_staging_data(
             user_first_name = sec_firstname
             user_last_name = sec_lastname
             contact_email = sec_email
+            org_long_name = ""
             if organization:
                 contact_email = organization.get("mail") or sec_email
                 org_name = organization.get("name")
                 if org_name:
+                    org_long_name = org_name
                     user_first_name = org_name
                     user_last_name = ""
                     logger.info(f"Using organization name for metadata contact: {org_name}")
@@ -192,6 +194,7 @@ def process_staging_data(
                 user_email=contact_email,
                 user_first_name=user_first_name,
                 user_last_name=user_last_name,
+                organization_name=org_long_name,
                 layer_urls=layer_urls,
             )
             integrity_link.metadata_id = str(integrity_link.id)

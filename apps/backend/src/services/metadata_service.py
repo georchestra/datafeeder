@@ -77,6 +77,7 @@ class MetadataService:
         user_email: str = "",
         user_first_name: str = "",
         user_last_name: str = "",
+        organization_name: str = "",
         layer_urls: dict[str, Any] | None = None,
     ) -> str:
         """Generate ISO 19115-3 metadata XML from IntegrityLink.
@@ -86,6 +87,7 @@ class MetadataService:
             user_email: User email address
             user_first_name: User first name
             user_last_name: User last name
+            organization_name: Long display name of the organization (falls back to integrity_organization)
             layer_urls: Optional dictionary containing WMS/WFS URLs from GeoServer layer
 
         Returns:
@@ -109,12 +111,12 @@ class MetadataService:
         else:
             individual_name = integrity_link.integrity_owner
 
+        org_display_name = organization_name or integrity_link.integrity_organization
+
         # Dataset responsible party (owner)
         dataset_party: _Element = etree.SubElement(props, "datasetResponsibleParty")
         etree.SubElement(dataset_party, "individualName").text = individual_name
-        etree.SubElement(
-            dataset_party, "organizationName"
-        ).text = integrity_link.integrity_organization
+        etree.SubElement(dataset_party, "organizationName").text = org_display_name
         # Add email if available
         if user_email:
             etree.SubElement(dataset_party, "email").text = user_email
@@ -122,9 +124,7 @@ class MetadataService:
         # Metadata responsible party (same as dataset owner)
         metadata_party: _Element = etree.SubElement(props, "metadataResponsibleParty")
         etree.SubElement(metadata_party, "individualName").text = individual_name
-        etree.SubElement(
-            metadata_party, "organizationName"
-        ).text = integrity_link.integrity_organization
+        etree.SubElement(metadata_party, "organizationName").text = org_display_name
         # Add email if available
         if user_email:
             etree.SubElement(metadata_party, "email").text = user_email
@@ -242,6 +242,7 @@ class MetadataService:
         user_email: str = "",
         user_first_name: str = "",
         user_last_name: str = "",
+        organization_name: str = "",
         layer_urls: dict[str, Any] | None = None,
     ) -> str:
         """Generate and publish metadata in one operation.
@@ -251,6 +252,7 @@ class MetadataService:
             user_email: User email address
             user_first_name: User first name
             user_last_name: User last name
+            organization_name: Long display name of the organization (falls back to integrity_organization)
             layer_urls: Optional dictionary containing WMS/WFS URLs from GeoServer layer
 
         Returns:
@@ -261,6 +263,7 @@ class MetadataService:
             user_email=user_email,
             user_first_name=user_first_name,
             user_last_name=user_last_name,
+            organization_name=organization_name,
             layer_urls=layer_urls,
         )
         return self.publish_metadata(metadata_xml)
