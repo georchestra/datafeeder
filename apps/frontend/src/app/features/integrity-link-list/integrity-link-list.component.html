@@ -4,12 +4,15 @@
       <h1 class="text-2xl font-bold text-gray-2">
         {{ 'integrityLinks.dashboard' | translate }}
       </h1>
-      <app-search-input
-        class="w-[350px]"
-        [placeholder]="'integrityLinks.search' | translate"
-        [(value)]="searchQuery"
-        [fullWidth]="true"
-      />
+      <div class="flex items-center gap-3">
+        <app-search-input
+          class="w-[350px]"
+          [placeholder]="'integrityLinks.search' | translate"
+          [(value)]="searchQuery"
+          [fullWidth]="true"
+        />
+        <app-quick-import />
+      </div>
     </div>
 
     @if (loading()) {

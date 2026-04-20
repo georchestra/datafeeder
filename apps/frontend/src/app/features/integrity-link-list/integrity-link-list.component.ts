@@ -20,13 +20,14 @@ import {
   iconoirTrash
 } from '@ng-icons/iconoir'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
+import { QuickImportComponent } from '../../shared/components/quick-import/quick-import.component'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
 
 const DEBOUNCE_TIME = 300
 
 @Component({
   selector: 'app-integrity-link-list',
-  imports: [DatePipe, TranslatePipe, NgIconComponent, SearchInputComponent],
+  imports: [DatePipe, TranslatePipe, NgIconComponent, SearchInputComponent, QuickImportComponent],
   templateUrl: './integrity-link-list.component.html',
   providers: [
     provideIcons({
