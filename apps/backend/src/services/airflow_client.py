@@ -9,6 +9,8 @@ from airflow_client.client.api.task_instance_api import TaskInstanceApi
 from airflow_client.client.api_client import ApiClient
 from airflow_client.client.configuration import Configuration
 from airflow_client.client.exceptions import NotFoundException
+from airflow_client.client.models.dag_run_patch_body import DAGRunPatchBody
+from airflow_client.client.models.dag_run_patch_states import DAGRunPatchStates
 from pydantic import BaseModel
 
 from ..core.config import get_settings
@@ -19,6 +21,7 @@ __all__ = [
     "get_dag_api",
     "get_event_log_api",
     "get_task_instance_api",
+    "cancel_ingestion_dag",
     "delete_dag",
 ]
 
@@ -126,6 +129,44 @@ def _get_cached_task_instance_api() -> TaskInstanceApi:
 def get_task_instance_api() -> TaskInstanceApi:
     _refresh_caches_if_token_expired()
     return _get_cached_task_instance_api()
+
+
+def cancel_ingestion_dag(integrity_link_id: str) -> None:
+    """
+    Cancel all running or queued Airflow runs associated with the given integrity link.
+
+    Cancels the scheduled ingestion DAG runs (ingestion_{id}) and any process_dag runs
+    triggered by them (identified by dag_run_id prefix).
+    """
+    dag_id = f"ingestion_{integrity_link_id}"
+
+    # Cancel dag runs (running or queued) for the ingestion DAG:
+    dag_run_api = get_dag_run_api()
+    patch_body = DAGRunPatchBody(state=DAGRunPatchStates.FAILED)
+    for dag_run in dag_run_api.get_dag_runs(dag_id=dag_id).dag_runs:
+        if dag_run.state in ("running", "queued"):
+            try:
+                dag_run_api.patch_dag_run(
+                    dag_id=dag_id, dag_run_id=dag_run.dag_run_id, dag_run_patch_body=patch_body
+                )
+            except NotFoundException:
+                pass
+
+    # Cancel triggered process_dag runs that were triggered by the ingestion DAG runs:
+    dag_run_api = get_dag_run_api()
+    patch_body = DAGRunPatchBody(state=DAGRunPatchStates.FAILED)
+    for dag_run in dag_run_api.get_dag_runs(dag_id="process_dag").dag_runs:
+        if dag_run.state in ("running", "queued") and dag_run.dag_run_id.startswith(
+            f"{integrity_link_id}_"
+        ):
+            try:
+                dag_run_api.patch_dag_run(
+                    dag_id="process_dag",
+                    dag_run_id=dag_run.dag_run_id,
+                    dag_run_patch_body=patch_body,
+                )
+            except NotFoundException:
+                pass
 
 
 def delete_dag(dag_id: str) -> None:

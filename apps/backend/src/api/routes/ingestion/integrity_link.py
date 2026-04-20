@@ -20,6 +20,7 @@ from src.models.integrity_link_rule import (
     UpsertRuleRequest,
 )
 from src.models.recurrence import RecurrencePreset
+from src.services.airflow_client import cancel_ingestion_dag
 from src.services.console_service import ConsoleService, ConsoleServiceError
 from src.services.dataset_deletion_service import DatasetDeletionService
 from src.services.geoserver import (
@@ -406,6 +407,35 @@ def toggle_publish_gn_integrity_link(
         )
 
     return IntegrityLinkResponse.model_validate(integrity_link)
+
+
+@router.delete(
+    "/{integrity_link_id}/schedule",
+    status_code=204,
+    summary="Disable the recurrence schedule for a dataset",
+    description="Clears the recurrence schedule and cancel any running or queued associated Airflow DAGs.",
+)
+def delete_integrity_link_schedule(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    integrity_link_id: str,
+    org_id: OrgIdDep,
+) -> Response:
+    """Disable the recurrence schedule for a dataset."""
+    integrity_link, _ = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, org_id
+    )
+
+    if not integrity_link.schedule:
+        return Response(status_code=204)
+
+    integrity_link.schedule_enabled = False
+    integrity_link.schedule = None
+    session.commit()
+
+    cancel_ingestion_dag(integrity_link_id)
+
+    return Response(status_code=204)
 
 
 @router.delete(
