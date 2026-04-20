@@ -81,7 +81,12 @@ def create_empty_dataset(
         integrity_link.metadata_id = str(integrity_link.id)
         logger.info("Metadata published for empty dataset %s", integrity_link.id)
     except Exception as e:
-        logger.error("Failed to publish metadata for empty dataset %s: %s", integrity_link.id, e, exc_info=True)
+        logger.error(
+            "Failed to publish metadata for empty dataset %s: %s",
+            integrity_link.id,
+            e,
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail="import.metadataPublication.error")
 
     # Ownership — soft failure
