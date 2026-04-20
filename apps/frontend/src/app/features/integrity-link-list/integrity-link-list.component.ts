@@ -27,7 +27,13 @@ const DEBOUNCE_TIME = 300
 
 @Component({
   selector: 'app-integrity-link-list',
-  imports: [DatePipe, TranslatePipe, NgIconComponent, SearchInputComponent, QuickImportComponent],
+  imports: [
+    DatePipe,
+    TranslatePipe,
+    NgIconComponent,
+    SearchInputComponent,
+    QuickImportComponent
+  ],
   templateUrl: './integrity-link-list.component.html',
   providers: [
     provideIcons({
@@ -105,7 +111,7 @@ export class IntegrityLinkListComponent {
 
   onRowClick(link: IntegrityLinkListItem): void {
     if (link.access_level === 'READ') return
-    if (!link.has_final_table) {
+    if (!link.has_final_table && link.source_import_type !== 'empty') {
       this.router.navigate(['/', 'import', link.id], {
         queryParams: { step: 2 }
       })

@@ -22,13 +22,15 @@ describe('IntegrityLinkListComponent', () => {
   const createMockItem = (
     id: string,
     accessLevel: string | null = 'OWNER',
-    hasFinalTable: boolean = true
+    hasFinalTable: boolean = true,
+    sourceImportType: string = 'url'
   ): IntegrityLinkListItem => ({
     id,
     integrity_title: `Link ${id}`,
     integrity_owner: 'owner',
     integrity_organization: 'org',
-    source_import_type: 'url',
+    source_import_type:
+      sourceImportType as IntegrityLinkListItem['source_import_type'],
     staging_table_name: `staging_${id}`,
     source_url: 'https://example.com/data.csv',
     source_file_name: null,
@@ -397,6 +399,28 @@ describe('IntegrityLinkListComponent', () => {
       expect(navigateSpy).toHaveBeenCalledWith(['/', 'import', 'link-42'], {
         queryParams: { step: 2 }
       })
+    })
+
+    it('should navigate to /:id/edit for empty-type link even without final table', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      const navigateSpy = vi.spyOn(router, 'navigate')
+
+      const req = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      req.flush({
+        items: [createMockItem('link-empty', 'OWNER', false, 'empty')],
+        has_more: false,
+        offset: 0
+      })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.onRowClick(
+        createMockItem('link-empty', 'OWNER', false, 'empty')
+      )
+
+      expect(navigateSpy).toHaveBeenCalledWith(['/', 'link-empty', 'edit'])
     })
   })
 

@@ -138,6 +138,13 @@ export class MetadataComponent implements OnInit {
       const latestRun = response.dag_runs[0] ?? null
       if (!latestRun) {
         this.processingStatusLoaded.set(true)
+        // No DAG run: metadata may still exist (e.g. empty dataset created directly).
+        // If metadata_id is already set, load the record without waiting for a DAG.
+        const integrityLink = this.store.integrityLink()
+        if (integrityLink?.metadata_id) {
+          this.processingStatus.set('success')
+          this.loadMetadata(integrityLink.metadata_id)
+        }
         return
       }
 

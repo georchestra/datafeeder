@@ -10,7 +10,11 @@
     <button
       type="button"
       class="flex items-center gap-2 rounded-l-md border border-r-0 border-primary px-3 py-2 text-sm text-white focus:outline-none transition-colors"
-      [class]="isFormOpen() ? 'bg-primary-darker' : 'bg-primary hover:bg-primary-darker'"
+      [class]="
+        isFormOpen()
+          ? 'bg-primary-darker'
+          : 'bg-primary hover:bg-primary-darker'
+      "
       (click)="triggerAction()"
     >
       <ng-icon name="iconoirPlus" size="1em"></ng-icon>
@@ -20,7 +24,11 @@
     <button
       type="button"
       class="flex items-center rounded-r-md border border-primary px-2 py-2 text-white focus:outline-none border-l border-l-white/40 transition-colors"
-      [class]="isMenuOpen() ? 'bg-primary-darker' : 'bg-primary hover:bg-primary-darker'"
+      [class]="
+        isMenuOpen()
+          ? 'bg-primary-darker'
+          : 'bg-primary hover:bg-primary-darker'
+      "
       (click)="toggleMenu()"
     >
       <ng-icon name="iconoirNavArrowDown" size="1em"></ng-icon>
@@ -56,10 +64,15 @@
   <div
     class="absolute right-0 top-full z-20 mt-1 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
   >
-    <label for="quickImportTitle" class="mb-1 block text-sm font-medium text-gray-2">
+    <label
+      for="quickImportTitle"
+      class="mb-1 block text-sm font-medium text-gray-2"
+    >
       {{ 'quickImport.titleLabel' | translate }}
     </label>
-    <div class="flex items-center rounded-md border border-gray-300 bg-white pr-1 focus-within:border-gray-600">
+    <div
+      class="flex items-center rounded-md border border-gray-300 bg-white pr-0.5 focus-within:border-gray-600"
+    >
       <input
         #titleInput
         id="quickImportTitle"
@@ -72,11 +85,22 @@
       />
       <button
         type="button"
-        class="flex items-center justify-center rounded bg-primary px-3 py-1.5 text-sm text-white transition-opacity disabled:opacity-40"
+        class="flex items-center justify-center rounded text-sm transition-colors disabled:opacity-40"
         [disabled]="!title().trim() || submitting()"
         (click)="submit()"
+        [class]="
+          submitting()
+            ? 'cursor-wait px-2 py-2 text-gray-400 bg-none'
+            : 'bg-primary px-3 py-1.5 text-white hover:bg-primary-darker'
+        "
       >
+        @if (submitting()) {
+        <span
+          class="block size-4 animate-spin rounded-full border-2 border-gray-700 border-t-transparent"
+        ></span>
+        } @else {
         {{ 'quickImport.create' | translate }}
+        }
       </button>
     </div>
   </div>

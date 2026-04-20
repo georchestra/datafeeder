@@ -22,7 +22,9 @@ describe('QuickImportComponent', () => {
     await TestBed.configureTestingModule({
       imports: [
         QuickImportComponent,
-        TranslateTestingModule.withTranslations({ fr: translations }).withDefaultLanguage('fr')
+        TranslateTestingModule.withTranslations({
+          fr: translations
+        }).withDefaultLanguage('fr')
       ],
       providers: [provideRouter([])]
     }).compileComponents()
