@@ -20,13 +20,6 @@ class CreateEmptyDatasetRequest(BaseModel):
     title: str
 
 
-def _normalize_title(raw: str) -> str:
-    stripped = raw.strip()
-    if not stripped:
-        raise HTTPException(status_code=422, detail="Title must not be empty")
-    return stripped
-
-
 @router.post(
     "/empty",
     response_model=IntegrityLinkResponse,
@@ -44,7 +37,9 @@ def create_empty_dataset(
     geo_ctx: GeorchestraContextDep,
     org_id: OrgIdDep,
 ) -> IntegrityLinkResponse:
-    title = _normalize_title(request.title)
+    title = request.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Title must not be empty")
     settings = get_settings()
 
     # staging_table_name is required by the model; use a placeholder UUID
