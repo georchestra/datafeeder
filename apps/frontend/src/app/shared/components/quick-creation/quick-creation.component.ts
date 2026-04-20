@@ -30,13 +30,13 @@ type ImportMode = 'empty' | 'with-data'
 const SESSION_KEY = 'quickImport.mode'
 
 @Component({
-  selector: 'app-quick-import',
+  selector: 'app-quick-creation',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslatePipe, NgIconComponent],
-  templateUrl: './quick-import.component.html',
+  templateUrl: './quick-creation.component.html',
   providers: [provideIcons({ iconoirPlus, iconoirNavArrowDown })]
 })
-export class QuickImportComponent {
+export class QuickCreationComponent {
   private readonly api = inject(Api)
   private readonly router = inject(Router)
   private readonly injector = inject(Injector)

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { provideRouter, Router } from '@angular/router'
 import { TranslateTestingModule } from 'ngx-translate-testing'
-import { QuickImportComponent } from './quick-import.component'
+import { QuickCreationComponent } from './quick-creation.component'
 
 const translations = {
   'quickImport.modeEmpty': 'Créer sans donnée',
@@ -11,9 +11,9 @@ const translations = {
   'quickImport.create': 'Créer'
 }
 
-describe('QuickImportComponent', () => {
-  let fixture: ComponentFixture<QuickImportComponent>
-  let component: QuickImportComponent
+describe('QuickCreationComponent', () => {
+  let fixture: ComponentFixture<QuickCreationComponent>
+  let component: QuickCreationComponent
   let nativeEl: HTMLElement
   let router: Router
 
@@ -21,16 +21,21 @@ describe('QuickImportComponent', () => {
     sessionStorage.clear()
     await TestBed.configureTestingModule({
       imports: [
+<<<<<<< HEAD:apps/frontend/src/app/shared/components/quick-import/quick-import.component.spec.ts
         QuickImportComponent,
         TranslateTestingModule.withTranslations({
           fr: translations
         }).withDefaultLanguage('fr')
+=======
+        QuickCreationComponent,
+        TranslateTestingModule.withTranslations({ fr: translations }).withDefaultLanguage('fr')
+>>>>>>> adcad303 (refactor: rename quick import component > quick creation):apps/frontend/src/app/shared/components/quick-creation/quick-creation.component.spec.ts
       ],
       providers: [provideRouter([])]
     }).compileComponents()
 
     router = TestBed.inject(Router)
-    fixture = TestBed.createComponent(QuickImportComponent)
+    fixture = TestBed.createComponent(QuickCreationComponent)
     component = fixture.componentInstance
     nativeEl = fixture.nativeElement
     fixture.detectChanges()
@@ -49,7 +54,7 @@ describe('QuickImportComponent', () => {
 
     it('restores mode from sessionStorage', async () => {
       sessionStorage.setItem('quickImport.mode', 'with-data')
-      const fixture2 = TestBed.createComponent(QuickImportComponent)
+      const fixture2 = TestBed.createComponent(QuickCreationComponent)
       fixture2.detectChanges()
       expect(fixture2.componentInstance.mode()).toBe('with-data')
     })

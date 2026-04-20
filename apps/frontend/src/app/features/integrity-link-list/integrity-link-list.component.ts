@@ -20,7 +20,7 @@ import {
   iconoirTrash
 } from '@ng-icons/iconoir'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
-import { QuickImportComponent } from '../../shared/components/quick-import/quick-import.component'
+import { QuickCreationComponent } from '../../shared/components/quick-creation/quick-creation.component'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
 
 const DEBOUNCE_TIME = 300
@@ -32,7 +32,7 @@ const DEBOUNCE_TIME = 300
     TranslatePipe,
     NgIconComponent,
     SearchInputComponent,
-    QuickImportComponent
+    QuickCreationComponent
   ],
   templateUrl: './integrity-link-list.component.html',
   providers: [
