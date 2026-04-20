@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { provideRouter, Router } from '@angular/router'
 import { TranslateTestingModule } from 'ngx-translate-testing'
+import { Api } from '../../../core/api/api'
+import { ErrorToastStore } from '../../../core/stores/error-toast.store'
 import { QuickCreationComponent } from './quick-creation.component'
 
 const translations = {
@@ -16,22 +18,22 @@ describe('QuickCreationComponent', () => {
   let component: QuickCreationComponent
   let nativeEl: HTMLElement
   let router: Router
+  let apiInvokeSpy: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     sessionStorage.clear()
+    apiInvokeSpy = vi.fn().mockResolvedValue({ id: 'test-uuid' })
+
     await TestBed.configureTestingModule({
       imports: [
-<<<<<<< HEAD:apps/frontend/src/app/shared/components/quick-import/quick-import.component.spec.ts
-        QuickImportComponent,
-        TranslateTestingModule.withTranslations({
-          fr: translations
-        }).withDefaultLanguage('fr')
-=======
         QuickCreationComponent,
         TranslateTestingModule.withTranslations({ fr: translations }).withDefaultLanguage('fr')
->>>>>>> adcad303 (refactor: rename quick import component > quick creation):apps/frontend/src/app/shared/components/quick-creation/quick-creation.component.spec.ts
       ],
-      providers: [provideRouter([])]
+      providers: [
+        provideRouter([]),
+        { provide: Api, useValue: { invoke: apiInvokeSpy } },
+        ErrorToastStore
+      ]
     }).compileComponents()
 
     router = TestBed.inject(Router)
@@ -146,6 +148,7 @@ describe('QuickCreationComponent', () => {
   describe('submit', () => {
     beforeEach(() => {
       component.triggerAction() // open form
+      vi.spyOn(router, 'navigate').mockResolvedValue(true)
     })
 
     it('does nothing when title is blank', async () => {
@@ -153,6 +156,7 @@ describe('QuickCreationComponent', () => {
       component.datasetCreated.subscribe((v) => emitted.push(v))
       await component.submit()
       expect(emitted).toHaveLength(0)
+      expect(apiInvokeSpy).not.toHaveBeenCalled()
     })
 
     it('emits datasetCreated with the title', async () => {
@@ -161,6 +165,21 @@ describe('QuickCreationComponent', () => {
       component.title.set('Mon dataset')
       await component.submit()
       expect(emitted).toEqual(['Mon dataset'])
+    })
+
+    it('calls the API with the trimmed title', async () => {
+      component.title.set('  Mon dataset  ')
+      await component.submit()
+      expect(apiInvokeSpy).toHaveBeenCalledOnce()
+      const [, params] = apiInvokeSpy.mock.calls[0]
+      expect(params.body.title).toBe('Mon dataset')
+    })
+
+    it('navigates to the edit page after submit', async () => {
+      const navigateSpy = vi.spyOn(router, 'navigate')
+      component.title.set('Mon dataset')
+      await component.submit()
+      expect(navigateSpy).toHaveBeenCalledWith(['/', 'test-uuid', 'edit'])
     })
 
     it('closes the form and resets title after submit', async () => {
@@ -173,6 +192,19 @@ describe('QuickCreationComponent', () => {
     it('resets submitting to false after submit', async () => {
       component.title.set('Mon dataset')
       await component.submit()
+      expect(component.submitting()).toBe(false)
+    })
+
+    it('shows an error toast and keeps form open on API failure', async () => {
+      apiInvokeSpy.mockRejectedValue(new Error('network error'))
+      const errorToastStore = TestBed.inject(ErrorToastStore)
+      const addSpy = vi.spyOn(errorToastStore, 'add')
+
+      component.title.set('Mon dataset')
+      await component.submit()
+
+      expect(addSpy).toHaveBeenCalledWith('emptyDatasetCreate', expect.any(Error))
+      expect(component.isFormOpen()).toBe(true)
       expect(component.submitting()).toBe(false)
     })
   })

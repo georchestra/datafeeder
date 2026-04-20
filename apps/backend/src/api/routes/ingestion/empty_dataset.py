@@ -46,7 +46,7 @@ def create_empty_dataset(
         integrity_title=title,
     )
     session.add(integrity_link)
-    session.commit()
+    session.flush()
     session.refresh(integrity_link)
 
     try:
@@ -87,6 +87,7 @@ def create_empty_dataset(
             e,
             exc_info=True,
         )
+        session.rollback()
         raise HTTPException(status_code=500, detail="import.metadataPublication.error")
 
     # Ownership — soft failure
