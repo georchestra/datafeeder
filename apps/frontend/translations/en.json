@@ -159,6 +159,7 @@
   "editor.record.form.updateFrequency.planned": "This dataset is updated regularly",
   "editor.record.placeKeywordWithoutLabel": "Unnamed location",
   "errors.operation.deletion": "Deletion encountered an error",
+  "errors.operation.emptyDatasetCreate": "Error while creating the new dataset, please try again later",
   "errors.operation.gnPublish": "GeoNetwork publishing encountered an error",
   "errors.operation.gnRightsEdit": "GeoNetwork rights editing encountered an error",
   "errors.operation.gnUnpublish": "GeoNetwork unpublishing encountered an error",

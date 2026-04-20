@@ -159,6 +159,7 @@
   "editor.record.form.updateFrequency.planned": "Ce jeu de données est mis à jour régulièrement",
   "editor.record.placeKeywordWithoutLabel": "Localisation sans nom",
   "errors.operation.deletion": "La suppression a rencontré une erreur",
+  "errors.operation.emptyDatasetCreate": "Erreur durant la création du nouveau dataset, réessayer plus tard",
   "errors.operation.gnPublish": "La publication GeoNetwork a rencontré une erreur",
   "errors.operation.gnRightsEdit": "La modification des droits GeoNetwork a rencontré une erreur",
   "errors.operation.gnUnpublish": "La dépublication GeoNetwork a rencontré une erreur",

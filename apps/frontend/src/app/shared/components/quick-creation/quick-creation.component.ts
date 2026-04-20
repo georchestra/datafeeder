@@ -17,6 +17,7 @@ import { iconoirNavArrowDown, iconoirPlus } from '@ng-icons/iconoir'
 import { Api } from '../../../core/api/api'
 import { createEmptyDatasetIngestionIntegrityLinkEmptyPost } from '../../../core/api/functions'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
+import { ErrorToastStore } from '../../../core/stores/error-toast.store'
 
 marker('quickImport.modeEmpty')
 marker('quickImport.modeWithData')
@@ -24,6 +25,7 @@ marker('quickImport.button')
 marker('quickImport.titleLabel')
 marker('quickImport.titlePlaceholder')
 marker('quickImport.create')
+marker('errors.operation.emptyDatasetCreate')
 
 type ImportMode = 'empty' | 'with-data'
 
@@ -40,6 +42,7 @@ export class QuickCreationComponent {
   private readonly api = inject(Api)
   private readonly router = inject(Router)
   private readonly injector = inject(Injector)
+  private readonly errorToastStore = inject(ErrorToastStore)
 
   @ViewChild('titleInput') titleInputRef?: ElementRef<HTMLInputElement>
 
@@ -113,6 +116,8 @@ export class QuickCreationComponent {
       this.datasetCreated.emit(this.title())
       this.closeForm()
       this.router.navigate(['/', String(result.id), 'edit'])
+    } catch (error) {
+      this.errorToastStore.add('emptyDatasetCreate', error)
     } finally {
       this.submitting.set(false)
     }
