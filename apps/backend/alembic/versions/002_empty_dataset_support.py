@@ -18,16 +18,11 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Allow staging_table_name to be NULL (empty datasets have no staging table)
-    op.alter_column("integrity_link", "staging_table_name", nullable=True)
-
-    # Add 'empty' value to the source_import_type enum
-    # ADD VALUE cannot run inside a transaction, so we use COMMIT trick via execute_if
-    op.execute("ALTER TYPE source_import_type ADD VALUE IF NOT EXISTS 'empty'")
+    # Allow staging_table_name to be NULL (empty datasets have no staging table).
+    # source_import_type is a varchar — no enum ALTER needed, 'empty' is accepted as-is.
+    op.execute("ALTER TABLE IF EXISTS datafeeder.integrity_link ALTER COLUMN staging_table_name DROP NOT NULL")
 
 
 def downgrade() -> None:
     # Restore NOT NULL constraint (will fail if any row has NULL staging_table_name)
-    op.alter_column("integrity_link", "staging_table_name", nullable=False)
-
-    # PostgreSQL does not support removing enum values; downgrade is a no-op for the enum
+    op.execute("ALTER TABLE IF EXISTS datafeeder.integrity_link ALTER COLUMN staging_table_name SET NOT NULL")
