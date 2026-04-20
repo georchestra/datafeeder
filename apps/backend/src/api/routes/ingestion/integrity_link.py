@@ -20,8 +20,8 @@ from src.models.integrity_link_rule import (
     UpsertRuleRequest,
 )
 from src.models.recurrence import RecurrencePreset
-from src.services.console_service import ConsoleService, ConsoleServiceError
 from src.services.airflow_client import cancel_ingestion_dag
+from src.services.console_service import ConsoleService, ConsoleServiceError
 from src.services.dataset_deletion_service import DatasetDeletionService
 from src.services.geoserver import (
     ACL_ROLE_EVERYONE,
