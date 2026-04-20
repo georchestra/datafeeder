@@ -20,9 +20,13 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     # Allow staging_table_name to be NULL (empty datasets have no staging table).
     # source_import_type is a varchar — no enum ALTER needed, 'empty' is accepted as-is.
-    op.execute("ALTER TABLE IF EXISTS datafeeder.integrity_link ALTER COLUMN staging_table_name DROP NOT NULL")
+    op.execute(
+        "ALTER TABLE IF EXISTS datafeeder.integrity_link ALTER COLUMN staging_table_name DROP NOT NULL"
+    )
 
 
 def downgrade() -> None:
     # Restore NOT NULL constraint (will fail if any row has NULL staging_table_name)
-    op.execute("ALTER TABLE IF EXISTS datafeeder.integrity_link ALTER COLUMN staging_table_name SET NOT NULL")
+    op.execute(
+        "ALTER TABLE IF EXISTS datafeeder.integrity_link ALTER COLUMN staging_table_name SET NOT NULL"
+    )
