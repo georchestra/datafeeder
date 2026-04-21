@@ -71,6 +71,10 @@ export class IntegrityLinkListComponent {
   }
 
   private async loadIntegrityLinks(append = false): Promise<void> {
+    if (!append) {
+      this.hasMore.set(false)
+      this.nextOffset.set(0)
+    }
     try {
       const offset = append ? this.nextOffset() : 0
       const search = this.searchQuery() || undefined

@@ -5,8 +5,8 @@ from sqlalchemy import Column, MetaData, String, Table, exists, or_
 from sqlalchemy import select as sa_select
 from sqlmodel import Session
 
-from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, GroupIdsDep, OrgIdDep
-from src.core.config import get_staging_schema, get_settings
+from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, GroupIdsDep
+from src.core.config import get_settings, get_staging_schema
 from src.core.logging import get_logger
 from src.core.security import build_access_expr
 from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
@@ -124,6 +124,11 @@ def list_integrity_links(
     # Needed because table-existence filtering happens post-query (cross-DB information_schema
     # check), so a simple limit(BATCH_SIZE+1) can produce a false has_more=False.
     # Each item carries its raw DB row index so next_offset is exact, not estimated.
+    #
+    # Performance note: each chunk issues 2 information_schema queries. If most integrity_links
+    # have orphaned tables (staging/final dropped), many chunks may be scanned before accumulating
+    # BATCH_SIZE items. On large instances this can become expensive. A future improvement would
+    # be to increase the chunk size beyond BATCH_SIZE+1 or hard-cap the total rows scanned.
     accumulated: list[tuple[IntegrityLink, Any, bool, int]] = []
     fetch_offset = offset
     last_chunk_len = 0
@@ -148,6 +153,17 @@ def list_integrity_links(
         if last_chunk_len < BATCH_SIZE + 1:
             break  # DB exhausted
         fetch_offset += last_chunk_len
+
+    # Total rows scanned = completed chunks + final (possibly partial) chunk.
+    # Warn when significantly more rows were scanned than returned — a sign that many
+    # integrity_links have orphaned staging/final tables and cleanup may be needed.
+    rows_scanned = fetch_offset - offset + last_chunk_len
+    if rows_scanned > BATCH_SIZE * 3:
+        logger.warning(
+            f"Integrity-link list scanned {rows_scanned} DB rows to fill one page "
+            f"(user='{geo_ctx.username}', offset={offset}). "
+            "Many links may have orphaned staging/final tables — consider cleanup."
+        )
 
     has_more = len(accumulated) > BATCH_SIZE
     items_rows = accumulated[:BATCH_SIZE]

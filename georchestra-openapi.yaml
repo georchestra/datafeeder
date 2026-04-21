@@ -911,7 +911,7 @@ paths:
   /internal/users/fetch-by-usernames:
     post:
       summary: "POST internal/users/fetch-by-usernames"
-      operationId: "findUsers"
+      operationId: "fetchUsersByUsernames"
       requestBody:
         content:
           application/json:

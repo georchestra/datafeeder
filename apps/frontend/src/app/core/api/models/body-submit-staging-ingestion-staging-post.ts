@@ -6,7 +6,7 @@ export interface BodySubmitStagingIngestionStagingPost {
   auth_enabled?: boolean
   db_schema?: string | null
   db_table?: string | null
-  file?: string | null
+  file?: Blob | null
   ftp_host?: string | null
   ftp_path?: string | null
   ftp_port?: number | null

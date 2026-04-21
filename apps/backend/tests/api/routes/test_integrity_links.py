@@ -719,7 +719,7 @@ class TestListIntegrityLinks:
             session=mock_session,
             data_session=mock_data_session,
             geo_ctx=geo_ctx,
-            org_id=None,
+            group_ids=[],
             offset=0,
         )
 
@@ -753,7 +753,7 @@ class TestListIntegrityLinks:
             session=mock_session,
             data_session=mock_data_session,
             geo_ctx=geo_ctx,
-            org_id=None,
+            group_ids=[],
             offset=0,
         )
 
@@ -785,7 +785,7 @@ class TestListIntegrityLinks:
             session=mock_session,
             data_session=mock_data_session,
             geo_ctx=geo_ctx,
-            org_id=None,
+            group_ids=[],
             offset=0,
         )
 
@@ -820,7 +820,7 @@ class TestListIntegrityLinks:
             session=mock_session,
             data_session=mock_data_session,
             geo_ctx=geo_ctx,
-            org_id=None,
+            group_ids=[],
             offset=0,
         )
 
