@@ -67,7 +67,8 @@ class DatasetDeletionService:
             self._drop_table_safe(get_data_schema(workspace_name), integrity_link.final_table_name)
 
         # Step 4: Drop staging table (best-effort)
-        self._drop_table_safe("staging", integrity_link.staging_table_name)
+        if integrity_link.staging_table_name:
+            self._drop_table_safe("staging", integrity_link.staging_table_name)
 
         # Step 5: Delete GeoNetwork record (best-effort)
         if integrity_link.metadata_id:
