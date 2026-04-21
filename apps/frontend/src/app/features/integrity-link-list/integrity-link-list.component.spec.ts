@@ -49,7 +49,7 @@ describe('IntegrityLinkListComponent', () => {
     const pendingRequests = httpMock.match(() => true)
     pendingRequests.forEach((req) => {
       if (!req.cancelled) {
-        req.flush({ items: [], has_more: false, offset: 0 })
+        req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
       }
     })
   }
@@ -192,7 +192,8 @@ describe('IntegrityLinkListComponent', () => {
       initialReq.flush({
         items: [createMockItem('1'), createMockItem('2')],
         has_more: true,
-        offset: 0
+        offset: 0,
+        next_offset: 2
       })
 
       await new Promise((resolve) => setTimeout(resolve, 10))
@@ -208,7 +209,8 @@ describe('IntegrityLinkListComponent', () => {
       loadMoreReq.flush({
         items: [createMockItem('3'), createMockItem('4')],
         has_more: false,
-        offset: 2
+        offset: 2,
+        next_offset: 4
       })
 
       await new Promise((resolve) => setTimeout(resolve, 10))
@@ -230,12 +232,13 @@ describe('IntegrityLinkListComponent', () => {
       initialReq.flush({
         items: [createMockItem('1'), createMockItem('2'), createMockItem('3')],
         has_more: true,
-        offset: 0
+        offset: 0,
+        next_offset: 3
       })
 
       await new Promise((resolve) => setTimeout(resolve, 10))
 
-      // Call loadMore - offset should be 3 (current items count)
+      // Call loadMore - offset should be next_offset from previous response
       component.loadMore()
 
       const loadMoreReq = httpMock.expectOne(
@@ -246,7 +249,8 @@ describe('IntegrityLinkListComponent', () => {
       loadMoreReq.flush({
         items: [createMockItem('4')],
         has_more: false,
-        offset: 3
+        offset: 3,
+        next_offset: 4
       })
     })
 
@@ -261,7 +265,8 @@ describe('IntegrityLinkListComponent', () => {
       initialReq.flush({
         items: [createMockItem('1')],
         has_more: true,
-        offset: 0
+        offset: 0,
+        next_offset: 1
       })
 
       await new Promise((resolve) => setTimeout(resolve, 10))
@@ -280,7 +285,8 @@ describe('IntegrityLinkListComponent', () => {
       loadMoreReq.flush({
         items: [createMockItem('2')],
         has_more: false,
-        offset: 1
+        offset: 1,
+        next_offset: 2
       })
 
       await new Promise((resolve) => setTimeout(resolve, 10))
@@ -510,7 +516,8 @@ describe('IntegrityLinkListComponent', () => {
       searchReq.flush({
         items: [createMockItem('a')],
         has_more: true,
-        offset: 0
+        offset: 0,
+        next_offset: 1
       })
 
       await new Promise((resolve) => setTimeout(resolve, 10))
@@ -527,7 +534,8 @@ describe('IntegrityLinkListComponent', () => {
       loadMoreReq.flush({
         items: [createMockItem('b')],
         has_more: false,
-        offset: 1
+        offset: 1,
+        next_offset: 2
       })
     })
 
@@ -582,7 +590,8 @@ describe('IntegrityLinkListComponent', () => {
       initialReq.flush({
         items: [createMockItem('1')],
         has_more: true,
-        offset: 0
+        offset: 0,
+        next_offset: 1
       })
 
       await new Promise((resolve) => setTimeout(resolve, 10))
@@ -618,7 +627,8 @@ describe('IntegrityLinkListComponent', () => {
       initialReq.flush({
         items: [createMockItem('1'), createMockItem('2')],
         has_more: true,
-        offset: 0
+        offset: 0,
+        next_offset: 2
       })
 
       await new Promise((resolve) => setTimeout(resolve, 10))

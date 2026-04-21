@@ -22,6 +22,7 @@ export interface IntegrityLinkListItem {
   integrity_title: string | null
   last_retrieval_timestamp: string | null
   metadata_id: string | null
+  owner_display_name?: string | null
   schedule: string | null
   schedule_enabled: boolean
   source_file_name: string | null

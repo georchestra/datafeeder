@@ -148,6 +148,7 @@ class IntegrityLinkListItem(BaseModel):
         description="User's effective access level: ADMIN, OWNER, WRITE, or READ",
     )
     has_final_table: bool = False
+    owner_display_name: str | None = None
 
     @field_validator("id", mode="before")
     @classmethod
@@ -160,8 +161,9 @@ class IntegrityLinkListResponse(BaseModel):
     """Response for integrity links list with lazy loading support."""
 
     items: list[IntegrityLinkListItem]
-    has_more: bool  # True if there are more items to load
-    offset: int  # Current offset (for next request: offset + BATCH_SIZE)
+    has_more: bool
+    offset: int
+    next_offset: int  # raw DB offset to pass verbatim on the next page request
 
 
 class IntegrityLinkResponse(BaseModel):

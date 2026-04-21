@@ -97,7 +97,7 @@ services:
       - .envs-database-georchestra
 
   console:
-    image: georchestra/console:25.0.x
+    image: georchestra/console:latest
     healthcheck:
       test: ["CMD-SHELL", "curl -s -f http://localhost:8080/console/account/new >/dev/null || exit 1"]
       interval: 30s
