@@ -241,8 +241,11 @@ async def _process_import_source(
                 source_protocol=(service_protocol or "wfs").strip(),
             )
 
-        case _:
-            pass
+        case ImportType.EMPTY:
+            logger.error(f"Import type {type.value} not implemented yet")
+            raise HTTPException(
+                status_code=501, detail=f"Import type {type.value} not implemented yet"
+            )
 
     return _ImportSourceResult(
         source=source,
