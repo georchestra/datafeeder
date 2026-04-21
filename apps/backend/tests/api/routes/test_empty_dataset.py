@@ -101,22 +101,42 @@ class TestCreateEmptyDataset:
         session.flush.assert_called_once()
         session.commit.assert_called_once()
 
-    def test_blank_title_raises_422(self) -> None:
-        """A request with a blank (whitespace-only) title must raise HTTP 422."""
-        session = MagicMock()
-        with pytest.raises(HTTPException) as exc_info:
-            create_empty_dataset(
-                request=CreateEmptyDatasetRequest(title="   "),
+    def test_no_title_creates_link_without_title(self) -> None:
+        """A request without a title creates the integrity link with integrity_title=None."""
+        link_id = uuid4()
+        session = _make_session_with_link(link_id)
+
+        session.refresh.return_value = None
+
+        with (
+            patch(
+                "src.api.routes.ingestion.empty_dataset.get_settings",
+                return_value=_mock_settings(),
+            ),
+            patch("src.api.routes.ingestion.empty_dataset.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.ingestion.empty_dataset.MetadataService") as mock_ms_cls,
+            patch(
+                "src.api.routes.ingestion.empty_dataset.IntegrityLinkResponse.model_validate",
+                return_value=MagicMock(
+                    id=link_id,
+                    source_import_type=ImportType.EMPTY,
+                    integrity_title=None,
+                ),
+            ),
+        ):
+            mock_console_cls.return_value.get_organization.return_value = None
+            mock_ms_cls.return_value = MagicMock()
+
+            result = create_empty_dataset(
+                request=CreateEmptyDatasetRequest(),
                 session=session,
                 geo_ctx=_geo_ctx(),
                 org_id=None,
             )
 
-        assert exc_info.value.status_code == 422
-        assert "Title must not be empty" in exc_info.value.detail
-        # Nothing should have been persisted
-        session.add.assert_not_called()
-        session.flush.assert_not_called()
+        assert result.integrity_title is None
+        session.add.assert_called_once()
+        session.flush.assert_called_once()
 
     def test_metadata_publication_failure_rolls_back_and_raises_500(self) -> None:
         """If metadata creation fails the DB transaction is rolled back and HTTP 500 is raised."""
