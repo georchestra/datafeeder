@@ -8,7 +8,7 @@ import {
 import { Router } from '@angular/router'
 import { TranslatePipe } from '@ngx-translate/core'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
-import { iconoirNavArrowDown, iconoirPlus } from '@ng-icons/iconoir'
+import { iconoirMoreHoriz, iconoirPlus } from '@ng-icons/iconoir'
 import { Api } from '../../../core/api/api'
 import { createEmptyDatasetIngestionIntegrityLinkEmptyPost } from '../../../core/api/functions'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
@@ -23,7 +23,7 @@ marker('errors.operation.emptyDatasetCreate')
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslatePipe, NgIconComponent],
   templateUrl: './quick-creation.component.html',
-  providers: [provideIcons({ iconoirPlus, iconoirNavArrowDown })]
+  providers: [provideIcons({ iconoirPlus, iconoirMoreHoriz })]
 })
 export class QuickCreationComponent {
   private readonly api = inject(Api)

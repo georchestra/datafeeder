@@ -824,6 +824,9 @@ def get_staging_metadata(
     )
 
     staging_table_name = integrity_link.staging_table_name
+    if not staging_table_name:
+        raise HTTPException(status_code=422, detail="No staging table available for this dataset")
+
     source_import_type = integrity_link.source_import_type
     source_file_type = integrity_link.source_file_type
     title = (
@@ -851,8 +854,6 @@ def get_staging_metadata(
     )
 
     schema = get_staging_schema()
-    if not staging_table_name:
-        raise HTTPException(status_code=422, detail="No staging table available for this dataset")
     table = Table(
         staging_table_name,
         MetaData(schema=schema),
