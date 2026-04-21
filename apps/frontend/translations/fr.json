@@ -282,7 +282,7 @@
   "metadata.processing.queued": "Le traitement des métadonnées est en file d'attente. Veuillez patienter...",
   "metadata.processing.refreshing": "Vérification du statut...",
   "metadata.processing.running": "Le traitement des métadonnées est en cours. Veuillez patienter...",
-  "quickImport.button": "Créer un jeu de données sans donnée",
+  "quickImport.button": "Créer un jeu de données",
   "quickImport.create": "Créer",
   "quickImport.modeEmpty": "Créer un jeu de données sans donnée",
   "quickImport.modeWithData": "Créer un jeu de données avec des données",

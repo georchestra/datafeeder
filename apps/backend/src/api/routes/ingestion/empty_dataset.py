@@ -14,7 +14,7 @@ logger = get_logger()
 
 
 class CreateEmptyDatasetRequest(BaseModel):
-    title: str
+    title: str | None = None
 
 
 @router.post(
@@ -34,9 +34,7 @@ def create_empty_dataset(
     geo_ctx: GeorchestraContextDep,
     org_id: OrgIdDep,
 ) -> IntegrityLinkResponse:
-    title = request.title.strip()
-    if not title:
-        raise HTTPException(status_code=422, detail="Title must not be empty")
+    title = request.title.strip() if request.title else None
     settings = get_settings()
 
     integrity_link = IntegrityLink(

@@ -31,5 +31,5 @@ export interface IntegrityLinkListItem {
   source_layer?: string | null
   source_protocol?: string | null
   source_url: string | null
-  staging_table_name: string
+  staging_table_name: string | null
 }

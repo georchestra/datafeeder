@@ -3,8 +3,8 @@
 
 import { Injectable } from '@angular/core'
 import { HttpClient, HttpContext, HttpResponse } from '@angular/common/http'
-import { Observable, firstValueFrom, throwError } from 'rxjs'
-import { catchError, filter, map } from 'rxjs/operators'
+import { Observable, firstValueFrom } from 'rxjs'
+import { filter, map } from 'rxjs/operators'
 import { ApiConfiguration } from './api-configuration'
 import { StrictHttpResponse } from './strict-http-response'
 
@@ -86,7 +86,6 @@ export class Api {
     context?: HttpContext
   ): Promise<StrictHttpResponse<R>> {
     const obs = fn(this.http, this.rootUrl, params, context).pipe(
-      catchError((err) => throwError(() => err)),
       filter((r) => r instanceof HttpResponse),
       map((r) => r as StrictHttpResponse<R>)
     )

@@ -282,7 +282,7 @@
   "metadata.processing.queued": "Metadata processing is queued. Please wait...",
   "metadata.processing.refreshing": "Checking status...",
   "metadata.processing.running": "Metadata is being processed. Please wait...",
-  "quickImport.button": "Create a dataset without data",
+  "quickImport.button": "Create a dataset",
   "quickImport.create": "Create",
   "quickImport.modeEmpty": "Create a dataset without data",
   "quickImport.modeWithData": "Create a dataset with data",
