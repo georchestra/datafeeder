@@ -189,7 +189,7 @@ describe('DataSourceSelectorComponent', () => {
       const fixture = TestBed.createComponent(DataSourceSelectorComponent)
       const component = fixture.componentInstance
 
-      component.handleRadioChange('api')
+      component.form.controls.radio.setValue('api')
       fixture.detectChanges()
 
       expect(
