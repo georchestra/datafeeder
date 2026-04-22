@@ -78,6 +78,7 @@ class AirflowTaskExecutor(BaseTaskExecutor):
         success_callback_url: str | None = None,
         failure_callback_url: str | None = None,
         last_retrieval_timestamp: datetime | None = None,
+        target_schema: str = "data",
     ) -> TaskRunInfo:
         """Trigger a process task in Airflow."""
         dag_run_response = get_dag_run_api().trigger_dag_run(
@@ -91,6 +92,7 @@ class AirflowTaskExecutor(BaseTaskExecutor):
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,
                     "last_retrieval_timestamp": last_retrieval_timestamp,
+                    "target_schema": target_schema,
                 },
             ),
         )

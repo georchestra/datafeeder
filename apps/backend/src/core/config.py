@@ -152,6 +152,9 @@ class Settings(BaseSettings):
     # Source databases for database import type (key → SQLAlchemy URI)
     SOURCE_DATABASES: dict[str, PostgresDsn] = Field(default_factory=dict)
 
+    # When True, final tables are written to a schema named after the org short name instead of "data"
+    USE_ORG_SCHEMA: bool = False
+
     # GeoServer
     GEOSERVER_URL: str = Field(
         default="http://localhost:8080/geoserver",

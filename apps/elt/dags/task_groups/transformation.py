@@ -11,9 +11,10 @@ from data_manipulation import (
     read_and_transform_data,
     write_data_to_postgis,
 )
+from data_manipulation.database import create_schema
 from data_manipulation.logging import configure_logging
 from sqlalchemy import MetaData, Table
-from utils import get_data_sql_engine, get_final_schema, get_staging_schema
+from utils import get_data_sql_engine, get_staging_schema
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
@@ -76,7 +77,7 @@ def process_transformation_group(
                 raise AirflowException("final_table_name is required and cannot be empty")
 
             engine = get_data_sql_engine()
-            final_schema = get_final_schema()
+            final_schema = params.get("target_schema", "data")
             staging_schema = get_staging_schema()
 
             try:
@@ -118,6 +119,7 @@ def process_transformation_group(
                             exc_info=True,
                         )
 
+                create_schema(engine, final_schema)
                 logger.info(f"Writing data to {final_schema}.{final_table_name}")
                 write_data_to_postgis(
                     data=transformed_data,

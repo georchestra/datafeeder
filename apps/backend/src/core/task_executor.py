@@ -83,6 +83,7 @@ class BaseTaskExecutor(ABC):
         success_callback_url: str | None = None,
         failure_callback_url: str | None = None,
         last_retrieval_timestamp: datetime | None = None,
+        target_schema: str = "data",
     ) -> TaskRunInfo:
         """
         Trigger a process task.
@@ -94,6 +95,7 @@ class BaseTaskExecutor(ABC):
             integrity_transformation: JSON configuration for transformations
             success_callback_url: URL to call on success
             failure_callback_url: URL to call on failure
+            target_schema: PostgreSQL schema for the final table
 
         Returns:
             TaskRunInfo with task details

@@ -124,6 +124,7 @@ class TestAirflowTaskExecutor:
                 "success_callback_url": "https://ok.example.com",
                 "failure_callback_url": "https://ko.example.com",
                 "last_retrieval_timestamp": retrieval_ts,
+                "target_schema": "data",
             }
             assert result.task_id == "process_dag"
             assert result.run_id == "run-456"
