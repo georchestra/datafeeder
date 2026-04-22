@@ -14,7 +14,7 @@ import {
 } from '../../core/api/functions'
 import { GroupItem, IntegrityLinkRule } from '../../core/api/models'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
-import { ErrorToastStore } from '../../core/stores/error-toast.store'
+import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import { AuthorizationsComponent } from './authorizations.component'
 
 describe('AuthorizationsComponent', () => {
@@ -48,7 +48,7 @@ describe('AuthorizationsComponent', () => {
 
   let apiInvokeSpy: ReturnType<typeof vi.fn>
   let store: IntegrityLinkStore
-  let toastStore: ErrorToastStore
+  let toastStore: OperationToastStore
 
   const createComponent = () => {
     const fixture = TestBed.createComponent(AuthorizationsComponent)
@@ -112,7 +112,7 @@ describe('AuthorizationsComponent', () => {
     }).compileComponents()
 
     store = TestBed.inject(IntegrityLinkStore)
-    toastStore = TestBed.inject(ErrorToastStore)
+    toastStore = TestBed.inject(OperationToastStore)
     store.intlinkId.set(intlinkId)
     store.integrityLink.set({
       integrity_link_id: intlinkId,
@@ -243,7 +243,7 @@ describe('AuthorizationsComponent', () => {
   // ─── Error handling ──────────────────────────────────────────────────────
   // Matrix coverage (frontend-behavior-matrix.md — Page: /:id/authorizations):
   //   403 on GET rules → loadError signal set, rules stays empty       ✅
-  //   403 on PUT/DELETE rule → toast added to ErrorToastStore          ✅
+  //   403 on PUT/DELETE rule → toast added to OperationToastStore          ✅
 
   describe('Error handling', () => {
     it('should set loadError and leave rules empty when listRules API returns 403 (✅)', async () => {

@@ -294,6 +294,32 @@ class GeoServerService:
             }
         return result
 
+    def update_layer_title(
+        self,
+        workspace_name: str,
+        datastore_name: str,
+        layer_name: str,
+        title: str,
+    ) -> None:
+        """Update the title of a GeoServer feature type.
+
+        Args:
+            workspace_name: Name of the GeoServer workspace
+            datastore_name: Name of the datastore
+            layer_name: Name of the feature type to update
+            title: New title to set
+
+        Raises:
+            GeoServerAclError: If the REST call returns an unexpected status code
+        """
+        url = self.geoserver.rest_service.rest_endpoints.featuretype(
+            workspace_name, datastore_name, layer_name
+        )
+        payload = {"featureType": {"title": title}}
+        response = self.geoserver.rest_service.rest_client.put(url, json=payload)
+        if response.status_code not in (200, 201):
+            raise GeoServerAclError(response.status_code, response.content.decode())
+
     def delete_layer(
         self,
         workspace_name: str,

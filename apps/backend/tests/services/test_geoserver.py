@@ -763,3 +763,72 @@ class TestSyncLayerAcl:
         service.acl_layer_set_rule.assert_called_once_with(
             "myws.mylayer", AclAccessType.READ, ["*"]
         )
+
+
+class TestUpdateLayerTitle:
+    """Tests for GeoServerService.update_layer_title.
+
+    The datastore name follows the convention {workspace}_ds (defined in process.py).
+    """
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://test.example.com/geoserver",
+                username="testuser",
+                password="testpass",
+                public_url="http://test.example.com",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    @pytest.fixture
+    def rest_client(self, service: GeoServerService) -> MagicMock:
+        client = MagicMock()
+        service.geoserver.rest_service.rest_client = client
+        return client
+
+    def test_puts_correct_payload(self, service: GeoServerService, rest_client: MagicMock) -> None:
+        """PUT body must wrap the title under featureType key."""
+        mock_endpoints = MagicMock()
+        mock_endpoints.featuretype.return_value = (
+            "http://gs/workspaces/myws/datastores/myds/featuretypes/my_table.json"
+        )
+        service.geoserver.rest_service.rest_endpoints = mock_endpoints  # type: ignore[misc]
+        rest_client.put.return_value.status_code = 200
+
+        service.update_layer_title("myws", "myds", "my_table", "My Layer Title")
+
+        rest_client.put.assert_called_once_with(
+            "http://gs/workspaces/myws/datastores/myds/featuretypes/my_table.json",
+            json={"featureType": {"title": "My Layer Title"}},
+        )
+
+    def test_uses_featuretype_endpoint_url(
+        self, service: GeoServerService, rest_client: MagicMock
+    ) -> None:
+        """The URL is built using rest_endpoints.featuretype(ws, ds, name)."""
+        mock_endpoints = MagicMock()
+        service.geoserver.rest_service.rest_endpoints = mock_endpoints  # type: ignore[misc]
+        rest_client.put.return_value.status_code = 200
+
+        service.update_layer_title("ws1", "ds1", "layer1", "Title")
+
+        mock_endpoints.featuretype.assert_called_once_with("ws1", "ds1", "layer1")
+
+    def test_raises_on_non_2xx(self, service: GeoServerService, rest_client: MagicMock) -> None:
+        """Non-2xx response raises GeoServerAclError with status code and body."""
+        rest_client.put.return_value.status_code = 500
+        rest_client.put.return_value.content = b"Internal Server Error"
+
+        with pytest.raises(GeoServerAclError) as exc_info:
+            service.update_layer_title("myws", "myds", "my_table", "Title")
+
+        assert exc_info.value.status_code == 500
+
+    def test_accepts_201(self, service: GeoServerService, rest_client: MagicMock) -> None:
+        """201 Created is also a success (GeoServer may return it on PUT)."""
+        rest_client.put.return_value.status_code = 201
+
+        service.update_layer_title("myws", "myds", "my_table", "Title")

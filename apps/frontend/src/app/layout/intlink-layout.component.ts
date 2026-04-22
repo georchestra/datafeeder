@@ -12,18 +12,26 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import {
   ConfirmationDialogComponent,
   EditorFacade,
-  RecordsRepositoryInterface,
+  findConverterForDocument,
   SpinningLoaderComponent
 } from 'geonetwork-ui'
 import { MatDialog } from '@angular/material/dialog'
-import { finalize, firstValueFrom, switchMap, take, withLatestFrom } from 'rxjs'
+import {
+  finalize,
+  firstValueFrom,
+  from,
+  switchMap,
+  take,
+  withLatestFrom
+} from 'rxjs'
 import { Api } from '../core/api/api'
 import {
   deleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete,
-  getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet
+  getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
+  updateMetadataGnIngestionIntegrityLinkIntegrityLinkIdMetadataGnPut
 } from '../core/api/functions'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
-import { ErrorToastStore } from '../core/stores/error-toast.store'
+import { OperationToastStore } from '../core/stores/operation-toast.store'
 import { UiAlertBoxComponent } from '../shared/components/ui-alert-box/ui-alert-box.component'
 
 marker('intlinkLayout.error.forbidden.message')
@@ -32,6 +40,7 @@ marker('intlinkLayout.error.not_found.message')
 marker('intlinkLayout.error.not_found.title')
 marker('intlinkLayout.error.server_error.message')
 marker('intlinkLayout.error.server_error.title')
+marker('info.operation.metadataSave')
 marker('sidebar.reconfigureDataset.warning')
 marker('sidebar.reconfigureDataset.warningActiveRun')
 marker('sidebar.reconfigureDataset.warningTitle')
@@ -59,12 +68,11 @@ export class IntlinkLayoutComponent {
   readonly store = inject(IntegrityLinkStore)
 
   private editor = inject(EditorFacade)
-  private recordsRepository = inject(RecordsRepositoryInterface)
-  private errorToastStore = inject(ErrorToastStore)
+  private api = inject(Api)
+  private operationToastStore = inject(OperationToastStore)
   private router = inject(Router)
   private matDialog = inject(MatDialog)
   private translate = inject(TranslateService)
-  private api = inject(Api)
 
   isSaving = signal<boolean>(false)
 
@@ -117,19 +125,39 @@ export class IntlinkLayoutComponent {
         withLatestFrom(this.editor.recordSource$),
         take(1),
         switchMap(([record, recordSource]) =>
-          this.recordsRepository.saveRecord(record, recordSource, false)
+          from(
+            findConverterForDocument(recordSource).writeRecord(
+              record,
+              recordSource
+            )
+          ).pipe(
+            switchMap((serializedXml) =>
+              from(
+                this.api.invoke(
+                  updateMetadataGnIngestionIntegrityLinkIntegrityLinkIdMetadataGnPut,
+                  {
+                    integrity_link_id: this.store.integrityLink()!.id,
+                    body: { serialized_xml: serializedXml, title: record.title }
+                  }
+                )
+              )
+            )
+          )
         ),
         finalize(() => {
           this.isSaving.set(false)
         })
       )
       .subscribe({
-        next: () => {
-          //TODO: show success message
-          console.log('Edits saved successfully')
+        next: (updatedIntlink) => {
+          this.store.integrityLink.update((current) => ({
+            ...current!,
+            integrity_title: updatedIntlink.integrity_title
+          }))
+          this.operationToastStore.addInfo('metadataSave')
         },
         error: () => {
-          this.errorToastStore.add('metadataSave')
+          this.operationToastStore.addError('metadataSave')
         }
       })
   }

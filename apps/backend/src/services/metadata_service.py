@@ -511,6 +511,20 @@ class MetadataService:
         self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
         logger.info("Updated revision date for metadata record %s", metadata_uuid)
 
+    def upload_metadata_xml(self, xml_bytes: bytes) -> None:
+        """Upload raw XML bytes to GeoNetwork via OVERWRITE.
+
+        OVERWRITE keeps existing publication privileges intact.
+
+        Args:
+            xml_bytes: Raw UTF-8 encoded XML of the metadata record.
+
+        Raises:
+            Exception: If the GeoNetwork upload fails.
+        """
+        self.gn_api.upload_metadata(xml_bytes, uuidprocessing="OVERWRITE")
+        logger.info("Uploaded metadata XML to GeoNetwork")
+
     def delete_record(self, metadata_uuid: str) -> None:
         """Delete a metadata record from GeoNetwork.
 

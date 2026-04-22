@@ -1,9 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
-import { iconoirWarningTriangle, iconoirXmark } from '@ng-icons/iconoir'
+import {
+  iconoirCheckCircle,
+  iconoirWarningTriangle,
+  iconoirXmark
+} from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
-import { ErrorToastStore } from '../../../core/stores/error-toast.store'
+import { OperationToastStore } from '../../../core/stores/operation-toast.store'
 
 marker('errors.operation.metadataSave')
 marker('errors.operation.gnPublish')
@@ -13,18 +17,21 @@ marker('errors.operation.gsRightsEdit')
 marker('errors.operation.gsPublish')
 marker('errors.operation.gsUnpublish')
 marker('errors.operation.deletion')
+marker('info.operation.metadataSave')
 marker('errors.operation.loadPresets')
 marker('errors.operation.updateSchedule')
 
 @Component({
-  selector: 'app-error-toast',
+  selector: 'app-operation-toast',
   imports: [NgIconComponent, TranslatePipe],
-  templateUrl: './error-toast.component.html',
+  templateUrl: './operation-toast.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideIcons({ iconoirWarningTriangle, iconoirXmark })]
+  providers: [
+    provideIcons({ iconoirWarningTriangle, iconoirXmark, iconoirCheckCircle })
+  ]
 })
-export class ErrorToastComponent {
-  protected store = inject(ErrorToastStore)
+export class OperationToastComponent {
+  protected store = inject(OperationToastStore)
 
   dismiss(id: string): void {
     this.store.remove(id)

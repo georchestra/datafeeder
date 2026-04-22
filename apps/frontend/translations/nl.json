@@ -248,6 +248,7 @@
   "import.datasetPreviewTable.previewError": "",
   "import.metadataPublication.error": "",
   "import.recurrence.label": "",
+  "info.operation.metadataSave": "Metadata succesvol opgeslagen",
   "input.file.dropFileLabel": "",
   "input.file.orInputUrl": "",
   "input.file.selectFileLabel": "",

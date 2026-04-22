@@ -15,7 +15,7 @@ import { DagRunState, RecurrencePresetItem } from '../../core/api/models'
 import { DagRunCollectionResponse } from '../../core/api/models/dag-run-collection-response'
 import { DagRunResponse } from '../../core/api/models/dag-run-response'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
-import { ErrorToastStore } from '../../core/stores/error-toast.store'
+import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import { EventType } from '../../shared/components/event-type-badge/event-type-badge.component'
 import {
   Event,
@@ -47,7 +47,7 @@ const DAG_RUNGS_PAGE_SIZE = 20
 export class EventsComponent implements OnInit {
   private api = inject(Api)
   readonly store = inject(IntegrityLinkStore)
-  private errorToastStore = inject(ErrorToastStore)
+  private operationToastStore = inject(OperationToastStore)
 
   intlink_id = this.store.intlinkId()
   events = signal<Event[]>([])
@@ -90,7 +90,7 @@ export class EventsComponent implements OnInit {
         })
         .catch((err) => {
           console.error('Failed to update schedule:', err)
-          this.errorToastStore.add('updateSchedule')
+          this.operationToastStore.addError('updateSchedule')
         })
     })
   }
@@ -105,7 +105,7 @@ export class EventsComponent implements OnInit {
       .then((presets) => this.recurrencePresets.set(presets))
       .catch((err) => {
         console.error('Failed to load recurrence presets:', err)
-        this.errorToastStore.add('loadPresets')
+        this.operationToastStore.addError('loadPresets')
       })
   }
 

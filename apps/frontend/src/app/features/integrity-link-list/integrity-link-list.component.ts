@@ -20,7 +20,7 @@ import {
   iconoirTrash
 } from '@ng-icons/iconoir'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
-import { ErrorToastStore } from '../../core/stores/error-toast.store'
+import { OperationToastStore } from '../../core/stores/operation-toast.store'
 
 const DEBOUNCE_TIME = 300
 
@@ -41,7 +41,7 @@ export class IntegrityLinkListComponent {
   private router = inject(Router)
   private translate = inject(TranslateService)
   private matDialog = inject(MatDialog)
-  private errorToastStore = inject(ErrorToastStore)
+  private operationToastStore = inject(OperationToastStore)
 
   integrityLinks = signal<IntegrityLinkListItem[]>([])
   loading = signal<boolean>(true)
@@ -139,7 +139,7 @@ export class IntegrityLinkListComponent {
       this.integrityLinks.update((items) => items.filter((l) => l.id !== id))
     } catch (error) {
       console.error('Failed to delete integrity link:', error)
-      this.errorToastStore.add('deletion')
+      this.operationToastStore.addError('deletion')
     } finally {
       this.deleting.set(null)
     }

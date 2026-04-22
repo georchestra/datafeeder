@@ -4,12 +4,17 @@ import { provideRouter } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
-import { ErrorToastStore } from '../core/stores/error-toast.store'
+import { OperationToastStore } from '../core/stores/operation-toast.store'
 import { IntlinkLayoutComponent } from './intlink-layout.component'
 import { IntegrityLinkResponse } from '../core/api/models'
 import { of, throwError } from 'rxjs'
-import { EditorFacade, RecordsRepositoryInterface } from 'geonetwork-ui'
+import { EditorFacade, findConverterForDocument } from 'geonetwork-ui'
 import { Api } from '../core/api/api'
+
+vi.mock('geonetwork-ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('geonetwork-ui')>()
+  return { ...actual, findConverterForDocument: vi.fn() }
+})
 
 /**
  * Creates a lightweight store mock using Angular signals/computed.
@@ -62,12 +67,12 @@ describe('IntlinkLayoutComponent', () => {
     const store = createStore(accessLevel)
 
     const mockEditor = {
-      record$: of({ id: 'test-record' }),
-      recordSource$: of('xml-source')
+      record$: of({ id: 'test-record', title: 'Test Title' }),
+      recordSource$: of('<xml>original</xml>')
     }
 
-    const mockRepo = {
-      saveRecord: vi.fn().mockReturnValue(of({}))
+    const mockApi = {
+      invoke: vi.fn().mockResolvedValue({ integrity_title: 'Updated Title' })
     }
 
     await TestBed.configureTestingModule({
@@ -90,8 +95,7 @@ describe('IntlinkLayoutComponent', () => {
         provideRouter([]),
         { provide: IntegrityLinkStore, useValue: store },
         { provide: EditorFacade, useValue: mockEditor },
-        { provide: RecordsRepositoryInterface, useValue: mockRepo },
-        { provide: Api, useValue: { invoke: vi.fn() } }
+        { provide: Api, useValue: mockApi }
       ]
     })
       .overrideComponent(IntlinkLayoutComponent, {
@@ -101,7 +105,7 @@ describe('IntlinkLayoutComponent', () => {
 
     const fixture = TestBed.createComponent(IntlinkLayoutComponent)
     fixture.detectChanges()
-    return { fixture, store }
+    return { fixture, store, mockApi }
   }
 
   describe('isOwnerOrAdmin computed logic', () => {
@@ -239,46 +243,95 @@ describe('IntlinkLayoutComponent', () => {
   })
 
   describe('Save Edits Behavior', () => {
+    const mockConverter = {
+      writeRecord: vi.fn().mockResolvedValue('<xml>edited</xml>')
+    }
+
+    beforeEach(() => {
+      vi.mocked(findConverterForDocument).mockReturnValue(mockConverter as any)
+    })
+
     afterEach(() => {
-      vi.restoreAllMocks()
+      vi.clearAllMocks()
     })
 
-    it('should call saveRecord with correct parameters', async () => {
+    it('should serialize the record using findConverterForDocument with recordSource', async () => {
+      const { fixture } = await setupComponent('OWNER')
+
+      fixture.componentInstance.saveEdits()
+      await vi.waitFor(() =>
+        expect(mockConverter.writeRecord).toHaveBeenCalled()
+      )
+
+      expect(vi.mocked(findConverterForDocument)).toHaveBeenCalledWith(
+        '<xml>original</xml>'
+      )
+      expect(mockConverter.writeRecord).toHaveBeenCalledWith(
+        { id: 'test-record', title: 'Test Title' },
+        '<xml>original</xml>'
+      )
+    })
+
+    it('should call api.invoke with serialized XML and title', async () => {
+      const { fixture, mockApi } = await setupComponent('OWNER')
+
+      fixture.componentInstance.saveEdits()
+      await vi.waitFor(() => expect(mockApi.invoke).toHaveBeenCalled())
+
+      expect(mockApi.invoke).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({
+          integrity_link_id: 'test-id',
+          body: { serialized_xml: '<xml>edited</xml>', title: 'Test Title' }
+        })
+      )
+    })
+
+    it('should update only integrity_title in the store on success', async () => {
       const { fixture, store } = await setupComponent('OWNER')
-      const repo = TestBed.inject(RecordsRepositoryInterface)
 
       fixture.componentInstance.saveEdits()
-
-      expect(repo.saveRecord).toHaveBeenCalledWith(
-        { id: 'test-record' },
-        'xml-source',
-        false
-      )
-    })
-
-    it('should log success message on successful save', async () => {
-      const { fixture } = await setupComponent('OWNER')
-      const logSpy = vi.spyOn(console, 'log')
-
-      fixture.componentInstance.saveEdits()
-
-      expect(logSpy).toHaveBeenCalledWith('Edits saved successfully')
-    })
-
-    it('should add a metadataSave toast when save fails', async () => {
-      const { fixture } = await setupComponent('OWNER')
-      const repo = TestBed.inject(RecordsRepositoryInterface)
-      const toastStore = TestBed.inject(ErrorToastStore)
-
-      vi.mocked(repo.saveRecord).mockReturnValueOnce(
-        throwError(() => new Error('API Error'))
+      await vi.waitFor(() =>
+        expect(store.integrityLink()?.integrity_title).toBe('Updated Title')
       )
 
-      fixture.componentInstance.saveEdits()
+      expect(store.integrityLink()?.id).toBe('test-id')
+    })
 
+    it('should show an info toast on successful save', async () => {
+      const { fixture } = await setupComponent('OWNER')
+      const toastStore = TestBed.inject(OperationToastStore)
+
+      fixture.componentInstance.saveEdits()
       await vi.waitFor(() => expect(toastStore.toasts().length).toBe(1))
+
+      expect(toastStore.toasts()[0].translationKey).toBe(
+        'info.operation.metadataSave'
+      )
+      expect(toastStore.toasts()[0].type).toBe('info')
+    })
+
+    it('should show an error toast when the API call fails', async () => {
+      const { fixture, mockApi } = await setupComponent('OWNER')
+      const toastStore = TestBed.inject(OperationToastStore)
+
+      mockApi.invoke.mockRejectedValueOnce(new Error('API Error'))
+
+      fixture.componentInstance.saveEdits()
+      await vi.waitFor(() => expect(toastStore.toasts().length).toBe(1))
+
       expect(toastStore.toasts()[0].translationKey).toBe(
         'errors.operation.metadataSave'
+      )
+      expect(toastStore.toasts()[0].type).toBe('error')
+    })
+
+    it('should reset isSaving to false after completion', async () => {
+      const { fixture } = await setupComponent('OWNER')
+
+      fixture.componentInstance.saveEdits()
+      await vi.waitFor(() =>
+        expect(fixture.componentInstance.isSaving()).toBe(false)
       )
     })
   })

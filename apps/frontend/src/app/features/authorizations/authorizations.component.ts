@@ -20,7 +20,8 @@ import {
 } from '../../core/api/functions'
 import { GroupItem, IntegrityLinkRule, RuleType } from '../../core/api/models'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
-import { ErrorToastStore } from '../../core/stores/error-toast.store'
+import { OperationToastStore } from '../../core/stores/operation-toast.store'
+import { ToastError } from '../../core/models/operation-toast.model'
 import {
   AuthorizationRulesComponent,
   RuleChangeEvent
@@ -59,7 +60,7 @@ marker('i18nerror.publish.geoserver')
 export class AuthorizationsComponent implements OnInit {
   private api = inject(Api)
   readonly store = inject(IntegrityLinkStore)
-  private errorToastStore = inject(ErrorToastStore)
+  private operationToastStore = inject(OperationToastStore)
 
   private readonly metadataRuleType: RuleType = 'METADATA'
   private readonly dataRuleType: RuleType = 'DATA'
@@ -130,7 +131,10 @@ export class AuthorizationsComponent implements OnInit {
       )
     } catch (error) {
       console.error('Failed to toggle publish status:', error)
-      this.errorToastStore.add(publish ? 'gnPublish' : 'gnUnpublish', error)
+      this.operationToastStore.addError(
+        publish ? 'gnPublish' : 'gnUnpublish',
+        error as ToastError
+      )
 
       // Force re-render by setting to opposite first, then back to previous
       this.isPublishedMetadata.set(!previousValue)
@@ -168,7 +172,10 @@ export class AuthorizationsComponent implements OnInit {
       }
     } catch (error) {
       console.error('Failed to toggle GeoServer publish status:', error)
-      this.errorToastStore.add(publish ? 'gsPublish' : 'gsUnpublish', error)
+      this.operationToastStore.addError(
+        publish ? 'gsPublish' : 'gsUnpublish',
+        error as ToastError
+      )
 
       this.isPublishedData.set(!previousValue)
       setTimeout(() => {
@@ -217,7 +224,7 @@ export class AuthorizationsComponent implements OnInit {
       await this.loadRules(this.intlinkId)
     } catch (error) {
       console.error('Failed to update rule:', error)
-      this.errorToastStore.add(
+      this.operationToastStore.addError(
         ruleType === this.metadataRuleType ? 'gnRightsEdit' : 'gsRightsEdit'
       )
     }

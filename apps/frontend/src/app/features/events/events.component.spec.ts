@@ -26,7 +26,7 @@ import { DagRunResponse } from '../../core/api/models/dag-run-response'
 import { DagRunState } from '../../core/api/models/dag-run-state'
 import { DagRunType } from '../../core/api/models/dag-run-type'
 import type { IntegrityLinkResponse } from '../../core/api/models/integrity-link-response'
-import { ErrorToastStore } from '../../core/stores/error-toast.store'
+import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import type { Event } from '../../shared/components/event/event.component'
 import { EventsListComponent } from '../../shared/components/events-list/events-list.component'
@@ -134,7 +134,7 @@ describe('EventsComponent', () => {
 
   let apiInvokeSpy: ReturnType<typeof vi.fn>
   let store: IntegrityLinkStore
-  let toastStore: ErrorToastStore
+  let toastStore: OperationToastStore
 
   beforeEach(async () => {
     apiInvokeSpy = vi.fn().mockImplementation((fn: unknown) => {
@@ -180,7 +180,7 @@ describe('EventsComponent', () => {
       .compileComponents()
 
     store = TestBed.inject(IntegrityLinkStore)
-    toastStore = TestBed.inject(ErrorToastStore)
+    toastStore = TestBed.inject(OperationToastStore)
     store.intlinkId.set(intlinkId)
   })
 
