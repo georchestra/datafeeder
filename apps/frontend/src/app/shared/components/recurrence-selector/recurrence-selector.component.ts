@@ -19,8 +19,16 @@ import { MatSelectModule } from '@angular/material/select'
 import { MatTooltipModule } from '@angular/material/tooltip'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { map } from 'rxjs'
+import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import { RecurrencePresetItem } from '../../../core/api/models/recurrence-preset-item'
 import { RecurrencePreset } from '../../../core/api/models'
+
+marker('recurrence.preset.EVERY_MINUTE')
+marker('recurrence.preset.EVERY_HOUR')
+marker('recurrence.preset.EVERY_DAY')
+marker('recurrence.preset.EVERY_WEEK')
+marker('recurrence.preset.EVERY_MONTH')
+marker('recurrence.preset.EVERY_YEAR')
 
 const CUSTOM_CRON_VALUE = '__custom__'
 
