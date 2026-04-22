@@ -301,6 +301,88 @@ class TestGetStagingMetadataTitleFallback:
 
         assert result.title == "Parcelles cadastrales"
 
+    @patch("src.api.routes.ingestion.staging.get_staging_schema", return_value="staging")
+    @patch("src.api.routes.ingestion.staging.select")
+    @patch("src.api.routes.ingestion.staging.Table")
+    @patch("src.api.routes.ingestion.staging._resolve_columns")
+    @patch("src.api.routes.ingestion.staging._detect_original_projection")
+    @patch("src.api.routes.ingestion.staging.load_authorized_integrity_link")
+    def test_title_strips_extension_from_source_file_name(
+        self,
+        mock_load: MagicMock,
+        mock_detect_proj: MagicMock,
+        mock_resolve_cols: MagicMock,
+        mock_table: MagicMock,
+        mock_select: MagicMock,
+        mock_get_schema: MagicMock,
+    ) -> None:
+        """source_file_name extension is stripped when used as title fallback."""
+        mock_link = MagicMock()
+        mock_link.integrity_title = None
+        mock_link.source_file_name = "data.csv"
+        mock_link.source_file_type = None
+        mock_link.source_import_type = ImportType.URL
+        mock_link.source_url = None
+        mock_link.integrity_transformation = None
+        mock_link.final_table_name = None
+        mock_load.return_value = (mock_link, MagicMock())
+        mock_resolve_cols.return_value = ([], None)
+        mock_detect_proj.return_value = None
+
+        data_session = MagicMock()
+        data_session.scalar.return_value = 0
+
+        result = get_staging_metadata(
+            data_session=data_session,
+            datafeeder_session=MagicMock(),
+            geo_ctx=MagicMock(),
+            integrity_link_id=str(uuid4()),
+            org_id=None,
+        )
+
+        assert result.title == "data"
+
+    @patch("src.api.routes.ingestion.staging.get_staging_schema", return_value="staging")
+    @patch("src.api.routes.ingestion.staging.select")
+    @patch("src.api.routes.ingestion.staging.Table")
+    @patch("src.api.routes.ingestion.staging._resolve_columns")
+    @patch("src.api.routes.ingestion.staging._detect_original_projection")
+    @patch("src.api.routes.ingestion.staging.load_authorized_integrity_link")
+    def test_title_preserves_hidden_file_name(
+        self,
+        mock_load: MagicMock,
+        mock_detect_proj: MagicMock,
+        mock_resolve_cols: MagicMock,
+        mock_table: MagicMock,
+        mock_select: MagicMock,
+        mock_get_schema: MagicMock,
+    ) -> None:
+        """Hidden-file names (leading dot) are kept as-is without stripping the extension."""
+        mock_link = MagicMock()
+        mock_link.integrity_title = None
+        mock_link.source_file_name = ".hidden.csv"
+        mock_link.source_file_type = None
+        mock_link.source_import_type = ImportType.URL
+        mock_link.source_url = None
+        mock_link.integrity_transformation = None
+        mock_link.final_table_name = None
+        mock_load.return_value = (mock_link, MagicMock())
+        mock_resolve_cols.return_value = ([], None)
+        mock_detect_proj.return_value = None
+
+        data_session = MagicMock()
+        data_session.scalar.return_value = 0
+
+        result = get_staging_metadata(
+            data_session=data_session,
+            datafeeder_session=MagicMock(),
+            geo_ctx=MagicMock(),
+            integrity_link_id=str(uuid4()),
+            org_id=None,
+        )
+
+        assert result.title == ".hidden"
+
 
 class TestEditStagingDatabase:
     """Test edit_staging (PUT) with ImportType.DATABASE."""

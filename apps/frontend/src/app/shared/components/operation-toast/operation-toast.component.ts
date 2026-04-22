@@ -18,6 +18,8 @@ marker('errors.operation.gsPublish')
 marker('errors.operation.gsUnpublish')
 marker('errors.operation.deletion')
 marker('info.operation.metadataSave')
+marker('errors.operation.loadPresets')
+marker('errors.operation.updateSchedule')
 
 @Component({
   selector: 'app-operation-toast',

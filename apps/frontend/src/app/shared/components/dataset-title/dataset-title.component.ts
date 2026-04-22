@@ -80,7 +80,7 @@ export class DatasetTitleComponent {
     const titleControl = this.form.controls.title
 
     if (
-      (titleControl.disabled && this.metadata().title) ||
+      (titleControl.disabled && this.metadata()?.title) ||
       titleControl.valid
     ) {
       this.validated.emit(this.form.value.title!)

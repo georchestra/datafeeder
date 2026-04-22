@@ -913,3 +913,53 @@ class TestGenerateMetadataCreationDate:
             namespaces=NS_19115_3,
         )
         assert len(revision_nodes) == 0
+
+
+class TestGenerateMetadataOrganizationName:
+    """Verify organization long name propagates to organizationName in contacts."""
+
+    @pytest.fixture
+    def datadir(self) -> Path:
+        return Path(__file__).resolve().parents[4] / "docker" / "datadir"
+
+    @pytest.fixture
+    def link(self) -> IntegrityLink:
+        return IntegrityLink(
+            id=uuid4(),
+            integrity_title="Test",
+            integrity_owner="user",
+            integrity_organization="shortorg",
+            staging_table_name="stg",
+            created_at=datetime.now(timezone.utc),
+            last_retrieval_timestamp=datetime.now(timezone.utc),
+            source_import_type=ImportType.URL,
+        )
+
+    def _online_resource_names_in_xml(self, xml_str: str) -> list[str]:
+        root = etree.fromstring(xml_str.encode())
+        nodes = root.xpath(
+            "//cit:CI_Individual/cit:contactInfo/cit:CI_Contact"
+            "/cit:onlineResource/cit:CI_OnlineResource/cit:name/gco:CharacterString",
+            namespaces=NS_19115_3,
+        )
+        return [n.text for n in nodes if n.text]
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_long_name_used_when_provided(
+        self, _mock_gn_api: MagicMock, datadir: Path, link: IntegrityLink
+    ) -> None:
+        service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
+        xml_str = service.generate_metadata(link, organization_name="Long Org Name SA")
+        org_names = self._online_resource_names_in_xml(xml_str)
+        assert len(org_names) > 0
+        assert all(name == "Long Org Name SA" for name in org_names)
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_short_name_fallback_when_no_long_name(
+        self, _mock_gn_api: MagicMock, datadir: Path, link: IntegrityLink
+    ) -> None:
+        service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
+        xml_str = service.generate_metadata(link)
+        org_names = self._online_resource_names_in_xml(xml_str)
+        assert len(org_names) > 0
+        assert all(name == "shortorg" for name in org_names)

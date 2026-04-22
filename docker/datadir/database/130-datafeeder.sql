@@ -1,3 +1,8 @@
+--
+-- IMPORTANT: DO NOT EDIT THIS FILE.
+-- Database edits should now be made with Alembic migrations
+--
+
 CREATE SCHEMA IF NOT EXISTS datafeeder;
 
 CREATE SCHEMA IF NOT EXISTS data;

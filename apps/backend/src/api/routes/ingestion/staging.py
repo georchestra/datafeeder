@@ -47,7 +47,7 @@ from src.models.data_import import (
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
-from src.services.files import delete_temp_file, upload_file_to_temp
+from src.services.files import delete_temp_file, strip_file_extension, upload_file_to_temp
 
 logger = get_logger()
 configure_logging(logger)
@@ -755,7 +755,11 @@ def get_staging_metadata(
     staging_table_name = integrity_link.staging_table_name
     source_import_type = integrity_link.source_import_type
     source_file_type = integrity_link.source_file_type
-    title = integrity_link.integrity_title or integrity_link.source_file_name or ""
+    title = (
+        integrity_link.integrity_title
+        or strip_file_extension(integrity_link.source_file_name)
+        or ""
+    )
     if (
         not title
         and integrity_link.source_import_type == ImportType.DATABASE
