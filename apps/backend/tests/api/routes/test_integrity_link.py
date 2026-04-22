@@ -1904,7 +1904,6 @@ class TestUpdateMetadataGn:
     def integrity_link_id(self) -> str:
         return str(uuid4())
 
-
     def _link(self, link_id: str) -> IntegrityLink:
         return IntegrityLink(
             id=UUID(link_id),
@@ -2247,4 +2246,3 @@ class TestUpdateSchedule:
             )
 
         assert exc_info.value.status_code == 404
-

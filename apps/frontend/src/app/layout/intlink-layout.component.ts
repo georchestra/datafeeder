@@ -16,7 +16,14 @@ import {
   SpinningLoaderComponent
 } from 'geonetwork-ui'
 import { MatDialog } from '@angular/material/dialog'
-import { finalize, firstValueFrom, from, switchMap, take, withLatestFrom } from 'rxjs'
+import {
+  finalize,
+  firstValueFrom,
+  from,
+  switchMap,
+  take,
+  withLatestFrom
+} from 'rxjs'
 import { Api } from '../core/api/api'
 import {
   deleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete,
