@@ -83,7 +83,7 @@ class TestUpsertIntegrityLinkRule:
             session=mock_session,
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
-            org_id=None,
+            group_ids=[],
             body=body,
         )
 
@@ -130,7 +130,7 @@ class TestUpsertIntegrityLinkRule:
             session=mock_session,
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
-            org_id=None,
+            group_ids=[],
             body=body,
         )
 
@@ -152,7 +152,7 @@ class TestUpsertIntegrityLinkRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=str(uuid4()),
-                org_id=None,
+                group_ids=[],
                 body=body,
             )
 
@@ -209,7 +209,7 @@ class TestUpsertIntegrityLinkRule:
                     session=mock_session,
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
-                    org_id=None,
+                    group_ids=[],
                     body=body,
                 )
 
@@ -253,7 +253,7 @@ class TestDeleteIntegrityLinkRule:
             session=mock_session,
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
-            org_id=None,
+            group_ids=[],
             rule_id=7,
         )
 
@@ -269,7 +269,7 @@ class TestDeleteIntegrityLinkRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=str(uuid4()),
-                org_id=None,
+                group_ids=[],
                 rule_id=1,
             )
 
@@ -294,7 +294,7 @@ class TestDeleteIntegrityLinkRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 rule_id=999,
             )
 
@@ -328,7 +328,7 @@ class TestDeleteIntegrityLinkRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 rule_id=7,
             )
 
@@ -385,7 +385,7 @@ class TestDeleteIntegrityLinkRule:
                     session=mock_session,
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
-                    org_id=None,
+                    group_ids=[],
                     rule_id=7,
                 )
 
@@ -471,7 +471,7 @@ class TestSyncAfterUpsertRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 body=body,
             )
 
@@ -531,7 +531,7 @@ class TestSyncAfterUpsertRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 body=body,
             )
 
@@ -573,7 +573,7 @@ class TestSyncAfterUpsertRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 body=body,
             )
 
@@ -633,7 +633,7 @@ class TestSyncAfterUpsertRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 body=body,
             )
 
@@ -695,7 +695,7 @@ class TestSyncAfterUpsertRule:
                     session=mock_session,
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
-                    org_id=None,
+                    group_ids=[],
                     body=body,
                 )
 
@@ -754,7 +754,7 @@ class TestSyncAfterUpsertRule:
                     session=mock_session,
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
-                    org_id=None,
+                    group_ids=[],
                     body=body,
                 )
 
@@ -819,7 +819,7 @@ class TestSyncAfterUpsertRule:
                     session=mock_session,
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
-                    org_id=None,
+                    group_ids=[],
                     body=body,
                 )
 
@@ -888,7 +888,7 @@ class TestSyncAfterDeleteRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 rule_id=7,
             )
 
@@ -926,7 +926,7 @@ class TestSyncAfterDeleteRule:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 rule_id=7,
             )
 
@@ -995,7 +995,7 @@ class TestSyncDataSharingAfterUpsert:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 body=body,
             )
 
@@ -1036,7 +1036,7 @@ class TestSyncDataSharingAfterUpsert:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 body=body,
             )
 
@@ -1100,7 +1100,7 @@ class TestSyncDataSharingAfterUpsert:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 body=body,
             )
 
@@ -1153,7 +1153,7 @@ class TestSyncDataSharingAfterUpsert:
                     session=mock_session,
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
-                    org_id=None,
+                    group_ids=[],
                     body=body,
                 )
 
@@ -1204,7 +1204,7 @@ class TestSyncDataSharingAfterUpsert:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 rule_id=7,
             )
 
@@ -1261,7 +1261,7 @@ class TestSyncDataSharingAfterUpsert:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 body=body,
             )
 
@@ -1316,7 +1316,7 @@ class TestSyncDataSharingAfterUpsert:
                     session=mock_session,
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
-                    org_id=None,
+                    group_ids=[],
                     body=body,
                 )
 
@@ -1373,7 +1373,7 @@ class TestSyncDataSharingAfterUpsert:
                     session=mock_session,
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
-                    org_id=None,
+                    group_ids=[],
                     body=body,
                 )
 
@@ -1597,7 +1597,7 @@ class TestTogglePublishGsIntegrityLink:
             toggle_publish_gs_integrity_link(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
-                org_id=None,
+                group_ids=[],
                 geoserver_service=mock_gs,
                 integrity_link_id=integrity_link_id,
                 publish=True,
@@ -1661,7 +1661,7 @@ class TestTogglePublishGsIntegrityLink:
             toggle_publish_gs_integrity_link(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
-                org_id=None,
+                group_ids=[],
                 geoserver_service=mock_gs,
                 integrity_link_id=integrity_link_id,
                 publish=False,
@@ -1730,7 +1730,7 @@ class TestTogglePublishGsIntegrityLink:
             toggle_publish_gs_integrity_link(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
-                org_id=None,
+                group_ids=[],
                 geoserver_service=mock_gs,
                 integrity_link_id=integrity_link_id,
                 publish=False,
@@ -1755,7 +1755,7 @@ class TestTogglePublishGsIntegrityLink:
             toggle_publish_gs_integrity_link(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
-                org_id=None,
+                group_ids=[],
                 geoserver_service=MagicMock(),
                 integrity_link_id=str(uuid4()),
                 publish=True,
@@ -1778,7 +1778,7 @@ class TestTogglePublishGsIntegrityLink:
             toggle_publish_gs_integrity_link(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
-                org_id=None,
+                group_ids=[],
                 geoserver_service=MagicMock(),
                 integrity_link_id=integrity_link_id,
                 publish=True,
@@ -1818,7 +1818,7 @@ class TestTogglePublishGsIntegrityLink:
                 toggle_publish_gs_integrity_link(
                     session=mock_session,
                     georchestra_context=_geo_ctx(),
-                    org_id=None,
+                    group_ids=[],
                     geoserver_service=mock_gs,
                     integrity_link_id=integrity_link_id,
                     publish=True,
@@ -1856,7 +1856,7 @@ class TestGetIntegrityLinkPresetId:
             session=mock_session,
             geo_ctx=_geo_ctx(),
             integrity_link_id=link_id,
-            org_id=None,
+            group_ids=[],
         )
 
         assert result.schedule == cron
@@ -1871,7 +1871,7 @@ class TestGetIntegrityLinkPresetId:
             session=mock_session,
             geo_ctx=_geo_ctx(),
             integrity_link_id=link_id,
-            org_id=None,
+            group_ids=[],
         )
 
         assert result.schedule is None
@@ -1886,7 +1886,7 @@ class TestGetIntegrityLinkPresetId:
             session=mock_session,
             geo_ctx=_geo_ctx(),
             integrity_link_id=link_id,
-            org_id=None,
+            group_ids=[],
         )
 
         assert result.schedule == "30 2 15 * *"
@@ -1949,7 +1949,7 @@ class TestUpdateMetadataGn:
                 session=mock_session,
                 geo_ctx=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 body=self._body("New Title"),
             )
 
@@ -1979,7 +1979,7 @@ class TestUpdateMetadataGn:
                 session=mock_session,
                 geo_ctx=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 body=self._body("New Title"),
             )
 
@@ -2007,7 +2007,7 @@ class TestUpdateMetadataGn:
                     session=mock_session,
                     geo_ctx=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
-                    org_id=None,
+                    group_ids=[],
                     body=self._body(),
                 )
 
@@ -2037,7 +2037,7 @@ class TestUpdateMetadataGn:
                     session=mock_session,
                     geo_ctx=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
-                    org_id=None,
+                    group_ids=[],
                     body=self._body("New Title"),
                 )
 
@@ -2067,7 +2067,7 @@ class TestUpdateMetadataGn:
                 session=mock_session,
                 geo_ctx=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 body=self._body("New Title"),
             )
 
@@ -2085,7 +2085,7 @@ class TestUpdateMetadataGn:
                 session=mock_session,
                 geo_ctx=_geo_ctx(),
                 integrity_link_id=str(uuid4()),
-                org_id=None,
+                group_ids=[],
                 body=self._body(),
             )
 
@@ -2200,7 +2200,7 @@ class TestUpdateSchedule:
             session=mock_session,
             geo_ctx=_geo_ctx(),
             integrity_link_id=integrity_link_id,
-            org_id=None,
+            group_ids=[],
             preset=RecurrencePreset.EVERY_DAY,
         )
 
@@ -2223,7 +2223,7 @@ class TestUpdateSchedule:
             session=mock_session,
             geo_ctx=_geo_ctx(),
             integrity_link_id=integrity_link_id,
-            org_id=None,
+            group_ids=[],
             preset=None,
         )
 
@@ -2241,7 +2241,7 @@ class TestUpdateSchedule:
                 session=mock_session,
                 geo_ctx=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
-                org_id=None,
+                group_ids=[],
                 preset=RecurrencePreset.EVERY_WEEK,
             )
 

@@ -25,7 +25,7 @@ from shapely.geometry.base import BaseGeometry
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.orm.attributes import flag_modified
 
-from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, OrgIdDep
+from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, GroupIdsDep
 from src.core.callback import build_callback_url
 from src.core.config import get_staging_schema
 from src.core.db import data_engine, source_db_key, source_engine
@@ -730,7 +730,7 @@ def get_staging_metadata(
     datafeeder_session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
 ) -> StagingMetadataResponse:
     """
     Get metadata of the staging table.
@@ -749,7 +749,7 @@ def get_staging_metadata(
         Metadata of the staging table
     """
     integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, org_id
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, group_ids
     )
 
     staging_table_name = integrity_link.staging_table_name
@@ -809,7 +809,7 @@ def edit_staging_metadata(
     datafeeder_session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
     config: StagingMetadata = Body(
         ...,
         description="Staging configuration including columns, file type, projection, and title",
@@ -834,7 +834,7 @@ def edit_staging_metadata(
         Updated staging metadata with saved column configurations
     """
     integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, org_id
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, group_ids
     )
 
     if config.columns:
@@ -888,7 +888,7 @@ def edit_staging_metadata(
         datafeeder_session=datafeeder_session,
         geo_ctx=geo_ctx,
         integrity_link_id=integrity_link_id,
-        org_id=org_id,
+        group_ids=group_ids,
     )
 
 
@@ -898,7 +898,7 @@ def get_staging_preview(
     datafeeder_session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
     limit: int = Query(10, description="Number of rows to preview"),
     raw: bool = Query(
         False,
@@ -942,7 +942,7 @@ def get_staging_preview(
     """
 
     integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, org_id
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, datafeeder_session, group_ids
     )
 
     staging_table_name = integrity_link.staging_table_name

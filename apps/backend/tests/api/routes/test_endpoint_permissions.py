@@ -39,6 +39,7 @@ INTLINK_UUID = UUID(INTLINK_ID)
 
 # A non-None org UUID to exercise group-access code paths in tests.
 ORG_UUID = "test-org-uuid-1234"
+GROUP_IDS: list[str] = [ORG_UUID]
 
 
 def _link(owner: str = "owner1") -> IntegrityLink:
@@ -147,7 +148,7 @@ class TestGetIntegrityLinkPermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            get_integrity_link(session, _ctx(), INTLINK_ID, None)
+            get_integrity_link(session, _ctx(), INTLINK_ID, [])
 
         assert exc_info.value.status_code == 403
 
@@ -157,14 +158,14 @@ class TestGetIntegrityLinkPermission:
         session = _mock_session_with_rule(_link(), RuleValue.READ)
 
         with pytest.raises(HTTPException) as exc_info:
-            get_integrity_link(session, _read_ctx(), INTLINK_ID, ORG_UUID)
+            get_integrity_link(session, _read_ctx(), INTLINK_ID, GROUP_IDS)
 
         assert exc_info.value.status_code == 403
 
     def test_returns_entity_for_owner(self) -> None:
         session = _mock_session(_link(), access_result="OWNER")
 
-        result = get_integrity_link(session, _owner_ctx(), INTLINK_ID, None)
+        result = get_integrity_link(session, _owner_ctx(), INTLINK_ID, [])
 
         assert result is not None
 
@@ -173,7 +174,7 @@ class TestGetIntegrityLinkPermission:
 
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
 
-        result = get_integrity_link(session, _write_ctx(), INTLINK_ID, ORG_UUID)
+        result = get_integrity_link(session, _write_ctx(), INTLINK_ID, GROUP_IDS)
 
         assert result is not None
 
@@ -182,7 +183,7 @@ class TestGetIntegrityLinkPermission:
 
         session = _mock_session(_link(), access_result="ADMIN")
 
-        result = get_integrity_link(session, _admin_ctx(), INTLINK_ID, None)
+        result = get_integrity_link(session, _admin_ctx(), INTLINK_ID, [])
 
         assert result is not None
 
@@ -197,7 +198,7 @@ class TestListIntegrityLinkRulesPermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            list_integrity_link_rules(session, _ctx(), INTLINK_ID, None)
+            list_integrity_link_rules(session, _ctx(), INTLINK_ID, [])
 
         assert exc_info.value.status_code == 403
 
@@ -207,14 +208,14 @@ class TestListIntegrityLinkRulesPermission:
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
 
         with pytest.raises(HTTPException) as exc_info:
-            list_integrity_link_rules(session, _write_ctx(), INTLINK_ID, ORG_UUID)
+            list_integrity_link_rules(session, _write_ctx(), INTLINK_ID, GROUP_IDS)
 
         assert exc_info.value.status_code == 403
 
     def test_returns_rules_for_owner(self) -> None:
         session = _mock_session(_link(), access_result="OWNER")
 
-        result = list_integrity_link_rules(session, _owner_ctx(), INTLINK_ID, None)
+        result = list_integrity_link_rules(session, _owner_ctx(), INTLINK_ID, [])
 
         assert isinstance(result, list)
 
@@ -229,7 +230,7 @@ class TestDeleteIntegrityLinkRulePermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            delete_integrity_link_rule(session, _ctx(), INTLINK_ID, None, rule_id=1)
+            delete_integrity_link_rule(session, _ctx(), INTLINK_ID, [], rule_id=1)
 
         assert exc_info.value.status_code == 403
 
@@ -239,7 +240,7 @@ class TestDeleteIntegrityLinkRulePermission:
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
 
         with pytest.raises(HTTPException) as exc_info:
-            delete_integrity_link_rule(session, _write_ctx(), INTLINK_ID, ORG_UUID, rule_id=1)
+            delete_integrity_link_rule(session, _write_ctx(), INTLINK_ID, GROUP_IDS, rule_id=1)
 
         assert exc_info.value.status_code == 403
 
@@ -260,7 +261,7 @@ class TestProcessPermission:
                 body,
                 session,
                 _ctx(),
-                None,
+                [],
                 MagicMock(),
                 sec_email="x@x.com",
                 sec_firstname="X",
@@ -281,7 +282,7 @@ class TestProcessPermission:
                 body,
                 session,
                 _write_ctx(),
-                ORG_UUID,
+                GROUP_IDS,
                 MagicMock(),
                 sec_email="x@x.com",
                 sec_firstname="X",
@@ -303,7 +304,7 @@ class TestAirflowDagRunByIntlinkPermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _ctx(), None)
+            get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _ctx(), [])
 
         assert exc_info.value.status_code == 403
 
@@ -314,7 +315,7 @@ class TestAirflowDagRunByIntlinkPermission:
         session = _mock_session_with_rule(_link(), RuleValue.READ)
         mock_api.return_value.get_dag_runs.return_value = MagicMock()
 
-        result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _read_ctx(), ORG_UUID)
+        result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _read_ctx(), GROUP_IDS)
 
         assert result is not None
 
@@ -325,7 +326,7 @@ class TestAirflowDagRunByIntlinkPermission:
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
         mock_api.return_value.get_dag_runs.return_value = MagicMock()
 
-        result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _write_ctx(), ORG_UUID)
+        result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _write_ctx(), GROUP_IDS)
 
         assert result is not None
 
@@ -335,7 +336,7 @@ class TestAirflowDagRunByIntlinkPermission:
         mock_runs = MagicMock()
         mock_api.return_value.get_dag_runs.return_value = mock_runs
 
-        result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _owner_ctx(), None)
+        result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _owner_ctx(), [])
 
         assert result is mock_runs
 
@@ -346,7 +347,7 @@ class TestAirflowDagRunByIntlinkPermission:
         session = _mock_session(_link(), access_result="ADMIN")
         mock_api.return_value.get_dag_runs.return_value = MagicMock()
 
-        result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _admin_ctx(), None)
+        result = get_dag_run_by_intlink("process_dag", INTLINK_ID, session, _admin_ctx(), [])
 
         assert result is not None
 
@@ -357,7 +358,7 @@ class TestAirflowDagRunByIntlinkPermission:
         mock_load.side_effect = HTTPException(status_code=403)
 
         with pytest.raises(HTTPException):
-            get_dag_run_by_intlink("process_dag", INTLINK_ID, MagicMock(), _ctx(), None)
+            get_dag_run_by_intlink("process_dag", INTLINK_ID, MagicMock(), _ctx(), [])
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_READ, ANY, ANY, ANY)
 
@@ -372,7 +373,7 @@ class TestAirflowDagRunStatusPermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            get_dag_run_status("process_dag", DAG_RUN_ID, session, _ctx(), None)
+            get_dag_run_status("process_dag", DAG_RUN_ID, session, _ctx(), [])
 
         assert exc_info.value.status_code == 403
 
@@ -381,7 +382,7 @@ class TestAirflowDagRunStatusPermission:
         session = _mock_session_with_rule(_link(), RuleValue.READ)
         mock_executor.return_value.get_task_status.return_value.status = MagicMock()
 
-        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _read_ctx(), ORG_UUID)
+        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _read_ctx(), GROUP_IDS)
 
         assert result is not None
 
@@ -391,7 +392,7 @@ class TestAirflowDagRunStatusPermission:
         mock_status = MagicMock()
         mock_executor.return_value.get_task_status.return_value.status = mock_status
 
-        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _owner_ctx(), None)
+        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _owner_ctx(), [])
 
         assert result is mock_status
 
@@ -400,7 +401,7 @@ class TestAirflowDagRunStatusPermission:
         session = _mock_session(_link(), access_result="ADMIN")
         mock_executor.return_value.get_task_status.return_value.status = MagicMock()
 
-        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _admin_ctx(), None)
+        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _admin_ctx(), [])
 
         assert result is not None
 
@@ -411,7 +412,7 @@ class TestAirflowDagRunStatusPermission:
         mock_load.side_effect = HTTPException(status_code=403)
 
         with pytest.raises(HTTPException):
-            get_dag_run_status("process_dag", DAG_RUN_ID, MagicMock(), _ctx(), None)
+            get_dag_run_status("process_dag", DAG_RUN_ID, MagicMock(), _ctx(), [])
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_READ, ANY, ANY, ANY)
 
@@ -426,7 +427,7 @@ class TestAirflowDagRunLogsPermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            get_dag_run_logs("process_dag", DAG_RUN_ID, session, _ctx(), None)
+            get_dag_run_logs("process_dag", DAG_RUN_ID, session, _ctx(), [])
 
         assert exc_info.value.status_code == 403
 
@@ -435,7 +436,7 @@ class TestAirflowDagRunLogsPermission:
         session = _mock_session_with_rule(_link(), RuleValue.READ)
         mock_executor.return_value.get_task_logs.return_value = "some log output"
 
-        result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _read_ctx(), ORG_UUID)
+        result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _read_ctx(), GROUP_IDS)
 
         assert result == "some log output"
 
@@ -444,7 +445,7 @@ class TestAirflowDagRunLogsPermission:
         session = _mock_session(_link(), access_result="OWNER")
         mock_executor.return_value.get_task_logs.return_value = "some log output"
 
-        result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _owner_ctx(), None)
+        result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _owner_ctx(), [])
 
         assert result == "some log output"
 
@@ -453,7 +454,7 @@ class TestAirflowDagRunLogsPermission:
         session = _mock_session(_link(), access_result="ADMIN")
         mock_executor.return_value.get_task_logs.return_value = "some log output"
 
-        result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _admin_ctx(), None)
+        result = get_dag_run_logs("process_dag", DAG_RUN_ID, session, _admin_ctx(), [])
 
         assert result == "some log output"
 
@@ -464,7 +465,7 @@ class TestAirflowDagRunLogsPermission:
         mock_load.side_effect = HTTPException(status_code=403)
 
         with pytest.raises(HTTPException):
-            get_dag_run_logs("process_dag", DAG_RUN_ID, MagicMock(), _ctx(), None)
+            get_dag_run_logs("process_dag", DAG_RUN_ID, MagicMock(), _ctx(), [])
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_READ, ANY, ANY, ANY)
 
@@ -486,7 +487,7 @@ class TestUpsertIntegrityLinkRulePermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            upsert_integrity_link_rule(session, _ctx(), INTLINK_ID, None, self._body())
+            upsert_integrity_link_rule(session, _ctx(), INTLINK_ID, [], self._body())
 
         assert exc_info.value.status_code == 403
 
@@ -496,7 +497,7 @@ class TestUpsertIntegrityLinkRulePermission:
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
 
         with pytest.raises(HTTPException) as exc_info:
-            upsert_integrity_link_rule(session, _write_ctx(), INTLINK_ID, ORG_UUID, self._body())
+            upsert_integrity_link_rule(session, _write_ctx(), INTLINK_ID, GROUP_IDS, self._body())
 
         assert exc_info.value.status_code == 403
 
@@ -508,7 +509,7 @@ class TestUpsertIntegrityLinkRulePermission:
         no_rule_mock.first.return_value = None
         session.exec.side_effect = [access_mock, no_rule_mock]
 
-        result = upsert_integrity_link_rule(session, _owner_ctx(), INTLINK_ID, None, self._body())
+        result = upsert_integrity_link_rule(session, _owner_ctx(), INTLINK_ID, [], self._body())
 
         assert result is not None
 
@@ -523,7 +524,7 @@ class TestGetStagingMetadataPermission:
         datafeeder_session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            get_staging_metadata(MagicMock(), datafeeder_session, _ctx(), INTLINK_ID, None)
+            get_staging_metadata(MagicMock(), datafeeder_session, _ctx(), INTLINK_ID, [])
 
         assert exc_info.value.status_code == 403
 
@@ -533,7 +534,9 @@ class TestGetStagingMetadataPermission:
         datafeeder_session = _mock_session_with_rule(_link(), RuleValue.READ)
 
         with pytest.raises(HTTPException) as exc_info:
-            get_staging_metadata(MagicMock(), datafeeder_session, _read_ctx(), INTLINK_ID, ORG_UUID)
+            get_staging_metadata(
+                MagicMock(), datafeeder_session, _read_ctx(), INTLINK_ID, GROUP_IDS
+            )
 
         assert exc_info.value.status_code == 403
 
@@ -544,7 +547,7 @@ class TestGetStagingMetadataPermission:
         mock_load.side_effect = HTTPException(status_code=403)
 
         with pytest.raises(HTTPException):
-            get_staging_metadata(MagicMock(), MagicMock(), _ctx(), INTLINK_ID, None)
+            get_staging_metadata(MagicMock(), MagicMock(), _ctx(), INTLINK_ID, [])
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_WRITE, ANY, ANY, ANY)
 
@@ -560,7 +563,7 @@ class TestPutStagingMetadataPermission:
 
         with pytest.raises(HTTPException) as exc_info:
             edit_staging_metadata(
-                MagicMock(), datafeeder_session, _ctx(), INTLINK_ID, None, MagicMock()
+                MagicMock(), datafeeder_session, _ctx(), INTLINK_ID, [], MagicMock()
             )
 
         assert exc_info.value.status_code == 403
@@ -572,7 +575,7 @@ class TestPutStagingMetadataPermission:
 
         with pytest.raises(HTTPException) as exc_info:
             edit_staging_metadata(
-                MagicMock(), datafeeder_session, _read_ctx(), INTLINK_ID, ORG_UUID, MagicMock()
+                MagicMock(), datafeeder_session, _read_ctx(), INTLINK_ID, GROUP_IDS, MagicMock()
             )
 
         assert exc_info.value.status_code == 403
@@ -584,7 +587,7 @@ class TestPutStagingMetadataPermission:
         mock_load.side_effect = HTTPException(status_code=403)
 
         with pytest.raises(HTTPException):
-            edit_staging_metadata(MagicMock(), MagicMock(), _ctx(), INTLINK_ID, None, MagicMock())
+            edit_staging_metadata(MagicMock(), MagicMock(), _ctx(), INTLINK_ID, [], MagicMock())
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_WRITE, ANY, ANY, ANY)
 
@@ -599,7 +602,7 @@ class TestGetStagingPreviewPermission:
         datafeeder_session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            get_staging_preview(MagicMock(), datafeeder_session, _ctx(), INTLINK_ID, None)
+            get_staging_preview(MagicMock(), datafeeder_session, _ctx(), INTLINK_ID, [])
 
         assert exc_info.value.status_code == 403
 
@@ -609,7 +612,7 @@ class TestGetStagingPreviewPermission:
         datafeeder_session = _mock_session_with_rule(_link(), RuleValue.READ)
 
         with pytest.raises(HTTPException) as exc_info:
-            get_staging_preview(MagicMock(), datafeeder_session, _read_ctx(), INTLINK_ID, ORG_UUID)
+            get_staging_preview(MagicMock(), datafeeder_session, _read_ctx(), INTLINK_ID, GROUP_IDS)
 
         assert exc_info.value.status_code == 403
 
@@ -620,7 +623,7 @@ class TestGetStagingPreviewPermission:
         mock_load.side_effect = HTTPException(status_code=403)
 
         with pytest.raises(HTTPException):
-            get_staging_preview(MagicMock(), MagicMock(), _ctx(), INTLINK_ID, None)
+            get_staging_preview(MagicMock(), MagicMock(), _ctx(), INTLINK_ID, [])
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_WRITE, ANY, ANY, ANY)
 
@@ -635,7 +638,7 @@ class TestDeleteIntegrityLinkPermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            delete_integrity_link(session, _ctx(), INTLINK_ID, None)
+            delete_integrity_link(session, _ctx(), INTLINK_ID, [])
 
         assert exc_info.value.status_code == 403
 
@@ -644,7 +647,7 @@ class TestDeleteIntegrityLinkPermission:
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
 
         with pytest.raises(HTTPException) as exc_info:
-            delete_integrity_link(session, _write_ctx(), INTLINK_ID, ORG_UUID)
+            delete_integrity_link(session, _write_ctx(), INTLINK_ID, GROUP_IDS)
 
         assert exc_info.value.status_code == 403
 
@@ -664,7 +667,7 @@ class TestDeleteIntegrityLinkPermission:
         mock_deletion_svc = MagicMock()
         mock_deletion_svc_cls.return_value = mock_deletion_svc
 
-        response = delete_integrity_link(session, _owner_ctx(), INTLINK_ID, None)
+        response = delete_integrity_link(session, _owner_ctx(), INTLINK_ID, [])
 
         assert response.status_code == 204
         mock_deletion_svc.delete_dataset.assert_called_once()
@@ -685,7 +688,7 @@ class TestDeleteIntegrityLinkPermission:
         mock_deletion_svc = MagicMock()
         mock_deletion_svc_cls.return_value = mock_deletion_svc
 
-        response = delete_integrity_link(session, _admin_ctx(), INTLINK_ID, None)
+        response = delete_integrity_link(session, _admin_ctx(), INTLINK_ID, [])
 
         assert response.status_code == 204
         mock_deletion_svc.delete_dataset.assert_called_once()
@@ -695,7 +698,7 @@ class TestDeleteIntegrityLinkPermission:
         session = _mock_session(None)  # no link found
 
         with pytest.raises(HTTPException) as exc_info:
-            delete_integrity_link(session, _owner_ctx(), str(uuid4()), None)
+            delete_integrity_link(session, _owner_ctx(), str(uuid4()), [])
 
         assert exc_info.value.status_code == 404
 
@@ -717,7 +720,7 @@ class TestDeleteIntegrityLinkPermission:
         mock_deletion_svc_cls.return_value = mock_deletion_svc
 
         with pytest.raises(HTTPException) as exc_info:
-            delete_integrity_link(session, _owner_ctx(), INTLINK_ID, None)
+            delete_integrity_link(session, _owner_ctx(), INTLINK_ID, [])
 
         assert exc_info.value.status_code == 500
 
@@ -727,6 +730,6 @@ class TestDeleteIntegrityLinkPermission:
         mock_load.side_effect = HTTPException(status_code=403)
 
         with pytest.raises(HTTPException):
-            delete_integrity_link(MagicMock(), _ctx(), INTLINK_ID, None)
+            delete_integrity_link(MagicMock(), _ctx(), INTLINK_ID, [])
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.OWNER_ONLY, ANY, ANY, ANY)

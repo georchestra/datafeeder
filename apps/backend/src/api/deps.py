@@ -51,7 +51,31 @@ def get_org_id(geo_ctx: GeorchestraContextDep) -> str | None:
     return str(org["id"]) if org and "id" in org else None
 
 
-OrgIdDep = Annotated[str | None, Depends(get_org_id)]
+def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
+    """Resolve the identifiers used to match ``IntegrityLinkRule.group_or_role``.
+
+    In ORG mode the list contains the user's org console UUID (at most one entry);
+    in ROLE mode it contains the UUIDs of every role the user holds. An empty list
+    means the user has no group-based access — only the owner/admin paths apply.
+
+    Performs one Console round-trip per request; FastAPI deduplicates the dependency.
+    """
+    settings = get_settings()
+    if settings.GN_SYNC_MODE == "ROLE":
+        if not geo_ctx.roles:
+            return []
+        all_roles = ConsoleService(settings.CONSOLE_URL).get_all_roles()
+        return [
+            str(role["id"])
+            for role in all_roles
+            if role.get("id") and role.get("name") and role["name"].upper() in geo_ctx.roles
+        ]
+
+    org_id = get_org_id(geo_ctx)
+    return [org_id] if org_id else []
+
+
+GroupIdsDep = Annotated[list[str], Depends(get_group_ids)]
 
 
 def get_geoserver_service() -> GeoServerService:

@@ -3,7 +3,12 @@ from uuid import UUID
 from fastapi import APIRouter, Body, HTTPException, Query, Response
 from sqlmodel import select
 
-from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, GeoServerServiceDep, OrgIdDep
+from src.api.deps import (
+    DatafeederSessionDep,
+    GeorchestraContextDep,
+    GeoServerServiceDep,
+    GroupIdsDep,
+)
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.core.security import (
@@ -197,7 +202,7 @@ def get_integrity_link(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
     include_transformation: bool = Query(
         False,
         description="Include the integrity_transformation field in the response",
@@ -205,7 +210,7 @@ def get_integrity_link(
 ) -> IntegrityLinkResponse:
     """Get an IntegrityLink entity by its ID."""
     integrity_link, effective = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, session, org_id
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, session, group_ids
     )
 
     preset = (
@@ -251,12 +256,12 @@ def update_metadata_gn(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
     body: UpdateMetadataGnRequest,
 ) -> IntegrityLinkResponse:
     """Upload serialized metadata XML to GeoNetwork, then sync title to GeoServer and DB."""
     integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, session, org_id
+        integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, session, group_ids
     )
 
     settings = get_settings()
@@ -305,11 +310,11 @@ def list_integrity_link_rules(
     session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
 ) -> list[IntegrityLinkRule]:
     """List all rules for a given IntegrityLink."""
     load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, group_ids
     )
 
     statement = select(IntegrityLinkRule).where(
@@ -327,12 +332,12 @@ def upsert_integrity_link_rule(
     session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
     body: UpsertRuleRequest,
 ) -> IntegrityLinkRule:
     """Create or update a rule for a given IntegrityLink."""
     integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, group_ids
     )
 
     statement = select(IntegrityLinkRule).where(
@@ -396,12 +401,12 @@ def delete_integrity_link_rule(
     session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
     rule_id: int,
 ) -> Response:
     """Delete a rule from a given IntegrityLink."""
     integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, org_id
+        integrity_link_id, AccessLevel.OWNER_ONLY, georchestra_context, session, group_ids
     )
 
     rule = session.get(IntegrityLinkRule, rule_id)
@@ -497,11 +502,11 @@ def delete_integrity_link_schedule(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
 ) -> Response:
     """Disable the recurrence schedule for a dataset."""
     integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, org_id
+        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
     )
 
     if not integrity_link.schedule:
@@ -531,11 +536,11 @@ def delete_integrity_link(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
 ) -> Response:
     """Delete a dataset and all associated resources."""
     integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, org_id
+        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
     )
 
     settings = get_settings()
@@ -583,7 +588,7 @@ def delete_integrity_link(
 def toggle_publish_gs_integrity_link(
     session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
     geoserver_service: GeoServerServiceDep,
     integrity_link_id: str,
     publish: bool = Query(description="Set to true to publish, false to unpublish"),
@@ -594,7 +599,7 @@ def toggle_publish_gs_integrity_link(
         AccessLevel.OWNER_ONLY,
         georchestra_context,
         session,
-        org_id,
+        group_ids,
     )
     if not integrity_link.final_table_name:
         raise HTTPException(
@@ -683,12 +688,12 @@ def update_schedule(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
     preset: RecurrencePreset | None = Body(None, embed=True),
 ) -> IntegrityLinkResponse:
     """Set or clear the recurrence schedule for an IntegrityLink."""
     integrity_link, effective = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, org_id
+        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
     )
 
     if preset is not None:

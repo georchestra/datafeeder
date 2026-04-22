@@ -52,7 +52,7 @@ class EffectiveAccess(str, Enum):
 
 def build_access_expr(
     username: str,
-    org_id: str | None,
+    group_ids: list[str],
     is_admin: bool,
 ) -> Label[str | None]:
     """Build a SQL expression that computes the effective access level.
@@ -60,6 +60,12 @@ def build_access_expr(
     Returns a labelled column expression evaluating to one of the
     :class:`EffectiveAccess` values (``ADMIN``, ``OWNER``, ``WRITE``,
     ``READ``), or ``None`` when the user has no access.
+
+    ``group_ids`` is the set of identifiers (a single org UUID in ORG mode, or
+    one entry per user role in ROLE mode) that must match
+    ``IntegrityLinkRule.group_or_role``. A single WRITE/READ pair of conditions
+    is emitted regardless of list length, so WRITE from any group takes
+    precedence over READ from any other group.
 
     Callers that list multiple rows should combine this with a WHERE clause
     that excludes ``None``-access rows; single-row callers can map ``None``
@@ -76,12 +82,12 @@ def build_access_expr(
         (IntegrityLink.integrity_owner == username, EffectiveAccess.OWNER.value),  # type: ignore[arg-type]
     ]
 
-    if org_id is not None:
+    if group_ids:
         write_rule_exists = exists(
             select(IntegrityLinkRule.id).where(
                 IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
                 IntegrityLinkRule.rule_type == RuleType.METADATA,
-                IntegrityLinkRule.group_or_role == org_id,
+                IntegrityLinkRule.group_or_role.in_(group_ids),  # type: ignore[attr-defined]
                 IntegrityLinkRule.rule_value == RuleValue.WRITE,
             )
         )
@@ -89,7 +95,7 @@ def build_access_expr(
             select(IntegrityLinkRule.id).where(
                 IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
                 IntegrityLinkRule.rule_type == RuleType.METADATA,
-                IntegrityLinkRule.group_or_role == org_id,
+                IntegrityLinkRule.group_or_role.in_(group_ids),  # type: ignore[attr-defined]
             )
         )
         conditions.append((write_rule_exists, EffectiveAccess.WRITE.value))
@@ -102,7 +108,7 @@ def compute_effective_access(
     integrity_link: IntegrityLink,
     geo_ctx: GeorchestraContext,
     session: Session,
-    org_id: str | None,
+    group_ids: list[str],
 ) -> EffectiveAccess | None:
     """Compute the effective access level for a user on a dataset.
 
@@ -115,12 +121,14 @@ def compute_effective_access(
         integrity_link: The dataset to check access for
         geo_ctx: The user's geOrchestra security context
         session: Database session for querying rules
-        org_id: Pre-resolved console UUID for the user's organisation (or None)
+        group_ids: Identifiers to match against ``IntegrityLinkRule.group_or_role``
+            (org UUID in ORG mode, role UUIDs in ROLE mode). Empty list disables
+            group-based access.
 
     Returns:
         EffectiveAccess level or None if no access
     """
-    access_expr = build_access_expr(geo_ctx.username, org_id, geo_ctx.is_administrator())
+    access_expr = build_access_expr(geo_ctx.username, group_ids, geo_ctx.is_administrator())
     result = session.exec(
         select(access_expr)
         .select_from(IntegrityLink)  # type: ignore[arg-type]
@@ -138,7 +146,7 @@ def load_authorized_integrity_link(
     required_level: AccessLevel,
     geo_ctx: GeorchestraContext,
     session: Session,
-    org_id: str | None,
+    group_ids: list[str],
 ) -> tuple[IntegrityLink, EffectiveAccess]:
     """Load an IntegrityLink and verify the user has the required permission.
 
@@ -155,7 +163,9 @@ def load_authorized_integrity_link(
         required_level: Minimum access level required
         geo_ctx: The user's geOrchestra security context
         session: Database session
-        org_id: Pre-resolved console UUID for the user's organisation (or None)
+        group_ids: Identifiers to match against ``IntegrityLinkRule.group_or_role``
+            (org UUID in ORG mode, role UUIDs in ROLE mode). Empty list disables
+            group-based access.
 
     Returns:
         Tuple of (IntegrityLink, EffectiveAccess) — the entity and the caller's access level
@@ -177,7 +187,7 @@ def load_authorized_integrity_link(
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
 
-    effective = compute_effective_access(integrity_link, geo_ctx, session, org_id)
+    effective = compute_effective_access(integrity_link, geo_ctx, session, group_ids)
 
     if effective is None:
         raise HTTPException(
