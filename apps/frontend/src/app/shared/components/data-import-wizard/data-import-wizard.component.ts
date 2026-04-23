@@ -73,6 +73,7 @@ marker('import.dataSource.genericError')
 marker('i18nerror.transformation.geometry_creation_failed')
 marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
+marker('i18nerror.sync.geonetwork')
 marker('import.metadataPublication.error')
 
 const POLL_INTERVAL_MS = 500

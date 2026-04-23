@@ -49,13 +49,6 @@
       </span>
       }
 
-      <!-- Recurrence — always disabled (not yet implemented) -->
-      <span
-        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
-      >
-        {{ 'sidebar.recurrencePlanning' | translate }}
-      </span>
-
       <!-- Events — owner/admin only -->
       @if (store.isOwnerOrAdmin()) {
       <a
