@@ -118,7 +118,7 @@ describe('DataSourceApiComponent', () => {
     fixture.detectChanges()
 
     expect(component.selectedLayer()).toEqual(initial)
-    expect(component.protocolLabel).toBe('WFS')
+    expect(component.protocolLabel()).toBe('WFS')
   })
 
   it('should preserve layerTitle when initialValue is updated with the same layerName but no title', () => {

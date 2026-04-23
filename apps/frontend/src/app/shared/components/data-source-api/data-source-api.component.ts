@@ -1,5 +1,7 @@
 import {
+  ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   input,
   output,
@@ -25,9 +27,8 @@ export interface ApiData {
   serviceProtocol: string
 }
 
-const EMPTY_SERVICE: DatasetServiceDistribution = {
+const EMPTY_SERVICE: Partial<DatasetServiceDistribution> = {
   type: 'service',
-  url: null as unknown as URL,
   accessServiceProtocol: 'ogcFeatures'
 }
 
@@ -39,6 +40,7 @@ const EMPTY_SERVICE: DatasetServiceDistribution = {
     OnlineServiceResourceInputComponent
   ],
   templateUrl: './data-source-api.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     provideIcons({ iconoirAxes }),
     provideNgIconsConfig({ size: '2em' })
@@ -48,7 +50,9 @@ export class DataSourceApiComponent {
   initialValue = input<ApiData | null>(null)
   apiDataChanged = output<ApiData | null>()
 
-  currentService = signal<DatasetServiceDistribution>({ ...EMPTY_SERVICE })
+  currentService = signal<Partial<DatasetServiceDistribution>>({
+    ...EMPTY_SERVICE
+  })
   selectedLayer = signal<ApiData | null>(null)
 
   constructor() {
@@ -72,10 +76,10 @@ export class DataSourceApiComponent {
     })
   }
 
-  get protocolLabel(): string {
+  protocolLabel = computed(() => {
     const protocol = this.selectedLayer()?.serviceProtocol
     return !protocol || protocol === 'wfs' ? 'WFS' : 'OGC API'
-  }
+  })
 
   handleServiceChange(service: DatasetServiceDistribution): void {
     const layerName = service.identifierInService ?? service.name ?? null

@@ -2,7 +2,7 @@
   <gn-ui-online-service-resource-input
     style="--gn-ui-text-input-padding: 0.8rem"
     [protocolOptions]="['ogcFeatures', 'wfs']"
-    [service]="currentService()"
+    [service]="$any(currentService())"
     (serviceChange)="handleServiceChange($event)"
   />
 </div>
@@ -21,7 +21,7 @@
         {{ selectedLayer()!.layerTitle || selectedLayer()!.layerName }}
       </div>
       <div class="text-xs text-gray-500">
-        {{ protocolLabel }} • {{ selectedLayer()!.layerName }}
+        {{ protocolLabel() }} • {{ selectedLayer()!.layerName }}
       </div>
     </div>
   </div>
