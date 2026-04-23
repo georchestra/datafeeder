@@ -15,6 +15,7 @@ from src.core.security import (
     load_authorized_integrity_link,
 )
 from src.models.integrity_link import IntegrityLink
+from src.services.console_service import ConsoleServiceError
 from src.services.georchestra import GeorchestraContext
 
 DATASET_ID = "11111111-1111-1111-1111-111111111111"
@@ -490,3 +491,28 @@ class TestGetGroupIds:
         )
 
         assert get_group_ids(ctx) == []
+
+    @patch("src.api.deps.logger")
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_role_mode_returns_empty_and_logs_when_console_unreachable(
+        self, mock_cls: MagicMock, mock_settings: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """Fail-closed on Console errors: deny group access, log a warning, do not 5xx.
+
+        Mirrors ORG-mode behaviour so owner/admin paths keep working during Console
+        outages while group-based access is denied until the Console is reachable.
+        """
+        mock_settings.return_value.GN_SYNC_MODE = "ROLE"
+        mock_cls.return_value.get_all_roles.side_effect = ConsoleServiceError("boom")
+        ctx = GeorchestraContext(
+            username="u",
+            roles={"EDITOR"},
+            email="",
+            firstname="",
+            lastname="",
+            organization="org_a",
+        )
+
+        assert get_group_ids(ctx) == []
+        mock_logger.warning.assert_called_once()

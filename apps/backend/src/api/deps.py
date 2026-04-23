@@ -11,10 +11,13 @@ from sqlmodel import Session
 from src.core import security
 from src.core.config import get_settings
 from src.core.db import data_engine, datafeeder_engine
+from src.core.logging import get_logger
 from src.models import TokenPayload, User
-from src.services.console_service import ConsoleService
+from src.services.console_service import ConsoleService, ConsoleServiceError
 from src.services.georchestra import GeorchestraContext, get_georchestra_context
 from src.services.geoserver import GeoServerService
+
+logger = get_logger()
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{get_settings().API_V1_STR}/login/access-token")
 
@@ -59,12 +62,24 @@ def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
     means the user has no group-based access — only the owner/admin paths apply.
 
     Performs one Console round-trip per request; FastAPI deduplicates the dependency.
+    Fail-closed on Console errors: a warning is logged and an empty list is returned,
+    so owner/admin paths keep working while group-based access is denied until the
+    Console is reachable.
     """
     settings = get_settings()
     if settings.GN_SYNC_MODE == "ROLE":
         if not geo_ctx.roles:
             return []
-        all_roles = ConsoleService(settings.CONSOLE_URL).get_all_roles()
+        try:
+            all_roles = ConsoleService(settings.CONSOLE_URL).get_all_roles()
+        except ConsoleServiceError as exc:
+            logger.warning(
+                "Console unreachable while resolving role UUIDs; "
+                "group-based access denied for user '%s': %s",
+                geo_ctx.username,
+                exc,
+            )
+            return []
         return [
             str(role["id"])
             for role in all_roles
