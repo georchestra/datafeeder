@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from airflow_client.client.models.dag_run_state import DagRunState
 
+from src.core.config import DEFAULT_DATA_SCHEMA
 from src.core.task_executor import TaskStatus
 from src.services.executors.airflow_executor import (
     AirflowTaskExecutor,
@@ -124,7 +125,7 @@ class TestAirflowTaskExecutor:
                 "success_callback_url": "https://ok.example.com",
                 "failure_callback_url": "https://ko.example.com",
                 "last_retrieval_timestamp": retrieval_ts,
-                "target_schema": "data",
+                "target_schema": DEFAULT_DATA_SCHEMA,
             }
             assert result.task_id == "process_dag"
             assert result.run_id == "run-456"

@@ -1,6 +1,7 @@
 from sqlalchemy import MetaData, Table
 from sqlmodel import Session
 
+from src.core.config import get_data_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
@@ -63,7 +64,7 @@ class DatasetDeletionService:
 
         # Step 3: Drop final data table (best-effort)
         if integrity_link.final_table_name:
-            self._drop_table_safe("data", integrity_link.final_table_name)
+            self._drop_table_safe(get_data_schema(workspace_name), integrity_link.final_table_name)
 
         # Step 4: Drop staging table (best-effort)
         self._drop_table_safe("staging", integrity_link.staging_table_name)

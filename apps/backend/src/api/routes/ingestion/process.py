@@ -22,7 +22,7 @@ from src.api.deps import (
     GroupIdsDep,
 )
 from src.core.callback import build_callback_url
-from src.core.config import get_settings, get_staging_schema
+from src.core.config import DEFAULT_DATA_SCHEMA, get_data_schema, get_settings, get_staging_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.core.security import AccessLevel, load_authorized_integrity_link
@@ -105,7 +105,7 @@ def process_staging_data(
     title = _normalize_title(request.title)
     dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}_manual"
     workspace_name = integrity_link.integrity_organization.lower()
-    target_schema = workspace_name if settings.USE_ORG_SCHEMA else "data"
+    target_schema = get_data_schema(workspace_name)
     final_table_name = (
         integrity_link.final_table_name
         if integrity_link.last_retrieval_timestamp is not None
@@ -271,7 +271,9 @@ async def dag_success_callback(
     geoserver_service: GeoServerServiceDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
-    target_schema: str = Query(default="data", description="PostgreSQL schema of the final table"),
+    target_schema: str = Query(
+        default=DEFAULT_DATA_SCHEMA, description="PostgreSQL schema of the final table"
+    ),
 ) -> None:
     """
     Success callback endpoint called by Airflow DAG on successful completion.
@@ -396,7 +398,9 @@ async def dag_failure_callback(
     dag_id: str = Query(..., description="DAG ID"),
     dag_run_id: str = Query(..., description="DAG run ID"),
     final_table_name: str = Query(None, description="Final table name (if created)"),
-    target_schema: str = Query(default="data", description="PostgreSQL schema of the final table"),
+    target_schema: str = Query(
+        default=DEFAULT_DATA_SCHEMA, description="PostgreSQL schema of the final table"
+    ),
     reason: str | None = Query(None, description="Failure reason from Airflow context"),
 ) -> None:
     """

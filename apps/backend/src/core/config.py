@@ -317,6 +317,14 @@ def get_settings():
     return Settings()
 
 
+DEFAULT_DATA_SCHEMA = "data"
+
+
+def get_data_schema(org: str) -> str:
+    """Return the target schema for final tables: org name if USE_ORG_SCHEMA, else 'data'."""
+    return org.lower() if get_settings().USE_ORG_SCHEMA else DEFAULT_DATA_SCHEMA
+
+
 def get_staging_schema() -> str:
     """Get the staging schema, defaulting to 'staging'."""
     return "staging"  # FIXME get it from config

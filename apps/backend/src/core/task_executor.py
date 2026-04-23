@@ -7,6 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from src.core.config import DEFAULT_DATA_SCHEMA
+
 
 class TaskExecutorType(str, Enum):
     """Type of task executor to use."""
@@ -83,7 +85,7 @@ class BaseTaskExecutor(ABC):
         success_callback_url: str | None = None,
         failure_callback_url: str | None = None,
         last_retrieval_timestamp: datetime | None = None,
-        target_schema: str = "data",
+        target_schema: str = DEFAULT_DATA_SCHEMA,
     ) -> TaskRunInfo:
         """
         Trigger a process task.
