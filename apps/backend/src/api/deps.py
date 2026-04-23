@@ -1,3 +1,4 @@
+import re
 from collections.abc import Generator
 from typing import Annotated
 
@@ -54,6 +55,20 @@ def get_org_id(geo_ctx: GeorchestraContextDep) -> str | None:
     return str(org["id"]) if org and "id" in org else None
 
 
+def _compile_metadata_filter(raw: str) -> re.Pattern[str] | None:
+    """Compile ``METADATA_GROUPS_LABEL_FILTER_REGEX``; ``None`` when unset.
+
+    Raises :class:`re.error` on invalid regex so callers can fail closed.
+    """
+    if not raw:
+        return None
+    return re.compile(raw)
+
+
+def _matches_metadata_filter(name: str, pattern: re.Pattern[str] | None) -> bool:
+    return pattern is None or pattern.search(name) is not None
+
+
 def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
     """Resolve the identifiers used to match ``IntegrityLinkRule.group_or_role``.
 
@@ -61,15 +76,35 @@ def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
     in ROLE mode it contains the UUIDs of every role the user holds. An empty list
     means the user has no group-based access — only the owner/admin paths apply.
 
+    ``METADATA_GROUPS_LABEL_FILTER_REGEX`` is applied here as a security boundary:
+    only groups whose name matches the regex can grant access, even if a rule
+    exists in the database pointing at an out-of-filter group. This prevents
+    rules created outside the UI (direct API calls, seeded data, or rules whose
+    matching filter was tightened afterwards) from bypassing the filter.
+
     Performs one Console round-trip per request; FastAPI deduplicates the dependency.
-    Fail-closed on Console errors: a warning is logged and an empty list is returned,
-    so owner/admin paths keep working while group-based access is denied until the
-    Console is reachable.
+    Fail-closed on Console errors and on an invalid regex: a warning/error is logged
+    and an empty list is returned, so owner/admin paths keep working while
+    group-based access is denied until the Console is reachable or the config is fixed.
     """
     settings = get_settings()
+
+    try:
+        pattern = _compile_metadata_filter(settings.METADATA_GROUPS_LABEL_FILTER_REGEX)
+    except re.error as exc:
+        logger.error(
+            "Invalid METADATA_GROUPS_LABEL_FILTER_REGEX %r; denying group access: %s",
+            settings.METADATA_GROUPS_LABEL_FILTER_REGEX,
+            exc,
+        )
+        return []
+
     if settings.GN_SYNC_MODE == "ROLE":
         if not geo_ctx.roles:
             return []
+        # PERF: one Console call per request; acceptable at UI scale. If this
+        # becomes hot, promote ConsoleService to a request-scoped FastAPI dep
+        # and memoize get_all_roles on the instance so rule-sync paths share it.
         try:
             all_roles = ConsoleService(settings.CONSOLE_URL).get_all_roles()
         except ConsoleServiceError as exc:
@@ -83,11 +118,20 @@ def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
         return [
             str(role["id"])
             for role in all_roles
-            if role.get("id") and role.get("name") and role["name"].upper() in geo_ctx.roles
+            if role.get("id")
+            and role.get("name")
+            and role["name"].upper() in geo_ctx.roles
+            and _matches_metadata_filter(str(role["name"]), pattern)
         ]
 
-    org_id = get_org_id(geo_ctx)
-    return [org_id] if org_id else []
+    if not geo_ctx.organization:
+        return []
+    org = ConsoleService(settings.CONSOLE_URL).get_organization(geo_ctx.organization)
+    if not org or "id" not in org:
+        return []
+    if not _matches_metadata_filter(str(org.get("name", "")), pattern):
+        return []
+    return [str(org["id"])]
 
 
 GroupIdsDep = Annotated[list[str], Depends(get_group_ids)]

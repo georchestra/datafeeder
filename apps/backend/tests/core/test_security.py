@@ -439,12 +439,22 @@ class TestBuildAccessExprShape:
 class TestGetGroupIds:
     """get_group_ids returns org UUID in ORG mode and role UUIDs in ROLE mode."""
 
+    @staticmethod
+    def _configure(mock_settings: MagicMock, *, mode: str, filter_regex: str = "") -> None:
+        """Pre-seed settings so attribute access returns real values, not MagicMocks.
+
+        ``METADATA_GROUPS_LABEL_FILTER_REGEX`` must be a string (possibly empty);
+        a bare MagicMock would break the ``re.compile`` path inside get_group_ids.
+        """
+        mock_settings.return_value.GN_SYNC_MODE = mode
+        mock_settings.return_value.METADATA_GROUPS_LABEL_FILTER_REGEX = filter_regex
+
     @patch("src.api.deps.get_settings")
     @patch("src.api.deps.ConsoleService")
     def test_org_mode_returns_single_org_uuid(
         self, mock_cls: MagicMock, mock_settings: MagicMock
     ) -> None:
-        mock_settings.return_value.GN_SYNC_MODE = "ORG"
+        self._configure(mock_settings, mode="ORG")
         mock_cls.return_value.get_organization.return_value = {"id": "org-uuid", "name": "Org A"}
         ctx = _geo_ctx(organization="org_a")
 
@@ -452,7 +462,7 @@ class TestGetGroupIds:
 
     @patch("src.api.deps.get_settings")
     def test_org_mode_returns_empty_when_no_org(self, mock_settings: MagicMock) -> None:
-        mock_settings.return_value.GN_SYNC_MODE = "ORG"
+        self._configure(mock_settings, mode="ORG")
         ctx = _geo_ctx(organization="")
 
         assert get_group_ids(ctx) == []
@@ -463,7 +473,7 @@ class TestGetGroupIds:
         self, mock_cls: MagicMock, mock_settings: MagicMock
     ) -> None:
         """Only roles the user actually holds are returned — case-insensitive match."""
-        mock_settings.return_value.GN_SYNC_MODE = "ROLE"
+        self._configure(mock_settings, mode="ROLE")
         mock_cls.return_value.get_all_roles.return_value = [
             {"id": "id-editor", "name": "EDITOR"},
             {"id": "id-viewer", "name": "viewer"},
@@ -485,7 +495,7 @@ class TestGetGroupIds:
 
     @patch("src.api.deps.get_settings")
     def test_role_mode_returns_empty_when_no_roles(self, mock_settings: MagicMock) -> None:
-        mock_settings.return_value.GN_SYNC_MODE = "ROLE"
+        self._configure(mock_settings, mode="ROLE")
         ctx = GeorchestraContext(
             username="u", roles=set(), email="", firstname="", lastname="", organization="org_a"
         )
@@ -503,7 +513,7 @@ class TestGetGroupIds:
         Mirrors ORG-mode behaviour so owner/admin paths keep working during Console
         outages while group-based access is denied until the Console is reachable.
         """
-        mock_settings.return_value.GN_SYNC_MODE = "ROLE"
+        self._configure(mock_settings, mode="ROLE")
         mock_cls.return_value.get_all_roles.side_effect = ConsoleServiceError("boom")
         ctx = GeorchestraContext(
             username="u",
@@ -516,3 +526,100 @@ class TestGetGroupIds:
 
         assert get_group_ids(ctx) == []
         mock_logger.warning.assert_called_once()
+
+    # ── METADATA_GROUPS_LABEL_FILTER_REGEX enforcement ──────────────────
+    #
+    # The filter is authoritative at auth time: a rule pointing at a role or org
+    # whose name does not match the regex is inert, regardless of how it ended up
+    # in the database. This closes the loophole where the UI filter was merely
+    # cosmetic and could be bypassed by a direct API call or a retroactively
+    # tightened regex.
+
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_role_mode_filter_drops_roles_outside_pattern(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        self._configure(mock_settings, mode="ROLE", filter_regex="TEST_.*")
+        mock_cls.return_value.get_all_roles.return_value = [
+            {"id": "id-test-editor", "name": "TEST_EDITOR"},
+            {"id": "id-admin", "name": "ADMINISTRATOR"},
+        ]
+        ctx = GeorchestraContext(
+            username="u",
+            roles={"TEST_EDITOR", "ADMINISTRATOR"},
+            email="",
+            firstname="",
+            lastname="",
+            organization="org_a",
+        )
+
+        assert get_group_ids(ctx) == ["id-test-editor"]
+
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_role_mode_filter_returns_empty_when_no_role_matches(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        self._configure(mock_settings, mode="ROLE", filter_regex="TEST_.*")
+        mock_cls.return_value.get_all_roles.return_value = [
+            {"id": "id-admin", "name": "ADMINISTRATOR"},
+        ]
+        ctx = GeorchestraContext(
+            username="u",
+            roles={"ADMINISTRATOR"},
+            email="",
+            firstname="",
+            lastname="",
+            organization="org_a",
+        )
+
+        assert get_group_ids(ctx) == []
+
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_org_mode_filter_drops_org_outside_pattern(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        self._configure(mock_settings, mode="ORG", filter_regex="TEST_.*")
+        mock_cls.return_value.get_organization.return_value = {
+            "id": "org-uuid",
+            "name": "Some Org",
+        }
+        ctx = _geo_ctx(organization="some_org")
+
+        assert get_group_ids(ctx) == []
+
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_org_mode_filter_keeps_org_matching_pattern(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        self._configure(mock_settings, mode="ORG", filter_regex="TEST_.*")
+        mock_cls.return_value.get_organization.return_value = {
+            "id": "org-uuid",
+            "name": "TEST_ORG",
+        }
+        ctx = _geo_ctx(organization="test_org")
+
+        assert get_group_ids(ctx) == ["org-uuid"]
+
+    @patch("src.api.deps.logger")
+    @patch("src.api.deps.get_settings")
+    def test_invalid_filter_regex_logs_error_and_returns_empty(
+        self, mock_settings: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """Invalid regex is a config bug; fail-closed rather than 5xx every request."""
+        # Unbalanced paren is guaranteed invalid on any regex engine
+        self._configure(mock_settings, mode="ROLE", filter_regex="(unclosed")
+        ctx = GeorchestraContext(
+            username="u",
+            roles={"EDITOR"},
+            email="",
+            firstname="",
+            lastname="",
+            organization="org_a",
+        )
+
+        assert get_group_ids(ctx) == []
+        mock_logger.error.assert_called_once()
