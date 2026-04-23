@@ -777,7 +777,11 @@ class TestListIntegrityLinksVisibility:
 
         ctx = self._geo_ctx(is_admin=True)
         response = list_integrity_links(
-            session=mock_session, data_session=mock_data_session, geo_ctx=ctx, group_ids=[], offset=0
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=ctx,
+            group_ids=[],
+            offset=0,
         )
 
         assert len(response.items) == 2
@@ -794,7 +798,7 @@ class TestListIntegrityLinksVisibility:
         """User whose group has METADATA READ sees dataset with READ access level."""
 
         link = self._make_link(owner="other")
-        org_id = "test-org-uuid"
+        group_id = "test-group-uuid"
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = [(link, "READ")]
@@ -807,7 +811,7 @@ class TestListIntegrityLinksVisibility:
             session=mock_session,
             data_session=mock_data_session,
             geo_ctx=ctx,
-            group_ids=[org_id],
+            group_ids=[group_id],
             offset=0,
         )
 
@@ -824,7 +828,7 @@ class TestListIntegrityLinksVisibility:
         """User whose group has METADATA WRITE sees dataset with WRITE access level."""
 
         link = self._make_link(owner="other")
-        org_id = "test-org-uuid"
+        group_id = "test-group-uuid"
 
         mock_exec_result = MagicMock()
         mock_exec_result.all.return_value = [(link, "WRITE")]
@@ -837,7 +841,7 @@ class TestListIntegrityLinksVisibility:
             session=mock_session,
             data_session=mock_data_session,
             geo_ctx=ctx,
-            group_ids=[org_id],
+            group_ids=[group_id],
             offset=0,
         )
 
@@ -860,7 +864,11 @@ class TestListIntegrityLinksVisibility:
 
         ctx = self._geo_ctx(username="nobody", organization="no_org")
         response = list_integrity_links(
-            session=mock_session, data_session=mock_data_session, geo_ctx=ctx, group_ids=[], offset=0
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=ctx,
+            group_ids=[],
+            offset=0,
         )
 
         assert len(response.items) == 0
@@ -881,7 +889,11 @@ class TestListIntegrityLinksVisibility:
 
         ctx = self._geo_ctx(username="user1", organization="org_a")
         list_integrity_links(
-            session=mock_session, data_session=mock_data_session, geo_ctx=ctx, group_ids=[], offset=0
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=ctx,
+            group_ids=[],
+            offset=0,
         )
 
         # Verify the query was executed and contains both conditions

@@ -5,6 +5,7 @@ from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.dialects import postgresql
 
 from src.api.deps import get_group_ids, get_org_id
 from src.core.security import (
@@ -429,6 +430,23 @@ class TestBuildAccessExprShape:
         case_expr = expr.element  # type: ignore[attr-defined]
         values = [value.value for _, value in case_expr.whens]
         assert values.index("WRITE") < values.index("READ")
+
+    def test_multiple_group_ids_compile_to_in_clause(self) -> None:
+        """End-to-end SQL check: the WRITE and READ exists() subqueries both use
+        ``group_or_role IN (:g1, :g2, :g3)``, so any matching group contributes.
+
+        Complements the structural ``.whens`` assertions above by verifying the
+        generated SQL — those would pass even if the subquery body used ``=`` on
+        a single id.
+        """
+        expr = build_access_expr("user1", ["g1", "g2", "g3"], is_admin=False)
+        sql = str(
+            expr.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
+        )
+        # One IN (...) for the WRITE exists(), one for the READ exists().
+        assert sql.upper().count(" IN (") == 2
+        for gid in ("g1", "g2", "g3"):
+            assert f"'{gid}'" in sql
 
 
 # ────────────────────────────────────────────────────────
