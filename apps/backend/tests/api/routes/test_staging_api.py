@@ -158,7 +158,7 @@ class TestGetStagingMetadataTitleFallbackApi:
             datafeeder_session=MagicMock(),
             geo_ctx=MagicMock(),
             integrity_link_id=str(uuid4()),
-            org_id=None,
+            group_ids=[],
         )
 
         assert result.title == "ns:buildings"
@@ -200,7 +200,7 @@ class TestGetStagingMetadataTitleFallbackApi:
             datafeeder_session=MagicMock(),
             geo_ctx=MagicMock(),
             integrity_link_id=str(uuid4()),
-            org_id=None,
+            group_ids=[],
         )
 
         assert result.title == "My WFS Layer"
@@ -243,7 +243,7 @@ class TestGetStagingMetadataTitleFallbackApi:
             datafeeder_session=MagicMock(),
             geo_ctx=MagicMock(),
             integrity_link_id=str(uuid4()),
-            org_id=None,
+            group_ids=[],
         )
 
         assert result.layer_name is None
