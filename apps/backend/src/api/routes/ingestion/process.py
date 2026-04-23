@@ -22,7 +22,8 @@ from src.api.deps import (
     GroupIdsDep,
 )
 from src.core.callback import build_callback_url
-from src.core.config import DEFAULT_DATA_SCHEMA, get_data_schema, get_settings, get_staging_schema
+from src.core.config import get_data_schema, get_settings, get_staging_schema
+from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.core.security import AccessLevel, load_authorized_integrity_link

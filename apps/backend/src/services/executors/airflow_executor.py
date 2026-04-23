@@ -7,7 +7,7 @@ from typing import Any
 from airflow_client.client.models.dag_run_state import DagRunState
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 
-from src.core.config import DEFAULT_DATA_SCHEMA
+from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.task_executor import BaseTaskExecutor, TaskRunInfo, TaskStatus
 from src.services.airflow_client import get_dag_run_api
 from src.services.airflow_logs import generate_failed_dag_run_logs

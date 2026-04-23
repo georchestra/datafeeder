@@ -22,6 +22,7 @@ from pydantic import (
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 from typing_extensions import Self
 
+from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.logging import get_logger
 from src.core.paths import get_default_datadir
 from src.core.task_executor import TaskExecutorType
@@ -315,9 +316,6 @@ class Settings(BaseSettings):
 def get_settings():
     logger.debug(Settings().model_dump())
     return Settings()
-
-
-DEFAULT_DATA_SCHEMA = "data"
 
 
 def get_data_schema(org: str) -> str:

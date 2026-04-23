@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Any
 
 from fastapi import APIRouter, Query
@@ -32,7 +33,7 @@ _info_tables = Table(
 )
 
 
-def _check_staging_existence(rows: list[Any], data_session: Session) -> set[str]:
+def _check_staging_existence(rows: Sequence[Any], data_session: Session) -> set[str]:
     staging_candidates = {lnk.staging_table_name for lnk, _ in rows if lnk.staging_table_name}
     if not staging_candidates:
         return set()
@@ -48,7 +49,7 @@ def _check_staging_existence(rows: list[Any], data_session: Session) -> set[str]
     )
 
 
-def _check_final_existence(rows: list[Any], data_session: Session) -> set[tuple[str, str]]:
+def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tuple[str, str]]:
     # Group final candidates by their target schema (org-specific or shared "data").
     # A single query per distinct schema avoids cross-schema false positives.
     final_candidates_by_schema: dict[str, set[str]] = {}

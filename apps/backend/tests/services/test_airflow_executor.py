@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from airflow_client.client.models.dag_run_state import DagRunState
 
-from src.core.config import DEFAULT_DATA_SCHEMA
+from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.task_executor import TaskStatus
 from src.services.executors.airflow_executor import (
     AirflowTaskExecutor,

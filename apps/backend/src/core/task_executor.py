@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from src.core.config import DEFAULT_DATA_SCHEMA
+from src.core.constants import DEFAULT_DATA_SCHEMA
 
 
 class TaskExecutorType(str, Enum):
