@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import Column, MetaData, String, Table, exists, or_
 from sqlalchemy import select as sa_select
 
-from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, OrgIdDep
+from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, GroupIdsDep
 from src.core.config import get_staging_schema
 from src.core.logging import get_logger
 from src.core.security import build_access_expr
@@ -36,7 +36,7 @@ def list_integrity_links(
     session: DatafeederSessionDep,
     data_session: DataSessionDep,
     geo_ctx: GeorchestraContextDep,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
     offset: int = Query(0, ge=0, description="Number of items to skip (for lazy loading)"),
     search: str | None = Query(None, description="Filter by integrity title (case-insensitive)"),
 ) -> IntegrityLinkListResponse:
@@ -58,19 +58,20 @@ def list_integrity_links(
     """
     is_admin = geo_ctx.is_administrator()
 
-    access_expr = build_access_expr(geo_ctx.username, org_id, is_admin)
+    access_expr = build_access_expr(geo_ctx.username, group_ids, is_admin)
     query = sa_select(IntegrityLink, access_expr.label("access_level"))
 
     if not is_admin:
-        # Non-admins see: own datasets + datasets with METADATA rules for their org
+        # Non-admins see: own datasets + datasets with METADATA rules matching any
+        # of the user's group identifiers (org UUID in ORG mode, role UUIDs in ROLE mode).
         conditions: list[Any] = [IntegrityLink.integrity_owner == geo_ctx.username]
-        if org_id:
+        if group_ids:
             conditions.append(
                 exists(
                     sa_select(IntegrityLinkRule.id).where(  # type: ignore[reportArgumentType]
                         IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
                         IntegrityLinkRule.rule_type == RuleType.METADATA,
-                        IntegrityLinkRule.group_or_role == org_id,
+                        IntegrityLinkRule.group_or_role.in_(group_ids),  # type: ignore[attr-defined]
                     )
                 )
             )

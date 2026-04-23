@@ -255,7 +255,7 @@ class TestGetStagingMetadataTitleFallback:
             datafeeder_session=MagicMock(),
             geo_ctx=MagicMock(),
             integrity_link_id=str(uuid4()),
-            org_id=None,
+            group_ids=[],
         )
 
         assert result.title == "parcels"
@@ -296,7 +296,7 @@ class TestGetStagingMetadataTitleFallback:
             datafeeder_session=MagicMock(),
             geo_ctx=MagicMock(),
             integrity_link_id=str(uuid4()),
-            org_id=None,
+            group_ids=[],
         )
 
         assert result.title == "Parcelles cadastrales"
@@ -337,7 +337,7 @@ class TestGetStagingMetadataTitleFallback:
             datafeeder_session=MagicMock(),
             geo_ctx=MagicMock(),
             integrity_link_id=str(uuid4()),
-            org_id=None,
+            group_ids=[],
         )
 
         assert result.title == "data"
@@ -378,7 +378,7 @@ class TestGetStagingMetadataTitleFallback:
             datafeeder_session=MagicMock(),
             geo_ctx=MagicMock(),
             integrity_link_id=str(uuid4()),
-            org_id=None,
+            group_ids=[],
         )
 
         assert result.title == ".hidden"

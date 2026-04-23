@@ -5,7 +5,7 @@ from airflow_client.client.models.dag_run_collection_response import DAGRunColle
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, OrgIdDep
+from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, GroupIdsDep
 from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.core.task_executor import TaskStatus
 from src.services.airflow_client import get_dag_run_api
@@ -23,11 +23,13 @@ def get_dag_run_by_intlink(
     intlink_id: str,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
     limit: int = 20,
 ) -> DAGRunCollectionResponse:
     # Ensure the user has access to the integrity link associated with this DAG run
-    load_authorized_integrity_link(intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, org_id)
+    load_authorized_integrity_link(
+        intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, group_ids
+    )
 
     try:
         dag_runs = get_dag_run_api().get_dag_runs(
@@ -46,11 +48,13 @@ def get_dag_run_status(
     dag_run_id: str,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
 ) -> TaskStatus:
     intlink_id = dag_run_id.split("_")[0]  # Extract intlink_id from run_id pattern
     # Ensure the user has access to the integrity link associated with this DAG run
-    load_authorized_integrity_link(intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, org_id)
+    load_authorized_integrity_link(
+        intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, group_ids
+    )
 
     try:
         executor = get_task_executor()
@@ -68,7 +72,7 @@ def get_dag_run_note(
     dag_run_id: str,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
 ) -> str | None:
     """
     Return the note attached to a DAG run, but only if its value is ``"timed_out"``.
@@ -110,10 +114,12 @@ def get_dag_run_logs(
     dag_run_id: str,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
 ) -> str:
     intlink_id = dag_run_id.split("_")[0]  # Extract intlink_id from run_id pattern
     # Ensure the user has access to the integrity link associated with this DAG run
-    load_authorized_integrity_link(intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, org_id)
+    load_authorized_integrity_link(
+        intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, group_ids
+    )
     executor = get_task_executor()
     return executor.get_task_logs(dag_id, dag_run_id)

@@ -19,7 +19,7 @@ from src.api.deps import (
     DataSessionDep,
     GeorchestraContextDep,
     GeoServerServiceDep,
-    OrgIdDep,
+    GroupIdsDep,
 )
 from src.core.callback import build_callback_url
 from src.core.config import get_settings, get_staging_schema
@@ -70,7 +70,7 @@ def process_staging_data(
     request: ProcessRequest,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
-    org_id: OrgIdDep,
+    group_ids: GroupIdsDep,
     geoserver_service: GeoServerServiceDep,
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_email: str = Header("", alias="sec-email", include_in_schema=False),
@@ -94,7 +94,7 @@ def process_staging_data(
 
     # Load IntegrityLink and verify OWNER_ONLY permission (owner or admin)
     integrity_link, _ = load_authorized_integrity_link(
-        request.integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, org_id
+        request.integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
     )
 
     # Get staging table name from IntegrityLink

@@ -5,23 +5,27 @@ from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.dialects import postgresql
 
-from src.api.deps import get_org_id
+from src.api.deps import get_group_ids, get_org_id
 from src.core.security import (
     AccessLevel,
     EffectiveAccess,
+    build_access_expr,
     compute_effective_access,
     load_authorized_integrity_link,
 )
 from src.models.integrity_link import IntegrityLink
+from src.services.console_service import ConsoleServiceError
 from src.services.georchestra import GeorchestraContext
 
 DATASET_ID = "11111111-1111-1111-1111-111111111111"
 DATASET_UUID = UUID(DATASET_ID)
 
-# A non-None org UUID used by group-access tests (value is arbitrary—the session mock
-# ignores query parameters).
+# Non-empty group id list used by group-access tests (values are arbitrary—the session
+# mock ignores query parameters).
 ORG_UUID = "aaaabbbb-cccc-dddd-eeee-ffffffffffff"
+GROUP_IDS: list[str] = [ORG_UUID]
 
 
 def _geo_ctx(
@@ -86,7 +90,7 @@ class TestComputeEffectiveAccessAdmin:
         ctx = _geo_ctx(is_admin=True)
         session = _mock_session(access_result="ADMIN")
 
-        result = compute_effective_access(link, ctx, session, None)
+        result = compute_effective_access(link, ctx, session, [])
 
         assert result == EffectiveAccess.ADMIN
 
@@ -96,7 +100,7 @@ class TestComputeEffectiveAccessAdmin:
         ctx = _geo_ctx(is_admin=True)
         session = _mock_session(access_result="ADMIN")
 
-        compute_effective_access(link, ctx, session, None)
+        compute_effective_access(link, ctx, session, [])
 
         session.exec.assert_called_once()
 
@@ -109,7 +113,7 @@ class TestComputeEffectiveAccessOwner:
         ctx = _geo_ctx(username="user1")
         session = _mock_session(access_result="OWNER")
 
-        result = compute_effective_access(link, ctx, session, None)
+        result = compute_effective_access(link, ctx, session, [])
 
         assert result == EffectiveAccess.OWNER
 
@@ -119,7 +123,7 @@ class TestComputeEffectiveAccessOwner:
         ctx = _geo_ctx(username="user1")
         session = _mock_session(access_result="OWNER")
 
-        compute_effective_access(link, ctx, session, None)
+        compute_effective_access(link, ctx, session, [])
 
         session.exec.assert_called_once()
 
@@ -132,7 +136,7 @@ class TestComputeEffectiveAccessGroupRules:
         ctx = _geo_ctx(username="user1", organization="org_a")
         session = _mock_session(access_result="WRITE")
 
-        result = compute_effective_access(link, ctx, session, ORG_UUID)
+        result = compute_effective_access(link, ctx, session, GROUP_IDS)
 
         assert result == EffectiveAccess.WRITE
 
@@ -141,7 +145,7 @@ class TestComputeEffectiveAccessGroupRules:
         ctx = _geo_ctx(username="user1", organization="org_a")
         session = _mock_session(access_result="READ")
 
-        result = compute_effective_access(link, ctx, session, ORG_UUID)
+        result = compute_effective_access(link, ctx, session, GROUP_IDS)
 
         assert result == EffectiveAccess.READ
 
@@ -150,7 +154,7 @@ class TestComputeEffectiveAccessGroupRules:
         ctx = _geo_ctx(username="user1", organization="org_a")
         session = _mock_session(access_result=None)
 
-        result = compute_effective_access(link, ctx, session, ORG_UUID)
+        result = compute_effective_access(link, ctx, session, GROUP_IDS)
 
         assert result is None
 
@@ -159,7 +163,7 @@ class TestComputeEffectiveAccessGroupRules:
         ctx = _geo_ctx(username="user1", organization="")
         session = _mock_session(access_result=None)
 
-        result = compute_effective_access(link, ctx, session, None)
+        result = compute_effective_access(link, ctx, session, [])
 
         assert result is None
 
@@ -178,9 +182,7 @@ class TestLoadAuthorizedIntegrityLinkNotFound:
         ctx = _geo_ctx()
 
         with pytest.raises(HTTPException) as exc_info:
-            load_authorized_integrity_link(
-                DATASET_ID, AccessLevel.METADATA_READ, ctx, session, None
-            )
+            load_authorized_integrity_link(DATASET_ID, AccessLevel.METADATA_READ, ctx, session, [])
 
         assert exc_info.value.status_code == 404
 
@@ -194,7 +196,7 @@ class TestLoadAuthorizedIntegrityLinkAdminBypass:
         ctx = _geo_ctx(is_admin=True)
         session = _mock_session(integrity_link=link, access_result="ADMIN")
 
-        result = load_authorized_integrity_link(DATASET_ID, level, ctx, session, None)
+        result = load_authorized_integrity_link(DATASET_ID, level, ctx, session, [])
 
         assert result[0] is link
 
@@ -208,7 +210,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerBypass:
         ctx = _geo_ctx(username="user1")
         session = _mock_session(integrity_link=link, access_result="OWNER")
 
-        result = load_authorized_integrity_link(DATASET_ID, level, ctx, session, None)
+        result = load_authorized_integrity_link(DATASET_ID, level, ctx, session, [])
 
         assert result[0] is link
 
@@ -222,7 +224,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataRead:
         session = _mock_session(integrity_link=link, access_result="READ")
 
         result = load_authorized_integrity_link(
-            DATASET_ID, AccessLevel.METADATA_READ, ctx, session, ORG_UUID
+            DATASET_ID, AccessLevel.METADATA_READ, ctx, session, GROUP_IDS
         )
 
         assert result[0] is link
@@ -233,7 +235,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataRead:
         session = _mock_session(integrity_link=link, access_result="WRITE")
 
         result = load_authorized_integrity_link(
-            DATASET_ID, AccessLevel.METADATA_READ, ctx, session, ORG_UUID
+            DATASET_ID, AccessLevel.METADATA_READ, ctx, session, GROUP_IDS
         )
 
         assert result[0] is link
@@ -245,7 +247,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataRead:
 
         with pytest.raises(HTTPException) as exc_info:
             load_authorized_integrity_link(
-                DATASET_ID, AccessLevel.METADATA_READ, ctx, session, ORG_UUID
+                DATASET_ID, AccessLevel.METADATA_READ, ctx, session, GROUP_IDS
             )
 
         assert exc_info.value.status_code == 403
@@ -260,7 +262,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataWrite:
         session = _mock_session(integrity_link=link, access_result="WRITE")
 
         result = load_authorized_integrity_link(
-            DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session, ORG_UUID
+            DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session, GROUP_IDS
         )
 
         assert result[0] is link
@@ -272,7 +274,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataWrite:
 
         with pytest.raises(HTTPException) as exc_info:
             load_authorized_integrity_link(
-                DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session, ORG_UUID
+                DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session, GROUP_IDS
             )
 
         assert exc_info.value.status_code == 403
@@ -284,7 +286,7 @@ class TestLoadAuthorizedIntegrityLinkMetadataWrite:
 
         with pytest.raises(HTTPException) as exc_info:
             load_authorized_integrity_link(
-                DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session, ORG_UUID
+                DATASET_ID, AccessLevel.METADATA_WRITE, ctx, session, GROUP_IDS
             )
 
         assert exc_info.value.status_code == 403
@@ -300,7 +302,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
 
         with pytest.raises(HTTPException) as exc_info:
             load_authorized_integrity_link(
-                DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, ORG_UUID
+                DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, GROUP_IDS
             )
 
         assert exc_info.value.status_code == 403
@@ -312,7 +314,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
 
         with pytest.raises(HTTPException) as exc_info:
             load_authorized_integrity_link(
-                DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, ORG_UUID
+                DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, GROUP_IDS
             )
 
         assert exc_info.value.status_code == 403
@@ -323,7 +325,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
         session = _mock_session(integrity_link=link, access_result="OWNER")
 
         result = load_authorized_integrity_link(
-            DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, None
+            DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, []
         )
 
         assert result[0] is link
@@ -334,7 +336,7 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
         session = _mock_session(integrity_link=link, access_result="ADMIN")
 
         result = load_authorized_integrity_link(
-            DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, None
+            DATASET_ID, AccessLevel.OWNER_ONLY, ctx, session, []
         )
 
         assert result[0] is link
@@ -389,3 +391,253 @@ class TestGetOrgId:
         result = get_org_id(ctx)
 
         assert result is None
+
+
+# ────────────────────────────────────────────────────────
+# build_access_expr — SQL shape
+# ────────────────────────────────────────────────────────
+
+
+class TestBuildAccessExprShape:
+    """Structural guarantees on the generated CASE expression.
+
+    These tests don't execute SQL; they inspect the expression tree. The key
+    invariant is that the CASE has a *single* WRITE/READ pair regardless of
+    how many group_ids are supplied, so that WRITE from any group beats READ
+    from any other group.
+    """
+
+    def test_empty_group_ids_emits_only_owner_branch(self) -> None:
+        expr = build_access_expr("user1", [], is_admin=False)
+        case_expr = expr.element  # type: ignore[attr-defined]
+        assert len(case_expr.whens) == 1  # owner only
+
+    def test_single_group_emits_owner_write_read(self) -> None:
+        expr = build_access_expr("user1", ["g1"], is_admin=False)
+        case_expr = expr.element  # type: ignore[attr-defined]
+        assert len(case_expr.whens) == 3  # owner + write + read
+
+    def test_multiple_groups_do_not_duplicate_write_read_branches(self) -> None:
+        """Regression guard: a per-id loop would emit 1 + 2*N branches and let
+        READ from an early group shadow WRITE from a later one."""
+        expr = build_access_expr("user1", ["g1", "g2", "g3"], is_admin=False)
+        case_expr = expr.element  # type: ignore[attr-defined]
+        assert len(case_expr.whens) == 3  # still owner + write + read
+
+    def test_write_branch_precedes_read_branch(self) -> None:
+        """WRITE must be checked before READ so WRITE takes priority."""
+        expr = build_access_expr("user1", ["g1", "g2"], is_admin=False)
+        case_expr = expr.element  # type: ignore[attr-defined]
+        values = [value.value for _, value in case_expr.whens]
+        assert values.index("WRITE") < values.index("READ")
+
+    def test_multiple_group_ids_compile_to_in_clause(self) -> None:
+        """End-to-end SQL check: the WRITE and READ exists() subqueries both use
+        ``group_or_role IN (:g1, :g2, :g3)``, so any matching group contributes.
+
+        Complements the structural ``.whens`` assertions above by verifying the
+        generated SQL — those would pass even if the subquery body used ``=`` on
+        a single id.
+        """
+        expr = build_access_expr("user1", ["g1", "g2", "g3"], is_admin=False)
+        sql = str(
+            expr.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
+        )
+        # One IN (...) for the WRITE exists(), one for the READ exists().
+        assert sql.upper().count(" IN (") == 2
+        for gid in ("g1", "g2", "g3"):
+            assert f"'{gid}'" in sql
+
+
+# ────────────────────────────────────────────────────────
+# get_group_ids
+# ────────────────────────────────────────────────────────
+
+
+class TestGetGroupIds:
+    """get_group_ids returns org UUID in ORG mode and role UUIDs in ROLE mode."""
+
+    @staticmethod
+    def _configure(mock_settings: MagicMock, *, mode: str, filter_regex: str = "") -> None:
+        """Pre-seed settings so attribute access returns real values, not MagicMocks.
+
+        ``METADATA_GROUPS_LABEL_FILTER_REGEX`` must be a string (possibly empty);
+        a bare MagicMock would break the ``re.compile`` path inside get_group_ids.
+        """
+        mock_settings.return_value.GN_SYNC_MODE = mode
+        mock_settings.return_value.METADATA_GROUPS_LABEL_FILTER_REGEX = filter_regex
+
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_org_mode_returns_single_org_uuid(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        self._configure(mock_settings, mode="ORG")
+        mock_cls.return_value.get_organization.return_value = {"id": "org-uuid", "name": "Org A"}
+        ctx = _geo_ctx(organization="org_a")
+
+        assert get_group_ids(ctx) == ["org-uuid"]
+
+    @patch("src.api.deps.get_settings")
+    def test_org_mode_returns_empty_when_no_org(self, mock_settings: MagicMock) -> None:
+        self._configure(mock_settings, mode="ORG")
+        ctx = _geo_ctx(organization="")
+
+        assert get_group_ids(ctx) == []
+
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_role_mode_returns_uuids_of_user_roles_only(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        """Only roles the user actually holds are returned — case-insensitive match."""
+        self._configure(mock_settings, mode="ROLE")
+        mock_cls.return_value.get_all_roles.return_value = [
+            {"id": "id-editor", "name": "EDITOR"},
+            {"id": "id-viewer", "name": "viewer"},
+            {"id": "id-admin", "name": "ADMIN"},
+        ]
+        # geo_ctx roles are normalized upper-case, ROLE_ prefix stripped
+        ctx = GeorchestraContext(
+            username="u",
+            roles={"EDITOR", "VIEWER"},
+            email="",
+            firstname="",
+            lastname="",
+            organization="org_a",
+        )
+
+        result = get_group_ids(ctx)
+
+        assert set(result) == {"id-editor", "id-viewer"}
+
+    @patch("src.api.deps.get_settings")
+    def test_role_mode_returns_empty_when_no_roles(self, mock_settings: MagicMock) -> None:
+        self._configure(mock_settings, mode="ROLE")
+        ctx = GeorchestraContext(
+            username="u", roles=set(), email="", firstname="", lastname="", organization="org_a"
+        )
+
+        assert get_group_ids(ctx) == []
+
+    @patch("src.api.deps.logger")
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_role_mode_returns_empty_and_logs_when_console_unreachable(
+        self, mock_cls: MagicMock, mock_settings: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """Fail-closed on Console errors: deny group access, log a warning, do not 5xx.
+
+        Mirrors ORG-mode behaviour so owner/admin paths keep working during Console
+        outages while group-based access is denied until the Console is reachable.
+        """
+        self._configure(mock_settings, mode="ROLE")
+        mock_cls.return_value.get_all_roles.side_effect = ConsoleServiceError("boom")
+        ctx = GeorchestraContext(
+            username="u",
+            roles={"EDITOR"},
+            email="",
+            firstname="",
+            lastname="",
+            organization="org_a",
+        )
+
+        assert get_group_ids(ctx) == []
+        mock_logger.warning.assert_called_once()
+
+    # ── METADATA_GROUPS_LABEL_FILTER_REGEX enforcement ──────────────────
+    #
+    # The filter is authoritative at auth time: a rule pointing at a role or org
+    # whose name does not match the regex is inert, regardless of how it ended up
+    # in the database. This closes the loophole where the UI filter was merely
+    # cosmetic and could be bypassed by a direct API call or a retroactively
+    # tightened regex.
+
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_role_mode_filter_drops_roles_outside_pattern(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        self._configure(mock_settings, mode="ROLE", filter_regex="TEST_.*")
+        mock_cls.return_value.get_all_roles.return_value = [
+            {"id": "id-test-editor", "name": "TEST_EDITOR"},
+            {"id": "id-admin", "name": "ADMINISTRATOR"},
+        ]
+        ctx = GeorchestraContext(
+            username="u",
+            roles={"TEST_EDITOR", "ADMINISTRATOR"},
+            email="",
+            firstname="",
+            lastname="",
+            organization="org_a",
+        )
+
+        assert get_group_ids(ctx) == ["id-test-editor"]
+
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_role_mode_filter_returns_empty_when_no_role_matches(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        self._configure(mock_settings, mode="ROLE", filter_regex="TEST_.*")
+        mock_cls.return_value.get_all_roles.return_value = [
+            {"id": "id-admin", "name": "ADMINISTRATOR"},
+        ]
+        ctx = GeorchestraContext(
+            username="u",
+            roles={"ADMINISTRATOR"},
+            email="",
+            firstname="",
+            lastname="",
+            organization="org_a",
+        )
+
+        assert get_group_ids(ctx) == []
+
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_org_mode_filter_drops_org_outside_pattern(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        self._configure(mock_settings, mode="ORG", filter_regex="TEST_.*")
+        mock_cls.return_value.get_organization.return_value = {
+            "id": "org-uuid",
+            "name": "Some Org",
+        }
+        ctx = _geo_ctx(organization="some_org")
+
+        assert get_group_ids(ctx) == []
+
+    @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.ConsoleService")
+    def test_org_mode_filter_keeps_org_matching_pattern(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        self._configure(mock_settings, mode="ORG", filter_regex="TEST_.*")
+        mock_cls.return_value.get_organization.return_value = {
+            "id": "org-uuid",
+            "name": "TEST_ORG",
+        }
+        ctx = _geo_ctx(organization="test_org")
+
+        assert get_group_ids(ctx) == ["org-uuid"]
+
+    @patch("src.api.deps.logger")
+    @patch("src.api.deps.get_settings")
+    def test_invalid_filter_regex_logs_error_and_returns_empty(
+        self, mock_settings: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """Invalid regex is a config bug; fail-closed rather than 5xx every request."""
+        # Unbalanced paren is guaranteed invalid on any regex engine
+        self._configure(mock_settings, mode="ROLE", filter_regex="(unclosed")
+        ctx = GeorchestraContext(
+            username="u",
+            roles={"EDITOR"},
+            email="",
+            firstname="",
+            lastname="",
+            organization="org_a",
+        )
+
+        assert get_group_ids(ctx) == []
+        mock_logger.error.assert_called_once()
