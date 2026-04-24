@@ -63,7 +63,7 @@
           }
         </div>
         <div class="w-48 text-sm text-gray-2">
-          {{ link.integrity_owner }}
+          {{ link.owner_display_name ?? link.integrity_owner }}
         </div>
         <div class="flex w-[44px] shrink-0 items-center justify-center">
           @if (canDelete(link)) {

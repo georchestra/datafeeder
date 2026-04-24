@@ -181,3 +181,86 @@ class TestConsoleService:
 
         with pytest.raises(ConsoleServiceError, match="Failed to fetch roles from console API"):
             service.get_all_roles()
+
+
+class TestFetchUsersByUsernames:
+    @patch("src.services.console_service.httpx.post")
+    def test_success_returns_display_name_map(self, mock_post: MagicMock) -> None:
+        """Full first+last name is returned as 'Firstname Lastname'."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = [
+            {"username": "jdoe", "firstName": "Jane", "lastName": "Doe"},
+            {"username": "asmith", "firstName": "Alice", "lastName": "Smith"},
+        ]
+        mock_post.return_value = mock_response
+
+        service = ConsoleService("http://console.example.com")
+        result = service.fetch_users_by_usernames(["jdoe", "asmith"])
+
+        assert result == {"jdoe": "Jane Doe", "asmith": "Alice Smith"}
+        mock_post.assert_called_once_with(
+            "http://console.example.com/internal/users/fetch-by-usernames",
+            json={"usernames": ["jdoe", "asmith"], "fields": ["username", "firstName", "lastName"]},
+            timeout=5.0,
+        )
+
+    def test_empty_list_returns_empty_dict_without_http_call(self) -> None:
+        """No HTTP request is made when the input list is empty."""
+        with patch("src.services.console_service.httpx.post") as mock_post:
+            service = ConsoleService("http://console.example.com")
+            result = service.fetch_users_by_usernames([])
+
+        assert result == {}
+        mock_post.assert_not_called()
+
+    @patch("src.services.console_service.httpx.post")
+    def test_user_with_only_first_name(self, mock_post: MagicMock) -> None:
+        """User with only firstName gets a single-word display name."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = [
+            {"username": "jdoe", "firstName": "Jane", "lastName": ""}
+        ]
+        mock_post.return_value = mock_response
+
+        result = ConsoleService("http://console.example.com").fetch_users_by_usernames(["jdoe"])
+
+        assert result == {"jdoe": "Jane"}
+
+    @patch("src.services.console_service.httpx.post")
+    def test_user_with_no_name_data_omitted(self, mock_post: MagicMock) -> None:
+        """Users whose firstName and lastName are both empty/None are excluded from the result."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = [
+            {"username": "ghost", "firstName": None, "lastName": None},
+            {"username": "jdoe", "firstName": "Jane", "lastName": "Doe"},
+        ]
+        mock_post.return_value = mock_response
+
+        result = ConsoleService("http://console.example.com").fetch_users_by_usernames(
+            ["ghost", "jdoe"]
+        )
+
+        assert "ghost" not in result
+        assert result["jdoe"] == "Jane Doe"
+
+    @patch("src.services.console_service.httpx.post")
+    def test_network_error_returns_empty_dict(self, mock_post: MagicMock) -> None:
+        """Network failures degrade gracefully — empty dict, no exception propagated."""
+        mock_post.side_effect = httpx.ConnectError("Connection refused")
+
+        result = ConsoleService("http://console.example.com").fetch_users_by_usernames(["jdoe"])
+
+        assert result == {}
+
+    @patch("src.services.console_service.httpx.post")
+    def test_http_error_returns_empty_dict(self, mock_post: MagicMock) -> None:
+        """HTTP 5xx responses degrade gracefully."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Server Error", request=MagicMock(), response=MagicMock(status_code=500)
+        )
+        mock_post.return_value = mock_response
+
+        result = ConsoleService("http://console.example.com").fetch_users_by_usernames(["jdoe"])
+
+        assert result == {}

@@ -908,6 +908,24 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/components/schemas/GeorchestraUser"
+  /internal/users/fetch-by-usernames:
+    post:
+      summary: "POST internal/users/fetch-by-usernames"
+      operationId: "fetchUsersByUsernames"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserBatchRequest"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            'application/json':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/GeorchestraUser"
   /internal/users/id/{id}:
     get:
       summary: "GET internal/users/id/{id}"
@@ -1273,3 +1291,14 @@ components:
           nullable: true
           items:
             type: "string"
+    UserBatchRequest:
+        type: "object"
+        properties:
+          usernames:
+            type: "array"
+            items:
+              type: "string"
+          fields:
+            type: "array"
+            items:
+              type: "string"

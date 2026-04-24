@@ -9,5 +9,6 @@ import { IntegrityLinkListItem } from '../models/integrity-link-list-item'
 export interface IntegrityLinkListResponse {
   has_more: boolean
   items: Array<IntegrityLinkListItem>
+  next_offset: number
   offset: number
 }

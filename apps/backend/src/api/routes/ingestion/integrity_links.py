@@ -3,14 +3,16 @@ from typing import Any
 from fastapi import APIRouter, Query
 from sqlalchemy import Column, MetaData, String, Table, exists, or_
 from sqlalchemy import select as sa_select
+from sqlmodel import Session
 
 from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, GroupIdsDep
-from src.core.config import get_staging_schema
+from src.core.config import get_settings, get_staging_schema
 from src.core.logging import get_logger
 from src.core.security import build_access_expr
 from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, RuleType
+from src.services.console_service import ConsoleService
 
 router = APIRouter(prefix="/ingestion/integrity-links", tags=["Ingestion"])
 logger = get_logger()
@@ -23,6 +25,41 @@ _info_tables = Table(
     Column("table_schema", String),
     Column("table_name", String),
 )
+
+
+def _check_table_existence(rows: list[Any], data_session: Session) -> tuple[set[str], set[str]]:
+    staging_candidates = {lnk.staging_table_name for lnk, _ in rows if lnk.staging_table_name}
+    final_candidates = {lnk.final_table_name for lnk, _ in rows if lnk.final_table_name}
+
+    staging_tables: set[str] = (
+        set(
+            data_session.execute(  # type: ignore[reportDeprecated]
+                sa_select(_info_tables.c.table_name).where(
+                    _info_tables.c.table_schema == get_staging_schema(),
+                    _info_tables.c.table_name.in_(staging_candidates),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if staging_candidates
+        else set()
+    )
+    final_tables: set[str] = (
+        set(
+            data_session.execute(  # type: ignore[reportDeprecated]
+                sa_select(_info_tables.c.table_name).where(
+                    _info_tables.c.table_schema == "data",
+                    _info_tables.c.table_name.in_(final_candidates),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if final_candidates
+        else set()
+    )
+    return staging_tables, final_tables
 
 
 @router.get(
@@ -81,56 +118,56 @@ def list_integrity_links(
     if search:
         query = query.where(IntegrityLink.integrity_title.ilike(f"%{search}%"))  # type: ignore[union-attr]
 
-    query = query.order_by(IntegrityLink.created_at.desc())  # type: ignore[union-attr]
-    query = query.offset(offset).limit(BATCH_SIZE + 1)
+    base_query = query.order_by(IntegrityLink.created_at.desc())  # type: ignore[union-attr]
 
-    rows = session.execute(query).all()  # type: ignore[reportDeprecated]
+    # Fetch in chunks until BATCH_SIZE+1 filtered items accumulated or DB exhausted.
+    # Needed because table-existence filtering happens post-query (cross-DB information_schema
+    # check), so a simple limit(BATCH_SIZE+1) can produce a false has_more=False.
+    # Each item carries its raw DB row index so next_offset is exact, not estimated.
+    #
+    # Performance note: each chunk issues 2 information_schema queries. If most integrity_links
+    # have orphaned tables (staging/final dropped), many chunks may be scanned before accumulating
+    # BATCH_SIZE items. On large instances this can become expensive. A future improvement would
+    # be to increase the chunk size beyond BATCH_SIZE+1 or hard-cap the total rows scanned.
+    accumulated: list[tuple[IntegrityLink, Any, bool, int]] = []
+    fetch_offset = offset
+    last_chunk_len = 0
 
-    # Check table existence against data_engine's DB (correct DB in all modes).
-    # Using data_session ensures information_schema reflects datadb, not georchestra.
-    # Raw Table objects require execute(); exec() only accepts SQLModel SelectOfScalar.
-    staging_candidates = {lnk.staging_table_name for lnk, _ in rows if lnk.staging_table_name}
-    final_candidates = {lnk.final_table_name for lnk, _ in rows if lnk.final_table_name}
+    while len(accumulated) < BATCH_SIZE + 1:
+        rows = session.execute(  # type: ignore[reportDeprecated]
+            base_query.offset(fetch_offset).limit(BATCH_SIZE + 1)
+        ).all()
+        last_chunk_len = len(rows)
+        if not rows:
+            break
 
-    staging_tables = (
-        set(
-            data_session.execute(  # type: ignore[reportDeprecated]
-                sa_select(_info_tables.c.table_name).where(
-                    _info_tables.c.table_schema == get_staging_schema(),
-                    _info_tables.c.table_name.in_(staging_candidates),
-                )
-            )
-            .scalars()
-            .all()
+        staging_tables, final_tables = _check_table_existence(rows, data_session)
+
+        for i, (link, access_level) in enumerate(rows):
+            if (link.staging_table_name and link.staging_table_name in staging_tables) or (
+                link.final_table_name and link.final_table_name in final_tables
+            ):
+                has_final = bool(link.final_table_name and link.final_table_name in final_tables)
+                accumulated.append((link, access_level, has_final, fetch_offset + i))
+
+        if last_chunk_len < BATCH_SIZE + 1:
+            break  # DB exhausted
+        fetch_offset += last_chunk_len
+
+    # Total rows scanned = completed chunks + final (possibly partial) chunk.
+    # Warn when significantly more rows were scanned than returned — a sign that many
+    # integrity_links have orphaned staging/final tables and cleanup may be needed.
+    rows_scanned = fetch_offset - offset + last_chunk_len
+    if rows_scanned > BATCH_SIZE * 3:
+        logger.warning(
+            f"Integrity-link list scanned {rows_scanned} DB rows to fill one page "
+            f"(user='{geo_ctx.username}', offset={offset}). "
+            "Many links may have orphaned staging/final tables — consider cleanup."
         )
-        if staging_candidates
-        else set()
-    )
-    final_tables = (
-        set(
-            data_session.execute(  # type: ignore[reportDeprecated]
-                sa_select(_info_tables.c.table_name).where(
-                    _info_tables.c.table_schema == "data",
-                    _info_tables.c.table_name.in_(final_candidates),
-                )
-            )
-            .scalars()
-            .all()
-        )
-        if final_candidates
-        else set()
-    )
 
-    # Filter: only show links with at least one associated table; compute has_final flag
-    items_with_flags = [
-        (link, access_level, bool(link.final_table_name and link.final_table_name in final_tables))
-        for link, access_level in rows
-        if (link.staging_table_name and link.staging_table_name in staging_tables)
-        or (link.final_table_name and link.final_table_name in final_tables)
-    ]
-
-    has_more = len(items_with_flags) > BATCH_SIZE
-    items_rows = items_with_flags[:BATCH_SIZE]
+    has_more = len(accumulated) > BATCH_SIZE
+    items_rows = accumulated[:BATCH_SIZE]
+    next_offset = accumulated[BATCH_SIZE][3] if has_more else fetch_offset + last_chunk_len
 
     logger.info(
         f"Listed {len(items_rows)} integrity links for user '{geo_ctx.username}' "
@@ -138,14 +175,20 @@ def list_integrity_links(
     )
 
     items: list[IntegrityLinkListItem] = []
-    for link, access_level, has_final in items_rows:
+    for link, access_level, has_final, _ in items_rows:
         item = IntegrityLinkListItem.model_validate(link)
         item.access_level = access_level
         item.has_final_table = bool(has_final)
         items.append(item)
 
+    usernames = list({item.integrity_owner for item in items})
+    display_names = ConsoleService(get_settings().CONSOLE_URL).fetch_users_by_usernames(usernames)
+    for item in items:
+        item.owner_display_name = display_names.get(item.integrity_owner)
+
     return IntegrityLinkListResponse(
         items=items,
         has_more=has_more,
         offset=offset,
+        next_offset=next_offset,
     )

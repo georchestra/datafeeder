@@ -49,6 +49,7 @@ export class IntegrityLinkListComponent {
   loadingMore = signal<boolean>(false)
   searchQuery = signal('')
   deleting = signal<string | null>(null)
+  private nextOffset = signal(0)
 
   private searchSubject = new Subject<string>()
 
@@ -70,8 +71,12 @@ export class IntegrityLinkListComponent {
   }
 
   private async loadIntegrityLinks(append = false): Promise<void> {
+    if (!append) {
+      this.hasMore.set(false)
+      this.nextOffset.set(0)
+    }
     try {
-      const offset = append ? this.integrityLinks().length : 0
+      const offset = append ? this.nextOffset() : 0
       const search = this.searchQuery() || undefined
       const response = await this.api.invoke(
         listIntegrityLinksIngestionIntegrityLinksGet,
@@ -83,6 +88,7 @@ export class IntegrityLinkListComponent {
         this.integrityLinks.set(response.items)
       }
       this.hasMore.set(response.has_more)
+      this.nextOffset.set(response.next_offset)
     } catch (error) {
       console.error('Failed to load integrity links:', error)
     } finally {

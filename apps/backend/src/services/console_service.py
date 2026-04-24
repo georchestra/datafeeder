@@ -94,6 +94,43 @@ class ConsoleService:
         except Exception as exc:
             raise ConsoleServiceError(f"Failed to fetch roles from console API: {exc}") from exc
 
+    def fetch_users_by_usernames(self, usernames: list[str]) -> dict[str, str]:
+        """Resolve usernames to display names via the console batch endpoint.
+
+        Args:
+            usernames: List of usernames to resolve.
+
+        Returns:
+            Dict mapping username -> "Firstname Lastname". Usernames with no name data are omitted.
+            Returns empty dict on any error (graceful degradation).
+        """
+        if not usernames:
+            return {}
+        try:
+            url = f"{self.console_url}/internal/users/fetch-by-usernames"
+            response = httpx.post(
+                url,
+                json={"usernames": usernames, "fields": ["username", "firstName", "lastName"]},
+                timeout=5.0,
+            )
+            response.raise_for_status()
+            users: list[dict[str, Any]] = response.json()
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch user display names from console API: {e}", exc_info=True
+            )
+            return {}
+
+        result: dict[str, str] = {}
+        for user in users:
+            username = user.get("username")
+            first = (user.get("firstName") or "").strip()
+            last = (user.get("lastName") or "").strip()
+            display = f"{first} {last}".strip()
+            if username and display:
+                result[username] = display
+        return result
+
     def get_all_organizations(self) -> list[dict[str, Any]]:
         """Fetch all organizations from geOrchestra console API.
 

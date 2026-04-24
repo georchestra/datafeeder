@@ -11,6 +11,16 @@ from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.services.georchestra import GeorchestraContext
 
+_CONSOLE_PATCH = "src.api.routes.ingestion.integrity_links.ConsoleService"
+
+
+@pytest.fixture(autouse=True)
+def mock_console_service():
+    """Patch ConsoleService so tests don't hit the network; returns empty display names by default."""
+    with patch(_CONSOLE_PATCH) as mock_cls:
+        mock_cls.return_value.fetch_users_by_usernames.return_value = {}
+        yield mock_cls
+
 
 class TestListIntegrityLinks:
     """Test the list_integrity_links endpoint."""
@@ -678,6 +688,145 @@ class TestListIntegrityLinks:
 
         assert "my_staging_table" in staging_sql
         assert "my_final_table" in final_sql
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_owner_display_name_populated_from_console(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
+    ) -> None:
+        """owner_display_name is set from ConsoleService when the API returns a match."""
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Labelled Link",
+            integrity_owner="jdoe",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_labelled",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+        self._setup_session(mock_session, [link])
+        self._setup_data_session(mock_data_session, ["staging_labelled"], [])
+        mock_console_service.return_value.fetch_users_by_usernames.return_value = {
+            "jdoe": "Jane Doe"
+        }
+
+        geo_ctx = self._create_geo_ctx("jdoe", {"IMPORT"})
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=geo_ctx,
+            group_ids=[],
+            offset=0,
+        )
+
+        assert response.items[0].owner_display_name == "Jane Doe"
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_owner_display_name_none_when_console_fails(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
+    ) -> None:
+        """owner_display_name stays None when ConsoleService returns {} (graceful degradation)."""
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Fallback Link",
+            integrity_owner="jdoe",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_fallback",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+        self._setup_session(mock_session, [link])
+        self._setup_data_session(mock_data_session, ["staging_fallback"], [])
+        mock_console_service.return_value.fetch_users_by_usernames.return_value = {}
+
+        geo_ctx = self._create_geo_ctx("jdoe", {"IMPORT"})
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=geo_ctx,
+            group_ids=[],
+            offset=0,
+        )
+
+        assert response.items[0].owner_display_name is None
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_next_offset_present_no_more(
+        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        """next_offset equals total DB rows scanned when has_more is False."""
+        links = [
+            IntegrityLink(
+                id=uuid4(),
+                integrity_title=f"Link {i}",
+                integrity_owner="user0",
+                integrity_organization="testorg",
+                source_import_type=ImportType.URL,
+                staging_table_name=f"staging_{i}",
+                created_at=datetime.now(timezone.utc),
+                schedule_enabled=False,
+            )
+            for i in range(5)
+        ]
+        self._setup_session(mock_session, links)
+        self._setup_data_session(mock_data_session, [f"staging_{i}" for i in range(5)], [])
+
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=geo_ctx,
+            group_ids=[],
+            offset=0,
+        )
+
+        assert response.has_more is False
+        assert response.next_offset == 5
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_next_offset_present_has_more(
+        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        """next_offset points to the first skipped item's raw DB index when has_more is True."""
+        links = [
+            IntegrityLink(
+                id=uuid4(),
+                integrity_title=f"Link {i}",
+                integrity_owner="user0",
+                integrity_organization="testorg",
+                source_import_type=ImportType.URL,
+                staging_table_name=f"staging_{i}",
+                created_at=datetime.now(timezone.utc),
+                schedule_enabled=False,
+            )
+            for i in range(BATCH_SIZE + 1)
+        ]
+        self._setup_session(mock_session, links)
+        self._setup_data_session(
+            mock_data_session, [f"staging_{i}" for i in range(BATCH_SIZE + 1)], []
+        )
+
+        geo_ctx = self._create_geo_ctx("user0", {"IMPORT"})
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=geo_ctx,
+            group_ids=[],
+            offset=0,
+        )
+
+        assert response.has_more is True
+        # The (BATCH_SIZE+1)-th filtered item lives at raw DB index BATCH_SIZE (0-based).
+        assert response.next_offset == BATCH_SIZE
 
 
 class TestListIntegrityLinksVisibility:
