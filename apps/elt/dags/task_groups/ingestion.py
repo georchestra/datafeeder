@@ -11,6 +11,7 @@ from data_manipulation.ingestion import (
     ingest_data_from_database_into_postgis,
     ingest_data_from_file_into_postgis,
     ingest_data_from_ftp_into_postgis,
+    ingest_data_from_ogc_service_into_postgis,
     ingest_data_from_url_into_postgis,
 )
 from data_manipulation.logging import configure_logging
@@ -58,6 +59,8 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                     return f"{group_id}.ftp_ingest_step"
                 case "DATABASE":
                     return f"{group_id}.database_ingest_step"
+                case "API":
+                    return f"{group_id}.api_ingest_step"
                 case _:
                     raise AirflowException(f"Unsupported source_type: {source_type}")
 
@@ -250,11 +253,47 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from database {source}: {e}")
 
+        @task(task_id="api_ingest_step")
+        def api_ingest_step(**context: dict[str, Any]) -> None:
+            params = context.get("params", {})
+            ti = context.get("ti")
+
+            target_table_name = params.get("staging_table_name")
+            if not target_table_name and ti:
+                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
+                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
+            else:
+                logger.info(f"Using staging_table_name from params: {target_table_name}")
+
+            if not target_table_name:
+                raise AirflowException("staging_table_name is not provided")
+
+            source = params.get("source", "")
+            source_layer = params.get("source_layer", "")
+            source_protocol = params.get("source_protocol", "wfs") or "wfs"
+
+            if not source_layer:
+                raise AirflowException("source_layer is required for API import")
+
+            engine = get_data_sql_engine()
+            try:
+                ingest_data_from_ogc_service_into_postgis(
+                    source,
+                    source_layer,
+                    source_protocol,
+                    target_table_name,
+                    engine,
+                    schema=get_staging_schema(),
+                )
+            except Exception as e:
+                raise AirflowException(f"Failed to ingest data from OGC service: {e}")
+
         do_branching() >> [
             file_ingest_step(),
             ftp_ingest_step(),
             url_ingest_step(),
             database_ingest_step(),
+            api_ingest_step(),
         ]
 
     return _ingestion_impl

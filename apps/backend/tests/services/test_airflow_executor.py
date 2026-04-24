@@ -47,11 +47,46 @@ class TestAirflowTaskExecutor:
                 "success_callback_url": "https://ok.example.com",
                 "failure_callback_url": "https://ko.example.com",
                 "encrypted_credentials": "enc-creds",
+                "source_layer": None,
+                "source_protocol": None,
             }
             assert result.task_id == "staging_dag"
             assert result.run_id == "run-123"
             assert result.status == TaskStatus.QUEUED
             assert result.execution_date is None
+
+    def test_trigger_staging_task_with_api_source(self) -> None:
+        executor = AirflowTaskExecutor()
+        dag_run_response = MagicMock(
+            dag_id="staging_dag",
+            dag_run_id="run-api",
+            state=DagRunState.QUEUED,
+        )
+
+        with patch(
+            "src.services.executors.airflow_executor.get_dag_run_api"
+        ) as mock_get_dag_run_api:
+            mock_get_dag_run_api.return_value.trigger_dag_run.return_value = dag_run_response
+
+            result = executor.trigger_staging_task(
+                run_id="run-api",
+                staging_table_name="stg_api",
+                source="https://example.com/wfs",
+                source_type="API",
+                success_callback_url="https://ok.example.com",
+                failure_callback_url="https://ko.example.com",
+                encrypted_credentials=None,
+                source_layer="ns:buildings",
+                source_protocol="wfs",
+            )
+
+            trigger_call = mock_get_dag_run_api.return_value.trigger_dag_run.call_args.kwargs
+            body = trigger_call["trigger_dag_run_post_body"]
+
+            assert body.conf["source_type"] == "API"
+            assert body.conf["source_layer"] == "ns:buildings"
+            assert body.conf["source_protocol"] == "wfs"
+            assert result.status == TaskStatus.QUEUED
 
     def test_trigger_process_task(self) -> None:
         executor = AirflowTaskExecutor()

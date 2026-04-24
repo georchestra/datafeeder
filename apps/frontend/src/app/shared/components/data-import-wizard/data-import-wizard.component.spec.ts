@@ -240,6 +240,112 @@ describe('DataImportWizardComponent', () => {
 
     expect(component.databaseSourceEnabled()).toBe(true)
   })
+
+  it('should return valid source for api type with serviceUrl and layerName', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onSourceChanged({
+      type: 'api',
+      serviceUrl: 'https://example.com/wfs',
+      layerName: 'ns:buildings',
+      serviceProtocol: 'wfs',
+      authEnabled: false
+    })
+
+    expect(component.validSource()).toBeTruthy()
+  })
+
+  it('should return invalid source for api type with missing serviceUrl', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onSourceChanged({
+      type: 'api',
+      serviceUrl: undefined,
+      layerName: 'ns:buildings',
+      authEnabled: false
+    })
+
+    expect(component.validSource()).toBeFalsy()
+  })
+
+  it('should return invalid source for api type with missing layerName', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onSourceChanged({
+      type: 'api',
+      serviceUrl: 'https://example.com/wfs',
+      layerName: undefined,
+      authEnabled: false
+    })
+
+    expect(component.validSource()).toBeFalsy()
+  })
+
+  it('should return invalid source for api type with whitespace-only layerName', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onSourceChanged({
+      type: 'api',
+      serviceUrl: 'https://example.com/wfs',
+      layerName: '   ',
+      authEnabled: false
+    })
+
+    expect(component.validSource()).toBeFalsy()
+  })
+
+  it('should compute initialApiSource from existing api integrity link', () => {
+    mockIntegrityLinkStore.integrityLink.set({
+      source_import_type: 'api',
+      source_url: 'https://example.com/wfs',
+      source_layer: 'ns:buildings',
+      source_protocol: 'wfs'
+    })
+
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    expect(component.initialApiSource()).toEqual({
+      url: 'https://example.com/wfs',
+      layerName: 'ns:buildings',
+      protocol: 'wfs'
+    })
+  })
+
+  it('should return null initialApiSource when link is not api type', () => {
+    mockIntegrityLinkStore.integrityLink.set({
+      source_import_type: 'file',
+      source_url: '/tmp/data.gpkg',
+      source_layer: null,
+      source_protocol: null
+    })
+
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    expect(component.initialApiSource()).toBeNull()
+  })
+
+  it('should default protocol to wfs when source_protocol is absent in api link', () => {
+    mockIntegrityLinkStore.integrityLink.set({
+      source_import_type: 'api',
+      source_url: 'https://example.com/wfs',
+      source_layer: 'ns:buildings',
+      source_protocol: null
+    })
+
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    expect(component.initialApiSource()?.protocol).toBe('wfs')
+  })
 })
 
 describe('DataImportWizardComponent - Import and Status Polling', () => {
@@ -421,6 +527,43 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     statusReq.flush(mockStatusFinished)
 
     // Wait for the promise to complete
+    await promise
+  })
+
+  it('should call POST /import with correct FormData for api source', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.importData.set({
+      source: {
+        type: 'api',
+        serviceUrl: 'https://example.com/wfs',
+        layerName: 'ns:buildings',
+        serviceProtocol: 'wfs',
+        authEnabled: false
+      }
+    })
+
+    const promise = component.onConfigureDataset()
+
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
+    expect(req.request.method).toBe('POST')
+    const formData = req.request.body as FormData
+    expect(formData.get('type')).toBe('api')
+    expect(formData.get('service_url')).toBe('https://example.com/wfs')
+    expect(formData.get('layer_name')).toBe('ns:buildings')
+    expect(formData.get('service_protocol')).toBe('wfs')
+
+    req.flush(mockImportResponse)
+
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    httpMock
+      .expectOne((r) =>
+        r.url.includes('/airflow/dags/test-dag-123/runs/test-run-456/status')
+      )
+      .flush(mockStatusFinished)
+
     await promise
   })
 

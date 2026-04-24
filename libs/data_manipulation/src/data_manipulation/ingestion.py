@@ -302,6 +302,42 @@ def ingest_data_from_database_into_postgis(
         raise
 
 
+_GDAL_PROTOCOL_PREFIX = {"wfs": "WFS", "ogcFeatures": "OAPIF"}
+
+
+def ingest_data_from_ogc_service_into_postgis(
+    service_url: str,
+    layer_name: str,
+    protocol: str,
+    table_name: str,
+    engine: Engine,
+    schema: str = DEFAULT_SCHEMA,
+) -> None:
+    """Ingest a WFS or OGC API Features layer into PostGIS using GeoPandas/GDAL.
+
+    `protocol` is the service protocol as stored: 'wfs' or 'ogcFeatures'.
+    The GDAL driver prefix (WFS: / OAPIF:) is built internally.
+
+    `layer_name` maps directly to the GDAL layer name in both cases:
+    - WFS: the WFS typename (e.g. "ns:buildings"), set as identifierInService by geonetwork-ui
+    - OAPIF: the collection ID (e.g. "buildings"), the `name` from OgcApiEndpoint.allCollections
+    No additional parameters are needed beyond layer=layer_name for basic ingestion.
+    """
+    gdal_prefix = _GDAL_PROTOCOL_PREFIX.get(protocol, "WFS")
+    gdal_source = f"{gdal_prefix}:{service_url}"
+    logger.info(f"Ingesting OGC layer '{layer_name}' from {gdal_source} into {table_name}")
+    try:
+        gdf = gpd.read_file(gdal_source, layer=layer_name)
+        # OGC API Features collections may have no geometry — treat as tabular data in that case
+        if gdf.geometry.isna().all():
+            logger.info(f"Layer '{layer_name}' has no valid geometries; ingesting as tabular data.")
+            gdf = pd.DataFrame(gdf.drop(columns=str(gdf.geometry.name)))
+        write_data_to_postgis(gdf, table_name, engine, schema)
+    except Exception as e:
+        logger.error(f"Error ingesting OGC layer '{layer_name}' from {gdal_source}: {e}")
+        raise
+
+
 def read_data_from_postgis(
     table_name: str,
     engine: Engine,

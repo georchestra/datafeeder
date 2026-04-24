@@ -1,4 +1,11 @@
-import { Component, effect, inject, input, output } from '@angular/core'
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output
+} from '@angular/core'
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { MatRadioModule } from '@angular/material/radio'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
@@ -15,6 +22,10 @@ import {
   FileInputComponent,
   TextInputComponent
 } from 'geonetwork-ui'
+import {
+  type ApiData,
+  DataSourceApiComponent
+} from '../data-source-api/data-source-api.component'
 import {
   DataSourceFtpComponent,
   type FTPData
@@ -33,9 +44,10 @@ marker('import.dataSource.ftp.path')
 marker('import.dataSource.chooseType.database')
 marker('import.dataSource.database.schema')
 marker('import.dataSource.database.table')
+marker('import.dataSource.chooseType.api')
 
-export type SourceType = 'url' | 'file' | 'ftp' | 'database'
-export type RadioType = 'file' | 'ftp' | 'database'
+export type SourceType = 'url' | 'file' | 'ftp' | 'database' | 'api'
+export type RadioType = 'file' | 'ftp' | 'database' | 'api'
 
 export interface SourceData {
   type: SourceType
@@ -49,6 +61,9 @@ export interface SourceData {
   ftpPath?: string
   dbSchema?: string
   dbTable?: string
+  serviceUrl?: string
+  layerName?: string
+  serviceProtocol?: string
 }
 
 @Component({
@@ -58,22 +73,18 @@ export interface SourceData {
     MatRadioModule,
     TranslatePipe,
     NgIconComponent,
-    TranslatePipe,
     ButtonComponent,
     CheckToggleComponent,
     TextInputComponent,
     FileInputComponent,
     DataSourceFtpComponent,
+    DataSourceApiComponent,
     UiInputPasswordComponent
   ],
   templateUrl: './data-source-selector.component.html',
   providers: [
-    provideIcons({
-      iconoirAttachment
-    }),
-    provideNgIconsConfig({
-      size: '2em'
-    })
+    provideIcons({ iconoirAttachment }),
+    provideNgIconsConfig({ size: '2em' })
   ]
 })
 export class DataSourceSelectorComponent {
@@ -81,8 +92,23 @@ export class DataSourceSelectorComponent {
 
   databaseSourceEnabled = input<boolean>(false)
   initialDatabaseSource = input<{ schema: string; table: string } | null>(null)
+  initialApiSource = input<{
+    url: string
+    layerName: string
+    protocol: string
+  } | null>(null)
 
   sourceChanged = output<SourceData>()
+
+  apiInitialValue = computed(() => {
+    const src = this.initialApiSource()
+    if (!src) return null
+    return {
+      serviceUrl: src.url,
+      layerName: src.layerName,
+      serviceProtocol: src.protocol
+    }
+  })
 
   form = this.fb.group({
     radio: this.fb.control<RadioType>('file'),
@@ -97,7 +123,10 @@ export class DataSourceSelectorComponent {
       ftpPort: this.fb.control<number | null>(null),
       ftpPath: this.fb.control<string | null>(null),
       dbSchema: this.fb.control<string | null>(null),
-      dbTable: this.fb.control<string | null>(null)
+      dbTable: this.fb.control<string | null>(null),
+      serviceUrl: this.fb.control<string | null>(null),
+      layerName: this.fb.control<string | null>(null),
+      serviceProtocol: this.fb.control<string | null>(null)
     })
   })
 
@@ -114,6 +143,19 @@ export class DataSourceSelectorComponent {
       }
     })
 
+    effect(() => {
+      const apiSource = this.initialApiSource()
+      if (apiSource && !this.form.dirty) {
+        this.form.controls.radio.setValue('api')
+        this.form.controls.source.patchValue({
+          type: 'api',
+          serviceUrl: apiSource.url,
+          layerName: apiSource.layerName,
+          serviceProtocol: apiSource.protocol
+        })
+      }
+    })
+
     this.form.controls.source.valueChanges.subscribe((value) => {
       this.sourceChanged.emit({
         type: value.type,
@@ -126,7 +168,10 @@ export class DataSourceSelectorComponent {
         ftpPort: value.ftpPort,
         ftpPath: value.ftpPath,
         dbSchema: value.dbSchema,
-        dbTable: value.dbTable
+        dbTable: value.dbTable,
+        serviceUrl: value.serviceUrl,
+        layerName: value.layerName,
+        serviceProtocol: value.serviceProtocol
       })
     })
   }
@@ -151,7 +196,10 @@ export class DataSourceSelectorComponent {
       ftpPort: null,
       ftpPath: null,
       dbSchema: null,
-      dbTable: null
+      dbTable: null,
+      serviceUrl: null,
+      layerName: null,
+      serviceProtocol: null
     })
   }
 
@@ -172,6 +220,14 @@ export class DataSourceSelectorComponent {
       username: data.username,
       password: data.password,
       ftpPath: data.path
+    })
+  }
+
+  handleApiDataChange(data: ApiData | null): void {
+    this.form.controls.source.patchValue({
+      serviceUrl: data?.serviceUrl ?? null,
+      layerName: data?.layerName ?? null,
+      serviceProtocol: data?.serviceProtocol ?? null
     })
   }
 }

@@ -27,6 +27,8 @@ export interface IntegrityLinkListItem {
   source_file_name: string | null
   source_file_type: FileType | null
   source_import_type: ImportType
+  source_layer?: string | null
+  source_protocol?: string | null
   source_url: string | null
   staging_table_name: string
 }

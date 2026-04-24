@@ -62,7 +62,10 @@ describe('DataSourceSelectorComponent', () => {
       username: null,
       password: null,
       dbSchema: null,
-      dbTable: null
+      dbTable: null,
+      serviceUrl: null,
+      layerName: null,
+      serviceProtocol: null
     })
   })
 
@@ -160,6 +163,151 @@ describe('DataSourceSelectorComponent', () => {
     })
   })
 
+  describe('API (OGC service) source', () => {
+    it('should always show the api radio button', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      fixture.detectChanges()
+
+      const radioButtons =
+        fixture.nativeElement.querySelectorAll('mat-radio-button')
+      const values = Array.from(radioButtons).map((rb: any) =>
+        rb.getAttribute('value')
+      )
+      expect(values).toContain('api')
+    })
+
+    it('should set source type to api when api radio is selected', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleRadioChange('api')
+
+      expect(component.form.controls.source.controls.type.value).toBe('api')
+    })
+
+    it('should render app-data-source-api when api radio is selected', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.form.controls.radio.setValue('api')
+      fixture.detectChanges()
+
+      expect(
+        fixture.nativeElement.querySelector('app-data-source-api')
+      ).toBeTruthy()
+    })
+
+    it('should update serviceUrl, layerName and serviceProtocol via handleApiDataChange', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleApiDataChange({
+        serviceUrl: 'https://example.com/wfs',
+        layerName: 'ns:buildings',
+        layerTitle: 'Buildings',
+        serviceProtocol: 'wfs'
+      })
+
+      expect(component.form.controls.source.controls.serviceUrl.value).toBe(
+        'https://example.com/wfs'
+      )
+      expect(component.form.controls.source.controls.layerName.value).toBe(
+        'ns:buildings'
+      )
+      expect(
+        component.form.controls.source.controls.serviceProtocol.value
+      ).toBe('wfs')
+    })
+
+    it('should clear api fields when handleApiDataChange is called with null', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleApiDataChange({
+        serviceUrl: 'https://example.com/wfs',
+        layerName: 'ns:buildings',
+        layerTitle: 'Buildings',
+        serviceProtocol: 'wfs'
+      })
+      component.handleApiDataChange(null)
+
+      expect(
+        component.form.controls.source.controls.serviceUrl.value
+      ).toBeNull()
+      expect(component.form.controls.source.controls.layerName.value).toBeNull()
+      expect(
+        component.form.controls.source.controls.serviceProtocol.value
+      ).toBeNull()
+    })
+
+    it('should emit sourceChanged with api fields after handleApiDataChange', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+      let emittedValue: any
+
+      component.handleRadioChange('api')
+      component.sourceChanged.subscribe((value) => (emittedValue = value))
+
+      component.handleApiDataChange({
+        serviceUrl: 'https://example.com/ogcapi',
+        layerName: 'parcels',
+        layerTitle: 'City parcels',
+        serviceProtocol: 'ogcFeatures'
+      })
+
+      expect(emittedValue.type).toBe('api')
+      expect(emittedValue.serviceUrl).toBe('https://example.com/ogcapi')
+      expect(emittedValue.layerName).toBe('parcels')
+      expect(emittedValue.serviceProtocol).toBe('ogcFeatures')
+    })
+
+    it('should clear api fields when switching to file', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.handleRadioChange('api')
+      component.form.controls.source.patchValue({
+        serviceUrl: 'https://example.com/wfs',
+        layerName: 'ns:buildings',
+        serviceProtocol: 'wfs'
+      })
+
+      component.handleRadioChange('file')
+
+      expect(
+        component.form.controls.source.controls.serviceUrl.value
+      ).toBeNull()
+      expect(component.form.controls.source.controls.layerName.value).toBeNull()
+      expect(
+        component.form.controls.source.controls.serviceProtocol.value
+      ).toBeNull()
+    })
+
+    it('should pre-populate form from initialApiSource input', async () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      fixture.componentRef.setInput('initialApiSource', {
+        url: 'https://example.com/wfs',
+        layerName: 'ns:buildings',
+        protocol: 'wfs'
+      })
+      fixture.detectChanges()
+      await fixture.whenStable()
+
+      expect(component.form.controls.radio.value).toBe('api')
+      expect(component.form.controls.source.controls.serviceUrl.value).toBe(
+        'https://example.com/wfs'
+      )
+      expect(component.form.controls.source.controls.layerName.value).toBe(
+        'ns:buildings'
+      )
+      expect(
+        component.form.controls.source.controls.serviceProtocol.value
+      ).toBe('wfs')
+    })
+  })
+
   describe('Basic Authentication', () => {
     it('should have authEnabled defaulting to false', () => {
       const fixture = TestBed.createComponent(DataSourceSelectorComponent)
@@ -208,7 +356,10 @@ describe('DataSourceSelectorComponent', () => {
         username: 'testuser',
         password: 'testpass',
         dbSchema: null,
-        dbTable: null
+        dbTable: null,
+        serviceUrl: null,
+        layerName: null,
+        serviceProtocol: null
       })
     })
   })

@@ -15,6 +15,7 @@ export interface StagingMetadataResponse {
   force_projection?: ForceProjection | null
   has_final_table: boolean
   import_type: ImportType
+  layer_name?: string | null
   original_projection?: string | null
   row_count: number
   title: string

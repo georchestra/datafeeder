@@ -41,6 +41,8 @@ class AirflowTaskExecutor(BaseTaskExecutor):
         success_callback_url: str | None = None,
         failure_callback_url: str | None = None,
         encrypted_credentials: str | None = None,
+        source_layer: str | None = None,
+        source_protocol: str | None = None,
     ) -> TaskRunInfo:
         """Trigger a staging task in Airflow."""
         dag_run_response = get_dag_run_api().trigger_dag_run(
@@ -54,6 +56,8 @@ class AirflowTaskExecutor(BaseTaskExecutor):
                     "success_callback_url": success_callback_url or "",
                     "failure_callback_url": failure_callback_url or "",
                     "encrypted_credentials": encrypted_credentials,
+                    "source_layer": source_layer,
+                    "source_protocol": source_protocol,
                 },
             ),
         )

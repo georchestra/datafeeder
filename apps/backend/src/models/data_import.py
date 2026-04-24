@@ -106,6 +106,7 @@ class StagingMetadataResponse(StagingMetadata):
     import_type: ImportType
     row_count: int
     has_final_table: bool
+    layer_name: str | None = None
 
 
 class StagingPreviewResponse(BaseModel):
@@ -135,6 +136,8 @@ class IntegrityLinkListItem(BaseModel):
     source_file_name: str | None
     source_file_type: FileType | None
     source_url: str | None
+    source_layer: str | None = None
+    source_protocol: str | None = None
     staging_table_name: str
     final_table_name: str | None
     metadata_id: str | None
@@ -178,6 +181,8 @@ class IntegrityLinkResponse(BaseModel):
     integrity_transformation: dict[str, Any] | None = None
     source_import_type: ImportType
     source_url: str | None
+    source_layer: str | None = None
+    source_protocol: str | None = None
     source_file_name: str | None
     source_file_type: FileType | None
     source_username: str | None

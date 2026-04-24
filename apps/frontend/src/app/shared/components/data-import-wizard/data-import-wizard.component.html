@@ -30,6 +30,7 @@
             <app-data-source-selector
               [databaseSourceEnabled]="databaseSourceEnabled()"
               [initialDatabaseSource]="initialDatabaseSource()"
+              [initialApiSource]="initialApiSource()"
               (sourceChanged)="onSourceChanged($event)"
             />
           </div>

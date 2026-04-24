@@ -11,6 +11,9 @@
       <mat-radio-button value="file">
         {{ 'import.dataSource.chooseType.file' | translate }}
       </mat-radio-button>
+      <mat-radio-button value="api" class="ml-6">
+        {{ 'import.dataSource.chooseType.api' | translate }}
+      </mat-radio-button>
       <mat-radio-button value="ftp" class="ml-6">
         {{ 'import.dataSource.chooseType.ftp' | translate }}
       </mat-radio-button>
@@ -67,6 +70,11 @@
     }
   </div>
 </div>
+} @if (form.controls.radio.value === 'api') {
+<app-data-source-api
+  [initialValue]="apiInitialValue()"
+  (apiDataChanged)="handleApiDataChange($event)"
+/>
 } @if (form.controls.radio.value === 'ftp') {
 <app-data-source-ftp (ftpDataChanged)="handleFtpDataChange($event)" />
 } @if (form.controls.radio.value === 'database') {

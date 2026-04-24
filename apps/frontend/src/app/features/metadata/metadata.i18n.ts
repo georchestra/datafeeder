@@ -120,6 +120,9 @@ marker('input.file.orInputUrl')
 
 // Online Resource
 marker('editor.record.form.field.onlineResource.modify')
+marker('editor.record.form.field.onlineResource.edit.protocol')
+marker('editor.record.form.field.onlineResource.edit.identifier.submit')
+marker('editor.record.form.field.onlineResource.edit.identifier.select.label')
 
 // Constraints
 marker('editor.record.form.constraint.add.legalConstraints')

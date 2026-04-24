@@ -9,7 +9,7 @@ from utils import get_datafeeder_pg_hook
 
 def load_scheduled_integrity_links():
     sql = """
-        SELECT 
+        SELECT
             id::text,
             data_id,
             metadata_id,
@@ -20,6 +20,8 @@ def load_scheduled_integrity_links():
             integrity_transformation,
             source_url,
             source_import_type,
+            source_layer,
+            source_protocol,
             source_password_encrypted
         FROM datafeeder.integrity_link
         WHERE schedule NOTNULL AND schedule NOT LIKE ''
@@ -54,6 +56,8 @@ def create_dag(config):
             conf={
                 "source": config.get("source_url"),
                 "source_type": config.get("source_import_type").upper(),
+                "source_layer": config.get("source_layer"),
+                "source_protocol": config.get("source_protocol"),
                 "final_table_name": config.get("final_table_name"),
                 "integrity_transformation": config.get("integrity_transformation") or {},
                 "encrypted_credentials": config.get("source_password_encrypted", None),
