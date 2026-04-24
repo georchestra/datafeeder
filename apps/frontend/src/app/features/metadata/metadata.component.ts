@@ -102,12 +102,14 @@ export class MetadataComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    const customConfig = DEFAULT_CONFIGURATION
     // Keep only the ANNEXES_SECTION in the resources page
-    customConfig.pages[1].sections = [
-      DEFAULT_CONFIGURATION.pages[1].sections[1]
-    ]
-    this.editor.setConfiguration(customConfig)
+    const resourcesPage = DEFAULT_CONFIGURATION.pages[1]
+    const pages = [...DEFAULT_CONFIGURATION.pages]
+    pages[1] = {
+      ...resourcesPage,
+      sections: resourcesPage.sections.slice(1, 2)
+    }
+    this.editor.setConfiguration({ ...DEFAULT_CONFIGURATION, pages })
   }
 
   private loadMetadata(metadataId: string): void {

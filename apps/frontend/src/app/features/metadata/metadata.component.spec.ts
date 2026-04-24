@@ -123,6 +123,28 @@ describe('MetadataComponent', () => {
       const callArgs = mockEditorFacade.setConfiguration.mock.calls[0][0]
       expect(callArgs.pages[1].sections.length).toBe(1)
     })
+
+    it('should not mutate DEFAULT_CONFIGURATION across multiple inits', () => {
+      const originalPages = DEFAULT_CONFIGURATION.pages
+      const originalResourceSections = DEFAULT_CONFIGURATION.pages[1].sections
+      const originalSectionsLength = originalResourceSections.length
+
+      fixture.detectChanges()
+      TestBed.createComponent(MetadataComponent).detectChanges()
+
+      expect(DEFAULT_CONFIGURATION.pages).toBe(originalPages)
+      expect(DEFAULT_CONFIGURATION.pages[1].sections).toBe(
+        originalResourceSections
+      )
+      expect(DEFAULT_CONFIGURATION.pages[1].sections.length).toBe(
+        originalSectionsLength
+      )
+
+      const secondCallConfig =
+        mockEditorFacade.setConfiguration.mock.calls[1][0]
+      expect(secondCallConfig.pages[1].sections.length).toBe(1)
+      expect(secondCallConfig.pages[1].sections[0]).toBeDefined()
+    })
   })
 
   describe('Reactive Loading (Effect)', () => {
