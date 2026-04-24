@@ -103,6 +103,12 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
             type=["null", "string"],
             description="Service protocol for API import: 'wfs' or 'ogcFeatures'",
         ),
+        "target_schema": Param(
+            default="data",
+            type="string",
+            description="Target PostgreSQL schema for the final table (org-specific or 'data')",
+            minLength=1,
+        ),
     },
     on_success_callback=_dag_success_callback,
     on_failure_callback=_dag_failure_callback,

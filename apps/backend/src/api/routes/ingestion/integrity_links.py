@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Any
 
 from fastapi import APIRouter, Query
@@ -5,8 +6,13 @@ from sqlalchemy import Column, MetaData, String, Table, exists, or_
 from sqlalchemy import select as sa_select
 from sqlmodel import Session
 
-from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, GroupIdsDep
-from src.core.config import get_settings, get_staging_schema
+from src.api.deps import (
+    DatafeederSessionDep,
+    DataSessionDep,
+    GeorchestraContextDep,
+    GroupIdsDep,
+)
+from src.core.config import get_data_schema, get_settings, get_staging_schema
 from src.core.logging import get_logger
 from src.core.security import build_access_expr
 from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
@@ -27,39 +33,45 @@ _info_tables = Table(
 )
 
 
-def _check_table_existence(rows: list[Any], data_session: Session) -> tuple[set[str], set[str]]:
+def _check_staging_existence(rows: Sequence[Any], data_session: Session) -> set[str]:
     staging_candidates = {lnk.staging_table_name for lnk, _ in rows if lnk.staging_table_name}
-    final_candidates = {lnk.final_table_name for lnk, _ in rows if lnk.final_table_name}
+    if not staging_candidates:
+        return set()
+    return set(
+        data_session.execute(  # type: ignore[reportDeprecated]
+            sa_select(_info_tables.c.table_name).where(
+                _info_tables.c.table_schema == get_staging_schema(),
+                _info_tables.c.table_name.in_(staging_candidates),
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    staging_tables: set[str] = (
-        set(
+
+def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tuple[str, str]]:
+    # Group final candidates by their target schema (org-specific or shared "data").
+    # A single query per distinct schema avoids cross-schema false positives.
+    final_candidates_by_schema: dict[str, set[str]] = {}
+    for lnk, _ in rows:
+        if lnk.final_table_name:
+            schema = get_data_schema(lnk.integrity_organization)
+            final_candidates_by_schema.setdefault(schema, set()).add(lnk.final_table_name)
+
+    existing: set[tuple[str, str]] = set()
+    for schema, table_names in final_candidates_by_schema.items():
+        found = (
             data_session.execute(  # type: ignore[reportDeprecated]
                 sa_select(_info_tables.c.table_name).where(
-                    _info_tables.c.table_schema == get_staging_schema(),
-                    _info_tables.c.table_name.in_(staging_candidates),
+                    _info_tables.c.table_schema == schema,
+                    _info_tables.c.table_name.in_(table_names),
                 )
             )
             .scalars()
             .all()
         )
-        if staging_candidates
-        else set()
-    )
-    final_tables: set[str] = (
-        set(
-            data_session.execute(  # type: ignore[reportDeprecated]
-                sa_select(_info_tables.c.table_name).where(
-                    _info_tables.c.table_schema == "data",
-                    _info_tables.c.table_name.in_(final_candidates),
-                )
-            )
-            .scalars()
-            .all()
-        )
-        if final_candidates
-        else set()
-    )
-    return staging_tables, final_tables
+        existing.update((schema, name) for name in found)
+    return existing
 
 
 @router.get(
@@ -125,7 +137,7 @@ def list_integrity_links(
     # check), so a simple limit(BATCH_SIZE+1) can produce a false has_more=False.
     # Each item carries its raw DB row index so next_offset is exact, not estimated.
     #
-    # Performance note: each chunk issues 2 information_schema queries. If most integrity_links
+    # Performance note: each chunk issues queries per distinct schema. If most integrity_links
     # have orphaned tables (staging/final dropped), many chunks may be scanned before accumulating
     # BATCH_SIZE items. On large instances this can become expensive. A future improvement would
     # be to increase the chunk size beyond BATCH_SIZE+1 or hard-cap the total rows scanned.
@@ -141,14 +153,25 @@ def list_integrity_links(
         if not rows:
             break
 
-        staging_tables, final_tables = _check_table_existence(rows, data_session)
+        # Check table existence against data_engine's DB (correct DB in all modes).
+        # Using data_session ensures information_schema reflects datadb, not georchestra.
+        # Raw Table objects require execute(); exec() only accepts SQLModel SelectOfScalar.
+        staging_tables = _check_staging_existence(rows, data_session)
+        existing_final = _check_final_existence(rows, data_session)
+
+        def _final_exists(lnk: IntegrityLink) -> bool:
+            if not lnk.final_table_name:
+                return False
+            return (
+                get_data_schema(lnk.integrity_organization),
+                lnk.final_table_name,
+            ) in existing_final
 
         for i, (link, access_level) in enumerate(rows):
-            if (link.staging_table_name and link.staging_table_name in staging_tables) or (
-                link.final_table_name and link.final_table_name in final_tables
-            ):
-                has_final = bool(link.final_table_name and link.final_table_name in final_tables)
-                accumulated.append((link, access_level, has_final, fetch_offset + i))
+            if (
+                link.staging_table_name and link.staging_table_name in staging_tables
+            ) or _final_exists(link):
+                accumulated.append((link, access_level, _final_exists(link), fetch_offset + i))
 
         if last_chunk_len < BATCH_SIZE + 1:
             break  # DB exhausted

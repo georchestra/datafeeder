@@ -7,6 +7,7 @@ from typing import Any
 from airflow_client.client.models.dag_run_state import DagRunState
 from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 
+from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.task_executor import BaseTaskExecutor, TaskRunInfo, TaskStatus
 from src.services.airflow_client import get_dag_run_api
 from src.services.airflow_logs import generate_failed_dag_run_logs
@@ -78,6 +79,7 @@ class AirflowTaskExecutor(BaseTaskExecutor):
         success_callback_url: str | None = None,
         failure_callback_url: str | None = None,
         last_retrieval_timestamp: datetime | None = None,
+        target_schema: str = DEFAULT_DATA_SCHEMA,
     ) -> TaskRunInfo:
         """Trigger a process task in Airflow."""
         dag_run_response = get_dag_run_api().trigger_dag_run(
@@ -91,6 +93,7 @@ class AirflowTaskExecutor(BaseTaskExecutor):
                     "success_callback_url": success_callback_url,
                     "failure_callback_url": failure_callback_url,
                     "last_retrieval_timestamp": last_retrieval_timestamp,
+                    "target_schema": target_schema,
                 },
             ),
         )

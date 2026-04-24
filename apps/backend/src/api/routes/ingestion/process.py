@@ -22,7 +22,8 @@ from src.api.deps import (
     GroupIdsDep,
 )
 from src.core.callback import build_callback_url
-from src.core.config import get_settings, get_staging_schema
+from src.core.config import get_data_schema, get_settings, get_staging_schema
+from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.core.security import AccessLevel, load_authorized_integrity_link
@@ -104,10 +105,12 @@ def process_staging_data(
 
     title = _normalize_title(request.title)
     dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}_manual"
+    workspace_name = integrity_link.integrity_organization.lower()
+    target_schema = get_data_schema(workspace_name)
     final_table_name = (
         integrity_link.final_table_name
         if integrity_link.last_retrieval_timestamp is not None
-        else get_available_table_name(data_engine, "data", sanitize_name(title))
+        else get_available_table_name(data_engine, target_schema, sanitize_name(title))
     )
     if not final_table_name:
         raise HTTPException(
@@ -141,8 +144,6 @@ def process_staging_data(
         integrity_link.schedule_enabled = False
 
     # --- Prepare layer URLs and GeoNetwork metadata ---
-    workspace_name = integrity_link.integrity_organization.lower()
-
     # Determine if staging table has geometry (to pre-compute correct URLs)
     try:
         staging_meta = MetaData(schema=get_staging_schema())
@@ -235,6 +236,7 @@ def process_staging_data(
         "final_table_name": final_table_name,
         "dag_id": "process_dag",
         "dag_run_id": dag_run_id,
+        "target_schema": target_schema,
     }
 
     # Build callback URLs
@@ -251,6 +253,7 @@ def process_staging_data(
             success_callback_url=success_callback_url,
             failure_callback_url=failure_callback_url,
             last_retrieval_timestamp=integrity_link.last_retrieval_timestamp,
+            target_schema=target_schema,
         )
 
         return ProcessResponse(
@@ -269,6 +272,9 @@ async def dag_success_callback(
     geoserver_service: GeoServerServiceDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
+    target_schema: str = Query(
+        default=DEFAULT_DATA_SCHEMA, description="PostgreSQL schema of the final table"
+    ),
 ) -> None:
     """
     Success callback endpoint called by Airflow DAG on successful completion.
@@ -278,6 +284,7 @@ async def dag_success_callback(
         datafeeder_session: Database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         final_table_name: Final table name created by the process DAG
+        target_schema: PostgreSQL schema where the final table lives
     """
     integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
@@ -286,10 +293,10 @@ async def dag_success_callback(
     workspace_name = integrity_link.integrity_organization.lower()
     datastore_name = f"{workspace_name}_ds"
 
-    # Create PostgreSQL schema (idempotent)
+    # Create PostgreSQL schema (idempotent) — uses target_schema, not always workspace_name
     try:
-        create_schema(data_engine, workspace_name)
-        logger.info(f"Created/verified PostgreSQL schema: {workspace_name}")
+        create_schema(data_engine, target_schema)
+        logger.info(f"Created/verified PostgreSQL schema: {target_schema}")
     except Exception as e:
         logger.error(
             f"Failed to create schema for IntegrityLink {integrity_link.id}: {e}", exc_info=True
@@ -297,27 +304,19 @@ async def dag_success_callback(
 
     # Create GeoServer workspace, datastore, and layer with actual bbox
     try:
-        workspace_exists = await geoserver_service.workspace_exists(workspace_name)
-        datastore_exists = await geoserver_service.datastore_exists(workspace_name, datastore_name)
-
-        if workspace_exists and datastore_exists:
-            logger.info(
-                f"Reusing existing GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
-                f"workspace={workspace_name}, datastore={datastore_name}"
-            )
-        else:
-            await geoserver_service.create_workspace(
-                workspace_name=workspace_name,
-                datastore_name=datastore_name,
-                pg_schema="data",
-            )
-            logger.info(
-                f"Created GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
-                f"workspace={workspace_name}, datastore={datastore_name}"
-            )
+        # create_workspace/create_datastore are upserts — always call to keep pg_schema in sync
+        await geoserver_service.create_workspace(
+            workspace_name=workspace_name,
+            datastore_name=datastore_name,
+            pg_schema=target_schema,
+        )
+        logger.info(
+            f"Ensured GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
+            f"workspace={workspace_name}, datastore={datastore_name}, schema={target_schema}"
+        )
 
         # Load final table, check geometry, compute bbox
-        table_meta = MetaData(schema="data")
+        table_meta = MetaData(schema=target_schema)
         table = Table(final_table_name, table_meta, autoload_with=data_engine)
         is_geographic = DEFAULT_GEOMETRY_COLUMN in table.c
         bbox = {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0}
@@ -400,6 +399,9 @@ async def dag_failure_callback(
     dag_id: str = Query(..., description="DAG ID"),
     dag_run_id: str = Query(..., description="DAG run ID"),
     final_table_name: str = Query(None, description="Final table name (if created)"),
+    target_schema: str = Query(
+        default=DEFAULT_DATA_SCHEMA, description="PostgreSQL schema of the final table"
+    ),
     reason: str | None = Query(None, description="Failure reason from Airflow context"),
 ) -> None:
     """
@@ -426,8 +428,7 @@ async def dag_failure_callback(
             # CRITICAL: Validate table name before using in SQL (defense in depth)
             validate_table_name(final_table_name, context="final")
 
-            schema = "data"  # FIXME get it from config
-            metadata = MetaData(schema=schema)
+            metadata = MetaData(schema=target_schema)
             table = Table(final_table_name, metadata)
             table.drop(data_session.get_bind(), checkfirst=True)
             data_session.commit()

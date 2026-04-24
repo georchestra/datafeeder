@@ -7,6 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from src.core.constants import DEFAULT_DATA_SCHEMA
+
 
 class TaskExecutorType(str, Enum):
     """Type of task executor to use."""
@@ -83,6 +85,7 @@ class BaseTaskExecutor(ABC):
         success_callback_url: str | None = None,
         failure_callback_url: str | None = None,
         last_retrieval_timestamp: datetime | None = None,
+        target_schema: str = DEFAULT_DATA_SCHEMA,
     ) -> TaskRunInfo:
         """
         Trigger a process task.
@@ -94,6 +97,7 @@ class BaseTaskExecutor(ABC):
             integrity_transformation: JSON configuration for transformations
             success_callback_url: URL to call on success
             failure_callback_url: URL to call on failure
+            target_schema: PostgreSQL schema for the final table
 
         Returns:
             TaskRunInfo with task details

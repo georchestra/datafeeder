@@ -22,6 +22,7 @@ from pydantic import (
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 from typing_extensions import Self
 
+from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.logging import get_logger
 from src.core.paths import get_default_datadir
 from src.core.task_executor import TaskExecutorType
@@ -151,6 +152,9 @@ class Settings(BaseSettings):
 
     # Source databases for database import type (key → SQLAlchemy URI)
     SOURCE_DATABASES: dict[str, PostgresDsn] = Field(default_factory=dict)
+
+    # When True, final tables are written to a schema named after the org short name instead of "data"
+    USE_ORG_SCHEMA: bool = False
 
     # GeoServer
     GEOSERVER_URL: str = Field(
@@ -312,6 +316,11 @@ class Settings(BaseSettings):
 def get_settings():
     logger.debug(Settings().model_dump())
     return Settings()
+
+
+def get_data_schema(org: str) -> str:
+    """Return the target schema for final tables: org name if USE_ORG_SCHEMA, else 'data'."""
+    return org.lower() if get_settings().USE_ORG_SCHEMA else DEFAULT_DATA_SCHEMA
 
 
 def get_staging_schema() -> str:
