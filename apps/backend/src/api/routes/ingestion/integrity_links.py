@@ -162,10 +162,15 @@ def list_integrity_links(
         def _final_exists(lnk: IntegrityLink) -> bool:
             if not lnk.final_table_name:
                 return False
-            return (get_data_schema(lnk.integrity_organization), lnk.final_table_name) in existing_final
+            return (
+                get_data_schema(lnk.integrity_organization),
+                lnk.final_table_name,
+            ) in existing_final
 
         for i, (link, access_level) in enumerate(rows):
-            if (link.staging_table_name and link.staging_table_name in staging_tables) or _final_exists(link):
+            if (
+                link.staging_table_name and link.staging_table_name in staging_tables
+            ) or _final_exists(link):
                 accumulated.append((link, access_level, _final_exists(link), fetch_offset + i))
 
         if last_chunk_len < BATCH_SIZE + 1:
