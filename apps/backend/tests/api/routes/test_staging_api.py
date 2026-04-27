@@ -402,4 +402,3 @@ class TestOapifUrlNormalization:
             service_protocol="ogcFeatures",
         )
         assert result.url == "https://example.com/v1"
-

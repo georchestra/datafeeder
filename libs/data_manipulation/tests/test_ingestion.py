@@ -1005,7 +1005,7 @@ def test_oapif_url_normalized_before_gdal(
     expected_gdal_source: str,
 ) -> None:
     """GDAL always receives the service root URL regardless of what the user pasted."""
-    mock_gdf = gpd.GeoDataFrame({"col": [1]}, geometry=gpd.GeoSeries([None]))
+    mock_gdf = GeoDataFrame({"col": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
     mock_read_file.return_value = mock_gdf
 
     ingest_data_from_ogc_service_into_postgis(
