@@ -983,3 +983,37 @@ class TestIngestDataFromOgcServiceIntoPostgis:
                 engine=mock_engine,
                 schema="public",
             )
+
+
+@pytest.mark.parametrize(
+    "service_url, expected_gdal_source",
+    [
+        ("https://host/v1", "OAPIF:https://host/v1"),
+        ("https://host/v1/", "OAPIF:https://host/v1"),
+        ("https://host/v1/collections", "OAPIF:https://host/v1"),
+        ("https://host/v1/collections/", "OAPIF:https://host/v1"),
+        ("https://host/v1/collections/my_layer", "OAPIF:https://host/v1"),
+        ("https://host/v1/collections/my_layer/items", "OAPIF:https://host/v1"),
+    ],
+)
+@patch("data_manipulation.ingestion.write_data_to_postgis")
+@patch("data_manipulation.ingestion.gpd.read_file")
+def test_oapif_url_normalized_before_gdal(
+    mock_read_file: Mock,
+    mock_write: Mock,
+    service_url: str,
+    expected_gdal_source: str,
+) -> None:
+    """GDAL always receives the service root URL regardless of what the user pasted."""
+    mock_gdf = gpd.GeoDataFrame({"col": [1]}, geometry=gpd.GeoSeries([None]))
+    mock_read_file.return_value = mock_gdf
+
+    ingest_data_from_ogc_service_into_postgis(
+        service_url=service_url,
+        layer_name="my_layer",
+        protocol="ogcFeatures",
+        table_name="stg",
+        engine=Mock(spec=Engine),
+    )
+
+    mock_read_file.assert_called_once_with(expected_gdal_source, layer="my_layer")
