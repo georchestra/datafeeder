@@ -363,3 +363,43 @@ class TestEditStagingApi:
         call_kwargs = mock_trigger.call_args.kwargs
         assert call_kwargs["source_layer"] == "parcels"
         assert call_kwargs["source_protocol"] == "ogcFeatures"
+
+
+class TestOapifUrlNormalization:
+    """URL normalization for OGC API Features source URLs."""
+
+    @pytest.mark.asyncio
+    async def test_submit_staging_oapif_collections_url_normalized(self) -> None:
+        """submit_staging strips /collections/... from the service URL before storing."""
+        result = await _process_import_source(
+            type=ImportType.API,
+            service_url="https://example.com/v1/collections/my_layer",
+            layer_name="my_layer",
+            service_protocol="ogcFeatures",
+        )
+        assert result.url == "https://example.com/v1"
+        assert result.source == "https://example.com/v1"
+
+    @pytest.mark.asyncio
+    async def test_submit_staging_oapif_items_url_normalized(self) -> None:
+        """submit_staging strips /collections/.../items from the service URL before storing."""
+        result = await _process_import_source(
+            type=ImportType.API,
+            service_url="https://example.com/v1/collections/my_layer/items",
+            layer_name="my_layer",
+            service_protocol="ogcFeatures",
+        )
+        assert result.url == "https://example.com/v1"
+        assert result.source == "https://example.com/v1"
+
+    @pytest.mark.asyncio
+    async def test_submit_staging_oapif_bare_collections_url_normalized(self) -> None:
+        """submit_staging strips bare /collections suffix from the service URL."""
+        result = await _process_import_source(
+            type=ImportType.API,
+            service_url="https://example.com/v1/collections",
+            layer_name="my_layer",
+            service_protocol="ogcFeatures",
+        )
+        assert result.url == "https://example.com/v1"
+
