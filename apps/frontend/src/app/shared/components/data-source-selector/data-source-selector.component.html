@@ -29,6 +29,7 @@
 @if (form.controls.radio.value === 'file') {
 <div class="px-9 py-6">
   <gn-ui-file-input
+    style="--gn-ui-text-input-padding: 0.8rem"
     [maxSizeMB]="0"
     (fileChange)="handleFileChange($event)"
     (urlChange)="handleUrlChange($event)"
