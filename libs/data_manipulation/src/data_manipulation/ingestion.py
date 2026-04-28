@@ -9,6 +9,7 @@ import chardet
 import geopandas as gpd
 import pandas as pd
 import requests
+from geoalchemy2 import Geometry
 from sqlalchemy import MetaData, Table, func, select, text
 from sqlalchemy.engine import Engine
 
@@ -201,6 +202,17 @@ def ingest_data_from_ftp_into_postgis(
         raise
 
 
+def _get_geo_column_from_table(table: Table) -> str | None:
+    """Return default geometry column or the name of the first geometry column found in a table."""
+    if DEFAULT_GEOMETRY_COLUMN in table.c and isinstance(table.c[DEFAULT_GEOMETRY_COLUMN], Geometry):
+        return DEFAULT_GEOMETRY_COLUMN
+    for column in table.columns:
+        if isinstance(column.type, Geometry):
+            logger.debug("Found geom column in source table: %s", column.name)
+            return column.name
+    return None
+
+
 def ingest_data_from_url_into_postgis(
     url: str,
     table_name: str,
@@ -287,12 +299,12 @@ def ingest_data_from_database_into_postgis(
         metadata = MetaData(schema=source_schema)
         table = Table(source_table, metadata, autoload_with=source_engine)
 
-        has_geom = DEFAULT_GEOMETRY_COLUMN in table.c
+        geom = _get_geo_column_from_table(table)
         query = select(table)
 
         # Entire table loaded into memory — not suitable for very large tables without chunking
-        if has_geom:
-            data = gpd.read_postgis(query, con=source_engine, geom_col=DEFAULT_GEOMETRY_COLUMN)  # type: ignore[call-overload]
+        if geom is not None:
+            data = gpd.read_postgis(query, con=source_engine, geom_col=geom)  # type: ignore[call-overload]
         else:
             data = pd.read_sql(query, source_engine)
 
