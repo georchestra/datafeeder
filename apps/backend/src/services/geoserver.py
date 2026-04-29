@@ -290,16 +290,9 @@ class GeoServerService:
             "ogcfeatures": all_urls["ogcfeatures"],
         }
         if "wfs" in all_urls:
-            result["wfs"] = {
-                "base": all_urls["wfs"]["base"],
-                "capabilities": all_urls["wfs"]["capabilities"],
-            }
+            result["wfs"] = {"base": all_urls["wfs"]["base"]}
         if "wms" in all_urls:
-            result["wms"] = {
-                "base": all_urls["wms"]["base"],
-                "capabilities": all_urls["wms"]["capabilities"],
-                "getmap": all_urls["wms"]["getmap"],
-            }
+            result["wms"] = {"base": all_urls["wms"]["base"]}
         return result
 
     def update_layer_title(

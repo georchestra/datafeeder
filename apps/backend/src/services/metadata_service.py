@@ -163,7 +163,7 @@ class MetadataService:
         if layer_urls and "wms" in layer_urls and layer_urls["wms"]:
             wms = layer_urls["wms"]
 
-            # WMS GetCapabilities
+            # WMS
             resource: _Element = etree.SubElement(online_resources, "onlineResource")
             etree.SubElement(resource, "linkage").text = wms.get("base", "")
             etree.SubElement(resource, "protocol").text = "OGC:WMS"
@@ -175,7 +175,7 @@ class MetadataService:
         if layer_urls and "wfs" in layer_urls:
             wfs = layer_urls["wfs"]
 
-            # WFS GetCapabilities
+            # WFS
             resource = etree.SubElement(online_resources, "onlineResource")
             etree.SubElement(resource, "linkage").text = wfs.get("base", "")
             etree.SubElement(resource, "protocol").text = "OGC:WFS"
