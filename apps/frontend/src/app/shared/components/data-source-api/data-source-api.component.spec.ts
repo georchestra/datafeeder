@@ -152,4 +152,49 @@ describe('DataSourceApiComponent', () => {
 
     expect(component.selectedLayer()?.layerTitle).toBeUndefined()
   })
+
+  it('should strip /collections/layer from the service URL before emitting', () => {
+    const fixture = TestBed.createComponent(DataSourceApiComponent)
+    const component = fixture.componentInstance
+    let emitted: ApiData | null | undefined
+
+    component.apiDataChanged.subscribe((v) => (emitted = v))
+    component.handleServiceChange({
+      ...mockService,
+      url: new URL('https://example.com/oapif/collections/buildings'),
+      identifierInService: 'buildings'
+    })
+
+    expect(emitted?.serviceUrl).toBe('https://example.com/oapif')
+  })
+
+  it('should strip /collections/layer/items from the service URL before emitting', () => {
+    const fixture = TestBed.createComponent(DataSourceApiComponent)
+    const component = fixture.componentInstance
+    let emitted: ApiData | null | undefined
+
+    component.apiDataChanged.subscribe((v) => (emitted = v))
+    component.handleServiceChange({
+      ...mockService,
+      url: new URL('https://example.com/oapif/collections/buildings/items'),
+      identifierInService: 'buildings'
+    })
+
+    expect(emitted?.serviceUrl).toBe('https://example.com/oapif')
+  })
+
+  it('should strip bare /collections suffix from the service URL before emitting', () => {
+    const fixture = TestBed.createComponent(DataSourceApiComponent)
+    const component = fixture.componentInstance
+    let emitted: ApiData | null | undefined
+
+    component.apiDataChanged.subscribe((v) => (emitted = v))
+    component.handleServiceChange({
+      ...mockService,
+      url: new URL('https://example.com/oapif/collections'),
+      identifierInService: 'buildings'
+    })
+
+    expect(emitted?.serviceUrl).toBe('https://example.com/oapif')
+  })
 })

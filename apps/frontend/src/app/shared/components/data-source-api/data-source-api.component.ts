@@ -84,7 +84,10 @@ export class DataSourceApiComponent {
   handleServiceChange(service: DatasetServiceDistribution): void {
     const layerName = service.identifierInService ?? service.name ?? null
     const layerTitle = service.description ?? service.name ?? undefined
-    const serviceUrl = service.url?.toString() ?? null
+    const rawUrl = service.url?.toString() ?? null
+    const serviceUrl = rawUrl
+      ? rawUrl.replace(/\/collections(\/.*)?$/, '')
+      : null
     const serviceProtocol = service.accessServiceProtocol ?? null
     if (layerName && serviceUrl) {
       const data: ApiData = {

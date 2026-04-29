@@ -1,4 +1,5 @@
 import logging
+import re
 import tempfile
 from pathlib import Path
 from urllib.error import URLError
@@ -303,6 +304,12 @@ def ingest_data_from_database_into_postgis(
 
 
 _GDAL_PROTOCOL_PREFIX = {"wfs": "WFS", "ogcFeatures": "OAPIF"}
+_OAPIF_COLLECTIONS_RE = re.compile(r"/collections(/.*)?$")
+
+
+def _normalize_oapif_url(url: str) -> str:
+    """Strip /collections[/...] suffixes so GDAL's OAPIF driver receives the service root."""
+    return _OAPIF_COLLECTIONS_RE.sub("", url.rstrip("/"))
 
 
 def ingest_data_from_ogc_service_into_postgis(
@@ -324,7 +331,8 @@ def ingest_data_from_ogc_service_into_postgis(
     No additional parameters are needed beyond layer=layer_name for basic ingestion.
     """
     gdal_prefix = _GDAL_PROTOCOL_PREFIX.get(protocol, "WFS")
-    gdal_source = f"{gdal_prefix}:{service_url}"
+    normalized_url = _normalize_oapif_url(service_url) if protocol == "ogcFeatures" else service_url
+    gdal_source = f"{gdal_prefix}:{normalized_url}"
     logger.info(f"Ingesting OGC layer '{layer_name}' from {gdal_source} into {table_name}")
     try:
         gdf = gpd.read_file(gdal_source, layer=layer_name)

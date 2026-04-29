@@ -54,6 +54,8 @@ configure_logging(logger)
 
 router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 
+_OAPIF_COLLECTIONS_RE = re.compile(r"/collections(/.*)?$")
+
 
 def _generate_staging_table_name() -> str:
     """Generate a unique, readable staging table name.
@@ -223,7 +225,10 @@ async def _process_import_source(
                     status_code=400,
                     detail=f"Invalid service_protocol '{service_protocol}': must be 'wfs' or 'ogcFeatures'",
                 )
-            source = service_url.strip()
+            raw_url = service_url.strip()
+            if service_protocol == "ogcFeatures":
+                raw_url = _OAPIF_COLLECTIONS_RE.sub("", raw_url.rstrip("/"))
+            source = raw_url
             url = source
             auth_enabled = False
             return _ImportSourceResult(
