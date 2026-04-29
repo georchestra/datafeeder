@@ -155,7 +155,9 @@ class MetadataService:
             etree.SubElement(resource, "linkage").text = ogcfeatures
             etree.SubElement(resource, "protocol").text = "OGC API Features"
             etree.SubElement(resource, "name").text = layer_name
-            etree.SubElement(resource, "description").text = "OGC API Features"
+            etree.SubElement(resource, "description").text = (
+                integrity_link.integrity_title or "Untitled Dataset"
+            )
 
         # Build online resources from GeoServer layer URLs
         if layer_urls and "wms" in layer_urls and layer_urls["wms"]:
@@ -163,27 +165,24 @@ class MetadataService:
 
             # WMS GetCapabilities
             resource: _Element = etree.SubElement(online_resources, "onlineResource")
-            etree.SubElement(resource, "linkage").text = wms.get("capabilities", "")
+            etree.SubElement(resource, "linkage").text = wms.get("base", "")
             etree.SubElement(resource, "protocol").text = "OGC:WMS"
             etree.SubElement(resource, "name").text = layer_name
-            etree.SubElement(resource, "description").text = "WMS GetCapabilities"
-
-            # WMS GetMap
-            resource = etree.SubElement(online_resources, "onlineResource")
-            etree.SubElement(resource, "linkage").text = wms.get("getmap", "")
-            etree.SubElement(resource, "protocol").text = "OGC:WMS"
-            etree.SubElement(resource, "name").text = layer_name
-            etree.SubElement(resource, "description").text = "WMS GetMap"
+            etree.SubElement(resource, "description").text = (
+                integrity_link.integrity_title or "Untitled Dataset"
+            )
 
         if layer_urls and "wfs" in layer_urls:
             wfs = layer_urls["wfs"]
 
             # WFS GetCapabilities
             resource = etree.SubElement(online_resources, "onlineResource")
-            etree.SubElement(resource, "linkage").text = wfs.get("capabilities", "")
+            etree.SubElement(resource, "linkage").text = wfs.get("base", "")
             etree.SubElement(resource, "protocol").text = "OGC:WFS"
             etree.SubElement(resource, "name").text = layer_name
-            etree.SubElement(resource, "description").text = "WFS GetCapabilities"
+            etree.SubElement(resource, "description").text = (
+                integrity_link.integrity_title or "Untitled Dataset"
+            )
 
             # WFS GetFeature
             # ignore GetFeature for now
