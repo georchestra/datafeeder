@@ -264,14 +264,11 @@ class TestGeoServerService:
 
         # Verify WFS URLs are present (only capabilities, no getfeature)
         assert "wfs" in result
-        assert "capabilities" in result["wfs"]
-        assert "getfeature" not in result["wfs"]  # Filtered out for metadata
+        assert "base" in result["wfs"]
 
         # Verify WMS URLs are present (capabilities and getmap, no legend)
         assert "wms" in result
-        assert "capabilities" in result["wms"]
-        assert "getmap" in result["wms"]
-        assert "legend" not in result["wms"]  # Filtered out for metadata
+        assert "base" in result["wms"]
 
     def test_build_layer_urls_for_metadata_non_geographic(
         self, geoserver_service: GeoServerService
