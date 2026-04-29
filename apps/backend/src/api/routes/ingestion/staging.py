@@ -242,10 +242,7 @@ async def _process_import_source(
             )
 
         case ImportType.EMPTY:
-            logger.error(f"Import type {type.value} not implemented yet")
-            raise HTTPException(
-                status_code=501, detail=f"Import type {type.value} not implemented yet"
-            )
+            raise HTTPException(status_code=422, detail="EMPTY datasets do not use staging import")
 
     return _ImportSourceResult(
         source=source,

@@ -92,7 +92,6 @@ class TestCreateEmptyDataset:
                 request=CreateEmptyDatasetRequest(title="My Dataset"),
                 session=session,
                 geo_ctx=_geo_ctx(),
-                org_id=None,
             )
 
         assert result.source_import_type == ImportType.EMPTY
@@ -101,8 +100,8 @@ class TestCreateEmptyDataset:
         session.flush.assert_called_once()
         session.commit.assert_called_once()
 
-    def test_no_title_creates_link_without_title(self) -> None:
-        """A request without a title creates the integrity link with integrity_title=None."""
+    def test_no_title_creates_link_with_untitled_dataset(self) -> None:
+        """A request without a title creates the integrity link with integrity_title='Untitled Dataset'."""
         link_id = uuid4()
         session = _make_session_with_link(link_id)
 
@@ -120,7 +119,7 @@ class TestCreateEmptyDataset:
                 return_value=MagicMock(
                     id=link_id,
                     source_import_type=ImportType.EMPTY,
-                    integrity_title=None,
+                    integrity_title="Untitled Dataset",
                 ),
             ),
         ):
@@ -131,10 +130,11 @@ class TestCreateEmptyDataset:
                 request=CreateEmptyDatasetRequest(),
                 session=session,
                 geo_ctx=_geo_ctx(),
-                org_id=None,
             )
 
-        assert result.integrity_title is None
+        added_link = session.add.call_args[0][0]
+        assert added_link.integrity_title == "Untitled Dataset"
+        assert result.integrity_title == "Untitled Dataset"
         session.add.assert_called_once()
         session.flush.assert_called_once()
 
@@ -161,7 +161,6 @@ class TestCreateEmptyDataset:
                     request=CreateEmptyDatasetRequest(title="My Dataset"),
                     session=session,
                     geo_ctx=_geo_ctx(),
-                    org_id=None,
                 )
 
         assert exc_info.value.status_code == 500

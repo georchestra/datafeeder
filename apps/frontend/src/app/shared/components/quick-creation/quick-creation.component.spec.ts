@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { provideRouter, Router } from '@angular/router'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { Api } from '../../../core/api/api'
-import { ErrorToastStore } from '../../../core/stores/error-toast.store'
+import { OperationToastStore } from '../../../core/stores/operation-toast.store'
 import { QuickCreationComponent } from './quick-creation.component'
 
 const translations = {
@@ -30,7 +30,7 @@ describe('QuickCreationComponent', () => {
       providers: [
         provideRouter([]),
         { provide: Api, useValue: { invoke: apiInvokeSpy } },
-        ErrorToastStore
+        OperationToastStore
       ]
     }).compileComponents()
 
@@ -55,11 +55,13 @@ describe('QuickCreationComponent', () => {
     })
   })
 
-  describe('navigateToImport', () => {
-    it('navigates to /import', () => {
-      const spy = vi.spyOn(router, 'navigate').mockResolvedValue(true)
-      component.navigateToImport()
-      expect(spy).toHaveBeenCalledWith(['/', 'import'])
+  describe('import link', () => {
+    it('renders a routerLink to /import', () => {
+      fixture.detectChanges()
+      const anchor = nativeEl.querySelector(
+        'a[routerlink="/import"]'
+      ) as HTMLAnchorElement
+      expect(anchor).toBeTruthy()
     })
   })
 
@@ -134,15 +136,12 @@ describe('QuickCreationComponent', () => {
 
     it('shows an error toast and closes menu on API failure', async () => {
       apiInvokeSpy.mockRejectedValue(new Error('network error'))
-      const errorToastStore = TestBed.inject(ErrorToastStore)
-      const addSpy = vi.spyOn(errorToastStore, 'add')
+      const operationToastStore = TestBed.inject(OperationToastStore)
+      const addSpy = vi.spyOn(operationToastStore, 'addError')
 
       await component.createEmptyDataset()
 
-      expect(addSpy).toHaveBeenCalledWith(
-        'emptyDatasetCreate',
-        expect.any(Error)
-      )
+      expect(addSpy).toHaveBeenCalledWith('emptyDatasetCreate')
       expect(component.isMenuOpen()).toBe(false)
       expect(component.submitting()).toBe(false)
     })

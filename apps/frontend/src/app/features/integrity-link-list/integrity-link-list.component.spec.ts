@@ -4,7 +4,7 @@ import {
   provideHttpClientTesting
 } from '@angular/common/http/testing'
 import { TestBed } from '@angular/core/testing'
-import { Router } from '@angular/router'
+import { provideRouter, Router } from '@angular/router'
 import { MatDialog } from '@angular/material/dialog'
 import { of } from 'rxjs'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
@@ -76,6 +76,7 @@ describe('IntegrityLinkListComponent', () => {
           .withCompiler(new TranslateMessageFormatCompiler())
       ],
       providers: [
+        provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
         {

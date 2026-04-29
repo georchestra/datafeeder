@@ -13,7 +13,7 @@ import {
   deleteIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdDelete,
   listIntegrityLinksIngestionIntegrityLinksGet
 } from '../../core/api/functions'
-import { IntegrityLinkListItem } from '../../core/api/models'
+import { ImportType, IntegrityLinkListItem } from '../../core/api/models'
 import {
   iconoirPlus,
   iconoirChatBubbleWarning,
@@ -44,6 +44,8 @@ const DEBOUNCE_TIME = 300
   ]
 })
 export class IntegrityLinkListComponent {
+  readonly emptyImportType: ImportType = 'empty'
+
   private api = inject(Api)
   private router = inject(Router)
   private translate = inject(TranslateService)

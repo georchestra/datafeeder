@@ -1,7 +1,7 @@
 """empty dataset support: nullable staging_table_name + EMPTY import type
 
-Revision ID: 002
-Revises: 001
+Revision ID: 311bbeb94ed3
+Revises: 12856770e05b
 Create Date: 2026-04-20
 
 """
@@ -11,8 +11,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "002"
-down_revision: str | None = "001"
+revision: str = "311bbeb94ed3"
+down_revision: str | None = "12856770e05b"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

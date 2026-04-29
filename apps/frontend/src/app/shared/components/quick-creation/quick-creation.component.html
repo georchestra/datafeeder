@@ -7,14 +7,13 @@
   <!-- Split button -->
   <div class="flex">
     <!-- Left: always import with data -->
-    <button
-      type="button"
+    <a
+      routerLink="/import"
       class="flex items-center gap-2 rounded-l-md border border-r-0 border-primary bg-primary px-3 py-2 text-sm text-white hover:bg-primary-darker focus:outline-none transition-colors"
-      (click)="navigateToImport()"
     >
       <ng-icon name="iconoirPlus" size="1em"></ng-icon>
       {{ 'quickImport.modeWithData' | translate }}
-    </button>
+    </a>
     <!-- Right: dropdown chevron -->
     <button
       type="button"

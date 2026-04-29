@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, OrgIdDep
+from src.api.deps import DatafeederSessionDep, GeorchestraContextDep
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.data_import import ImportType, IntegrityLinkResponse
@@ -32,9 +32,8 @@ def create_empty_dataset(
     request: CreateEmptyDatasetRequest,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
-    org_id: OrgIdDep,
 ) -> IntegrityLinkResponse:
-    title = request.title.strip() if request.title else None
+    title = request.title.strip() if request.title else "Untitled Dataset"
     settings = get_settings()
 
     integrity_link = IntegrityLink(
