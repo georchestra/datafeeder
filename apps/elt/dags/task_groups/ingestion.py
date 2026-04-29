@@ -14,7 +14,6 @@ from data_manipulation.ingestion import (
     ingest_data_from_ogc_service_into_postgis,
     ingest_data_from_url_into_postgis,
 )
-from data_manipulation.logging import configure_logging
 from utils import (
     get_data_sql_engine,
     get_datafeeder_sql_engine,
@@ -23,7 +22,6 @@ from utils import (
 )
 
 logger = logging.getLogger(__name__)
-configure_logging(logger)
 
 
 def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"]):

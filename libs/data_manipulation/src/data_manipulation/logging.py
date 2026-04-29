@@ -10,6 +10,11 @@ def configure_logging(parent_logger: logging.Logger) -> None:
     ensuring that all logs from this library are properly captured by the parent
     application's logging system (e.g., uvicorn, airflow).
 
+    If the parent logger has no handlers (e.g. called at module-load time before
+    the runtime has finished configuring logging), propagation is left enabled so
+    that log records can still reach the root logger instead of being silently
+    dropped.
+
     Args:
         parent_logger: The parent logger whose handlers should be used
                        (e.g., uvicorn.error, airflow.task)
@@ -21,7 +26,7 @@ def configure_logging(parent_logger: logging.Logger) -> None:
         >>> uvicorn_logger = logging.getLogger("uvicorn.error")
         >>> configure_logging(uvicorn_logger)
 
-        >>> # In an Airflow DAG
+        >>> # In an Airflow DAG task function (called at runtime, not module level)
         >>> task_logger = logging.getLogger("airflow.task")
         >>> configure_logging(task_logger)
     """
@@ -29,13 +34,22 @@ def configure_logging(parent_logger: logging.Logger) -> None:
     # This will configure all submodule loggers (data_manipulation.ingestion, etc.)
     data_manipulation_logger = logging.getLogger(__package__)
 
-    # Set the same level as the parent logger
-    data_manipulation_logger.setLevel(parent_logger.level)
+    # Use the parent's effective level when its own level is NOTSET (0)
+    level = (
+        parent_logger.level
+        if parent_logger.level != logging.NOTSET
+        else parent_logger.getEffectiveLevel()
+    )
+    data_manipulation_logger.setLevel(level if level != logging.NOTSET else logging.INFO)
 
     # Add parent's handlers to data_manipulation logger
     for handler in parent_logger.handlers:
         if handler not in data_manipulation_logger.handlers:
             data_manipulation_logger.addHandler(handler)
 
-    # Prevent propagation to avoid duplicate logs
-    data_manipulation_logger.propagate = False
+    # Only disable propagation when we actually copied handlers;
+    # otherwise keep it enabled so logs reach the root logger.
+    if data_manipulation_logger.handlers:
+        data_manipulation_logger.propagate = False
+    else:
+        data_manipulation_logger.propagate = True
