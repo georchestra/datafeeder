@@ -204,7 +204,9 @@ def ingest_data_from_ftp_into_postgis(
 
 def _get_geo_column_from_table(table: Table) -> str | None:
     """Return default geometry column or the name of the first geometry column found in a table."""
-    if DEFAULT_GEOMETRY_COLUMN in table.c and isinstance(table.c[DEFAULT_GEOMETRY_COLUMN], Geometry):
+    if DEFAULT_GEOMETRY_COLUMN in table.c and isinstance(
+        table.c[DEFAULT_GEOMETRY_COLUMN], Geometry
+    ):
         return DEFAULT_GEOMETRY_COLUMN
     for column in table.columns:
         if isinstance(column.type, Geometry):
