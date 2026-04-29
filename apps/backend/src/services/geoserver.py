@@ -52,6 +52,7 @@ ACL_ROLE_EVERYONE = "*"
 class WMSUrls(BaseModel):
     """WMS service URLs."""
 
+    base: str
     capabilities: str
     getmap: str
     legend: str
@@ -60,6 +61,7 @@ class WMSUrls(BaseModel):
 class WFSUrls(BaseModel):
     """WFS service URLs."""
 
+    base: str
     capabilities: str
     getfeature: str
 
@@ -213,12 +215,14 @@ class GeoServerService:
         wfs = None
         if is_geographic and "wms" in urls:
             wms = WMSUrls(
+                base=urls["wms"]["base"],
                 capabilities=urls["wms"]["capabilities"],
                 getmap=urls["wms"]["getmap"],
                 legend=urls["wms"]["legend"],
             )
         if is_geographic and "wfs" in urls:
             wfs = WFSUrls(
+                base=urls["wfs"]["base"],
                 capabilities=urls["wfs"]["capabilities"],
                 getfeature=urls["wfs"]["getfeature"],
             )
@@ -251,10 +255,12 @@ class GeoServerService:
         }
         if is_geographic:
             result["wfs"] = {
+                "base": f"{self.public_url}/{workspace_name}/wfs",
                 "capabilities": f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetCapabilities",
                 "getfeature": f"{self.public_url}/{workspace_name}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames={layer_qualified_name}",
             }
             result["wms"] = {
+                "base": f"{self.public_url}/{workspace_name}/wms",
                 "capabilities": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetCapabilities",
                 "getmap": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetMap&layers={layer_qualified_name}",
                 "legend": f"{self.public_url}/{workspace_name}/wms?service=WMS&version=1.3.0&request=GetLegendGraphic&layer={layer_qualified_name}&format=image/png",
@@ -284,14 +290,9 @@ class GeoServerService:
             "ogcfeatures": all_urls["ogcfeatures"],
         }
         if "wfs" in all_urls:
-            result["wfs"] = {
-                "capabilities": all_urls["wfs"]["capabilities"],
-            }
+            result["wfs"] = {"base": all_urls["wfs"]["base"]}
         if "wms" in all_urls:
-            result["wms"] = {
-                "capabilities": all_urls["wms"]["capabilities"],
-                "getmap": all_urls["wms"]["getmap"],
-            }
+            result["wms"] = {"base": all_urls["wms"]["base"]}
         return result
 
     def update_layer_title(
