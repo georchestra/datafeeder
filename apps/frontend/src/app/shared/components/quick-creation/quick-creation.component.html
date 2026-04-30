@@ -1,0 +1,54 @@
+<div class="relative">
+  <!-- Backdrop for menu -->
+  @if (isMenuOpen()) {
+  <div class="fixed inset-0 z-10" (click)="closeMenu()"></div>
+  }
+
+  <!-- Split button -->
+  <div class="flex">
+    <!-- Left: always import with data -->
+    <a
+      routerLink="/import"
+      class="flex items-center gap-2 rounded-l-md border border-r-0 border-primary bg-primary px-3 py-2 text-sm text-white hover:bg-primary-darker focus:outline-none transition-colors"
+    >
+      <ng-icon name="iconoirPlus" size="1em"></ng-icon>
+      {{ 'quickImport.modeWithData' | translate }}
+    </a>
+    <!-- Right: dropdown chevron -->
+    <button
+      type="button"
+      class="flex items-center rounded-r-md border border-primary px-2 py-2 text-white focus:outline-none border-l border-l-white/40 transition-colors"
+      [class]="
+        isMenuOpen()
+          ? 'bg-primary-darker'
+          : 'bg-primary hover:bg-primary-darker'
+      "
+      [disabled]="submitting()"
+      (click)="toggleMenu()"
+    >
+      <ng-icon name="iconoirMoreHoriz" size="1em" strokeWidth="3"></ng-icon>
+    </button>
+  </div>
+
+  <!-- Dropdown menu -->
+  @if (isMenuOpen()) {
+  <div
+    class="absolute right-0 top-full z-20 mt-1 w-max rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+  >
+    <button
+      type="button"
+      class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-2 hover:bg-beige"
+      [class.cursor-wait]="submitting()"
+      [disabled]="submitting()"
+      (click)="createEmptyDataset()"
+    >
+      {{ 'quickImport.modeEmpty' | translate }}
+      @if (submitting()) {
+      <span
+        class="block size-4 shrink-0 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"
+      ></span>
+      }
+    </button>
+  </div>
+  }
+</div>

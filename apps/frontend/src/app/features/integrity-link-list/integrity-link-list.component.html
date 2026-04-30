@@ -4,12 +4,15 @@
       <h1 class="text-2xl font-bold text-gray-2">
         {{ 'integrityLinks.dashboard' | translate }}
       </h1>
-      <app-search-input
-        class="w-[350px]"
-        [placeholder]="'integrityLinks.search' | translate"
-        [(value)]="searchQuery"
-        [fullWidth]="true"
-      />
+      <div class="flex items-center gap-3">
+        <app-search-input
+          class="w-[350px]"
+          [placeholder]="'integrityLinks.search' | translate"
+          [(value)]="searchQuery"
+          [fullWidth]="true"
+        />
+        <app-quick-creation />
+      </div>
     </div>
 
     @if (loading()) {
@@ -47,7 +50,7 @@
           {{ link.created_at | date : 'dd/MM/yyyy' }}
         </div>
         <div class="flex-1 pr-4 text-sm text-gray-2">
-          @if (link.has_final_table) {
+          @if (link.has_final_table || link.source_import_type === 'empty') {
           {{ link.integrity_title }}
           @if (isReadOnly(link)) {
           <span

@@ -91,8 +91,8 @@ def _remove_staging_table(staging_table_name: str) -> None:
 class _ImportSourceResult:
     def __init__(
         self,
-        source: str,
-        url: str,
+        source: str | None,
+        url: str | None,
         source_file_name: str | None,
         source_file_type: "FileType | None",
         auth_enabled: bool,
@@ -240,6 +240,9 @@ async def _process_import_source(
                 source_layer=layer_name.strip(),
                 source_protocol=(service_protocol or "wfs").strip(),
             )
+
+        case ImportType.EMPTY:
+            raise HTTPException(status_code=422, detail="EMPTY datasets do not use staging import")
 
     return _ImportSourceResult(
         source=source,
@@ -509,7 +512,7 @@ async def submit_staging(
     return _trigger_staging_task(
         integrity_link=integrity_link,
         staging_table_name=staging_table_name,
-        source=import_source.source,
+        source=import_source.source or "",
         import_type=type,
         encrypted_password=encrypted_password,
         dag_run_id=integrity_link_id_as_string,
@@ -622,7 +625,8 @@ async def edit_staging(
     session.commit()
     session.refresh(integrity_link)
 
-    _remove_staging_table(old_staging_table_name)
+    if old_staging_table_name:
+        _remove_staging_table(old_staging_table_name)
 
     dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}"
 
@@ -634,7 +638,7 @@ async def edit_staging(
     return _trigger_staging_task(
         integrity_link=integrity_link,
         staging_table_name=staging_table_name,
-        source=import_source.source,
+        source=import_source.source or "",
         import_type=type,
         encrypted_password=encrypted_password,
         dag_run_id=dag_run_id,
@@ -817,6 +821,9 @@ def get_staging_metadata(
     )
 
     staging_table_name = integrity_link.staging_table_name
+    if not staging_table_name:
+        raise HTTPException(status_code=422, detail="No staging table available for this dataset")
+
     source_import_type = integrity_link.source_import_type
     source_file_type = integrity_link.source_file_type
     title = (

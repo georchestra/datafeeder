@@ -15,7 +15,7 @@ from src.api.deps import (
 from src.core.config import get_data_schema, get_settings, get_staging_schema
 from src.core.logging import get_logger
 from src.core.security import build_access_expr
-from src.models.data_import import IntegrityLinkListItem, IntegrityLinkListResponse
+from src.models.data_import import ImportType, IntegrityLinkListItem, IntegrityLinkListResponse
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, RuleType
 from src.services.console_service import ConsoleService
@@ -169,8 +169,10 @@ def list_integrity_links(
 
         for i, (link, access_level) in enumerate(rows):
             if (
-                link.staging_table_name and link.staging_table_name in staging_tables
-            ) or _final_exists(link):
+                link.source_import_type == ImportType.EMPTY
+                or (link.staging_table_name and link.staging_table_name in staging_tables)
+                or _final_exists(link)
+            ):
                 accumulated.append((link, access_level, _final_exists(link), fetch_offset + i))
 
         if last_chunk_len < BATCH_SIZE + 1:

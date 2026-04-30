@@ -35,5 +35,5 @@ export interface IntegrityLinkResponse {
   source_url: string | null
   source_username: string | null
   staging_retrieve_time: string | null
-  staging_table_name: string
+  staging_table_name: string | null
 }

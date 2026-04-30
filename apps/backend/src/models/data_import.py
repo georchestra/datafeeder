@@ -24,6 +24,7 @@ class ImportType(str, Enum):
     DATABASE = "database"
     API = "api"
     FTP = "ftp"
+    EMPTY = "empty"
 
 
 class FileType(str, Enum):
@@ -138,7 +139,7 @@ class IntegrityLinkListItem(BaseModel):
     source_url: str | None
     source_layer: str | None = None
     source_protocol: str | None = None
-    staging_table_name: str
+    staging_table_name: str | None
     final_table_name: str | None
     metadata_id: str | None
     data_id: str | None
@@ -188,7 +189,7 @@ class IntegrityLinkResponse(BaseModel):
     source_file_name: str | None
     source_file_type: FileType | None
     source_username: str | None
-    staging_table_name: str
+    staging_table_name: str | None
     staging_retrieve_time: timedelta | None
     final_table_name: str | None
     last_retrieval_timestamp: datetime | None

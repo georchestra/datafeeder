@@ -49,7 +49,7 @@ class IntegrityLink(SQLModel, table=True):
     source_protocol: Optional[str] = Field(default=None, max_length=32)
     source_username: Optional[str] = None
     source_password_encrypted: Optional[str] = None
-    staging_table_name: str = Field(max_length=63)
+    staging_table_name: Optional[str] = Field(default=None, max_length=63)
     staging_retrieve_time: Optional[timedelta] = None
     final_table_name: Optional[str] = Field(default=None, max_length=63, unique=True)
     last_retrieval_timestamp: Optional[datetime] = None
@@ -90,22 +90,9 @@ class IntegrityLink(SQLModel, table=True):
 
     @field_validator("staging_table_name")
     @classmethod
-    def validate_staging_table_name(cls, v: str) -> str:
-        """
-        Validate staging table name to prevent SQL injection.
-
-        Staging table names are used in SQL queries, so they must follow
-        strict naming rules to prevent SQL injection attacks.
-
-        Args:
-            v: The staging table name to validate
-
-        Returns:
-            The validated staging table name
-
-        Raises:
-            ValueError: If the staging table name contains invalid characters
-        """
+    def validate_staging_table_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
         return validate_table_name(v, context="staging")
 
     @field_validator("final_table_name")

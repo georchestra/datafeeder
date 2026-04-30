@@ -11,5 +11,6 @@ export const IMPORT_TYPE: ImportType[] = [
   'file',
   'database',
   'api',
-  'ftp'
+  'ftp',
+  'empty'
 ]
