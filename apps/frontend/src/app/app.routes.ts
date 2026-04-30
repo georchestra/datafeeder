@@ -2,7 +2,8 @@ import { Route } from '@angular/router'
 import { MainLayoutComponent } from './layout/main-layout.component'
 import {
   IntegrityLinkResolverWithRedirect,
-  IntegrityLinkResolver
+  IntegrityLinkResolver,
+  rejectEmptyDatasetGuard
 } from './core/resolvers/integrity-link.resolver'
 
 export const appRoutes: Route[] = [
@@ -56,6 +57,7 @@ export const appRoutes: Route[] = [
           },
           {
             path: 'events',
+            canActivate: [rejectEmptyDatasetGuard],
             loadComponent: () =>
               import('./features/events/events.component').then(
                 (m) => m.EventsComponent

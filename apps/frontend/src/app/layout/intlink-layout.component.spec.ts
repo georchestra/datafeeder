@@ -58,7 +58,10 @@ function createStore(accessLevel: string | null = null): IntegrityLinkStore {
     isOwnerOrAdmin: computed(() => {
       const level = accessLevelComputed()
       return level === 'OWNER' || level === 'ADMIN'
-    })
+    }),
+    isEmptyDataset: computed(
+      () => integrityLink()?.source_import_type === 'empty'
+    )
   } as unknown as IntegrityLinkStore
 }
 
@@ -333,6 +336,115 @@ describe('IntlinkLayoutComponent', () => {
       await vi.waitFor(() =>
         expect(fixture.componentInstance.isSaving()).toBe(false)
       )
+    })
+  })
+
+  describe('Sidebar for empty dataset (OWNER)', () => {
+    async function setupEmptyDataset() {
+      const store = createStore('OWNER')
+      store.integrityLink.set({
+        ...store.integrityLink()!,
+        source_import_type: 'empty'
+      } as IntegrityLinkResponse)
+
+      const mockEditor = {
+        record$: of({ id: 'test-record', title: 'Test Title' }),
+        recordSource$: of('<xml>original</xml>')
+      }
+      const mockApi = {
+        invoke: vi.fn().mockResolvedValue({ integrity_title: 'Updated Title' })
+      }
+
+      await TestBed.configureTestingModule({
+        imports: [
+          IntlinkLayoutComponent,
+          TranslateTestingModule.withTranslations({
+            en: {
+              'sidebar.metadataSheet': 'Metadata Sheet',
+              'sidebar.accessRights': 'Access Rights',
+              'sidebar.eventsAndStatuses': 'Events',
+              'sidebar.reconfigureDataset': 'Reconfigure',
+              'integrityLinks.dashboard': 'Dashboard',
+              'sidebar.unavailableForEmpty': 'Unavailable for empty'
+            }
+          })
+            .withDefaultLanguage('en')
+            .withCompiler(new TranslateMessageFormatCompiler())
+        ],
+        providers: [
+          provideRouter([]),
+          { provide: IntegrityLinkStore, useValue: store },
+          { provide: EditorFacade, useValue: mockEditor },
+          { provide: Api, useValue: mockApi }
+        ]
+      })
+        .overrideComponent(IntlinkLayoutComponent, {
+          set: { providers: [{ provide: IntegrityLinkStore, useValue: store }] }
+        })
+        .compileComponents()
+
+      const fixture = TestBed.createComponent(IntlinkLayoutComponent)
+      fixture.detectChanges()
+      return { fixture, store }
+    }
+
+    it('should show events as disabled span (not a link)', async () => {
+      const { fixture } = await setupEmptyDataset()
+      const nav = fixture.nativeElement.querySelector('nav')
+      const links = Array.from(nav.querySelectorAll('a')) as HTMLElement[]
+      const spans = Array.from(nav.querySelectorAll('span')) as HTMLElement[]
+      const linkTexts = links.map((a) => a.textContent!.trim())
+      const spanTexts = spans.map((s) => s.textContent!.trim())
+      expect(linkTexts).not.toContain('Events')
+      expect(spanTexts).toContain('Events')
+    })
+
+    it('should set title tooltip on the disabled events span', async () => {
+      const { fixture } = await setupEmptyDataset()
+      const nav = fixture.nativeElement.querySelector('nav')
+      const spans = Array.from(nav.querySelectorAll('span')) as HTMLElement[]
+      const eventsSpan = spans.find((s) => s.textContent!.trim() === 'Events')
+      expect(eventsSpan?.title).toBe('Unavailable for empty')
+    })
+
+    it('should still show authorizations as a link', async () => {
+      const { fixture } = await setupEmptyDataset()
+      const nav = fixture.nativeElement.querySelector('nav')
+      const links = Array.from(nav.querySelectorAll('a')) as HTMLElement[]
+      const linkTexts = links.map((a) => a.textContent!.trim())
+      expect(linkTexts).toContain('Access Rights')
+    })
+  })
+
+  describe('showUnavailableBanner', () => {
+    it('should show the banner when showUnavailableBanner signal is true', async () => {
+      const { fixture } = await setupComponent('OWNER')
+      fixture.componentInstance.showUnavailableBanner.set(true)
+      fixture.detectChanges()
+      const content = fixture.nativeElement.querySelector('div.flex-grow')
+      expect(content.querySelector('app-ui-alert-box')).not.toBeNull()
+      expect(content.querySelector('router-outlet')).not.toBeNull()
+    })
+
+    it('should hide the banner when showUnavailableBanner is false', async () => {
+      const { fixture } = await setupComponent('OWNER')
+      fixture.componentInstance.showUnavailableBanner.set(false)
+      fixture.detectChanges()
+      const content = fixture.nativeElement.querySelector('div.flex-grow')
+      expect(content.querySelector('app-ui-alert-box')).toBeNull()
+    })
+
+    it('should dismiss the banner on (dismissed) event', async () => {
+      const { fixture } = await setupComponent('OWNER')
+      fixture.componentInstance.showUnavailableBanner.set(true)
+      fixture.detectChanges()
+      const alertBox = fixture.nativeElement.querySelector('app-ui-alert-box')
+      const dismissBtn = alertBox.querySelector(
+        '[data-test="dismiss-alert"] button'
+      )
+      dismissBtn.click()
+      fixture.detectChanges()
+      expect(fixture.componentInstance.showUnavailableBanner()).toBe(false)
     })
   })
 })

@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core'
 import {
+  ActivatedRoute,
   Router,
   RouterLink,
   RouterLinkActive,
@@ -24,6 +25,7 @@ import {
   take,
   withLatestFrom
 } from 'rxjs'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { Api } from '../core/api/api'
 import {
   deleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete,
@@ -40,6 +42,9 @@ marker('intlinkLayout.error.not_found.message')
 marker('intlinkLayout.error.not_found.title')
 marker('intlinkLayout.error.server_error.message')
 marker('intlinkLayout.error.server_error.title')
+marker('intlinkLayout.error.unavailable_for_empty.message')
+marker('intlinkLayout.error.unavailable_for_empty.title')
+marker('sidebar.unavailableForEmpty')
 marker('info.operation.metadataSave')
 marker('sidebar.reconfigureDataset.warning')
 marker('sidebar.reconfigureDataset.warningActiveRun')
@@ -71,10 +76,28 @@ export class IntlinkLayoutComponent {
   private api = inject(Api)
   private operationToastStore = inject(OperationToastStore)
   private router = inject(Router)
+  private route = inject(ActivatedRoute)
   private matDialog = inject(MatDialog)
   private translate = inject(TranslateService)
 
   isSaving = signal<boolean>(false)
+  showUnavailableBanner = signal<boolean>(false)
+
+  constructor() {
+    // Subscribe (not snapshot) so the banner triggers even when the layout shell
+    // is already mounted and the guard redirects back with ?unavailable=1.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
+      if (params.get('unavailable') === '1') {
+        this.showUnavailableBanner.set(true)
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { unavailable: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true
+        })
+      }
+    })
+  }
 
   async onReconfigureClick(): Promise<void> {
     const intlink = this.store.integrityLink()

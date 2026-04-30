@@ -41,6 +41,7 @@ marker('authorizations.geonetwork.publicAccess.value.restricted')
 marker('authorizations.geoserver.publicAccess')
 marker('authorizations.geoserver.publicAccess.value.public')
 marker('authorizations.geoserver.publicAccess.value.restricted')
+marker('authorizations.geoserver.unavailableForEmpty')
 marker('i18nerror.publish.geonetwork')
 marker('i18nerror.publish.geoserver')
 
