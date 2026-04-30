@@ -138,10 +138,6 @@ class MetadataService:
             "%Y-%m-%dT%H:%M:%SZ"
         )
 
-        # Keywords (use title as keyword)
-        keywords: _Element = etree.SubElement(props, "keywords")
-        etree.SubElement(keywords, "keyword").text = integrity_link.integrity_title or "dataset"
-
         layer_name = ""
         online_resources: _Element = etree.SubElement(props, "onlineResources")
 
