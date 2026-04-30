@@ -15,7 +15,6 @@ from task_groups.ingestion import ingestion_group
 from task_groups.transformation import process_transformation_group
 
 logger = logging.getLogger(__name__)
-configure_logging(logger)
 
 
 def _dag_success_callback(context: dict[str, Any]) -> None:
@@ -120,6 +119,7 @@ def process_dag(**context: dict[str, Any]) -> None:
     1. Use existing staging table: provide staging_table_name
     2. Re-ingest from source: provide source + source_type
     """
+    configure_logging(logging.getLogger("airflow.task"))
 
     @task(task_id="generate_staging_table_name")
     def generate_staging_table_name(**context: dict[str, Any]) -> str:

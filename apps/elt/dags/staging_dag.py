@@ -11,7 +11,6 @@ from task_groups.ingestion import ingestion_group
 from utils import get_staging_timeout
 
 logger = logging.getLogger(__name__)
-configure_logging(logger)
 
 
 def _dag_success_callback(context: dict[str, Any]) -> None:
@@ -90,6 +89,7 @@ def _dag_failure_callback(context: dict[str, Any]) -> None:
 )
 def staging_dag(**context: dict[str, Any]) -> None:
     """Staging DAG for initial data ingestion."""
+    configure_logging(logging.getLogger("airflow.task"))
 
     ingestion_group(group_id="initial_ingestion")()
 

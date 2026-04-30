@@ -12,12 +12,10 @@ from data_manipulation import (
     write_data_to_postgis,
 )
 from data_manipulation.database import create_schema
-from data_manipulation.logging import configure_logging
 from sqlalchemy import MetaData, Table
 from utils import get_data_sql_engine, get_staging_schema
 
 logger = logging.getLogger(__name__)
-configure_logging(logger)
 
 
 def process_transformation_group(
