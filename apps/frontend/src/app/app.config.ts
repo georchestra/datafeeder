@@ -29,7 +29,7 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(),
     provideI18n(TRANSLATE_DEFAULT_CONFIG),
     provideRepositoryUrl(() => '/datafeeder-backend/geonetwork/srv/api'),
-    provideGn4(),
+    provideGn4({ disableDraft: true }),
     importProvidersFrom(
       StoreModule.forRoot(
         {},
