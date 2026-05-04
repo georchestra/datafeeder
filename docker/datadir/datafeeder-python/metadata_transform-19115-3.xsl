@@ -60,56 +60,6 @@
     </gco:CharacterString>
   </xsl:template>
 
-  <xsl:template match="//mdb:identificationInfo/mri:MD_DataIdentification/mri:descriptiveKeywords">
-    <mri:descriptiveKeywords>
-      <mri:MD_Keywords>
-        <xsl:for-each select="$props//keywords//keyword">
-          <mri:keyword>
-            <gco:CharacterString>
-              <xsl:value-of select="." />
-            </gco:CharacterString>
-          </mri:keyword>
-        </xsl:for-each>
-        <mri:type>
-          <mri:MD_KeywordTypeCode codeList="http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#MD_KeywordTypeCode" codeListValue="theme"/>
-        </mri:type>
-        <mri:thesaurusName>
-          <cit:CI_Citation>
-            <cit:title>
-              <gcx:Anchor xlink:href="https://${FQDN}/thematique/categories">Catégories</gcx:Anchor>
-            </cit:title>
-            <cit:date>
-              <cit:CI_Date>
-                <cit:date>
-                  <gco:Date>2024-05-14</gco:Date>
-                </cit:date>
-                <cit:dateType>
-                  <cit:CI_DateTypeCode codeList="http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_DateTypeCode" codeListValue="publication"/>
-                </cit:dateType>
-              </cit:CI_Date>
-            </cit:date>
-            <cit:date>
-              <cit:CI_Date>
-                <cit:date>
-                  <gco:Date>2024-05-14</gco:Date>
-                </cit:date>
-                <cit:dateType>
-                  <cit:CI_DateTypeCode codeList="http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_DateTypeCode" codeListValue="publication"/>
-                </cit:dateType>
-              </cit:CI_Date>
-            </cit:date>
-            <cit:identifier>
-              <mcc:MD_Identifier>
-                <mcc:code>
-                  <gcx:Anchor xlink:href="https://${FQDN}/geonetwork/srv/api/registries/vocabularies/external.theme.thesaurus_mot_cle_thematique_categories">geonetwork.thesaurus.external.theme.thesaurus_mot_cle_thematique_categories</gcx:Anchor>
-                </mcc:code>
-              </mcc:MD_Identifier>
-            </cit:identifier>
-          </cit:CI_Citation>
-        </mri:thesaurusName>
-      </mri:MD_Keywords>
-    </mri:descriptiveKeywords>
-  </xsl:template>
 
 
   <xsl:template

@@ -963,3 +963,34 @@ class TestGenerateMetadataOrganizationName:
         org_names = self._online_resource_names_in_xml(xml_str)
         assert len(org_names) > 0
         assert all(name == "shortorg" for name in org_names)
+
+
+class TestGenerateMetadataKeywords:
+    """Template keywords must be preserved unchanged; no dataset-title keyword injected."""
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_template_keywords_preserved_unchanged(self, _mock_gn_api: MagicMock) -> None:
+        datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
+        service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="My Dataset",
+            integrity_owner="user",
+            integrity_organization="Org",
+            staging_table_name="stg",
+            created_at=datetime.now(timezone.utc),
+            last_retrieval_timestamp=datetime.now(timezone.utc),
+            source_import_type=ImportType.URL,
+        )
+
+        xml_str = service.generate_metadata(link)
+        root = etree.fromstring(xml_str.encode())
+
+        all_keywords = root.xpath(
+            "//mri:MD_DataIdentification/mri:descriptiveKeywords"
+            "/mri:MD_Keywords/mri:keyword/gco:CharacterString",
+            namespaces=NS_19115_3,
+        )
+        texts = [k.text for k in all_keywords]
+        assert "Template" in texts, "Template keyword must not be removed"
+        assert "My Dataset" not in texts, "Dataset title must not be injected as a keyword"
