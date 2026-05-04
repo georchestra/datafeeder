@@ -101,9 +101,7 @@ class MetadataService:
 
         # Core properties from IntegrityLink
         etree.SubElement(props, "title").text = integrity_link.integrity_title or "Untitled Dataset"
-        etree.SubElement(
-            props, "abstract"
-        ).text = f"Dataset imported via Datafeeder: {integrity_link.integrity_title or 'Untitled'}"
+        etree.SubElement(props, "abstract").text = ""
 
         # Build individual name from first + last name, fallback to username
         if user_first_name or user_last_name:
