@@ -131,7 +131,12 @@
     </mri:spatialResolution>
   </xsl:template>
 
-  <xsl:template match="//mdb:identificationInfo/mri:MD_DataIdentification/mri:pointOfContact">
+  <!-- Copies existing mri:pointOfContact elements through; appends user contact after the last one -->
+  <xsl:template
+          match="//mdb:identificationInfo/mri:MD_DataIdentification/mri:pointOfContact[not(following-sibling::mri:pointOfContact)]">
+    <xsl:copy>
+      <xsl:apply-templates select="@*|node()" />
+    </xsl:copy>
     <mri:pointOfContact>
       <xsl:call-template name="contactInfo">
         <xsl:with-param name="individualName" select="$props//datasetResponsibleParty//individualName" />
@@ -149,7 +154,11 @@
     </mri:pointOfContact>
   </xsl:template>
 
-  <xsl:template match="//mdb:contact">
+  <!-- Copies existing mdb:contact elements through; appends user contact after the last one -->
+  <xsl:template match="//mdb:contact[not(following-sibling::mdb:contact)]">
+    <xsl:copy>
+      <xsl:apply-templates select="@*|node()" />
+    </xsl:copy>
     <mdb:contact>
       <xsl:call-template name="contactInfo">
         <xsl:with-param name="individualName" select="$props//metadataResponsibleParty//individualName" />
@@ -275,7 +284,6 @@
       </cit:party>
     </cit:CI_Responsibility>
   </xsl:template>
-
 
   <!-- creates a CI_OnlineResource with the given parameters -->
   <xsl:template name="onlineResource">

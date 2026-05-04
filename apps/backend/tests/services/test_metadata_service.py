@@ -965,6 +965,51 @@ class TestGenerateMetadataOrganizationName:
         assert all(name == "shortorg" for name in org_names)
 
 
+class TestGenerateMetadataContacts:
+    """Template contacts must be preserved; user contact is appended after the last one."""
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_user_contact_appended_preserves_template_contacts(
+        self, _mock_gn_api: MagicMock
+    ) -> None:
+        datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
+        service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Dataset",
+            integrity_owner="ingester",
+            integrity_organization="MyOrg",
+            staging_table_name="stg",
+            created_at=datetime.now(timezone.utc),
+            last_retrieval_timestamp=datetime.now(timezone.utc),
+            source_import_type=ImportType.URL,
+        )
+
+        xml_str = service.generate_metadata(link, user_email="ingester@example.com")
+        root = etree.fromstring(xml_str.encode())
+
+        ns = NS_19115_3
+        # Template has one empty mdb:contact; after transform there must be two
+        contacts = root.xpath("mdb:contact", namespaces=ns)
+        assert len(contacts) == 2, "Template contact must be preserved and user contact appended"
+
+        # Template has one empty mri:pointOfContact; after transform there must be two
+        poc = root.xpath(
+            "mdb:identificationInfo/mri:MD_DataIdentification/mri:pointOfContact",
+            namespaces=ns,
+        )
+        assert len(poc) == 2, "Template pointOfContact must be preserved and user contact appended"
+
+        # The appended contact must carry the user's email
+        emails = root.xpath(
+            "mdb:contact/cit:CI_Responsibility/cit:party/cit:CI_Individual"
+            "/cit:contactInfo/cit:CI_Contact/cit:address/cit:CI_Address"
+            "/cit:electronicMailAddress/gco:CharacterString",
+            namespaces=ns,
+        )
+        assert any(e.text == "ingester@example.com" for e in emails)
+
+
 class TestGenerateMetadataKeywords:
     """Template keywords must be preserved unchanged; no dataset-title keyword injected."""
 
