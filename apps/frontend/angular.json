@@ -32,7 +32,8 @@
               }
             ],
             "styles": [
-              "src/styles.scss"
+              "src/styles.scss",
+              "basiclightbox/dist/basicLightbox.min.css"
             ]
           },
           "configurations": {
