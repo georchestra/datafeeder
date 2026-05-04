@@ -1,7 +1,9 @@
 import { Injectable, computed, inject, signal } from '@angular/core'
-import { IntegrityLinkResponse } from '../api/models'
+import { ImportType, IntegrityLinkResponse } from '../api/models'
 import { Api } from '../api/api'
 import { getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet } from '../api/functions'
+
+export const EMPTY_IMPORT_TYPE: ImportType = 'empty'
 
 @Injectable({ providedIn: 'root' })
 export class IntegrityLinkStore {
@@ -19,6 +21,11 @@ export class IntegrityLinkStore {
     const level = this.accessLevel()
     return level === 'OWNER' || level === 'ADMIN'
   })
+
+  /** True when the dataset has no source data (created as empty). */
+  isEmptyDataset = computed(
+    () => this.integrityLink()?.source_import_type === EMPTY_IMPORT_TYPE
+  )
 
   async loadIntegrityLink(intlinkId: string): Promise<IntegrityLinkResponse> {
     try {

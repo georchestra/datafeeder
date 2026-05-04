@@ -13,7 +13,7 @@ import {
   deleteIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdDelete,
   listIntegrityLinksIngestionIntegrityLinksGet
 } from '../../core/api/functions'
-import { ImportType, IntegrityLinkListItem } from '../../core/api/models'
+import { IntegrityLinkListItem } from '../../core/api/models'
 import {
   iconoirPlus,
   iconoirChatBubbleWarning,
@@ -22,6 +22,7 @@ import {
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 import { QuickCreationComponent } from '../../shared/components/quick-creation/quick-creation.component'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
+import { EMPTY_IMPORT_TYPE } from '../../core/stores/integrity-link.store'
 
 const DEBOUNCE_TIME = 300
 
@@ -44,7 +45,7 @@ const DEBOUNCE_TIME = 300
   ]
 })
 export class IntegrityLinkListComponent {
-  readonly emptyImportType: ImportType = 'empty'
+  readonly emptyImportType = EMPTY_IMPORT_TYPE
 
   private api = inject(Api)
   private router = inject(Router)
@@ -113,7 +114,10 @@ export class IntegrityLinkListComponent {
 
   onRowClick(link: IntegrityLinkListItem): void {
     if (link.access_level === 'READ') return
-    if (!link.has_final_table && link.source_import_type !== 'empty') {
+    if (
+      !link.has_final_table &&
+      link.source_import_type !== EMPTY_IMPORT_TYPE
+    ) {
       this.router.navigate(['/', 'import', link.id], {
         queryParams: { step: 2 }
       })

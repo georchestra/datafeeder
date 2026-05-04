@@ -1,4 +1,4 @@
-import { signal } from '@angular/core'
+import { computed, signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import {
   ActivatedRouteSnapshot,
@@ -9,7 +9,8 @@ import {
 import { IntegrityLinkStore } from '../stores/integrity-link.store'
 import {
   IntegrityLinkResolver,
-  IntegrityLinkResolverWithRedirect
+  IntegrityLinkResolverWithRedirect,
+  rejectEmptyDatasetGuard
 } from './integrity-link.resolver'
 
 function makeRoute(
@@ -169,5 +170,78 @@ describe('IntegrityLinkResolverWithRedirect', () => {
 
     expect(mockStore.clearIntegrityLink).toHaveBeenCalled()
     expect(result).toBeUndefined()
+  })
+})
+
+describe('rejectEmptyDatasetGuard', () => {
+  function createEmptyDatasetStore(isEmpty: boolean) {
+    const integrityLink = signal<any>(
+      isEmpty ? { source_import_type: 'empty' } : { source_import_type: 'url' }
+    )
+    return {
+      intlinkId: signal<string | null>('uuid-1'),
+      integrityLink,
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
+        null
+      ),
+      loadIntegrityLink: vi.fn().mockResolvedValue({}),
+      clearIntegrityLink: vi.fn(),
+      isEmptyDataset: computed(
+        () => integrityLink()?.source_import_type === 'empty'
+      )
+    }
+  }
+
+  it('should return true when dataset is not empty', async () => {
+    const store = createEmptyDatasetStore(false)
+    await TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: IntegrityLinkStore, useValue: store }
+      ]
+    }).compileComponents()
+
+    const route = makeRoute({}, { intlink_id: 'uuid-1' })
+    const result = TestBed.runInInjectionContext(() =>
+      rejectEmptyDatasetGuard(route, {} as any)
+    )
+    expect(result).toBe(true)
+  })
+
+  it('should redirect to /:id/edit?unavailable=1 when dataset is empty', async () => {
+    const store = createEmptyDatasetStore(true)
+    await TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: IntegrityLinkStore, useValue: store }
+      ]
+    }).compileComponents()
+
+    const router = TestBed.inject(Router)
+    const route = makeRoute({}, { intlink_id: 'uuid-1' })
+    const result = TestBed.runInInjectionContext(() =>
+      rejectEmptyDatasetGuard(route, {} as any)
+    ) as RedirectCommand
+
+    expect(result).toBeInstanceOf(RedirectCommand)
+    expect(result.redirectTo).toEqual(
+      router.parseUrl('/uuid-1/edit?unavailable=1')
+    )
+  })
+
+  it('should return true when parent intlink_id is missing', async () => {
+    const store = createEmptyDatasetStore(true)
+    await TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: IntegrityLinkStore, useValue: store }
+      ]
+    }).compileComponents()
+
+    const route = makeRoute()
+    const result = TestBed.runInInjectionContext(() =>
+      rejectEmptyDatasetGuard(route, {} as any)
+    )
+    expect(result).toBe(true)
   })
 })

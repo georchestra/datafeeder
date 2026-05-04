@@ -49,8 +49,19 @@
       </span>
       }
 
-      <!-- Events — owner/admin only -->
-      @if (store.isOwnerOrAdmin()) {
+      <!-- Events — disabled for empty datasets, owner/admin only otherwise -->
+      @if (store.isEmptyDataset() || !store.isOwnerOrAdmin()) {
+      <span
+        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+        [title]="
+          store.isEmptyDataset()
+            ? ('sidebar.unavailableForEmpty' | translate)
+            : ''
+        "
+      >
+        {{ 'sidebar.eventsAndStatuses' | translate }}
+      </span>
+      } @else {
       <a
         [routerLink]="['events']"
         routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
@@ -58,12 +69,6 @@
       >
         {{ 'sidebar.eventsAndStatuses' | translate }}
       </a>
-      } @else {
-      <span
-        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
-      >
-        {{ 'sidebar.eventsAndStatuses' | translate }}
-      </span>
       }
 
       <hr class="my-2 border-gray-200" />
@@ -102,7 +107,17 @@
         'intlinkLayout.error.' + store.loadError() + '.message' | translate
       "
     />
-    } @else {
+    } @else { @if (showUnavailableBanner()) {
+    <app-ui-alert-box
+      type="error"
+      [dismissible]="true"
+      [title]="'intlinkLayout.error.unavailable_for_empty.title' | translate"
+      [message]="
+        'intlinkLayout.error.unavailable_for_empty.message' | translate
+      "
+      (dismissed)="showUnavailableBanner.set(false)"
+    />
+    }
     <div class="pb-5">
       <router-outlet></router-outlet>
     </div>
