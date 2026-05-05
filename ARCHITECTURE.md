@@ -25,14 +25,14 @@ Datafeeder/
 - **ELT Workflows**: Airflow is used to define and manage data ingestion workflows, including extraction, loading, and transformation of data.
 - **Shared Library**: A Python library that contains common data manipulation functions used by both the backend and ELT workflows.
 
-## Fonctionnement minimal (en français)
+## Minimal Viable Architecture
 
-Datafeeder doit être pensé en "API first" et, si possible, indépendant de n'importe quel outil.  
+Datafeeder is designed as "API first" and, where possible, independent from any specific tool.
 
-Le fonctionnement minimum viable de Datafeeder repose sur l'interaction entre deux composants principaux : 
-- Le backend (et sa bdd) qui expose une API REST pour gérer les demandes d'ingestion de données.
-- Les Dags Airflow qui utilisent la BDD du backend pour récupérer les tâches d'ingestion à exécuter.
+The minimum viable runtime relies on the interaction between two core components:
+- The **backend** (and its database) which exposes a REST API to manage data ingestion requests.
+- The **Airflow DAGs** which use the backend database to retrieve ingestion tasks to execute.
 
-Geoserver et geonetwork sont des composants optionnels qui peuvent être intégrés pour enrichir les fonctionnalités de Datafeeder, mais ne devraient pas être indispensables à son fonctionnement de base.
-L'interface utilisateur (frontend) est également un composant optionnel qui facilite la gestion des tâches d'ingestion, mais l'API REST du backend doit être pleinement fonctionnelle et accessible indépendamment de l'interface utilisateur.
+GeoServer and GeoNetwork are optional components that enrich Datafeeder's capabilities but should not be required for the base runtime.
+The **frontend** is likewise optional — it eases the management of ingestion tasks, but the backend REST API must be fully functional and reachable independently of the UI.
 

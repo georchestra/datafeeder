@@ -1,6 +1,6 @@
 # Datafeeder frontend
 
-The new (geo) data ingestion plateform.
+The new (geo) data ingestion platform.
 
 ## 🚀 Quickstart
 
