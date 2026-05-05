@@ -69,6 +69,10 @@
           </span>
           }
         </div>
+        <!-- Empty header to compensate for the delete button column -->
+        <div class="w-32 pr-4 text-sm text-gray-2">
+          {{ 'integrityLinks.visibility.' + getVisibility(link) | translate }}
+        </div>
         <div class="w-48 text-sm text-gray-2">
           {{ link.owner_display_name ?? link.integrity_owner }}
         </div>
