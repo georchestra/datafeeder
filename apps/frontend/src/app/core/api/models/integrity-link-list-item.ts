@@ -3,6 +3,7 @@
 
 import { FileType } from '../models/file-type'
 import { ImportType } from '../models/import-type'
+import { RecurrencePreset } from '../models/recurrence-preset'
 
 /**
  * Response model for integrity link in list view (excludes sensitive fields).
@@ -26,6 +27,7 @@ export interface IntegrityLinkListItem {
   last_retrieval_timestamp: string | null
   metadata_id: string | null
   owner_display_name?: string | null
+  preset_id?: RecurrencePreset | null
   schedule: string | null
   schedule_enabled: boolean
   source_file_name: string | null
