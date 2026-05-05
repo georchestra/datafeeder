@@ -19,6 +19,7 @@ from src.core.security import build_access_expr
 from src.models.data_import import ImportType, IntegrityLinkListItem, IntegrityLinkListResponse
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, RuleType
+from src.models.recurrence import RecurrencePreset
 from src.services.console_service import ConsoleService
 
 router = APIRouter(prefix="/ingestion/integrity-links", tags=["Ingestion"])
@@ -205,6 +206,7 @@ def list_integrity_links(
         item = IntegrityLinkListItem.model_validate(link)
         item.access_level = access_level
         item.has_final_table = bool(has_final)
+        item.preset_id = RecurrencePreset.from_cron(link.schedule) if link.schedule else None
         items.append(item)
 
     link_uuids = [UUID(item.id) for item in items]

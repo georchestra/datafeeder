@@ -29,6 +29,11 @@ export interface DagFailureCallbackIngestionProcessDagFailurePost$Params {
   final_table_name?: string
 
   /**
+   * PostgreSQL schema of the final table
+   */
+  target_schema?: string
+
+  /**
    * Failure reason from Airflow context
    */
   reason?: string | null
@@ -50,6 +55,7 @@ export function dagFailureCallbackIngestionProcessDagFailurePost(
     rb.query('dag_id', params.dag_id, {})
     rb.query('dag_run_id', params.dag_run_id, {})
     rb.query('final_table_name', params.final_table_name, {})
+    rb.query('target_schema', params.target_schema, {})
     rb.query('reason', params.reason, {})
   }
 

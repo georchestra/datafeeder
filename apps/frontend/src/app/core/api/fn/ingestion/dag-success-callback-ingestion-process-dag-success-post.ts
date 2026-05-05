@@ -17,6 +17,11 @@ export interface DagSuccessCallbackIngestionProcessDagSuccessPost$Params {
    * Final table name
    */
   final_table_name: string
+
+  /**
+   * PostgreSQL schema of the final table
+   */
+  target_schema?: string
 }
 
 export function dagSuccessCallbackIngestionProcessDagSuccessPost(
@@ -33,6 +38,7 @@ export function dagSuccessCallbackIngestionProcessDagSuccessPost(
   if (params) {
     rb.query('integrity_link_id', params.integrity_link_id, {})
     rb.query('final_table_name', params.final_table_name, {})
+    rb.query('target_schema', params.target_schema, {})
   }
 
   return http

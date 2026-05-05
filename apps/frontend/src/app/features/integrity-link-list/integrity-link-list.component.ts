@@ -17,10 +17,12 @@ import { IntegrityLinkListItem } from '../../core/api/models'
 import {
   iconoirPlus,
   iconoirChatBubbleWarning,
-  iconoirTrash
+  iconoirTrash,
+  iconoirRefreshCircle
 } from '@ng-icons/iconoir'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 import { QuickCreationComponent } from '../../shared/components/quick-creation/quick-creation.component'
+import { RecurrenceLabelPipe } from '../../shared/pipes/recurrence-label.pipe'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import { EMPTY_IMPORT_TYPE } from '../../core/stores/integrity-link.store'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
@@ -38,14 +40,16 @@ const DEBOUNCE_TIME = 300
     TranslatePipe,
     NgIconComponent,
     SearchInputComponent,
-    QuickCreationComponent
+    QuickCreationComponent,
+    RecurrenceLabelPipe
   ],
   templateUrl: './integrity-link-list.component.html',
   providers: [
     provideIcons({
       iconoirPlus,
       iconoirChatBubbleWarning,
-      iconoirTrash
+      iconoirTrash,
+      iconoirRefreshCircle
     })
   ]
 })
