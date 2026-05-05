@@ -15,7 +15,10 @@ export interface IntegrityLinkListItem {
   created_at: string | null
   data_id: string | null
   final_table_name: string | null
+  gn_is_published?: boolean
+  gs_is_published?: boolean
   has_final_table?: boolean
+  has_integrity_rules?: boolean
   id: string
   integrity_organization: string
   integrity_owner: string
