@@ -353,7 +353,8 @@ class TestListIntegrityLinks:
         assert response.items[0].integrity_title == "My Dataset Import"
 
         # Verify the query passed to session.execute contains an ilike filter
-        executed_query = mock_session.execute.call_args[0][0]
+        # The first call is the main integrity_links query; subsequent calls may be subqueries
+        executed_query = mock_session.execute.call_args_list[0][0][0]
         query_str = str(executed_query)
         assert "ilike" in query_str.lower() or "LIKE" in query_str
 
@@ -1046,7 +1047,8 @@ class TestListIntegrityLinksVisibility:
         )
 
         # Verify the query was executed and contains both conditions
-        executed_query = mock_session.execute.call_args[0][0]
+        # The first call is the main integrity_links query; subsequent calls may be subqueries
+        executed_query = mock_session.execute.call_args_list[0][0][0]
         query_str = str(executed_query)
         # Should have OR condition (owner = username OR EXISTS subquery)
         assert "OR" in query_str.upper() or "or" in query_str.lower()
