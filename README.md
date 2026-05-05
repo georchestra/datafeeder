@@ -6,6 +6,7 @@ Data ingestion module for geOrchestra
 
 - Python 3.12
 - Node 22.20.0+
+- Docker & Docker Compose
 
 You can use the provided Makefile to manage the development environment and run common tasks. `make help` is self-explanatory.
 
