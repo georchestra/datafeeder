@@ -151,6 +151,9 @@ class IntegrityLinkListItem(BaseModel):
         default=None,
         description="User's effective access level: ADMIN, OWNER, WRITE, or READ",
     )
+    gn_is_published: bool = False
+    gs_is_published: bool = False
+    has_integrity_rules: bool = False
     has_final_table: bool = False
     owner_display_name: str | None = None
 

@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from typing import Any
+from uuid import UUID
 
 from fastapi import APIRouter, Query
 from sqlalchemy import Column, MetaData, String, Table, exists, or_
@@ -205,6 +206,19 @@ def list_integrity_links(
         item.access_level = access_level
         item.has_final_table = bool(has_final)
         items.append(item)
+
+    link_uuids = [UUID(item.id) for item in items]
+    rules_with_links: set[UUID] = set(
+        session.execute(  # type: ignore[reportDeprecated]
+            sa_select(IntegrityLinkRule.integrity_link_id)  # type: ignore[reportArgumentType]
+            .where(IntegrityLinkRule.integrity_link_id.in_(link_uuids))  # type: ignore[union-attr]
+            .distinct()
+        )
+        .scalars()
+        .all()
+    )
+    for item in items:
+        item.has_integrity_rules = UUID(item.id) in rules_with_links
 
     usernames = list({item.integrity_owner for item in items})
     display_names = ConsoleService(get_settings().CONSOLE_URL).fetch_users_by_usernames(usernames)

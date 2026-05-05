@@ -23,6 +23,11 @@ import { SearchInputComponent } from '../../shared/components/search-input/searc
 import { QuickCreationComponent } from '../../shared/components/quick-creation/quick-creation.component'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import { EMPTY_IMPORT_TYPE } from '../../core/stores/integrity-link.store'
+import { marker } from '@biesbjerg/ngx-translate-extract-marker'
+
+marker('integrityLinks.visibility.open')
+marker('integrityLinks.visibility.restricted')
+marker('integrityLinks.visibility.unconfigured')
 
 const DEBOUNCE_TIME = 300
 
@@ -124,6 +129,19 @@ export class IntegrityLinkListComponent {
     } else {
       this.router.navigate(['/', link.id, 'edit'])
     }
+  }
+
+  getVisibility(
+    link: IntegrityLinkListItem
+  ): 'open' | 'restricted' | 'unconfigured' {
+    if (link.gn_is_published && link.gs_is_published) return 'open'
+    if (
+      link.gn_is_published ||
+      link.gs_is_published ||
+      link.has_integrity_rules
+    )
+      return 'restricted'
+    return 'unconfigured'
   }
 
   isReadOnly(link: IntegrityLinkListItem): boolean {

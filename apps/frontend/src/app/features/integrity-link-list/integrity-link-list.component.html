@@ -30,9 +30,13 @@
       <div class="flex-1 pr-4 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.title' | translate }}
       </div>
+      <div class="w-32 pr-4 text-sm font-semibold text-gray-2">
+        {{ 'integrityLinks.visibility' | translate }}
+      </div>
       <div class="w-48 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.owner' | translate }}
       </div>
+      <div class="w-[44px] shrink-0"></div>
     </div>
 
     <!-- Rows -->
@@ -64,6 +68,10 @@
             {{ 'integrityLinks.noFinalTable' | translate }}
           </span>
           }
+        </div>
+        <!-- Empty header to compensate for the delete button column -->
+        <div class="w-32 pr-4 text-sm text-gray-2">
+          {{ 'integrityLinks.visibility.' + getVisibility(link) | translate }}
         </div>
         <div class="w-48 text-sm text-gray-2">
           {{ link.owner_display_name ?? link.integrity_owner }}
