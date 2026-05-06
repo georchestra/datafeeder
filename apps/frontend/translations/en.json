@@ -270,6 +270,7 @@
   "integrityLinks.owner": "Owner",
   "integrityLinks.recurrence": "Recurrence",
   "integrityLinks.readOnly": "Read only",
+  "integrityLinks.edit": "Edit dataset",
   "integrityLinks.search": "Search...",
   "integrityLinks.title": "Title",
   "integrityLinks.visibility": "Visibility",

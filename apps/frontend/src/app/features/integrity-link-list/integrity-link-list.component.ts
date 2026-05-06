@@ -18,7 +18,8 @@ import {
   iconoirPlus,
   iconoirChatBubbleWarning,
   iconoirTrash,
-  iconoirRefreshCircle
+  iconoirRefreshCircle,
+  iconoirEditPencil
 } from '@ng-icons/iconoir'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 import { QuickCreationComponent } from '../../shared/components/quick-creation/quick-creation.component'
@@ -27,6 +28,7 @@ import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import { EMPTY_IMPORT_TYPE } from '../../core/stores/integrity-link.store'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
+marker('integrityLinks.edit')
 marker('integrityLinks.visibility.open')
 marker('integrityLinks.visibility.restricted')
 marker('integrityLinks.visibility.unconfigured')
@@ -49,7 +51,8 @@ const DEBOUNCE_TIME = 300
       iconoirPlus,
       iconoirChatBubbleWarning,
       iconoirTrash,
-      iconoirRefreshCircle
+      iconoirRefreshCircle,
+      iconoirEditPencil
     })
   ]
 })
@@ -121,8 +124,7 @@ export class IntegrityLinkListComponent {
     this.loadIntegrityLinks(true)
   }
 
-  onRowClick(link: IntegrityLinkListItem): void {
-    if (link.access_level === 'READ') return
+  onEditClick(link: IntegrityLinkListItem): void {
     if (
       !link.has_final_table &&
       link.source_import_type !== EMPTY_IMPORT_TYPE
@@ -157,7 +159,6 @@ export class IntegrityLinkListComponent {
   }
 
   async deleteIntegrityLink(event: Event, id: string): Promise<void> {
-    event.stopPropagation()
     ;(event.currentTarget as HTMLElement)?.blur()
     if (this.deleting()) return
     const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
