@@ -66,6 +66,7 @@ describe('IntegrityLinkListComponent', () => {
             'integrityLinks.title': 'Integrity Links',
             'integrityLinks.loadMore': 'Load More',
             'integrityLinks.noItems': 'No items',
+            'integrityLinks.edit': 'Edit dataset',
             'dashboard.deleteDataset': 'Delete dataset',
             'dashboard.deleteDatasetConfirm': 'Are you sure?',
             'common.cancel': 'Cancel',
@@ -299,7 +300,7 @@ describe('IntegrityLinkListComponent', () => {
   })
 
   describe('Navigation', () => {
-    it('should navigate to /edit/:id when onRowClick is called with writable link', async () => {
+    it('should navigate to /edit/:id when onEditClick is called with writable link', async () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)
       const component = fixture.componentInstance
 
@@ -317,34 +318,9 @@ describe('IntegrityLinkListComponent', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 10))
 
-      // Trigger row click with writable link
-      component.onRowClick(createMockItem('test-id-123', 'OWNER'))
+      component.onEditClick(createMockItem('test-id-123', 'OWNER'))
 
       expect(navigateSpy).toHaveBeenCalledWith(['/', 'test-id-123', 'edit'])
-    })
-
-    it('should NOT navigate when onRowClick is called with READ-only link', async () => {
-      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
-      const component = fixture.componentInstance
-
-      const navigateSpy = vi.spyOn(router, 'navigate')
-
-      // Complete initial load
-      const req = httpMock.expectOne(
-        'http://localhost:8000/ingestion/integrity-links/?offset=0'
-      )
-      req.flush({
-        items: [createMockItem('read-only-id', 'READ')],
-        has_more: false,
-        offset: 0
-      })
-
-      await new Promise((resolve) => setTimeout(resolve, 10))
-
-      // Trigger row click with read-only link
-      component.onRowClick(createMockItem('read-only-id', 'READ'))
-
-      expect(navigateSpy).not.toHaveBeenCalled()
     })
 
     it('should identify read-only links correctly', () => {
@@ -358,6 +334,26 @@ describe('IntegrityLinkListComponent', () => {
       expect(component.isReadOnly(createMockItem('3', 'OWNER'))).toBe(false)
       expect(component.isReadOnly(createMockItem('4', 'ADMIN'))).toBe(false)
       expect(component.isReadOnly(createMockItem('5', null))).toBe(false)
+    })
+
+    it('should not render edit button for READ-only link', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+
+      const req = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      req.flush({
+        items: [createMockItem('read-id', 'READ')],
+        has_more: false,
+        offset: 0
+      })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      fixture.detectChanges()
+
+      const editBtn = fixture.nativeElement.querySelector(
+        '[aria-label="Edit dataset"]'
+      )
+      expect(editBtn).toBeNull()
     })
 
     it('should navigate to /:id/edit when link has has_final_table=true', async () => {
@@ -375,7 +371,7 @@ describe('IntegrityLinkListComponent', () => {
       })
       await new Promise((resolve) => setTimeout(resolve, 10))
 
-      component.onRowClick(createMockItem('link-42', 'OWNER', true))
+      component.onEditClick(createMockItem('link-42', 'OWNER', true))
 
       expect(navigateSpy).toHaveBeenCalledWith(['/', 'link-42', 'edit'])
     })
@@ -395,7 +391,7 @@ describe('IntegrityLinkListComponent', () => {
       })
       await new Promise((resolve) => setTimeout(resolve, 10))
 
-      component.onRowClick(createMockItem('link-42', 'OWNER', false))
+      component.onEditClick(createMockItem('link-42', 'OWNER', false))
 
       expect(navigateSpy).toHaveBeenCalledWith(['/', 'import', 'link-42'], {
         queryParams: { step: 2 }
@@ -417,7 +413,7 @@ describe('IntegrityLinkListComponent', () => {
       })
       await new Promise((resolve) => setTimeout(resolve, 10))
 
-      component.onRowClick(
+      component.onEditClick(
         createMockItem('link-empty', 'OWNER', false, 'empty')
       )
 
@@ -704,11 +700,9 @@ describe('IntegrityLinkListComponent', () => {
       matDialog.open.mockReturnValue({ afterClosed: () => of(true) })
 
       const event = new MouseEvent('click')
-      vi.spyOn(event, 'stopPropagation')
 
       const deletePromise = component.deleteIntegrityLink(event, '1')
 
-      expect(event.stopPropagation).toHaveBeenCalled()
       await Promise.resolve()
 
       const deleteReq = httpMock.expectOne(
