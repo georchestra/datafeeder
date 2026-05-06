@@ -41,13 +41,13 @@ def create_dag(config):
     dag_id = f"ingestion_{config['id']}"
     dag = DAG(
         dag_id=dag_id,
-        start_date=datetime.now(),
+        start_date=datetime(2026, 5, 3, tzinfo=timezone.utc),
         schedule=config.get("schedule"),
         tags=[config.get("id", "")],
         catchup=False,
     )
 
-    dag_run_id = f"{config.get('id')}_{int(datetime.now(timezone.utc).timestamp())}"
+    dag_run_id = f"{config.get('id')}" + "_{{ ts_nodash }}"
     with dag:
         TriggerDagRunOperator(
             task_id="trigger_process_dag",
