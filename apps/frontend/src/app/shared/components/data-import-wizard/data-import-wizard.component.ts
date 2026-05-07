@@ -236,7 +236,6 @@ export class DataImportWizardComponent {
     this.titleConfig()?.submitForm()
   }
 
-
   constructor() {
     const stepParam = Number(this.route.snapshot.queryParamMap.get('step') ?? 1)
     const initialTab = stepParam === 2 ? 1 : 0
