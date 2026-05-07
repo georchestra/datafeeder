@@ -3,14 +3,17 @@ from unittest.mock import Mock, patch
 
 import jwt
 import pytest
+from airflow_client.client.exceptions import ConflictException, NotFoundException
 
 from src.services.airflow_client import (
+    _force_fail_dag_runs,  # pyright: ignore[reportPrivateUsage]
     _get_cached_airflow_api_client,  # pyright: ignore[reportPrivateUsage]
     _get_cached_dag_api,  # pyright: ignore[reportPrivateUsage]
     _get_cached_dag_run_api,  # pyright: ignore[reportPrivateUsage]
     _is_jwt_expired,  # pyright: ignore[reportPrivateUsage]
     _refresh_caches_if_token_expired,  # pyright: ignore[reportPrivateUsage]
     _request_new_access_token,  # pyright: ignore[reportPrivateUsage]
+    delete_dag,
     get_airflow_api_client,
     get_dag_api,
     get_dag_run_api,
@@ -470,3 +473,65 @@ class TestAirflowClient:
             assert _get_cached_airflow_api_client.cache_info().currsize == 0
             assert _get_cached_dag_run_api.cache_info().currsize == 0
             assert _get_cached_dag_api.cache_info().currsize == 0
+
+
+class TestDeleteDag:
+    def test_given_existing_dag_when_deleting_then_calls_delete(self) -> None:
+        """Given an existing DAG, when deleting, then delete_dag API is called once."""
+        with patch("src.services.airflow_client.get_dag_api") as mock_get_dag_api:
+            mock_dag_api = Mock()
+            mock_get_dag_api.return_value = mock_dag_api
+
+            delete_dag("ingestion_123")
+
+            mock_dag_api.delete_dag.assert_called_once_with("ingestion_123")
+
+    def test_given_missing_dag_when_deleting_then_treats_as_success(self) -> None:
+        """Given a DAG that does not exist, when deleting, then NotFoundException is swallowed."""
+        with patch("src.services.airflow_client.get_dag_api") as mock_get_dag_api:
+            mock_dag_api = Mock()
+            mock_dag_api.delete_dag.side_effect = NotFoundException()
+            mock_get_dag_api.return_value = mock_dag_api
+
+            delete_dag("ingestion_123")  # must not raise
+
+    def test_given_running_dag_when_deleting_then_force_fails_runs_and_retries(self) -> None:
+        """Given a DAG with active runs, when deleting, then runs are force-failed and deletion is retried."""
+        with (
+            patch("src.services.airflow_client.get_dag_api") as mock_get_dag_api,
+            patch("src.services.airflow_client._force_fail_dag_runs") as mock_force_fail,
+        ):
+            mock_dag_api = Mock()
+            mock_dag_api.delete_dag.side_effect = [ConflictException(), None]
+            mock_get_dag_api.return_value = mock_dag_api
+
+            delete_dag("ingestion_123")
+
+            mock_force_fail.assert_called_once_with("ingestion_123")
+            assert mock_dag_api.delete_dag.call_count == 2
+
+    def test_given_dag_disappears_between_conflict_and_retry_when_deleting_then_treats_as_success(
+        self,
+    ) -> None:
+        """Given DAG disappears after force-fail, when retrying deletion, then NotFoundException is swallowed."""
+        with (
+            patch("src.services.airflow_client.get_dag_api") as mock_get_dag_api,
+            patch("src.services.airflow_client._force_fail_dag_runs"),
+        ):
+            mock_dag_api = Mock()
+            mock_dag_api.delete_dag.side_effect = [ConflictException(), NotFoundException()]
+            mock_get_dag_api.return_value = mock_dag_api
+
+            delete_dag("ingestion_123")  # must not raise
+
+
+class TestForceFail:
+    def test_given_missing_dag_when_force_failing_then_returns_silently(self) -> None:
+        """Given a DAG that does not exist, when force-failing runs, then NotFoundException from get_dag_runs is swallowed."""
+        with patch("src.services.airflow_client.get_dag_run_api") as mock_get_run_api:
+            mock_run_api = Mock()
+            mock_run_api.get_dag_runs.side_effect = NotFoundException()
+            mock_get_run_api.return_value = mock_run_api
+
+            _force_fail_dag_runs("ingestion_123")  # must not raise
+            mock_run_api.patch_dag_run.assert_not_called()
