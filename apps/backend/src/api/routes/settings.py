@@ -21,6 +21,7 @@ class SettingsResponse(BaseModel):
 
     projections: list[ProjectionSetting]
     enabled_features: list[str] = []
+    catalogue_url: str = ""
 
 
 @router.get("/", response_model=SettingsResponse)
@@ -35,4 +36,5 @@ async def get_settings() -> SettingsResponse:
     return SettingsResponse(
         projections=all_settings.get("projections", []),
         enabled_features=all_settings.get("enabled_features", []),
+        catalogue_url=all_settings.get("catalogue_url", ""),
     )

@@ -59,6 +59,7 @@ describe('MetadataComponent', () => {
       record$: recordSubject.asObservable(),
       editorConfig$: configSubject.asObservable(),
       currentPage$: currentPageSubject.asObservable(),
+      changedSinceSave$: of(false),
       setConfiguration: vi.fn(),
       openRecord: vi.fn(),
       setCurrentPage: vi.fn()

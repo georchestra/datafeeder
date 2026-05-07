@@ -1,11 +1,15 @@
 import { CommonModule } from '@angular/common'
 import {
   Component,
+  computed,
   DestroyRef,
   effect,
   inject,
   OnInit,
-  signal
+  signal,
+  TemplateRef,
+  untracked,
+  viewChild
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
@@ -13,15 +17,18 @@ import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import {
   iconoirNumber1Square,
   iconoirNumber2Square,
-  iconoirNumber3Square
+  iconoirNumber3Square,
+  iconoirRefreshCircle,
+  iconoirOpenNewWindow
 } from '@ng-icons/iconoir'
-import { TranslateDirective, TranslatePipe } from '@ngx-translate/core'
+import { TranslatePipe } from '@ngx-translate/core'
 import {
   ButtonComponent,
   DEFAULT_CONFIGURATION,
   EditorFacade,
   RecordFormComponent,
-  RecordsRepositoryInterface
+  RecordsRepositoryInterface,
+  SpinningLoaderComponent
 } from 'geonetwork-ui'
 import {
   combineLatest,
@@ -42,10 +49,25 @@ import {
 } from '../../core/api/functions'
 import { TaskStatus } from '../../core/api/models'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
+import { FooterService } from '../../core/layout/footer.service'
+import { IntlinkNavService } from '../../core/layout/intlink-nav.service'
+import { MetadataSaveService } from '../../core/layout/metadata-save.service'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
 marker('metadata.processing.queued')
 marker('metadata.processing.running')
+marker('footer.previous')
+marker('footer.openInCatalogue')
+marker('footer.saveAndOpenInCatalogue')
+marker('footer.next.resources')
+marker('footer.next.accessAndContact')
+marker('footer.next.events')
+marker('footer.next.authorizations')
+marker('footer.saveAndNext.events')
+marker('footer.saveAndNext.authorizations')
+
+const PAGE_KEY_RESOURCES = 'editor.record.form.page.resources'
+const PAGE_KEY_ACCESS_CONTACT = 'editor.record.form.page.accessAndContact'
 
 @Component({
   selector: 'app-metadata',
@@ -53,10 +75,10 @@ marker('metadata.processing.running')
     CommonModule,
     NgIconComponent,
     ButtonComponent,
-    TranslateDirective,
     TranslatePipe,
     RecordFormComponent,
-    RouterLink
+    RouterLink,
+    SpinningLoaderComponent
   ],
   templateUrl: './metadata.component.html',
   styleUrl: './metadata.component.css',
@@ -65,7 +87,9 @@ marker('metadata.processing.running')
     provideIcons({
       iconoirNumber1Square,
       iconoirNumber2Square,
-      iconoirNumber3Square
+      iconoirNumber3Square,
+      iconoirRefreshCircle,
+      iconoirOpenNewWindow
     })
   ]
 })
@@ -73,8 +97,13 @@ export class MetadataComponent implements OnInit {
   private recordsRepository = inject(RecordsRepositoryInterface)
   protected editor = inject(EditorFacade)
   readonly store = inject(IntegrityLinkStore)
-  private api = inject(Api)
+  readonly metadataSaveService = inject(MetadataSaveService)
+  private navService = inject(IntlinkNavService)
+  private footerService = inject(FooterService)
   private destroyRef = inject(DestroyRef)
+  private api = inject(Api)
+
+  readonly footerTpl = viewChild<TemplateRef<unknown>>('footerTpl')
 
   processingStatus = signal<TaskStatus | null>(null)
   processingStatusLoaded = signal(false)
@@ -91,6 +120,32 @@ export class MetadataComponent implements OnInit {
   isLastPage$ = combineLatest([this.currentPage$, this.pagesLength$]).pipe(
     map(([currentPage, pagesCount]) => currentPage >= pagesCount - 1)
   )
+  isLastFormPage = toSignal(this.isLastPage$, { initialValue: false })
+  currentPageSignal = toSignal(this.currentPage$, { initialValue: 0 })
+  changedSinceSave = toSignal(this.editor.changedSinceSave$, { initialValue: false })
+
+  readonly nextIntlinkRoute = computed(() => this.navService.nextRoute('edit'))
+
+  readonly catalogueUrl = computed(() =>
+    this.navService.catalogueUrl(this.store.integrityLink()?.metadata_id)
+  )
+
+  readonly nextButtonLabelKey = computed(() => {
+    if (!this.isLastFormPage()) {
+      const nextPageIndex = this.currentPageSignal() + 1
+      const pageKey = this.pages()?.[nextPageIndex]?.labelKey
+      if (pageKey === PAGE_KEY_RESOURCES) return 'footer.next.resources'
+      if (pageKey === PAGE_KEY_ACCESS_CONTACT) return 'footer.next.accessAndContact'
+      return 'editor.record.form.bottomButtons.next'
+    }
+    const changed = this.changedSinceSave()
+    const next = this.nextIntlinkRoute()
+    if (next) {
+      const base = this.navService.nextRouteLabel(next)
+      return changed ? base.replace('footer.next.', 'footer.saveAndNext.') : base
+    }
+    return changed ? 'footer.saveAndOpenInCatalogue' : 'footer.openInCatalogue'
+  })
 
   constructor() {
     effect(() => {
@@ -99,6 +154,13 @@ export class MetadataComponent implements OnInit {
         this.loadProcessingStatus(integrityLink.id)
       }
     })
+
+    effect(() => {
+      const tpl = this.footerTpl()
+      untracked(() => this.footerService.setContent(tpl ?? null))
+    })
+
+    this.destroyRef.onDestroy(() => this.footerService.setContent(null))
   }
 
   ngOnInit(): void {
@@ -138,8 +200,6 @@ export class MetadataComponent implements OnInit {
       const latestRun = response.dag_runs[0] ?? null
       if (!latestRun) {
         this.processingStatusLoaded.set(true)
-        // No DAG run: metadata may still exist (e.g. empty dataset created directly).
-        // If metadata_id is already set, load the record without waiting for a DAG.
         const integrityLink = this.store.integrityLink()
         if (integrityLink?.metadata_id) {
           this.processingStatus.set('success')
@@ -231,16 +291,34 @@ export class MetadataComponent implements OnInit {
   async previousPageButtonHandler() {
     const currentPage = await firstValueFrom(this.currentPage$)
     this.editor.setCurrentPage(currentPage - 1)
-    window.scroll({
-      top: 0
-    })
+    window.scroll({ top: 0 })
   }
 
   async nextPageButtonHandler() {
     const currentPage = await firstValueFrom(this.currentPage$)
     this.editor.setCurrentPage(currentPage + 1)
-    window.scroll({
-      top: 0
-    })
+    window.scroll({ top: 0 })
+  }
+
+  async saveAndNavigateNext(): Promise<void> {
+    const intlinkId = this.store.intlinkId()
+    const next = this.nextIntlinkRoute()
+    if (!intlinkId || !next) return
+    if (this.changedSinceSave()) {
+      await this.metadataSaveService.save()
+    }
+    this.navService.navigate(intlinkId, next)
+  }
+
+  async saveAndOpenCatalogue(): Promise<void> {
+    if (this.changedSinceSave()) {
+      await this.metadataSaveService.save()
+    }
+    const url = this.catalogueUrl()
+    if (url) window.open(url, '_blank', 'noopener')
+  }
+
+  onReconfigureClick(): Promise<void> {
+    return this.navService.reconfigure()
   }
 }
