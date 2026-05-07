@@ -1,6 +1,13 @@
 <div class="relative bg-beige h-full flex flex-col w-full">
-  <div class="flex-grow bg-beige max-h-full">
+  <div class="flex-grow bg-beige overflow-y-auto">
     <router-outlet></router-outlet>
   </div>
+  @if (footerService.content()) {
+  <footer
+    class="shrink-0 bg-white border-t border-gray-200 px-11 py-4 flex items-center justify-end gap-3"
+  >
+    <ng-container *ngTemplateOutlet="footerService.content()"></ng-container>
+  </footer>
+  }
   <app-operation-toast />
 </div>

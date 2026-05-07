@@ -171,6 +171,7 @@ describe('DataImportWizardComponent — Recurrence', () => {
 
     flushPresetsRequest()
     await fixture.whenStable()
+    await fixture.whenStable()
 
     expect(component.recurrencePresets()).toEqual(MOCK_PRESETS)
   })
