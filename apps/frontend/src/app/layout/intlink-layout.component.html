@@ -123,7 +123,8 @@
   @if (navService.prevRoute(activeSegment()!); as prev) {
   <gn-ui-button type="outline" (buttonClick)="navigatePrev()">
     {{
-      (prev === 'edit' ? 'footer.previous.toEdit' : 'footer.previous') | translate
+      (prev === 'edit' ? 'footer.previous.toEdit' : 'footer.previous')
+        | translate
     }}
   </gn-ui-button>
   } @if (navService.nextRoute(activeSegment()!); as next) {

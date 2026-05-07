@@ -48,7 +48,9 @@ function createStore(
     final_table_name: null
   } as IntegrityLinkResponse)
 
-  const accessLevelComputed = computed(() => integrityLink()?.access_level ?? null)
+  const accessLevelComputed = computed(
+    () => integrityLink()?.access_level ?? null
+  )
   return {
     integrityLink,
     intlinkId: signal<string | null>(intlinkId),
@@ -56,7 +58,9 @@ function createStore(
       const l = accessLevelComputed()
       return l === 'OWNER' || l === 'ADMIN'
     }),
-    isEmptyDataset: computed(() => integrityLink()?.source_import_type === 'empty')
+    isEmptyDataset: computed(
+      () => integrityLink()?.source_import_type === 'empty'
+    )
   } as unknown as IntegrityLinkStore
 }
 
@@ -94,7 +98,15 @@ function setup(storeOpts: Parameters<typeof createStore>[0] = {}) {
   const service = TestBed.inject(IntlinkNavService)
   const router = TestBed.inject(Router)
 
-  return { service, store, mockSettings, mockApi, mockDialog, mockTranslate, router }
+  return {
+    service,
+    store,
+    mockSettings,
+    mockApi,
+    mockDialog,
+    mockTranslate,
+    router
+  }
 }
 
 describe('IntlinkNavService', () => {
@@ -111,12 +123,20 @@ describe('IntlinkNavService', () => {
 
     it('should include all routes for OWNER with data', () => {
       const { service } = setup({ accessLevel: 'OWNER', isEmpty: false })
-      expect(service.accessibleRoutes()).toEqual(['edit', 'events', 'authorizations'])
+      expect(service.accessibleRoutes()).toEqual([
+        'edit',
+        'events',
+        'authorizations'
+      ])
     })
 
     it('should include all routes for ADMIN with data', () => {
       const { service } = setup({ accessLevel: 'ADMIN', isEmpty: false })
-      expect(service.accessibleRoutes()).toEqual(['edit', 'events', 'authorizations'])
+      expect(service.accessibleRoutes()).toEqual([
+        'edit',
+        'events',
+        'authorizations'
+      ])
     })
   })
 
@@ -177,7 +197,9 @@ describe('IntlinkNavService', () => {
 
     it('should return footer.next.authorizations for authorizations', () => {
       const { service } = setup()
-      expect(service.nextRouteLabel('authorizations')).toBe('footer.next.authorizations')
+      expect(service.nextRouteLabel('authorizations')).toBe(
+        'footer.next.authorizations'
+      )
     })
   })
 
@@ -189,13 +211,17 @@ describe('IntlinkNavService', () => {
 
     it('should return null when metadataId is null', () => {
       const { service, mockSettings } = setup()
-      mockSettings.getSetting.mockReturnValue('https://catalogue.example.com/record/{metadata_id}')
+      mockSettings.getSetting.mockReturnValue(
+        'https://catalogue.example.com/record/{metadata_id}'
+      )
       expect(service.catalogueUrl(null)).toBeNull()
     })
 
     it('should interpolate metadata_id into the template', () => {
       const { service, mockSettings } = setup()
-      mockSettings.getSetting.mockReturnValue('https://catalogue.example.com/record/{metadata_id}')
+      mockSettings.getSetting.mockReturnValue(
+        'https://catalogue.example.com/record/{metadata_id}'
+      )
       expect(service.catalogueUrl('meta-abc')).toBe(
         'https://catalogue.example.com/record/meta-abc'
       )
@@ -236,7 +262,9 @@ describe('IntlinkNavService', () => {
     })
 
     it('should not navigate when user cancels the dialog', async () => {
-      const { service, router, mockApi, mockDialog } = setup({ scheduleEnabled: true })
+      const { service, router, mockApi, mockDialog } = setup({
+        scheduleEnabled: true
+      })
       mockApi.invoke.mockResolvedValue({ dag_runs: [] })
       mockDialog.open.mockReturnValue({ afterClosed: () => of(false) })
       const spy = vi.spyOn(router, 'navigate').mockResolvedValue(true)
@@ -245,10 +273,12 @@ describe('IntlinkNavService', () => {
     })
 
     it('should delete the schedule and navigate when user confirms', async () => {
-      const { service, router, mockApi, mockDialog } = setup({ scheduleEnabled: true })
+      const { service, router, mockApi, mockDialog } = setup({
+        scheduleEnabled: true
+      })
       mockApi.invoke
-        .mockResolvedValueOnce({ dag_runs: [] })  // getDagRunByIntlink
-        .mockResolvedValueOnce({})                // deleteSchedule
+        .mockResolvedValueOnce({ dag_runs: [] }) // getDagRunByIntlink
+        .mockResolvedValueOnce({}) // deleteSchedule
       mockDialog.open.mockReturnValue({ afterClosed: () => of(true) })
       const spy = vi.spyOn(router, 'navigate').mockResolvedValue(true)
       await service.reconfigure()
@@ -257,7 +287,9 @@ describe('IntlinkNavService', () => {
     })
 
     it('should use the active run warning message key when a run is active', async () => {
-      const { service, mockApi, mockDialog, mockTranslate } = setup({ scheduleEnabled: true })
+      const { service, mockApi, mockDialog, mockTranslate } = setup({
+        scheduleEnabled: true
+      })
       mockApi.invoke.mockResolvedValue({
         dag_runs: [{ state: 'running' }]
       })

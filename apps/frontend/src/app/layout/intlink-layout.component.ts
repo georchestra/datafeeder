@@ -25,7 +25,11 @@ import {
   iconoirOpenNewWindow
 } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
-import { ButtonComponent, EditorFacade, SpinningLoaderComponent } from 'geonetwork-ui'
+import {
+  ButtonComponent,
+  EditorFacade,
+  SpinningLoaderComponent
+} from 'geonetwork-ui'
 import { filter, map, startWith } from 'rxjs'
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
@@ -91,7 +95,10 @@ export class IntlinkLayoutComponent {
   protected readonly footerTpl = viewChild<TemplateRef<unknown>>('footerTpl')
 
   protected showUnavailableBanner = signal<boolean>(false)
-  protected readonly changedSinceSave = toSignal(this.editor.changedSinceSave$, { initialValue: false })
+  protected readonly changedSinceSave = toSignal(
+    this.editor.changedSinceSave$,
+    { initialValue: false }
+  )
 
   protected readonly activeSegment = toSignal(
     this.router.events.pipe(
@@ -123,7 +130,7 @@ export class IntlinkLayoutComponent {
       const segment = this.activeSegment()
       untracked(() => {
         // Only register footer for non-edit routes; MetadataComponent handles /edit
-        this.footerService.setContent(segment !== 'edit' ? (tpl ?? null) : null)
+        this.footerService.setContent(segment !== 'edit' ? tpl ?? null : null)
       })
     })
 

@@ -122,7 +122,9 @@ export class MetadataComponent implements OnInit {
   )
   isLastFormPage = toSignal(this.isLastPage$, { initialValue: false })
   currentPageSignal = toSignal(this.currentPage$, { initialValue: 0 })
-  changedSinceSave = toSignal(this.editor.changedSinceSave$, { initialValue: false })
+  changedSinceSave = toSignal(this.editor.changedSinceSave$, {
+    initialValue: false
+  })
 
   readonly nextIntlinkRoute = computed(() => this.navService.nextRoute('edit'))
 
@@ -135,14 +137,17 @@ export class MetadataComponent implements OnInit {
       const nextPageIndex = this.currentPageSignal() + 1
       const pageKey = this.pages()?.[nextPageIndex]?.labelKey
       if (pageKey === PAGE_KEY_RESOURCES) return 'footer.next.resources'
-      if (pageKey === PAGE_KEY_ACCESS_CONTACT) return 'footer.next.accessAndContact'
+      if (pageKey === PAGE_KEY_ACCESS_CONTACT)
+        return 'footer.next.accessAndContact'
       return 'editor.record.form.bottomButtons.next'
     }
     const changed = this.changedSinceSave()
     const next = this.nextIntlinkRoute()
     if (next) {
       const base = this.navService.nextRouteLabel(next)
-      return changed ? base.replace('footer.next.', 'footer.saveAndNext.') : base
+      return changed
+        ? base.replace('footer.next.', 'footer.saveAndNext.')
+        : base
     }
     return changed ? 'footer.saveAndOpenInCatalogue' : 'footer.openInCatalogue'
   })
