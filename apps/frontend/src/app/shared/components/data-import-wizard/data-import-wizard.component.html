@@ -174,13 +174,12 @@
     >
       <gn-ui-spinning-loader class="scale-50" />
     </span>
-    }
-    @if (importing()) {
-      {{ 'import.dataSource.sending' | translate }}
+    } @if (importing()) {
+    {{ 'import.dataSource.sending' | translate }}
     } @else if (polling()) {
-      {{ 'import.dataSource.processing' | translate }}
+    {{ 'import.dataSource.processing' | translate }}
     } @else {
-      {{ 'import.dataSource.next' | translate }}
+    {{ 'import.dataSource.next' | translate }}
     }
   </gn-ui-button>
   } @else if (selectedTabIndex() === 1) {
