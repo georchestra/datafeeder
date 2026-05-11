@@ -1,29 +1,92 @@
-# Install uv
+# syntax=docker/dockerfile:1
+ARG AIRFLOW_VERSION=3.1.8
+ARG UV_VERSION=0.9.15
+
+# Named stage for the uv binary so later `COPY --from=uv` works on BuildKit
+# versions that don't support variable expansion in `--from`.
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
+# ============================================================================
+# Builder stage: resolve elt deps from apps/elt/uv.lock (independent of the
+# root workspace, which can't satisfy airflow's fastapi cap alongside backend)
+# and build the data_manipulation wheel.
+# ============================================================================
 FROM python:3.12-slim AS builder
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-COPY ./libs/ /app/libs/
-COPY ./pyproject.toml /app/pyproject.toml
-COPY ./uv.lock /app/uv.lock
-COPY ./ruff.toml /app/ruff.toml
+COPY --from=uv /uv /uvx /bin/
 
-WORKDIR /app
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PYTHON=python3.12 \
+    UV_CACHE_DIR=/tmp/uv-cache \
+    UV_NO_CACHE=1 \
+    UV_FROZEN=1
 
-RUN uv run poe install && uv build libs/data_manipulation
+WORKDIR /src
 
-FROM apache/airflow:3.1.8 AS airflow_prod
-# copy the built wheel directory from builder and install any wheels found
-COPY --from=builder --chown=airflow /app/dist/ /tmp/dist
-COPY --chown=airflow ../apps/elt/dags/ /opt/airflow/dags/
-RUN pip install --no-cache-dir /tmp/dist/*.whl
+COPY apps/elt/pyproject.toml apps/elt/uv.lock apps/elt/
+COPY libs/data_manipulation ./libs/data_manipulation
 
-FROM apache/airflow:3.1.8 AS airflow_dev
+RUN cd apps/elt \
+ && uv export --no-dev --no-emit-workspace -o /tmp/requirements.txt \
+ && uv build --wheel ../../libs/data_manipulation -o /tmp/wheels
 
-# Dependencies from libs/data_manipulation/pyproject.toml
-RUN pip install \
-    "geoalchemy2==0.19.0" \
-    "geopandas==1.1.3" \
-    "geoservercloud" \
-    "pyarrow==24.0.0" \
-    "pydantic==2.13.4" \
-    "sqlalchemy==2.0.48"
+# ============================================================================
+# Base stage: airflow image + uv, shared by development and production
+# ============================================================================
+# The `-python3.12` suffix matches the workspace's `requires-python` pin.
+# Without it, apache/airflow defaults to 3.13, which breaks lockfile-resolved
+# wheels (uv falls back to source builds against a toolchain-less image).
+FROM apache/airflow:${AIRFLOW_VERSION}-python3.12 AS base
+
+# Switch to root so we can install uv into /bin and run uv pip install --system
+# against the airflow interpreter. Each leaf stage drops back to USER airflow,
+# the non-root user (uid 50000, gid 0) baked into the apache/airflow image.
+USER root
+COPY --from=uv /uv /uvx /bin/
+
+# Same uv tuning as the builder stage. UV_FROZEN guards against silent drift
+# from uv.lock; UV_NO_CACHE keeps the layer small since the cache is single-use.
+# UV_PYTHON points at the airflow image's venv interpreter so `uv pip install
+# --system` installs alongside the preinstalled airflow + provider distribution
+# rather than failing to find a system python3.12.
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PYTHON=/home/airflow/.local/bin/python \
+    UV_CACHE_DIR=/tmp/uv-cache \
+    UV_NO_CACHE=1 \
+    UV_FROZEN=1
+
+# ============================================================================
+# Development stage: deps only. libs/data_manipulation is bind-mounted under
+# /opt/airflow/dags by compose.airflow.yaml for hot-reload, so we don't install
+# the wheel here.
+# ============================================================================
+FROM base AS development
+
+# Apply the resolved requirements set produced by the builder via uv export.
+# --system targets the airflow image's interpreter rather than a fresh venv,
+# preserving the preinstalled airflow + provider distribution.
+COPY --from=builder /tmp/requirements.txt /tmp/requirements.txt
+RUN uv pip install --system -r /tmp/requirements.txt \
+ && rm -f /tmp/requirements.txt
+USER airflow
+
+# ============================================================================
+# Production stage: same deps plus the bundled data_manipulation wheel and the
+# DAG files copied from the repo.
+# ============================================================================
+FROM base AS production
+
+# Install requirements and the lib wheel in a single layer so pip resolves them
+# together and the intermediate files don't end up in the final image.
+COPY --from=builder /tmp/requirements.txt /tmp/requirements.txt
+COPY --from=builder /tmp/wheels/ /tmp/wheels/
+RUN uv pip install --system -r /tmp/requirements.txt /tmp/wheels/*.whl \
+ && rm -rf /tmp/requirements.txt /tmp/wheels
+
+# DAGs are copied (not volume-mounted) so the production image is self-contained.
+COPY --chown=airflow:0 apps/elt/dags/ /opt/airflow/dags/
+USER airflow
