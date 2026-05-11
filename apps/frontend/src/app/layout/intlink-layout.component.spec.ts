@@ -1,6 +1,7 @@
 import { computed, signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { provideRouter } from '@angular/router'
+import { MatDialog } from '@angular/material/dialog'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
@@ -94,7 +95,8 @@ describe('IntlinkLayoutComponent', () => {
         provideRouter([]),
         { provide: IntegrityLinkStore, useValue: store },
         { provide: EditorFacade, useValue: mockEditor },
-        { provide: Api, useValue: mockApi }
+        { provide: Api, useValue: mockApi },
+        { provide: MatDialog, useValue: {} }
       ]
     })
       .overrideComponent(IntlinkLayoutComponent, {
@@ -245,7 +247,7 @@ describe('IntlinkLayoutComponent', () => {
       const { fixture } = await setupComponent('OWNER')
       const saveService = TestBed.inject(MetadataSaveService)
       const saveSpy = vi.spyOn(saveService, 'save').mockResolvedValue()
-      fixture.componentInstance.metadataSaveService.save()
+      fixture.componentInstance.onSaveClick()
       expect(saveSpy).toHaveBeenCalled()
     })
   })
@@ -287,7 +289,8 @@ describe('IntlinkLayoutComponent', () => {
           provideRouter([]),
           { provide: IntegrityLinkStore, useValue: store },
           { provide: EditorFacade, useValue: mockEditor },
-          { provide: Api, useValue: mockApi }
+          { provide: Api, useValue: mockApi },
+          { provide: MatDialog, useValue: {} }
         ]
       })
         .overrideComponent(IntlinkLayoutComponent, {
