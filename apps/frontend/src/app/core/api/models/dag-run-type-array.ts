@@ -10,5 +10,6 @@ export const DAG_RUN_TYPE: DagRunType[] = [
   'backfill',
   'scheduled',
   'manual',
-  'asset_triggered'
+  'asset_triggered',
+  'asset_materialization'
 ]

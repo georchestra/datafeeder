@@ -48,7 +48,7 @@ import {
   editStagingIngestionStagingIntegrityLinkIdPut
 } from '../../../core/api/functions'
 import type {
-  ColumnConfigInput,
+  ColumnConfig,
   TaskStatus,
   ForceProjection,
   StagingResponse,
@@ -208,7 +208,7 @@ export class DataImportWizardComponent {
   previewTabIndex = signal(0)
   hasExtentError = signal(false)
 
-  columnConfigs = signal<ColumnConfigInput[]>([])
+  columnConfigs = signal<ColumnConfig[]>([])
   forceProjection = signal<ForceProjection | null>(null)
   configSaving = signal(false)
 

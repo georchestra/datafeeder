@@ -4,7 +4,7 @@ import { Overlay, OverlayRef } from '@angular/cdk/overlay'
 import { ColumnHeaderComponent } from './column-header.component'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
-import type { ColumnConfigOutput } from '../../../core/api/models'
+import type { ColumnConfig } from '../../../core/api/models'
 
 const translations = {
   'import.columnAction.menu.filter': 'Filtrer la colonne',
@@ -14,7 +14,7 @@ const translations = {
   'import.columnHeader.error.duplicate': 'Ce nom est déjà utilisé'
 }
 
-const baseColumnConfig: ColumnConfigOutput = {
+const baseColumnConfig: ColumnConfig = {
   original_name: 'my_column',
   new_name: null,
   excluded: false,

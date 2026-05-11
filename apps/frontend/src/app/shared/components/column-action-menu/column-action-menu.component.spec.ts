@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing'
 import { ColumnActionMenuComponent } from './column-action-menu.component'
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
-import type { ColumnConfigOutput } from '../../../core/api/models'
+import type { ColumnConfig } from '../../../core/api/models'
 
 const translations = {
   'import.columnAction.menu.filter': 'Filtrer la colonne',
@@ -20,7 +20,7 @@ const translations = {
   'import.columnFilter.delete': 'Supprimer'
 }
 
-const baseColumnConfig: ColumnConfigOutput = {
+const baseColumnConfig: ColumnConfig = {
   original_name: 'col1',
   new_name: null,
   excluded: false,
