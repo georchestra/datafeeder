@@ -7,7 +7,7 @@ import { ColumnFilter } from '../models/column-filter'
 /**
  * Column configuration for transformation.
  */
-export interface ColumnConfigOutput {
+export interface ColumnConfig {
   /**
    * Target data type for casting. None = keep original type.
    */
