@@ -56,16 +56,16 @@ wheels = [
 
 [[package]]
 name = "apache-airflow-client"
-version = "3.2.1"
+version = "3.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/59/61/06a8dd80987b4648ad927f35a472d8d7ac8cb169872a17074529a1cd3788/apache_airflow_client-3.2.1.tar.gz", hash = "sha256:8943bb4b794724651d7412b62551c39552d22b7b19f9ff5271d47276c9e649ee", size = 232849, upload-time = "2026-04-27T12:25:05.509Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/74/9ecb08b05980b1a4172f6e65cdd289dd4c691394ad8ba76e3bdfb17f4b32/apache_airflow_client-3.1.8.tar.gz", hash = "sha256:26923a954773a11940acf1d12c4592ada38ef10c3622d2fd72c094a764bdf090", size = 223960, upload-time = "2026-03-28T17:42:36.594Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/38/5c1ea82959b1a6a7448f6884568b066fc1f8760c6cb57da5271b07167d36/apache_airflow_client-3.2.1-py3-none-any.whl", hash = "sha256:a71e4f41a57c74a9caa2b62e7603915980aa3a5c579c9f065d711a8f33d2d94b", size = 398861, upload-time = "2026-04-27T12:25:03.482Z" },
+    { url = "https://files.pythonhosted.org/packages/31/f6/1f9be52165f5d1e21bf89c81aa2fae07f14c8edc691e95d0780035c48c75/apache_airflow_client-3.1.8-py3-none-any.whl", hash = "sha256:ac2add19bba9bc913df7d6609d1f3657b03aeb3b88627e378614b476e4fa6712", size = 386033, upload-time = "2026-03-28T17:42:35.148Z" },
 ]
 
 [[package]]
@@ -346,7 +346,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = "==1.18.4" },
-    { name = "apache-airflow-client", specifier = "==3.2.1" },
+    { name = "apache-airflow-client", specifier = "==3.1.8" },
     { name = "chardet", specifier = "==7.4.3" },
     { name = "data-manipulation", editable = "libs/data_manipulation" },
     { name = "fastapi", extras = ["standard"], specifier = "==0.136.1" },
