@@ -14,6 +14,7 @@ module.exports = {
       colors: {
         beige: '#F7F5F0',
         'gray-2': '#4C4C4C',
+        'gray-border': '#CCCDD2',
         'secondary-hover': '#A1DBDE',
         'secondary-active': 'rgba(161, 219, 222, 0.4)',
       },

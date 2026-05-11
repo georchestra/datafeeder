@@ -1,132 +1,78 @@
-<div class="bg-white rounded-lg p-7">
-  <div class="flex">
-    <div class="basis-3/4 max-w-[75%]">
-      <mat-tab-group
-        [(selectedIndex)]="selectedTabIndex"
-        class="data-import-wizard"
-        animationDuration="0ms"
-      >
-        <mat-tab>
-          <ng-template mat-tab-label>
-            <ng-icon
-              class="mr-2"
-              name="iconoirNumber1Square"
-              size="2em"
-            ></ng-icon>
-            {{ 'import.dataSource.title' | translate }}
-          </ng-template>
-          <div class="border-gray-600 border-b border-x rounded-b-lg">
-            @if (importError()) {
-            <div class="px-9 py-4 border-gray-600 border-b">
-              <app-ui-alert-box
-                type="warning"
-                [title]="errorTitle()"
-                [message]="importError()"
-                (dismissed)="importError.set(null)"
-              />
-            </div>
-            }
+<div class="bg-white rounded-lg shadow-md overflow-y-auto max-h-full py-7">
+  <!-- Step title -->
+  <h1 class="text-xl font-semibold text-gray-900 mb-6 px-7">
+    @if (selectedTabIndex() === 0) {
+    {{ 'import.dataSource.title' | translate }}
+    } @else {
+    {{ 'import.datasetConfiguration.title' | translate }}
+    }
+  </h1>
 
-            <app-data-source-selector
-              [databaseSourceEnabled]="databaseSourceEnabled()"
-              [initialDatabaseSource]="initialDatabaseSource()"
-              [initialApiSource]="initialApiSource()"
-              (sourceChanged)="onSourceChanged($event)"
-            />
-          </div>
-        </mat-tab>
-        <mat-tab>
-          <ng-template mat-tab-label>
-            <ng-icon
-              class="mr-2"
-              name="iconoirNumber2Square"
-              size="2em"
-            ></ng-icon>
-            {{ 'import.datasetConfiguration.title' | translate }}
-          </ng-template>
-
-          <div class="border-gray-600 border-x">
-            @if (validationError()) {
-            <div class="mb-4 rounded-lg bg-red-50 p-4 border border-red-200">
-              <p class="text-sm font-medium text-red-900">
-                {{ validationError() }}
-              </p>
-            </div>
-            }
-
-            <div class="flex flex-wrap items-end">
-              <div class="flex-1 min-w-[400px]">
-                <app-dataset-title
-                  #titleConfig
-                  [metadata]="selectedTabIndex() === 1 ? metadata() : undefined"
-                  (validated)="onValidateDataset($event)"
-                  (titleChanged)="onTitleChanged($event)"
-                />
-              </div>
-
-              @if (isRemoteSource()) {
-              <div class="p-6 shrink-0 w-[400px] hidden">
-                <h2 class="text-lg font-medium text-gray-900 mb-2">
-                  {{ 'import.recurrence.label' | translate }}
-                </h2>
-                <app-recurrence-selector
-                  [presets]="recurrencePresets()"
-                  [selectedPresetId]="selectedPresetId()"
-                  (presetChange)="selectedPresetId.set($event)"
-                />
-              </div>
-              }
-            </div>
-          </div>
-        </mat-tab>
-      </mat-tab-group>
+  <!-- Step 1: full width -->
+  @if (selectedTabIndex() === 0) {
+  <div>
+    @if (importError()) {
+    <div class="px-9 py-4 border-gray-600 border-b mb-2">
+      <app-ui-alert-box
+        type="warning"
+        [title]="errorTitle()"
+        [message]="importError()"
+        (dismissed)="importError.set(null)"
+      />
     </div>
+    }
 
-    <div
-      class="basis-1/4 flex flex-col items-center gap-2.5 pt-1 flex-shrink-0"
-    >
-      @if (selectedTabIndex() === 0) {
-      <gn-ui-button
-        [type]="cantConfigureDataset() ? 'outline' : 'primary'"
-        [disabled]="cantConfigureDataset()"
-        (buttonClick)="onConfigureDataset()"
-        data-test="configure-dataset"
-      >
-        @if (importing()) { {{ 'import.dataSource.sending' | translate }} }
-        @else if (polling()) {
-        {{ 'import.dataSource.processing' | translate }} } @else {
-        {{ 'import.dataSource.next' | translate }} }
-      </gn-ui-button>
-      } @else if (selectedTabIndex() === 1) {
-      <gn-ui-button
-        type="primary"
-        [disabled]="
-          processing() ||
-          !integrityLinkStore.intlinkId() ||
-          hasColumnNameError()
-        "
-        (buttonClick)="titleConfig.submitForm()"
-        data-test="validate-dataset"
-      >
-        @if (processing()) { {{ 'import.dataSource.processing' | translate }} }
-        @else { {{ 'import.dataSource.validate' | translate }} }
-      </gn-ui-button>
-      } @if (importing() || polling()) {
-      <div class="flex flex-col items-center gap-1">
-        <gn-ui-spinning-loader></gn-ui-spinning-loader>
-        <p class="text-center">
-          {{ 'import.dataSource.processingMessage' | translate }}
-        </p>
+    <app-data-source-selector
+      [databaseSourceEnabled]="databaseSourceEnabled()"
+      [initialDatabaseSource]="initialDatabaseSource()"
+      [initialApiSource]="initialApiSource()"
+      (sourceChanged)="onSourceChanged($event)"
+    />
+  </div>
+  }
+
+  <!-- Step 2: full width -->
+  @if (selectedTabIndex() === 1) {
+  <div>
+    @if (validationError()) {
+    <div class="mx-7 mb-4 rounded-lg bg-red-50 p-4 border border-red-200">
+      <p class="text-sm font-medium text-red-900">
+        {{ validationError() }}
+      </p>
+    </div>
+    }
+
+    <div class="flex flex-wrap items-end">
+      <div class="flex-1 min-w-[400px]">
+        <app-dataset-title
+          #titleConfig
+          [metadata]="selectedTabIndex() === 1 ? metadata() : undefined"
+          (validated)="onValidateDataset($event)"
+          (titleChanged)="onTitleChanged($event)"
+        />
+      </div>
+
+      @if (isRemoteSource()) {
+      <div class="p-6 shrink-0 w-[400px] hidden">
+        <h2 class="text-lg font-medium text-gray-900 mb-2">
+          {{ 'import.recurrence.label' | translate }}
+        </h2>
+        <app-recurrence-selector
+          [presets]="recurrencePresets()"
+          [selectedPresetId]="selectedPresetId()"
+          (presetChange)="selectedPresetId.set($event)"
+        />
       </div>
       }
     </div>
   </div>
 
-  <!-- Preview section (only for tab 2) -->
-  @if (selectedTabIndex() === 1) {
-  <div class="border-gray-600 border rounded-tr-lg rounded-b-lg">
+  <!-- Preview section -->
+  <div class="mt-6">
     <!-- Preview header with toggle buttons -->
-    <div class="flex items-center justify-between px-6 pt-6">
+    <div
+      class="flex items-center justify-between px-7 pt-6 border-t border-gray-border"
+    >
       <div class="flex items-center gap-3">
         <h1 class="text-lg font-semibold text-gray-900">
           {{ 'import.datasetConfiguration.previewTitle' | translate }}
@@ -212,3 +158,41 @@
   </div>
   }
 </div>
+
+<!-- Footer template — registered with FooterService, rendered in MainLayout -->
+<ng-template #footerTpl>
+  @if (selectedTabIndex() === 0) {
+  <gn-ui-button
+    [type]="cantConfigureDataset() ? 'outline' : 'primary'"
+    [disabled]="cantConfigureDataset()"
+    (buttonClick)="onConfigureDataset()"
+    data-test="configure-dataset"
+  >
+    @if (importing() || polling()) {
+    <span
+      class="inline-flex size-4 shrink-0 items-center justify-center mr-1.5 overflow-hidden"
+    >
+      <gn-ui-spinning-loader class="scale-50" />
+    </span>
+    } @if (importing()) {
+    {{ 'import.dataSource.sending' | translate }}
+    } @else if (polling()) {
+    {{ 'import.dataSource.processing' | translate }}
+    } @else {
+    {{ 'import.dataSource.next' | translate }}
+    }
+  </gn-ui-button>
+  } @else if (selectedTabIndex() === 1) {
+  <gn-ui-button
+    type="primary"
+    [disabled]="
+      processing() || !integrityLinkStore.intlinkId() || hasColumnNameError()
+    "
+    (buttonClick)="submitTitleForm()"
+    data-test="validate-dataset"
+  >
+    @if (processing()) { {{ 'import.dataSource.processing' | translate }} }
+    @else { {{ 'import.dataSource.validate' | translate }} }
+  </gn-ui-button>
+  }
+</ng-template>

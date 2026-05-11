@@ -171,6 +171,8 @@ describe('DataImportWizardComponent — Recurrence', () => {
 
     flushPresetsRequest()
     await fixture.whenStable()
+    // Two whenStable() needed: first drains the HTTP microtask, second the signal update
+    await fixture.whenStable()
 
     expect(component.recurrencePresets()).toEqual(MOCK_PRESETS)
   })

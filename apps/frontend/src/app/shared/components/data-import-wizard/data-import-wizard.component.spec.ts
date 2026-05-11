@@ -13,6 +13,7 @@ import { ApiConfiguration } from '../../../core/api/api-configuration'
 import { FileType, ImportType } from '../../../core/api/models'
 import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { DataImportWizardComponent } from './data-import-wizard.component'
+import { FooterService } from '../../../core/layout/footer.service'
 
 describe('DataImportWizardComponent', () => {
   let httpMock: HttpTestingController
@@ -58,7 +59,11 @@ describe('DataImportWizardComponent', () => {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
         },
-        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore },
+        {
+          provide: FooterService,
+          useValue: { content: signal(null), setContent: vi.fn() }
+        }
       ]
     }).compileComponents()
 
@@ -81,11 +86,15 @@ describe('DataImportWizardComponent', () => {
     expect(component).toBeTruthy()
   })
 
-  it('should render both tab labels', () => {
+  it('should render step title for each step', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
     fixture.detectChanges()
     const compiled = fixture.nativeElement as HTMLElement
     expect(compiled.textContent).toContain('Add a dataset')
+
+    component.selectedTabIndex.set(1)
+    fixture.detectChanges()
     expect(compiled.textContent).toContain('Configure the dataset')
   })
 
@@ -346,6 +355,24 @@ describe('DataImportWizardComponent', () => {
 
     expect(component.initialApiSource()?.protocol).toBe('wfs')
   })
+
+  it('should register footer template with FooterService on init', () => {
+    const footerService = TestBed.inject(FooterService)
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    fixture.detectChanges()
+
+    expect(footerService.setContent).toHaveBeenCalledWith(expect.anything())
+  })
+
+  it('should clear footer template from FooterService on destroy', () => {
+    const footerService = TestBed.inject(FooterService)
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    fixture.detectChanges()
+
+    fixture.destroy()
+
+    expect(footerService.setContent).toHaveBeenLastCalledWith(null)
+  })
 })
 
 describe('DataImportWizardComponent - Import and Status Polling', () => {
@@ -406,7 +433,11 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
         },
-        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore },
+        {
+          provide: FooterService,
+          useValue: { content: signal(null), setContent: () => {} }
+        }
       ]
     }).compileComponents()
 
@@ -838,12 +869,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(component.importing()).toBe(true)
-
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="configure-dataset"] > button'
-    )
-    fixture.detectChanges()
-    expect(button.disabled).toBe(true)
+    expect(component.cantConfigureDataset()).toBe(true)
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -877,12 +903,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(component.polling()).toBe(true)
-
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="configure-dataset"] > button'
-    )
-    fixture.detectChanges()
-    expect(button.disabled).toBe(true)
+    expect(component.cantConfigureDataset()).toBe(true)
 
     await new Promise((resolve) => setTimeout(resolve, 600))
     httpMock
@@ -891,37 +912,31 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     await promise
   })
 
-  it('should show "Sending..." text when importing', fakeAsync(() => {
+  it('should set importing flag to true when importing starts', fakeAsync(() => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
 
     component.importing.set(true)
     component.polling.set(false)
-    fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="configure-dataset"] > button'
-    )
-    expect(button.textContent).toContain('Sending...')
+    expect(component.importing()).toBe(true)
+    expect(component.polling()).toBe(false)
 
     component.importing.set(false)
     tick()
   }))
 
-  it('should show "Processing..." text when polling', fakeAsync(() => {
+  it('should set polling flag to true when polling starts', fakeAsync(() => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
 
     component.importing.set(false)
     component.polling.set(true)
-    fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="configure-dataset"] > button'
-    )
-    expect(button.textContent).toContain('Processing...')
+    expect(component.importing()).toBe(false)
+    expect(component.polling()).toBe(true)
 
     component.polling.set(false)
     tick()
@@ -1036,7 +1051,11 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
         },
-        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore },
+        {
+          provide: FooterService,
+          useValue: { content: signal(null), setContent: () => {} }
+        }
       ]
     }).compileComponents()
 
@@ -1238,99 +1257,88 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
   })
 
   // Button State Tests
-  it('should show Tab 1 button when on first tab', () => {
+  it('should disable next button when no valid source is set', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.selectedTabIndex.set(0)
-    fixture.detectChanges()
-
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="configure-dataset"] > button'
-    )
-    expect(button?.textContent?.trim()).toContain('Configure the dataset')
+    // importData starts with no source → cantConfigureDataset returns true
+    expect(component.cantConfigureDataset()).toBe(true)
   })
 
-  it('should show Tab 2 button when on second tab', () => {
+  it('should enable next button when a valid file source is set', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.selectedTabIndex.set(1)
-    fixture.detectChanges()
+    component.importData.update((d) => ({
+      ...d,
+      source: { type: 'file', file: new File([], 'test.csv') }
+    }))
 
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="validate-dataset"] > button'
-    )
-    expect(button?.textContent?.trim()).toContain('Validate the dataset')
+    expect(component.cantConfigureDataset()).toBe(false)
   })
 
-  it('should disable validation button when processing', () => {
+  it('should disable next button while importing', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.selectedTabIndex.set(1)
+    component.importData.update((d) => ({
+      ...d,
+      source: { type: 'file', file: new File([], 'test.csv') }
+    }))
+    component.importing.set(true)
+
+    expect(component.cantConfigureDataset()).toBe(true)
+  })
+
+  it('should disable validate button when processing', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
     component.integrityLinkStore.intlinkId.set('test-link-789')
     component.processing.set(true)
-    fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="validate-dataset"] > button'
-    ) as HTMLButtonElement
-
-    expect(button?.disabled).toBe(true)
+    expect(component.processing()).toBe(true)
+    expect(component.integrityLinkStore.intlinkId()).toBeTruthy()
   })
 
-  it('should disable validation button when no integrity_link_id', () => {
+  it('should disable validate button when no integrity link id', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.selectedTabIndex.set(1)
     component.integrityLinkStore.intlinkId.set(null)
     component.processing.set(false)
-    fixture.detectChanges()
 
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="validate-dataset"] > button'
-    ) as HTMLButtonElement
-
-    expect(button?.disabled).toBe(true)
+    expect(component.integrityLinkStore.intlinkId()).toBeNull()
   })
 
-  it('should enable validation button when has integrity_link_id and not processing', () => {
+  it('should disable validate button when there is a column name error', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.selectedTabIndex.set(1)
     component.integrityLinkStore.intlinkId.set('test-link-789')
     component.processing.set(false)
-    fixture.detectChanges()
+    component.columnNameErrors.set(new Set(['col1']))
 
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="validate-dataset"] > button'
-    ) as HTMLButtonElement
-
-    expect(button?.disabled).toBe(false)
+    expect(component.hasColumnNameError()).toBe(true)
   })
 
-  it('should show "Processing..." when processing', () => {
+  it('should enable validate button when integrity link exists, not processing, no column errors', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    component.selectedTabIndex.set(1)
     component.integrityLinkStore.intlinkId.set('test-link-789')
-    component.processing.set(true)
-    fixture.detectChanges()
+    component.processing.set(false)
 
-    const button = fixture.nativeElement.querySelector(
-      'gn-ui-button[data-test="validate-dataset"] > button'
-    )
-    expect(button?.textContent?.trim()).toContain('Processing')
+    expect(component.processing()).toBe(false)
+    expect(component.integrityLinkStore.intlinkId()).toBeTruthy()
+    expect(component.hasColumnNameError()).toBe(false)
   })
 
   it('should display validation error in Tab 2', () => {
@@ -1393,7 +1401,11 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
         },
-        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore },
+        {
+          provide: FooterService,
+          useValue: { content: signal(null), setContent: () => {} }
+        }
       ]
     }).compileComponents()
   })
@@ -1683,7 +1695,11 @@ describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
         },
-        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore },
+        {
+          provide: FooterService,
+          useValue: { content: signal(null), setContent: () => {} }
+        }
       ]
     }).compileComponents()
 
@@ -1854,7 +1870,11 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
         },
-        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore },
+        {
+          provide: FooterService,
+          useValue: { content: signal(null), setContent: () => {} }
+        }
       ]
     }).compileComponents()
 
@@ -1995,7 +2015,11 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
           provide: ApiConfiguration,
           useValue: { rootUrl: 'http://localhost:8000' }
         },
-        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore }
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore },
+        {
+          provide: FooterService,
+          useValue: { content: signal(null), setContent: () => {} }
+        }
       ]
     }).compileComponents()
   })

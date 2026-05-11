@@ -1,14 +1,21 @@
 import { HttpErrorResponse } from '@angular/common/http'
-import { Component, computed, effect, inject, signal } from '@angular/core'
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  signal,
+  TemplateRef,
+  untracked,
+  viewChild
+} from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { MatButtonToggleModule } from '@angular/material/button-toggle'
-import { MatTabsModule } from '@angular/material/tabs'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import { ActivatedRoute, Router } from '@angular/router'
 import {
   iconoirMap,
-  iconoirNumber1Square,
-  iconoirNumber2Square,
   iconoirTable,
   iconoirWarningTriangle,
   iconoirXmark
@@ -64,6 +71,7 @@ import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { RecurrenceSelectorComponent } from '../recurrence-selector/recurrence-selector.component'
 import { listRecurrencePresetsIngestionRecurrencePresetsGet } from '../../../core/api/functions'
+import { FooterService } from '../../../core/layout/footer.service'
 import type { RecurrencePreset } from '../../../core/api/models/recurrence-preset'
 import type { RecurrencePresetItem } from '../../../core/api/models/recurrence-preset-item'
 
@@ -95,9 +103,9 @@ export interface ImportWizardData {
 
 @Component({
   selector: 'app-data-import-wizard',
+  host: { class: 'flex-1 min-h-0 block' },
   imports: [
     MatButtonToggleModule,
-    MatTabsModule,
     NgIconComponent,
     ButtonComponent,
     SpinningLoaderComponent,
@@ -115,8 +123,6 @@ export interface ImportWizardData {
   providers: [
     provideIcons({
       iconoirMap,
-      iconoirNumber1Square,
-      iconoirNumber2Square,
       iconoirTable,
       iconoirWarningTriangle,
       iconoirXmark
@@ -129,6 +135,11 @@ export class DataImportWizardComponent {
   private router = inject(Router)
   private route = inject(ActivatedRoute)
   private settingsService = inject(SettingsService)
+  private footerService = inject(FooterService)
+  private destroyRef = inject(DestroyRef)
+
+  readonly footerTpl = viewChild<TemplateRef<unknown>>('footerTpl')
+  readonly titleConfig = viewChild<DatasetTitleComponent>('titleConfig')
 
   private renameSubject = new Subject<{
     originalName: string
@@ -221,11 +232,22 @@ export class DataImportWizardComponent {
 
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
 
+  submitTitleForm(): void {
+    this.titleConfig()?.submitForm()
+  }
+
   constructor() {
     const stepParam = Number(this.route.snapshot.queryParamMap.get('step') ?? 1)
     const initialTab = stepParam === 2 ? 1 : 0
     this.selectedTabIndex.set(initialTab)
     this.handleIntegrityLinkLoadError()
+
+    this.destroyRef.onDestroy(() => this.footerService.setContent(null))
+
+    effect(() => {
+      const tpl = this.footerTpl()
+      untracked(() => this.footerService.setContent(tpl ?? null))
+    })
 
     this.renameSubject
       .pipe(debounceTime(400), takeUntilDestroyed())
