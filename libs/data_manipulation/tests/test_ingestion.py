@@ -13,6 +13,7 @@ from sqlalchemy.engine import Engine
 
 from data_manipulation import IntegrityTransformation, apply_transformations
 from data_manipulation.ingestion import (
+    _read_file_encoded,  # pyright: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
     ingest_data_from_file_into_postgis,
     ingest_data_from_ftp_into_postgis,
@@ -21,6 +22,44 @@ from data_manipulation.ingestion import (
     read_data_from_postgis,
     write_data_to_postgis,
 )
+
+
+class TestReadFileEncodedParquet:
+    """Parquet/GeoParquet dispatch in _read_file_encoded."""
+
+    @patch("data_manipulation.ingestion.gpd.read_parquet")
+    def test_geoparquet_returns_geodataframe(self, mock_read_parquet: Mock) -> None:
+        mock_gdf = GeoDataFrame({"col1": [1], "geometry": [Point(0, 0)]})
+        mock_read_parquet.return_value = mock_gdf
+
+        result = _read_file_encoded("test.geoparquet")
+
+        mock_read_parquet.assert_called_once_with("test.geoparquet")
+        assert result is mock_gdf
+
+    @patch("data_manipulation.ingestion.pd.read_parquet")
+    @patch("data_manipulation.ingestion.gpd.read_parquet")
+    def test_plain_parquet_falls_back_to_pandas(
+        self, mock_gpd_read_parquet: Mock, mock_pd_read_parquet: Mock
+    ) -> None:
+        mock_gpd_read_parquet.side_effect = ValueError("no geo metadata")
+        mock_df = DataFrame({"col1": [1, 2]})
+        mock_pd_read_parquet.return_value = mock_df
+
+        result = _read_file_encoded("test.parquet")
+
+        mock_gpd_read_parquet.assert_called_once_with("test.parquet")
+        mock_pd_read_parquet.assert_called_once_with("test.parquet")
+        assert result is mock_df
+
+    @patch("data_manipulation.ingestion.gpd.read_parquet")
+    def test_geoparquet_extension_dispatched(self, mock_read_parquet: Mock) -> None:
+        mock_gdf = GeoDataFrame({"col1": [1], "geometry": [Point(0, 0)]})
+        mock_read_parquet.return_value = mock_gdf
+
+        _read_file_encoded("test.geoparquet")
+
+        mock_read_parquet.assert_called_once_with("test.geoparquet")
 
 
 class TestIngestDataFromFileIntoPostgis:

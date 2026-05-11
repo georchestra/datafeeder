@@ -77,6 +77,12 @@ def _read_file_encoded(file_path: str) -> gpd.GeoDataFrame | pd.DataFrame:
     Returns:
         GeoDataFrame or DataFrame with the file data
     """
+    if Path(file_path).suffix.lower() in (".parquet", ".geoparquet"):
+        try:
+            return gpd.read_parquet(file_path)  # type: ignore[arg-type]
+        except ValueError:
+            return pd.read_parquet(file_path)
+
     try:
         # Try reading with UTF-8 first (common default)
         data = gpd.read_file(file_path)  # type: ignore[arg-type]
@@ -262,7 +268,9 @@ def ingest_data_from_url_into_postgis(
                 logger.info(f"Extracted filename from Content-Disposition: {filename}")
 
             with tempfile.TemporaryDirectory() as temp_dir:
-                temp_file_path = Path(temp_dir) / (filename or Path(resolved_url).name)
+                temp_file_path = Path(temp_dir) / (
+                    filename or Path(urlparse(resolved_url).path).name
+                )
                 with open(temp_file_path, "wb") as temp_file:
                     temp_file.write(content)
 
