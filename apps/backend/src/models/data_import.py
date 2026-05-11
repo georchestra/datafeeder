@@ -35,7 +35,20 @@ class FileType(str, Enum):
     JSON = "json"
     SHAPEFILE = "shapefile"
     GPKG = "gpkg"
+    PARQUET = "parquet"
     ZIP = "zip"
+
+
+EXTENSION_MAP: dict[str, FileType] = {
+    "csv": FileType.CSV,
+    "geojson": FileType.GEOJSON,
+    "json": FileType.JSON,
+    "shp": FileType.SHAPEFILE,
+    "gpkg": FileType.GPKG,
+    "parquet": FileType.PARQUET,
+    "geoparquet": FileType.PARQUET,
+    "zip": FileType.ZIP,
+}
 
 
 class ProcessRequest(BaseModel):

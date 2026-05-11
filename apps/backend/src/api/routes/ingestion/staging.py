@@ -36,6 +36,7 @@ from src.models import (
     StagingResponse,
 )
 from src.models.data_import import (
+    EXTENSION_MAP,
     ColumnConfig,
     FileType,
     ForceProjection,
@@ -322,17 +323,7 @@ def _extract_filetype(filename: str) -> FileType | None:
     # Extract extension and convert to lowercase
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
-    # Map extensions to FileType
-    extension_map = {
-        "csv": FileType.CSV,
-        "geojson": FileType.GEOJSON,
-        "json": FileType.JSON,
-        "shp": FileType.SHAPEFILE,
-        "gpkg": FileType.GPKG,
-        "zip": FileType.ZIP,
-    }
-
-    return extension_map.get(extension)
+    return EXTENSION_MAP.get(extension)
 
 
 def _extract_url_metadata(
