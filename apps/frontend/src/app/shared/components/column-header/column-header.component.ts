@@ -32,7 +32,7 @@ import {
 } from '@ng-icons/core'
 import { iconoirMoreVert, iconoirUndo } from '@ng-icons/iconoir'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
-import type { ColumnConfigOutput } from '../../../core/api/models'
+import type { ColumnConfig } from '../../../core/api/models'
 import type {
   ColumnAction,
   CastType
@@ -65,7 +65,7 @@ export class ColumnHeaderComponent implements OnDestroy {
   private readonly translate = inject(TranslateService)
   private readonly destroyRef = inject(DestroyRef)
 
-  columnConfig = input.required<ColumnConfigOutput>()
+  columnConfig = input.required<ColumnConfig>()
   allColumnNames = input<string[]>([])
 
   actionMenuOpened = output<ColumnAction>()
