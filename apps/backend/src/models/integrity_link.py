@@ -37,13 +37,13 @@ class IntegrityLink(SQLModel, table=True):
         description="Full transformation config (IntegrityTransformation): columns + force_projection",
     )
     source_import_type: ImportType = Field(
-        sa_type=SqlEnum(ImportType, values_callable=get_enum_values, nullable=False)
+        sa_column=Column(SqlEnum(ImportType, values_callable=get_enum_values), nullable=False)
     )
     source_url: Optional[str] = None
     source_file_name: Optional[str] = None
     source_file_type: Optional[FileType] = Field(
         default=None,
-        sa_type=SqlEnum(FileType, values_callable=get_enum_values, nullable=True),
+        sa_column=Column(SqlEnum(FileType, values_callable=get_enum_values), nullable=True),
     )
     source_layer: Optional[str] = Field(default=None, max_length=256)
     source_protocol: Optional[str] = Field(default=None, max_length=32)
