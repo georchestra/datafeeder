@@ -38,7 +38,7 @@ class TestListIntegrityLinks:
     @pytest.fixture
     def sample_integrity_links(self) -> list[IntegrityLink]:
         """Create sample integrity links for testing."""
-        links = []
+        links: list[IntegrityLink] = []
         for i in range(5):
             # Create IntegrityLink without validation (direct instantiation)
             link = IntegrityLink(

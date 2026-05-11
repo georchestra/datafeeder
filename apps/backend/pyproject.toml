@@ -17,22 +17,22 @@ description = "REST API for data ingestion in Datafeeder"
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
-    "fastapi[standard]>=0.129.0",
-    "uvicorn[standard]==0.38.0",
+    "fastapi[standard]==0.136.1",
+    "uvicorn[standard]==0.46.0",
     "data_manipulation",
-    "sqlmodel==0.0.27",
-    "pyjwt==2.12.0",
-    "pydantic==2.12.5",
-    "pydantic-settings==2.12.0",
+    "sqlmodel==0.0.38",
+    "pyjwt==2.12.1",
+    "pydantic==2.13.4",
+    "pydantic-settings==2.14.1",
     "jproperties==2.1.2",
-    "psycopg[binary]==3.3.2",
+    "psycopg[binary]==3.3.4",
     "geoservercloud",
     "geonetwork",
-    "apache-airflow-client==3.1.3",
-    "geojson-pydantic>=1.0.0",
-    "chardet>=5.2.0",
-    "requests>=2.32.0",
-    "alembic>=1.14",
+    "apache-airflow-client==3.2.1",
+    "geojson-pydantic==2.1.1",
+    "chardet==7.4.3",
+    "requests==2.33.1",
+    "alembic==1.18.4",
 ]
 
 [dependency-groups]
@@ -48,8 +48,6 @@ dev = [
 
 [tool.uv.sources]
 data_manipulation = { workspace = true }
-geoservercloud = { git = "https://github.com/camptocamp/python-geoservercloud.git" }
-geonetwork = { git = "https://github.com/camptocamp/python-geonetwork.git" }
 
 [tool.ruff]
 extend = "../../ruff.toml"
