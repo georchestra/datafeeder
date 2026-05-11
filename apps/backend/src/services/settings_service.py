@@ -30,7 +30,7 @@ class SettingsService:
             logger.error(f"Failed to parse PROJECTIONS from settings: {e}")
             projections = []
 
-        enabled_features = []
+        enabled_features: list[str] = []
         if self._settings.TASK_EXECUTOR == TaskExecutorType.AIRFLOW:
             enabled_features.append("scheduling")
             enabled_features.append("events")
