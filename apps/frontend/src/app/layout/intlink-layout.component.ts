@@ -1,6 +1,17 @@
-import { Component, inject, signal } from '@angular/core'
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  signal,
+  TemplateRef,
+  untracked,
+  viewChild
+} from '@angular/core'
 import {
   ActivatedRoute,
+  NavigationEnd,
   Router,
   RouterLink,
   RouterLinkActive,
@@ -8,33 +19,27 @@ import {
 } from '@angular/router'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
-import { iconoirFloppyDisk, iconoirRefreshCircle } from '@ng-icons/iconoir'
-import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import {
-  ConfirmationDialogComponent,
+  iconoirFloppyDisk,
+  iconoirRefreshCircle,
+  iconoirOpenNewWindow
+} from '@ng-icons/iconoir'
+import { TranslatePipe } from '@ngx-translate/core'
+import {
+  ButtonComponent,
   EditorFacade,
-  findConverterForDocument,
   SpinningLoaderComponent
 } from 'geonetwork-ui'
-import { MatDialog } from '@angular/material/dialog'
-import {
-  finalize,
-  firstValueFrom,
-  from,
-  switchMap,
-  take,
-  withLatestFrom
-} from 'rxjs'
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
-import { Api } from '../core/api/api'
-import {
-  deleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete,
-  getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
-  updateMetadataGnIngestionIntegrityLinkIntegrityLinkIdMetadataGnPut
-} from '../core/api/functions'
+import { filter, map, startWith } from 'rxjs'
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
 import { IntegrityLinkStore } from '../core/stores/integrity-link.store'
-import { OperationToastStore } from '../core/stores/operation-toast.store'
 import { UiAlertBoxComponent } from '../shared/components/ui-alert-box/ui-alert-box.component'
+import { FooterService } from '../core/layout/footer.service'
+import {
+  IntlinkNavService,
+  type IntlinkRoute
+} from '../core/layout/intlink-nav.service'
+import { MetadataSaveService } from '../core/layout/metadata-save.service'
 
 marker('intlinkLayout.error.forbidden.message')
 marker('intlinkLayout.error.forbidden.title')
@@ -49,6 +54,11 @@ marker('info.operation.metadataSave')
 marker('sidebar.reconfigureDataset.warning')
 marker('sidebar.reconfigureDataset.warningActiveRun')
 marker('sidebar.reconfigureDataset.warningTitle')
+marker('footer.previous')
+marker('footer.previous.toEdit')
+marker('footer.next.events')
+marker('footer.next.authorizations')
+marker('footer.openInCatalogue')
 
 @Component({
   selector: 'app-intlink-layout',
@@ -59,33 +69,50 @@ marker('sidebar.reconfigureDataset.warningTitle')
     NgIconComponent,
     TranslatePipe,
     UiAlertBoxComponent,
-    SpinningLoaderComponent
+    SpinningLoaderComponent,
+    ButtonComponent
   ],
   templateUrl: './intlink-layout.component.html',
   providers: [
     provideIcons({
       iconoirFloppyDisk,
-      iconoirRefreshCircle
+      iconoirRefreshCircle,
+      iconoirOpenNewWindow
     })
   ]
 })
 export class IntlinkLayoutComponent {
-  readonly store = inject(IntegrityLinkStore)
-
+  protected readonly store = inject(IntegrityLinkStore)
+  protected readonly navService = inject(IntlinkNavService)
+  protected readonly metadataSaveService = inject(MetadataSaveService)
   private editor = inject(EditorFacade)
-  private api = inject(Api)
-  private operationToastStore = inject(OperationToastStore)
+
   private router = inject(Router)
   private route = inject(ActivatedRoute)
-  private matDialog = inject(MatDialog)
-  private translate = inject(TranslateService)
+  private footerService = inject(FooterService)
+  private destroyRef = inject(DestroyRef)
 
-  isSaving = signal<boolean>(false)
-  showUnavailableBanner = signal<boolean>(false)
+  protected readonly footerTpl = viewChild<TemplateRef<unknown>>('footerTpl')
+
+  protected showUnavailableBanner = signal<boolean>(false)
+  protected readonly changedSinceSave = toSignal(
+    this.editor.changedSinceSave$,
+    { initialValue: false }
+  )
+
+  protected readonly activeSegment = toSignal(
+    this.router.events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      map(() => this.resolveActiveSegment()),
+      startWith(this.resolveActiveSegment())
+    )
+  ) as ReturnType<typeof toSignal<IntlinkRoute>>
+
+  protected readonly catalogueUrl = computed(() =>
+    this.navService.catalogueUrl(this.store.integrityLink()?.metadata_id)
+  )
 
   constructor() {
-    // Subscribe (not snapshot) so the banner triggers even when the layout shell
-    // is already mounted and the guard redirects back with ?unavailable=1.
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
       if (params.get('unavailable') === '1') {
         this.showUnavailableBanner.set(true)
@@ -97,91 +124,52 @@ export class IntlinkLayoutComponent {
         })
       }
     })
+
+    effect(() => {
+      const tpl = this.footerTpl()
+      const segment = this.activeSegment()
+      untracked(() => {
+        // Only register footer for non-edit routes; MetadataComponent handles /edit
+        this.footerService.setContent(segment !== 'edit' ? tpl ?? null : null)
+      })
+    })
+
+    this.destroyRef.onDestroy(() => this.footerService.setContent(null))
   }
 
-  async onReconfigureClick(): Promise<void> {
-    const intlink = this.store.integrityLink()
+  private resolveActiveSegment(): IntlinkRoute {
+    const last = this.router.url.split('?')[0].split('/').pop()
+    if (last === 'authorizations') return 'authorizations'
+    if (last === 'events') return 'events'
+    return 'edit'
+  }
+
+  onSaveClick(): void {
+    this.metadataSaveService.save().catch(() => undefined)
+  }
+
+  onReconfigureClick(): Promise<void> {
+    return this.navService.reconfigure()
+  }
+
+  navigatePrev(): void {
     const intlinkId = this.store.intlinkId()
-    if (!intlink || !intlinkId) return
-
-    if (intlink.schedule_enabled) {
-      const runs = await this.api.invoke(
-        getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
-        { dag_id: 'process_dag', intlink_id: intlinkId }
-      )
-      const hasActiveRun = runs.dag_runs.some(
-        (r) => r.state === 'running' || r.state === 'queued'
-      )
-      const messageKey = hasActiveRun
-        ? 'sidebar.reconfigureDataset.warningActiveRun'
-        : 'sidebar.reconfigureDataset.warning'
-
-      const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
-        data: {
-          title: this.translate.instant(
-            'sidebar.reconfigureDataset.warningTitle'
-          ),
-          message: this.translate.instant(messageKey),
-          confirmText: this.translate.instant('common.continue'),
-          cancelText: this.translate.instant('common.cancel'),
-          focusCancel: 'cancel'
-        }
-      })
-      const confirmed = await firstValueFrom(dialogRef.afterClosed())
-      if (!confirmed) return
-
-      await this.api.invoke(
-        deleteIntegrityLinkScheduleIngestionIntegrityLinkIntegrityLinkIdScheduleDelete,
-        { integrity_link_id: intlinkId }
-      )
-    }
-
-    this.router.navigate(['/import', intlinkId])
+    const segment = this.activeSegment()
+    if (!intlinkId || !segment) return
+    const prev = this.navService.prevRoute(segment)
+    if (prev) this.navService.navigate(intlinkId, prev)
   }
 
-  saveEdits(): void {
-    if (this.isSaving()) return
+  navigateNext(): void {
+    const intlinkId = this.store.intlinkId()
+    const segment = this.activeSegment()
+    if (!intlinkId || !segment) return
+    const next = this.navService.nextRoute(segment)
+    if (next) this.navService.navigate(intlinkId, next)
+  }
 
-    this.isSaving.set(true)
-    this.editor.record$
-      .pipe(
-        withLatestFrom(this.editor.recordSource$),
-        take(1),
-        switchMap(([record, recordSource]) =>
-          from(
-            findConverterForDocument(recordSource).writeRecord(
-              record,
-              recordSource
-            )
-          ).pipe(
-            switchMap((serializedXml) =>
-              from(
-                this.api.invoke(
-                  updateMetadataGnIngestionIntegrityLinkIntegrityLinkIdMetadataGnPut,
-                  {
-                    integrity_link_id: this.store.integrityLink()!.id,
-                    body: { serialized_xml: serializedXml, title: record.title }
-                  }
-                )
-              )
-            )
-          )
-        ),
-        finalize(() => {
-          this.isSaving.set(false)
-        })
-      )
-      .subscribe({
-        next: (updatedIntlink) => {
-          this.store.integrityLink.update((current) => ({
-            ...current!,
-            integrity_title: updatedIntlink.integrity_title
-          }))
-          this.operationToastStore.addInfo('metadataSave')
-        },
-        error: () => {
-          this.operationToastStore.addError('metadataSave')
-        }
-      })
+  openCatalogue(): void {
+    const url = this.catalogueUrl()
+    if (url) window.open(url, '_blank', 'noopener')
   }
 }

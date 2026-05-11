@@ -169,6 +169,12 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("geoserverPassword", "GEOSERVER_PASSWORD"),
     )
 
+    # Catalogue
+    CATALOGUE_URL: str = Field(
+        default="",
+        validation_alias=AliasChoices("catalogueUrl", "CATALOGUE_URL"),
+    )
+
     # Geonetwork
     GEONETWORK_URL: str = Field(
         default="http://localhost:8080/geonetwork",

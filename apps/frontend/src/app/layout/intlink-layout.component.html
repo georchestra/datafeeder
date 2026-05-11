@@ -14,9 +14,9 @@
         @if (rla.isActive) {
         <button
           type="button"
-          (click)="saveEdits()"
+          (click)="onSaveClick()"
           class="mt-2 w-full flex items-center justify-center rounded-full bg-secondary-active text-gray-900 hover:bg-secondary hover:text-gray-100 disabled:bg-secondary-active/40 disabled:text-secondary disabled:cursor-not-allowed"
-          [disabled]="isSaving()"
+          [disabled]="metadataSaveService.isSaving() || !changedSinceSave()"
         >
           <div class="my-1.5 flex items-center justify-center gap-1">
             <ng-icon name="iconoirFloppyDisk" size="16"></ng-icon>
@@ -25,29 +25,12 @@
             }}</span>
           </div>
         </button>
-        @if (isSaving()) {
+        @if (metadataSaveService.isSaving()) {
         <div class="mt-2 w-full flex items-center justify-center">
           <gn-ui-spinning-loader></gn-ui-spinning-loader>
         </div>
         } }
       </a>
-
-      <!-- Authorizations — owner/admin only -->
-      @if (store.isOwnerOrAdmin()) {
-      <a
-        [routerLink]="['authorizations']"
-        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
-        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
-      >
-        {{ 'sidebar.accessRights' | translate }}
-      </a>
-      } @else {
-      <span
-        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
-      >
-        {{ 'sidebar.accessRights' | translate }}
-      </span>
-      }
 
       <!-- Events — disabled for empty datasets, owner/admin only otherwise -->
       @if (store.isEmptyDataset() || !store.isOwnerOrAdmin()) {
@@ -71,6 +54,23 @@
       </a>
       }
 
+      <!-- Authorizations — owner/admin only -->
+      @if (store.isOwnerOrAdmin()) {
+      <a
+        [routerLink]="['authorizations']"
+        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
+        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+      >
+        {{ 'sidebar.accessRights' | translate }}
+      </a>
+      } @else {
+      <span
+        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+      >
+        {{ 'sidebar.accessRights' | translate }}
+      </span>
+      }
+
       <hr class="my-2 border-gray-200" />
       <a
         [routerLink]="['/']"
@@ -79,20 +79,6 @@
         {{ 'integrityLinks.dashboard' | translate }}
       </a>
     </div>
-
-    <!-- Reconfigure — hidden for non-owner/non-admin -->
-    @if (store.isOwnerOrAdmin()) {
-    <div>
-      <button
-        type="button"
-        (click)="onReconfigureClick()"
-        class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-base text-gray-900 hover:bg-secondary-hover hover:text-gray-950"
-      >
-        <ng-icon name="iconoirRefreshCircle" size="1.25em"></ng-icon>
-        {{ 'sidebar.reconfigureDataset' | translate }}
-      </button>
-    </div>
-    }
   </nav>
 
   <div class="flex-grow overflow-y-auto px-11 py-5 flex flex-col">
@@ -124,3 +110,35 @@
     }
   </div>
 </div>
+
+<!-- Footer template for /events and /authorizations — registered with FooterService -->
+<ng-template #footerTpl>
+  @if (store.isOwnerOrAdmin()) {
+  <gn-ui-button type="outline" (buttonClick)="onReconfigureClick()">
+    <ng-icon name="iconoirRefreshCircle" size="1.1em" class="mr-1.5" />
+    {{ 'sidebar.reconfigureDataset' | translate }}
+  </gn-ui-button>
+  }
+  <div class="flex-1"></div>
+  @if (navService.prevRoute(activeSegment()!); as prev) {
+  <gn-ui-button type="outline" (buttonClick)="navigatePrev()">
+    {{
+      (prev === 'edit' ? 'footer.previous.toEdit' : 'footer.previous')
+        | translate
+    }}
+  </gn-ui-button>
+  } @if (navService.nextRoute(activeSegment()!); as next) {
+  <gn-ui-button type="primary" (buttonClick)="navigateNext()">
+    {{ navService.nextRouteLabel(next) | translate }}
+  </gn-ui-button>
+  } @else {
+  <gn-ui-button
+    type="primary"
+    (buttonClick)="openCatalogue()"
+    [disabled]="!catalogueUrl()"
+  >
+    {{ 'footer.openInCatalogue' | translate }}
+    <ng-icon name="iconoirOpenNewWindow" size="1em" class="ml-1.5" />
+  </gn-ui-button>
+  }
+</ng-template>

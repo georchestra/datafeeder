@@ -9,6 +9,7 @@ import { ProjectionSetting } from '../models/projection-setting'
  * Returns application settings including available projections.
  */
 export interface SettingsResponse {
+  catalogue_url?: string
   enabled_features?: Array<string>
   projections: Array<ProjectionSetting>
 }

@@ -88,25 +88,56 @@
     <gn-ui-record-form></gn-ui-record-form>
   </div>
   }
-  <div
-    data-test="previousNextPageButtons"
-    class="mt-auto flex flex-row justify-between"
-  >
-    @if((currentPage$ | async) !== 0) {
-    <gn-ui-button
-      type="outline"
-      (buttonClick)="previousPageButtonHandler()"
-      translate
-    >
-      {{ 'editor.record.form.bottomButtons.previous' | translate }}
-    </gn-ui-button>
-    } @else {
-    <div></div>
-    } @if ((isLastPage$ | async) === false) {
-    <gn-ui-button type="primary" (buttonClick)="nextPageButtonHandler()">
-      <span translate>editor.record.form.bottomButtons.next</span>
-    </gn-ui-button>
-    }
-  </div>
 </div>
 }
+
+<!-- Footer template for /edit — registered with FooterService -->
+<ng-template #footerTpl>
+  @if (store.isOwnerOrAdmin()) {
+  <gn-ui-button type="outline" (buttonClick)="onReconfigureClick()">
+    <ng-icon name="iconoirRefreshCircle" size="1.1em" class="mr-1.5" />
+    {{ 'sidebar.reconfigureDataset' | translate }}
+  </gn-ui-button>
+  }
+  <div class="flex-1"></div>
+  @if (currentPageSignal() !== 0) {
+  <gn-ui-button type="outline" (buttonClick)="previousPageButtonHandler()">
+    {{ 'footer.previous' | translate }}
+  </gn-ui-button>
+  } @if (isLastFormPage()) { @if (nextIntlinkRoute()) {
+  <gn-ui-button
+    type="primary"
+    [disabled]="metadataSaveService.isSaving()"
+    (buttonClick)="saveAndNavigateNext()"
+  >
+    @if (metadataSaveService.isSaving()) {
+    <span
+      class="inline-flex size-4 shrink-0 items-center justify-center mr-1.5 overflow-hidden"
+    >
+      <gn-ui-spinning-loader class="scale-50" />
+    </span>
+    }
+    {{ nextButtonLabelKey() | translate }}
+  </gn-ui-button>
+  } @else {
+  <gn-ui-button
+    type="primary"
+    [disabled]="metadataSaveService.isSaving() || !catalogueUrl()"
+    (buttonClick)="saveAndOpenCatalogue()"
+  >
+    @if (metadataSaveService.isSaving()) {
+    <span
+      class="inline-flex size-4 shrink-0 items-center justify-center mr-1.5 overflow-hidden"
+    >
+      <gn-ui-spinning-loader class="scale-50" />
+    </span>
+    }
+    {{ nextButtonLabelKey() | translate }}
+    <ng-icon name="iconoirOpenNewWindow" size="1em" class="ml-1.5" />
+  </gn-ui-button>
+  } } @else {
+  <gn-ui-button type="primary" (buttonClick)="nextPageButtonHandler()">
+    {{ nextButtonLabelKey() | translate }}
+  </gn-ui-button>
+  }
+</ng-template>
