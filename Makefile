@@ -58,5 +58,5 @@ docker-build-backend: ## Build the backend Docker image
 docker-build-frontend: ## Build the frontend Docker image
 	echo "TODO: Implement frontend Docker build"
 
-.PHONY: default help clean-python install-python check-all-python fix-all-python build-libs up-light up-full down down-v reload-airflow-deps run-backend docker-build-backend docker-build-frontend
+.PHONY: default help clean-python install-python check-all-python fix-all-python build-libs up-light up-full down down-v run-backend docker-build-backend docker-build-frontend
 

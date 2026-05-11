@@ -29,11 +29,7 @@ uv sync --all-packages
 
 It is then importable as `data_manipulation` from both the backend and the ELT DAGs.
 
-When iterating on the library and exercising it from Airflow, rebuild the ELT image so the DAGs pick up the new code:
-
-```bash
-make reload-airflow-deps
-```
+The library source is bind-mounted into the Airflow containers, so edits are picked up live. If you change `pyproject.toml` dependencies, rebuild the Airflow images with `docker compose up -d --build`.
 
 ## Test
 
