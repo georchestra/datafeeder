@@ -53,13 +53,14 @@ class TestReadFileEncodedParquet:
         assert result is mock_df
 
     @patch("data_manipulation.ingestion.gpd.read_parquet")
-    def test_geoparquet_extension_dispatched(self, mock_read_parquet: Mock) -> None:
+    def test_parquet_with_geo_metadata_returns_geodataframe(self, mock_read_parquet: Mock) -> None:
         mock_gdf = GeoDataFrame({"col1": [1], "geometry": [Point(0, 0)]})
         mock_read_parquet.return_value = mock_gdf
 
-        _read_file_encoded("test.geoparquet")
+        result = _read_file_encoded("test.parquet")
 
-        mock_read_parquet.assert_called_once_with("test.geoparquet")
+        mock_read_parquet.assert_called_once_with("test.parquet")
+        assert result is mock_gdf
 
 
 class TestIngestDataFromFileIntoPostgis:
@@ -299,6 +300,84 @@ class TestIngestDataFromUrlIntoPostgis:
             ingest_data_from_url_into_postgis(
                 "http://example.com/data.geojson", "test_table", mock_engine, "public"
             )
+
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion.gpd.read_parquet")
+    @patch("data_manipulation.ingestion.requests.get")
+    def test_ingest_parquet_url_by_extension(
+        self,
+        mock_requests_get: Mock,
+        mock_read_parquet: Mock,
+        mock_write_data: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        mock_response = Mock()
+        mock_response.content = b"parquet bytes"
+        mock_response.headers = {}
+        mock_requests_get.return_value = mock_response
+        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
+        mock_read_parquet.return_value = mock_gdf
+
+        ingest_data_from_url_into_postgis(
+            "http://example.com/layer.parquet", "test_table", mock_engine, "public"
+        )
+
+        mock_read_parquet.assert_called_once()
+        path_arg = mock_read_parquet.call_args.args[0]
+        assert path_arg.endswith(".parquet")
+        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
+
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion.gpd.read_parquet")
+    @patch("data_manipulation.ingestion.requests.get")
+    def test_ingest_geoparquet_url_by_extension(
+        self,
+        mock_requests_get: Mock,
+        mock_read_parquet: Mock,
+        mock_write_data: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        mock_response = Mock()
+        mock_response.content = b"geoparquet bytes"
+        mock_response.headers = {}
+        mock_requests_get.return_value = mock_response
+        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
+        mock_read_parquet.return_value = mock_gdf
+
+        ingest_data_from_url_into_postgis(
+            "http://example.com/layer.geoparquet", "test_table", mock_engine, "public"
+        )
+
+        mock_read_parquet.assert_called_once()
+        path_arg = mock_read_parquet.call_args.args[0]
+        assert path_arg.endswith(".geoparquet")
+        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
+
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion.gpd.read_parquet")
+    @patch("data_manipulation.ingestion.requests.get")
+    def test_ingest_parquet_url_with_content_disposition(
+        self,
+        mock_requests_get: Mock,
+        mock_read_parquet: Mock,
+        mock_write_data: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        mock_response = Mock()
+        mock_response.content = b"parquet bytes"
+        mock_response.headers = {"Content-Disposition": 'attachment; filename="export.parquet"'}
+        mock_requests_get.return_value = mock_response
+        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
+        mock_read_parquet.return_value = mock_gdf
+
+        ingest_data_from_url_into_postgis(
+            "http://example.com/download/42", "test_table", mock_engine, "public"
+        )
+
+        mock_read_parquet.assert_called_once()
+        path_arg = mock_read_parquet.call_args.args[0]
+        assert path_arg.endswith("export.parquet")
+        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
 
 
 class TestIngestDataFromFtpIntoPostgis:
