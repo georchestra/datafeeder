@@ -12,5 +12,6 @@ export const FILE_TYPE: FileType[] = [
   'json',
   'shapefile',
   'gpkg',
+  'parquet',
   'zip'
 ]
