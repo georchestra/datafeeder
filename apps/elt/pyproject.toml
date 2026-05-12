@@ -13,7 +13,7 @@ readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
     "data_manipulation",
-    "apache-airflow==3.2.1",
+    "apache-airflow==3.1.8",  # keep in sync with AIRFLOW_VERSION in docker/Dockerfile.airflow
     "apache-airflow-providers-postgres==6.6.3",
 ]
 
@@ -23,8 +23,12 @@ dev = [
     "poethepoet>0",
 ]
 
+[tool.uv.workspace]
+members = ["../../libs/data_manipulation"]
+
 [tool.uv.sources]
 data_manipulation = { workspace = true }
+geoservercloud = { git = "https://github.com/camptocamp/python-geoservercloud.git" }
 
 [tool.ruff]
 extend = "../../ruff.toml"

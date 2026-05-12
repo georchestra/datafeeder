@@ -1,4 +1,9 @@
 # syntax=docker/dockerfile:1
+ARG UV_VERSION=0.9.15
+
+# Named stage for the uv binary so later `COPY --from=uv` works on BuildKit
+# versions that don't support variable expansion in `--from`.
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 
 # ============================================================================
 # Base stage: Common setup for all targets
@@ -13,7 +18,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:0.9.15 /uv /uvx /bin/
+COPY --from=uv /uv /uvx /bin/
 
 # - Silence uv complaining about not being able to use hard links,
 # - tell uv to byte-compile packages for faster application startups,

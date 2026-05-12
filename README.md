@@ -27,10 +27,9 @@ Running services:
 ```bash
 # Launch all services + GeoServer + GeoNetwork + frontend + backend
 make up-full
-
-# If you want to re-build airflow external libs (data-manipulation):
-make reload-airflow-deps
 ```
+
+`libs/data_manipulation` is bind-mounted into the Airflow containers, so source edits are picked up live. After changing `libs/data_manipulation/pyproject.toml` dependencies, rebuild with `docker compose up -d --build`.
 
 ## Dev environment setup:
 
@@ -55,9 +54,6 @@ make run-backend
 
 # And in another terminal, launch the frontend:
 cd apps/frontend && npm install && npm start
-
-# If you want to re-build airflow external libs (data-manipulation):
-make reload-airflow-deps
 ```
 
 ## Application Access

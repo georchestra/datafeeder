@@ -23,8 +23,9 @@ DAGs are executed by Airflow inside Docker Compose:
 make up-light            # Airflow + gateway + LDAP
 # or
 make up-full             # full stack with backend, frontend, GeoServer, GeoNetwork
-make reload-airflow-deps # rebuild data_manipulation inside Airflow images
 ```
+
+`libs/data_manipulation` is bind-mounted into the Airflow containers, so source edits are picked up live. After changing `libs/data_manipulation/pyproject.toml` dependencies, rebuild with `docker compose up -d --build`.
 
 Airflow is then reachable at:
 
