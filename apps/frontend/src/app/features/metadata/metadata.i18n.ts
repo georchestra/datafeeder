@@ -112,6 +112,9 @@ marker('input.image.displayAltTextInput')
 marker('input.image.displayUrlInput')
 marker('input.image.dropFileLabel')
 marker('input.image.selectFileLabel')
+marker('input.image.uploadErrorLabel')
+marker('input.image.uploadProgressCancel')
+marker('input.image.uploadProgressLabel')
 
 // Taken from libs/ui/inputs/src/lib/file-input in GN-UI
 marker('input.file.selectFileLabel')
