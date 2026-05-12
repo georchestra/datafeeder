@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from typing import Any
 from uuid import UUID
 
 from airflow_client.client.models.dag_run_patch_body import DAGRunPatchBody
@@ -42,14 +41,22 @@ logger = get_logger()
 settings = get_settings()
 
 
-def _is_geom_excluded(transformation: dict[str, Any] | None) -> bool:
+def _is_geom_excluded(transformation: IntegrityTransformation | None) -> bool:
     """Return True when the geometry column is explicitly excluded in the transformation config."""
-    if not transformation:
+    if transformation is None or transformation.columns is None:
         return False
-    parsed = IntegrityTransformation.model_validate(transformation)
-    return parsed.columns is not None and any(
-        col.original_name == DEFAULT_GEOMETRY_COLUMN and col.excluded for col in parsed.columns
+    return any(
+        col.original_name == DEFAULT_GEOMETRY_COLUMN and col.excluded
+        for col in transformation.columns
     )
+
+
+def _has_xy_projection(transformation: IntegrityTransformation | None) -> bool:
+    """Return True when the transformation config builds a geometry from X/Y columns."""
+    if transformation is None or transformation.force_projection is None:
+        return False
+    fp = transformation.force_projection
+    return bool(fp.x_column and fp.y_column)
 
 
 def _normalize_title(raw: str | None, fallback: str = "No title") -> str:
@@ -144,27 +151,32 @@ def process_staging_data(
         integrity_link.schedule_enabled = False
 
     # --- Prepare layer URLs and GeoNetwork metadata ---
-    # Determine if staging table has geometry (to pre-compute correct URLs)
+    # Determine whether the data will end up geographic: either the staging table
+    # already exposes a `geom` column, or the transformation config builds one
+    # from X/Y columns during the process DAG (force_projection).
+    parsed_transformation = (
+        IntegrityTransformation.model_validate(integrity_link.integrity_transformation)
+        if integrity_link.integrity_transformation
+        else None
+    )
+
     try:
         staging_meta = MetaData(schema=get_staging_schema())
         staging_tbl = Table(staging_table_name, staging_meta, autoload_with=data_engine)
-        is_geographic = DEFAULT_GEOMETRY_COLUMN in staging_tbl.c and not _is_geom_excluded(
-            integrity_link.integrity_transformation
+        has_staging_geom = DEFAULT_GEOMETRY_COLUMN in staging_tbl.c and not _is_geom_excluded(
+            parsed_transformation
         )
     except Exception:
-        is_geographic = False
+        has_staging_geom = False
 
-    if not is_geographic and integrity_link.integrity_transformation:
-        parsed_transformation = IntegrityTransformation.model_validate(
-            integrity_link.integrity_transformation
+    builds_geom_from_xy = _has_xy_projection(parsed_transformation)
+    if builds_geom_from_xy:
+        logger.info(
+            f"force_projection with x/y is set for IntegrityLink {integrity_link.id}; "
+            "treating as geographic for metadata publication"
         )
 
-        if parsed_transformation.force_projection:
-            is_geographic = True
-            logger.info(
-                f"force_projection is set in transformation config for IntegrityLink {integrity_link.id}, "
-                f"treating as geographic for metadata publication"
-            )
+    is_geographic = has_staging_geom or builds_geom_from_xy
 
     # Create and publish metadata to GeoNetwork, only if metadata_id is not already set (first time process, not re-run)
     if integrity_link.metadata_id is None:

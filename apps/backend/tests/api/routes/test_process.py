@@ -5,14 +5,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from data_manipulation.models import IntegrityTransformation
 
 from src.api.routes.ingestion.process import (
+    _has_xy_projection,  # pyright: ignore[reportPrivateUsage]
     _is_geom_excluded,  # pyright: ignore[reportPrivateUsage]
     _normalize_title,  # pyright: ignore[reportPrivateUsage]
     dag_success_callback,
 )
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
+
+
+def _t(payload: dict[str, object]) -> IntegrityTransformation:
+    return IntegrityTransformation.model_validate(payload)
 
 
 class TestIsGeomExcluded:
@@ -22,49 +28,89 @@ class TestIsGeomExcluded:
         assert _is_geom_excluded(None) is False
 
     def test_returns_false_when_transformation_is_empty(self) -> None:
-        assert _is_geom_excluded({}) is False
+        assert _is_geom_excluded(_t({})) is False
 
     def test_returns_false_when_columns_is_none(self) -> None:
-        assert _is_geom_excluded({"columns": None}) is False
+        assert _is_geom_excluded(_t({"columns": None})) is False
 
     def test_returns_false_when_columns_is_empty(self) -> None:
-        assert _is_geom_excluded({"columns": []}) is False
+        assert _is_geom_excluded(_t({"columns": []})) is False
 
     def test_returns_false_when_geom_not_excluded(self) -> None:
-        transformation = {
-            "columns": [
-                {"original_name": "geom", "original_type": "text", "excluded": False},
-                {"original_name": "name", "original_type": "text", "excluded": False},
-            ]
-        }
+        transformation = _t(
+            {
+                "columns": [
+                    {"original_name": "geom", "original_type": "text", "excluded": False},
+                    {"original_name": "name", "original_type": "text", "excluded": False},
+                ]
+            }
+        )
         assert _is_geom_excluded(transformation) is False
 
     def test_returns_true_when_geom_excluded(self) -> None:
-        transformation = {
-            "columns": [
-                {"original_name": "geom", "original_type": "text", "excluded": True},
-                {"original_name": "name", "original_type": "text", "excluded": False},
-            ]
-        }
+        transformation = _t(
+            {
+                "columns": [
+                    {"original_name": "geom", "original_type": "text", "excluded": True},
+                    {"original_name": "name", "original_type": "text", "excluded": False},
+                ]
+            }
+        )
         assert _is_geom_excluded(transformation) is True
 
     def test_returns_false_when_only_other_columns_excluded(self) -> None:
-        transformation = {
-            "columns": [
-                {"original_name": "geom", "original_type": "text", "excluded": False},
-                {"original_name": "secret", "original_type": "text", "excluded": True},
-            ]
-        }
+        transformation = _t(
+            {
+                "columns": [
+                    {"original_name": "geom", "original_type": "text", "excluded": False},
+                    {"original_name": "secret", "original_type": "text", "excluded": True},
+                ]
+            }
+        )
         assert _is_geom_excluded(transformation) is False
 
     def test_returns_false_when_no_geom_column_in_config(self) -> None:
-        transformation = {
-            "columns": [
-                {"original_name": "name", "original_type": "text", "excluded": False},
-                {"original_name": "value", "original_type": "text", "excluded": True},
-            ]
-        }
+        transformation = _t(
+            {
+                "columns": [
+                    {"original_name": "name", "original_type": "text", "excluded": False},
+                    {"original_name": "value", "original_type": "text", "excluded": True},
+                ]
+            }
+        )
         assert _is_geom_excluded(transformation) is False
+
+
+class TestHasXyProjection:
+    """Unit tests for _has_xy_projection helper."""
+
+    def test_returns_false_when_transformation_is_none(self) -> None:
+        assert _has_xy_projection(None) is False
+
+    def test_returns_false_when_no_force_projection(self) -> None:
+        assert _has_xy_projection(_t({})) is False
+
+    def test_returns_true_when_x_and_y_columns_set(self) -> None:
+        transformation = _t(
+            {"force_projection": {"type": "EPSG:3857", "x_column": "X", "y_column": "Y"}}
+        )
+        assert _has_xy_projection(transformation) is True
+
+    def test_returns_false_when_only_x_column_set(self) -> None:
+        transformation = _t(
+            {"force_projection": {"type": "EPSG:3857", "x_column": "X", "y_column": None}}
+        )
+        assert _has_xy_projection(transformation) is False
+
+    def test_returns_false_when_only_y_column_set(self) -> None:
+        transformation = _t(
+            {"force_projection": {"type": "EPSG:3857", "x_column": None, "y_column": "Y"}}
+        )
+        assert _has_xy_projection(transformation) is False
+
+    def test_returns_false_when_force_projection_is_empty(self) -> None:
+        transformation = _t({"force_projection": {"type": "EPSG:3857"}})
+        assert _has_xy_projection(transformation) is False
 
 
 class TestNormalizeTitle:
