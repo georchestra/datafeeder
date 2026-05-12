@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import UploadFile
 
 from src.core.config import get_settings
-from src.models.data_import import FileType
+from src.models.data_import import EXTENSION_MAP, FileType
 
 
 def strip_file_extension(name: str | None) -> str | None:
@@ -26,7 +26,7 @@ def strip_file_extension(name: str | None) -> str | None:
 
 async def upload_file_to_temp(
     file: UploadFile, rand_id: Optional[str] = None
-) -> tuple[str, FileType, str]:
+) -> tuple[str, FileType | None, str]:
     """Helper to save uploaded file to a temporary location.
 
     Args:
@@ -68,7 +68,7 @@ async def upload_file_to_temp(
 
         file_url = get_temp_file_url(unique_filename)
         source_file_name = f"{original_path.stem}{extension}"
-        source_file_type = FileType(extension.lstrip(".").lower())
+        source_file_type = EXTENSION_MAP.get(extension.lstrip(".").lower())
 
         return source_file_name, source_file_type, file_url
 

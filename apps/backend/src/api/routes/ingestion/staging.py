@@ -2,6 +2,7 @@ import json
 import re
 from datetime import datetime, timezone
 from typing import Any, Optional
+from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 import geopandas as gpd
@@ -36,6 +37,7 @@ from src.models import (
     StagingResponse,
 )
 from src.models.data_import import (
+    EXTENSION_MAP,
     ColumnConfig,
     FileType,
     ForceProjection,
@@ -322,17 +324,7 @@ def _extract_filetype(filename: str) -> FileType | None:
     # Extract extension and convert to lowercase
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
-    # Map extensions to FileType
-    extension_map = {
-        "csv": FileType.CSV,
-        "geojson": FileType.GEOJSON,
-        "json": FileType.JSON,
-        "shp": FileType.SHAPEFILE,
-        "gpkg": FileType.GPKG,
-        "zip": FileType.ZIP,
-    }
-
-    return extension_map.get(extension)
+    return EXTENSION_MAP.get(extension)
 
 
 def _extract_url_metadata(
@@ -368,14 +360,30 @@ def _extract_url_metadata(
         content_disposition = head_response.headers.get("content-disposition")
         if content_disposition:
             fname = re.findall("filename=(.+)", content_disposition)
+
+            # Some servers use the filename* syntax for UTF-8 filenames, so check that if regular filename is not found
             if not fname:
                 fname = re.findall("filename\\*=UTF-8''(.+)", content_disposition)
 
-            if not fname:
-                logger.warning(f"Filename not found in content-disposition for URL {url}")
             # If filename is found, strip quotes and extract base name without extension
-            else:
+            if fname:
                 source_file_name = fname[0].strip('"').rsplit(".", 1)[0]
+
+        # Extract url stem and extension as fallback
+        url_basename = urlparse(url).path.rsplit("/", 1)[-1]
+        url_stem, url_ext = (
+            url_basename.rsplit(".", 1) if "." in url_basename else (url_basename, "")
+        )
+        url_ext = url_ext.lower()
+
+        # Falling back to URL-based extraction
+        if not source_file_name and url_stem:
+            source_file_name = url_stem
+
+        if not source_file_name:
+            logger.warning(
+                f"Filename not found for URL {url} in content-disposition header or URL path"
+            )
 
         source_file_type = None
         content_type = head_response.headers.get("content-type")
@@ -392,11 +400,24 @@ def _extract_url_metadata(
                 source_file_type = FileType.CSV
             elif mime_type in ("application/geopackage+sqlite3", "application/x-sqlite3"):
                 source_file_type = FileType.GPKG
+            elif mime_type in (
+                "application/vnd.apache.parquet",
+                "application/x-parquet",
+                "application/parquet",
+            ):
+                source_file_type = FileType.PARQUET
             elif "application/zip" in content_type:
                 # TODO: could be shapefile or zipped CSV, need better detection
                 source_file_type = FileType.SHAPEFILE
-            else:
-                logger.warning(f"Un-detected content type from URL {url}: {mime_type}")
+
+        # Fall back to extension-based detection for generic MIME types
+        if source_file_type is None and url_ext:
+            source_file_type = EXTENSION_MAP.get(url_ext)
+
+        if source_file_type is None:
+            logger.warning(
+                f"Un-detected content type for URL {url}: content-type='{content_type}', url_ext='{url_ext}'"
+            )
 
         return source_file_name, source_file_type
 
