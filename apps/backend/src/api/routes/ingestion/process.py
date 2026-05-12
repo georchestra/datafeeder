@@ -154,6 +154,18 @@ def process_staging_data(
     except Exception:
         is_geographic = False
 
+    if not is_geographic and integrity_link.integrity_transformation:
+        parsed_transformation = IntegrityTransformation.model_validate(
+            integrity_link.integrity_transformation
+        )
+
+        if parsed_transformation.force_projection:
+            is_geographic = True
+            logger.info(
+                f"force_projection is set in transformation config for IntegrityLink {integrity_link.id}, "
+                f"treating as geographic for metadata publication"
+            )
+
     # Create and publish metadata to GeoNetwork, only if metadata_id is not already set (first time process, not re-run)
     if integrity_link.metadata_id is None:
         try:
