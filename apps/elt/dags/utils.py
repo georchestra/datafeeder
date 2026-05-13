@@ -1,9 +1,13 @@
 import os
 from datetime import timedelta
+from typing import TypeVar
 
+import pandas as pd
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.sdk import Variable
 from sqlalchemy.engine import Engine
+
+T = TypeVar("T")
 
 
 def get_datafeeder_pg_hook() -> PostgresHook:
@@ -51,3 +55,22 @@ def get_staging_timeout() -> timedelta:
     except ValueError:
         seconds = 600
     return timedelta(seconds=seconds)
+
+
+def normalize_nan(value: T | None, default: T) -> T:
+    """Normalize NA/NaN/None values to a default.
+
+    pandas.DataFrame.to_dict() converts SQL NULL to float('nan') / numpy.nan,
+    which are truthy in Python. This breaks the common `value or default` pattern.
+    Use this function to properly handle NA/NaN values from pandas DataFrames.
+
+    Args:
+        value: The value to check (can be None, NaN, or any valid value)
+        default: The value to return if value is NA/NaN/None
+
+    Returns:
+        The original value if it's not NA/NaN/None, otherwise the default
+    """
+    if value is None or pd.isna(value):
+        return default
+    return value

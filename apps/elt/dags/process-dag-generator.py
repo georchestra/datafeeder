@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 from airflow import DAG
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
-from utils import get_datafeeder_pg_hook
+from utils import get_datafeeder_pg_hook, normalize_nan
 
 
 def load_scheduled_integrity_links():
@@ -58,8 +58,8 @@ def create_dag(config):
             conf={
                 "source": config.get("source_url"),
                 "source_type": config.get("source_import_type").upper(),
-                "source_layer": config.get("source_layer"),
-                "source_protocol": config.get("source_protocol"),
+                "source_layer": normalize_nan(config.get("source_layer"), ""),
+                "source_protocol": normalize_nan(config.get("source_protocol"), ""),
                 "final_table_name": config.get("final_table_name"),
                 "integrity_transformation": config.get("integrity_transformation") or {},
                 "encrypted_credentials": config.get("source_password_encrypted", None),
