@@ -58,8 +58,8 @@ def create_dag(config):
             conf={
                 "source": config.get("source_url"),
                 "source_type": config.get("source_import_type").upper(),
-                "source_layer": config.get("source_layer"),
-                "source_protocol": config.get("source_protocol"),
+                "source_layer": config.get("source_layer") or "",
+                "source_protocol": config.get("source_protocol") or "",
                 "final_table_name": config.get("final_table_name"),
                 "integrity_transformation": config.get("integrity_transformation") or {},
                 "encrypted_credentials": config.get("source_password_encrypted", None),
