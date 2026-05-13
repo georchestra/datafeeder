@@ -14,14 +14,12 @@ install-python: ## Install all dependencies using uv + write current user's UID 
 	uv run poe install
 	@grep -q '^AIRFLOW_UID=' .env && sed -i 's/^AIRFLOW_UID=.*/AIRFLOW_UID='"$$(id -u)"'/' .env || printf 'AIRFLOW_UID=%s\n' "$$(id -u)" >> .env
 
-check-all-python: install-python ## Run all checks: linting, formatting, and type checking
-	-uv run poe lint
-	-uv run poe fmt
-	-uv run poe check --verbose
-
-fix-all-python: install-python ## Fix all issues: linting and formatting
+fix-and-check-all-python: install-python ## Fix all issues: linting and formatting
 	-uv run poe lint:fix
 	-uv run poe fmt:fix
+    -uv run poe lint
+    -uv run poe fmt
+    -uv run poe check --verbose
 
 test-libs: install-python ## Run library tests with pytest
 	cd libs/data_manipulation && uv run pytest tests/ -v
