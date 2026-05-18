@@ -14,7 +14,7 @@ from geoalchemy2 import Geometry
 from sqlalchemy import MetaData, Table, func, select, text
 from sqlalchemy.engine import Engine
 
-from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.models import ColumnConfig, IntegrityTransformation
 from data_manipulation.transformation.filter_sql import build_sql_column_ops
 from data_manipulation.transformation.transform import apply_transformations
@@ -493,7 +493,7 @@ def write_data_to_postgis(
         create_id: If True, add an 'id_datafeeder' UUID column as primary key
     """
     # Validate identifiers to prevent SQL injection
-    validate_table_name(table_name)
+    validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
     validate_schema_name(schema)
 
     try:

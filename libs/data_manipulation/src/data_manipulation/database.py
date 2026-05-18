@@ -7,6 +7,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.schema import CreateSchema
 
+from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.logging import configure_logging
 from data_manipulation.validators import validate_schema_name
 
@@ -66,27 +67,39 @@ def table_exists(engine: Engine, schema_name: str, table_name: str) -> bool:
     return inspect(engine).has_table(table_name, schema=schema_name)
 
 
-def get_available_table_name(engine: Engine, schema_name: str, base_table_name: str) -> str | None:
+def get_available_table_name(
+    engine: Engine,
+    schema_name: str,
+    base_table_name: str,
+    max_length: int = POSTGIS_TABLE_NAME_MAX_LENGTH,
+) -> str | None:
     """
     Get an available table name by appending a numeric suffix if needed.
 
     Args:
         engine: SQLAlchemy engine instance
         schema_name: Schema where the table will be created
-        base_table_name: Desired base name for the table)
+        base_table_name: Desired base name for the table
+        max_length: Maximum total length of the returned table name. Defaults
+            to the PostGIS-safe cap so the auto-created spatial index suffix
+            still fits in PostgreSQL's 63-char identifier limit.
     Returns:
         str: Available table name
     """
 
     max_attempts = 20
+    # Reserve space for the largest suffix we might append so every candidate
+    # — base name included — fits within max_length.
+    max_suffix_len = len(f"_{max_attempts - 1}")
+    base_budget = max_length - max_suffix_len
+    base_table_name = base_table_name[:max_length]
 
     for counter in range(max_attempts):
         if counter == 0:
             final_table_name = base_table_name
         else:
             suffix = f"_{counter}"
-            truncate_length = 53 - len(suffix)
-            final_table_name = base_table_name[:truncate_length] + suffix
+            final_table_name = base_table_name[:base_budget] + suffix
         try:
             metadata = MetaData(schema=schema_name)
             Table(final_table_name, metadata, autoload_with=engine)

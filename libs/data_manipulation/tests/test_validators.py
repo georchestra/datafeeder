@@ -206,7 +206,9 @@ class TestMaxLength:
 
     def test_custom_max_length_allows_at_cap(self):
         assert (
-            validate_table_name("a" * POSTGIS_TABLE_NAME_MAX_LENGTH, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
+            validate_table_name(
+                "a" * POSTGIS_TABLE_NAME_MAX_LENGTH, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH
+            )
             == "a" * POSTGIS_TABLE_NAME_MAX_LENGTH
         )
 

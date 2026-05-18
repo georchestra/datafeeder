@@ -7,4 +7,6 @@ DB_URI_PREFIX = "db://"
 # named `idx_<table>_<geom_col>`, so any table written via to_postgis must leave
 # room for that suffix or the index creation fails mid-write.
 PG_IDENTIFIER_MAX_LENGTH = 63
-POSTGIS_TABLE_NAME_MAX_LENGTH = PG_IDENTIFIER_MAX_LENGTH - len("idx__") - len(DEFAULT_GEOMETRY_COLUMN)
+POSTGIS_TABLE_NAME_MAX_LENGTH = (
+    PG_IDENTIFIER_MAX_LENGTH - len("idx__") - len(DEFAULT_GEOMETRY_COLUMN)
+)

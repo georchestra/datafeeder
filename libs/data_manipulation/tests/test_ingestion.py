@@ -12,6 +12,7 @@ from shapely.geometry import Point
 from sqlalchemy.engine import Engine
 
 from data_manipulation import IntegrityTransformation, apply_transformations
+from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.ingestion import (
     _read_file_encoded,  # pyright: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
@@ -802,6 +803,29 @@ class TestWriteDataToPostgis:
 
         with pytest.raises(ValueError):
             write_data_to_postgis(gdf, "invalid-table-name!", mock_engine, "public")
+
+    def test_write_rejects_table_name_too_long_for_postgis_index(self, mock_engine: Mock) -> None:
+        """Names that would overflow PostGIS's `idx_<table>_geom` index must be rejected up-front."""
+        gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
+        too_long = "a" * (POSTGIS_TABLE_NAME_MAX_LENGTH + 1)
+
+        with patch.object(gdf, "to_postgis") as mock_to_postgis:
+            with pytest.raises(ValueError, match="exceeds maximum"):
+                write_data_to_postgis(gdf, too_long, mock_engine, "public")
+            mock_to_postgis.assert_not_called()
+
+    def test_write_accepts_table_name_at_postgis_cap(self, mock_engine: Mock) -> None:
+        """A table name at the PostGIS-safe cap must pass validation."""
+        gdf = GeoDataFrame(
+            {"col1": [1, 2]},
+            geometry=gpd.GeoSeries([Point(0, 0), Point(1, 1)], name="geom"),
+        )
+        at_cap = "a" * POSTGIS_TABLE_NAME_MAX_LENGTH
+
+        with patch("data_manipulation.ingestion._get_table_row_count", return_value=2):
+            with patch.object(gdf, "to_postgis") as mock_to_postgis:
+                write_data_to_postgis(gdf, at_cap, mock_engine, "public")
+                mock_to_postgis.assert_called_once()
 
     def test_write_sql_injection_prevented(self, mock_engine: Mock) -> None:
         """Test that SQL injection attempts are prevented."""
