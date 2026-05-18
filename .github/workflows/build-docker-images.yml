@@ -16,6 +16,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Getting image tag
+        id: version
+        run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -35,17 +39,20 @@ jobs:
         run: docker push ghcr.io/georchestra/datafeeder/datafeeder-python-database:latest
 
       - name: Push release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: endsWith(github.ref, '.x') || github.ref_type == 'tag'
         run: |
-          docker tag ghcr.io/georchestra/datafeeder/datafeeder-python-database:latest ghcr.io/georchestra/datafeeder/datafeeder-python-database:${GITHUB_REF#refs/tags/}
-          docker push ghcr.io/georchestra/datafeeder/datafeeder-python-database:${GITHUB_REF#refs/tags/}
-
+          docker tag ghcr.io/georchestra/datafeeder/datafeeder-python-database:latest ghcr.io/georchestra/datafeeder/datafeeder-python-database:${{ steps.version.outputs.VERSION }}
+          docker push ghcr.io/georchestra/datafeeder/datafeeder-python-database:${{ steps.version.outputs.VERSION }}
   build-frontend:
     runs-on: ubuntu-latest
     name: Build & push frontend
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Getting image tag
+        id: version
+        run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -66,10 +73,10 @@ jobs:
         run: docker push georchestra/datafeeder-python-frontend:latest
 
       - name: Push release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: endsWith(github.ref, '.x') || github.ref_type == 'tag'
         run: |
-          docker tag georchestra/datafeeder-python-frontend:latest georchestra/datafeeder-python-frontend:${GITHUB_REF#refs/tags/}
-          docker push georchestra/datafeeder-python-frontend:${GITHUB_REF#refs/tags/}
+          docker tag georchestra/datafeeder-python-frontend:latest georchestra/datafeeder-python-frontend:${{ steps.version.outputs.VERSION }}
+          docker push georchestra/datafeeder-python-frontend:${{ steps.version.outputs.VERSION }}
 
   build-backend:
     runs-on: ubuntu-latest
@@ -78,6 +85,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Getting image tag
+        id: version
+        run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
+        
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -96,10 +107,10 @@ jobs:
         run: docker push georchestra/datafeeder-python-backend:latest
 
       - name: Push release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: endsWith(github.ref, '.x') || github.ref_type == 'tag'
         run: |
-          docker tag georchestra/datafeeder-python-backend:latest georchestra/datafeeder-python-backend:${GITHUB_REF#refs/tags/}
-          docker push georchestra/datafeeder-python-backend:${GITHUB_REF#refs/tags/}
+          docker tag georchestra/datafeeder-python-backend:latest georchestra/datafeeder-python-backend:${{ steps.version.outputs.VERSION }}
+          docker push georchestra/datafeeder-python-backend:${{ steps.version.outputs.VERSION }}
 
   build-airflow:
     runs-on: ubuntu-latest
@@ -108,6 +119,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Getting image tag
+        id: version
+        run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
+        
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -126,7 +141,7 @@ jobs:
         run: docker push georchestra/datafeeder-python-airflow:latest
 
       - name: Push release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: endsWith(github.ref, '.x') || github.ref_type == 'tag'
         run: |
-          docker tag georchestra/datafeeder-python-airflow:latest georchestra/datafeeder-python-airflow:${GITHUB_REF#refs/tags/}
-          docker push georchestra/datafeeder-python-airflow:${GITHUB_REF#refs/tags/}
+          docker tag georchestra/datafeeder-python-airflow:latest georchestra/datafeeder-python-airflow:${{ steps.version.outputs.VERSION }}
+          docker push georchestra/datafeeder-python-airflow:${{ steps.version.outputs.VERSION }}
