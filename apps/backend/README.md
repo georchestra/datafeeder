@@ -62,6 +62,5 @@ alembic upgrade head
 From the repository root:
 
 ```bash
-make fix-all-python    # ruff + format fixes
-make check-all-python  # ruff lint + format check + pyright
+make fix-and-check-all-python    # ruff + format fixes
 ```

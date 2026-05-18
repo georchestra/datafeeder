@@ -16,7 +16,6 @@ Domain-specific agent instructions: [.agents/skills/](.agents/skills/)
 | [frontend-api-sync](.agents/skills/frontend-api-sync/SKILL.md)           | Regenerate the frontend TypeScript client after backend API changes              |
 | [geopandas](.agents/skills/geopandas/SKILL.md)                           | Work with geospatial data: Shapefile, GeoJSON, spatial joins, reprojection       |
 | [implement-design](.agents/skills/implement-design/SKILL.md)             | Translate Figma designs into production-ready code (requires Figma MCP)          |
-| [skill-creator](.agents/skills/skill-creator/SKILL.md)                   | Create or update agent skills                                                    |
 | [tailwind-design-system](.agents/skills/tailwind-design-system/SKILL.md) | Build design systems with Tailwind CSS v4, design tokens, component libraries    |
 
 ---
@@ -25,7 +24,7 @@ Domain-specific agent instructions: [.agents/skills/](.agents/skills/)
 
 | What       | Where                                                                          | Purpose                                                               |
 | ---------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| Makefile   | [Makefile](Makefile)                                                           | Top-level commands: `make up-*`, `make test-*`, `make fix-all-python` |
+| Makefile   | [Makefile](Makefile)                                                           | Top-level commands: `make up-*`, `make test-*`, `make fix-and-check-all-python` |
 | Backend    | [apps/backend/pyproject.toml](apps/backend/pyproject.toml)                     | Python deps & scripts                                                 |
 | Frontend   | [apps/frontend/package.json](apps/frontend/package.json)                       | `npm start`, `npm test`, `npm run format`                             |
 | ELT        | [apps/elt/pyproject.toml](apps/elt/pyproject.toml)                             | Airflow DAG deps                                                      |
@@ -46,13 +45,3 @@ libs/
 .agents/
   skills/             # Domain-specific AI agent instructions
 ```
-
----
-
-## Mistakes to Avoid
-
-A living table of anti-patterns inferred from past implementation errors. Every agent and skill MUST consult this list **before starting any implementation**. Whenever an error is discovered and fixed during implementation, a correction rule MUST be inferred from the fix and appended.
-
-Full list: [mistakes-to-avoid.md](.agents/mistakes-to-avoid.md)
-
-Every agent and skill MUST suggest running the [`/context:improve`](.github/prompts/context.improve.prompt.md) prompt after a feature implementation has finished. When OpenSpec is used this MUST be done after the `/opsx:verify` and `/opsx:archive` (or `/opsx:bulk-archive`) steps.
