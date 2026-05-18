@@ -17,7 +17,7 @@ install-python: ## Install all dependencies using uv + write current user's UID 
 fix-and-check-all-python: install-python ## Fix all issues: linting and formatting
 	-uv run poe lint:fix
 	-uv run poe fmt:fix
-    -uv run poe check --verbose
+	-uv run poe check --verbose
 
 test-libs: install-python ## Run library tests with pytest
 	cd libs/data_manipulation && uv run pytest tests/ -v
