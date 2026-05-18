@@ -52,7 +52,7 @@ jobs:
           docker tag datafeeder-datafeeder-frontend:latest georchestra/datafeeder-python-frontend:latest
 
       - name: "Log in to docker.io"
-        if: github.repository == 'georchestra/georchestra-gateway'
+        if: github.repository == 'georchestra/datafeeder'
         uses: docker/login-action@v3
         with:
           username: '${{ secrets.DOCKER_HUB_USERNAME }}'
@@ -82,7 +82,7 @@ jobs:
           docker build -f ./apps/backend/Dockerfile -t georchestra/datafeeder-python-backend:latest --target production .
 
       - name: "Log in to docker.io"
-        if: github.repository == 'georchestra/georchestra-gateway'
+        if: github.repository == 'georchestra/datafeeder'
         uses: docker/login-action@v3
         with:
           username: '${{ secrets.DOCKER_HUB_USERNAME }}'
@@ -112,7 +112,7 @@ jobs:
           docker build -f ./docker/Dockerfile.airflow -t georchestra/datafeeder-python-airflow:latest --target production .
 
       - name: "Log in to docker.io"
-        if: github.repository == 'georchestra/georchestra-gateway'
+        if: github.repository == 'georchestra/datafeeder'
         uses: docker/login-action@v3
         with:
           username: '${{ secrets.DOCKER_HUB_USERNAME }}'
