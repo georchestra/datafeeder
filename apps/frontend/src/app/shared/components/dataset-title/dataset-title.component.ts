@@ -33,7 +33,10 @@ export class DatasetTitleComponent {
   validated = output<string>()
   titleChanged = output<string>()
 
-  title_is_disabled = computed(() => this.metadata()?.has_final_table ?? false)
+  metadata = input<StagingMetadataResponse | undefined>()
+  isReconfiguring = input<boolean>(false)
+
+  title_is_disabled = computed(() => this.isReconfiguring())
 
   form = this.fb.group({
     title: this.fb.control('', {
@@ -45,8 +48,6 @@ export class DatasetTitleComponent {
       ]
     })
   })
-
-  metadata = input<StagingMetadataResponse | undefined>()
 
   constructor() {
     // Sync metadata title to form when loaded
