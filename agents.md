@@ -4,33 +4,9 @@ This file is the entry point for AI agents working in this codebase. It points t
 
 ---
 
-## OpenSpec (Change Management)
-
-Config & project context: `openspec/config.yaml` | Docs: [openspec.dev](https://openspec.dev)
-
-| Action      | Skill                                                                      |
-| ----------- | -------------------------------------------------------------------------- |
-| **Propose** | [openspec-propose](.github/skills/openspec-propose/SKILL.md)               |
-| **Apply**   | [openspec-apply-change](.github/skills/openspec-apply-change/SKILL.md)     |
-| **Explore** | [openspec-explore](.github/skills/openspec-explore/SKILL.md)               |
-| **Archive** | [openspec-archive-change](.github/skills/openspec-archive-change/SKILL.md) |
-
----
-
-## spec-kit (Feature Specifications)
-
-Constitution & memory: [.specify/memory/constitution.md](.specify/memory/constitution.md)
-
-| Spec                                                                  | Description                    | Status               |
-| --------------------------------------------------------------------- | ------------------------------ | -------------------- |
-| [specs/001-preview-column-actions](specs/001-preview-column-actions/) | Preview column actions feature | Implemented          |
-| [specs/002-enforce-permissions](specs/002-enforce-permissions/)       | Enforce permissions (original) | Migrated to OpenSpec |
-
----
-
 ## Skills
 
-Domain-specific agent instructions: [.agents/skills/](.agents/skills/) | OpenSpec skills: [.github/skills/](.github/skills/)
+Domain-specific agent instructions: [.agents/skills/](.agents/skills/) 
 
 | Skill                                                                    | Purpose                                                                          |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
@@ -40,7 +16,6 @@ Domain-specific agent instructions: [.agents/skills/](.agents/skills/) | OpenSpe
 | [frontend-api-sync](.agents/skills/frontend-api-sync/SKILL.md)           | Regenerate the frontend TypeScript client after backend API changes              |
 | [geopandas](.agents/skills/geopandas/SKILL.md)                           | Work with geospatial data: Shapefile, GeoJSON, spatial joins, reprojection       |
 | [implement-design](.agents/skills/implement-design/SKILL.md)             | Translate Figma designs into production-ready code (requires Figma MCP)          |
-| [skill-creator](.agents/skills/skill-creator/SKILL.md)                   | Create or update agent skills                                                    |
 | [tailwind-design-system](.agents/skills/tailwind-design-system/SKILL.md) | Build design systems with Tailwind CSS v4, design tokens, component libraries    |
 
 ---
@@ -49,7 +24,7 @@ Domain-specific agent instructions: [.agents/skills/](.agents/skills/) | OpenSpe
 
 | What       | Where                                                                          | Purpose                                                               |
 | ---------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| Makefile   | [Makefile](Makefile)                                                           | Top-level commands: `make up-*`, `make test-*`, `make fix-all-python` |
+| Makefile   | [Makefile](Makefile)                                                           | Top-level commands: `make up-*`, `make test-*`, `make fix-and-check-all-python` |
 | Backend    | [apps/backend/pyproject.toml](apps/backend/pyproject.toml)                     | Python deps & scripts                                                 |
 | Frontend   | [apps/frontend/package.json](apps/frontend/package.json)                       | `npm start`, `npm test`, `npm run format`                             |
 | ELT        | [apps/elt/pyproject.toml](apps/elt/pyproject.toml)                             | Airflow DAG deps                                                      |
@@ -67,25 +42,6 @@ apps/
   frontend/   # Angular 20 application
 libs/
   data_manipulation/  # Shared Python data processing library
-openspec/
-  config.yaml         # Project context & artifact rules
-  changes/            # Active changes (proposal → specs → design → tasks)
-  specs/              # Main specs (living truth after archive)
-specs/                # Feature specifications (speckit)
 .agents/
   skills/             # Domain-specific AI agent instructions
-.github/
-  skills/             # OpenSpec workflow skills
-.specify/
-  memory/             # Project memory and constitution (speckit)
 ```
-
----
-
-## Mistakes to Avoid
-
-A living table of anti-patterns inferred from past implementation errors. Every agent and skill MUST consult this list **before starting any implementation**. Whenever an error is discovered and fixed during implementation, a correction rule MUST be inferred from the fix and appended.
-
-Full list: [mistakes-to-avoid.md](.agents/mistakes-to-avoid.md)
-
-Every agent and skill MUST suggest running the [`/context:improve`](.github/prompts/context.improve.prompt.md) prompt after a feature implementation has finished. When OpenSpec is used this MUST be done after the `/opsx:verify` and `/opsx:archive` (or `/opsx:bulk-archive`) steps.

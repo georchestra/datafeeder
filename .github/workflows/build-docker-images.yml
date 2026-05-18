@@ -18,7 +18,7 @@ jobs:
       - name: Build database
         run: |
           docker compose --profile datafeeder build database
-          docker tag datafeeder-database:latest ghcr.io/camptocamp/datafeeder/datafeeder-python-database:latest
+          docker tag datafeeder-database:latest ghcr.io/georchestra/datafeeder/datafeeder-python-database:latest
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -28,7 +28,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push database
-        run: docker push ghcr.io/camptocamp/datafeeder/datafeeder-python-database:latest
+        run: docker push ghcr.io/georchestra/datafeeder/datafeeder-python-database:latest
+
+      - name: Push release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          docker tag ghcr.io/georchestra/datafeeder/datafeeder-python-database:latest ghcr.io/georchestra/datafeeder/datafeeder-python-database:${GITHUB_REF#refs/tags/}
+          docker push ghcr.io/georchestra/datafeeder/datafeeder-python-database:${GITHUB_REF#refs/tags/}
 
   build-frontend:
     runs-on: ubuntu-latest
@@ -43,17 +49,23 @@ jobs:
       - name: Build frontend
         run: |
           docker compose --profile datafeeder build datafeeder-frontend
-          docker tag datafeeder-datafeeder-frontend:latest ghcr.io/camptocamp/datafeeder/datafeeder-python-frontend:latest
+          docker tag datafeeder-datafeeder-frontend:latest georchestra/datafeeder-python-frontend:latest
 
-      - name: Log in to GitHub Container Registry
+      - name: "Log in to docker.io"
+        if: github.repository == 'georchestra/georchestra-gateway'
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: '${{ secrets.DOCKER_HUB_USERNAME }}'
+          password: '${{ secrets.DOCKER_HUB_PASSWORD }}'
 
       - name: Push frontend
-        run: docker push ghcr.io/camptocamp/datafeeder/datafeeder-python-frontend:latest
+        run: docker push georchestra/datafeeder-python-frontend:latest
+
+      - name: Push release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          docker tag georchestra/datafeeder-python-frontend:latest georchestra/datafeeder-python-frontend:${GITHUB_REF#refs/tags/}
+          docker push georchestra/datafeeder-python-frontend:${GITHUB_REF#refs/tags/}
 
   build-backend:
     runs-on: ubuntu-latest
@@ -67,17 +79,23 @@ jobs:
 
       - name: Build backend
         run: |
-          docker build -f ./apps/backend/Dockerfile -t ghcr.io/camptocamp/datafeeder/datafeeder-python-backend:latest --target production .
+          docker build -f ./apps/backend/Dockerfile -t georchestra/datafeeder-python-backend:latest --target production .
 
-      - name: Log in to GitHub Container Registry
+      - name: "Log in to docker.io"
+        if: github.repository == 'georchestra/georchestra-gateway'
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: '${{ secrets.DOCKER_HUB_USERNAME }}'
+          password: '${{ secrets.DOCKER_HUB_PASSWORD }}'
 
       - name: Push backend
-        run: docker push ghcr.io/camptocamp/datafeeder/datafeeder-python-backend:latest
+        run: docker push georchestra/datafeeder-python-backend:latest
+
+      - name: Push release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          docker tag georchestra/datafeeder-python-backend:latest georchestra/datafeeder-python-backend:${GITHUB_REF#refs/tags/}
+          docker push georchestra/datafeeder-python-backend:${GITHUB_REF#refs/tags/}
 
   build-airflow:
     runs-on: ubuntu-latest
@@ -91,14 +109,20 @@ jobs:
 
       - name: Build airflow
         run: |
-          docker build -f ./docker/Dockerfile.airflow -t ghcr.io/camptocamp/datafeeder/datafeeder-python-airflow:latest --target production .
+          docker build -f ./docker/Dockerfile.airflow -t georchestra/datafeeder-python-airflow:latest --target production .
 
-      - name: Log in to GitHub Container Registry
+      - name: "Log in to docker.io"
+        if: github.repository == 'georchestra/georchestra-gateway'
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: '${{ secrets.DOCKER_HUB_USERNAME }}'
+          password: '${{ secrets.DOCKER_HUB_PASSWORD }}'
 
       - name: Push airflow
-        run: docker push ghcr.io/camptocamp/datafeeder/datafeeder-python-airflow:latest
+        run: docker push georchestra/datafeeder-python-airflow:latest
+
+      - name: Push release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          docker tag georchestra/datafeeder-python-airflow:latest georchestra/datafeeder-python-airflow:${GITHUB_REF#refs/tags/}
+          docker push georchestra/datafeeder-python-airflow:${GITHUB_REF#refs/tags/}
