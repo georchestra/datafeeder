@@ -10,13 +10,14 @@ import requests
 from geopandas import GeoDataFrame
 from pandas import DataFrame
 
+from data_manipulation.constants import PG_IDENTIFIER_MAX_LENGTH
 from data_manipulation.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 configure_logging(logger)
 
 
-def sanitize_name(name: str) -> str:
+def sanitize_name(name: str, max_length: int = PG_IDENTIFIER_MAX_LENGTH) -> str:
     """
     Sanitize a name for use in GeoServer workspace/layer names or database schema names.
 
@@ -29,6 +30,9 @@ def sanitize_name(name: str) -> str:
 
     Args:
         name: The name to sanitize
+        max_length: Truncate the result to this many characters. Defaults to
+            PostgreSQL's 63-char identifier cap; tighten for PostGIS table
+            names (see POSTGIS_TABLE_NAME_MAX_LENGTH).
 
     Returns:
         str: The sanitized name
@@ -65,7 +69,7 @@ def sanitize_name(name: str) -> str:
     if sanitized and sanitized[0].isdigit():
         sanitized = f"layer_{sanitized}"
 
-    return sanitized[:63]
+    return sanitized[:max_length]
 
 
 def resolve_url(url: str) -> str:
