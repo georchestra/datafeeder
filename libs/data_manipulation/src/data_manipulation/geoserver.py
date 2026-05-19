@@ -1,6 +1,7 @@
 """GeoServer layer creation utilities."""
 
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
+from geoservercloud.models.common import MetadataLink
 from geoservercloud.models.datastore import DataStore
 from geoservercloud.models.featuretype import FeatureType
 from geoservercloud.services import RestService
@@ -92,6 +93,7 @@ def create_layer(
     epsg: int = 4326,
     is_geographic: bool = True,
     bbox: dict[str, float] = {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0},
+    metadata_links: list[MetadataLink] | None = None,
 ) -> None:
     """
     Create a feature type (layer) in GeoServer from a database table.
@@ -148,6 +150,7 @@ def create_layer(
             epsg_code=epsg,
             native_bounding_box=native_bounding_box,
             lat_lon_bounding_box=lat_lon_bounding_box,
+            metadata_links=metadata_links,
         )
 
         rest_service = RestService(
