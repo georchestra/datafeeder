@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.utils import resolve_url, sanitize_name
 
 
@@ -79,6 +80,16 @@ class TestSanitizeName:
         assert sanitize_name("__Test Layer #1__") == "test_layer_1"
         assert sanitize_name("@@@123DataSet") == "layer_123dataset"
         assert sanitize_name("Layer (v2.0)") == "layer_v20"
+
+    def test_default_truncates_to_63(self):
+        """Default cap matches PostgreSQL's identifier length."""
+        result = sanitize_name("a" * 100)
+        assert len(result) == 63
+
+    def test_custom_max_length_truncates(self):
+        """max_length overrides the default 63-char cap."""
+        result = sanitize_name("a" * 100, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
+        assert len(result) == POSTGIS_TABLE_NAME_MAX_LENGTH
 
     def test_empty_after_sanitization(self):
         """Test edge case where sanitization might result in empty string."""

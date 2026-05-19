@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from airflow_client.client.models.dag_run_patch_body import DAGRunPatchBody
-from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.database import create_schema, get_available_table_name
 from data_manipulation.models import IntegrityTransformation
 from data_manipulation.utils import (
@@ -117,7 +117,11 @@ def process_staging_data(
     final_table_name = (
         integrity_link.final_table_name
         if integrity_link.last_retrieval_timestamp is not None
-        else get_available_table_name(data_engine, target_schema, sanitize_name(title))
+        else get_available_table_name(
+            data_engine,
+            target_schema,
+            sanitize_name(title, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH),
+        )
     )
     if not final_table_name:
         raise HTTPException(
@@ -127,7 +131,9 @@ def process_staging_data(
 
     # Validate the generated table name (defense in depth)
     try:
-        validate_table_name(final_table_name, context="final")
+        validate_table_name(
+            final_table_name, context="final", max_length=POSTGIS_TABLE_NAME_MAX_LENGTH
+        )
     except ValueError as e:
         logger.error(f"Generated invalid final table name from title '{title}': {e}")
         raise HTTPException(

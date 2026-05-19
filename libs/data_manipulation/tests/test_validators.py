@@ -4,6 +4,7 @@ import re
 
 import pytest
 
+from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.validators import (
     IDENTIFIER_PATTERN,
     validate_postgres_identifier,
@@ -187,8 +188,39 @@ class TestIdentifierPattern:
             "a-b",  # Hyphen
             "a.b",  # Dot
             "a b",  # Space
-            "a" * 64,  # Too long
             "",  # Empty
         ]
         for identifier in invalid_identifiers:
             assert not re.match(IDENTIFIER_PATTERN, identifier)
+
+
+class TestMaxLength:
+    """Test the configurable max_length cap."""
+
+    def test_default_allows_63_chars(self):
+        assert validate_postgres_identifier("a" * 63) == "a" * 63
+
+    def test_default_rejects_64_chars(self):
+        with pytest.raises(ValueError, match="exceeds maximum of 63"):
+            validate_postgres_identifier("a" * 64)
+
+    def test_custom_max_length_allows_at_cap(self):
+        assert (
+            validate_table_name(
+                "a" * POSTGIS_TABLE_NAME_MAX_LENGTH, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH
+            )
+            == "a" * POSTGIS_TABLE_NAME_MAX_LENGTH
+        )
+
+    def test_custom_max_length_rejects_above_cap(self):
+        too_long = "a" * (POSTGIS_TABLE_NAME_MAX_LENGTH + 1)
+        with pytest.raises(
+            ValueError,
+            match=rf"exceeds maximum of {POSTGIS_TABLE_NAME_MAX_LENGTH}",
+        ):
+            validate_table_name(too_long, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
+
+    def test_error_message_reports_actual_length(self):
+        too_long = "a" * 70
+        with pytest.raises(ValueError, match="length 70 exceeds"):
+            validate_postgres_identifier(too_long)
