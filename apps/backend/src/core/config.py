@@ -171,7 +171,7 @@ class Settings(BaseSettings):
 
     # Catalogue
     CATALOGUE_URL: str = Field(
-        default="",
+        default="http://localhost:8080/datahub/dataset/{metadata_id}",
         validation_alias=AliasChoices("catalogueUrl", "CATALOGUE_URL"),
     )
 
