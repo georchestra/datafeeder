@@ -12,6 +12,7 @@ from data_manipulation.geoserver import (
     update_layer_bbox as dm_update_layer_bbox,
 )
 from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
+from geoservercloud.models.common import MetadataLink
 from pydantic import BaseModel
 
 from src.core.logging import get_logger
@@ -169,6 +170,7 @@ class GeoServerService:
         epsg: int = 4326,
         is_geographic: bool = True,
         bbox: dict[str, float] = {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0},
+        metadata_links: list[MetadataLink] | None = None,
     ) -> LayerCreationResult:
         """
         Create a WFS and WMS layer from a database table.
@@ -199,6 +201,7 @@ class GeoServerService:
             epsg=epsg,
             is_geographic=is_geographic,
             bbox=bbox,
+            metadata_links=metadata_links,
         )
 
         # Build service URLs using build_layer_urls

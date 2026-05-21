@@ -171,7 +171,7 @@ class Settings(BaseSettings):
 
     # Catalogue
     CATALOGUE_URL: str = Field(
-        default="",
+        default="http://localhost:8080/datahub/dataset/{metadata_id}",
         validation_alias=AliasChoices("catalogueUrl", "CATALOGUE_URL"),
     )
 
@@ -261,6 +261,11 @@ class Settings(BaseSettings):
     @property
     def emails_enabled(self) -> bool:
         return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def GEONETWORK_XML_RECORD_URL(self) -> str:
+        return f"{self.GEONETWORK_URL}/srv/api/records/{{metadata_id}}/formatters/xml"
 
     @model_validator(mode="after")
     def _set_default_emails_from(self) -> Self:

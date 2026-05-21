@@ -11,6 +11,7 @@ from data_manipulation.utils import (
 )
 from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
+from geoservercloud.models.common import MetadataLink
 from sqlalchemy import MetaData, Table, func, select
 
 from src.api.deps import (
@@ -366,6 +367,23 @@ async def dag_success_callback(
                 if bbox_result:
                     bbox = compute_bbox_from_postgis_stextent_string(bbox_result)
 
+        metadata_links: list[MetadataLink] | None = None
+        if integrity_link.metadata_id:
+            metadata_links = [
+                MetadataLink(
+                    url=settings.GEONETWORK_XML_RECORD_URL.format(
+                        metadata_id=integrity_link.metadata_id
+                    ),
+                    metadata_type="ISO19115:2003",
+                    mime_type="text/xml",
+                ),
+                MetadataLink(
+                    url=settings.CATALOGUE_URL.format(metadata_id=integrity_link.metadata_id),
+                    metadata_type="ISO19115:2003",
+                    mime_type="text/html",
+                ),
+            ]
+
         await geoserver_service.create_layer(
             workspace_name=workspace_name,
             datastore_name=datastore_name,
@@ -375,6 +393,7 @@ async def dag_success_callback(
             epsg=epsg or 4326,
             is_geographic=is_geographic,
             bbox=bbox,
+            metadata_links=metadata_links,
         )
         integrity_link.data_id = workspace_name + ":" + final_table_name
         logger.info(
