@@ -915,63 +915,12 @@ class TestGenerateMetadataCreationDate:
         assert len(revision_nodes) == 0
 
 
-class TestGenerateMetadataOrganizationName:
-    """Verify organization long name propagates to organizationName in contacts."""
-
-    @pytest.fixture
-    def datadir(self) -> Path:
-        return Path(__file__).resolve().parents[4] / "docker" / "datadir"
-
-    @pytest.fixture
-    def link(self) -> IntegrityLink:
-        return IntegrityLink(
-            id=uuid4(),
-            integrity_title="Test",
-            integrity_owner="user",
-            integrity_organization="shortorg",
-            staging_table_name="stg",
-            created_at=datetime.now(timezone.utc),
-            last_retrieval_timestamp=datetime.now(timezone.utc),
-            source_import_type=ImportType.URL,
-        )
-
-    def _online_resource_names_in_xml(self, xml_str: str) -> list[str]:
-        root = etree.fromstring(xml_str.encode())
-        nodes = root.xpath(
-            "//cit:CI_Individual/cit:contactInfo/cit:CI_Contact"
-            "/cit:onlineResource/cit:CI_OnlineResource/cit:name/gco:CharacterString",
-            namespaces=NS_19115_3,
-        )
-        return [n.text for n in nodes if n.text]
-
-    @patch("src.services.metadata_service.GnApi")
-    def test_long_name_used_when_provided(
-        self, _mock_gn_api: MagicMock, datadir: Path, link: IntegrityLink
-    ) -> None:
-        service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
-        xml_str = service.generate_metadata(link, organization_name="Long Org Name SA")
-        org_names = self._online_resource_names_in_xml(xml_str)
-        assert len(org_names) > 0
-        assert all(name == "Long Org Name SA" for name in org_names)
-
-    @patch("src.services.metadata_service.GnApi")
-    def test_short_name_fallback_when_no_long_name(
-        self, _mock_gn_api: MagicMock, datadir: Path, link: IntegrityLink
-    ) -> None:
-        service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
-        xml_str = service.generate_metadata(link)
-        org_names = self._online_resource_names_in_xml(xml_str)
-        assert len(org_names) > 0
-        assert all(name == "shortorg" for name in org_names)
-
-
 class TestGenerateMetadataContacts:
-    """Template contacts must be preserved; user contact is appended after the last one."""
+    """Template contacts (mdb:contact and mri:pointOfContact) must pass through unchanged.
+    The ingesting user must NOT be injected anywhere as a contact."""
 
     @patch("src.services.metadata_service.GnApi")
-    def test_user_contact_appended_preserves_template_contacts(
-        self, _mock_gn_api: MagicMock
-    ) -> None:
+    def test_template_contacts_pass_through_unchanged(self, _mock_gn_api: MagicMock) -> None:
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
         service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
         link = IntegrityLink(
@@ -984,30 +933,53 @@ class TestGenerateMetadataContacts:
             last_retrieval_timestamp=datetime.now(timezone.utc),
             source_import_type=ImportType.URL,
         )
+        user_email = "ingester@example.com"
 
-        xml_str = service.generate_metadata(link, user_email="ingester@example.com")
+        xml_str = service.generate_metadata(
+            link,
+            user_email=user_email,
+            user_first_name="Alex",
+            user_last_name="Doe",
+            organization_name="Acme Long Name",
+        )
         root = etree.fromstring(xml_str.encode())
 
+        template_path = (
+            Path(__file__).resolve().parents[4]
+            / "docker"
+            / "datadir"
+            / "datafeeder-python"
+            / "metadata_template-19115-3.xml"
+        )
+        template_root = etree.parse(str(template_path)).getroot()
         ns = NS_19115_3
-        # Template has one empty mdb:contact; after transform there must be two
-        contacts = root.xpath("mdb:contact", namespaces=ns)
-        assert len(contacts) == 2, "Template contact must be preserved and user contact appended"
 
-        # Template has one empty mri:pointOfContact; after transform there must be two
-        poc = root.xpath(
+        template_mdb = template_root.xpath("mdb:contact", namespaces=ns)
+        output_mdb = root.xpath("mdb:contact", namespaces=ns)
+        assert len(output_mdb) == len(template_mdb), (
+            "Transform must not add or remove mdb:contact entries"
+        )
+
+        template_poc = template_root.xpath(
             "mdb:identificationInfo/mri:MD_DataIdentification/mri:pointOfContact",
             namespaces=ns,
         )
-        assert len(poc) == 2, "Template pointOfContact must be preserved and user contact appended"
-
-        # The appended contact must carry the user's email
-        emails = root.xpath(
-            "mdb:contact/cit:CI_Responsibility/cit:party/cit:CI_Individual"
-            "/cit:contactInfo/cit:CI_Contact/cit:address/cit:CI_Address"
-            "/cit:electronicMailAddress/gco:CharacterString",
+        output_poc = root.xpath(
+            "mdb:identificationInfo/mri:MD_DataIdentification/mri:pointOfContact",
             namespaces=ns,
         )
-        assert any(e.text == "ingester@example.com" for e in emails)
+        assert len(output_poc) == len(template_poc), (
+            "Transform must not add or remove mri:pointOfContact entries"
+        )
+
+        # The ingesting user's email must not appear anywhere in the output.
+        all_emails = root.xpath(
+            "//cit:electronicMailAddress/gco:CharacterString",
+            namespaces=ns,
+        )
+        assert all(e.text != user_email for e in all_emails), (
+            "Ingesting user's email must not leak into the metadata"
+        )
 
 
 class TestGenerateMetadataKeywords:
