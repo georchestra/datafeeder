@@ -4,8 +4,7 @@ import {
   effect,
   inject,
   output,
-  ChangeDetectionStrategy,
-  computed
+  ChangeDetectionStrategy
 } from '@angular/core'
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms'
 import { MatFormFieldModule } from '@angular/material/form-field'
@@ -33,7 +32,8 @@ export class DatasetTitleComponent {
   validated = output<string>()
   titleChanged = output<string>()
 
-  title_is_disabled = computed(() => this.metadata()?.has_final_table ?? false)
+  metadata = input<StagingMetadataResponse | undefined>()
+  isReconfiguring = input<boolean>(false)
 
   form = this.fb.group({
     title: this.fb.control('', {
@@ -45,8 +45,6 @@ export class DatasetTitleComponent {
       ]
     })
   })
-
-  metadata = input<StagingMetadataResponse | undefined>()
 
   constructor() {
     // Sync metadata title to form when loaded
@@ -60,7 +58,7 @@ export class DatasetTitleComponent {
 
     // Disable/enable title control based on has_final_table
     effect(() => {
-      const isDisabled = this.title_is_disabled()
+      const isDisabled = this.isReconfiguring()
       const titleControl = this.form.controls.title
       if (isDisabled) {
         titleControl.disable({ emitEvent: false })

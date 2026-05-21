@@ -47,6 +47,7 @@
         <app-dataset-title
           #titleConfig
           [metadata]="selectedTabIndex() === 1 ? metadata() : undefined"
+          [isReconfiguring]="!!integrityLinkStore.integrityLink()?.metadata_id"
           (validated)="onValidateDataset($event)"
           (titleChanged)="onTitleChanged($event)"
         />
