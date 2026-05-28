@@ -54,8 +54,8 @@ class TestMetadataGroups:
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = [
-                {"id": "role-uuid-1", "name": "ROLE_ADMIN"},
-                {"id": "role-uuid-2", "name": "ROLE_USER"},
+                {"id": "role-uuid-1", "name": "ROLE_ADMIN", "description": ""},
+                {"id": "role-uuid-2", "name": "ROLE_USER", "description": ""},
             ]
 
             result = list_groups(geo_ctx=MagicMock())
@@ -79,8 +79,8 @@ class TestMetadataGroups:
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = [
-                {"id": "uuid-1", "name": "Camptocamp"},
-                {"id": "uuid-2", "name": "GeoOrg"},
+                {"id": "uuid-1", "name": "Camptocamp", "description": ""},
+                {"id": "uuid-2", "name": "GeoOrg", "description": ""},
             ]
 
             result = list_groups(geo_ctx=MagicMock())
@@ -126,8 +126,8 @@ class TestMetadataGroups:
 
         assert result == [GroupItem(id="uuid-1", label="Camptocamp")]
 
-    def test_given_invalid_filter_regex_when_listing_then_raises_400(self) -> None:
-        """Given an invalid filter regex, when listing, then raises HTTPException 400."""
+    def test_given_invalid_filter_regex_when_listing_then_raises_502(self) -> None:
+        """Given an invalid filter regex, when listing, then raises HTTPException 502."""
         with (
             patch(
                 "src.api.routes.metadata_groups.get_settings",
@@ -142,4 +142,4 @@ class TestMetadataGroups:
             with pytest.raises(HTTPException) as exc_info:
                 list_groups(geo_ctx=MagicMock())
 
-        assert exc_info.value.status_code == 400
+        assert exc_info.value.status_code == 502

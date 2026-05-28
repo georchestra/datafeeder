@@ -28,8 +28,8 @@ class TestDataGroups:
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = [
-                {"id": "role-uuid-1", "name": "ROLE_ADMIN"},
-                {"id": "role-uuid-2", "name": "ROLE_USER"},
+                {"id": "role-uuid-1", "name": "ROLE_ADMIN", "description": ""},
+                {"id": "role-uuid-2", "name": "ROLE_USER", "description": ""},
             ]
 
             result = list_groups(geo_ctx=MagicMock())
@@ -51,8 +51,8 @@ class TestDataGroups:
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = [
-                {"id": "role-uuid-1", "name": "ROLE_ADMIN"},
-                {"id": "role-uuid-2", "name": "ROLE_USER"},
+                {"id": "role-uuid-1", "name": "ROLE_ADMIN", "description": ""},
+                {"id": "role-uuid-2", "name": "ROLE_USER", "description": ""},
             ]
 
             result = list_groups(geo_ctx=MagicMock())
@@ -106,7 +106,7 @@ class TestDataGroups:
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = [
-                {"id": "role-uuid-1", "name": "ROLE_ADMIN"},
+                {"id": "role-uuid-1", "name": "ROLE_ADMIN", "description": ""},
                 {"id": "role-uuid-2"},  # missing name
                 {"name": "ROLE_ORPHAN"},  # missing id
             ]
