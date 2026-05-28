@@ -369,52 +369,30 @@ class TestAirflowDagRunByIntlinkPermission:
 
 
 class TestAirflowDagRunStatusPermission:
-    def test_returns_403_for_unauthorized_user(self) -> None:
-        session = _mock_session(_link())
-
-        with pytest.raises(HTTPException) as exc_info:
-            get_dag_run_status("process_dag", DAG_RUN_ID, session, _ctx(), [])
-
-        assert exc_info.value.status_code == 403
-
     @patch("src.api.routes.airflow.get_task_executor")
     def test_returns_result_for_read_group_user(self, mock_executor: MagicMock) -> None:
-        session = _mock_session_with_rule(_link(), RuleValue.READ)
         mock_executor.return_value.get_task_status.return_value.status = MagicMock()
 
-        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _read_ctx(), GROUP_IDS)
+        result = get_dag_run_status("process_dag", DAG_RUN_ID)
 
         assert result is not None
 
     @patch("src.api.routes.airflow.get_task_executor")
     def test_returns_result_for_owner(self, mock_executor: MagicMock) -> None:
-        session = _mock_session(_link(), access_result="OWNER")
         mock_status = MagicMock()
         mock_executor.return_value.get_task_status.return_value.status = mock_status
 
-        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _owner_ctx(), [])
+        result = get_dag_run_status("process_dag", DAG_RUN_ID)
 
         assert result is mock_status
 
     @patch("src.api.routes.airflow.get_task_executor")
     def test_returns_result_for_admin(self, mock_executor: MagicMock) -> None:
-        session = _mock_session(_link(), access_result="ADMIN")
         mock_executor.return_value.get_task_status.return_value.status = MagicMock()
 
-        result = get_dag_run_status("process_dag", DAG_RUN_ID, session, _admin_ctx(), [])
+        result = get_dag_run_status("process_dag", DAG_RUN_ID)
 
         assert result is not None
-
-    @patch("src.api.routes.airflow.load_authorized_integrity_link")
-    def test_extracts_intlink_id_from_dag_run_id(self, mock_load: MagicMock) -> None:
-        """Verify intlink_id is extracted as the UUID prefix before the first underscore."""
-
-        mock_load.side_effect = HTTPException(status_code=403)
-
-        with pytest.raises(HTTPException):
-            get_dag_run_status("process_dag", DAG_RUN_ID, MagicMock(), _ctx(), [])
-
-        mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.METADATA_READ, ANY, ANY, ANY)
 
 
 # ────────────────────────────────────────────────────────
