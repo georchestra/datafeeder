@@ -9,8 +9,6 @@ from data_manipulation.logging import configure_logging
 from task_groups.ingestion import ingestion_group
 from utils import get_staging_timeout
 
-LOG_DIR = "/opt/airflow/logs"
-
 logger = logging.getLogger(__name__)
 
 
