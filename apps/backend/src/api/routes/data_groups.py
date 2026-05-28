@@ -26,7 +26,7 @@ def list_groups(geo_ctx: GeorchestraContextDep) -> list[GroupItem]:
     try:
         items = console_service.get_all_roles()
         group_items = [
-            GroupItem(id=item["id"], label=str(item.get("description") or item["name"]))
+            GroupItem(id=item["id"], label=item["name"])
             for item in items
             if item.get("id") and item.get("name")
         ]
