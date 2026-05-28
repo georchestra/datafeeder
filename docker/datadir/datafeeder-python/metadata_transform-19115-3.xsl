@@ -131,9 +131,50 @@
     </mri:spatialResolution>
   </xsl:template>
 
-  <!-- Template mdb:contact and mri:pointOfContact pass through the identity template
-       unchanged. We intentionally do not inject the ingesting user as a contact: the
-       record's contacts are entirely owned by the template author. -->
+  <!-- Copies existing mri:pointOfContact elements through; appends user contact after the last one -->
+  <xsl:template
+          match="//mdb:identificationInfo/mri:MD_DataIdentification/mri:pointOfContact[not(following-sibling::mri:pointOfContact)]">
+    <xsl:copy>
+      <xsl:apply-templates select="@*|node()" />
+    </xsl:copy>
+    <mri:pointOfContact>
+      <xsl:call-template name="contactInfo">
+        <xsl:with-param name="individualName" select="$props//datasetResponsibleParty//individualName" />
+        <xsl:with-param name="organizationName"
+                        select="$props//datasetResponsibleParty//organizationName" />
+        <xsl:with-param name="deliveryPoint"
+                        select="$props//datasetResponsibleParty//address//deliveryPoint" />
+        <xsl:with-param name="city" select="$props//datasetResponsibleParty//address//city" />
+        <xsl:with-param name="postalCode" select="$props//datasetResponsibleParty//address//postalCode" />
+        <xsl:with-param name="country" select="$props//datasetResponsibleParty//address//country" />
+        <xsl:with-param name="email" select="$props//datasetResponsibleParty//email" />
+        <xsl:with-param name="protocol" select="$props//datasetResponsibleParty//protocol" />
+        <xsl:with-param name="linkage" select="$props//datasetResponsibleParty//linkage" />
+      </xsl:call-template>
+    </mri:pointOfContact>
+  </xsl:template>
+
+  <!-- Copies existing mdb:contact elements through; appends user contact after the last one -->
+  <xsl:template match="//mdb:contact[not(following-sibling::mdb:contact)]">
+    <xsl:copy>
+      <xsl:apply-templates select="@*|node()" />
+    </xsl:copy>
+    <mdb:contact>
+      <xsl:call-template name="contactInfo">
+        <xsl:with-param name="individualName" select="$props//metadataResponsibleParty//individualName" />
+        <xsl:with-param name="organizationName"
+                        select="$props//metadataResponsibleParty//organizationName" />
+        <xsl:with-param name="deliveryPoint"
+                        select="$props//metadataResponsibleParty//address//deliveryPoint" />
+        <xsl:with-param name="city" select="$props//metadataResponsibleParty//address//city" />
+        <xsl:with-param name="postalCode" select="$props//metadataResponsibleParty//address//postalCode" />
+        <xsl:with-param name="country" select="$props//metadataResponsibleParty//address//country" />
+        <xsl:with-param name="email" select="$props//metadataResponsibleParty//email" />
+        <xsl:with-param name="protocol" select="$props//metadataResponsibleParty//protocol" />
+        <xsl:with-param name="linkage" select="$props//metadataResponsibleParty//linkage" />
+      </xsl:call-template>
+    </mdb:contact>
+  </xsl:template>
 
   <xsl:template
           match="//mdb:resourceLineage/mrl:LI_Lineage/mrl:statement/gco:CharacterString">
