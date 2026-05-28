@@ -46,16 +46,7 @@ def get_dag_run_by_intlink(
 def get_dag_run_status(
     dag_id: str,
     dag_run_id: str,
-    session: DatafeederSessionDep,
-    geo_ctx: GeorchestraContextDep,
-    group_ids: GroupIdsDep,
 ) -> TaskStatus:
-    intlink_id = dag_run_id.split("_")[0]  # Extract intlink_id from run_id pattern
-    # Ensure the user has access to the integrity link associated with this DAG run
-    load_authorized_integrity_link(
-        intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, group_ids
-    )
-
     try:
         executor = get_task_executor()
         task_info = executor.get_task_status(dag_id, dag_run_id)
