@@ -1,34 +1,15 @@
 import logging
 from datetime import datetime
 from typing import Any
-from urllib.parse import quote
 
 from airflow.models import Param
 from airflow.sdk import dag
-from callback import call_callback
+from callback import _dag_failure_callback, _dag_success_callback
 from data_manipulation.logging import configure_logging
 from task_groups.ingestion import ingestion_group
 from utils import get_staging_timeout
 
 logger = logging.getLogger(__name__)
-
-
-def _dag_success_callback(context: dict[str, Any]) -> None:
-    """Callback when staging_dag succeeds."""
-    params = context.get("params", {})
-    callback_url = params.get("success_callback_url")
-
-    if callback_url:
-        call_callback(callback_url, "success")
-
-
-def _dag_failure_callback(context: dict[str, Any]) -> None:
-    """Callback when staging_dag fails."""
-    params = context.get("params", {})
-    callback_url = params.get("failure_callback_url")
-    if callback_url:
-        reason: str = context.get("reason", "")
-        call_callback(f"{callback_url}&reason={quote(reason)}", "failure")
 
 
 @dag(
