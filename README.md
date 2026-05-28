@@ -25,8 +25,14 @@ Then, you can setup the development environment:
 ```
 Running services:
 ```bash
-# Launch all services + GeoServer + GeoNetwork + frontend + backend
+# Launch all services + GeoServer + GeoNetwork
 make up-full
+
+# Then launch the backend:
+make run-backend
+
+# And in another terminal, launch the frontend:
+cd apps/frontend && npm install && npm start
 ```
 
 `libs/data_manipulation` is bind-mounted into the Airflow containers, so source edits are picked up live. After changing `libs/data_manipulation/pyproject.toml` dependencies, rebuild with `docker compose up -d --build`.
