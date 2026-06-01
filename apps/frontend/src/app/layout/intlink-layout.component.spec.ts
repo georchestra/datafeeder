@@ -358,9 +358,7 @@ describe('IntlinkLayoutComponent', () => {
     it('should grey out recurrence with the local tooltip for a file dataset (OWNER)', async () => {
       const { fixture } = await setupComponent('OWNER', 'file')
       const nav = fixture.nativeElement.querySelector('nav')
-      const spans = Array.from(
-        nav.querySelectorAll('span')
-      ) as HTMLElement[]
+      const spans = Array.from(nav.querySelectorAll('span')) as HTMLElement[]
       const recurrenceSpan = spans.find(
         (s) => s.textContent!.trim() === 'Recurrence'
       )
@@ -375,9 +373,7 @@ describe('IntlinkLayoutComponent', () => {
     it('should grey out recurrence with the empty tooltip for an empty dataset (OWNER)', async () => {
       const { fixture } = await setupComponent('OWNER', 'empty')
       const nav = fixture.nativeElement.querySelector('nav')
-      const spans = Array.from(
-        nav.querySelectorAll('span')
-      ) as HTMLElement[]
+      const spans = Array.from(nav.querySelectorAll('span')) as HTMLElement[]
       const recurrenceSpan = spans.find(
         (s) => s.textContent!.trim() === 'Recurrence'
       )

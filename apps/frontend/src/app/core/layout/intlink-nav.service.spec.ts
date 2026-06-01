@@ -203,7 +203,9 @@ describe('IntlinkNavService', () => {
   describe('nextRouteLabel', () => {
     it('should return footer.next.recurrence for recurrence', () => {
       const { service } = setup()
-      expect(service.nextRouteLabel('recurrence')).toBe('footer.next.recurrence')
+      expect(service.nextRouteLabel('recurrence')).toBe(
+        'footer.next.recurrence'
+      )
     })
 
     it('should return footer.next.authorizations for authorizations', () => {
