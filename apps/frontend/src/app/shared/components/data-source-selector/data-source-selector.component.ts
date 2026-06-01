@@ -1,5 +1,7 @@
 import {
   Component,
+  ElementRef,
+  ViewChild,
   computed,
   effect,
   inject,
@@ -90,6 +92,9 @@ export interface SourceData {
 export class DataSourceSelectorComponent {
   private fb = inject(FormBuilder)
 
+  @ViewChild('selectedItemSection')
+  selectedItemSection?: ElementRef<HTMLElement>
+
   databaseSourceEnabled = input<boolean>(false)
   initialDatabaseSource = input<{ schema: string; table: string } | null>(null)
   initialApiSource = input<{
@@ -157,6 +162,14 @@ export class DataSourceSelectorComponent {
     })
 
     this.form.controls.source.valueChanges.subscribe((value) => {
+      if (value.file || value.url) {
+        setTimeout(() => {
+          this.selectedItemSection?.nativeElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest'
+          })
+        })
+      }
       this.sourceChanged.emit({
         type: value.type,
         file: value.file,
