@@ -20,7 +20,12 @@ const DAG_RUNGS_PAGE_SIZE = 20
 
 @Component({
   selector: 'app-events',
-  imports: [CommonModule, EventsListComponent, UiAlertBoxComponent, TranslatePipe],
+  imports: [
+    CommonModule,
+    EventsListComponent,
+    UiAlertBoxComponent,
+    TranslatePipe
+  ],
   templateUrl: './events.component.html',
   styleUrl: './events.component.css'
 })

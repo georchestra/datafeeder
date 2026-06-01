@@ -12,11 +12,7 @@ import {
   getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet
 } from '../api/functions'
 
-export type IntlinkRoute =
-  | 'edit'
-  | 'recurrence'
-  | 'events'
-  | 'authorizations'
+export type IntlinkRoute = 'edit' | 'recurrence' | 'events' | 'authorizations'
 
 @Injectable({ providedIn: 'root' })
 export class IntlinkNavService {
