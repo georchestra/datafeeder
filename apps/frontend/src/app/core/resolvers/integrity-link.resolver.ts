@@ -77,3 +77,23 @@ export const rejectEmptyDatasetGuard: CanActivateFn = (route) => {
 
   return true
 }
+
+/**
+ * Guard for the recurrence page: recurrence scheduling only applies to remote
+ * datasets. Non-remote (file / empty) datasets are redirected back to /edit.
+ */
+export const rejectNonRemoteDatasetGuard: CanActivateFn = (route) => {
+  const store = inject(IntegrityLinkStore)
+  const router = inject(Router)
+
+  const intlinkId = route.parent?.params['intlink_id']
+  if (!intlinkId) return true
+
+  if (!store.isRemoteDataset()) {
+    return new RedirectCommand(
+      router.parseUrl(`/${intlinkId}/edit?unavailable=1`)
+    )
+  }
+
+  return true
+}
