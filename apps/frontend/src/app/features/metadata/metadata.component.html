@@ -136,7 +136,11 @@
     <ng-icon name="iconoirOpenNewWindow" size="1em" class="ml-1.5" />
   </gn-ui-button>
   } } @else {
-  <gn-ui-button type="primary" (buttonClick)="nextPageButtonHandler()">
+  <gn-ui-button
+    type="primary"
+    [disabled]="processingStatus() !== 'success' || !isRecordLoaded()"
+    (buttonClick)="nextPageButtonHandler()"
+  >
     {{ nextButtonLabelKey() | translate }}
   </gn-ui-button>
   }
