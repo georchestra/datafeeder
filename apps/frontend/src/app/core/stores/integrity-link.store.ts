@@ -27,6 +27,16 @@ export class IntegrityLinkStore {
     () => this.integrityLink()?.source_import_type === EMPTY_IMPORT_TYPE
   )
 
+  /**
+   * True when the dataset originates from a remote source (url, database, api,
+   * ftp) — i.e. neither a file imported from the user's machine nor an empty
+   * dataset. Recurrence scheduling is only relevant for these.
+   */
+  isRemoteDataset = computed(() => {
+    const type = this.integrityLink()?.source_import_type
+    return type != null && type !== 'file' && type !== EMPTY_IMPORT_TYPE
+  })
+
   async loadIntegrityLink(intlinkId: string): Promise<IntegrityLinkResponse> {
     try {
       const integrityLink = await this.api.invoke(

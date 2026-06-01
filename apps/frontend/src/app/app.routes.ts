@@ -3,7 +3,8 @@ import { MainLayoutComponent } from './layout/main-layout.component'
 import {
   IntegrityLinkResolverWithRedirect,
   IntegrityLinkResolver,
-  rejectEmptyDatasetGuard
+  rejectEmptyDatasetGuard,
+  rejectNonRemoteDatasetGuard
 } from './core/resolvers/integrity-link.resolver'
 
 export const appRoutes: Route[] = [
@@ -53,6 +54,14 @@ export const appRoutes: Route[] = [
             loadComponent: () =>
               import('./features/metadata/metadata.component').then(
                 (m) => m.MetadataComponent
+              )
+          },
+          {
+            path: 'recurrence',
+            canActivate: [rejectNonRemoteDatasetGuard],
+            loadComponent: () =>
+              import('./features/recurrence/recurrence.component').then(
+                (m) => m.RecurrenceComponent
               )
           },
           {
