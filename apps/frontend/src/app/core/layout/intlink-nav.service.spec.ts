@@ -15,6 +15,7 @@ function createStore(
   opts: {
     accessLevel?: string
     isEmpty?: boolean
+    isLocal?: boolean
     scheduleEnabled?: boolean
     intlinkId?: string | null
   } = {}
@@ -22,6 +23,7 @@ function createStore(
   const {
     accessLevel = 'OWNER',
     isEmpty = false,
+    isLocal = false,
     scheduleEnabled = false,
     intlinkId = 'intlink-1'
   } = opts
@@ -29,7 +31,7 @@ function createStore(
   const integrityLink = signal<IntegrityLinkResponse | null>({
     id: 'intlink-1',
     access_level: accessLevel,
-    source_import_type: isEmpty ? 'empty' : 'url',
+    source_import_type: isEmpty ? 'empty' : isLocal ? 'file' : 'url',
     schedule_enabled: scheduleEnabled,
     integrity_title: 'Test',
     integrity_owner: 'owner',
@@ -60,7 +62,11 @@ function createStore(
     }),
     isEmptyDataset: computed(
       () => integrityLink()?.source_import_type === 'empty'
-    )
+    ),
+    isRemoteDataset: computed(() => {
+      const t = integrityLink()?.source_import_type
+      return t != null && t !== 'file' && t !== 'empty'
+    })
   } as unknown as IntegrityLinkStore
 }
 
@@ -121,20 +127,25 @@ describe('IntlinkNavService', () => {
       expect(service.accessibleRoutes()).toEqual(['edit', 'authorizations'])
     })
 
-    it('should include all routes for OWNER with data', () => {
+    it('should include edit and authorizations for OWNER with a local (file) dataset', () => {
+      const { service } = setup({ accessLevel: 'OWNER', isLocal: true })
+      expect(service.accessibleRoutes()).toEqual(['edit', 'authorizations'])
+    })
+
+    it('should include recurrence for OWNER with a remote dataset', () => {
       const { service } = setup({ accessLevel: 'OWNER', isEmpty: false })
       expect(service.accessibleRoutes()).toEqual([
         'edit',
-        'events',
+        'recurrence',
         'authorizations'
       ])
     })
 
-    it('should include all routes for ADMIN with data', () => {
+    it('should include recurrence for ADMIN with a remote dataset', () => {
       const { service } = setup({ accessLevel: 'ADMIN', isEmpty: false })
       expect(service.accessibleRoutes()).toEqual([
         'edit',
-        'events',
+        'recurrence',
         'authorizations'
       ])
     })
@@ -146,18 +157,18 @@ describe('IntlinkNavService', () => {
       expect(service.prevRoute('edit')).toBeNull()
     })
 
-    it('should return edit before events', () => {
+    it('should return edit before recurrence', () => {
       const { service } = setup()
-      expect(service.prevRoute('events')).toBe('edit')
+      expect(service.prevRoute('recurrence')).toBe('edit')
     })
 
-    it('should return events before authorizations', () => {
+    it('should return recurrence before authorizations for a remote dataset', () => {
       const { service } = setup()
-      expect(service.prevRoute('authorizations')).toBe('events')
+      expect(service.prevRoute('authorizations')).toBe('recurrence')
     })
 
-    it('should return edit before authorizations when events is not accessible (empty dataset)', () => {
-      const { service } = setup({ isEmpty: true })
+    it('should return edit before authorizations when recurrence is not accessible (local dataset)', () => {
+      const { service } = setup({ isLocal: true })
       expect(service.prevRoute('authorizations')).toBe('edit')
     })
   })
@@ -168,13 +179,13 @@ describe('IntlinkNavService', () => {
       expect(service.nextRoute('authorizations')).toBeNull()
     })
 
-    it('should return events after edit for OWNER with data', () => {
+    it('should return recurrence after edit for OWNER with a remote dataset', () => {
       const { service } = setup()
-      expect(service.nextRoute('edit')).toBe('events')
+      expect(service.nextRoute('edit')).toBe('recurrence')
     })
 
-    it('should return authorizations after edit for OWNER with empty dataset', () => {
-      const { service } = setup({ isEmpty: true })
+    it('should return authorizations after edit for OWNER with a local dataset', () => {
+      const { service } = setup({ isLocal: true })
       expect(service.nextRoute('edit')).toBe('authorizations')
     })
 
@@ -183,16 +194,16 @@ describe('IntlinkNavService', () => {
       expect(service.nextRoute('edit')).toBeNull()
     })
 
-    it('should return authorizations after events', () => {
+    it('should return authorizations after recurrence', () => {
       const { service } = setup()
-      expect(service.nextRoute('events')).toBe('authorizations')
+      expect(service.nextRoute('recurrence')).toBe('authorizations')
     })
   })
 
   describe('nextRouteLabel', () => {
-    it('should return footer.next.events for events', () => {
+    it('should return footer.next.recurrence for recurrence', () => {
       const { service } = setup()
-      expect(service.nextRouteLabel('events')).toBe('footer.next.events')
+      expect(service.nextRouteLabel('recurrence')).toBe('footer.next.recurrence')
     })
 
     it('should return footer.next.authorizations for authorizations', () => {
