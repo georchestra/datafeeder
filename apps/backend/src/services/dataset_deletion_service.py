@@ -1,7 +1,8 @@
-from sqlalchemy import MetaData, Table
-from sqlmodel import Session
+from sqlalchemy import MetaData, Table, text
+from sqlmodel import Session, select
 
 from src.core.config import get_data_schema
+from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
@@ -33,11 +34,13 @@ class DatasetDeletionService:
         Cleanup sequence:
         0. Cancel in-flight DAG runs — best-effort
         1. Delete Airflow DAG — BLOCKING: raises on failure
-        2. Delete GeoServer layer — best-effort
+        2. Delete GeoServer layer + its ACL rules — best-effort
         3. Drop final data table — best-effort
         4. Drop staging table — best-effort
-        5. Delete GeoNetwork record — best-effort
+        5. Delete GeoNetwork record, Airflow run history — best-effort
         6. Delete IntegrityLink from DB (cascades to IntegrityLinkRule)
+        7. If last dataset of the org: delete empty GeoServer datastore/workspace
+           and drop the empty org schema — best-effort
 
         Args:
             integrity_link: The IntegrityLink to delete
@@ -106,9 +109,39 @@ class DatasetDeletionService:
             )
 
         # Step 6: Delete IntegrityLink from DB (ON DELETE CASCADE removes IntegrityLinkRule rows)
+        integrity_link_id = integrity_link.id
+        organization = integrity_link.integrity_organization
         session.delete(integrity_link)
         session.commit()
-        logger.info(f"Deleted IntegrityLink {integrity_link.id}")
+        logger.info(f"Deleted IntegrityLink {integrity_link_id}")
+
+        # Step 7: If this was the org's last dataset, clean up the shared org
+        # resources (best-effort). GeoServer deletes are non-recursive and the
+        # schema drop uses RESTRICT, so anything still in use survives.
+        remaining = session.exec(
+            select(IntegrityLink).where(IntegrityLink.integrity_organization == organization)
+        ).first()
+        if remaining is None:
+            self.geoserver_service.delete_datastore_if_empty(workspace_name, datastore_name)
+            self.geoserver_service.delete_workspace_if_empty(workspace_name)
+            self._drop_schema_if_empty(get_data_schema(workspace_name))
+
+    def _drop_schema_if_empty(self, schema: str) -> None:
+        """Drop an org-specific schema only when empty (RESTRICT).
+
+        Never touches the shared schemas: 'staging' and the default data
+        schema (used when USE_ORG_SCHEMA is disabled). Best-effort: a RESTRICT
+        refusal (schema not empty) is the expected harmless outcome.
+        """
+        if schema in ("staging", DEFAULT_DATA_SCHEMA):
+            return
+        try:
+            with data_engine.connect() as conn:
+                conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" RESTRICT'))
+                conn.commit()
+            logger.info(f"Dropped empty schema {schema}")
+        except Exception as e:
+            logger.info(f"Schema {schema} not dropped (likely not empty): {e}")
 
     def _drop_table_safe(self, schema: str, table_name: str) -> None:
         """Drop a table in the given schema; log and suppress any errors."""

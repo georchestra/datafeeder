@@ -310,3 +310,96 @@ class TestPurgeRunHistory:
             deletion_service.delete_dataset(link, session)
 
         session.delete.assert_called_once_with(link)
+
+
+class TestOrgResourceCleanup:
+    """Shared org resources are cleaned up when the last dataset is removed."""
+
+    @patch("src.services.dataset_deletion_service.get_data_schema", return_value="testorg")
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_last_dataset_triggers_cleanup(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        mock_get_schema: MagicMock,
+        deletion_service: DatasetDeletionService,
+        geoserver_svc: MagicMock,
+    ) -> None:
+        link = _make_link()
+        session = MagicMock()
+        session.exec.return_value.first.return_value = None  # no dataset left for the org
+
+        with patch("src.services.dataset_deletion_service.Table"):
+            deletion_service.delete_dataset(link, session)
+
+        geoserver_svc.delete_datastore_if_empty.assert_called_once_with("testorg", "testorg_ds")
+        geoserver_svc.delete_workspace_if_empty.assert_called_once_with("testorg")
+        # Org schema drop attempted (RESTRICT — harmless when not empty)
+        mock_data_engine.connect.assert_called()
+
+    @patch("src.services.dataset_deletion_service.get_data_schema", return_value="testorg")
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_remaining_datasets_skip_cleanup(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        mock_get_schema: MagicMock,
+        deletion_service: DatasetDeletionService,
+        geoserver_svc: MagicMock,
+    ) -> None:
+        link = _make_link()
+        session = MagicMock()
+        session.exec.return_value.first.return_value = MagicMock()  # another dataset remains
+
+        with patch("src.services.dataset_deletion_service.Table"):
+            deletion_service.delete_dataset(link, session)
+
+        geoserver_svc.delete_datastore_if_empty.assert_not_called()
+        geoserver_svc.delete_workspace_if_empty.assert_not_called()
+
+    @patch("src.services.dataset_deletion_service.get_data_schema", return_value="data")
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_shared_data_schema_is_never_dropped(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        mock_get_schema: MagicMock,
+        deletion_service: DatasetDeletionService,
+        geoserver_svc: MagicMock,
+    ) -> None:
+        """USE_ORG_SCHEMA=False → schema is the shared 'data' schema: never drop
+        it; GeoServer workspace/datastore cleanup still applies."""
+        link = _make_link()
+        session = MagicMock()
+        session.exec.return_value.first.return_value = None
+
+        with patch("src.services.dataset_deletion_service.Table"):
+            deletion_service.delete_dataset(link, session)
+
+        geoserver_svc.delete_workspace_if_empty.assert_called_once_with("testorg")
+        mock_data_engine.connect.assert_not_called()
+
+    @patch("src.services.dataset_deletion_service.get_data_schema", return_value="testorg")
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_cleanup_failure_is_best_effort(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        mock_get_schema: MagicMock,
+        deletion_service: DatasetDeletionService,
+        geoserver_svc: MagicMock,
+    ) -> None:
+        """RESTRICT refusal (schema not empty) must not raise; row already deleted."""
+        link = _make_link()
+        session = MagicMock()
+        session.exec.return_value.first.return_value = None
+        mock_data_engine.connect.side_effect = Exception("schema not empty")
+
+        with patch("src.services.dataset_deletion_service.Table"):
+            deletion_service.delete_dataset(link, session)  # must not raise
+
+        session.delete.assert_called_once_with(link)
