@@ -89,20 +89,21 @@ class TestDatasetDeletionService:
 
     @patch("src.services.dataset_deletion_service.data_engine")
     @patch("src.services.dataset_deletion_service.delete_dag")
-    def test_happy_path_without_schedule(
+    def test_dag_deleted_even_without_schedule(
         self,
         mock_delete_dag: MagicMock,
         mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
     ) -> None:
-        """Without schedule: no DAG deletion attempted."""
+        """Without schedule: DAG deletion is still attempted (stale DAGs from a
+        previously cleared schedule must be removed; 404 is tolerated)."""
         link = _make_link(schedule=None)
         session = MagicMock()
 
         with patch("src.services.dataset_deletion_service.Table"):
             deletion_service.delete_dataset(link, session)
 
-        mock_delete_dag.assert_not_called()
+        mock_delete_dag.assert_called_once_with("ingestion_00000000-0000-0000-0000-000000000001")
 
     @patch("src.services.dataset_deletion_service.data_engine")
     @patch("src.services.dataset_deletion_service.delete_dag")
