@@ -78,6 +78,10 @@ class TestDatasetDeletionService:
             datastore_name="testorg_ds",
             layer_name="my_table",
         )
+        geoserver_svc.delete_layer_acl.assert_called_once_with(
+            workspace_name="testorg",
+            layer_name="my_table",
+        )
         assert mock_table.drop.call_count == 2  # final table + staging table
         metadata_svc.delete_record.assert_called_once_with("uuid-meta-1")
         session.delete.assert_called_once_with(link)
@@ -164,6 +168,7 @@ class TestDatasetDeletionService:
             deletion_service.delete_dataset(link, session)
 
         geoserver_svc.delete_layer.assert_not_called()
+        geoserver_svc.delete_layer_acl.assert_not_called()
         # Only staging table drop should be attempted (1 call)
         assert mock_table.drop.call_count == 1
 

@@ -54,11 +54,15 @@ class DatasetDeletionService:
         workspace_name = integrity_link.integrity_organization.lower()
         datastore_name = f"{workspace_name}_ds"
 
-        # Step 2: Delete GeoServer layer (best-effort)
+        # Step 2: Delete GeoServer layer and its ACL rules (best-effort)
         if integrity_link.final_table_name:
             self.geoserver_service.delete_layer(
                 workspace_name=workspace_name,
                 datastore_name=datastore_name,
+                layer_name=integrity_link.final_table_name,
+            )
+            self.geoserver_service.delete_layer_acl(
+                workspace_name=workspace_name,
                 layer_name=integrity_link.final_table_name,
             )
 
