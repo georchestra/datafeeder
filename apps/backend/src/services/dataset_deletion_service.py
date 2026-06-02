@@ -5,7 +5,11 @@ from src.core.config import get_data_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
-from src.services.airflow_client import cancel_ingestion_dag, delete_dag
+from src.services.airflow_client import (
+    cancel_ingestion_dag,
+    delete_dag,
+    purge_dataset_dag_runs,
+)
 from src.services.geoserver import GeoServerService
 from src.services.metadata_service import MetadataService
 
@@ -89,6 +93,17 @@ class DatasetDeletionService:
         # Step 5: Delete GeoNetwork record (best-effort)
         if integrity_link.metadata_id:
             self.metadata_service.delete_record(integrity_link.metadata_id)
+
+        # Step 5b: Purge Airflow run history (dag runs, task instances, XComs)
+        # for this dataset (best-effort). Failed-run log files on the Airflow
+        # volume are out of reach from the backend and are not removed.
+        try:
+            purge_dataset_dag_runs(str(integrity_link.id))
+        except Exception as e:
+            logger.warning(
+                f"Failed to purge Airflow run history for IntegrityLink {integrity_link.id}: {e}",
+                exc_info=True,
+            )
 
         # Step 6: Delete IntegrityLink from DB (ON DELETE CASCADE removes IntegrityLinkRule rows)
         session.delete(integrity_link)

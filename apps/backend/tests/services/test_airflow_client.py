@@ -6,6 +6,7 @@ import pytest
 from airflow_client.client.exceptions import ConflictException, NotFoundException
 
 from src.services.airflow_client import (
+    _delete_dag_runs,  # pyright: ignore[reportPrivateUsage]
     _force_fail_dag_runs,  # pyright: ignore[reportPrivateUsage]
     _get_cached_airflow_api_client,  # pyright: ignore[reportPrivateUsage]
     _get_cached_dag_api,  # pyright: ignore[reportPrivateUsage]
@@ -18,6 +19,7 @@ from src.services.airflow_client import (
     get_airflow_api_client,
     get_dag_api,
     get_dag_run_api,
+    purge_dataset_dag_runs,
 )
 
 
@@ -549,3 +551,63 @@ class TestCancelIngestionDag:
         mock_force_fail.assert_any_call("process_dag", dag_run_id_prefix="abc-123_")
         mock_force_fail.assert_any_call("staging_dag", dag_run_id_prefix="abc-123")
         assert mock_force_fail.call_count == 3
+
+
+class TestPurgeDatasetDagRuns:
+    def _mock_api(self, pages: list[list[str]]) -> Mock:
+        """Build a DagRunApi mock returning the given run-id pages then empty."""
+        api = Mock()
+        responses = []
+        total = sum(len(p) for p in pages)
+        for page in pages:
+            responses.append(
+                Mock(dag_runs=[Mock(dag_run_id=run_id) for run_id in page], total_entries=total)
+            )
+        responses.append(Mock(dag_runs=[], total_entries=0))
+        api.get_dag_runs.side_effect = responses
+        return api
+
+    def test_deletes_staging_and_process_runs(self) -> None:
+        """Runs of both shared DAGs matching the dataset prefix are deleted."""
+        api = Mock()
+        api.get_dag_runs.side_effect = [
+            Mock(dag_runs=[Mock(dag_run_id="abc-123")], total_entries=1),
+            Mock(dag_runs=[], total_entries=0),
+            Mock(dag_runs=[Mock(dag_run_id="abc-123_456")], total_entries=1),
+            Mock(dag_runs=[], total_entries=0),
+        ]
+        with patch("src.services.airflow_client.get_dag_run_api", return_value=api):
+            purge_dataset_dag_runs("abc-123")
+
+        api.delete_dag_run.assert_any_call(dag_id="staging_dag", dag_run_id="abc-123")
+        api.delete_dag_run.assert_any_call(dag_id="process_dag", dag_run_id="abc-123_456")
+        # LIKE patterns: staging matches '<id>%', process matches '<id>_%'
+        patterns = [c.kwargs["run_id_pattern"] for c in api.get_dag_runs.call_args_list]
+        assert "abc-123%" in patterns
+        assert "abc-123_%" in patterns
+
+    def test_missing_dag_is_swallowed(self) -> None:
+        api = Mock()
+        api.get_dag_runs.side_effect = NotFoundException()
+        with patch("src.services.airflow_client.get_dag_run_api", return_value=api):
+            purge_dataset_dag_runs("abc-123")  # must not raise
+
+        api.delete_dag_run.assert_not_called()
+
+    def test_delete_failures_do_not_abort_or_loop_forever(self) -> None:
+        """A run that cannot be deleted is skipped without raising or looping."""
+        api = Mock()
+        api.get_dag_runs.return_value = Mock(
+            dag_runs=[Mock(dag_run_id="abc-123_1")], total_entries=1
+        )
+        api.delete_dag_run.side_effect = Exception("boom")
+        with patch("src.services.airflow_client.get_dag_run_api", return_value=api):
+            purge_dataset_dag_runs("abc-123")  # must not raise
+
+    def test_paginates_until_no_runs_remain(self) -> None:
+        api = self._mock_api([["abc-123_1", "abc-123_2"], ["abc-123_3"]])
+        # Only purge one dag to keep the side_effect sequence simple
+        with patch("src.services.airflow_client.get_dag_run_api", return_value=api):
+            _delete_dag_runs("process_dag", "abc-123_%")
+
+        assert api.delete_dag_run.call_count == 3
