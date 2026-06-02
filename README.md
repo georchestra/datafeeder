@@ -26,7 +26,7 @@ Then, you can setup the development environment:
 Running services:
 ```bash
 # Launch all services + GeoServer + GeoNetwork
-make up-full
+make up
 
 # Then launch the backend:
 make run-backend
@@ -36,31 +36,6 @@ cd apps/frontend && npm install && npm start
 ```
 
 `libs/data_manipulation` is bind-mounted into the Airflow containers, so source edits are picked up live. After changing `libs/data_manipulation/pyproject.toml` dependencies, rebuild with `docker compose up -d --build`.
-
-## Dev environment setup:
-
-If you want to run backend and frontend separately for development purposes, you can setup the development environment:
-
-Running services:
-```bash
-# Launch all services (Airflow + gateway + ldap)
-make up-light
-
-# In light mode, you can launch backend and frontend with docker but you will need to change the gateway config to right hosts in docker/datadir/gateway/routes.yaml to use docker internal hostnames:
-# georchestra.gateway.services:
-# backend.target: http://datafeeder-backend:8000/ Use this line
-# backend.target: http://host.docker.internal:8000/ Comment this line
-# frontend.target: http://datafeeder-frontend:8080/ Use this line
-# frontend.target: http://host.docker.internal:4200/frontend/ Comment this line
-# airflow.target: http://airflow-apiserver:8081/airflow Use this line
-# airflow.target: http://localhost:8081/airflow Comment this line
-
-# Then launch the backend:
-make run-backend
-
-# And in another terminal, launch the frontend:
-cd apps/frontend && npm install && npm start
-```
 
 ## Application Access
 
