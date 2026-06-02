@@ -32,6 +32,7 @@ from src.core.config import get_staging_schema
 from src.core.db import data_engine, source_db_key, source_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
+from src.core.run_ids import make_initial_staging_run_id, make_staging_rerun_id
 from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.models import (
     StagingResponse,
@@ -536,7 +537,7 @@ async def submit_staging(
         source=import_source.source or "",
         import_type=type,
         encrypted_password=encrypted_password,
-        dag_run_id=integrity_link_id_as_string,
+        dag_run_id=make_initial_staging_run_id(integrity_link_id_as_string),
         source_layer=import_source.source_layer,
         source_protocol=import_source.source_protocol,
     )
@@ -649,7 +650,9 @@ async def edit_staging(
     if old_staging_table_name:
         _remove_staging_table(old_staging_table_name)
 
-    dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}"
+    dag_run_id = make_staging_rerun_id(
+        str(integrity_link.id), int(datetime.now(timezone.utc).timestamp())
+    )
 
     logger.info(
         f"Updated IntegrityLink {integrity_link.id} | "

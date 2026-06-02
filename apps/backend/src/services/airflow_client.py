@@ -15,6 +15,12 @@ from pydantic import BaseModel
 
 from src.core.config import get_settings
 from src.core.logging import get_logger
+from src.core.run_ids import (
+    process_run_like,
+    process_run_prefix,
+    staging_run_like,
+    staging_run_prefix,
+)
 
 logger = get_logger()
 
@@ -166,8 +172,8 @@ def cancel_ingestion_dag(integrity_link_id: str) -> None:
     """
     dag_id = f"ingestion_{integrity_link_id}"
     _force_fail_dag_runs(dag_id)
-    _force_fail_dag_runs("process_dag", dag_run_id_prefix=f"{integrity_link_id}_")
-    _force_fail_dag_runs("staging_dag", dag_run_id_prefix=f"{integrity_link_id}")
+    _force_fail_dag_runs("process_dag", dag_run_id_prefix=process_run_prefix(integrity_link_id))
+    _force_fail_dag_runs("staging_dag", dag_run_id_prefix=staging_run_prefix(integrity_link_id))
 
 
 def _delete_dag_runs(dag_id: str, run_id_like: str) -> None:
@@ -207,8 +213,8 @@ def purge_dataset_dag_runs(integrity_link_id: str) -> None:
     Covers staging_dag runs (run ids '<id>' / '<id>_<ts>') and process_dag runs
     (run ids '<id>_<ts>[_manual]'). Run-id matching uses SQL LIKE patterns.
     """
-    _delete_dag_runs("staging_dag", f"{integrity_link_id}%")
-    _delete_dag_runs("process_dag", f"{integrity_link_id}_%")
+    _delete_dag_runs("staging_dag", staging_run_like(integrity_link_id))
+    _delete_dag_runs("process_dag", process_run_like(integrity_link_id))
 
 
 def remove_ingestion_dag(integrity_link_id: str) -> None:
