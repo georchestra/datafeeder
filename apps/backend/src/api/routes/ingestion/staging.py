@@ -698,16 +698,12 @@ def dag_success_callback(
     session.commit()
     session.refresh(integrity_link)
 
-    try:
-        # db:// URIs and service URLs are not temp files — only delete for FILE/URL/FTP sources
-        if integrity_link.source_url and integrity_link.source_import_type not in (
-            ImportType.DATABASE,
-            ImportType.API,
-        ):
+    # Clean temp file
+    if integrity_link.source_url and integrity_link.source_import_type == ImportType.FILE:
+        try:
             delete_temp_file(integrity_link.source_url)
-    except Exception as e:
-        logger.error(f"Error deleting temp file: {e}")
-
+        except Exception as e:
+            logger.error(f"Error deleting temp file: {e}")
 
 @router.post("/dag_failure")
 def dag_failure_callback(
@@ -742,6 +738,13 @@ def dag_failure_callback(
     integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
+
+    # Clean temp file
+    if integrity_link.source_url and integrity_link.source_import_type == ImportType.FILE:
+        try:
+            delete_temp_file(integrity_link.source_url)
+        except Exception as e:
+            logger.error(f"Error deleting temp file: {e}")
 
     is_rerun = integrity_link.last_retrieval_timestamp is not None  # it is a rerun/reconfig
 

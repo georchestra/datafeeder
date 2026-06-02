@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from src.api.routes.ingestion.staging import (
     _process_import_source,  # pyright: ignore[reportPrivateUsage]
+    dag_failure_callback,
     dag_success_callback,
     edit_staging,
     get_staging_metadata,
@@ -402,3 +403,128 @@ class TestOapifUrlNormalization:
             service_protocol="ogcFeatures",
         )
         assert result.url == "https://example.com/v1"
+
+
+class TestDagSuccessCallbackTempFile:
+    """Test temp upload file cleanup in the staging success callback."""
+
+    def _call(self, import_type: ImportType, source_url: str) -> None:
+        link = MagicMock()
+        link.source_url = source_url
+        link.source_import_type = import_type
+        link.created_at = datetime.now(timezone.utc)
+
+        session = MagicMock()
+        session.get.return_value = link
+
+        dag_success_callback(session=session, integrity_link_id=str(uuid4()))
+
+    @patch("src.api.routes.ingestion.staging.delete_temp_file")
+    def test_temp_file_deleted_for_file_import(self, mock_delete: MagicMock) -> None:
+        url = "http://backend:8000/internal/files/data_abc.gpkg"
+
+        self._call(ImportType.FILE, url)
+
+        mock_delete.assert_called_once_with(url)
+
+    @patch("src.api.routes.ingestion.staging.delete_temp_file")
+    def test_temp_file_not_deleted_for_url_import(self, mock_delete: MagicMock) -> None:
+        self._call(ImportType.URL, "https://example.com/data.gpkg")
+
+        mock_delete.assert_not_called()
+
+    @patch("src.api.routes.ingestion.staging.delete_temp_file")
+    def test_temp_file_not_deleted_for_ftp_import(self, mock_delete: MagicMock) -> None:
+        self._call(ImportType.FTP, "ftp://host:21/data.gpkg")
+
+        mock_delete.assert_not_called()
+
+    @patch("src.api.routes.ingestion.staging.delete_temp_file")
+    def test_temp_file_not_deleted_for_database_import(self, mock_delete: MagicMock) -> None:
+        self._call(ImportType.DATABASE, "db://main/public/my_table")
+
+        mock_delete.assert_not_called()
+
+    @patch("src.api.routes.ingestion.staging.delete_temp_file")
+    def test_delete_error_is_swallowed(self, mock_delete: MagicMock) -> None:
+        mock_delete.side_effect = IOError("already gone")
+
+        self._call(ImportType.FILE, "http://backend:8000/internal/files/data_abc.gpkg")  # no raise
+
+
+class TestDagFailureCallbackTempFile:
+    """Test temp upload file cleanup in the staging failure callback."""
+
+    def _make_link(
+        self,
+        import_type: ImportType,
+        last_retrieval: datetime | None = None,
+    ) -> MagicMock:
+        link = MagicMock()
+        link.source_url = "http://backend:8000/internal/files/data_abc.gpkg"
+        link.source_import_type = import_type
+        link.staging_table_name = "staging_abc"
+        link.last_retrieval_timestamp = last_retrieval
+        return link
+
+    def _call(self, link: MagicMock) -> tuple[MagicMock, MagicMock]:
+        datafeeder_session = MagicMock()
+        datafeeder_session.get.return_value = link
+        data_session = MagicMock()
+
+        with (
+            patch("src.api.routes.ingestion.staging.Table"),
+            patch("src.api.routes.ingestion.staging.data_engine"),
+        ):
+            dag_failure_callback(
+                datafeeder_session=datafeeder_session,
+                data_session=data_session,
+                integrity_link_id=str(uuid4()),
+                dag_id="staging_dag",
+                dag_run_id="run-1",
+                reason=None,
+            )
+        return datafeeder_session, data_session
+
+    @patch("src.api.routes.ingestion.staging.delete_temp_file")
+    def test_temp_file_deleted_for_file_import(self, mock_delete: MagicMock) -> None:
+        link = self._make_link(ImportType.FILE)
+
+        datafeeder_session, _ = self._call(link)
+
+        mock_delete.assert_called_once_with(link.source_url)
+        datafeeder_session.delete.assert_called_once_with(link)
+
+    @patch("src.api.routes.ingestion.staging.delete_temp_file")
+    def test_temp_file_not_deleted_for_database_import(self, mock_delete: MagicMock) -> None:
+        link = self._make_link(ImportType.DATABASE)
+
+        self._call(link)
+
+        mock_delete.assert_not_called()
+
+    @patch("src.api.routes.ingestion.staging.delete_temp_file")
+    def test_temp_file_not_deleted_for_api_import(self, mock_delete: MagicMock) -> None:
+        link = self._make_link(ImportType.API)
+
+        self._call(link)
+
+        mock_delete.assert_not_called()
+
+    @patch("src.api.routes.ingestion.staging.delete_temp_file")
+    def test_temp_file_deleted_on_rerun_but_link_kept(self, mock_delete: MagicMock) -> None:
+        link = self._make_link(ImportType.FILE, last_retrieval=datetime.now(timezone.utc))
+
+        datafeeder_session, _ = self._call(link)
+
+        mock_delete.assert_called_once_with(link.source_url)
+        datafeeder_session.delete.assert_not_called()
+
+    @patch("src.api.routes.ingestion.staging.delete_temp_file")
+    def test_delete_error_does_not_abort_cleanup(self, mock_delete: MagicMock) -> None:
+        mock_delete.side_effect = IOError("already gone")
+        link = self._make_link(ImportType.FILE)
+
+        datafeeder_session, _ = self._call(link)
+
+        datafeeder_session.delete.assert_called_once_with(link)
