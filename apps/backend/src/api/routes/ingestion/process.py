@@ -33,10 +33,11 @@ from src.models import (
     ProcessResponse,
 )
 from src.models.integrity_link import IntegrityLink
-from src.services.airflow_client import get_dag_run_api, remove_ingestion_dag
+from src.services.airflow_client import get_dag_run_api
 from src.services.console_service import ConsoleService
 from src.services.executor_factory import get_task_executor
 from src.services.metadata_service import MetadataService
+from src.services.schedule_service import clear_schedule
 
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
 logger = get_logger()
@@ -157,11 +158,7 @@ def process_staging_data(
             f"{request.recurrence} → {request.recurrence.cron}"
         )
     else:
-        if integrity_link.schedule:
-            # Clearing an existing schedule: remove the stale ingestion DAG
-            remove_ingestion_dag(str(integrity_link.id))
-        integrity_link.schedule = None
-        integrity_link.schedule_enabled = False
+        clear_schedule(integrity_link)
 
     # --- Prepare layer URLs and GeoNetwork metadata ---
     # Determine whether the data will end up geographic: either the staging table

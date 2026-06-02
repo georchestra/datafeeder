@@ -2220,9 +2220,7 @@ class TestUpdateSchedule:
         integrity_link.schedule_enabled = True
         mock_session.get.return_value = integrity_link
 
-        with patch(
-            "src.api.routes.ingestion.integrity_link.remove_ingestion_dag"
-        ) as mock_remove_dag:
+        with patch("src.services.schedule_service.remove_ingestion_dag") as mock_remove_dag:
             result = update_schedule(
                 session=mock_session,
                 geo_ctx=_geo_ctx(),
@@ -2245,9 +2243,7 @@ class TestUpdateSchedule:
         integrity_link = self._link(integrity_link_id)
         mock_session.get.return_value = integrity_link
 
-        with patch(
-            "src.api.routes.ingestion.integrity_link.remove_ingestion_dag"
-        ) as mock_remove_dag:
+        with patch("src.services.schedule_service.remove_ingestion_dag") as mock_remove_dag:
             update_schedule(
                 session=mock_session,
                 geo_ctx=_geo_ctx(),
@@ -2264,9 +2260,7 @@ class TestUpdateSchedule:
         integrity_link = self._link(integrity_link_id)
         mock_session.get.return_value = integrity_link
 
-        with patch(
-            "src.api.routes.ingestion.integrity_link.remove_ingestion_dag"
-        ) as mock_remove_dag:
+        with patch("src.services.schedule_service.remove_ingestion_dag") as mock_remove_dag:
             update_schedule(
                 session=mock_session,
                 geo_ctx=_geo_ctx(),
@@ -2332,9 +2326,7 @@ class TestDeleteSchedule:
         integrity_link = self._link(integrity_link_id, schedule="0 0 * * *")
         mock_session.get.return_value = integrity_link
 
-        with patch(
-            "src.api.routes.ingestion.integrity_link.remove_ingestion_dag"
-        ) as mock_remove_dag:
+        with patch("src.services.schedule_service.remove_ingestion_dag") as mock_remove_dag:
             response = delete_integrity_link_schedule(
                 session=mock_session,
                 geo_ctx=_geo_ctx(),
@@ -2352,9 +2344,7 @@ class TestDeleteSchedule:
         integrity_link = self._link(integrity_link_id, schedule=None)
         mock_session.get.return_value = integrity_link
 
-        with patch(
-            "src.api.routes.ingestion.integrity_link.remove_ingestion_dag"
-        ) as mock_remove_dag:
+        with patch("src.services.schedule_service.remove_ingestion_dag") as mock_remove_dag:
             response = delete_integrity_link_schedule(
                 session=mock_session,
                 geo_ctx=_geo_ctx(),
