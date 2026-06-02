@@ -27,7 +27,7 @@ class DatasetDeletionService:
         """Delete a dataset and all associated resources.
 
         Cleanup sequence:
-        1. Delete Airflow DAG (only if schedule set) — BLOCKING: raises on failure
+        1. Delete Airflow DAG — BLOCKING: raises on failure
         2. Delete GeoServer layer — best-effort
         3. Drop final data table — best-effort
         4. Drop staging table — best-effort
@@ -41,15 +41,16 @@ class DatasetDeletionService:
         Raises:
             Exception: If Airflow DAG deletion fails (other cleanup is skipped)
         """
-        # Step 1: Delete Airflow DAG (blocking)
-        if integrity_link.schedule:
-            dag_id = f"ingestion_{integrity_link.id}"
-            try:
-                delete_dag(dag_id)
-                logger.info(f"Deleted Airflow DAG {dag_id}")
-            except Exception as e:
-                logger.error(f"Failed to delete Airflow DAG {dag_id}: {e}", exc_info=True)
-                raise
+        # Step 1: Delete Airflow DAG (blocking). Attempted even when no schedule
+        # is currently set: a previously cleared schedule leaves a stale
+        # ingestion_<id> DAG in Airflow, and delete_dag tolerates 404.
+        dag_id = f"ingestion_{integrity_link.id}"
+        try:
+            delete_dag(dag_id)
+            logger.info(f"Deleted Airflow DAG {dag_id}")
+        except Exception as e:
+            logger.error(f"Failed to delete Airflow DAG {dag_id}: {e}", exc_info=True)
+            raise
 
         workspace_name = integrity_link.integrity_organization.lower()
         datastore_name = f"{workspace_name}_ds"
