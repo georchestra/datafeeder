@@ -34,6 +34,13 @@ def mock_cancel_runs():
         yield mock
 
 
+@pytest.fixture(autouse=True)
+def mock_purge_runs():
+    """delete_dataset purges the Airflow run history; keep it mocked everywhere."""
+    with patch("src.services.dataset_deletion_service.purge_dataset_dag_runs") as mock:
+        yield mock
+
+
 @pytest.fixture
 def geoserver_svc() -> MagicMock:
     svc = MagicMock()
@@ -256,6 +263,46 @@ class TestCancelInFlightRuns:
     ) -> None:
         """A cancellation failure (Airflow hiccup) must not abort the deletion."""
         mock_cancel_runs.side_effect = Exception("airflow down")
+        link = _make_link()
+        session = MagicMock()
+
+        with patch("src.services.dataset_deletion_service.Table"):
+            deletion_service.delete_dataset(link, session)
+
+        session.delete.assert_called_once_with(link)
+
+
+class TestPurgeRunHistory:
+    """Airflow run history is purged before the IntegrityLink row is deleted."""
+
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_purges_run_history(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        deletion_service: DatasetDeletionService,
+        mock_purge_runs: MagicMock,
+    ) -> None:
+        link = _make_link()
+        session = MagicMock()
+
+        with patch("src.services.dataset_deletion_service.Table"):
+            deletion_service.delete_dataset(link, session)
+
+        mock_purge_runs.assert_called_once_with("00000000-0000-0000-0000-000000000001")
+
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_purge_failure_is_best_effort(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        deletion_service: DatasetDeletionService,
+        mock_purge_runs: MagicMock,
+    ) -> None:
+        """A purge failure must not abort the row deletion."""
+        mock_purge_runs.side_effect = Exception("airflow down")
         link = _make_link()
         session = MagicMock()
 
