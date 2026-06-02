@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 def process_transformation_group(
     group_id: str = "final_transformation",
     task_id_where_to_get_staging_table_name: str | None = None,
+    clean_on_failure: bool = False,
 ):
     """Factory function that returns a task group for final transformation.
 
@@ -28,6 +29,11 @@ def process_transformation_group(
         group_id: Identifier for this task group instance
         task_id_where_to_get_staging_table_name: Task ID from which to pull staging_table_name via XCom.
             If None, staging_table_name must be provided in params.
+        clean_on_failure: When True, clean_staging_table_task runs even if the
+            transform task failed (TriggerRule.ALL_DONE). Use for refresh mode,
+            where the staging table is a throwaway temp table that would
+            otherwise leak on failure. Keep False for direct mode so the user's
+            tracked staging table survives a failed transform.
 
     Required params:
         - final_table_name: Name of the final table to write to
@@ -133,6 +139,7 @@ def process_transformation_group(
 
         @task(
             task_id="clean_staging_table_task",
+            trigger_rule=TriggerRule.ALL_DONE if clean_on_failure else TriggerRule.ALL_SUCCESS,
         )
         def clean_staging_table_task(**context: dict[str, Any]) -> None:
             """Clean up staging table after transformation."""

@@ -161,9 +161,12 @@ def process_dag(**context: dict[str, Any]) -> None:
     )()
 
     # Refresh mode: will pull staging_table_name from generate_staging_table_name XCom
+    # clean_on_failure: the temp staging table must be dropped even when the
+    # transform fails, otherwise every failed scheduled run leaks a temp_ table.
     transform_refresh = process_transformation_group(
         group_id="transform_refresh",
         task_id_where_to_get_staging_table_name="generate_staging_table_name",
+        clean_on_failure=True,
     )()
 
     # Two branches from decision
