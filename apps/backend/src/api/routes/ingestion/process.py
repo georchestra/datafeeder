@@ -26,6 +26,7 @@ from src.core.config import get_data_schema, get_settings, get_staging_schema
 from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.db import data_engine
 from src.core.logging import get_logger
+from src.core.run_ids import make_manual_process_run_id
 from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.models import (
     ProcessRequest,
@@ -112,7 +113,9 @@ def process_staging_data(
         raise HTTPException(status_code=400, detail="Staging table name not found in IntegrityLink")
 
     title = _normalize_title(request.title)
-    dag_run_id = f"{integrity_link.id}_{int(datetime.now(timezone.utc).timestamp())}_manual"
+    dag_run_id = make_manual_process_run_id(
+        str(integrity_link.id), int(datetime.now(timezone.utc).timestamp())
+    )
     workspace_name = integrity_link.integrity_organization.lower()
     target_schema = get_data_schema(workspace_name)
     final_table_name = (
