@@ -831,3 +831,47 @@ class TestUpdateLayerTitle:
         rest_client.put.return_value.status_code = 201
 
         service.update_layer_title("myws", "myds", "my_table", "Title")
+
+
+class TestDeleteLayerAcl:
+    """Tests for delete_layer_acl (full ACL cleanup of a layer)."""
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://test.example.com/geoserver",
+                username="testuser",
+                password="testpass",
+                public_url="http://test.example.com",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    def test_deletes_read_and_write_rules(self, service: GeoServerService) -> None:
+        """Both the .r and .w ACL rules of the layer are deleted."""
+        service.acl_layer_delete = MagicMock()
+
+        service.delete_layer_acl("MyOrg", "my_table")
+
+        service.acl_layer_delete.assert_any_call("myorg.my_table", AclAccessType.READ)
+        service.acl_layer_delete.assert_any_call("myorg.my_table", AclAccessType.WRITE)
+        assert service.acl_layer_delete.call_count == 2
+
+    def test_404_treated_as_success(self, service: GeoServerService) -> None:
+        """Absent rules (404) are not an error and both deletions are attempted."""
+        service.acl_layer_delete = MagicMock(side_effect=GeoServerAclError(404, "Not found"))
+
+        service.delete_layer_acl("myorg", "my_table")
+
+        assert service.acl_layer_delete.call_count == 2
+
+    def test_other_errors_are_best_effort(self, service: GeoServerService) -> None:
+        """Non-404 errors are logged and suppressed; the WRITE rule is still attempted."""
+        service.acl_layer_delete = MagicMock(
+            side_effect=[GeoServerAclError(500, "boom"), Exception("network")]
+        )
+
+        service.delete_layer_acl("myorg", "my_table")
+
+        assert service.acl_layer_delete.call_count == 2
