@@ -1,8 +1,7 @@
 from sqlalchemy import MetaData, Table, text
 from sqlmodel import Session, select
 
-from src.core.config import get_data_schema
-from src.core.constants import DEFAULT_DATA_SCHEMA
+from src.core.config import get_data_schema, is_shared_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
@@ -129,11 +128,10 @@ class DatasetDeletionService:
     def _drop_schema_if_empty(self, schema: str) -> None:
         """Drop an org-specific schema only when empty (RESTRICT).
 
-        Never touches the shared schemas: 'staging' and the default data
-        schema (used when USE_ORG_SCHEMA is disabled). Best-effort: a RESTRICT
-        refusal (schema not empty) is the expected harmless outcome.
+        Never touches shared schemas. Best-effort: a RESTRICT refusal
+        (schema not empty) is the expected harmless outcome.
         """
-        if schema in ("staging", DEFAULT_DATA_SCHEMA):
+        if is_shared_schema(schema):
             return
         try:
             with data_engine.connect() as conn:
