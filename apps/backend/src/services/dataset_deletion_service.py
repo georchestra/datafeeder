@@ -5,7 +5,7 @@ from src.core.config import get_data_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
-from src.services.airflow_client import delete_dag
+from src.services.airflow_client import cancel_ingestion_dag, delete_dag
 from src.services.geoserver import GeoServerService
 from src.services.metadata_service import MetadataService
 
@@ -27,6 +27,7 @@ class DatasetDeletionService:
         """Delete a dataset and all associated resources.
 
         Cleanup sequence:
+        0. Cancel in-flight DAG runs — best-effort
         1. Delete Airflow DAG — BLOCKING: raises on failure
         2. Delete GeoServer layer — best-effort
         3. Drop final data table — best-effort
@@ -41,6 +42,16 @@ class DatasetDeletionService:
         Raises:
             Exception: If Airflow DAG deletion fails (other cleanup is skipped)
         """
+        # Step 0: Cancel in-flight DAG runs for this dataset (best-effort) so a
+        # run completing after deletion cannot recreate the staging/final table.
+        try:
+            cancel_ingestion_dag(str(integrity_link.id))
+        except Exception as e:
+            logger.warning(
+                f"Failed to cancel in-flight DAG runs for IntegrityLink {integrity_link.id}: {e}",
+                exc_info=True,
+            )
+
         # Step 1: Delete Airflow DAG (blocking). Attempted even when no schedule
         # is currently set: a previously cleared schedule leaves a stale
         # ingestion_<id> DAG in Airflow, and delete_dag tolerates 404.

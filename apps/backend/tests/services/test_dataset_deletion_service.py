@@ -27,6 +27,13 @@ def _make_link(
     return link
 
 
+@pytest.fixture(autouse=True)
+def mock_cancel_runs():
+    """delete_dataset cancels in-flight runs first; keep it mocked everywhere."""
+    with patch("src.services.dataset_deletion_service.cancel_ingestion_dag") as mock:
+        yield mock
+
+
 @pytest.fixture
 def geoserver_svc() -> MagicMock:
     svc = MagicMock()
@@ -215,4 +222,44 @@ class TestDatasetDeletionService:
             deletion_service.delete_dataset(link, session)
 
         metadata_svc.delete_record.assert_not_called()
+        session.delete.assert_called_once_with(link)
+
+
+class TestCancelInFlightRuns:
+    """In-flight DAG runs are cancelled before any resource is removed."""
+
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_cancels_runs_for_the_dataset(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        deletion_service: DatasetDeletionService,
+        mock_cancel_runs: MagicMock,
+    ) -> None:
+        link = _make_link()
+        session = MagicMock()
+
+        with patch("src.services.dataset_deletion_service.Table"):
+            deletion_service.delete_dataset(link, session)
+
+        mock_cancel_runs.assert_called_once_with("00000000-0000-0000-0000-000000000001")
+
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_cancel_failure_is_best_effort(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        deletion_service: DatasetDeletionService,
+        mock_cancel_runs: MagicMock,
+    ) -> None:
+        """A cancellation failure (Airflow hiccup) must not abort the deletion."""
+        mock_cancel_runs.side_effect = Exception("airflow down")
+        link = _make_link()
+        session = MagicMock()
+
+        with patch("src.services.dataset_deletion_service.Table"):
+            deletion_service.delete_dataset(link, session)
+
         session.delete.assert_called_once_with(link)

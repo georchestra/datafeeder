@@ -159,12 +159,14 @@ def cancel_ingestion_dag(integrity_link_id: str) -> None:
     """
     Cancel all running or queued Airflow runs associated with the given integrity link.
 
-    Cancels the scheduled ingestion DAG runs (ingestion_{id}) and any process_dag runs
-    triggered by them (identified by dag_run_id prefix).
+    Cancels the scheduled ingestion DAG runs (ingestion_{id}), any process_dag runs
+    and any staging_dag runs for the dataset (identified by dag_run_id prefix;
+    the first staging run id is exactly the integrity link id, so no trailing '_').
     """
     dag_id = f"ingestion_{integrity_link_id}"
     _force_fail_dag_runs(dag_id)
     _force_fail_dag_runs("process_dag", dag_run_id_prefix=f"{integrity_link_id}_")
+    _force_fail_dag_runs("staging_dag", dag_run_id_prefix=f"{integrity_link_id}")
 
 
 def remove_ingestion_dag(integrity_link_id: str) -> None:
