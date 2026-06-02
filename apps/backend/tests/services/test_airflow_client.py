@@ -13,6 +13,7 @@ from src.services.airflow_client import (
     _is_jwt_expired,  # pyright: ignore[reportPrivateUsage]
     _refresh_caches_if_token_expired,  # pyright: ignore[reportPrivateUsage]
     _request_new_access_token,  # pyright: ignore[reportPrivateUsage]
+    cancel_ingestion_dag,
     delete_dag,
     get_airflow_api_client,
     get_dag_api,
@@ -535,3 +536,16 @@ class TestForceFail:
 
             _force_fail_dag_runs("ingestion_123")  # must not raise
             mock_run_api.patch_dag_run.assert_not_called()
+
+
+class TestCancelIngestionDag:
+    def test_force_fails_ingestion_process_and_staging_runs(self) -> None:
+        """All in-flight runs of the dataset are force-failed: the scheduled
+        ingestion DAG, plus process_dag and staging_dag runs by run-id prefix."""
+        with patch("src.services.airflow_client._force_fail_dag_runs") as mock_force_fail:
+            cancel_ingestion_dag("abc-123")
+
+        mock_force_fail.assert_any_call("ingestion_abc-123")
+        mock_force_fail.assert_any_call("process_dag", dag_run_id_prefix="abc-123_")
+        mock_force_fail.assert_any_call("staging_dag", dag_run_id_prefix="abc-123")
+        assert mock_force_fail.call_count == 3
