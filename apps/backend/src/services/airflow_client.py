@@ -13,7 +13,10 @@ from airflow_client.client.models.dag_run_patch_body import DAGRunPatchBody
 from airflow_client.client.models.dag_run_patch_states import DAGRunPatchStates
 from pydantic import BaseModel
 
-from ..core.config import get_settings
+from src.core.config import get_settings
+from src.core.logging import get_logger
+
+logger = get_logger()
 
 __all__ = [
     "get_airflow_api_client",
@@ -23,6 +26,7 @@ __all__ = [
     "get_task_instance_api",
     "cancel_ingestion_dag",
     "delete_dag",
+    "remove_ingestion_dag",
 ]
 
 
@@ -161,6 +165,26 @@ def cancel_ingestion_dag(integrity_link_id: str) -> None:
     dag_id = f"ingestion_{integrity_link_id}"
     _force_fail_dag_runs(dag_id)
     _force_fail_dag_runs("process_dag", dag_run_id_prefix=f"{integrity_link_id}_")
+
+
+def remove_ingestion_dag(integrity_link_id: str) -> None:
+    """
+    Cancel runs and delete the scheduled ingestion DAG for a dataset.
+
+    Used when the recurrence schedule is cleared, so the dynamic
+    ingestion_{id} DAG does not linger in Airflow as stale metadata once the
+    DAG generator stops emitting it.
+
+    Best-effort: logs and suppresses any Airflow error.
+    """
+    try:
+        cancel_ingestion_dag(integrity_link_id)
+        delete_dag(f"ingestion_{integrity_link_id}")
+    except Exception as e:
+        logger.warning(
+            f"Failed to remove ingestion DAG for integrity link {integrity_link_id}: {e}",
+            exc_info=True,
+        )
 
 
 def delete_dag(dag_id: str) -> None:

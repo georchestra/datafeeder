@@ -17,6 +17,7 @@ from src.services.airflow_client import (
     get_airflow_api_client,
     get_dag_api,
     get_dag_run_api,
+    remove_ingestion_dag,
 )
 
 
@@ -535,3 +536,29 @@ class TestForceFail:
 
             _force_fail_dag_runs("ingestion_123")  # must not raise
             mock_run_api.patch_dag_run.assert_not_called()
+
+
+class TestRemoveIngestionDag:
+    def test_cancels_runs_and_deletes_dag(self) -> None:
+        """Runs are cancelled first, then the ingestion DAG is deleted."""
+        with (
+            patch("src.services.airflow_client.cancel_ingestion_dag") as mock_cancel,
+            patch("src.services.airflow_client.delete_dag") as mock_delete,
+        ):
+            remove_ingestion_dag("abc-123")
+
+            mock_cancel.assert_called_once_with("abc-123")
+            mock_delete.assert_called_once_with("ingestion_abc-123")
+
+    def test_errors_are_best_effort(self) -> None:
+        """Airflow errors are logged and suppressed."""
+        with (
+            patch(
+                "src.services.airflow_client.cancel_ingestion_dag",
+                side_effect=Exception("airflow down"),
+            ),
+            patch("src.services.airflow_client.delete_dag") as mock_delete,
+        ):
+            remove_ingestion_dag("abc-123")  # must not raise
+
+            mock_delete.assert_not_called()
