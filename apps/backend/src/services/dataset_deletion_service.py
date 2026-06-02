@@ -7,7 +7,7 @@ from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import (
-    cancel_ingestion_dag,
+    cancel_dataset_runs,
     delete_dag,
     purge_dataset_dag_runs,
 )
@@ -52,7 +52,7 @@ class DatasetDeletionService:
         # Step 0: Cancel in-flight DAG runs for this dataset (best-effort) so a
         # run completing after deletion cannot recreate the staging/final table.
         try:
-            cancel_ingestion_dag(str(integrity_link.id))
+            cancel_dataset_runs(str(integrity_link.id))
         except Exception as e:
             logger.warning(
                 f"Failed to cancel in-flight DAG runs for IntegrityLink {integrity_link.id}: {e}",

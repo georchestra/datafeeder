@@ -30,7 +30,7 @@ def _make_link(
 @pytest.fixture(autouse=True)
 def mock_cancel_runs():
     """delete_dataset cancels in-flight runs first; keep it mocked everywhere."""
-    with patch("src.services.dataset_deletion_service.cancel_ingestion_dag") as mock:
+    with patch("src.services.dataset_deletion_service.cancel_dataset_runs") as mock:
         yield mock
 
 

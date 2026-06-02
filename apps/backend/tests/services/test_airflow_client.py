@@ -14,7 +14,8 @@ from src.services.airflow_client import (
     _is_jwt_expired,  # pyright: ignore[reportPrivateUsage]
     _refresh_caches_if_token_expired,  # pyright: ignore[reportPrivateUsage]
     _request_new_access_token,  # pyright: ignore[reportPrivateUsage]
-    cancel_ingestion_dag,
+    cancel_dataset_runs,
+    cancel_scheduled_runs,
     delete_dag,
     get_airflow_api_client,
     get_dag_api,
@@ -585,10 +586,10 @@ class TestForceFail:
 
 
 class TestRemoveIngestionDag:
-    def test_cancels_runs_and_deletes_dag(self) -> None:
-        """Runs are cancelled first, then the ingestion DAG is deleted."""
+    def test_cancels_scheduled_runs_and_deletes_dag(self) -> None:
+        """Scheduled runs are cancelled first, then the ingestion DAG is deleted."""
         with (
-            patch("src.services.airflow_client.cancel_ingestion_dag") as mock_cancel,
+            patch("src.services.airflow_client.cancel_scheduled_runs") as mock_cancel,
             patch("src.services.airflow_client.delete_dag") as mock_delete,
         ):
             remove_ingestion_dag("abc-123")
@@ -600,7 +601,7 @@ class TestRemoveIngestionDag:
         """Airflow errors are logged and suppressed."""
         with (
             patch(
-                "src.services.airflow_client.cancel_ingestion_dag",
+                "src.services.airflow_client.cancel_scheduled_runs",
                 side_effect=Exception("airflow down"),
             ),
             patch("src.services.airflow_client.delete_dag") as mock_delete,
@@ -610,17 +611,50 @@ class TestRemoveIngestionDag:
             mock_delete.assert_not_called()
 
 
-class TestCancelIngestionDag:
+class TestCancelDatasetRuns:
     def test_force_fails_ingestion_process_and_staging_runs(self) -> None:
         """All in-flight runs of the dataset are force-failed: the scheduled
         ingestion DAG, plus process_dag and staging_dag runs by run-id prefix."""
         with patch("src.services.airflow_client._force_fail_dag_runs") as mock_force_fail:
-            cancel_ingestion_dag("abc-123")
+            cancel_dataset_runs("abc-123")
 
         mock_force_fail.assert_any_call("ingestion_abc-123")
         mock_force_fail.assert_any_call("process_dag", dag_run_id_prefix="abc-123_")
         mock_force_fail.assert_any_call("staging_dag", dag_run_id_prefix="abc-123")
         assert mock_force_fail.call_count == 3
+
+
+class TestCancelScheduledRuns:
+    def test_spares_staging_runs(self) -> None:
+        """Only the ingestion DAG and process_dag runs are touched: staging
+        runs are always user-initiated and must survive a schedule-clear."""
+        with patch("src.services.airflow_client._force_fail_dag_runs") as mock_force_fail:
+            cancel_scheduled_runs("abc-123")
+
+        mock_force_fail.assert_any_call("ingestion_abc-123")
+        assert mock_force_fail.call_count == 2
+        dag_ids = [c.args[0] for c in mock_force_fail.call_args_list]
+        assert "staging_dag" not in dag_ids
+
+    def test_spares_manual_process_runs(self) -> None:
+        """A manual process run ('..._manual') in flight is not force-failed
+        when the schedule is cleared; a scheduled one is."""
+        api = Mock()
+        api.get_dag_runs.side_effect = [
+            Mock(dag_runs=[]),  # ingestion_<id> has no runs
+            Mock(
+                dag_runs=[
+                    Mock(dag_run_id="abc-123_1700000000_manual"),
+                    Mock(dag_run_id="abc-123_20260601T000000"),
+                ]
+            ),
+            Mock(dag_runs=[]),
+        ]
+        with patch("src.services.airflow_client.get_dag_run_api", return_value=api):
+            cancel_scheduled_runs("abc-123")
+
+        patched = [c.kwargs["dag_run_id"] for c in api.patch_dag_run.call_args_list]
+        assert patched == ["abc-123_20260601T000000"]
 
 
 class TestPurgeDatasetDagRuns:

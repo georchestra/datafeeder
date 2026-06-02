@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.core.run_ids import (
+    is_manual_process_run,
     process_run_like,
     process_run_prefix,
     staging_run_like,
@@ -32,7 +33,8 @@ __all__ = [
     "get_dag_api",
     "get_event_log_api",
     "get_task_instance_api",
-    "cancel_ingestion_dag",
+    "cancel_dataset_runs",
+    "cancel_scheduled_runs",
     "delete_dag",
     "purge_dataset_dag_runs",
     "remove_ingestion_dag",
@@ -176,13 +178,19 @@ def _for_each_dag_run(
             return
 
 
-def _force_fail_dag_runs(dag_id: str, dag_run_id_prefix: str | None = None) -> None:
+def _force_fail_dag_runs(
+    dag_id: str,
+    dag_run_id_prefix: str | None = None,
+    exclude: Callable[[str], bool] | None = None,
+) -> None:
     dag_run_api = get_dag_run_api()
     patch_body = DAGRunPatchBody(state=DAGRunPatchStates.FAILED)
 
     def force_fail(dag_run: DAGRunResponse) -> bool:
         # Re-check the prefix: the LIKE pattern treats '_' as a wildcard
         if dag_run_id_prefix and not dag_run.dag_run_id.startswith(dag_run_id_prefix):
+            return False
+        if exclude and exclude(dag_run.dag_run_id):
             return False
         try:
             dag_run_api.patch_dag_run(
@@ -200,18 +208,34 @@ def _force_fail_dag_runs(dag_id: str, dag_run_id_prefix: str | None = None) -> N
     )
 
 
-def cancel_ingestion_dag(integrity_link_id: str) -> None:
+def cancel_dataset_runs(integrity_link_id: str) -> None:
     """
-    Cancel all running or queued Airflow runs associated with the given integrity link.
+    Cancel ALL running or queued Airflow runs of a dataset: the scheduled
+    ingestion DAG runs (ingestion_{id}) plus every process_dag and staging_dag
+    run, scheduled or manual, matched by run-id prefix.
 
-    Cancels the scheduled ingestion DAG runs (ingestion_{id}), any process_dag runs
-    and any staging_dag runs for the dataset (identified by dag_run_id prefix;
-    the first staging run id is exactly the integrity link id, so no trailing '_').
+    Used by dataset deletion, where no run may keep writing to the tables.
     """
-    dag_id = f"ingestion_{integrity_link_id}"
-    _force_fail_dag_runs(dag_id)
+    _force_fail_dag_runs(f"ingestion_{integrity_link_id}")
     _force_fail_dag_runs("process_dag", dag_run_id_prefix=process_run_prefix(integrity_link_id))
     _force_fail_dag_runs("staging_dag", dag_run_id_prefix=staging_run_prefix(integrity_link_id))
+
+
+def cancel_scheduled_runs(integrity_link_id: str) -> None:
+    """
+    Cancel only the schedule-driven runs of a dataset: the ingestion DAG runs
+    (ingestion_{id}) and the process_dag runs they spawned. Manual process
+    runs ('..._manual') and staging runs (always user-initiated) are spared.
+
+    Used when the recurrence schedule is cleared, so an in-flight manual run
+    is not collateral damage.
+    """
+    _force_fail_dag_runs(f"ingestion_{integrity_link_id}")
+    _force_fail_dag_runs(
+        "process_dag",
+        dag_run_id_prefix=process_run_prefix(integrity_link_id),
+        exclude=is_manual_process_run,
+    )
 
 
 def _delete_dag_runs(dag_id: str, run_id_like: str) -> None:
@@ -258,7 +282,7 @@ def remove_ingestion_dag(integrity_link_id: str) -> None:
     Best-effort: logs and suppresses any Airflow error.
     """
     try:
-        cancel_ingestion_dag(integrity_link_id)
+        cancel_scheduled_runs(integrity_link_id)
         delete_dag(f"ingestion_{integrity_link_id}")
     except Exception as e:
         logger.warning(
