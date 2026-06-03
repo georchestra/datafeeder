@@ -40,6 +40,7 @@ def _load_build_callback_url():
 
     utils_stub = types.ModuleType("utils")
     utils_stub.get_datafeeder_pg_hook = lambda: _FakeHook()  # type: ignore[attr-defined]
+    utils_stub.normalize_nan = lambda value, default: default if value is None else value  # type: ignore[attr-defined]
     sys.modules["utils"] = utils_stub
 
     source = Path(__file__).parent.parent / "process-dag-generator.py"
