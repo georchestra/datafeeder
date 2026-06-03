@@ -18,7 +18,10 @@ describe('IntegrityLinkListComponent', () => {
   let httpMock: HttpTestingController
   let router: Router
   let matDialog: { open: ReturnType<typeof vi.fn> }
-  let navService: { catalogueUrl: ReturnType<typeof vi.fn> }
+  let navService: {
+    catalogueUrl: ReturnType<typeof vi.fn>
+    openCatalogue: ReturnType<typeof vi.fn>
+  }
 
   // Mock data helper function
   const createMockItem = (
@@ -60,7 +63,10 @@ describe('IntegrityLinkListComponent', () => {
 
   beforeEach(async () => {
     matDialog = { open: vi.fn() }
-    navService = { catalogueUrl: vi.fn().mockReturnValue(null) }
+    navService = {
+      catalogueUrl: vi.fn().mockReturnValue(null),
+      openCatalogue: vi.fn()
+    }
     await TestBed.configureTestingModule({
       imports: [
         IntegrityLinkListComponent,
@@ -420,14 +426,11 @@ describe('IntegrityLinkListComponent', () => {
       expect(navigateSpy).toHaveBeenCalledWith(['/', 'link-empty', 'edit'])
     })
 
-    it('should open catalogue URL in new tab when onViewClick is called', () => {
+    it('should open the catalogue when onViewClick is called', () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)
       const component = fixture.componentInstance
       flushPendingRequests()
 
-      const catalogueUrl = 'https://datahub.example.com/catalog?id=meta-abc'
-      navService.catalogueUrl.mockReturnValue(catalogueUrl)
-      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
       const event = new MouseEvent('click')
       vi.spyOn(event, 'stopPropagation')
 
@@ -435,21 +438,7 @@ describe('IntegrityLinkListComponent', () => {
       component.onViewClick(event, item)
 
       expect(event.stopPropagation).toHaveBeenCalled()
-      expect(openSpy).toHaveBeenCalledWith(catalogueUrl, '_blank', 'noopener')
-    })
-
-    it('should not open window when catalogue URL is null', () => {
-      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
-      const component = fixture.componentInstance
-      flushPendingRequests()
-
-      navService.catalogueUrl.mockReturnValue(null)
-      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
-      const event = new MouseEvent('click')
-
-      component.onViewClick(event, createMockItem('1', 'OWNER'))
-
-      expect(openSpy).not.toHaveBeenCalled()
+      expect(navService.openCatalogue).toHaveBeenCalledWith('meta-abc')
     })
 
     it('should not navigate on Enter presses bubbling from action buttons', () => {
