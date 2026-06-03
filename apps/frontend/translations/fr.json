@@ -192,7 +192,7 @@
   "footer.previous": "Précédent",
   "footer.previous.toEdit": "Retour à la première étape de l'édition de la MD",
   "footer.saveAndNext.authorizations": "Sauvegarder et paramétrer les droits d'accès",
-  "footer.saveAndNext.events": "Sauvegarder et planifier une récurrence et vérifier les évènements",
+  "footer.saveAndNext.events": "Sauvegarder et vérifier les évènements",
   "footer.saveAndNext.recurrence": "Sauvegarder et planifier une récurrence",
   "footer.saveAndOpenInCatalogue": "Sauvegarder et voir la fiche dans le catalogue",
   "i18nerror.publish.geonetwork": "Erreur lors de la publication de la métadonnée sur GeoNetwork",
