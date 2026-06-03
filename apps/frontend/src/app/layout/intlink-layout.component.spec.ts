@@ -17,7 +17,10 @@ import { MetadataSaveService } from '../core/layout/metadata-save.service'
  * Avoids instantiating the real IntegrityLinkStore (which requires an
  * injection context for its internal Api dependency).
  */
-function createStore(accessLevel: string | null = null): IntegrityLinkStore {
+function createStore(
+  accessLevel: string | null = null,
+  importType: string = 'url'
+): IntegrityLinkStore {
   const integrityLink = signal<IntegrityLinkResponse | null>(
     accessLevel !== null
       ? ({
@@ -25,7 +28,7 @@ function createStore(accessLevel: string | null = null): IntegrityLinkStore {
           id: 'test-id',
           integrity_owner: 'owner',
           integrity_organization: 'org',
-          source_import_type: 'url',
+          source_import_type: importType,
           staging_table_name: 'staging',
           schedule_enabled: false,
           created_at: null,
@@ -57,13 +60,20 @@ function createStore(accessLevel: string | null = null): IntegrityLinkStore {
     }),
     isEmptyDataset: computed(
       () => integrityLink()?.source_import_type === 'empty'
-    )
+    ),
+    isRemoteDataset: computed(() => {
+      const t = integrityLink()?.source_import_type
+      return t != null && t !== 'file' && t !== 'empty'
+    })
   } as unknown as IntegrityLinkStore
 }
 
 describe('IntlinkLayoutComponent', () => {
-  const setupComponent = async (accessLevel: string | null = null) => {
-    const store = createStore(accessLevel)
+  const setupComponent = async (
+    accessLevel: string | null = null,
+    importType: string = 'url'
+  ) => {
+    const store = createStore(accessLevel, importType)
 
     const mockEditor = {
       record$: of({ id: 'test-record', title: 'Test Title' }),
@@ -82,10 +92,12 @@ describe('IntlinkLayoutComponent', () => {
           en: {
             'sidebar.metadataSheet': 'Metadata Sheet',
             'sidebar.accessRights': 'Access Rights',
-            'sidebar.recurrencePlanning': 'Recurrence',
+            'sidebar.recurrence': 'Recurrence',
             'sidebar.eventsAndStatuses': 'Events',
             'sidebar.reconfigureDataset': 'Reconfigure',
-            'integrityLinks.dashboard': 'Dashboard'
+            'integrityLinks.dashboard': 'Dashboard',
+            'sidebar.unavailableForEmpty': 'Unavailable for empty',
+            'sidebar.unavailableForLocal': 'Unavailable for local'
           }
         })
           .withDefaultLanguage('en')
@@ -276,10 +288,12 @@ describe('IntlinkLayoutComponent', () => {
             en: {
               'sidebar.metadataSheet': 'Metadata Sheet',
               'sidebar.accessRights': 'Access Rights',
+              'sidebar.recurrence': 'Recurrence',
               'sidebar.eventsAndStatuses': 'Events',
               'sidebar.reconfigureDataset': 'Reconfigure',
               'integrityLinks.dashboard': 'Dashboard',
-              'sidebar.unavailableForEmpty': 'Unavailable for empty'
+              'sidebar.unavailableForEmpty': 'Unavailable for empty',
+              'sidebar.unavailableForLocal': 'Unavailable for local'
             }
           })
             .withDefaultLanguage('en')
@@ -328,6 +342,42 @@ describe('IntlinkLayoutComponent', () => {
       const links = Array.from(nav.querySelectorAll('a')) as HTMLElement[]
       const linkTexts = links.map((a) => a.textContent!.trim())
       expect(linkTexts).toContain('Access Rights')
+    })
+  })
+
+  describe('Recurrence sidebar item', () => {
+    it('should show recurrence as a link for a remote dataset (OWNER)', async () => {
+      const { fixture } = await setupComponent('OWNER', 'url')
+      const nav = fixture.nativeElement.querySelector('nav')
+      const linkTexts = Array.from(nav.querySelectorAll('a')).map((a: any) =>
+        a.textContent.trim()
+      )
+      expect(linkTexts).toContain('Recurrence')
+    })
+
+    it('should grey out recurrence with the local tooltip for a file dataset (OWNER)', async () => {
+      const { fixture } = await setupComponent('OWNER', 'file')
+      const nav = fixture.nativeElement.querySelector('nav')
+      const spans = Array.from(nav.querySelectorAll('span')) as HTMLElement[]
+      const recurrenceSpan = spans.find(
+        (s) => s.textContent!.trim() === 'Recurrence'
+      )
+      expect(recurrenceSpan).toBeTruthy()
+      expect(recurrenceSpan?.title).toBe('Unavailable for local')
+      const linkTexts = Array.from(nav.querySelectorAll('a')).map((a: any) =>
+        a.textContent.trim()
+      )
+      expect(linkTexts).not.toContain('Recurrence')
+    })
+
+    it('should grey out recurrence with the empty tooltip for an empty dataset (OWNER)', async () => {
+      const { fixture } = await setupComponent('OWNER', 'empty')
+      const nav = fixture.nativeElement.querySelector('nav')
+      const spans = Array.from(nav.querySelectorAll('span')) as HTMLElement[]
+      const recurrenceSpan = spans.find(
+        (s) => s.textContent!.trim() === 'Recurrence'
+      )
+      expect(recurrenceSpan?.title).toBe('Unavailable for empty')
     })
   })
 

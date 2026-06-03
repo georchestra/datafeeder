@@ -12,7 +12,7 @@ import {
   getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet
 } from '../api/functions'
 
-export type IntlinkRoute = 'edit' | 'events' | 'authorizations'
+export type IntlinkRoute = 'edit' | 'recurrence' | 'events' | 'authorizations'
 
 @Injectable({ providedIn: 'root' })
 export class IntlinkNavService {
@@ -25,8 +25,8 @@ export class IntlinkNavService {
 
   readonly accessibleRoutes = computed((): IntlinkRoute[] => {
     const routes: IntlinkRoute[] = ['edit']
-    if (!this.store.isEmptyDataset() && this.store.isOwnerOrAdmin())
-      routes.push('events')
+    if (this.store.isRemoteDataset() && this.store.isOwnerOrAdmin())
+      routes.push('recurrence')
     if (this.store.isOwnerOrAdmin()) routes.push('authorizations')
     return routes
   })
@@ -58,6 +58,8 @@ export class IntlinkNavService {
   /** i18n key for the "next" button label when navigating to a given intlink route */
   nextRouteLabel(route: Exclude<IntlinkRoute, 'edit'>): string {
     switch (route) {
+      case 'recurrence':
+        return 'footer.next.recurrence'
       case 'events':
         return 'footer.next.events'
       case 'authorizations':

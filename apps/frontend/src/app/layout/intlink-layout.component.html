@@ -32,6 +32,47 @@
         } }
       </a>
 
+      <!-- Recurrence — remote datasets only, owner/admin only -->
+      @if (store.isRemoteDataset() && store.isOwnerOrAdmin()) {
+      <a
+        [routerLink]="['recurrence']"
+        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
+        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+      >
+        {{ 'sidebar.recurrence' | translate }}
+      </a>
+      } @else {
+      <span
+        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+        [title]="
+          store.isEmptyDataset()
+            ? ('sidebar.unavailableForEmpty' | translate)
+            : !store.isRemoteDataset()
+            ? ('sidebar.unavailableForLocal' | translate)
+            : ''
+        "
+      >
+        {{ 'sidebar.recurrence' | translate }}
+      </span>
+      }
+
+      <!-- Authorizations — owner/admin only -->
+      @if (store.isOwnerOrAdmin()) {
+      <a
+        [routerLink]="['authorizations']"
+        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
+        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+      >
+        {{ 'sidebar.accessRights' | translate }}
+      </a>
+      } @else {
+      <span
+        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+      >
+        {{ 'sidebar.accessRights' | translate }}
+      </span>
+      }
+
       <!-- Events — disabled for empty datasets, owner/admin only otherwise -->
       @if (store.isEmptyDataset() || !store.isOwnerOrAdmin()) {
       <span
@@ -52,23 +93,6 @@
       >
         {{ 'sidebar.eventsAndStatuses' | translate }}
       </a>
-      }
-
-      <!-- Authorizations — owner/admin only -->
-      @if (store.isOwnerOrAdmin()) {
-      <a
-        [routerLink]="['authorizations']"
-        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
-        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
-      >
-        {{ 'sidebar.accessRights' | translate }}
-      </a>
-      } @else {
-      <span
-        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
-      >
-        {{ 'sidebar.accessRights' | translate }}
-      </span>
       }
 
       <hr class="my-2 border-gray-200" />

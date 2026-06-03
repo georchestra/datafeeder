@@ -50,12 +50,15 @@ marker('intlinkLayout.error.server_error.title')
 marker('intlinkLayout.error.unavailable_for_empty.message')
 marker('intlinkLayout.error.unavailable_for_empty.title')
 marker('sidebar.unavailableForEmpty')
+marker('sidebar.unavailableForLocal')
+marker('sidebar.recurrence')
 marker('info.operation.metadataSave')
 marker('sidebar.reconfigureDataset.warning')
 marker('sidebar.reconfigureDataset.warningActiveRun')
 marker('sidebar.reconfigureDataset.warningTitle')
 marker('footer.previous')
 marker('footer.previous.toEdit')
+marker('footer.next.recurrence')
 marker('footer.next.events')
 marker('footer.next.authorizations')
 marker('footer.openInCatalogue')
@@ -129,8 +132,11 @@ export class IntlinkLayoutComponent {
       const tpl = this.footerTpl()
       const segment = this.activeSegment()
       untracked(() => {
-        // Only register footer for non-edit routes; MetadataComponent handles /edit
-        this.footerService.setContent(segment !== 'edit' ? tpl ?? null : null)
+        // Register the layout footer only for the linear-flow pages.
+        // MetadataComponent handles /edit; /events is a standalone page with no footer.
+        const isFlowPage =
+          segment === 'recurrence' || segment === 'authorizations'
+        this.footerService.setContent(isFlowPage ? tpl ?? null : null)
       })
     })
 
@@ -140,6 +146,7 @@ export class IntlinkLayoutComponent {
   private resolveActiveSegment(): IntlinkRoute {
     const last = this.router.url.split('?')[0].split('/').pop()
     if (last === 'authorizations') return 'authorizations'
+    if (last === 'recurrence') return 'recurrence'
     if (last === 'events') return 'events'
     return 'edit'
   }
