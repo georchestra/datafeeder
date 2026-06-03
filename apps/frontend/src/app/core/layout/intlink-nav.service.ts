@@ -51,6 +51,11 @@ export class IntlinkNavService {
     return tpl.replace('{metadata_id}', metadataId)
   }
 
+  openCatalogue(metadataId: string | null | undefined): void {
+    const url = this.catalogueUrl(metadataId)
+    if (url) window.open(url, '_blank', 'noopener')
+  }
+
   navigate(intlinkId: string, route: IntlinkRoute): Promise<boolean> {
     return this.router.navigate(['/', intlinkId, route])
   }

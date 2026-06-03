@@ -321,8 +321,7 @@ export class MetadataComponent implements OnInit {
     if (this.changedSinceSave()) {
       await this.metadataSaveService.save()
     }
-    const url = this.catalogueUrl()
-    if (url) window.open(url, '_blank', 'noopener')
+    this.navService.openCatalogue(this.store.integrityLink()?.metadata_id)
   }
 
   onReconfigureClick(): Promise<void> {

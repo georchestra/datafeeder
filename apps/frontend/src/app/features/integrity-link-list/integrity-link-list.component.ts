@@ -153,8 +153,7 @@ export class IntegrityLinkListComponent {
 
   onViewClick(event: Event, link: IntegrityLinkListItem): void {
     event.stopPropagation()
-    const url = this.getCatalogueUrl(link)
-    if (url) window.open(url, '_blank', 'noopener')
+    this.navService.openCatalogue(link.metadata_id)
   }
 
   getVisibility(
