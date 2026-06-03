@@ -831,3 +831,121 @@ class TestUpdateLayerTitle:
         rest_client.put.return_value.status_code = 201
 
         service.update_layer_title("myws", "myds", "my_table", "Title")
+
+
+class TestDeleteLayerAcl:
+    """Tests for delete_layer_acl (full ACL cleanup of a layer)."""
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://test.example.com/geoserver",
+                username="testuser",
+                password="testpass",
+                public_url="http://test.example.com",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    def test_deletes_read_and_write_rules(self, service: GeoServerService) -> None:
+        """Both the .r and .w ACL rules of the layer are deleted."""
+        service.acl_layer_delete = MagicMock()
+
+        service.delete_layer_acl("MyOrg", "my_table")
+
+        service.acl_layer_delete.assert_any_call("myorg.my_table", AclAccessType.READ)
+        service.acl_layer_delete.assert_any_call("myorg.my_table", AclAccessType.WRITE)
+        assert service.acl_layer_delete.call_count == 2
+
+    def test_404_treated_as_success(self, service: GeoServerService) -> None:
+        """Absent rules (404) are not an error and both deletions are attempted."""
+        service.acl_layer_delete = MagicMock(side_effect=GeoServerAclError(404, "Not found"))
+
+        service.delete_layer_acl("myorg", "my_table")
+
+        assert service.acl_layer_delete.call_count == 2
+
+    def test_other_errors_are_best_effort(self, service: GeoServerService) -> None:
+        """Non-404 errors are logged and suppressed; the WRITE rule is still attempted."""
+        service.acl_layer_delete = MagicMock(
+            side_effect=[GeoServerAclError(500, "boom"), Exception("network")]
+        )
+
+        service.delete_layer_acl("myorg", "my_table")
+
+        assert service.acl_layer_delete.call_count == 2
+
+
+class TestDeleteIfEmpty:
+    """Tests for delete_datastore_if_empty / delete_workspace_if_empty."""
+
+    @pytest.fixture
+    def service(self) -> GeoServerService:
+        with patch("src.services.geoserver.GeoServerCloud"):
+            svc = GeoServerService(
+                base_url="http://test.example.com/geoserver",
+                username="testuser",
+                password="testpass",
+                public_url="http://test.example.com",
+            )
+            svc.geoserver = MagicMock()
+            return svc
+
+    @pytest.fixture
+    def rest_client(self, service: GeoServerService) -> MagicMock:
+        client = MagicMock()
+        service.geoserver.rest_service.rest_client = client
+        return client
+
+    @pytest.fixture
+    def rest_endpoints(self, service: GeoServerService) -> MagicMock:
+        endpoints = MagicMock()
+        service.geoserver.rest_service.rest_endpoints = endpoints
+        return endpoints
+
+    def test_datastore_deleted_without_recurse(
+        self, service: GeoServerService, rest_client: MagicMock, rest_endpoints: MagicMock
+    ) -> None:
+        """The DELETE call must NOT pass recurse — non-empty stores must survive."""
+        rest_endpoints.datastore.return_value = "/rest/workspaces/org/datastores/org_ds.json"
+        rest_client.delete.return_value.status_code = 200
+
+        service.delete_datastore_if_empty("org", "org_ds")
+
+        rest_endpoints.datastore.assert_called_once_with("org", "org_ds")
+        rest_client.delete.assert_called_once_with("/rest/workspaces/org/datastores/org_ds.json")
+
+    def test_workspace_deleted_without_recurse(
+        self, service: GeoServerService, rest_client: MagicMock, rest_endpoints: MagicMock
+    ) -> None:
+        rest_endpoints.workspace.return_value = "/rest/workspaces/org.json"
+        rest_client.delete.return_value.status_code = 200
+
+        service.delete_workspace_if_empty("org")
+
+        rest_endpoints.workspace.assert_called_once_with("org")
+        rest_client.delete.assert_called_once_with("/rest/workspaces/org.json")
+
+    def test_non_empty_resource_failure_is_swallowed(
+        self, service: GeoServerService, rest_client: MagicMock, rest_endpoints: MagicMock
+    ) -> None:
+        """GeoServer refuses to delete non-empty resources (403/500) — harmless."""
+        rest_client.delete.return_value.status_code = 403
+
+        service.delete_workspace_if_empty("org")  # must not raise
+        service.delete_datastore_if_empty("org", "org_ds")  # must not raise
+
+    def test_missing_resource_is_swallowed(
+        self, service: GeoServerService, rest_client: MagicMock, rest_endpoints: MagicMock
+    ) -> None:
+        rest_client.delete.return_value.status_code = 404
+
+        service.delete_workspace_if_empty("org")  # must not raise
+
+    def test_network_error_is_swallowed(
+        self, service: GeoServerService, rest_client: MagicMock, rest_endpoints: MagicMock
+    ) -> None:
+        rest_client.delete.side_effect = Exception("connection refused")
+
+        service.delete_workspace_if_empty("org")  # must not raise

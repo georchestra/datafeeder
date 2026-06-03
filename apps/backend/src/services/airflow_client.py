@@ -14,6 +14,9 @@ from airflow_client.client.models.dag_run_patch_states import DAGRunPatchStates
 from pydantic import BaseModel
 
 from ..core.config import get_settings
+from ..core.logging import get_logger
+
+logger = get_logger()
 
 __all__ = [
     "get_airflow_api_client",
@@ -23,6 +26,7 @@ __all__ = [
     "get_task_instance_api",
     "cancel_ingestion_dag",
     "delete_dag",
+    "purge_dataset_dag_runs",
 ]
 
 
@@ -155,12 +159,55 @@ def cancel_ingestion_dag(integrity_link_id: str) -> None:
     """
     Cancel all running or queued Airflow runs associated with the given integrity link.
 
-    Cancels the scheduled ingestion DAG runs (ingestion_{id}) and any process_dag runs
-    triggered by them (identified by dag_run_id prefix).
+    Cancels the scheduled ingestion DAG runs (ingestion_{id}), any process_dag runs
+    and any staging_dag runs for the dataset (identified by dag_run_id prefix;
+    the first staging run id is exactly the integrity link id, so no trailing '_').
     """
     dag_id = f"ingestion_{integrity_link_id}"
     _force_fail_dag_runs(dag_id)
     _force_fail_dag_runs("process_dag", dag_run_id_prefix=f"{integrity_link_id}_")
+    _force_fail_dag_runs("staging_dag", dag_run_id_prefix=f"{integrity_link_id}")
+
+
+def _delete_dag_runs(dag_id: str, run_id_like: str) -> None:
+    """Delete all runs of a DAG whose run id matches a SQL LIKE pattern.
+
+    Deleting a dag run cascades its task instances and XComs in the Airflow
+    metadata DB. Pages by re-querying until no (deletable) run remains.
+    Best-effort: per-run failures are logged and skipped.
+    """
+    api = get_dag_run_api()
+    while True:
+        try:
+            page = api.get_dag_runs(dag_id=dag_id, run_id_pattern=run_id_like, limit=100)
+        except NotFoundException:
+            return
+        runs = page.dag_runs
+        if not runs:
+            return
+        deleted_any = False
+        for run in runs:
+            try:
+                api.delete_dag_run(dag_id=dag_id, dag_run_id=run.dag_run_id)
+                deleted_any = True
+            except NotFoundException:
+                deleted_any = True  # already gone — progress nonetheless
+            except Exception as e:
+                logger.warning(f"Failed to delete dag run {dag_id}/{run.dag_run_id}: {e}")
+        if not deleted_any:
+            # Nothing could be deleted in this page — bail out to avoid looping
+            return
+
+
+def purge_dataset_dag_runs(integrity_link_id: str) -> None:
+    """
+    Delete the Airflow run history (dag runs, task instances, XComs) of a dataset.
+
+    Covers staging_dag runs (run ids '<id>' / '<id>_<ts>') and process_dag runs
+    (run ids '<id>_<ts>[_manual]'). Run-id matching uses SQL LIKE patterns.
+    """
+    _delete_dag_runs("staging_dag", f"{integrity_link_id}%")
+    _delete_dag_runs("process_dag", f"{integrity_link_id}_%")
 
 
 def delete_dag(dag_id: str) -> None:

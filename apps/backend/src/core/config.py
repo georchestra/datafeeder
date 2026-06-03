@@ -337,3 +337,10 @@ def get_data_schema(org: str) -> str:
 def get_staging_schema() -> str:
     """Get the staging schema, defaulting to 'staging'."""
     return "staging"  # FIXME get it from config
+
+
+def is_shared_schema(schema: str) -> bool:
+    """True for schemas shared across datasets/orgs, which must never be
+    dropped: the staging schema and the default data schema (used for final
+    tables when USE_ORG_SCHEMA is disabled)."""
+    return schema in (get_staging_schema(), DEFAULT_DATA_SCHEMA)

@@ -354,6 +354,59 @@ class GeoServerService:
                 exc_info=True,
             )
 
+    def _delete_if_empty(self, url: str, label: str) -> None:
+        """DELETE a GeoServer resource WITHOUT recurse, so the call fails
+        harmlessly when the resource still has children. Best-effort: 404 and
+        refusal statuses are expected; errors are logged and suppressed.
+
+        Note: do NOT use geoservercloud's delete_workspace/delete_datastore —
+        they hardcode recurse=true and would wipe everything underneath.
+        """
+        try:
+            response = self.geoserver.rest_service.rest_client.delete(url)
+            if response.status_code in (200, 204):
+                logger.info(f"Deleted GeoServer {label}")
+            elif response.status_code != 404:
+                logger.info(
+                    f"GeoServer {label} not deleted (status {response.status_code}) "
+                    "— likely not empty"
+                )
+        except Exception as e:
+            logger.error(f"Failed to delete GeoServer {label}: {e}", exc_info=True)
+
+    def delete_datastore_if_empty(self, workspace_name: str, datastore_name: str) -> None:
+        """Delete a datastore only when it has no remaining feature types."""
+        url = self.geoserver.rest_service.rest_endpoints.datastore(workspace_name, datastore_name)
+        self._delete_if_empty(url, f"datastore {workspace_name}/{datastore_name}")
+
+    def delete_workspace_if_empty(self, workspace_name: str) -> None:
+        """Delete a workspace only when it has no remaining stores/layers."""
+        url = self.geoserver.rest_service.rest_endpoints.workspace(workspace_name)
+        self._delete_if_empty(url, f"workspace {workspace_name}")
+
+    def delete_layer_acl(self, workspace_name: str, layer_name: str) -> None:
+        """Delete the READ and WRITE ACL rules of a layer.
+
+        Treats 404 (rule absent) as success. Logs and suppresses other errors
+        so callers (e.g. dataset deletion) stay best-effort.
+
+        Args:
+            workspace_name: Name of the GeoServer workspace
+            layer_name: Name of the feature type / layer
+        """
+        acl_layer_name = self.make_acl_layer_name(workspace_name, layer_name)
+        for access_type in (AclAccessType.READ, AclAccessType.WRITE):
+            try:
+                self.acl_layer_delete(acl_layer_name, access_type)
+            except GeoServerAclError as e:
+                if e.status_code != 404:
+                    logger.error(f"Failed to delete ACL rule {acl_layer_name}.{access_type}: {e}")
+            except Exception as e:
+                logger.error(
+                    f"Failed to delete ACL rule {acl_layer_name}.{access_type}: {e}",
+                    exc_info=True,
+                )
+
     @staticmethod
     def _to_geoserver_role(role: str) -> str:
         """Ensure role name has ROLE_ prefix as required by GeoServer ACL.
