@@ -1,5 +1,7 @@
 import logging
 import re
+import subprocess
+import time
 import tempfile
 from pathlib import Path
 from urllib.error import URLError
@@ -77,6 +79,7 @@ def _read_file_encoded(file_path: str) -> gpd.GeoDataFrame | pd.DataFrame:
     Returns:
         GeoDataFrame or DataFrame with the file data
     """
+    logger.info("Use standard method")
     if Path(file_path).suffix.lower() in (".parquet", ".geoparquet"):
         try:
             return gpd.read_parquet(file_path)  # type: ignore[arg-type]
@@ -222,6 +225,60 @@ def _get_geo_column_from_table(table: Table) -> str | None:
     return None
 
 
+def ingest_file_with_ogr2ogr(
+    file_path: str,
+    table_name: str,
+    engine: Engine,
+    schema: str = DEFAULT_SCHEMA,
+) -> None:
+    """Ingest a geospatial file into a PostGIS table using ogr2ogr.
+
+    Args:
+        file_path: Path to the local file to ingest
+        table_name: Target table name in PostGIS
+        engine: SQLAlchemy engine for the target PostGIS database
+        schema: Target schema (default: public)
+    """
+    validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
+    validate_schema_name(schema)
+
+    url = engine.url
+    pg_conn_parts = [
+        f"host={url.host}",
+        f"port={url.port or 5432}",
+        f"dbname={url.database}",
+        f"user={url.username}",
+        f"password={url.password}",
+    ]
+    pg_connection = "PG:" + " ".join(part for part in pg_conn_parts if part.split("=", 1)[1])
+
+    command = [
+        "ogr2ogr",
+        "-f",
+        "PostgreSQL",
+        pg_connection,
+        file_path,
+        "-nln",
+        f"{schema}.{table_name}",
+        "-overwrite",
+        "-lco",
+        f"GEOMETRY_NAME={DEFAULT_GEOMETRY_COLUMN}",
+        "-lco",
+        f"SCHEMA={schema}",
+    ]
+
+    logger.info(f"Running ogr2ogr to ingest {file_path} into {schema}.{table_name}")
+
+    try:
+        # --------
+        # WARNING: don't log the command as the PG connection string contains credentials
+        # --------
+        subprocess.run(command, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"ogr2ogr failed ingesting {file_path}: {e.stderr}")
+        raise Exception(f"ogr2ogr failed: {e.stderr}")
+
+
 def ingest_data_from_url_into_postgis(
     url: str,
     table_name: str,
@@ -274,8 +331,17 @@ def ingest_data_from_url_into_postgis(
                 with open(temp_file_path, "wb") as temp_file:
                     temp_file.write(content)
 
-                data = _read_file_encoded(str(temp_file_path))
-                write_data_to_postgis(data, table_name, engine, schema)
+
+                start = time.time()
+
+                ingest_file_with_ogr2ogr(str(temp_file_path), table_name, engine, schema)
+
+                # Calculate the end time and time taken
+                end = time.time()
+                length = end - start
+
+                print("It took", length, "seconds.")
+
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
         raise
