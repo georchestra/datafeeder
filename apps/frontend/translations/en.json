@@ -287,7 +287,6 @@
   "integrityLinks.owner": "Author",
   "integrityLinks.readOnly": "Read only",
   "integrityLinks.recurrence": "Recurrence",
-  "integrityLinks.edit": "Edit dataset",
   "integrityLinks.view": "View",
   "integrityLinks.deleteShort": "Delete",
   "integrityLinks.search": "Search...",
