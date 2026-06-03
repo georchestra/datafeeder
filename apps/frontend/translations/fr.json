@@ -288,8 +288,15 @@
   "integrityLinks.owner": "Auteur",
   "integrityLinks.recurrence": "Récurrence",
   "integrityLinks.readOnly": "Lecture seule",
+<<<<<<< HEAD
   "integrityLinks.recurrence": "Récurrence",
   "integrityLinks.search": "Chercher un jeu de données",
+=======
+  "integrityLinks.edit": "Modifier le jeu de données",
+  "integrityLinks.view": "Voir",
+  "integrityLinks.deleteShort": "Supprimer",
+  "integrityLinks.search": "Chercher une donnée",
+>>>>>>> 50725095 (feat(dashboard): row click to edit and labeled Voir/Supprimer actions)
   "integrityLinks.title": "Titre",
   "integrityLinks.visibility": "Accès",
   "integrityLinks.visibility.open": "Ouvert",
