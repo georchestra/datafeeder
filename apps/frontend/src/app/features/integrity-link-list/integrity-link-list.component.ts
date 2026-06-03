@@ -29,7 +29,6 @@ import { EMPTY_IMPORT_TYPE } from '../../core/stores/integrity-link.store'
 import { IntlinkNavService } from '../../core/layout/intlink-nav.service'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
-marker('integrityLinks.edit')
 marker('integrityLinks.view')
 marker('integrityLinks.visibility.open')
 marker('integrityLinks.visibility.restricted')

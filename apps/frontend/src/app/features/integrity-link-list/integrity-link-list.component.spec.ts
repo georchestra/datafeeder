@@ -75,7 +75,6 @@ describe('IntegrityLinkListComponent', () => {
             'integrityLinks.title': 'Integrity Links',
             'integrityLinks.loadMore': 'Load More',
             'integrityLinks.noItems': 'No items',
-            'integrityLinks.edit': 'Edit dataset',
             'integrityLinks.view': 'View',
             'dashboard.deleteDataset': 'Delete dataset',
             'dashboard.deleteDatasetConfirm': 'Are you sure?',
