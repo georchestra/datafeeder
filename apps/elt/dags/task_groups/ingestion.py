@@ -273,6 +273,29 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             if not source_layer:
                 raise AirflowException("source_layer is required for API import")
 
+            # Decrypt Basic Auth credentials if provided (e.g. protected WFS/OAPIF services)
+            auth = None
+            encrypted_credentials = params.get("encrypted_credentials")
+            if encrypted_credentials:
+                try:
+                    encryption_key = Variable.get("datafeeder_encryption_key", default=None)
+                    if not encryption_key:
+                        raise AirflowException(
+                            "Encryption key not found in Airflow Variables under 'datafeeder_encryption_key'"
+                        )
+
+                    datafeeder_engine = get_datafeeder_sql_engine()
+
+                    with datafeeder_engine.connect() as conn:
+                        username, password = decrypt_credentials(
+                            conn, encrypted_credentials, encryption_key
+                        )
+                        auth = (username, password)
+                        logger.info("Successfully decrypted Basic Auth credentials")
+                except Exception as e:
+                    logger.error(f"Failed to decrypt Basic Auth credentials: {e}")
+                    raise AirflowException(f"Failed to decrypt credentials: {e}")
+
             engine = get_data_sql_engine()
             try:
                 ingest_data_from_ogc_service_into_postgis(
@@ -282,6 +305,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                     target_table_name,
                     engine,
                     schema=get_staging_schema(),
+                    auth=auth,
                 )
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from OGC service: {e}")

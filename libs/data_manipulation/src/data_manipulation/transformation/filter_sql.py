@@ -11,7 +11,7 @@ from typing import Any
 
 from sqlalchemy import Column, ColumnElement, Table, Text, cast
 
-from data_manipulation.models import ColumnConfig, FilterOperator
+from data_manipulation.models import ColumnConfig, ColumnFilter, FilterOperator
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,31 @@ def _escape_like(value: str) -> str:
     value = value.replace("%", f"{_LIKE_ESCAPE_CHAR}%")
     value = value.replace("_", f"{_LIKE_ESCAPE_CHAR}_")
     return value
+
+
+def build_filter_clause(col: ColumnElement[Any], column_filter: ColumnFilter) -> ColumnElement[Any]:
+    """Build a single case-insensitive ILIKE WHERE clause for a column.
+
+    The column is cast to TEXT so all types (int, date, etc.) are compared
+    uniformly. The filter value is escaped so '%', '_', and '\\' are treated as
+    literal characters, and is always passed as a bound parameter (no SQL
+    injection risk).
+
+    Pattern shapes:
+        EXACTLY     -> "value"    — full string must match
+        CONTAINS    -> "%value%"  — value can appear anywhere
+        STARTS_WITH -> "value%"   — string must begin with value
+    """
+    col_as_text = cast(col, Text)
+    escaped = _escape_like(column_filter.value)
+    operator = column_filter.operator
+
+    if operator == FilterOperator.EXACTLY:
+        return col_as_text.ilike(escaped, escape=_LIKE_ESCAPE_CHAR)
+    if operator == FilterOperator.CONTAINS:
+        return col_as_text.ilike(f"%{escaped}%", escape=_LIKE_ESCAPE_CHAR)
+    # STARTS_WITH
+    return col_as_text.ilike(f"{escaped}%", escape=_LIKE_ESCAPE_CHAR)
 
 
 def build_sql_column_ops(
@@ -71,27 +96,6 @@ def build_sql_column_ops(
         select_cols.append(col)
 
         if col_config.filter is not None:
-            # Cast the column to TEXT so all types (int, date, etc.) are compared uniformly.
-            # All three operators use ILIKE for case-insensitive matching.
-            #
-            # The filter value is always escaped before being embedded in a pattern:
-            # '%', '_', and '\' are special in ILIKE and must be escaped so they are
-            # treated as literal characters rather than wildcards.
-            #
-            # Pattern shapes:
-            #   EXACTLY     → "value"    — full string must match
-            #   CONTAINS    → "%value%"  — value can appear anywhere
-            #   STARTS_WITH → "value%"   — string must begin with value
-            col_as_text = cast(col, Text)
-            filter_value = col_config.filter.value
-            operator = col_config.filter.operator
-            escaped = _escape_like(filter_value)
-
-            if operator == FilterOperator.EXACTLY:
-                where_clauses.append(col_as_text.ilike(escaped, escape=_LIKE_ESCAPE_CHAR))
-            elif operator == FilterOperator.CONTAINS:
-                where_clauses.append(col_as_text.ilike(f"%{escaped}%", escape=_LIKE_ESCAPE_CHAR))
-            elif operator == FilterOperator.STARTS_WITH:
-                where_clauses.append(col_as_text.ilike(f"{escaped}%", escape=_LIKE_ESCAPE_CHAR))
+            where_clauses.append(build_filter_clause(col, col_config.filter))
 
     return select_cols, where_clauses
