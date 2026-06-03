@@ -286,6 +286,8 @@
   "integrityLinks.recurrence": "Récurrence",
   "integrityLinks.readOnly": "Lecture seule",
   "integrityLinks.edit": "Modifier le jeu de données",
+  "integrityLinks.view": "Voir",
+  "integrityLinks.deleteShort": "Supprimer",
   "integrityLinks.search": "Chercher une donnée",
   "integrityLinks.title": "Titre",
   "integrityLinks.visibility": "Visibilité",

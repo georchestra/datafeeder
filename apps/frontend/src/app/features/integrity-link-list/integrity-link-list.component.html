@@ -39,7 +39,6 @@
       <div class="w-48 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.owner' | translate }}
       </div>
-      <div class="w-[88px] shrink-0"></div>
     </div>
 
     <!-- Rows -->
@@ -48,9 +47,13 @@
       <div
         [class]="
           isReadOnly(link)
-            ? 'group flex rounded-md bg-beige h-[34px] items-center transition-colors opacity-60 cursor-default'
-            : 'group flex rounded-md bg-beige h-[34px] items-center transition-colors hover:bg-gray-100'
+            ? 'group relative flex rounded-md bg-beige h-[34px] items-center transition-colors opacity-60 cursor-default'
+            : 'group relative flex rounded-md bg-beige h-[34px] items-center transition-colors hover:bg-gray-100 cursor-pointer'
         "
+        [attr.role]="isReadOnly(link) ? null : 'button'"
+        [attr.tabindex]="isReadOnly(link) ? null : 0"
+        (click)="onRowClick(link)"
+        (keydown.enter)="onRowKeydown($event, link)"
       >
         <div class="pl-2 w-28 pr-4 text-sm text-gray-2">
           {{ link.created_at | date : 'dd/MM/yyyy' }}
@@ -91,25 +94,34 @@
         <div class="w-48 text-sm text-gray-2">
           {{ link.owner_display_name ?? link.integrity_owner }}
         </div>
-        <div class="flex w-[88px] shrink-0 items-center justify-end gap-1 pr-2">
-          @if (!isReadOnly(link)) {
+        <div class="absolute inset-y-0 right-2 flex items-center gap-1">
+          @if (getCatalogueUrl(link)) {
           <button
             type="button"
-            class="flex items-center justify-center rounded bg-white p-1 text-primary opacity-0 transition-colors hover:bg-gray-200 group-hover:opacity-100 focus:opacity-100"
-            [attr.aria-label]="'integrityLinks.edit' | translate"
-            (click)="onEditClick(link)"
+            class="flex items-center gap-1 rounded bg-white px-2 py-1 text-sm text-gray-2 opacity-0 transition-colors hover:bg-gray-200 group-hover:opacity-100 focus-visible:opacity-100"
+            (click)="onViewClick($event, link)"
           >
-            <ng-icon name="iconoirEditPencil" size="1.1em"></ng-icon>
+            <ng-icon
+              name="iconoirOpenNewWindow"
+              size="1.1em"
+              class="text-primary"
+            ></ng-icon>
+            {{ 'integrityLinks.view' | translate }}
           </button>
           } @if (canDelete(link)) {
           <button
             type="button"
-            class="flex items-center justify-center rounded bg-white p-1 text-primary opacity-0 transition-colors hover:bg-[#FACED2] group-hover:opacity-100 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex items-center gap-1 rounded bg-white px-2 py-1 text-sm text-gray-2 opacity-0 transition-colors hover:bg-[#FACED2] group-hover:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed disabled:opacity-50"
             [disabled]="deleting() !== null"
             [attr.aria-label]="'dashboard.deleteDataset' | translate"
             (click)="deleteIntegrityLink($event, link.id)"
           >
-            <ng-icon name="iconoirTrash" size="1.1em"></ng-icon>
+            <ng-icon
+              name="iconoirTrash"
+              size="1.1em"
+              class="text-primary"
+            ></ng-icon>
+            {{ 'integrityLinks.deleteShort' | translate }}
           </button>
           }
         </div>
