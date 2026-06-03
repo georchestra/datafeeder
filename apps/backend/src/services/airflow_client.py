@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from functools import lru_cache
 
 import jwt
@@ -11,10 +12,18 @@ from airflow_client.client.configuration import Configuration
 from airflow_client.client.exceptions import ConflictException, NotFoundException
 from airflow_client.client.models.dag_run_patch_body import DAGRunPatchBody
 from airflow_client.client.models.dag_run_patch_states import DAGRunPatchStates
+from airflow_client.client.models.dag_run_response import DAGRunResponse
 from pydantic import BaseModel
 
-from ..core.config import get_settings
-from ..core.logging import get_logger
+from src.core.config import get_settings
+from src.core.logging import get_logger
+from src.core.run_ids import (
+    is_manual_process_run,
+    process_run_like,
+    process_run_prefix,
+    staging_run_like,
+    staging_run_prefix,
+)
 
 logger = get_logger()
 
@@ -24,9 +33,11 @@ __all__ = [
     "get_dag_api",
     "get_event_log_api",
     "get_task_instance_api",
-    "cancel_ingestion_dag",
+    "cancel_dataset_runs",
+    "cancel_scheduled_runs",
     "delete_dag",
     "purge_dataset_dag_runs",
+    "remove_ingestion_dag",
 ]
 
 
@@ -135,38 +146,96 @@ def get_task_instance_api() -> TaskInstanceApi:
     return _get_cached_task_instance_api()
 
 
-def _force_fail_dag_runs(dag_id: str, dag_run_id_prefix: str | None = None) -> None:
+def _for_each_dag_run(
+    dag_id: str,
+    action: Callable[[DAGRunResponse], bool],
+    run_id_like: str | None = None,
+    states: list[str] | None = None,
+) -> None:
+    """Apply action to every run of a DAG matching the server-side filters.
+
+    Pages by re-querying (limit=100) until no matching run remains, so the
+    action must be self-consuming: it must remove the run from the filtered
+    result set (delete it, or patch it out of the states filter) and return
+    whether it made progress — a page with no progress bails out to avoid
+    looping. A missing DAG (404 on the query) is a no-op.
+    """
+    api = get_dag_run_api()
+    while True:
+        try:
+            page = api.get_dag_runs(
+                dag_id=dag_id, run_id_pattern=run_id_like, state=states, limit=100
+            )
+        except NotFoundException:
+            return
+        runs = page.dag_runs
+        if not runs:
+            return
+        progressed = False
+        for run in runs:
+            progressed = action(run) or progressed
+        if not progressed:
+            return
+
+
+def _force_fail_dag_runs(
+    dag_id: str,
+    dag_run_id_prefix: str | None = None,
+    exclude: Callable[[str], bool] | None = None,
+) -> None:
     dag_run_api = get_dag_run_api()
     patch_body = DAGRunPatchBody(state=DAGRunPatchStates.FAILED)
-    try:
-        dag_runs = dag_run_api.get_dag_runs(dag_id=dag_id).dag_runs
-    except NotFoundException:
-        return
-    for dag_run in dag_runs:
-        if dag_run.state not in ("running", "queued"):
-            continue
+
+    def force_fail(dag_run: DAGRunResponse) -> bool:
+        # Re-check the prefix: the LIKE pattern treats '_' as a wildcard
         if dag_run_id_prefix and not dag_run.dag_run_id.startswith(dag_run_id_prefix):
-            continue
+            return False
+        if exclude and exclude(dag_run.dag_run_id):
+            return False
         try:
             dag_run_api.patch_dag_run(
                 dag_id=dag_id, dag_run_id=dag_run.dag_run_id, dag_run_patch_body=patch_body
             )
+            return True
         except NotFoundException:
-            pass
+            return True  # already gone — progress nonetheless
+
+    _for_each_dag_run(
+        dag_id,
+        force_fail,
+        run_id_like=f"{dag_run_id_prefix}%" if dag_run_id_prefix else None,
+        states=["running", "queued"],
+    )
 
 
-def cancel_ingestion_dag(integrity_link_id: str) -> None:
+def cancel_dataset_runs(integrity_link_id: str) -> None:
     """
-    Cancel all running or queued Airflow runs associated with the given integrity link.
+    Cancel ALL running or queued Airflow runs of a dataset: the scheduled
+    ingestion DAG runs (ingestion_{id}) plus every process_dag and staging_dag
+    run, scheduled or manual, matched by run-id prefix.
 
-    Cancels the scheduled ingestion DAG runs (ingestion_{id}), any process_dag runs
-    and any staging_dag runs for the dataset (identified by dag_run_id prefix;
-    the first staging run id is exactly the integrity link id, so no trailing '_').
+    Used by dataset deletion, where no run may keep writing to the tables.
     """
-    dag_id = f"ingestion_{integrity_link_id}"
-    _force_fail_dag_runs(dag_id)
-    _force_fail_dag_runs("process_dag", dag_run_id_prefix=f"{integrity_link_id}_")
-    _force_fail_dag_runs("staging_dag", dag_run_id_prefix=f"{integrity_link_id}")
+    _force_fail_dag_runs(f"ingestion_{integrity_link_id}")
+    _force_fail_dag_runs("process_dag", dag_run_id_prefix=process_run_prefix(integrity_link_id))
+    _force_fail_dag_runs("staging_dag", dag_run_id_prefix=staging_run_prefix(integrity_link_id))
+
+
+def cancel_scheduled_runs(integrity_link_id: str) -> None:
+    """
+    Cancel only the schedule-driven runs of a dataset: the ingestion DAG runs
+    (ingestion_{id}) and the process_dag runs they spawned. Manual process
+    runs ('..._manual') and staging runs (always user-initiated) are spared.
+
+    Used when the recurrence schedule is cleared, so an in-flight manual run
+    is not collateral damage.
+    """
+    _force_fail_dag_runs(f"ingestion_{integrity_link_id}")
+    _force_fail_dag_runs(
+        "process_dag",
+        dag_run_id_prefix=process_run_prefix(integrity_link_id),
+        exclude=is_manual_process_run,
+    )
 
 
 def _delete_dag_runs(dag_id: str, run_id_like: str) -> None:
@@ -177,26 +246,18 @@ def _delete_dag_runs(dag_id: str, run_id_like: str) -> None:
     Best-effort: per-run failures are logged and skipped.
     """
     api = get_dag_run_api()
-    while True:
+
+    def delete(run: DAGRunResponse) -> bool:
         try:
-            page = api.get_dag_runs(dag_id=dag_id, run_id_pattern=run_id_like, limit=100)
+            api.delete_dag_run(dag_id=dag_id, dag_run_id=run.dag_run_id)
+            return True
         except NotFoundException:
-            return
-        runs = page.dag_runs
-        if not runs:
-            return
-        deleted_any = False
-        for run in runs:
-            try:
-                api.delete_dag_run(dag_id=dag_id, dag_run_id=run.dag_run_id)
-                deleted_any = True
-            except NotFoundException:
-                deleted_any = True  # already gone — progress nonetheless
-            except Exception as e:
-                logger.warning(f"Failed to delete dag run {dag_id}/{run.dag_run_id}: {e}")
-        if not deleted_any:
-            # Nothing could be deleted in this page — bail out to avoid looping
-            return
+            return True  # already gone — progress nonetheless
+        except Exception as e:
+            logger.warning(f"Failed to delete dag run {dag_id}/{run.dag_run_id}: {e}")
+            return False
+
+    _for_each_dag_run(dag_id, delete, run_id_like=run_id_like)
 
 
 def purge_dataset_dag_runs(integrity_link_id: str) -> None:
@@ -206,8 +267,28 @@ def purge_dataset_dag_runs(integrity_link_id: str) -> None:
     Covers staging_dag runs (run ids '<id>' / '<id>_<ts>') and process_dag runs
     (run ids '<id>_<ts>[_manual]'). Run-id matching uses SQL LIKE patterns.
     """
-    _delete_dag_runs("staging_dag", f"{integrity_link_id}%")
-    _delete_dag_runs("process_dag", f"{integrity_link_id}_%")
+    _delete_dag_runs("staging_dag", staging_run_like(integrity_link_id))
+    _delete_dag_runs("process_dag", process_run_like(integrity_link_id))
+
+
+def remove_ingestion_dag(integrity_link_id: str) -> None:
+    """
+    Cancel runs and delete the scheduled ingestion DAG for a dataset.
+
+    Used when the recurrence schedule is cleared, so the dynamic
+    ingestion_{id} DAG does not linger in Airflow as stale metadata once the
+    DAG generator stops emitting it.
+
+    Best-effort: logs and suppresses any Airflow error.
+    """
+    try:
+        cancel_scheduled_runs(integrity_link_id)
+        delete_dag(f"ingestion_{integrity_link_id}")
+    except Exception as e:
+        logger.warning(
+            f"Failed to remove ingestion DAG for integrity link {integrity_link_id}: {e}",
+            exc_info=True,
+        )
 
 
 def delete_dag(dag_id: str) -> None:

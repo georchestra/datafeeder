@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from src.api.routes.ingestion.integrity_link import (
     _sync_title_geoserver,  # type: ignore[reportPrivateUsage]
     delete_integrity_link_rule,
+    delete_integrity_link_schedule,
     get_integrity_link,
     toggle_publish_gn_integrity_link,
     toggle_publish_gs_integrity_link,
@@ -2219,19 +2220,56 @@ class TestUpdateSchedule:
         integrity_link.schedule_enabled = True
         mock_session.get.return_value = integrity_link
 
-        result = update_schedule(
-            session=mock_session,
-            geo_ctx=_geo_ctx(),
-            integrity_link_id=integrity_link_id,
-            group_ids=[],
-            preset=None,
-        )
+        with patch("src.services.schedule_service.remove_ingestion_dag") as mock_remove_dag:
+            result = update_schedule(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+                preset=None,
+            )
 
         assert integrity_link.schedule is None
         assert integrity_link.schedule_enabled is False
         mock_session.commit.assert_called_once()
         assert result.schedule is None
         assert result.preset_id is None
+        # Clearing an existing schedule removes the stale ingestion DAG
+        mock_remove_dag.assert_called_once_with(integrity_link_id)
+
+    def test_set_preset_does_not_remove_dag(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        integrity_link = self._link(integrity_link_id)
+        mock_session.get.return_value = integrity_link
+
+        with patch("src.services.schedule_service.remove_ingestion_dag") as mock_remove_dag:
+            update_schedule(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+                preset=RecurrencePreset.EVERY_DAY,
+            )
+
+        mock_remove_dag.assert_not_called()
+
+    def test_clear_preset_without_schedule_does_not_remove_dag(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        integrity_link = self._link(integrity_link_id)
+        mock_session.get.return_value = integrity_link
+
+        with patch("src.services.schedule_service.remove_ingestion_dag") as mock_remove_dag:
+            update_schedule(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+                preset=None,
+            )
+
+        mock_remove_dag.assert_not_called()
 
     def test_not_found_raises_404(self, mock_session: MagicMock, integrity_link_id: str) -> None:
         mock_session.get.return_value = None
@@ -2246,3 +2284,74 @@ class TestUpdateSchedule:
             )
 
         assert exc_info.value.status_code == 404
+
+
+class TestDeleteSchedule:
+    """Test the DELETE /{integrity_link_id}/schedule endpoint."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def integrity_link_id(self) -> str:
+        return str(uuid4())
+
+    @pytest.fixture(autouse=True)
+    def patch_load_authorized(self, mock_session: MagicMock) -> Iterator[None]:
+        def _load(integrity_link_id: str, *args: object, **kwargs: object):
+            return mock_session.get.return_value, EffectiveAccess.OWNER
+
+        with patch(
+            "src.api.routes.ingestion.integrity_link.load_authorized_integrity_link",
+            side_effect=_load,
+        ):
+            yield
+
+    def _link(self, link_id: str, schedule: str | None) -> IntegrityLink:
+        link = IntegrityLink(
+            id=UUID(link_id),
+            integrity_owner="testuser",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_test",
+        )
+        link.schedule = schedule
+        link.schedule_enabled = schedule is not None
+        return link
+
+    def test_clears_schedule_and_removes_dag(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        integrity_link = self._link(integrity_link_id, schedule="0 0 * * *")
+        mock_session.get.return_value = integrity_link
+
+        with patch("src.services.schedule_service.remove_ingestion_dag") as mock_remove_dag:
+            response = delete_integrity_link_schedule(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+            )
+
+        assert response.status_code == 204
+        assert integrity_link.schedule is None
+        assert integrity_link.schedule_enabled is False
+        mock_session.commit.assert_called_once()
+        mock_remove_dag.assert_called_once_with(integrity_link_id)
+
+    def test_no_schedule_is_a_noop(self, mock_session: MagicMock, integrity_link_id: str) -> None:
+        integrity_link = self._link(integrity_link_id, schedule=None)
+        mock_session.get.return_value = integrity_link
+
+        with patch("src.services.schedule_service.remove_ingestion_dag") as mock_remove_dag:
+            response = delete_integrity_link_schedule(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+            )
+
+        assert response.status_code == 204
+        mock_session.commit.assert_not_called()
+        mock_remove_dag.assert_not_called()

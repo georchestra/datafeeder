@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, GroupIdsDep
+from src.core.run_ids import extract_integrity_link_id
 from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.core.task_executor import TaskStatus
 from src.services.airflow_client import get_dag_run_api
@@ -107,7 +108,7 @@ def get_dag_run_logs(
     geo_ctx: GeorchestraContextDep,
     group_ids: GroupIdsDep,
 ) -> str:
-    intlink_id = dag_run_id.split("_")[0]  # Extract intlink_id from run_id pattern
+    intlink_id = extract_integrity_link_id(dag_run_id)
     # Ensure the user has access to the integrity link associated with this DAG run
     load_authorized_integrity_link(
         intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, group_ids

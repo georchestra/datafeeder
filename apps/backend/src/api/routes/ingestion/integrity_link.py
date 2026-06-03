@@ -29,7 +29,6 @@ from src.models.integrity_link_rule import (
     UpsertRuleRequest,
 )
 from src.models.recurrence import RecurrencePreset
-from src.services.airflow_client import cancel_ingestion_dag
 from src.services.console_service import ConsoleService, ConsoleServiceError
 from src.services.dataset_deletion_service import DatasetDeletionService
 from src.services.geoserver import (
@@ -39,6 +38,7 @@ from src.services.geoserver import (
     GeoServerService,
 )
 from src.services.metadata_service import MetadataService
+from src.services.schedule_service import clear_schedule
 
 logger = get_logger()
 
@@ -509,14 +509,10 @@ def delete_integrity_link_schedule(
         integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
     )
 
-    if not integrity_link.schedule:
+    if not clear_schedule(integrity_link):
         return Response(status_code=204)
 
-    integrity_link.schedule_enabled = False
-    integrity_link.schedule = None
     session.commit()
-
-    cancel_ingestion_dag(integrity_link_id)
 
     return Response(status_code=204)
 
@@ -700,8 +696,7 @@ def update_schedule(
         integrity_link.schedule = preset.cron
         integrity_link.schedule_enabled = True
     else:
-        integrity_link.schedule = None
-        integrity_link.schedule_enabled = False
+        clear_schedule(integrity_link)
 
     session.commit()
     session.refresh(integrity_link)

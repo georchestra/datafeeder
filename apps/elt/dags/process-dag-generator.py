@@ -49,6 +49,9 @@ def create_dag(config):
     )
 
     # Use a templated runtime timestamp ({{ ts_nodash }}) instead of a parse-time timestamp to avoid multiple dag versioning.
+    # Run-id format '<integrity_link_id>_<ts>' must stay in sync with the backend's
+    # run-id conventions in apps/backend/src/core/run_ids.py (used for run
+    # cancellation and history purge matching); this app cannot import that module.
     dag_run_id = f"{config.get('id')}" + "_{{ ts_nodash }}"
     with dag:
         TriggerDagRunOperator(
