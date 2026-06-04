@@ -50,6 +50,7 @@ export class RecurrenceComponent implements OnInit {
 
   async onPresetChange(presetId: RecurrencePreset | null): Promise<void> {
     const previous = this.selectedPresetId()
+    // Keep the select display consistent while the dialog is open
     this.selectedPresetId.set(presetId)
     if (presetId === 'EVERY_MINUTE') {
       const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
