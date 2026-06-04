@@ -33,7 +33,7 @@ class AirflowAccessTokenResponse(BaseModel):
 def _request_new_access_token() -> str:
     settings = get_settings()
 
-    url = f"{settings.AIRFLOW_URL}/auth/token"
+    url = f"{settings.AIRFLOW_INTERNAL_URL}/auth/token"
     payload = {
         "username": settings.AIRFLOW_USERNAME,
         "password": settings.AIRFLOW_PASSWORD,
@@ -62,7 +62,7 @@ def _is_jwt_expired(token: str) -> bool:
 @lru_cache
 def _get_cached_airflow_api_client() -> ApiClient:
     settings = get_settings()
-    config = Configuration(host=settings.AIRFLOW_URL)
+    config = Configuration(host=settings.AIRFLOW_INTERNAL_URL)
     config.access_token = _request_new_access_token()
     return ApiClient(configuration=config)
 

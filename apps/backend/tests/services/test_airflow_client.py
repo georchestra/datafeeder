@@ -34,7 +34,7 @@ class TestAirflowClient:
     def mock_settings(self) -> Mock:
         """Create mock settings for Airflow connection."""
         settings = Mock()
-        settings.AIRFLOW_URL = "http://test-airflow.example.com"
+        settings.AIRFLOW_INTERNAL_URL = "http://test-airflow.example.com"
         settings.AIRFLOW_USERNAME = "test_user"
         settings.AIRFLOW_PASSWORD = "test_pass"
         return settings

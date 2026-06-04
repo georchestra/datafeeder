@@ -115,7 +115,7 @@ class Settings(BaseSettings):
     TASK_EXECUTOR: TaskExecutorType = TaskExecutorType.AIRFLOW
 
     # Airflow configuration
-    AIRFLOW_URL: str = "http://localhost:8081/airflow"
+    AIRFLOW_INTERNAL_URL: str = "http://localhost:8081/airflow"
     AIRFLOW_USERNAME: str = "airflow"
     AIRFLOW_PASSWORD: str = "airflow"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 60 minutes * 24 hours * 8 days = 8 days
