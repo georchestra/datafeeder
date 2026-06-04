@@ -223,7 +223,9 @@ def list_integrity_links(
         item.has_integrity_rules = UUID(item.id) in rules_with_links
 
     usernames = list({item.integrity_owner for item in items})
-    display_names = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).fetch_users_by_usernames(usernames)
+    display_names = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).fetch_users_by_usernames(
+        usernames
+    )
     for item in items:
         item.owner_display_name = display_names.get(item.integrity_owner)
 
