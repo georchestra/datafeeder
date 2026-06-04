@@ -22,6 +22,7 @@ import { filter, fromEvent } from 'rxjs'
 import { TranslatePipe } from '@ngx-translate/core'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import { iconoirHelpCircle } from '@ng-icons/iconoir'
+import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 
 /**
  * A small `?` icon button that toggles an info popover describing the import
@@ -32,7 +33,7 @@ import { iconoirHelpCircle } from '@ng-icons/iconoir'
   selector: 'app-technical-info-button',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [OverlayModule, NgIconComponent, TranslatePipe],
+  imports: [OverlayModule, NgIconComponent, TranslatePipe, UiAlertBoxComponent],
   templateUrl: './technical-info-button.component.html',
   providers: [provideIcons({ iconoirHelpCircle })]
 })

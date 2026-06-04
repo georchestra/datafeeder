@@ -13,29 +13,10 @@
 </button>
 
 <ng-template #panelTemplate>
-  <div
-    data-test="technical-info-panel"
-    role="dialog"
-    aria-labelledby="technical-info-title"
-    class="z-50 max-w-sm p-4 rounded-lg shadow-md bg-orange-200 border border-red-600"
-  >
-    <div class="flex gap-2">
-      <ng-icon
-        name="iconoirHelpCircle"
-        size="1.25em"
-        class="shrink-0"
-      ></ng-icon>
-      <div class="text-sm text-gray-900">
-        <p id="technical-info-title" class="mb-2 font-semibold">
-          {{ 'import.dataSource.technicalInfo.title' | translate }}
-        </p>
-        <p class="mb-1">
-          {{ 'import.dataSource.technicalInfo.formats' | translate }}
-        </p>
-        <p>
-          {{ 'import.dataSource.technicalInfo.maxSize' | translate }}
-        </p>
-      </div>
-    </div>
-  </div>
+  <app-ui-alert-box
+    type="warning"
+    [dismissible]="false"
+    [title]="'import.dataSource.technicalInfo.title' | translate"
+    [message]="'import.dataSource.technicalInfo.message' | translate"
+  />
 </ng-template>
