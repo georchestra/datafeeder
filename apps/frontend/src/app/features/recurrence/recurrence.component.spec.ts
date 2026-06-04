@@ -2,7 +2,7 @@
  * Vitest unit tests for RecurrenceComponent.
  *
  * Covers preset initialization from the store, preset loading, and the
- * schedule PATCH effect that auto-saves on dropdown change.
+ * schedule PATCH triggered by onPresetChange.
  */
 
 import { Component, Input } from '@angular/core'
@@ -179,30 +179,26 @@ describe('RecurrenceComponent', () => {
       )
     })
 
-    it('should call PATCH /schedule when selectedPresetId changes to a preset', async () => {
-      const { fixture, component } = createComponent()
+    it('should call PATCH /schedule when a preset is selected', async () => {
+      const { component } = createComponent()
 
-      component.selectedPresetId.set('EVERY_DAY')
-      fixture.detectChanges()
+      await component.onPresetChange('EVERY_DAY')
 
-      await vi.waitFor(() => {
-        expect(apiInvokeSpy).toHaveBeenCalledWith(
-          updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
-          {
-            integrity_link_id: intlinkId,
-            body: { preset: 'EVERY_DAY' }
-          }
-        )
-      })
+      expect(apiInvokeSpy).toHaveBeenCalledWith(
+        updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
+        {
+          integrity_link_id: intlinkId,
+          body: { preset: 'EVERY_DAY' }
+        }
+      )
     })
 
     it('should NOT call PATCH /schedule when intlink_id is null', async () => {
       store.intlinkId.set(null)
       const { component } = createComponent()
 
-      component.selectedPresetId.set('EVERY_DAY')
+      await component.onPresetChange('EVERY_DAY')
 
-      await new Promise((r) => setTimeout(r, 20))
       expect(apiInvokeSpy).not.toHaveBeenCalledWith(
         updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
         expect.anything()
@@ -217,7 +213,7 @@ describe('RecurrenceComponent', () => {
           schedule_enabled: false
         })
       )
-      const { fixture, component } = createComponent()
+      const { component } = createComponent()
 
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (
@@ -235,18 +231,15 @@ describe('RecurrenceComponent', () => {
         return Promise.resolve([])
       })
 
-      component.selectedPresetId.set('EVERY_DAY')
-      fixture.detectChanges()
+      await component.onPresetChange('EVERY_DAY')
 
-      await vi.waitFor(() => {
-        expect(store.integrityLink()?.preset_id).toBe('EVERY_DAY')
-        expect(store.integrityLink()?.schedule).toBe('0 0 * * *')
-        expect(store.integrityLink()?.schedule_enabled).toBe(true)
-      })
+      expect(store.integrityLink()?.preset_id).toBe('EVERY_DAY')
+      expect(store.integrityLink()?.schedule).toBe('0 0 * * *')
+      expect(store.integrityLink()?.schedule_enabled).toBe(true)
     })
 
     it('should add an error toast when PATCH /schedule fails', async () => {
-      const { fixture, component } = createComponent()
+      const { component } = createComponent()
 
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (
@@ -258,12 +251,9 @@ describe('RecurrenceComponent', () => {
         return Promise.resolve([])
       })
 
-      component.selectedPresetId.set('EVERY_DAY')
-      fixture.detectChanges()
+      await component.onPresetChange('EVERY_DAY')
 
-      await vi.waitFor(() => {
-        expect(toastStore.toasts().length).toBeGreaterThan(0)
-      })
+      expect(toastStore.toasts().length).toBeGreaterThan(0)
     })
   })
 })
