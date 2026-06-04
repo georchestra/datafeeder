@@ -2,7 +2,6 @@
  * Vitest unit tests for RecurrenceComponent.
  *
  * Covers preset initialization from the store, preset loading, and the
-<<<<<<< HEAD
  * schedule PATCH triggered by onPresetChange (with EVERY_MINUTE confirmation).
  */
 
