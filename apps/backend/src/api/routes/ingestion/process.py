@@ -195,7 +195,7 @@ def process_staging_data(
                 is_geographic=is_geographic,
             )
 
-            console_service = ConsoleService(settings.CONSOLE_URL)
+            console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
             organization = console_service.get_organization(integrity_link.integrity_organization)
 
             user_first_name = sec_firstname

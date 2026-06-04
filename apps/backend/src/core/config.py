@@ -199,10 +199,7 @@ class Settings(BaseSettings):
     )
 
     # Console
-    CONSOLE_URL: str = Field(
-        default="http://localhost:8085/console",
-        validation_alias=AliasChoices("consoleUrl", "CONSOLE_URL"),
-    )
+    CONSOLE_INTERNAL_URL: str = "CONSOLE_INTERNAL_URL"
 
     # Metadata groups (for authorization UI)
     METADATA_GROUPS_LABEL_FILTER_REGEX: str = ""

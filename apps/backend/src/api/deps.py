@@ -49,7 +49,7 @@ def get_org_id(geo_ctx: GeorchestraContextDep) -> str | None:
     if not geo_ctx.organization:
         return None
 
-    service = ConsoleService(get_settings().CONSOLE_URL)
+    service = ConsoleService(get_settings().CONSOLE_INTERNAL_URL)
     org = service.get_organization(geo_ctx.organization)
 
     return str(org["id"]) if org and "id" in org else None
@@ -106,7 +106,7 @@ def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
         # becomes hot, promote ConsoleService to a request-scoped FastAPI dep
         # and memoize get_all_roles on the instance so rule-sync paths share it.
         try:
-            all_roles = ConsoleService(settings.CONSOLE_URL).get_all_roles()
+            all_roles = ConsoleService(settings.CONSOLE_INTERNAL_URL).get_all_roles()
         except ConsoleServiceError as exc:
             logger.warning(
                 "Console unreachable while resolving role UUIDs; "
@@ -126,7 +126,7 @@ def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
 
     if not geo_ctx.organization:
         return []
-    org = ConsoleService(settings.CONSOLE_URL).get_organization(geo_ctx.organization)
+    org = ConsoleService(settings.CONSOLE_INTERNAL_URL).get_organization(geo_ctx.organization)
     if not org or "id" not in org:
         return []
     if not _matches_metadata_filter(str(org.get("name", "")), pattern):

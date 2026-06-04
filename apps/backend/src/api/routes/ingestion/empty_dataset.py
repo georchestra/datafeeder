@@ -47,7 +47,7 @@ def create_empty_dataset(
     session.refresh(integrity_link)
 
     try:
-        console_service = ConsoleService(settings.CONSOLE_URL)
+        console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
         organization = console_service.get_organization(geo_ctx.organization)
 
         if organization:

@@ -12,7 +12,7 @@ class TestDataGroups:
 
     def _mock_settings(self, filter_regex: str = "") -> MagicMock:
         mock_settings = MagicMock()
-        mock_settings.CONSOLE_URL = "http://console.example.com"
+        mock_settings.CONSOLE_INTERNAL_URL = "http://console.example.com"
         mock_settings.DATA_GROUPS_LABEL_FILTER_REGEX = filter_regex
         return mock_settings
 

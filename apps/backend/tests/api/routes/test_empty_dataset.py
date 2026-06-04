@@ -33,7 +33,7 @@ def _geo_ctx(
 
 def _mock_settings() -> MagicMock:
     settings = MagicMock()
-    settings.CONSOLE_URL = "http://console"
+    settings.CONSOLE_INTERNAL_URL = "http://console"
     settings.GEONETWORK_URL = "http://geonetwork"
     settings.GEONETWORK_USERNAME = "admin"
     settings.GEONETWORK_PASSWORD = "geonetwork"

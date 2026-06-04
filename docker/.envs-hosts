@@ -19,6 +19,6 @@ DATA_API_HOST=data-api
 AIRFLOW_HOST=airflow-apiserver
 
 # needed for geonetwork entrypoint DO NOT REMOVE
-CONSOLE_URL=http://${CONSOLE_HOST}:8080
+CONSOLE_INTERNAL_URL=http://${CONSOLE_HOST}:8080
 # needed for kibana DO NOT REMOVE
 ELASTICSEARCH_HOSTS=http://${ES_HOST}:${ES_PORT}
