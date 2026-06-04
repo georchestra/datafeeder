@@ -164,7 +164,7 @@ class Settings(BaseSettings):
     GEOSERVER_PASSWORD: str = "testadmin"
 
     # Catalogue
-    CATALOGUE_URL: str = "http://localhost:8080/datahub/dataset/{metadata_id}"
+    DATAHUB_PUBLIC_URL: str = "http://localhost:8080/datahub/dataset/{metadata_id}"
 
     # Geonetwork
     GEONETWORK_INTERNAL_URL: str = "http://localhost:8080/geonetwork"

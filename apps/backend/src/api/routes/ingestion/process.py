@@ -378,7 +378,7 @@ async def dag_success_callback(
                     mime_type="text/xml",
                 ),
                 MetadataLink(
-                    url=settings.CATALOGUE_URL.format(metadata_id=integrity_link.metadata_id),
+                    url=settings.DATAHUB_PUBLIC_URL.format(metadata_id=integrity_link.metadata_id),
                     metadata_type="ISO19115:2003",
                     mime_type="text/html",
                 ),
