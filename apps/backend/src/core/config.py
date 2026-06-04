@@ -157,44 +157,28 @@ class Settings(BaseSettings):
     USE_ORG_SCHEMA: bool = False
 
     # GeoServer
-    GEOSERVER_INTERNAL_URL: str = Field(
-        default="http://localhost:8080/geoserver",
-        validation_alias=AliasChoices("geoserverUrl", "GEOSERVER_INTERNAL_URL"),
-    )
-    GEOSERVER_USER: str = Field(
-        default="testadmin", validation_alias=AliasChoices("geoserverUser", "GEOSERVER_USER")
-    )
-    GEOSERVER_PASSWORD: str = Field(
-        default="testadmin",
-        validation_alias=AliasChoices("geoserverPassword", "GEOSERVER_PASSWORD"),
-    )
+    GEOSERVER_INTERNAL_URL: str = "http://localhost:8080/geoserver"
+
+    GEOSERVER_USER: str = "testadmin"
+
+    GEOSERVER_PASSWORD: str = "testadmin"
 
     # Catalogue
-    CATALOGUE_URL: str = Field(
-        default="http://localhost:8080/datahub/dataset/{metadata_id}",
-        validation_alias=AliasChoices("catalogueUrl", "CATALOGUE_URL"),
-    )
+    CATALOGUE_URL: str = "http://localhost:8080/datahub/dataset/{metadata_id}"
 
     # Geonetwork
     GEONETWORK_INTERNAL_URL: str = "http://localhost:8080/geonetwork"
 
-    GEONETWORK_USERNAME: str = Field(
-        default="testadmin", validation_alias=AliasChoices("geonetworkUser", "GEONETWORK_USERNAME")
-    )
-    GEONETWORK_PASSWORD: str = Field(
-        default="testadmin",
-        validation_alias=AliasChoices("geonetworkPassword", "GEONETWORK_PASSWORD"),
-    )
+    GEONETWORK_USERNAME: str = "testadmin"
+
+    GEONETWORK_PASSWORD: str = "testadmin"
+
     # This is odd, apparently any UUID works as XSRF token
     GEONETWORK_XSRF_TOKEN: str = "c9f33266-e242-4198-a18c-b01290dce5f1"
-    GN_SYNC_MODE: Literal["ORG", "ROLE"] = Field(
-        default="ORG",
-        validation_alias=AliasChoices("gnSyncMode", "GN_SYNC_MODE"),
-    )
-    METADATA_DEFAULT_GROUP_NAME: str = Field(
-        default="sample",
-        validation_alias=AliasChoices("metadataDefaultGroupName", "METADATA_DEFAULT_GROUP_NAME"),
-    )
+
+    GN_SYNC_MODE: Literal["ORG", "ROLE"] = "ORG"
+
+    METADATA_DEFAULT_GROUP_NAME: str = "sample"
 
     # Console
     CONSOLE_INTERNAL_URL: str = "CONSOLE_INTERNAL_URL"
