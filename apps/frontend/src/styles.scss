@@ -46,6 +46,10 @@ app-main-layout {
 
 // TODO: implement into GN-UI instead of overriding here
 html {
+  /* Material Select Option Styling */
+  --mat-option-selected-state-label-text-color: var(--color-primary);
+  --mat-option-selected-state-layer-color: var(--color-primary-lightest);
+
   /* Material Radio Styling */
   --mat-radio-label-text-font: Lato;
   --mat-radio-label-text-line-height: 150%;
