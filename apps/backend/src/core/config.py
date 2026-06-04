@@ -180,7 +180,7 @@ class Settings(BaseSettings):
     METADATA_DEFAULT_GROUP_NAME: str = "sample"
 
     # Console
-    CONSOLE_INTERNAL_URL: str = "CONSOLE_INTERNAL_URL"
+    CONSOLE_INTERNAL_URL: str = "http://localhost:8085/console"
 
     # Metadata groups (for authorization UI)
     METADATA_GROUPS_LABEL_FILTER_REGEX: str = ""
