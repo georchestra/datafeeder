@@ -17,6 +17,7 @@ module.exports = {
         'gray-border': '#CCCDD2',
         'secondary-hover': '#A1DBDE',
         'secondary-active': 'rgba(161, 219, 222, 0.4)',
+        'secondary-dark': '#004E52',
       },
     },
   },

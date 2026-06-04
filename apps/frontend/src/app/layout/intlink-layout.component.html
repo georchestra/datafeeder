@@ -6,7 +6,7 @@
       <!-- Metadata Sheet — always enabled (requires at least METADATA_WRITE to reach this page) -->
       <a
         [routerLink]="['edit']"
-        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
+        routerLinkActive="bg-secondary-dark text-white"
         #rla="routerLinkActive"
         class="rounded-md p-2 text-base text-secondary hover:bg-secondary-hover"
       >
@@ -15,7 +15,7 @@
         <button
           type="button"
           (click)="onSaveClick()"
-          class="mt-2 w-full flex items-center justify-center rounded-full bg-secondary-active text-gray-900 hover:bg-secondary hover:text-gray-100 disabled:bg-secondary-active/40 disabled:text-secondary disabled:cursor-not-allowed"
+          class="mt-2 w-full flex items-center justify-center rounded-full bg-white text-secondary-dark hover:bg-white/80 disabled:bg-white/30 disabled:text-white/70 disabled:cursor-not-allowed"
           [disabled]="metadataSaveService.isSaving() || !changedSinceSave()"
         >
           <div class="my-1.5 flex items-center justify-center gap-1">
@@ -36,7 +36,7 @@
       @if (store.isRemoteDataset() && store.isOwnerOrAdmin()) {
       <a
         [routerLink]="['recurrence']"
-        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
+        routerLinkActive="bg-secondary-dark text-white"
         class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
       >
         {{ 'sidebar.recurrence' | translate }}
@@ -60,7 +60,7 @@
       @if (store.isOwnerOrAdmin()) {
       <a
         [routerLink]="['authorizations']"
-        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
+        routerLinkActive="bg-secondary-dark text-white"
         class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
       >
         {{ 'sidebar.accessRights' | translate }}
@@ -88,7 +88,7 @@
       } @else {
       <a
         [routerLink]="['events']"
-        routerLinkActive="bg-secondary-active/40 hover:bg-secondary-active/40"
+        routerLinkActive="bg-secondary-dark text-white"
         class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
       >
         {{ 'sidebar.eventsAndStatuses' | translate }}
