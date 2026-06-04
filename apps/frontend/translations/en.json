@@ -308,6 +308,8 @@
   "metadata.processing.running": "Metadata is being processed. Please wait...",
   "quickImport.modeEmpty": "Create a dataset without data",
   "quickImport.modeWithData": "Create a dataset with data",
+  "recurrence.everyMinuteWarning": "The processing will run every minute. Do you want to continue?",
+  "recurrence.everyMinuteWarningTitle": "Every minute recurrence",
   "recurrence.none": "No recurrence",
   "recurrence.preset.EVERY_DAY": "Every day",
   "recurrence.preset.EVERY_HOUR": "Every hour",
