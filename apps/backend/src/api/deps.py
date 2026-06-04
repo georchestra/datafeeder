@@ -140,7 +140,7 @@ GroupIdsDep = Annotated[list[str], Depends(get_group_ids)]
 def get_geoserver_service() -> GeoServerService:
     settings = get_settings()
     return GeoServerService(
-        base_url=settings.GEOSERVER_URL,
+        base_url=settings.GEOSERVER_INTERNAL_URL,
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
         public_url=settings.DATA_PUBLIC_URL,

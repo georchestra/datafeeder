@@ -184,7 +184,7 @@ def _sync_data_sharing(
 
     if geoserver_service is None:
         geoserver_service = GeoServerService(
-            base_url=settings.GEOSERVER_URL,
+            base_url=settings.GEOSERVER_INTERNAL_URL,
             username=settings.GEOSERVER_USER,
             password=settings.GEOSERVER_PASSWORD,
             public_url=settings.DATA_PUBLIC_URL,
@@ -232,7 +232,7 @@ def _sync_title_geoserver(title: str, integrity_link: IntegrityLink) -> None:
         return
     settings = get_settings()
     gs = GeoServerService(
-        base_url=settings.GEOSERVER_URL,
+        base_url=settings.GEOSERVER_INTERNAL_URL,
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
         public_url=settings.DATA_PUBLIC_URL,
@@ -545,7 +545,7 @@ def delete_integrity_link(
 
     settings = get_settings()
     geoserver_service = GeoServerService(
-        base_url=settings.GEOSERVER_URL,
+        base_url=settings.GEOSERVER_INTERNAL_URL,
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
         public_url=settings.DATA_PUBLIC_URL,

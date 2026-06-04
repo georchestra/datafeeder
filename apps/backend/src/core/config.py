@@ -88,7 +88,7 @@ class Settings(BaseSettings):
 
     # Project Information
     PROJECT_NAME: str = "Datafeeder"
-    BACKEND_URL: str = "http://localhost:8000"
+    BACKEND_INTERNAL_URL: str = "http://localhost:8000"
     DATA_PUBLIC_URL: str = "http://localhost:8080/geoserver"
     DATADIR_PATH: str = get_default_datadir()
 
@@ -157,9 +157,9 @@ class Settings(BaseSettings):
     USE_ORG_SCHEMA: bool = False
 
     # GeoServer
-    GEOSERVER_URL: str = Field(
+    GEOSERVER_INTERNAL_URL: str = Field(
         default="http://localhost:8080/geoserver",
-        validation_alias=AliasChoices("geoserverUrl", "GEOSERVER_URL"),
+        validation_alias=AliasChoices("geoserverUrl", "GEOSERVER_INTERNAL_URL"),
     )
     GEOSERVER_USER: str = Field(
         default="testadmin", validation_alias=AliasChoices("geoserverUser", "GEOSERVER_USER")
