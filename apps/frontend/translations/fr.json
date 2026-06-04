@@ -311,6 +311,8 @@
   "metadata.processing.running": "Traitement en cours",
   "quickImport.modeEmpty": "Décrire un jeu de données",
   "quickImport.modeWithData": "Importer un jeu de données",
+  "recurrence.everyMinuteWarning": "Le traitement sera exécuté toutes les minutes. Souhaitez-vous continuer ?",
+  "recurrence.everyMinuteWarningTitle": "Récurrence chaque minute",
   "recurrence.none": "Sans récurrence",
   "recurrence.preset.EVERY_DAY": "Chaque jour",
   "recurrence.preset.EVERY_HOUR": "Chaque heure",
