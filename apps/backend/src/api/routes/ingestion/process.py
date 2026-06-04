@@ -214,7 +214,7 @@ def process_staging_data(
                 logger.info("Organization not found, using user info for metadata contact")
 
             metadata_service = MetadataService(
-                gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+                gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
                 datadir_path=settings.DATADIR_PATH,
                 credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
                 gn_sync_mode=settings.GN_SYNC_MODE,
@@ -418,7 +418,7 @@ async def dag_success_callback(
     if integrity_link.metadata_id is not None:
         try:
             metadata_service = MetadataService(
-                gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+                gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
                 datadir_path=settings.DATADIR_PATH,
                 credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
                 verify_tls=False,

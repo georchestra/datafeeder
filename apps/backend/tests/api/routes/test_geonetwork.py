@@ -14,7 +14,7 @@ class TestGeoNetworkProxy:
     def mock_settings(self) -> Mock:
         """Create mock settings for GeoNetwork connection."""
         settings = Mock()
-        settings.GEONETWORK_URL = "http://geonetwork.example.com/geonetwork"
+        settings.GEONETWORK_INTERNAL_URL = "http://geonetwork.example.com/geonetwork"
         settings.GEONETWORK_USERNAME = "test_user"
         settings.GEONETWORK_PASSWORD = "test_pass"
         return settings
@@ -60,7 +60,7 @@ class TestGeoNetworkProxy:
                 # Verify correct URL with query string
                 call_kwargs = mock_client.request.call_args.kwargs
                 assert call_kwargs["method"] == "GET"
-                expected_url = f"{mock_settings.GEONETWORK_URL}/{path}?{query}"
+                expected_url = f"{mock_settings.GEONETWORK_INTERNAL_URL}/{path}?{query}"
                 assert call_kwargs["url"] == expected_url
 
                 # Verify response
@@ -238,6 +238,6 @@ class TestGeoNetworkProxy:
 
                 # Verify URL has no query string
                 call_kwargs = mock_client.request.call_args.kwargs
-                expected_url = f"{mock_settings.GEONETWORK_URL}/{path}"
+                expected_url = f"{mock_settings.GEONETWORK_INTERNAL_URL}/{path}"
                 assert call_kwargs["url"] == expected_url
                 assert "?" not in call_kwargs["url"]

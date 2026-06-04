@@ -61,7 +61,7 @@ def create_empty_dataset(
             user_last_name = geo_ctx.lastname
 
         metadata_service = MetadataService(
-            gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+            gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
             datadir_path=settings.DATADIR_PATH,
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
             gn_sync_mode=settings.GN_SYNC_MODE,

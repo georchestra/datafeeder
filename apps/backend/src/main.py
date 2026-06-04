@@ -60,7 +60,7 @@ def read_version():
 @app.get("/geonetwork", tags=["Health"])
 def read_geonetwork():
     gnapi: GnApi = GnApi(
-        api_url=f"{get_settings().GEONETWORK_URL}srv/api",
+        api_url=f"{get_settings().GEONETWORK_INTERNAL_URL}srv/api",
         credentials=None,
         verifytls=False,
     )

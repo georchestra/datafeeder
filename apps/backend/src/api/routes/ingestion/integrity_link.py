@@ -104,7 +104,7 @@ def _sync_metadata_sharing(
         resolved.append((gn_group_name, rule.rule_value))
 
     metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         gn_sync_mode=settings.GN_SYNC_MODE,
@@ -266,7 +266,7 @@ def update_metadata_gn(
 
     settings = get_settings()
     metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         verify_tls=False,
@@ -459,7 +459,7 @@ def toggle_publish_gn_integrity_link(
     # Create MetadataService instance
     settings = get_settings()
     metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         verify_tls=False,
@@ -551,7 +551,7 @@ def delete_integrity_link(
         public_url=settings.DATA_PUBLIC_URL,
     )
     metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         gn_sync_mode=settings.GN_SYNC_MODE,

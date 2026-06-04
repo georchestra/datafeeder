@@ -71,7 +71,7 @@ async def proxy_geonetwork(path: str, request: Request) -> Response:
     settings = get_settings()
 
     # Build upstream URL
-    upstream_base = settings.GEONETWORK_URL.rstrip("/")
+    upstream_base = settings.GEONETWORK_INTERNAL_URL.rstrip("/")
     upstream_url = f"{upstream_base}/{path}"
 
     # Preserve query string

@@ -176,10 +176,8 @@ class Settings(BaseSettings):
     )
 
     # Geonetwork
-    GEONETWORK_URL: str = Field(
-        default="http://localhost:8080/geonetwork",
-        validation_alias=AliasChoices("geonetworkUrl", "GEONETWORK_URL"),
-    )
+    GEONETWORK_INTERNAL_URL: str = "http://localhost:8080/geonetwork"
+
     GEONETWORK_USERNAME: str = Field(
         default="testadmin", validation_alias=AliasChoices("geonetworkUser", "GEONETWORK_USERNAME")
     )
@@ -262,7 +260,7 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def GEONETWORK_XML_RECORD_URL(self) -> str:
-        return f"{self.GEONETWORK_URL}/srv/api/records/{{metadata_id}}/formatters/xml"
+        return f"{self.GEONETWORK_INTERNAL_URL}/srv/api/records/{{metadata_id}}/formatters/xml"
 
     @model_validator(mode="after")
     def _set_default_emails_from(self) -> Self:
