@@ -15,8 +15,9 @@
 <ng-template #panelTemplate>
   <app-ui-alert-box
     type="warning"
-    [dismissible]="false"
+    [dismissible]="true"
     [title]="'import.dataSource.technicalInfo.title' | translate"
     [message]="'import.dataSource.technicalInfo.message' | translate"
+    (dismissed)="closePanel()"
   />
 </ng-template>

@@ -12,11 +12,6 @@ const translations = {
     'Taille maximale : 50 Mo par fichier'
 }
 
-/**
- * Builds a mock Overlay whose hasAttached() reflects real attach/detach calls,
- * so toggle/outside-click behaviour can be exercised in jsdom where the real
- * CDK Overlay DOM positioning is not available.
- */
 function buildMockOverlay(): { overlay: Overlay; overlayRef: OverlayRef } {
   let attached = false
   const overlayRef = {

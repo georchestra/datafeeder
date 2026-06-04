@@ -24,11 +24,6 @@ import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import { iconoirHelpCircle } from '@ng-icons/iconoir'
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 
-/**
- * A small `?` icon button that toggles an info popover describing the import
- * limitations (supported file formats and max file size). Hidden by default so
- * it doesn't clutter the interface for non-technical users.
- */
 @Component({
   selector: 'app-technical-info-button',
   standalone: true,
@@ -118,7 +113,7 @@ export class TechnicalInfoButtonComponent implements OnDestroy {
     this.isOpen.set(true)
   }
 
-  private closePanel(): void {
+  closePanel(): void {
     if (!this.overlayRef?.hasAttached()) return
     this.overlayRef.detach()
     this.isOpen.set(false)
