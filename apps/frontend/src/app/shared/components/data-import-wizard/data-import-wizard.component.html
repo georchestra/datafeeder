@@ -1,4 +1,9 @@
-<div class="bg-white rounded-lg shadow-md overflow-y-auto max-h-full pt-6">
+<div
+  class="relative bg-white rounded-lg shadow-md overflow-y-auto max-h-full pt-6"
+>
+  @if (importing() || polling() || processing()) {
+  <div class="absolute inset-0 bg-white/60 z-10 pointer-events-auto"></div>
+  }
   <!-- Step title -->
   <h1 class="text-2xl font-semibold text-gray-900 px-7">
     @if (selectedTabIndex() === 0) {
