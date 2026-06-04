@@ -90,6 +90,8 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Datafeeder"
     BACKEND_INTERNAL_URL: str = "http://localhost:8000"
     DATA_PUBLIC_URL: str = "http://localhost:8080/geoserver"
+    DATAHUB_PUBLIC_URL: str = "http://localhost:8080/datahub/dataset/{metadata_id}"
+    METADATA_PUBLIC_URL: str = "http://localhost:8080/geonetwork"
     DATADIR_PATH: str = get_default_datadir()
 
     # API Configuration
@@ -162,9 +164,6 @@ class Settings(BaseSettings):
     GEOSERVER_USER: str = "testadmin"
 
     GEOSERVER_PASSWORD: str = "testadmin"
-
-    # Catalogue
-    DATAHUB_PUBLIC_URL: str = "http://localhost:8080/datahub/dataset/{metadata_id}"
 
     # Geonetwork
     GEONETWORK_INTERNAL_URL: str = "http://localhost:8080/geonetwork"
@@ -244,7 +243,7 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def GEONETWORK_XML_RECORD_URL(self) -> str:
-        return f"{self.GEONETWORK_INTERNAL_URL}/srv/api/records/{{metadata_id}}/formatters/xml"
+        return f"{self.METADATA_PUBLIC_URL}/srv/api/records/{{metadata_id}}/formatters/xml"
 
     @model_validator(mode="after")
     def _set_default_emails_from(self) -> Self:
