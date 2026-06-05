@@ -56,7 +56,7 @@ _build_callback_url = _load_build_callback_url()
 
 class TestBuildCallbackUrl:
     def test_success_url_uses_backend_url_env(self, monkeypatch):
-        monkeypatch.setenv("BACKEND_URL", "http://my-backend:9000")
+        monkeypatch.setenv("BACKEND_INTERNAL_URL", "http://my-backend:9000")
         url = _build_callback_url("/ingestion/process/dag_success", "abc-123", "my_table")
         parsed = urlparse(url)
         assert parsed.scheme == "http"
@@ -64,23 +64,23 @@ class TestBuildCallbackUrl:
         assert parsed.path == "/ingestion/process/dag_success"
 
     def test_success_url_contains_integrity_link_id(self, monkeypatch):
-        monkeypatch.setenv("BACKEND_URL", "http://datafeeder-backend:8000")
+        monkeypatch.setenv("BACKEND_INTERNAL_URL", "http://datafeeder-backend:8000")
         url = _build_callback_url("/ingestion/process/dag_success", "abc-123", "my_table")
         qs = parse_qs(urlparse(url).query)
         assert qs["integrity_link_id"] == ["abc-123"]
 
     def test_success_url_contains_final_table_name(self, monkeypatch):
-        monkeypatch.setenv("BACKEND_URL", "http://datafeeder-backend:8000")
+        monkeypatch.setenv("BACKEND_INTERNAL_URL", "http://datafeeder-backend:8000")
         url = _build_callback_url("/ingestion/process/dag_success", "abc-123", "my_table")
         qs = parse_qs(urlparse(url).query)
         assert qs["final_table_name"] == ["my_table"]
 
     def test_failure_url_points_to_dag_failure_endpoint(self, monkeypatch):
-        monkeypatch.setenv("BACKEND_URL", "http://datafeeder-backend:8000")
+        monkeypatch.setenv("BACKEND_INTERNAL_URL", "http://datafeeder-backend:8000")
         url = _build_callback_url("/ingestion/process/dag_failure", "abc-123", "my_table")
         assert urlparse(url).path == "/ingestion/process/dag_failure"
 
     def test_default_backend_url_when_env_not_set(self, monkeypatch):
-        monkeypatch.delenv("BACKEND_URL", raising=False)
+        monkeypatch.delenv("BACKEND_INTERNAL_URL", raising=False)
         url = _build_callback_url("/ingestion/process/dag_success", "abc-123", "my_table")
         assert url.startswith("http://datafeeder-backend:8000")

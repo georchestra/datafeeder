@@ -12,7 +12,7 @@ class TestMetadataGroups:
 
     def _mock_settings(self, gn_sync_mode: str = "ORG", filter_regex: str = "") -> MagicMock:
         mock_settings = MagicMock()
-        mock_settings.CONSOLE_URL = "http://console.example.com"
+        mock_settings.CONSOLE_INTERNAL_URL = "http://console.example.com"
         mock_settings.GN_SYNC_MODE = gn_sync_mode
         mock_settings.METADATA_GROUPS_LABEL_FILTER_REGEX = filter_regex
         return mock_settings

@@ -198,7 +198,7 @@ def process_staging_data(
                 is_geographic=is_geographic,
             )
 
-            console_service = ConsoleService(settings.CONSOLE_URL)
+            console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
             organization = console_service.get_organization(integrity_link.integrity_organization)
 
             user_first_name = sec_firstname
@@ -217,7 +217,7 @@ def process_staging_data(
                 logger.info("Organization not found, using user info for metadata contact")
 
             metadata_service = MetadataService(
-                gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+                gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
                 datadir_path=settings.DATADIR_PATH,
                 credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
                 gn_sync_mode=settings.GN_SYNC_MODE,
@@ -381,7 +381,7 @@ async def dag_success_callback(
                     mime_type="text/xml",
                 ),
                 MetadataLink(
-                    url=settings.CATALOGUE_URL.format(metadata_id=integrity_link.metadata_id),
+                    url=settings.DATAHUB_PUBLIC_URL.format(metadata_id=integrity_link.metadata_id),
                     metadata_type="ISO19115:2003",
                     mime_type="text/html",
                 ),
@@ -421,7 +421,7 @@ async def dag_success_callback(
     if integrity_link.metadata_id is not None:
         try:
             metadata_service = MetadataService(
-                gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+                gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
                 datadir_path=settings.DATADIR_PATH,
                 credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
                 verify_tls=False,

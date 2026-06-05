@@ -19,7 +19,7 @@ router = APIRouter(prefix="/data/groups", tags=["Data"])
 )
 def list_groups(geo_ctx: GeorchestraContextDep) -> list[GroupItem]:
     settings = get_settings()
-    console_service = ConsoleService(settings.CONSOLE_URL)
+    console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
 
     try:
         items = console_service.get_all_roles()

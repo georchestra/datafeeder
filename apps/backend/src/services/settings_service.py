@@ -41,7 +41,7 @@ class SettingsService:
         settings_dict: dict[str, Any] = {
             "projections": projections,
             "enabled_features": enabled_features,
-            "catalogue_url": self._settings.CATALOGUE_URL,
+            "catalogue_url": self._settings.DATAHUB_PUBLIC_URL,
         }
         return settings_dict
 

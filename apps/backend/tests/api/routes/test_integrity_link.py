@@ -1923,7 +1923,7 @@ class TestUpdateMetadataGn:
 
     def _mock_settings(self) -> MagicMock:
         s = MagicMock()
-        s.GEONETWORK_URL = "http://geonetwork"
+        s.GEONETWORK_INTERNAL_URL = "http://geonetwork"
         s.DATADIR_PATH = "/datadir"
         s.GEONETWORK_USERNAME = "admin"
         s.GEONETWORK_PASSWORD = "password"
@@ -2108,7 +2108,7 @@ class TestSyncTitleGeoserver:
 
     def _mock_settings(self) -> MagicMock:
         s = MagicMock()
-        s.GEOSERVER_URL = "http://geoserver"
+        s.GEOSERVER_INTERNAL_URL = "http://geoserver"
         s.GEOSERVER_USER = "admin"
         s.GEOSERVER_PASSWORD = "password"
         s.DATA_PUBLIC_URL = "http://public"

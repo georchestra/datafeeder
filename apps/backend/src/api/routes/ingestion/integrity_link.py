@@ -74,7 +74,7 @@ def _sync_metadata_sharing(
     )
 
     try:
-        console_service = ConsoleService(settings.CONSOLE_URL)
+        console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
         if settings.GN_SYNC_MODE == "ORG":
             items = console_service.get_all_organizations()
             groups_by_id = {
@@ -104,7 +104,7 @@ def _sync_metadata_sharing(
         resolved.append((gn_group_name, rule.rule_value))
 
     metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         gn_sync_mode=settings.GN_SYNC_MODE,
@@ -162,7 +162,7 @@ def _sync_data_sharing(
     if uuids_to_resolve:
         # Only call Console when at least one non-EVERYONE role needs UUID resolution.
         # This keeps EVERYONE-only configs resilient to Console outages.
-        console_service = ConsoleService(settings.CONSOLE_URL)
+        console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
         all_roles = console_service.get_all_roles()  # raises ConsoleServiceError on failure
         id_to_name = {
             str(r["id"]): f"ROLE_{r['name']}" for r in all_roles if r.get("id") and r.get("name")
@@ -184,7 +184,7 @@ def _sync_data_sharing(
 
     if geoserver_service is None:
         geoserver_service = GeoServerService(
-            base_url=settings.GEOSERVER_URL,
+            base_url=settings.GEOSERVER_INTERNAL_URL,
             username=settings.GEOSERVER_USER,
             password=settings.GEOSERVER_PASSWORD,
             public_url=settings.DATA_PUBLIC_URL,
@@ -232,7 +232,7 @@ def _sync_title_geoserver(title: str, integrity_link: IntegrityLink) -> None:
         return
     settings = get_settings()
     gs = GeoServerService(
-        base_url=settings.GEOSERVER_URL,
+        base_url=settings.GEOSERVER_INTERNAL_URL,
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
         public_url=settings.DATA_PUBLIC_URL,
@@ -266,7 +266,7 @@ def update_metadata_gn(
 
     settings = get_settings()
     metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         verify_tls=False,
@@ -459,7 +459,7 @@ def toggle_publish_gn_integrity_link(
     # Create MetadataService instance
     settings = get_settings()
     metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         verify_tls=False,
@@ -541,13 +541,13 @@ def delete_integrity_link(
 
     settings = get_settings()
     geoserver_service = GeoServerService(
-        base_url=settings.GEOSERVER_URL,
+        base_url=settings.GEOSERVER_INTERNAL_URL,
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
         public_url=settings.DATA_PUBLIC_URL,
     )
     metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_URL}/srv/api",
+        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
         credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         gn_sync_mode=settings.GN_SYNC_MODE,

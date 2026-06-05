@@ -88,7 +88,7 @@ def get_temp_file_dir_path() -> str:
         The temporary upload directory path
     """
     settings = get_settings()
-    temp_file_folder = settings.BACKEND_URL + "/internal/files/"
+    temp_file_folder = settings.BACKEND_INTERNAL_URL + "/internal/files/"
 
     return temp_file_folder
 

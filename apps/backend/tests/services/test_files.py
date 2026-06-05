@@ -58,7 +58,7 @@ class TestUploadFileToTemp:
         """Create mock settings."""
         settings = MagicMock()
         settings.TMP_UPLOAD_PATH = "/tmp"
-        settings.BACKEND_URL = "http://localhost:8000"
+        settings.BACKEND_INTERNAL_URL = "http://localhost:8000"
         return settings
 
     @pytest.fixture
@@ -294,7 +294,7 @@ class TestGetTempFileUrl:
     def mock_settings(self) -> MagicMock:
         """Create mock settings."""
         settings = MagicMock()
-        settings.BACKEND_URL = "http://localhost:8000"
+        settings.BACKEND_INTERNAL_URL = "http://localhost:8000"
         return settings
 
     @patch("src.services.files.get_settings")
@@ -313,7 +313,7 @@ class TestGetTempFileUrl:
     def test_get_temp_file_url_different_backend(self, mock_get_settings: MagicMock) -> None:
         """Test generating URL with different backend URL."""
         settings = MagicMock()
-        settings.BACKEND_URL = "https://example.com/api"
+        settings.BACKEND_INTERNAL_URL = "https://example.com/api"
         mock_get_settings.return_value = settings
         filename = "data.csv"
 
@@ -343,7 +343,7 @@ class TestDeleteTempFile:
         """Create mock settings."""
         settings = MagicMock()
         settings.TMP_UPLOAD_PATH = "/tmp"
-        settings.BACKEND_URL = "http://localhost:8000"
+        settings.BACKEND_INTERNAL_URL = "http://localhost:8000"
         return settings
 
     @patch("src.services.files.get_settings")

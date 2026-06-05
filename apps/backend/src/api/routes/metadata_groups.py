@@ -22,7 +22,7 @@ router = APIRouter(prefix="/metadata/groups", tags=["Metadata"])
 )
 def list_groups(geo_ctx: GeorchestraContextDep) -> list[GroupItem]:
     settings = get_settings()
-    console_service = ConsoleService(settings.CONSOLE_URL)
+    console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
 
     try:
         if settings.GN_SYNC_MODE == "ORG":

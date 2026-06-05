@@ -88,8 +88,10 @@ class Settings(BaseSettings):
 
     # Project Information
     PROJECT_NAME: str = "Datafeeder"
-    BACKEND_URL: str = "http://localhost:8000"
+    BACKEND_INTERNAL_URL: str = "http://localhost:8000"
     DATA_PUBLIC_URL: str = "http://localhost:8080/geoserver"
+    DATAHUB_PUBLIC_URL: str = "http://localhost:8080/datahub/dataset/{metadata_id}"
+    METADATA_PUBLIC_URL: str = "http://localhost:8080/geonetwork"
     DATADIR_PATH: str = get_default_datadir()
 
     # API Configuration
@@ -115,7 +117,7 @@ class Settings(BaseSettings):
     TASK_EXECUTOR: TaskExecutorType = TaskExecutorType.AIRFLOW
 
     # Airflow configuration
-    AIRFLOW_URL: str = "http://localhost:8081/airflow"
+    AIRFLOW_INTERNAL_URL: str = "http://localhost:8081/airflow"
     AIRFLOW_USERNAME: str = "airflow"
     AIRFLOW_PASSWORD: str = "airflow"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 60 minutes * 24 hours * 8 days = 8 days
@@ -157,52 +159,28 @@ class Settings(BaseSettings):
     USE_ORG_SCHEMA: bool = False
 
     # GeoServer
-    GEOSERVER_URL: str = Field(
-        default="http://localhost:8080/geoserver",
-        validation_alias=AliasChoices("geoserverUrl", "GEOSERVER_URL"),
-    )
-    GEOSERVER_USER: str = Field(
-        default="testadmin", validation_alias=AliasChoices("geoserverUser", "GEOSERVER_USER")
-    )
-    GEOSERVER_PASSWORD: str = Field(
-        default="testadmin",
-        validation_alias=AliasChoices("geoserverPassword", "GEOSERVER_PASSWORD"),
-    )
+    GEOSERVER_INTERNAL_URL: str = "http://localhost:8080/geoserver"
 
-    # Catalogue
-    CATALOGUE_URL: str = Field(
-        default="http://localhost:8080/datahub/dataset/{metadata_id}",
-        validation_alias=AliasChoices("catalogueUrl", "CATALOGUE_URL"),
-    )
+    GEOSERVER_USER: str = "testadmin"
+
+    GEOSERVER_PASSWORD: str = "testadmin"
 
     # Geonetwork
-    GEONETWORK_URL: str = Field(
-        default="http://localhost:8080/geonetwork",
-        validation_alias=AliasChoices("geonetworkUrl", "GEONETWORK_URL"),
-    )
-    GEONETWORK_USERNAME: str = Field(
-        default="testadmin", validation_alias=AliasChoices("geonetworkUser", "GEONETWORK_USERNAME")
-    )
-    GEONETWORK_PASSWORD: str = Field(
-        default="testadmin",
-        validation_alias=AliasChoices("geonetworkPassword", "GEONETWORK_PASSWORD"),
-    )
+    GEONETWORK_INTERNAL_URL: str = "http://localhost:8080/geonetwork"
+
+    GEONETWORK_USERNAME: str = "testadmin"
+
+    GEONETWORK_PASSWORD: str = "testadmin"
+
     # This is odd, apparently any UUID works as XSRF token
     GEONETWORK_XSRF_TOKEN: str = "c9f33266-e242-4198-a18c-b01290dce5f1"
-    GN_SYNC_MODE: Literal["ORG", "ROLE"] = Field(
-        default="ORG",
-        validation_alias=AliasChoices("gnSyncMode", "GN_SYNC_MODE"),
-    )
-    METADATA_DEFAULT_GROUP_NAME: str = Field(
-        default="sample",
-        validation_alias=AliasChoices("metadataDefaultGroupName", "METADATA_DEFAULT_GROUP_NAME"),
-    )
+
+    GN_SYNC_MODE: Literal["ORG", "ROLE"] = "ORG"
+
+    METADATA_DEFAULT_GROUP_NAME: str = "sample"
 
     # Console
-    CONSOLE_URL: str = Field(
-        default="http://localhost:8085/console",
-        validation_alias=AliasChoices("consoleUrl", "CONSOLE_URL"),
-    )
+    CONSOLE_INTERNAL_URL: str = "http://localhost:8085/console"
 
     # Metadata groups (for authorization UI)
     METADATA_GROUPS_LABEL_FILTER_REGEX: str = ""
@@ -265,7 +243,7 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def GEONETWORK_XML_RECORD_URL(self) -> str:
-        return f"{self.GEONETWORK_URL}/srv/api/records/{{metadata_id}}/formatters/xml"
+        return f"{self.METADATA_PUBLIC_URL}/srv/api/records/{{metadata_id}}/formatters/xml"
 
     @model_validator(mode="after")
     def _set_default_emails_from(self) -> Self:
