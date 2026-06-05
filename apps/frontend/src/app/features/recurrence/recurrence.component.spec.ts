@@ -2,13 +2,16 @@
  * Vitest unit tests for RecurrenceComponent.
  *
  * Covers preset initialization from the store, preset loading, and the
- * schedule PATCH effect that auto-saves on dropdown change.
+<<<<<<< HEAD
+ * schedule PATCH triggered by onPresetChange (with EVERY_MINUTE confirmation).
  */
 
 import { Component, Input } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
+import { MatDialog } from '@angular/material/dialog'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateTestingModule } from 'ngx-translate-testing'
+import { of } from 'rxjs'
 import { Api } from '../../core/api/api'
 import {
   listRecurrencePresetsIngestionRecurrencePresetsGet,
@@ -69,11 +72,15 @@ describe('RecurrenceComponent', () => {
   const intlinkId = 'test-intlink-id'
 
   let apiInvokeSpy: ReturnType<typeof vi.fn>
+  let dialogOpenSpy: ReturnType<typeof vi.fn>
+  let dialogResult: boolean
   let store: IntegrityLinkStore
   let toastStore: OperationToastStore
 
   beforeEach(async () => {
     apiInvokeSpy = vi.fn().mockResolvedValue([])
+    dialogResult = true
+    dialogOpenSpy = vi.fn(() => ({ afterClosed: () => of(dialogResult) }))
 
     await TestBed.configureTestingModule({
       imports: [
@@ -84,7 +91,8 @@ describe('RecurrenceComponent', () => {
       ],
       providers: [
         IntegrityLinkStore,
-        { provide: Api, useValue: { invoke: apiInvokeSpy } }
+        { provide: Api, useValue: { invoke: apiInvokeSpy } },
+        { provide: MatDialog, useValue: { open: dialogOpenSpy } }
       ]
     })
       .overrideComponent(RecurrenceComponent, {
@@ -179,30 +187,26 @@ describe('RecurrenceComponent', () => {
       )
     })
 
-    it('should call PATCH /schedule when selectedPresetId changes to a preset', async () => {
-      const { fixture, component } = createComponent()
+    it('should call PATCH /schedule when onPresetChange is called with a preset', async () => {
+      const { component } = createComponent()
 
-      component.selectedPresetId.set('EVERY_DAY')
-      fixture.detectChanges()
+      await component.onPresetChange('EVERY_DAY')
 
-      await vi.waitFor(() => {
-        expect(apiInvokeSpy).toHaveBeenCalledWith(
-          updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
-          {
-            integrity_link_id: intlinkId,
-            body: { preset: 'EVERY_DAY' }
-          }
-        )
-      })
+      expect(apiInvokeSpy).toHaveBeenCalledWith(
+        updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
+        {
+          integrity_link_id: intlinkId,
+          body: { preset: 'EVERY_DAY' }
+        }
+      )
     })
 
     it('should NOT call PATCH /schedule when intlink_id is null', async () => {
       store.intlinkId.set(null)
       const { component } = createComponent()
 
-      component.selectedPresetId.set('EVERY_DAY')
+      await component.onPresetChange('EVERY_DAY')
 
-      await new Promise((r) => setTimeout(r, 20))
       expect(apiInvokeSpy).not.toHaveBeenCalledWith(
         updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
         expect.anything()
@@ -217,7 +221,7 @@ describe('RecurrenceComponent', () => {
           schedule_enabled: false
         })
       )
-      const { fixture, component } = createComponent()
+      const { component } = createComponent()
 
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (
@@ -235,18 +239,15 @@ describe('RecurrenceComponent', () => {
         return Promise.resolve([])
       })
 
-      component.selectedPresetId.set('EVERY_DAY')
-      fixture.detectChanges()
+      await component.onPresetChange('EVERY_DAY')
 
-      await vi.waitFor(() => {
-        expect(store.integrityLink()?.preset_id).toBe('EVERY_DAY')
-        expect(store.integrityLink()?.schedule).toBe('0 0 * * *')
-        expect(store.integrityLink()?.schedule_enabled).toBe(true)
-      })
+      expect(store.integrityLink()?.preset_id).toBe('EVERY_DAY')
+      expect(store.integrityLink()?.schedule).toBe('0 0 * * *')
+      expect(store.integrityLink()?.schedule_enabled).toBe(true)
     })
 
     it('should add an error toast when PATCH /schedule fails', async () => {
-      const { fixture, component } = createComponent()
+      const { component } = createComponent()
 
       apiInvokeSpy.mockImplementation((fn: unknown) => {
         if (
@@ -258,12 +259,55 @@ describe('RecurrenceComponent', () => {
         return Promise.resolve([])
       })
 
-      component.selectedPresetId.set('EVERY_DAY')
-      fixture.detectChanges()
+      await component.onPresetChange('EVERY_DAY')
 
-      await vi.waitFor(() => {
-        expect(toastStore.toasts().length).toBeGreaterThan(0)
-      })
+      expect(toastStore.toasts().length).toBeGreaterThan(0)
+    })
+  })
+
+  // ─── EVERY_MINUTE confirmation ───────────────────────────────────────────
+
+  describe('EVERY_MINUTE confirmation', () => {
+    it('should NOT open a dialog for other presets', async () => {
+      const { component } = createComponent()
+
+      await component.onPresetChange('EVERY_DAY')
+
+      expect(dialogOpenSpy).not.toHaveBeenCalled()
+    })
+
+    it('should open a confirmation dialog and PATCH when confirmed', async () => {
+      dialogResult = true
+      const { component } = createComponent()
+
+      await component.onPresetChange('EVERY_MINUTE')
+
+      expect(dialogOpenSpy).toHaveBeenCalled()
+      expect(component.selectedPresetId()).toBe('EVERY_MINUTE')
+      expect(apiInvokeSpy).toHaveBeenCalledWith(
+        updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
+        {
+          integrity_link_id: intlinkId,
+          body: { preset: 'EVERY_MINUTE' }
+        }
+      )
+    })
+
+    it('should revert to the previous preset and NOT PATCH when cancelled', async () => {
+      store.integrityLink.set(
+        makeIntegrityLink({ preset_id: 'EVERY_DAY', schedule_enabled: true })
+      )
+      dialogResult = false
+      const { component } = createComponent()
+
+      await component.onPresetChange('EVERY_MINUTE')
+
+      expect(dialogOpenSpy).toHaveBeenCalled()
+      expect(component.selectedPresetId()).toBe('EVERY_DAY')
+      expect(apiInvokeSpy).not.toHaveBeenCalledWith(
+        updateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch,
+        expect.anything()
+      )
     })
   })
 })

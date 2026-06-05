@@ -12,7 +12,7 @@
     <app-recurrence-selector
       [presets]="recurrencePresets()"
       [selectedPresetId]="selectedPresetId()"
-      (presetChange)="selectedPresetId.set($any($event))"
+      (presetChange)="onPresetChange($any($event))"
     />
   </div>
 </div>

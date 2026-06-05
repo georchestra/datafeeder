@@ -309,6 +309,8 @@
   "metadata.processing.running": "",
   "quickImport.modeEmpty": "",
   "quickImport.modeWithData": "",
+  "recurrence.everyMinuteWarning": "",
+  "recurrence.everyMinuteWarningTitle": "",
   "recurrence.none": "",
   "recurrence.preset.EVERY_DAY": "",
   "recurrence.preset.EVERY_HOUR": "",
