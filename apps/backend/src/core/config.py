@@ -11,9 +11,7 @@ from pydantic import (
     AliasChoices,
     AnyUrl,
     BeforeValidator,
-    EmailStr,
     Field,
-    HttpUrl,
     PostgresDsn,
     computed_field,
     field_validator,
@@ -95,9 +93,7 @@ class Settings(BaseSettings):
     DATADIR_PATH: str = get_default_datadir()
 
     # API Configuration
-    API_V1_STR: str = "/api/v1"
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
-    SENTRY_DSN: HttpUrl | None = None
     TMP_UPLOAD_PATH: str = "/tmp/"
 
     # Projections Configuration, used by frontend
@@ -188,20 +184,6 @@ class Settings(BaseSettings):
     # Data groups (for GeoServer authorization UI)
     DATA_GROUPS_LABEL_FILTER_REGEX: str = ""
 
-    # Email Configuration
-    SMTP_TLS: bool = True
-    SMTP_SSL: bool = False
-    SMTP_PORT: int = 587
-    SMTP_HOST: str | None = None
-    SMTP_USER: str | None = None
-    SMTP_PASSWORD: str | None = None
-    EMAILS_FROM_EMAIL: EmailStr | None = None
-    EMAILS_FROM_NAME: str | None = None
-    EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
-
-    EMAIL_TEST_USER: EmailStr = "test@example.com"
-    FIRST_SUPERUSER: EmailStr = "admin@example.com"
-
     ### Validators and computed fields
 
     @computed_field  # type: ignore[prop-decorator]
@@ -237,19 +219,8 @@ class Settings(BaseSettings):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def emails_enabled(self) -> bool:
-        return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
     def GEONETWORK_XML_RECORD_URL(self) -> str:
         return f"{self.METADATA_PUBLIC_URL}/srv/api/records/{{metadata_id}}/formatters/xml"
-
-    @model_validator(mode="after")
-    def _set_default_emails_from(self) -> Self:
-        if not self.EMAILS_FROM_NAME:
-            object.__setattr__(self, "EMAILS_FROM_NAME", self.PROJECT_NAME)
-        return self
 
     @model_validator(mode="after")
     def _set_data_db_defaults(self) -> Self:
