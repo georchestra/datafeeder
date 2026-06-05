@@ -20,7 +20,7 @@ from src.services.geoserver import GeoServerService
 
 logger = get_logger()
 
-reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{get_settings().API_V1_STR}/login/access-token")
+reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"/api/v1/login/access-token")
 
 
 def get_datafeeder_db() -> Generator[Session, None, None]:
