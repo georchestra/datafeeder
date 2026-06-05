@@ -24,20 +24,20 @@
     } @else {
     <!-- Header -->
     <div class="-mx-7 mb-2 flex border-t border-gray-200 px-7 pt-3">
-      <div class="pl-2 w-28 pr-4 text-sm font-semibold text-gray-2">
-        {{ 'integrityLinks.creation' | translate }}
-      </div>
       <div class="flex-1 pr-4 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.title' | translate }}
       </div>
-      <div class="w-44 pr-4 text-sm font-semibold text-gray-2">
-        {{ 'integrityLinks.recurrence' | translate }}
+      <div class="w-48 pr-4 text-sm font-semibold text-gray-2">
+        {{ 'integrityLinks.owner' | translate }}
       </div>
       <div class="w-32 pr-4 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.visibility' | translate }}
       </div>
-      <div class="w-48 text-sm font-semibold text-gray-2">
-        {{ 'integrityLinks.owner' | translate }}
+      <div class="w-44 pr-4 text-sm font-semibold text-gray-2">
+        {{ 'integrityLinks.recurrence' | translate }}
+      </div>
+      <div class="pl-2 w-32 pr-4 text-sm font-semibold text-gray-2">
+        {{ 'integrityLinks.creation' | translate }}
       </div>
       <div class="w-[88px] shrink-0"></div>
     </div>
@@ -52,9 +52,6 @@
             : 'group flex rounded-md bg-beige h-[34px] items-center transition-colors hover:bg-gray-100'
         "
       >
-        <div class="pl-2 w-28 pr-4 text-sm text-gray-2">
-          {{ link.created_at | date : 'dd/MM/yyyy' }}
-        </div>
         <div class="flex-1 truncate pr-4 text-sm text-gray-2">
           @if (link.has_final_table || link.source_import_type === 'empty') {
           {{ link.integrity_title }}
@@ -71,6 +68,12 @@
           </span>
           }
         </div>
+        <div class="w-48 pr-4 text-sm text-gray-2">
+          {{ link.owner_display_name ?? link.integrity_owner }}
+        </div>
+        <div class="w-32 pr-4 text-sm text-gray-2">
+          {{ 'integrityLinks.visibility.' + getVisibility(link) | translate }}
+        </div>
         <div
           class="flex w-44 shrink-0 items-center gap-1 pr-4 text-sm text-gray-2"
         >
@@ -85,11 +88,8 @@
           }}</span>
           }
         </div>
-        <div class="w-32 pr-4 text-sm text-gray-2">
-          {{ 'integrityLinks.visibility.' + getVisibility(link) | translate }}
-        </div>
-        <div class="w-48 text-sm text-gray-2">
-          {{ link.owner_display_name ?? link.integrity_owner }}
+        <div class="pl-2 w-32 pr-4 text-sm text-gray-2">
+          {{ link.created_at | date : 'dd/MM/yyyy' }}
         </div>
         <div class="flex w-[88px] shrink-0 items-center justify-end gap-1 pr-2">
           @if (!isReadOnly(link)) {
