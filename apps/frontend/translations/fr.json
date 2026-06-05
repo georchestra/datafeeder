@@ -281,6 +281,7 @@
   "integrityLinks.creation": "Date de création",
   "integrityLinks.dashboard": "Mes jeux de données",
   "integrityLinks.edit": "Modifier le jeu de données",
+  "integrityLinks.dashboard": "Mes jeux de données",
   "integrityLinks.emptyList": "Aucun jeu de données trouvé",
   "integrityLinks.loadMore": "Charger plus",
   "integrityLinks.noFinalTable": "Jeu de données à configurer",

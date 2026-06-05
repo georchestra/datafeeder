@@ -22,7 +22,12 @@ import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import {
   iconoirFloppyDisk,
   iconoirRefreshCircle,
-  iconoirOpenNewWindow
+  iconoirOpenNewWindow,
+  iconoirHome,
+  iconoirJournalPage,
+  iconoirListSelect,
+  iconoirCalendarRotate,
+  iconoirShieldCheck
 } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
 import {
@@ -80,7 +85,12 @@ marker('footer.openInCatalogue')
     provideIcons({
       iconoirFloppyDisk,
       iconoirRefreshCircle,
-      iconoirOpenNewWindow
+      iconoirOpenNewWindow,
+      iconoirHome,
+      iconoirJournalPage,
+      iconoirListSelect,
+      iconoirCalendarRotate,
+      iconoirShieldCheck
     })
   ]
 })

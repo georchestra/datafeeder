@@ -3,47 +3,94 @@
     class="flex shrink-0 flex-col justify-between border-r border-gray-200 bg-white px-4 py-6 w-64 overflow-y-auto"
   >
     <div class="flex flex-col gap-1">
+      <!-- Dashboard — always available -->
+      <a
+        [routerLink]="['/']"
+        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+      >
+        <ng-icon name="iconoirHome" size="18"></ng-icon>
+        {{ 'integrityLinks.dashboard' | translate }}
+      </a>
+
+      <hr class="my-2 border-gray-200" />
+
       <!-- Metadata Sheet — always enabled (requires at least METADATA_WRITE to reach this page) -->
       <a
         [routerLink]="['edit']"
         routerLinkActive="bg-secondary-dark text-white"
         #rla="routerLinkActive"
-        class="rounded-md p-2 text-base text-secondary hover:bg-secondary-hover"
+        class="flex items-start gap-2 rounded-md p-2 text-base text-secondary hover:bg-secondary-hover"
       >
-        {{ 'sidebar.metadataSheet' | translate }}
-        @if (rla.isActive) {
-        <button
-          type="button"
-          (click)="onSaveClick()"
-          class="mt-2 w-full flex items-center justify-center rounded-full bg-white text-secondary-dark hover:bg-white/80 disabled:bg-white/30 disabled:text-white/70 disabled:cursor-not-allowed"
-          [disabled]="metadataSaveService.isSaving() || !changedSinceSave()"
-        >
-          <div class="my-1.5 flex items-center justify-center gap-1">
-            <ng-icon name="iconoirFloppyDisk" size="16"></ng-icon>
-            <span class="font-medium text-xs">{{
-              'sidebar.metadataSheet.save' | translate
-            }}</span>
+        <ng-icon
+          name="iconoirJournalPage"
+          size="18"
+          class="mt-0.5 ml-1 shrink-0"
+        ></ng-icon>
+        <div class="flex-1">
+          {{ 'sidebar.metadataSheet' | translate }}
+          @if (rla.isActive) {
+          <button
+            type="button"
+            (click)="onSaveClick()"
+            class="mt-2 w-full flex items-center justify-center rounded-full bg-white text-secondary-dark hover:bg-white/80 disabled:bg-white/30 disabled:text-white/70 disabled:cursor-not-allowed"
+            [disabled]="metadataSaveService.isSaving() || !changedSinceSave()"
+          >
+            <div class="my-1.5 flex items-center justify-center gap-1">
+              <ng-icon name="iconoirFloppyDisk" size="16"></ng-icon>
+              <span class="font-medium text-xs">{{
+                'sidebar.metadataSheet.save' | translate
+              }}</span>
+            </div>
+          </button>
+          @if (metadataSaveService.isSaving()) {
+          <div class="mt-2 w-full flex items-center justify-center">
+            <gn-ui-spinning-loader></gn-ui-spinning-loader>
           </div>
-        </button>
-        @if (metadataSaveService.isSaving()) {
-        <div class="mt-2 w-full flex items-center justify-center">
-          <gn-ui-spinning-loader></gn-ui-spinning-loader>
+          } }
         </div>
-        } }
       </a>
+
+      <!-- Events — disabled for empty datasets, owner/admin only otherwise -->
+      @if (store.isEmptyDataset() || !store.isOwnerOrAdmin()) {
+      <span
+        class="flex items-center gap-2 cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+        [title]="
+          store.isEmptyDataset()
+            ? ('sidebar.unavailableForEmpty' | translate)
+            : ''
+        "
+      >
+        <ng-icon name="iconoirListSelect" size="18" class="shrink-0"></ng-icon>
+        {{ 'sidebar.eventsAndStatuses' | translate }}
+      </span>
+      } @else {
+      <a
+        [routerLink]="['events']"
+        routerLinkActive="bg-secondary-dark text-white"
+        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+      >
+        <ng-icon name="iconoirListSelect" size="18" class="shrink-0"></ng-icon>
+        {{ 'sidebar.eventsAndStatuses' | translate }}
+      </a>
+      }
 
       <!-- Recurrence — remote datasets only, owner/admin only -->
       @if (store.isRemoteDataset() && store.isOwnerOrAdmin()) {
       <a
         [routerLink]="['recurrence']"
         routerLinkActive="bg-secondary-dark text-white"
-        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
       >
+        <ng-icon
+          name="iconoirCalendarRotate"
+          size="18"
+          class="shrink-0"
+        ></ng-icon>
         {{ 'sidebar.recurrence' | translate }}
       </a>
       } @else {
       <span
-        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+        class="flex items-center gap-2 cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
         [title]="
           store.isEmptyDataset()
             ? ('sidebar.unavailableForEmpty' | translate)
@@ -52,6 +99,11 @@
             : ''
         "
       >
+        <ng-icon
+          name="iconoirCalendarRotate"
+          size="18"
+          class="shrink-0"
+        ></ng-icon>
         {{ 'sidebar.recurrence' | translate }}
       </span>
       }
@@ -61,47 +113,19 @@
       <a
         [routerLink]="['authorizations']"
         routerLinkActive="bg-secondary-dark text-white"
-        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
       >
+        <ng-icon name="iconoirShieldCheck" size="18" class="shrink-0"></ng-icon>
         {{ 'sidebar.accessRights' | translate }}
       </a>
       } @else {
       <span
-        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+        class="flex items-center gap-2 cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
       >
+        <ng-icon name="iconoirShieldCheck" size="18" class="shrink-0"></ng-icon>
         {{ 'sidebar.accessRights' | translate }}
       </span>
       }
-
-      <!-- Events — disabled for empty datasets, owner/admin only otherwise -->
-      @if (store.isEmptyDataset() || !store.isOwnerOrAdmin()) {
-      <span
-        class="cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
-        [title]="
-          store.isEmptyDataset()
-            ? ('sidebar.unavailableForEmpty' | translate)
-            : ''
-        "
-      >
-        {{ 'sidebar.eventsAndStatuses' | translate }}
-      </span>
-      } @else {
-      <a
-        [routerLink]="['events']"
-        routerLinkActive="bg-secondary-dark text-white"
-        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
-      >
-        {{ 'sidebar.eventsAndStatuses' | translate }}
-      </a>
-      }
-
-      <hr class="my-2 border-gray-200" />
-      <a
-        [routerLink]="['/']"
-        class="rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
-      >
-        {{ 'integrityLinks.dashboard' | translate }}
-      </a>
     </div>
   </nav>
 
