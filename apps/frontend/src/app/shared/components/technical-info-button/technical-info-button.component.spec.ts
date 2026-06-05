@@ -94,26 +94,6 @@ describe('TechnicalInfoButtonComponent', () => {
     expect(overlayRef.attach).toHaveBeenCalled()
   })
 
-  it('should close the panel when the button is clicked again', () => {
-    const fixture = TestBed.createComponent(TechnicalInfoButtonComponent)
-    fixture.detectChanges()
-
-    const { overlay, overlayRef } = buildMockOverlay()
-    ;(fixture.componentInstance as any).overlay = overlay
-
-    const btn = fixture.nativeElement.querySelector(
-      '[data-test="technical-info-button"]'
-    ) as HTMLElement
-    btn.click()
-    fixture.detectChanges()
-    expect(fixture.componentInstance.isOpen()).toBe(true)
-
-    btn.click()
-    fixture.detectChanges()
-    expect(fixture.componentInstance.isOpen()).toBe(false)
-    expect(overlayRef.detach).toHaveBeenCalled()
-  })
-
   it('should close the panel on pointerdown outside the button and overlay', () => {
     const fixture = TestBed.createComponent(TechnicalInfoButtonComponent)
     fixture.detectChanges()

@@ -50,16 +50,7 @@ export class TechnicalInfoButtonComponent implements OnDestroy {
     this.positionStrategy = null
   }
 
-  togglePanel(event: MouseEvent): void {
-    event.stopPropagation()
-    if (this.overlayRef?.hasAttached()) {
-      this.closePanel()
-    } else {
-      this.openPanel()
-    }
-  }
-
-  private openPanel(): void {
+  openPanel(): void {
     const trigger = this.triggerRef()
     const template = this.panelTemplate()
     if (!trigger || !template) return
@@ -71,17 +62,10 @@ export class TechnicalInfoButtonComponent implements OnDestroy {
         .withPositions([
           {
             originX: 'end',
-            originY: 'bottom',
+            originY: 'top',
             overlayX: 'end',
             overlayY: 'top',
             offsetY: 4
-          },
-          {
-            originX: 'end',
-            originY: 'top',
-            overlayX: 'end',
-            overlayY: 'bottom',
-            offsetY: -4
           }
         ])
         .withPush(false)
@@ -97,10 +81,7 @@ export class TechnicalInfoButtonComponent implements OnDestroy {
           filter(() => this.overlayRef?.hasAttached() ?? false),
           filter((e) => {
             const target = e.target as HTMLElement
-            return (
-              !(this.overlayRef?.overlayElement?.contains(target) ?? false) &&
-              !(this.triggerRef()?.nativeElement.contains(target) ?? false)
-            )
+            return !(this.overlayRef?.overlayElement?.contains(target) ?? false)
           }),
           takeUntilDestroyed(this.destroyRef)
         )
