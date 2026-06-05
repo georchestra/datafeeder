@@ -1894,11 +1894,6 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    // Flush the initial recurrence-presets GET that fires in the constructor
-    httpMock
-      .expectOne('http://localhost:8000/ingestion/recurrence-presets')
-      .flush([])
-
     component.integrityLinkStore.intlinkId.set('link-abc')
     component.metadata.set(mockMetadata)
     component.columnConfigs.set([...mockMetadata.columns])

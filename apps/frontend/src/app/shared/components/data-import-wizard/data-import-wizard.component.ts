@@ -69,12 +69,9 @@ import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-p
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 import { TechnicalInfoButtonComponent } from '../technical-info-button/technical-info-button.component'
-import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { RecurrenceSelectorComponent } from '../recurrence-selector/recurrence-selector.component'
-import { listRecurrencePresetsIngestionRecurrencePresetsGet } from '../../../core/api/functions'
+import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { FooterService } from '../../../core/layout/footer.service'
-import type { RecurrencePreset } from '../../../core/api/models/recurrence-preset'
-import type { RecurrencePresetItem } from '../../../core/api/models/recurrence-preset-item'
 
 marker('import.dataSource.error')
 marker('import.dataSource.error.extent')
@@ -217,14 +214,6 @@ export class DataImportWizardComponent {
   columnNameErrors = signal<Set<string>>(new Set())
   hasColumnNameError = computed(() => this.columnNameErrors().size > 0)
 
-  selectedPresetId = signal<string | null>(null)
-  recurrencePresets = signal<RecurrencePresetItem[]>([])
-
-  isRemoteSource = computed(() => {
-    const link = this.integrityLinkStore.integrityLink()
-    return link !== null && link.source_import_type !== 'file'
-  })
-
   isGeographicData = computed(() => {
     const preview = this.preview()
     return preview?.is_geographic === true && preview?.geojson != null
@@ -293,11 +282,6 @@ export class DataImportWizardComponent {
         this.previewErrorExtent.set(null)
       }
     })
-
-    this.api
-      .invoke(listRecurrencePresetsIngestionRecurrencePresetsGet, {})
-      .then((presets) => this.recurrencePresets.set(presets))
-      .catch(() => {})
   }
 
   private handleIntegrityLinkLoadError(): void {
@@ -434,7 +418,6 @@ export class DataImportWizardComponent {
     this.metadata.update(() => null)
     this.preview.update(() => null)
     this.columnNameErrors.set(new Set())
-    this.selectedPresetId.set(null)
 
     try {
       const importResponse = await this.createImportRequest()
@@ -686,16 +669,10 @@ export class DataImportWizardComponent {
     this.processing.set(true)
 
     try {
-      const presetId = this.selectedPresetId()
       await this.api.invoke(processStagingDataIngestionProcessPost, {
         body: {
           integrity_link_id: this.integrityLinkStore.intlinkId()!,
-          title: title,
-          ...(presetId
-            ? {
-                recurrence: presetId as RecurrencePreset
-              }
-            : {})
+          title: title
         }
       })
 

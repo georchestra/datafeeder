@@ -11,12 +11,17 @@ import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-comp
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { ApiConfiguration } from '../../core/api/api-configuration'
 import { IntegrityLinkListItem } from '../../core/api/models'
+import { IntlinkNavService } from '../../core/layout/intlink-nav.service'
 import { IntegrityLinkListComponent } from './integrity-link-list.component'
 
 describe('IntegrityLinkListComponent', () => {
   let httpMock: HttpTestingController
   let router: Router
   let matDialog: { open: ReturnType<typeof vi.fn> }
+  let navService: {
+    catalogueUrl: ReturnType<typeof vi.fn>
+    openCatalogue: ReturnType<typeof vi.fn>
+  }
 
   // Mock data helper function
   const createMockItem = (
@@ -58,6 +63,10 @@ describe('IntegrityLinkListComponent', () => {
 
   beforeEach(async () => {
     matDialog = { open: vi.fn() }
+    navService = {
+      catalogueUrl: vi.fn().mockReturnValue(null),
+      openCatalogue: vi.fn()
+    }
     await TestBed.configureTestingModule({
       imports: [
         IntegrityLinkListComponent,
@@ -66,7 +75,7 @@ describe('IntegrityLinkListComponent', () => {
             'integrityLinks.title': 'Integrity Links',
             'integrityLinks.loadMore': 'Load More',
             'integrityLinks.noItems': 'No items',
-            'integrityLinks.edit': 'Edit dataset',
+            'integrityLinks.view': 'View',
             'dashboard.deleteDataset': 'Delete dataset',
             'dashboard.deleteDatasetConfirm': 'Are you sure?',
             'common.cancel': 'Cancel',
@@ -87,6 +96,10 @@ describe('IntegrityLinkListComponent', () => {
         {
           provide: MatDialog,
           useValue: matDialog
+        },
+        {
+          provide: IntlinkNavService,
+          useValue: navService
         }
       ]
     }).compileComponents()
@@ -300,7 +313,7 @@ describe('IntegrityLinkListComponent', () => {
   })
 
   describe('Navigation', () => {
-    it('should navigate to /edit/:id when onEditClick is called with writable link', async () => {
+    it('should navigate to /edit/:id when onRowClick is called with writable link', async () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)
       const component = fixture.componentInstance
 
@@ -318,7 +331,7 @@ describe('IntegrityLinkListComponent', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 10))
 
-      component.onEditClick(createMockItem('test-id-123', 'OWNER'))
+      component.onRowClick(createMockItem('test-id-123', 'OWNER'))
 
       expect(navigateSpy).toHaveBeenCalledWith(['/', 'test-id-123', 'edit'])
     })
@@ -336,24 +349,16 @@ describe('IntegrityLinkListComponent', () => {
       expect(component.isReadOnly(createMockItem('5', null))).toBe(false)
     })
 
-    it('should not render edit button for READ-only link', async () => {
+    it('should not navigate when onRowClick is called with READ-only link', () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      const navigateSpy = vi.spyOn(router, 'navigate')
 
-      const req = httpMock.expectOne(
-        'http://localhost:8000/ingestion/integrity-links/?offset=0'
-      )
-      req.flush({
-        items: [createMockItem('read-id', 'READ')],
-        has_more: false,
-        offset: 0
-      })
-      await new Promise((resolve) => setTimeout(resolve, 10))
-      fixture.detectChanges()
+      flushPendingRequests()
 
-      const editBtn = fixture.nativeElement.querySelector(
-        '[aria-label="Edit dataset"]'
-      )
-      expect(editBtn).toBeNull()
+      component.onRowClick(createMockItem('read-id', 'READ'))
+
+      expect(navigateSpy).not.toHaveBeenCalled()
     })
 
     it('should navigate to /:id/edit when link has has_final_table=true', async () => {
@@ -371,7 +376,7 @@ describe('IntegrityLinkListComponent', () => {
       })
       await new Promise((resolve) => setTimeout(resolve, 10))
 
-      component.onEditClick(createMockItem('link-42', 'OWNER', true))
+      component.onRowClick(createMockItem('link-42', 'OWNER', true))
 
       expect(navigateSpy).toHaveBeenCalledWith(['/', 'link-42', 'edit'])
     })
@@ -391,7 +396,7 @@ describe('IntegrityLinkListComponent', () => {
       })
       await new Promise((resolve) => setTimeout(resolve, 10))
 
-      component.onEditClick(createMockItem('link-42', 'OWNER', false))
+      component.onRowClick(createMockItem('link-42', 'OWNER', false))
 
       expect(navigateSpy).toHaveBeenCalledWith(['/', 'import', 'link-42'], {
         queryParams: { step: 2 }
@@ -413,11 +418,76 @@ describe('IntegrityLinkListComponent', () => {
       })
       await new Promise((resolve) => setTimeout(resolve, 10))
 
-      component.onEditClick(
+      component.onRowClick(
         createMockItem('link-empty', 'OWNER', false, 'empty')
       )
 
       expect(navigateSpy).toHaveBeenCalledWith(['/', 'link-empty', 'edit'])
+    })
+
+    it('should open the catalogue when onViewClick is called', () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      flushPendingRequests()
+
+      const event = new MouseEvent('click')
+      vi.spyOn(event, 'stopPropagation')
+
+      const item = { ...createMockItem('1', 'OWNER'), metadata_id: 'meta-abc' }
+      component.onViewClick(event, item)
+
+      expect(event.stopPropagation).toHaveBeenCalled()
+      expect(navService.openCatalogue).toHaveBeenCalledWith('meta-abc')
+    })
+
+    it('should not navigate on Enter presses bubbling from action buttons', () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      flushPendingRequests()
+
+      const navigateSpy = vi.spyOn(router, 'navigate')
+      const row = document.createElement('div')
+      const button = document.createElement('button')
+      row.appendChild(button)
+      const event = new KeyboardEvent('keydown', { key: 'Enter' })
+      Object.defineProperty(event, 'currentTarget', { value: row })
+      Object.defineProperty(event, 'target', { value: button })
+
+      component.onRowKeydown(event, createMockItem('test-id-123', 'OWNER'))
+
+      expect(navigateSpy).not.toHaveBeenCalled()
+    })
+
+    it('should navigate on Enter pressed on the row itself', () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      flushPendingRequests()
+
+      const navigateSpy = vi.spyOn(router, 'navigate')
+      const row = document.createElement('div')
+      const event = new KeyboardEvent('keydown', { key: 'Enter' })
+      Object.defineProperty(event, 'currentTarget', { value: row })
+      Object.defineProperty(event, 'target', { value: row })
+
+      component.onRowKeydown(event, createMockItem('test-id-123', 'OWNER'))
+
+      expect(navigateSpy).toHaveBeenCalledWith(['/', 'test-id-123', 'edit'])
+    })
+
+    it('should stop propagation so deleting does not trigger row navigation', () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      flushPendingRequests()
+
+      matDialog.open.mockReturnValue({ afterClosed: () => of(false) })
+      const navigateSpy = vi.spyOn(router, 'navigate')
+      const event = new MouseEvent('click')
+      vi.spyOn(event, 'stopPropagation')
+
+      component.deleteIntegrityLink(event, 'test-id-123')
+
+      expect(event.stopPropagation).toHaveBeenCalled()
+      expect(navigateSpy).not.toHaveBeenCalled()
     })
   })
 

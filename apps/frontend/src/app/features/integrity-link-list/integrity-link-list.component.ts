@@ -19,16 +19,17 @@ import {
   iconoirChatBubbleWarning,
   iconoirTrash,
   iconoirRefreshCircle,
-  iconoirEditPencil
+  iconoirOpenNewWindow
 } from '@ng-icons/iconoir'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 import { QuickCreationComponent } from '../../shared/components/quick-creation/quick-creation.component'
 import { RecurrenceLabelPipe } from '../../shared/pipes/recurrence-label.pipe'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import { EMPTY_IMPORT_TYPE } from '../../core/stores/integrity-link.store'
+import { IntlinkNavService } from '../../core/layout/intlink-nav.service'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
-marker('integrityLinks.edit')
+marker('integrityLinks.view')
 marker('integrityLinks.visibility.open')
 marker('integrityLinks.visibility.restricted')
 marker('integrityLinks.visibility.unconfigured')
@@ -52,7 +53,7 @@ const DEBOUNCE_TIME = 300
       iconoirChatBubbleWarning,
       iconoirTrash,
       iconoirRefreshCircle,
-      iconoirEditPencil
+      iconoirOpenNewWindow
     })
   ]
 })
@@ -64,6 +65,7 @@ export class IntegrityLinkListComponent {
   private translate = inject(TranslateService)
   private matDialog = inject(MatDialog)
   private operationToastStore = inject(OperationToastStore)
+  private navService = inject(IntlinkNavService)
 
   integrityLinks = signal<IntegrityLinkListItem[]>([])
   loading = signal<boolean>(true)
@@ -124,7 +126,8 @@ export class IntegrityLinkListComponent {
     this.loadIntegrityLinks(true)
   }
 
-  onEditClick(link: IntegrityLinkListItem): void {
+  onRowClick(link: IntegrityLinkListItem): void {
+    if (this.isReadOnly(link)) return
     if (
       !link.has_final_table &&
       link.source_import_type !== EMPTY_IMPORT_TYPE
@@ -135,6 +138,21 @@ export class IntegrityLinkListComponent {
     } else {
       this.router.navigate(['/', link.id, 'edit'])
     }
+  }
+
+  onRowKeydown(event: Event, link: IntegrityLinkListItem): void {
+    // ignore Enter presses bubbling up from the action buttons
+    if (event.target !== event.currentTarget) return
+    this.onRowClick(link)
+  }
+
+  getCatalogueUrl(link: IntegrityLinkListItem): string | null {
+    return this.navService.catalogueUrl(link.metadata_id)
+  }
+
+  onViewClick(event: Event, link: IntegrityLinkListItem): void {
+    event.stopPropagation()
+    this.navService.openCatalogue(link.metadata_id)
   }
 
   getVisibility(
@@ -159,6 +177,7 @@ export class IntegrityLinkListComponent {
   }
 
   async deleteIntegrityLink(event: Event, id: string): Promise<void> {
+    event.stopPropagation()
     ;(event.currentTarget as HTMLElement)?.blur()
     if (this.deleting()) return
     const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {

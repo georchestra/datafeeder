@@ -186,7 +186,6 @@ export class IntlinkLayoutComponent {
   }
 
   openCatalogue(): void {
-    const url = this.catalogueUrl()
-    if (url) window.open(url, '_blank', 'noopener')
+    this.navService.openCatalogue(this.store.integrityLink()?.metadata_id)
   }
 }

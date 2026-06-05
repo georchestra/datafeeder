@@ -241,6 +241,33 @@ describe('IntlinkNavService', () => {
     })
   })
 
+  describe('openCatalogue', () => {
+    it('should open the catalogue URL in a new tab', () => {
+      const { service, mockSettings } = setup()
+      mockSettings.getSetting.mockReturnValue(
+        'https://catalogue.example.com/record/{metadata_id}'
+      )
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+
+      service.openCatalogue('meta-abc')
+
+      expect(openSpy).toHaveBeenCalledWith(
+        'https://catalogue.example.com/record/meta-abc',
+        '_blank',
+        'noopener'
+      )
+    })
+
+    it('should not open a window when the URL cannot be resolved', () => {
+      const { service } = setup()
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+
+      service.openCatalogue(null)
+
+      expect(openSpy).not.toHaveBeenCalled()
+    })
+  })
+
   describe('navigate', () => {
     it('should navigate to /:intlinkId/:route', async () => {
       const { service, router } = setup()

@@ -1,5 +1,10 @@
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
+// Returned as a dynamic key by nextButtonLabelKey in metadata.component.ts,
+// 'previous' is rendered internally by the GN-UI editor
+marker('editor.record.form.bottomButtons.next')
+marker('editor.record.form.bottomButtons.previous')
+
 // Taken from libs/feature/editor/src/lib/fields.config.ts in GN-UI
 marker('editor.record.form.field.uniqueIdentifier')
 marker('editor.record.form.field.constraintsShortcuts')
