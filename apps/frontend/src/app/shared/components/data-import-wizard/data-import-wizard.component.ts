@@ -68,6 +68,7 @@ import type { ColumnFilter } from '../../../core/api/models/column-filter'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
+import { TechnicalInfoButtonComponent } from '../technical-info-button/technical-info-button.component'
 import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { RecurrenceSelectorComponent } from '../recurrence-selector/recurrence-selector.component'
 import { listRecurrencePresetsIngestionRecurrencePresetsGet } from '../../../core/api/functions'
@@ -116,7 +117,8 @@ export interface ImportWizardData {
     DatasetPreviewTableComponent,
     DatasetPreviewMapComponent,
     UiAlertBoxComponent,
-    RecurrenceSelectorComponent
+    RecurrenceSelectorComponent,
+    TechnicalInfoButtonComponent
   ],
   templateUrl: './data-import-wizard.component.html',
   styleUrls: ['./data-import-wizard.component.scss'],

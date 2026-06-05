@@ -5,13 +5,18 @@
   <div class="absolute inset-0 bg-white/60 z-10 pointer-events-auto"></div>
   }
   <!-- Step title -->
-  <h1 class="text-2xl font-semibold text-gray-900 px-7">
+  <div class="flex items-start justify-between px-7">
+    <h1 class="text-2xl font-semibold text-gray-900">
+      @if (selectedTabIndex() === 0) {
+      {{ 'import.dataSource.title' | translate }}
+      } @else {
+      {{ 'import.datasetConfiguration.title' | translate }}
+      }
+    </h1>
     @if (selectedTabIndex() === 0) {
-    {{ 'import.dataSource.title' | translate }}
-    } @else {
-    {{ 'import.datasetConfiguration.title' | translate }}
+    <app-technical-info-button />
     }
-  </h1>
+  </div>
 
   <!-- Step 1: full width -->
   @if (selectedTabIndex() === 0) {

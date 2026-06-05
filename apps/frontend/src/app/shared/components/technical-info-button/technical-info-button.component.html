@@ -1,0 +1,23 @@
+<button
+  #triggerBtn
+  type="button"
+  data-test="technical-info-button"
+  class="flex items-center justify-center p-1 text-gray-600 rounded-full hover:text-gray-900 hover:bg-gray-100 focus:outline-none"
+  [class.text-gray-900]="isOpen()"
+  [attr.aria-label]="'import.dataSource.technicalInfo.button' | translate"
+  [attr.aria-expanded]="isOpen()"
+  [title]="'import.dataSource.technicalInfo.button' | translate"
+  (click)="openPanel()"
+>
+  <ng-icon name="iconoirHelpCircle" size="1.5em"></ng-icon>
+</button>
+
+<ng-template #panelTemplate>
+  <app-ui-alert-box
+    type="info"
+    [dismissible]="true"
+    [title]="'import.dataSource.technicalInfo.title' | translate"
+    [message]="'import.dataSource.technicalInfo.message' | translate"
+    (dismissed)="closePanel()"
+  />
+</ng-template>

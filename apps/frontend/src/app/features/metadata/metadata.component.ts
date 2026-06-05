@@ -67,6 +67,7 @@ marker('footer.next.authorizations')
 marker('footer.saveAndNext.recurrence')
 marker('footer.saveAndNext.events')
 marker('footer.saveAndNext.authorizations')
+marker('editor.record.form.bottomButtons.next')
 
 const PAGE_KEY_RESOURCES = 'editor.record.form.page.resources'
 const PAGE_KEY_ACCESS_CONTACT = 'editor.record.form.page.accessAndContact'
