@@ -50,30 +50,6 @@
         </div>
       </a>
 
-      <!-- Events — disabled for empty datasets, owner/admin only otherwise -->
-      @if (store.isEmptyDataset() || !store.isOwnerOrAdmin()) {
-      <span
-        class="flex items-center gap-2 cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
-        [title]="
-          store.isEmptyDataset()
-            ? ('sidebar.unavailableForEmpty' | translate)
-            : ''
-        "
-      >
-        <ng-icon name="iconoirListSelect" size="18" class="shrink-0"></ng-icon>
-        {{ 'sidebar.eventsAndStatuses' | translate }}
-      </span>
-      } @else {
-      <a
-        [routerLink]="['events']"
-        routerLinkActive="bg-secondary-dark text-white"
-        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
-      >
-        <ng-icon name="iconoirListSelect" size="18" class="shrink-0"></ng-icon>
-        {{ 'sidebar.eventsAndStatuses' | translate }}
-      </a>
-      }
-
       <!-- Recurrence — remote datasets only, owner/admin only -->
       @if (store.isRemoteDataset() && store.isOwnerOrAdmin()) {
       <a
@@ -125,6 +101,30 @@
         <ng-icon name="iconoirShieldCheck" size="18" class="shrink-0"></ng-icon>
         {{ 'sidebar.accessRights' | translate }}
       </span>
+      }
+
+      <!-- Events — outside the tunnel; disabled for empty datasets, owner/admin only otherwise -->
+      @if (store.isEmptyDataset() || !store.isOwnerOrAdmin()) {
+      <span
+        class="flex items-center gap-2 cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
+        [title]="
+          store.isEmptyDataset()
+            ? ('sidebar.unavailableForEmpty' | translate)
+            : ''
+        "
+      >
+        <ng-icon name="iconoirListSelect" size="18" class="shrink-0"></ng-icon>
+        {{ 'sidebar.eventsAndStatuses' | translate }}
+      </span>
+      } @else {
+      <a
+        [routerLink]="['events']"
+        routerLinkActive="bg-secondary-dark text-white"
+        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+      >
+        <ng-icon name="iconoirListSelect" size="18" class="shrink-0"></ng-icon>
+        {{ 'sidebar.eventsAndStatuses' | translate }}
+      </a>
       }
     </div>
   </nav>
