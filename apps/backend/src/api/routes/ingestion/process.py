@@ -262,7 +262,15 @@ def process_staging_data(
 
     # Persist all changes before triggering the DAG
     integrity_link.final_table_name = final_table_name
-    session.commit()
+    integrity_link.extra_config = {
+        **(integrity_link.extra_config or {}),
+        "generate_metadata_with_ai": request.generate_metadata_with_ai,
+    }
+    try:
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
     session.refresh(integrity_link)
 
     # Build callback parameters (no user info needed — metadata already created)
@@ -289,9 +297,7 @@ def process_staging_data(
             failure_callback_url=failure_callback_url,
             last_retrieval_timestamp=integrity_link.last_retrieval_timestamp,
             target_schema=target_schema,
-            generate_metadata_with_ai=bool(
-                (integrity_link.extra_config or {}).get("generate_metadata_with_ai", False)
-            ),
+            generate_metadata_with_ai=request.generate_metadata_with_ai,
         )
 
         return ProcessResponse(

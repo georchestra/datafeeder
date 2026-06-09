@@ -57,6 +57,7 @@ class ProcessRequest(BaseModel):
     integrity_link_id: str
     title: str | None = None
     recurrence: RecurrencePreset | None = None
+    generate_metadata_with_ai: bool = False
 
 
 class UpdateMetadataGnRequest(BaseModel):

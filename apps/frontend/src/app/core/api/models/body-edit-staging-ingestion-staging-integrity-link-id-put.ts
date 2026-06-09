@@ -10,7 +10,6 @@ export interface BodyEditStagingIngestionStagingIntegrityLinkIdPut {
   ftp_host?: string | null
   ftp_path?: string | null
   ftp_port?: number | null
-  generate_metadata_with_ai?: boolean
   layer_name?: string | null
   password?: string | null
   service_protocol?: string | null

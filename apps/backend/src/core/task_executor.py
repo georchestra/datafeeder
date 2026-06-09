@@ -57,7 +57,6 @@ class BaseTaskExecutor(ABC):
         encrypted_credentials: str | None = None,
         source_layer: str | None = None,
         source_protocol: str | None = None,
-        generate_metadata_with_ai: bool = False,
     ) -> TaskRunInfo:
         """
         Trigger a staging task.

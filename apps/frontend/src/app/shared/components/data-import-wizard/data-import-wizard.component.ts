@@ -523,18 +523,12 @@ export class DataImportWizardComponent {
         editStagingIngestionStagingIntegrityLinkIdPut,
         {
           integrity_link_id: integrityLinkId,
-          body: {
-            ...body,
-            generate_metadata_with_ai: this.generateMetadataWithAi()
-          }
+          body
         }
       )
     } else {
       return await this.api.invoke(submitStagingIngestionStagingPost, {
-        body: {
-          ...body,
-          generate_metadata_with_ai: this.generateMetadataWithAi()
-        }
+        body
       })
     }
   }
@@ -686,7 +680,8 @@ export class DataImportWizardComponent {
       await this.api.invoke(processStagingDataIngestionProcessPost, {
         body: {
           integrity_link_id: this.integrityLinkStore.intlinkId()!,
-          title: title
+          title: title,
+          generate_metadata_with_ai: this.generateMetadataWithAi()
         }
       })
 
