@@ -89,6 +89,11 @@ logger = logging.getLogger(__name__)
             description="Target PostgreSQL schema for the final table (org-specific or 'data')",
             minLength=1,
         ),
+        "generate_metadata_with_ai": Param(
+            default=False,
+            type="boolean",
+            description="Whether to generate metadata fields with AI after the final table is created",
+        ),
     },
     on_success_callback=_dag_success_callback,
     on_failure_callback=_dag_failure_callback,

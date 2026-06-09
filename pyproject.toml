@@ -41,7 +41,8 @@ geonetwork = { git = "https://github.com/camptocamp/python-geonetwork.git" }
 [tool.uv.workspace]
 members = [
     "apps/backend",
-    "libs/data_manipulation"
+    "libs/data_manipulation",
+    "libs/ai"
 ]
 # apps/elt resolves independently (own uv.lock) because apache-airflow caps
 # fastapi below the version the backend pins. See apps/elt/pyproject.toml.
