@@ -178,6 +178,15 @@ class Settings(BaseSettings):
     # Console
     CONSOLE_INTERNAL_URL: str = "http://localhost:8085/console"
 
+    # AI metadata generation
+    AI_ENABLED: bool = False
+    AI_PROVIDER: str = "openai"
+    AI_MODEL: str = ""
+    AI_API_KEY: str = ""
+    AI_BASE_URL: str = ""
+    AI_METADATA_SYSTEM_PROMPT_FILE: str = ""
+    AI_METADATA_HUMAN_PROMPT_FILE: str = ""
+
     # Metadata groups (for authorization UI)
     METADATA_GROUPS_LABEL_FILTER_REGEX: str = ""
 

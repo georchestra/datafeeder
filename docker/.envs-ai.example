@@ -1,0 +1,16 @@
+# AI/LLM configuration — copy this file to .envs-ai and fill in your values
+# This file is optional: if absent, AI generation is disabled (AI_ENABLED=false)
+#
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# !! WARNING: DO NOT COMMIT .envs-ai — it contains secrets (API keys).      !!
+# !! Only this .envs-ai.example file should be committed.                   !!
+# !! .envs-ai is already in .gitignore but double-check before any `git add`!!
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+AI_ENABLED=false
+AI_PROVIDER=ollama
+AI_MODEL=llama3.2:1b
+AI_API_KEY=
+AI_BASE_URL=http://ollama:11434
+AI_METADATA_SYSTEM_PROMPT_FILE=
+AI_METADATA_HUMAN_PROMPT_FILE=

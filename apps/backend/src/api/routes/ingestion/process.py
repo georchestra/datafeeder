@@ -33,6 +33,7 @@ from src.models import (
     ProcessResponse,
 )
 from src.models.integrity_link import IntegrityLink
+from src.services.ai_service import generate_ai_metadata as generate_ai_metadata_with_llm
 from src.services.airflow_client import get_dag_run_api
 from src.services.console_service import ConsoleService
 from src.services.executor_factory import get_task_executor
@@ -288,6 +289,9 @@ def process_staging_data(
             failure_callback_url=failure_callback_url,
             last_retrieval_timestamp=integrity_link.last_retrieval_timestamp,
             target_schema=target_schema,
+            generate_metadata_with_ai=bool(
+                (integrity_link.extra_config or {}).get("generate_metadata_with_ai", False)
+            ),
         )
 
         return ProcessResponse(
@@ -417,20 +421,9 @@ async def dag_success_callback(
     datafeeder_session.commit()
     datafeeder_session.refresh(integrity_link)
 
-    # TODO
-    # - retrive keywords from geonetwork
-    # - retrieve thesaurus from geonetwork
-    # - trigger AI metadata generation if requested in extra_config
-
-    # Trigger AI metadata generation if requested
-    generate_metadata_with_ai: bool = bool(
-        (integrity_link.extra_config or {}).get("generate_metadata_with_ai", False)
-    )
-    if generate_metadata_with_ai:
-        logger.info(
-            f"generate_metadata_with_ai=True for IntegrityLink {integrity_link.id} — "
-            "TODO: trigger AI metadata generation here"
-        )
+    # Generate AI metadata if requested (soft failure — runs after metadata_id is set)
+    if (integrity_link.extra_config or {}).get("generate_metadata_with_ai", False):
+        generate_ai_metadata_with_llm(integrity_link, target_schema, settings)
 
     # Update revision date in GeoNetwork metadata (soft failure)
     if integrity_link.metadata_id is not None:

@@ -1,0 +1,5 @@
+Generate metadata for the following dataset:
+- Table name: {table_name}
+- Title: {title}
+- Columns: {columns}
+{extra_context}

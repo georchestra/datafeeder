@@ -625,3 +625,160 @@ class MetadataService:
                 exc_info=True,
             )
             raise
+
+    def update_ai_metadata(
+        self,
+        metadata_uuid: str,
+        abstract: str,
+        keywords: list[str],
+        topic_category: str,
+    ) -> None:
+        """Patch abstract, keywords and topic category in an existing GeoNetwork record.
+
+        Fetches the current XML, updates the relevant fields in-place, then
+        re-uploads with OVERWRITE so publication privileges are preserved.
+        Supports both ISO 19115-3 and ISO 19139 schemas.
+
+        Args:
+            metadata_uuid: UUID of the GeoNetwork metadata record.
+            abstract: AI-generated abstract text.
+            keywords: AI-generated keyword list.
+            topic_category: AI-generated topic category code.
+        """
+        xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
+        root: _Element = etree.fromstring(xml_bytes)
+
+        schema = self._detect_schema(root)
+        if schema is None:
+            logger.warning(
+                "Unsupported metadata schema for record %s — skipping AI metadata update",
+                metadata_uuid,
+            )
+            return
+
+        if schema == _SCHEMA_19115_3:
+            self._patch_ai_fields_19115_3(root, abstract, keywords, topic_category)
+        else:
+            self._patch_ai_fields_19139(root, abstract, keywords, topic_category)
+
+        updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
+        self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
+        logger.info("Updated AI metadata fields for record %s", metadata_uuid)
+
+    @staticmethod
+    def _patch_ai_fields_19115_3(
+        root: _Element,
+        abstract: str,
+        keywords: list[str],
+        topic_category: str,
+    ) -> None:
+        """Patch abstract, keywords and topicCategory in an ISO 19115-3 record."""
+        ns = NS_19115_3
+        id_info_list = root.xpath(
+            "mdb:identificationInfo/mri:MD_DataIdentification",
+            namespaces=ns,
+        )
+        if not id_info_list:
+            return
+        id_info: _Element = id_info_list[0]
+
+        # --- abstract ---
+        abstract_els = id_info.xpath("mri:abstract/gco:CharacterString", namespaces=ns)
+        if abstract_els:
+            abstract_els[0].text = abstract
+        else:
+            abstract_wrapper: _Element = etree.SubElement(id_info, f"{{{ns['mri']}}}abstract")
+            etree.SubElement(abstract_wrapper, f"{{{ns['gco']}}}CharacterString").text = abstract
+
+        # --- keywords ---
+        ns_mri = ns["mri"]
+        ns_gco = ns["gco"]
+        existing_kw_blocks = id_info.xpath("mri:descriptiveKeywords", namespaces=ns)
+        # Remove any existing AI-tagged keyword block (identified by a special anchor in thesaurusName)
+        for block in existing_kw_blocks:
+            anchor_texts = block.xpath(
+                "mri:MD_Keywords/mri:thesaurusName//gco:CharacterString[contains(., 'ai-generated')]",
+                namespaces=ns,
+            )
+            if anchor_texts:
+                id_info.remove(block)
+
+        # Add a fresh keyword block
+        desc_kw: _Element = etree.SubElement(id_info, f"{{{ns_mri}}}descriptiveKeywords")
+        md_kw: _Element = etree.SubElement(desc_kw, f"{{{ns_mri}}}MD_Keywords")
+        for kw in keywords:
+            kw_el: _Element = etree.SubElement(md_kw, f"{{{ns_mri}}}keyword")
+            etree.SubElement(kw_el, f"{{{ns_gco}}}CharacterString").text = kw
+        # Tag this block so we can identify it in future updates
+        thesaurus_name: _Element = etree.SubElement(md_kw, f"{{{ns_mri}}}thesaurusName")
+        ci_citation: _Element = etree.SubElement(thesaurus_name, f"{{{ns['cit']}}}CI_Citation")
+        title_el: _Element = etree.SubElement(ci_citation, f"{{{ns['cit']}}}title")
+        etree.SubElement(title_el, f"{{{ns_gco}}}CharacterString").text = "ai-generated"
+
+        # --- topicCategory ---
+        ns_mri_uri = f"{{{ns_mri}}}"
+        existing_topic = id_info.xpath("mri:topicCategory/mri:MD_TopicCategoryCode", namespaces=ns)
+        if existing_topic:
+            existing_topic[0].text = topic_category
+        else:
+            topic_wrapper: _Element = etree.SubElement(id_info, f"{ns_mri_uri}topicCategory")
+            etree.SubElement(
+                topic_wrapper, f"{ns_mri_uri}MD_TopicCategoryCode"
+            ).text = topic_category
+
+    @staticmethod
+    def _patch_ai_fields_19139(
+        root: _Element,
+        abstract: str,
+        keywords: list[str],
+        topic_category: str,
+    ) -> None:
+        """Patch abstract, keywords and topicCategory in an ISO 19139 record."""
+        ns = NS_19139
+        ns_gmd = ns["gmd"]
+        ns_gco = ns["gco"]
+
+        id_info_list = root.xpath(
+            "gmd:identificationInfo/gmd:MD_DataIdentification",
+            namespaces=ns,
+        )
+        if not id_info_list:
+            return
+        id_info: _Element = id_info_list[0]
+
+        # --- abstract ---
+        abstract_els = id_info.xpath("gmd:abstract/gco:CharacterString", namespaces=ns)
+        if abstract_els:
+            abstract_els[0].text = abstract
+        else:
+            wrapper: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}abstract")
+            etree.SubElement(wrapper, f"{{{ns_gco}}}CharacterString").text = abstract
+
+        # --- keywords ---
+        for block in id_info.xpath("gmd:descriptiveKeywords", namespaces=ns):
+            anchor_texts = block.xpath(
+                "gmd:MD_Keywords/gmd:thesaurusName//gco:CharacterString[contains(., 'ai-generated')]",
+                namespaces=ns,
+            )
+            if anchor_texts:
+                id_info.remove(block)
+
+        desc_kw: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}descriptiveKeywords")
+        md_kw: _Element = etree.SubElement(desc_kw, f"{{{ns_gmd}}}MD_Keywords")
+        for kw in keywords:
+            kw_el: _Element = etree.SubElement(md_kw, f"{{{ns_gmd}}}keyword")
+            etree.SubElement(kw_el, f"{{{ns_gco}}}CharacterString").text = kw
+        thesaurus_name: _Element = etree.SubElement(md_kw, f"{{{ns_gmd}}}thesaurusName")
+        ci_citation: _Element = etree.SubElement(thesaurus_name, f"{{{ns_gmd}}}CI_Citation")
+        title_el: _Element = etree.SubElement(ci_citation, f"{{{ns_gmd}}}title")
+        etree.SubElement(title_el, f"{{{ns_gco}}}CharacterString").text = "ai-generated"
+
+        # --- topicCategory ---
+        existing_topic = id_info.xpath("gmd:topicCategory/gmd:MD_TopicCategoryCode", namespaces=ns)
+        if existing_topic:
+            existing_topic[0].text = topic_category
+        else:
+            topic_wrapper: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}topicCategory")
+            etree.SubElement(
+                topic_wrapper, f"{{{ns_gmd}}}MD_TopicCategoryCode"
+            ).text = topic_category

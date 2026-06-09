@@ -1,0 +1,78 @@
+"""LLM provider factory — returns a LangChain BaseChatModel for the requested provider."""
+
+from typing import Any, Literal
+
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_mistralai import ChatMistralAI as _ChatMistralAI
+from langchain_ollama import ChatOllama as _ChatOllama
+from langchain_openai import ChatOpenAI
+
+Provider = Literal["openai", "ollama", "mistral"]
+
+_DEFAULT_MODELS: dict[str, str] = {
+    "openai": "gpt-4o-mini",
+    "ollama": "llama3.2:1b",
+    "mistral": "mistral-small-latest",
+}
+
+
+def get_llm(
+    provider: Provider,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    temperature: float = 0.2,
+    **kwargs: Any,
+) -> BaseChatModel:
+    """Return a LangChain chat model for the given provider.
+
+    All configuration must be passed explicitly — no env var lookups.
+
+    Args:
+        provider: LLM provider name: "openai", "ollama" or "mistral".
+        model: Model name. Defaults to the provider default if not provided.
+        api_key: API key for the provider (openai, mistral).
+        base_url: Custom base URL (openai-compatible endpoint or ollama host).
+        temperature: Sampling temperature (default 0.2 for deterministic outputs).
+        **kwargs: Additional provider-specific overrides.
+
+    Returns:
+        A LangChain BaseChatModel instance.
+
+    Raises:
+        ValueError: If the provider is not supported.
+        ImportError: If the required provider package is not installed.
+    """
+    resolved_model: str = model or _DEFAULT_MODELS.get(provider, "")
+
+    if provider == "openai":
+        return ChatOpenAI(
+            model=resolved_model,
+            temperature=temperature,
+            api_key=api_key,  # type: ignore[arg-type]
+            base_url=base_url or None,
+        )
+
+    if provider == "ollama":
+        if _ChatOllama is None:
+            raise ImportError("langchain-ollama is not installed. Run: pip install 'ai[ollama]'")
+        return _ChatOllama(
+            model=resolved_model,
+            temperature=temperature,
+            base_url=base_url or "http://localhost:11434",
+        )
+
+    if provider == "mistral":
+        if _ChatMistralAI is None:
+            raise ImportError(
+                "langchain-mistralai is not installed. Run: pip install 'ai[mistral]'"
+            )
+        return _ChatMistralAI(
+            model=resolved_model,
+            temperature=temperature,
+            api_key=api_key,  # type: ignore[arg-type]
+        )
+
+    raise ValueError(
+        f"Unsupported provider '{provider}'. Available: {', '.join(_DEFAULT_MODELS.keys())}"
+    )
