@@ -4,9 +4,4 @@
 /**
  * Class with DagRun types.
  */
-export type DagRunType =
-  | 'backfill'
-  | 'scheduled'
-  | 'manual'
-  | 'asset_triggered'
-  | 'asset_materialization'
+export type DagRunType = 'backfill' | 'scheduled' | 'manual' | 'asset_triggered'

@@ -213,7 +213,7 @@ export class DataImportWizardComponent {
   validationError = signal<string | null>(null)
   previewTabIndex = signal(0)
   hasExtentError = signal(false)
-  generateMetadataWithAi = signal(false)
+  generateMetadataWithAi = signal(true)
 
   columnConfigs = signal<ColumnConfig[]>([])
   forceProjection = signal<ForceProjection | null>(null)
@@ -523,12 +523,18 @@ export class DataImportWizardComponent {
         editStagingIngestionStagingIntegrityLinkIdPut,
         {
           integrity_link_id: integrityLinkId,
-          body
+          body: {
+            ...body,
+            generate_metadata_with_ai: this.generateMetadataWithAi()
+          }
         }
       )
     } else {
       return await this.api.invoke(submitStagingIngestionStagingPost, {
-        body
+        body: {
+          ...body,
+          generate_metadata_with_ai: this.generateMetadataWithAi()
+        }
       })
     }
   }
