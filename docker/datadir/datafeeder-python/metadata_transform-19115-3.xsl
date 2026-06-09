@@ -84,28 +84,37 @@
 
   <xsl:template
           match="//mdb:identificationInfo/mri:MD_DataIdentification/mri:extent/gex:EX_Extent/gex:geographicElement/gex:EX_GeographicBoundingBox">
-    <gex:EX_GeographicBoundingBox>
-      <gex:westBoundLongitude>
-        <gco:Decimal>
-          <xsl:value-of select="$props//westBoundLongitude" />
-        </gco:Decimal>
-      </gex:westBoundLongitude>
-      <gex:eastBoundLongitude>
-        <gco:Decimal>
-          <xsl:value-of select="$props//eastBoundLongitude" />
-        </gco:Decimal>
-      </gex:eastBoundLongitude>
-      <gex:southBoundLatitude>
-        <gco:Decimal>
-          <xsl:value-of select="$props//southBoundLatitude" />
-        </gco:Decimal>
-      </gex:southBoundLatitude>
-      <gex:northBoundLatitude>
-        <gco:Decimal>
-          <xsl:value-of select="$props//northBoundLatitude" />
-        </gco:Decimal>
-      </gex:northBoundLatitude>
-    </gex:EX_GeographicBoundingBox>
+    <xsl:choose>
+      <xsl:when test="$props//westBoundLongitude != ''">
+        <gex:EX_GeographicBoundingBox>
+          <gex:westBoundLongitude>
+            <gco:Decimal>
+              <xsl:value-of select="$props//westBoundLongitude" />
+            </gco:Decimal>
+          </gex:westBoundLongitude>
+          <gex:eastBoundLongitude>
+            <gco:Decimal>
+              <xsl:value-of select="$props//eastBoundLongitude" />
+            </gco:Decimal>
+          </gex:eastBoundLongitude>
+          <gex:southBoundLatitude>
+            <gco:Decimal>
+              <xsl:value-of select="$props//southBoundLatitude" />
+            </gco:Decimal>
+          </gex:southBoundLatitude>
+          <gex:northBoundLatitude>
+            <gco:Decimal>
+              <xsl:value-of select="$props//northBoundLatitude" />
+            </gco:Decimal>
+          </gex:northBoundLatitude>
+        </gex:EX_GeographicBoundingBox>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:apply-templates select="@*|node()" />
+        </xsl:copy>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:template>
 
   <xsl:template
