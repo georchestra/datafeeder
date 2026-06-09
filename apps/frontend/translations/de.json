@@ -236,6 +236,8 @@
   "import.dataSource.ftp.port": "",
   "import.dataSource.ftp.username": "",
   "import.dataSource.genericError": "Das Hochladen oder die Analyse der Daten ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  "import.dataSource.generateMetadataWithAi": "Metadaten mit KI generieren",
+  "import.dataSource.generateMetadataWithAi.hint": "(Wirksam nach der Validierung)",
   "import.dataSource.next": "",
   "import.dataSource.originalProjection": "",
   "import.dataSource.processing": "",

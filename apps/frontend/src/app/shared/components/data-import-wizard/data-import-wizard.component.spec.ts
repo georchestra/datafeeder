@@ -1621,6 +1621,165 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
   })
 })
 
+// AI metadata generation toggle tests
+describe('DataImportWizardComponent - Generate Metadata With AI Toggle', () => {
+  let mockIntegrityLinkStore: {
+    intlinkId: ReturnType<typeof signal<string | null>>
+    integrityLink: ReturnType<typeof signal>
+    loadError: ReturnType<
+      typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
+    >
+    setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+    clearIntegrityLink: ReturnType<typeof vi.fn>
+  }
+
+  beforeEach(async () => {
+    mockIntegrityLinkStore = {
+      intlinkId: signal<string | null>(null),
+      integrityLink: signal(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
+        null
+      ),
+      setAndLoadIntegrityLink: vi.fn(),
+      clearIntegrityLink: vi.fn()
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.generateMetadataWithAi':
+              'Generate metadata with AI',
+            'import.dataSource.generateMetadataWithAi.hint':
+              '(Effective after validation)'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: ApiConfiguration,
+          useValue: { rootUrl: 'http://localhost:8000' }
+        },
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore },
+        {
+          provide: FooterService,
+          useValue: { content: signal(null), setContent: () => {} }
+        }
+      ]
+    }).compileComponents()
+  })
+
+  it('should default generateMetadataWithAi to false', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    expect(component.generateMetadataWithAi()).toBe(false)
+  })
+
+  it('should set generateMetadataWithAi when toggled on', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.generateMetadataWithAi.set(true)
+
+    expect(component.generateMetadataWithAi()).toBe(true)
+  })
+
+  it('should toggle generateMetadataWithAi back and forth', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.generateMetadataWithAi.set(!component.generateMetadataWithAi())
+    expect(component.generateMetadataWithAi()).toBe(true)
+
+    component.generateMetadataWithAi.set(!component.generateMetadataWithAi())
+    expect(component.generateMetadataWithAi()).toBe(false)
+  })
+
+  it('should render the AI toggle button in the footer when on tab 2', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    fixture.detectChanges()
+
+    const footer = component.footerTpl()
+    expect(footer).toBeTruthy()
+
+    const view = footer!.createEmbeddedView(null)
+    view.detectChanges()
+    const rootNodes = view.rootNodes as HTMLElement[]
+    const container = document.createElement('div')
+    rootNodes.forEach((node) => container.appendChild(node))
+
+    const toggleButton = container.querySelector(
+      '[data-test="generate-metadata-with-ai"]'
+    )
+    expect(toggleButton).toBeTruthy()
+    expect(container.textContent).toContain('Generate metadata with AI')
+    expect(container.textContent).toContain('(Effective after validation)')
+
+    view.destroy()
+  })
+
+  it('should disable the AI toggle button while processing', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.processing.set(true)
+    fixture.detectChanges()
+
+    const footer = component.footerTpl()
+    const view = footer!.createEmbeddedView(null)
+    view.detectChanges()
+    const rootNodes = view.rootNodes as HTMLElement[]
+    const container = document.createElement('div')
+    rootNodes.forEach((node) => container.appendChild(node))
+
+    const button = container.querySelector(
+      'button[data-test="generate-metadata-with-ai"], button'
+    ) as HTMLButtonElement | null
+    expect(button).toBeTruthy()
+    expect(button!.disabled).toBe(true)
+
+    view.destroy()
+  })
+
+  it('should not change generateMetadataWithAi via button click while processing', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.processing.set(true)
+    fixture.detectChanges()
+
+    const footer = component.footerTpl()
+    const view = footer!.createEmbeddedView(null)
+    view.detectChanges()
+    const rootNodes = view.rootNodes as HTMLElement[]
+    const container = document.createElement('div')
+    rootNodes.forEach((node) => container.appendChild(node))
+
+    const button = container.querySelector('button') as HTMLButtonElement
+    button.click()
+    view.detectChanges()
+
+    expect(component.generateMetadataWithAi()).toBe(false)
+
+    view.destroy()
+  })
+})
+
 // --- T017: Config flow tests ---
 describe('DataImportWizardComponent - Config Flow (PUT→GET)', () => {
   let httpMock: HttpTestingController

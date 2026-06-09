@@ -236,6 +236,8 @@
   "import.dataSource.ftp.port": "Port",
   "import.dataSource.ftp.username": "Username",
   "import.dataSource.genericError": "The data upload or analysis failed. Please try again.",
+  "import.dataSource.generateMetadataWithAi": "Generate metadata with AI",
+  "import.dataSource.generateMetadataWithAi.hint": "(Effective after validation)",
   "import.dataSource.next": "Configure the dataset",
   "import.dataSource.originalProjection": "original",
   "import.dataSource.processing": "Processing...",

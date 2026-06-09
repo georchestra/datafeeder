@@ -237,6 +237,8 @@
   "import.dataSource.ftp.port": "Port",
   "import.dataSource.ftp.username": "Identifiant",
   "import.dataSource.genericError": "Le chargement ou l'analyse des données a échoué. Veuillez réessayer.",
+  "import.dataSource.generateMetadataWithAi": "Générer les metadata avec l'IA",
+  "import.dataSource.generateMetadataWithAi.hint": "(Effective après validation)",
   "import.dataSource.next": "Suivant",
   "import.dataSource.originalProjection": "originale",
   "import.dataSource.processing": "Traitement en cours...",

@@ -236,6 +236,8 @@
   "import.dataSource.ftp.port": "",
   "import.dataSource.ftp.username": "",
   "import.dataSource.genericError": "La carga o el análisis de los datos ha fallado. Por favor, inténtelo de nuevo.",
+  "import.dataSource.generateMetadataWithAi": "Generar metadatos con IA",
+  "import.dataSource.generateMetadataWithAi.hint": "(Efectivo tras la validación)",
   "import.dataSource.next": "",
   "import.dataSource.originalProjection": "",
   "import.dataSource.processing": "",

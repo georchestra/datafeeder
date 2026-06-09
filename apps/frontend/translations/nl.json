@@ -236,6 +236,8 @@
   "import.dataSource.ftp.port": "",
   "import.dataSource.ftp.username": "",
   "import.dataSource.genericError": "Het uploaden of analyseren van de gegevens is mislukt. Probeer het opnieuw.",
+  "import.dataSource.generateMetadataWithAi": "Metadata genereren met AI",
+  "import.dataSource.generateMetadataWithAi.hint": "(Effectief na validatie)",
   "import.dataSource.next": "",
   "import.dataSource.originalProjection": "",
   "import.dataSource.processing": "",

@@ -236,6 +236,8 @@
   "import.dataSource.ftp.port": "",
   "import.dataSource.ftp.username": "",
   "import.dataSource.genericError": "Nahrávanie alebo analýza dát zlyhala. Prosím skúste to znova.",
+  "import.dataSource.generateMetadataWithAi": "Generovať metadáta pomocou AI",
+  "import.dataSource.generateMetadataWithAi.hint": "(Účinné po overení)",
   "import.dataSource.next": "",
   "import.dataSource.originalProjection": "",
   "import.dataSource.processing": "",
