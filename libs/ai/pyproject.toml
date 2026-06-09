@@ -22,6 +22,10 @@ dependencies = [
 [project.optional-dependencies]
 ollama  = ["langchain-ollama>=0.3"]
 mistral = ["langchain-mistralai>=0.2"]
+phoenix = [
+    "arize-phoenix-otel>=0.6",
+    "openinference-instrumentation-langchain>=0.1",
+]
 
 [dependency-groups]
 dev = [

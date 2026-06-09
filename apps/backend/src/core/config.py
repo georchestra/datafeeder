@@ -187,6 +187,11 @@ class Settings(BaseSettings):
     AI_METADATA_SYSTEM_PROMPT_FILE: str = ""
     AI_METADATA_HUMAN_PROMPT_FILE: str = ""
 
+    # Arize Phoenix tracing (optional)
+    AI_PHOENIX_ENABLED: bool = False
+    AI_PHOENIX_ENDPOINT: str = "http://localhost:6006/v1/traces"
+    AI_PHOENIX_PROJECT: str = "datafeeder"
+
     # Metadata groups (for authorization UI)
     METADATA_GROUPS_LABEL_FILTER_REGEX: str = ""
 

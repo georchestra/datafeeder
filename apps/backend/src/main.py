@@ -34,6 +34,16 @@ BACKEND_VERSION = importlib.metadata.version("datafeeder-backend")
 
 app = FastAPI()
 
+# Setup Arize Phoenix tracing if enabled
+_settings = get_settings()
+if _settings.AI_PHOENIX_ENABLED:
+    from ai.tracing import setup_phoenix_tracing
+
+    setup_phoenix_tracing(
+        endpoint=_settings.AI_PHOENIX_ENDPOINT,
+        project_name=_settings.AI_PHOENIX_PROJECT,
+    )
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
