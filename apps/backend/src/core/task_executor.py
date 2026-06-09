@@ -87,6 +87,7 @@ class BaseTaskExecutor(ABC):
         failure_callback_url: str | None = None,
         last_retrieval_timestamp: datetime | None = None,
         target_schema: str = DEFAULT_DATA_SCHEMA,
+        generate_metadata_with_ai: bool = False,
     ) -> TaskRunInfo:
         """
         Trigger a process task.
