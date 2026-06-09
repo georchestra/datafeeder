@@ -3,9 +3,17 @@
 from typing import Any, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_mistralai import ChatMistralAI as _ChatMistralAI
-from langchain_ollama import ChatOllama as _ChatOllama
 from langchain_openai import ChatOpenAI
+
+try:
+    from langchain_ollama import ChatOllama as _ChatOllama
+except ImportError:
+    _ChatOllama = None  # type: ignore[assignment,misc]
+
+try:
+    from langchain_mistralai import ChatMistralAI as _ChatMistralAI
+except ImportError:
+    _ChatMistralAI = None  # type: ignore[assignment,misc]
 
 Provider = Literal["openai", "ollama", "mistral"]
 
