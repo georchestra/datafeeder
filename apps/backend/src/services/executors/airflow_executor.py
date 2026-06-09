@@ -44,6 +44,7 @@ class AirflowTaskExecutor(BaseTaskExecutor):
         encrypted_credentials: str | None = None,
         source_layer: str | None = None,
         source_protocol: str | None = None,
+        generate_metadata_with_ai: bool = False,
     ) -> TaskRunInfo:
         """Trigger a staging task in Airflow."""
         dag_run_response = get_dag_run_api().trigger_dag_run(
@@ -59,6 +60,7 @@ class AirflowTaskExecutor(BaseTaskExecutor):
                     "encrypted_credentials": encrypted_credentials,
                     "source_layer": source_layer,
                     "source_protocol": source_protocol,
+                    "generate_metadata_with_ai": generate_metadata_with_ai,
                 },
             ),
         )

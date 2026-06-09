@@ -265,6 +265,7 @@ def _trigger_staging_task(
     dag_run_id: str,
     source_layer: Optional[str] = None,
     source_protocol: Optional[str] = None,
+    generate_metadata_with_ai: bool = False,
 ) -> "StagingResponse":
     """Trigger the Airflow staging DAG and return the response.
 
@@ -297,6 +298,7 @@ def _trigger_staging_task(
             encrypted_credentials=encrypted_password,
             source_layer=source_layer,
             source_protocol=source_protocol,
+            generate_metadata_with_ai=generate_metadata_with_ai,
         )
 
         return StagingResponse(
@@ -449,6 +451,7 @@ async def submit_staging(
     service_url: Optional[str] = Form(None),
     layer_name: Optional[str] = Form(None),
     service_protocol: Optional[str] = Form(None),
+    generate_metadata_with_ai: bool = Form(False),
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
 ) -> StagingResponse:
@@ -470,6 +473,7 @@ async def submit_staging(
         service_url: Optional service URL if import type is API (WFS/OGC API Features)
         layer_name: Optional layer/collection name if import type is API
         service_protocol: Optional protocol if import type is API ('wfs' or 'ogcFeatures')
+        generate_metadata_with_ai: Whether to generate metadata with AI after staging
         sec_username: Username from geOrchestra security headers
         sec_org: Organization from geOrchestra security headers
 
@@ -519,6 +523,7 @@ async def submit_staging(
         source_username=username if import_source.auth_enabled else None,
         source_password_encrypted=encrypted_password if import_source.auth_enabled else None,
         staging_table_name=staging_table_name,
+        extra_config={"generate_metadata_with_ai": generate_metadata_with_ai},
     )
     session.add(integrity_link)
     session.commit()
@@ -540,6 +545,7 @@ async def submit_staging(
         dag_run_id=make_initial_staging_run_id(integrity_link_id_as_string),
         source_layer=import_source.source_layer,
         source_protocol=import_source.source_protocol,
+        generate_metadata_with_ai=generate_metadata_with_ai,
     )
 
 
@@ -566,6 +572,7 @@ async def edit_staging(
     service_url: Optional[str] = Form(None),
     layer_name: Optional[str] = Form(None),
     service_protocol: Optional[str] = Form(None),
+    generate_metadata_with_ai: bool = Form(False),
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_org: str = Header(..., alias="sec-org", include_in_schema=False),
 ) -> StagingResponse:
@@ -588,6 +595,7 @@ async def edit_staging(
         service_url: Optional service URL if import type is API (WFS/OGC API Features)
         layer_name: Optional layer/collection name if import type is API
         service_protocol: Optional protocol if import type is API ('wfs' or 'ogcFeatures')
+        generate_metadata_with_ai: Whether to generate metadata with AI after staging
         sec_username: Username from geOrchestra security headers
         sec_org: Organization from geOrchestra security headers
 
@@ -643,6 +651,7 @@ async def edit_staging(
     )
     integrity_link.staging_table_name = staging_table_name
     integrity_link.integrity_transformation = None  # Clear any existing transformations on edit !! warning this may break process if recurrent edits are needed, need to find better way to handle this
+    integrity_link.extra_config = {"generate_metadata_with_ai": generate_metadata_with_ai}
 
     session.commit()
     session.refresh(integrity_link)
@@ -668,6 +677,7 @@ async def edit_staging(
         dag_run_id=dag_run_id,
         source_layer=import_source.source_layer,
         source_protocol=import_source.source_protocol,
+        generate_metadata_with_ai=generate_metadata_with_ai,
     )
 
 

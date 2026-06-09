@@ -417,6 +417,21 @@ async def dag_success_callback(
     datafeeder_session.commit()
     datafeeder_session.refresh(integrity_link)
 
+    # TODO
+    # - retrive keywords from geonetwork
+    # - retrieve thesaurus from geonetwork
+    # - trigger AI metadata generation if requested in extra_config
+
+    # Trigger AI metadata generation if requested
+    generate_metadata_with_ai: bool = bool(
+        (integrity_link.extra_config or {}).get("generate_metadata_with_ai", False)
+    )
+    if generate_metadata_with_ai:
+        logger.info(
+            f"generate_metadata_with_ai=True for IntegrityLink {integrity_link.id} — "
+            "TODO: trigger AI metadata generation here"
+        )
+
     # Update revision date in GeoNetwork metadata (soft failure)
     if integrity_link.metadata_id is not None:
         try:

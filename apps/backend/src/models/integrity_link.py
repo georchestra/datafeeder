@@ -36,6 +36,11 @@ class IntegrityLink(SQLModel, table=True):
         sa_column=Column(JSON),
         description="Full transformation config (IntegrityTransformation): columns + force_projection",
     )
+    extra_config: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(JSON),
+        description="Arbitrary extra configuration (e.g. generate_metadata_with_ai)",
+    )
     source_import_type: ImportType = Field(
         sa_column=Column(SqlEnum(ImportType, values_callable=get_enum_values), nullable=False)
     )
