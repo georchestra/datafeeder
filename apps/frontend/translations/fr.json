@@ -296,7 +296,7 @@
   "integrityLinks.visibility.open": "Ouvert",
   "integrityLinks.visibility.restricted": "Restreint",
   "integrityLinks.visibility.unconfigured": "Non-configuré",
-  "intlinkLayout.error.forbidden.message": "Vous n'avez pas les droits d'accès à ce jeu de données.",
+  "intlinkLayout.error.forbidden.message": "Vous n'avez pas les droits d'édition sur ce jeu de données.",
   "intlinkLayout.error.forbidden.title": "Accès refusé",
   "intlinkLayout.error.not_found.message": "Le jeu de données demandé est introuvable.",
   "intlinkLayout.error.not_found.title": "Jeu de données introuvable",
