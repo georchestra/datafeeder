@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Optional
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
@@ -774,6 +774,33 @@ def dag_failure_callback(
         datafeeder_session.commit()
 
 
+def _stringify_temporal_columns(df: pd.DataFrame) -> None:
+    """Stringify temporal columns in place so preview data is JSON-serializable.
+
+    Handles datetime64 columns and object-dtype columns holding Python
+    date/datetime objects (e.g. Parquet date32), which is_datetime64_any_dtype
+    does not detect. Geometry columns are left untouched.
+    """
+
+    # datetime is a subclass of date, so isinstance(v, date) matches both plain
+    # dates (Parquet date32) and full timestamps; isoformat() renders both cleanly.
+    def _iso(value: Any) -> Any:
+        return value.isoformat() if isinstance(value, date) else value
+
+    for col in df.columns:
+        series = df[col]
+        if pd.api.types.is_datetime64_any_dtype(series):
+            df[col] = series.astype(str)  # type: ignore[misc]
+        elif series.dtype == "object":
+            # Sample the first non-null value to decide the column's real type;
+            # an all-null column has nothing to serialize, so we skip it.
+            non_null = series.dropna()  # type: ignore[misc]
+            if not non_null.empty and isinstance(non_null.iloc[0], date):  # type: ignore[misc]
+                # Convert per-value (not astype) so any stray nulls survive as
+                # None instead of becoming the string "NaT"/"None".
+                df[col] = series.apply(_iso)  # type: ignore[misc]
+
+
 def _detect_original_projection(
     staging_table_name: str,
     engine: Any,
@@ -1113,16 +1140,8 @@ def get_staging_preview(
             staging_table_name, engine, schema, config, limit=limit
         )
 
-        # Convert all non-JSON-serializable types to string (datetime, Timestamp, etc.)
-        for col in transformed_data.columns:
-            if transformed_data[col].dtype == "object":
-                try:
-                    if pd.api.types.is_datetime64_any_dtype(transformed_data[col]):
-                        transformed_data[col] = transformed_data[col].astype(str)  # type: ignore[misc]
-                except Exception:
-                    pass
-            elif pd.api.types.is_datetime64_any_dtype(transformed_data[col]):
-                transformed_data[col] = transformed_data[col].astype(str)  # type: ignore[misc]
+        # Convert non-JSON-serializable temporal types to string (datetime, date, Timestamp).
+        _stringify_temporal_columns(transformed_data)
 
         data: list[dict[str, Any]] = []
         geojson_data = None
