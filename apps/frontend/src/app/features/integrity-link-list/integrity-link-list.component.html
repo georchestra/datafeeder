@@ -24,7 +24,7 @@
     } @else {
     <!-- Header -->
     <div class="-mx-7 mb-2 flex border-t border-gray-200 px-7 pt-3">
-      <div class="flex-1 pr-4 text-sm font-semibold text-gray-2">
+      <div class="flex-1 pl-2 pr-4 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.title' | translate }}
       </div>
       <div class="w-48 pr-4 text-sm font-semibold text-gray-2">
@@ -55,7 +55,7 @@
         (click)="onRowClick(link)"
         (keydown.enter)="onRowKeydown($event, link)"
       >
-        <div class="flex-1 truncate pr-4 text-sm text-gray-2">
+        <div class="flex-1 truncate pl-2 pr-4 text-sm text-gray-2">
           @if (link.has_final_table || link.source_import_type === 'empty') {
           {{ link.integrity_title }}
           @if (isReadOnly(link)) {
@@ -94,7 +94,9 @@
         <div class="pl-2 w-32 pr-4 text-sm text-gray-2">
           {{ link.created_at | date : 'dd/MM/yyyy' }}
         </div>
-        <div class="absolute inset-y-0 right-2 flex items-center gap-1">
+        <div
+          class="absolute inset-y-0 right-2 flex pl-2 items-center gap-1 group-hover:bg-gray-100"
+        >
           @if (getCatalogueUrl(link)) {
           <button
             type="button"
