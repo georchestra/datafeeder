@@ -52,6 +52,7 @@ WORKDIR /app
 # Copy workspace configuration and libs
 COPY pyproject.toml uv.lock ./
 COPY libs/data_manipulation ./libs/data_manipulation
+COPY libs/ai ./libs/ai
 COPY apps/backend ./apps/backend
 
 # Install dependencies from root of workspace (editable for hot-reload)
@@ -62,6 +63,13 @@ EXPOSE 8000
 
 # Run migrations then start with hot-reload
 CMD ["sh", "-c", "uv run alembic upgrade head && exec uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app"]
+
+# ============================================================================
+# AI stage: Development with Phoenix observability extras installed
+# ============================================================================
+FROM development AS ai
+
+RUN uv pip install "arize-phoenix-otel>=0.6" "openinference-instrumentation-langchain>=0.1"
 
 # ============================================================================
 # Production stage: Minimal image without dev dependencies
@@ -80,6 +88,7 @@ RUN addgroup --gid ${GID} georchestra_user && \
 # Copy workspace configuration and libs
 COPY pyproject.toml uv.lock ./
 COPY libs/data_manipulation ./libs/data_manipulation
+COPY libs/ai ./libs/ai
 COPY apps/backend ./apps/backend
 
 # Install production dependencies only, from root of workspace

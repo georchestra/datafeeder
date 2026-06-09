@@ -5,5 +5,7 @@ export type ToastError = HttpErrorResponse | Error
 export interface OperationToast {
   id: string
   translationKey: string
-  type: 'error' | 'info'
+  type: 'error' | 'info' | 'ai'
+  customIcon?: string
+  customColor?: 'primary' | 'secondary'
 }

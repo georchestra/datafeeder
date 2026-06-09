@@ -5,6 +5,7 @@ from src.api.routes import (
     airflow,
     data_groups,
     geonetwork,
+    llm,
     metadata_groups,
     settings,
     source_databases,
@@ -24,6 +25,7 @@ from src.api.routes.ingestion import (
 api_router = APIRouter()
 api_router.include_router(utils.router)
 api_router.include_router(airflow.router)
+api_router.include_router(llm.router)
 api_router.include_router(geonetwork.router)
 api_router.include_router(settings.router)
 api_router.include_router(source_databases.router)

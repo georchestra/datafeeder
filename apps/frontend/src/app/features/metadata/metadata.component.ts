@@ -52,6 +52,8 @@ import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import { FooterService } from '../../core/layout/footer.service'
 import { IntlinkNavService } from '../../core/layout/intlink-nav.service'
 import { MetadataSaveService } from '../../core/layout/metadata-save.service'
+import { SettingsService } from '../../core/settings/settings.service'
+import { AiGenerateButtonComponent } from './ai-generate-button.component'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
 marker('metadata.processing.queued')
@@ -81,7 +83,8 @@ const PAGE_KEY_ACCESS_CONTACT = 'editor.record.form.page.accessAndContact'
     TranslatePipe,
     RecordFormComponent,
     RouterLink,
-    SpinningLoaderComponent
+    SpinningLoaderComponent,
+    AiGenerateButtonComponent
   ],
   templateUrl: './metadata.component.html',
   styleUrl: './metadata.component.css',
@@ -105,13 +108,19 @@ export class MetadataComponent implements OnInit {
   private footerService = inject(FooterService)
   private destroyRef = inject(DestroyRef)
   private api = inject(Api)
+  private settingsService = inject(SettingsService)
+
+  aiMetadataEnabled = computed(() => {
+    const features =
+      this.settingsService.getSetting<string[]>('enabled_features')
+    return features?.includes('ai_metadata') ?? false
+  })
 
   readonly footerTpl = viewChild<TemplateRef<unknown>>('footerTpl')
 
   processingStatus = signal<TaskStatus | null>(null)
   processingStatusLoaded = signal(false)
   processingDagRunId = signal<string | null>(null)
-
   isRecordLoaded = toSignal(this.editor.record$.pipe(map((record) => !!record)))
   pages = toSignal(
     this.editor.editorConfig$.pipe(map((config) => config.pages))

@@ -82,6 +82,7 @@ class AirflowTaskExecutor(BaseTaskExecutor):
         last_retrieval_timestamp: datetime | None = None,
         target_schema: str = DEFAULT_DATA_SCHEMA,
         source: ProcessSource | None = None,
+        generate_metadata_with_ai: bool = False,
         join_target: JoinTarget | None = None,
     ) -> TaskRunInfo:
         """Trigger a process task in Airflow."""
@@ -98,6 +99,7 @@ class AirflowTaskExecutor(BaseTaskExecutor):
                     "last_retrieval_timestamp": last_retrieval_timestamp,
                     "target_schema": target_schema,
                     "join_target": join_target.model_dump() if join_target else None,
+                    "generate_metadata_with_ai": generate_metadata_with_ai,
                     # Re-ingestion mode, without staging table
                     **(source.model_dump() if source else {}),
                 },

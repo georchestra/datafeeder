@@ -21,6 +21,7 @@ import {
   iconoirWarningTriangle,
   iconoirXmark
 } from '@ng-icons/iconoir'
+import { FormsModule } from '@angular/forms'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { ButtonComponent, SpinningLoaderComponent } from 'geonetwork-ui'
 import {
@@ -93,6 +94,13 @@ marker('i18nerror.transformation.projection_application_failed')
 marker('i18nerror.sync.geonetwork')
 marker('i18nerror.join.unavailable')
 marker('import.metadataPublication.error')
+marker('import.dataSource.generateMetadataWithAi')
+marker('import.dataSource.generateMetadataWithAi.hint')
+marker('import.dataSource.ai.addContext')
+marker('import.dataSource.ai.editContext')
+marker('import.dataSource.ai.context.title')
+marker('import.dataSource.ai.context.optional')
+marker('import.dataSource.ai.context.placeholder')
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 120000
@@ -115,6 +123,7 @@ export interface ImportWizardData {
   selector: 'app-data-import-wizard',
   host: { class: 'flex-1 min-h-0 block' },
   imports: [
+    FormsModule,
     MatButtonToggleModule,
     NgIconComponent,
     ButtonComponent,
@@ -176,6 +185,12 @@ export class DataImportWizardComponent {
     return source?.type === 'database' ? source.dbKey ?? '' : ''
   })
 
+  aiMetadataEnabled = computed(() => {
+    const features =
+      this.settingsService.getSetting<string[]>('enabled_features')
+    return features?.includes('ai_metadata') ?? false
+  })
+
   initialDatabaseSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
     if (
@@ -228,6 +243,9 @@ export class DataImportWizardComponent {
   validationError = signal<string | null>(null)
   previewTabIndex = signal(0)
   hasExtentError = signal(false)
+  generateMetadataWithAi = signal(false)
+  aiContextOpen = signal(false)
+  aiContext = signal('')
 
   columnConfigs = signal<ColumnConfig[]>([])
   forceProjection = signal<ForceProjection | null>(null)
@@ -871,7 +889,11 @@ export class DataImportWizardComponent {
       await this.api.invoke(processStagingDataIngestionProcessPost, {
         body: {
           integrity_link_id: this.integrityLinkStore.intlinkId()!,
-          title: title
+          title: title,
+          generate_metadata_with_ai: this.generateMetadataWithAi(),
+          ...(this.aiContext().trim()
+            ? { extra_context: this.aiContext().trim() }
+            : {})
         }
       })
 

@@ -35,6 +35,9 @@ class SettingsService:
             enabled_features.append("scheduling")
             enabled_features.append("events")
 
+        if self._settings.AI_ENABLED:
+            enabled_features.append("ai_metadata")
+
         settings_dict: dict[str, Any] = {
             "projections": projections,
             "enabled_features": enabled_features,

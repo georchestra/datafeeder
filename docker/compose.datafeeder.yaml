@@ -37,6 +37,8 @@ services:
       - .envs-ldap
       - .envs-hosts
       - .envs-database-georchestra
+      - path: .envs-ai
+        required: false
 
   # GDAL/ogr2ogr sidecar for the LOCAL task executor: datafeeder-backend has no GDAL
   # installed, so LocalTaskExecutor reaches ogr2ogr in this container via `docker exec`
