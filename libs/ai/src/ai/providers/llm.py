@@ -15,12 +15,13 @@ try:
 except ImportError:
     _ChatMistralAI = None  # type: ignore[assignment,misc]
 
-Provider = Literal["openai", "ollama", "mistral"]
+Provider = Literal["openai", "ollama", "mistral", "openrouter"]
 
 _DEFAULT_MODELS: dict[str, str] = {
     "openai": "gpt-4o-mini",
     "ollama": "llama3.2:1b",
     "mistral": "mistral-small-latest",
+    "openrouter": "anthropic/claude-3-haiku",
 }
 
 
@@ -87,6 +88,15 @@ def get_llm(
             model=resolved_model,
             temperature=temperature,
             api_key=api_key,  # type: ignore[arg-type]
+        )
+
+    if provider == "openrouter":
+        return ChatOpenAI(
+            model=resolved_model,
+            temperature=temperature,
+            api_key=api_key,  # type: ignore[arg-type]
+            base_url=base_url or "https://openrouter.ai/api/v1",
+            model_kwargs={},
         )
 
     raise ValueError(

@@ -30,7 +30,7 @@ class AttributeInfo(BaseModel):
     """Description of a single dataset attribute/column."""
 
     name: str = Field(description="Column name")
-    type: str = Field(description="SQL/data type (e.g. numeric, varchar, geometry)")
+    type: str = Field(description="ISO 19110 type (e.g. integer, string (50), GM_Point)")
     description: str = Field(description="Human-readable description of the column in French")
 
 

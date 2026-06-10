@@ -1,8 +1,8 @@
 Generate metadata for the following dataset:
 - Dataset title: {title}
-- Columns (name and SQL type): {columns_with_types}
+- Columns (name and ISO type): {columns_with_types}
 - Bounding box (minx miny maxx maxy): {bbox}
-- Sample data (first 5 rows):
+- Sample data:
 {sample}
 {priority_keywords}
 {priority_topics}
