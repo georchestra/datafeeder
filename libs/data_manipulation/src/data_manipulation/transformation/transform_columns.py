@@ -36,17 +36,12 @@ def _parse_bool_from_strings(series: pd.Series) -> pd.Series:
         A Series with pandas nullable boolean dtype (``"boolean"``).
     """
 
-    def _to_bool(val: object) -> object:
-        if val is None or (isinstance(val, float) and val != val):
-            return None
-        s = str(val).strip().lower()
-        if s in _BOOL_TRUE:
-            return True
-        if s in _BOOL_FALSE:
-            return False
-        return None
-
-    result = series.map(_to_bool).astype("boolean")  # pyright: ignore[reportUnknownMemberType]
+    mapping: dict[str, bool] = {
+        **dict.fromkeys(_BOOL_TRUE, True),
+        **dict.fromkeys(_BOOL_FALSE, False),
+    }
+    normalised = series.astype("string").str.strip().str.lower()  # pyright: ignore[reportUnknownMemberType]
+    result = normalised.map(mapping).astype("boolean")  # pyright: ignore[reportUnknownMemberType]
     na_count = int(result.isna().sum())
     if na_count > 0:
         logger.warning(f"Boolean cast: {na_count} value(s) could not be parsed and were set to NA")
@@ -104,10 +99,12 @@ def cast_column_types(
     Returns:
         DataFrame with columns cast to the specified types.
     """
-    for col_config in columns:
-        if col_config.excluded or col_config.cast_type is None:
-            continue
+    casts_to_apply = [c for c in columns if not c.excluded and c.cast_type is not None]
+    if not casts_to_apply:
+        return df
 
+    df = df.copy()
+    for col_config in casts_to_apply:
         # After rename the column lives under its effective name
         effective_name = (
             col_config.new_name if col_config.new_name is not None else col_config.original_name
@@ -123,7 +120,6 @@ def cast_column_types(
         cast_type = col_config.cast_type
         try:
             if cast_type == CastType.BOOLEAN:
-                df = df.copy()
                 col = df[effective_name]
                 # Use a custom string parser for object (text) columns so that
                 # "False", "0", "no" correctly become False rather than True.
@@ -133,13 +129,14 @@ def cast_column_types(
                 else:
                     df[effective_name] = col.astype(bool)  # type: ignore[union-attr]
             elif cast_type == CastType.NUMERIC:
-                df = df.copy()
-                df[effective_name] = pd.to_numeric(df[effective_name], errors="coerce")  # pyright: ignore[reportUnknownMemberType]
+                # Pin dtype to float64 so the preview path matches the SQL path
+                # (transform_sql._cast_expr emits double precision unconditionally).
+                df[effective_name] = pd.to_numeric(  # pyright: ignore[reportUnknownMemberType]
+                    df[effective_name], errors="coerce"
+                ).astype("float64")  # pyright: ignore[reportAttributeAccessIssue]
             elif cast_type == CastType.TEXT:
-                df = df.copy()
                 df[effective_name] = df[effective_name].astype(str)  # pyright: ignore[reportUnknownMemberType]
             elif cast_type == CastType.DATE:
-                df = df.copy()
                 df[effective_name] = pd.to_datetime(df[effective_name], errors="coerce")  # type: ignore[arg-type]
             logger.info(f"Cast column '{effective_name}' to {cast_type}")
         except Exception as e:

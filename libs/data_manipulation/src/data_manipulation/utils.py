@@ -82,7 +82,7 @@ def resolve_url(url: str) -> str:
         str: The final URL after redirection or the original URL if no redirection
     """
     try:
-        response = requests.head(url, allow_redirects=False, timeout=10)
+        response = requests.head(url, allow_redirects=False, timeout=None)
         if 300 <= response.status_code < 400:
             location = response.headers.get("Location")
             if location:

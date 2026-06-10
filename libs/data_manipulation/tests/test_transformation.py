@@ -1,9 +1,13 @@
 import geopandas as gpd
 import pandas as pd
+from shapely import wkb
 from shapely.geometry import Point
 
 from data_manipulation.models import ForceProjection, IntegrityTransformation
-from data_manipulation.transformation.transform import apply_transformations
+from data_manipulation.transformation.transform import (
+    _parse_geometry_series,  # type: ignore[reportPrivateUsage]
+    apply_transformations,
+)
 from data_manipulation.transformation.transform_encoding import apply_encoding
 from data_manipulation.transformation.transform_projection import apply_projection
 
@@ -121,6 +125,27 @@ def test_apply_projection_multiple_points():
     assert len(result) == 4
     assert result.crs.to_string() == "EPSG:3857"  # type: ignore[misc]
     assert all(result.geometry.is_valid)
+
+
+def test_parse_geometry_series_wkt():
+    series = pd.Series(["POINT (1 2)", "POINT (3 4)", None, ""])
+    result = _parse_geometry_series(series)
+
+    assert result[0].equals(Point(1, 2))  # type: ignore[union-attr]
+    assert result[1].equals(Point(3, 4))  # type: ignore[union-attr]
+    assert result[2] is None
+    assert result[3] is None
+
+
+def test_parse_geometry_series_wkb_hex():
+    wkb_p1 = wkb.dumps(Point(1, 2), hex=True)
+    wkb_p2 = wkb.dumps(Point(3, 4), hex=True)
+    series = pd.Series([wkb_p1, wkb_p2, None])
+    result = _parse_geometry_series(series)
+
+    assert result[0].equals(Point(1, 2))  # type: ignore[union-attr]
+    assert result[1].equals(Point(3, 4))  # type: ignore[union-attr]
+    assert result[2] is None
 
 
 def test_apply_transformations_geometry_and_encoding():

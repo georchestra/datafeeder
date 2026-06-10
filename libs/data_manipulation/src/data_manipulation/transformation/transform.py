@@ -1,8 +1,10 @@
 import logging
+import re
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
-from shapely import wkb, wkt
+import shapely
 
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.models import IntegrityTransformation
@@ -14,32 +16,41 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CRS = "EPSG:4326"
 
+_HEX_ONLY_RE = re.compile(r"^[0-9A-Fa-f]+$")
 
-def _parse_geometry(geom_value: str):
-    """Parse geometry from either WKT or WKB hexadecimal format.
 
-    Args:
-        geom_value: Geometry string (WKT or WKB hex)
+def _parse_geometry_series(series: pd.Series) -> np.ndarray:
+    """Vectorised WKT/WKB-hex parsing using shapely 2's numpy-aware API.
 
-    Returns:
-        Shapely geometry object
+    Format is detected once from the first non-null value: a string composed
+    only of hex digits is treated as WKB-hex, otherwise WKT. Invalid values
+    map to None (logged once with the count) instead of raising.
     """
-    if not geom_value or pd.isna(geom_value):
-        return None
+    values = series.to_numpy(dtype=object, copy=False)
+    mask_valid = pd.notna(values) & (values != "")
 
-    # Check if it's WKB hex (starts with hex digits)
-    if all(c in "0123456789ABCDEFabcdef" for c in geom_value):
-        try:
-            return wkb.loads(geom_value, hex=True)
-        except Exception:
-            pass
+    if not mask_valid.any():
+        return np.full(len(values), None, dtype=object)
 
-    # Try WKT format
+    sample = next(v for v, ok in zip(values, mask_valid, strict=False) if ok)
+    is_hex = isinstance(sample, str) and bool(_HEX_ONLY_RE.match(sample))
+
+    result = np.full(len(values), None, dtype=object)
+    candidates = values[mask_valid]
     try:
-        return wkt.loads(geom_value)
+        if is_hex:
+            parsed = shapely.from_wkb(candidates, on_invalid="ignore")
+        else:
+            parsed = shapely.from_wkt(candidates, on_invalid="ignore")
     except Exception as e:
-        logger.warning(f"Failed to parse geometry: {e}")
-        return None
+        logger.warning(f"Failed to parse geometry column: {e}")
+        return result
+
+    result[mask_valid] = parsed
+    invalid = pd.isna(pd.Series(parsed)).sum()
+    if invalid:
+        logger.warning(f"Failed to parse {int(invalid)} geometry value(s); set to None")
+    return result
 
 
 def _convert_geom_column_to_geodataframe(df: pd.DataFrame, projection: str) -> gpd.GeoDataFrame:
@@ -54,12 +65,9 @@ def _convert_geom_column_to_geodataframe(df: pd.DataFrame, projection: str) -> g
     """
     logger.info("Converting 'geom' column to geometry")
     try:
-        # Parse geometries from 'geom' column (supports both WKT and WKB)
-        geometries = df[DEFAULT_GEOMETRY_COLUMN].apply(_parse_geometry)
-
-        # Create GeoDataFrame with geometry column
+        geom_series: pd.Series = df[DEFAULT_GEOMETRY_COLUMN]  # type: ignore[assignment]
+        geometries = _parse_geometry_series(geom_series)
         gdf = gpd.GeoDataFrame(df, geometry=geometries, crs=projection)  # type: ignore[no-any-return]
-
         return gdf
     except Exception as e:
         logger.error(f"Failed to convert 'geom' column to geometry: {e}")
