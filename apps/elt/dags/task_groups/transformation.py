@@ -6,12 +6,9 @@ from typing import Any
 from airflow.exceptions import AirflowException
 from airflow.sdk import task, task_group
 from airflow.utils.trigger_rule import TriggerRule
-from data_manipulation import (
-    IntegrityTransformation,
-    read_and_transform_data,
-    write_data_to_postgis,
-)
+from data_manipulation import IntegrityTransformation
 from data_manipulation.database import create_schema
+from data_manipulation.transformation.transform_sql import transform_in_place_via_sql
 from sqlalchemy import MetaData, Table
 from utils import get_data_sql_engine, get_staging_schema
 
@@ -85,23 +82,8 @@ def process_transformation_group(
             staging_schema = get_staging_schema()
 
             try:
-                logger.info(
-                    f"Reading and transforming data from {staging_schema}.{staging_table_name}"
-                )
-                transformed_data = read_and_transform_data(
-                    table_name=staging_table_name,
-                    engine=engine,
-                    schema=staging_schema,
-                    config=transformation_config,
-                    limit=None,
-                )
-                logger.info(f"Transformations applied to {len(transformed_data)} rows")
-
-                if transformed_data.empty:
-                    logger.error("No data to write after transformation.")
-                    raise AirflowException("No data to write after transformation.")
-
-                # If this is a re-run (has last_retrieval_timestamp), drop the old final table first
+                # If this is a re-run, drop the previous final table so the
+                # CREATE TABLE … AS SELECT below has a clean target.
                 last_retrieval_timestamp = params.get("last_retrieval_timestamp")
                 if last_retrieval_timestamp:
                     try:
@@ -124,16 +106,26 @@ def process_transformation_group(
                         )
 
                 create_schema(engine, final_schema)
-                logger.info(f"Writing data to {final_schema}.{final_table_name}")
-                write_data_to_postgis(
-                    data=transformed_data,
-                    table_name=final_table_name,
+                logger.info(
+                    f"Running SQL transform {staging_schema}.{staging_table_name} "
+                    f"→ {final_schema}.{final_table_name}"
+                )
+                row_count = transform_in_place_via_sql(
+                    staging_table_name=staging_table_name,
+                    staging_schema=staging_schema,
+                    target_table_name=final_table_name,
+                    target_schema=final_schema,
                     engine=engine,
-                    schema=final_schema,
+                    config=transformation_config,
                     create_id=True,
                 )
-                logger.info(f"Successfully wrote {len(transformed_data)} rows to final table")
+                if row_count == 0:
+                    logger.error("No data to write after transformation.")
+                    raise AirflowException("No data to write after transformation.")
+                logger.info(f"Successfully wrote {row_count} rows to final table")
 
+            except AirflowException:
+                raise
             except Exception as e:
                 raise AirflowException(f"Failed to transform and load data: {e}")
 
