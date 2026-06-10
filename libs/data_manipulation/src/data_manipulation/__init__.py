@@ -4,7 +4,6 @@ from data_manipulation.ingestion import (
     ingest_data_from_url_into_postgis,
     read_and_transform_data,
     read_data_from_postgis,
-    write_data_to_postgis,
 )
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import (
@@ -29,7 +28,6 @@ __all__ = [
     "apply_transformations",
     "build_sql_column_ops",
     "detect_column_type_from_sqla",
-    "write_data_to_postgis",
     "configure_logging",
     "CastType",
     "ColumnConfig",

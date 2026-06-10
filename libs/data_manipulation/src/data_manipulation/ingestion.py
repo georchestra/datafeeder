@@ -1,17 +1,28 @@
+import io
+import json
 import logging
 import re
+import shutil
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 from urllib.error import URLError
 from urllib.parse import quote, unquote, urlparse
 from urllib.request import urlretrieve
 
 import chardet
 import geopandas as gpd
+import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+import pyogrio
+import pyogrio.raw
 import requests
+import shapely
 from geoalchemy2 import Geometry
-from sqlalchemy import MetaData, Table, func, select, text
+from sqlalchemy import MetaData, Table, select, text
 from sqlalchemy.engine import Engine
 
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_NAME_MAX_LENGTH
@@ -24,15 +35,151 @@ from data_manipulation.validators import validate_schema_name, validate_table_na
 logger = logging.getLogger(__name__)
 
 DEFAULT_SCHEMA = "public"
+_ENCODING_DETECT_BYTES = 256 * 1024
+_COPY_CHUNK_ROWS = 50_000
+_READ_BATCH_ROWS = _COPY_CHUNK_ROWS
 
 
-def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
-    metadata = MetaData(schema=schema)
-    table = Table(table_name, metadata, autoload_with=engine)
-    count_query = select(func.count()).select_from(table)
+def _parquet_crs(pf: Any) -> object | None:
+    """Best-effort CRS extraction from GeoParquet ``geo`` schema metadata.
 
-    with engine.connect() as conn:
-        return conn.execute(count_query).scalar() or 0
+    Returns whatever ``GeoDataFrame(crs=...)`` accepts (PROJJSON dict, EPSG
+    string, or None). GeoParquet < 1.0 sometimes omitted CRS — default per the
+    spec is OGC:CRS84 (lon/lat, EPSG:4326-equivalent).
+    """
+    md = pf.schema_arrow.metadata or {}
+    raw = md.get(b"geo")
+    if not raw:
+        return None
+    try:
+        geo = json.loads(raw)
+        primary = geo.get("primary_column", "geometry")
+        col = geo.get("columns", {}).get(primary, {})
+        crs = col.get("crs")
+        if crs is None:
+            return "OGC:CRS84"
+        return crs
+    except Exception as e:
+        logger.warning(f"Failed to parse GeoParquet metadata: {e}")
+        return None
+
+
+def _iter_parquet_batches(
+    file_path: str, batch_rows: int
+) -> Iterator["gpd.GeoDataFrame | pd.DataFrame"]:
+    """Yield bounded-memory batches from a (Geo)Parquet file."""
+
+    pf = pq.ParquetFile(file_path)
+    md = pf.schema_arrow.metadata or {}
+    geo_meta_raw = md.get(b"geo")
+    geom_col: str | None = None
+    crs: object | None = None
+    if geo_meta_raw:
+        try:
+            geo = json.loads(geo_meta_raw)
+            geom_col = geo.get("primary_column", "geometry")
+            crs = _parquet_crs(pf)
+        except Exception:
+            geom_col = None
+
+    for record_batch in pf.iter_batches(batch_size=batch_rows):
+        df = record_batch.to_pandas()
+        if geom_col is not None and geom_col in df.columns:
+            geometries = shapely.from_wkb(np.asarray(df[geom_col].values))
+            tabular = df.drop(columns=[geom_col])
+            yield gpd.GeoDataFrame(tabular, geometry=geometries, crs=crs)  # type: ignore[arg-type]
+        else:
+            yield df
+
+
+def _iter_pyogrio_arrow_batches(
+    file_path: str, batch_rows: int, *, layer: str | None = None
+) -> Iterator["gpd.GeoDataFrame | pd.DataFrame"]:
+    """Yield bounded-memory batches from any OGR-readable file via Arrow.
+
+    Decodes WKB geometry per batch into a shapely-backed GeoDataFrame so the
+    caller sees the same shape it would get from ``gpd.read_file``.
+    """
+
+    with pyogrio.raw.open_arrow(file_path, layer=layer, batch_size=batch_rows) as (meta, stream):
+        crs = meta.get("crs")
+        geom_name = meta.get("geometry_name") or "wkb_geometry"
+        has_geom = bool(meta.get("geometry_type"))
+        # pyogrio 0.10+ yields an _ArrowStream that exposes the C-stream
+        # interface; wrap it so we can iterate RecordBatch by RecordBatch.
+        reader = (
+            stream
+            if isinstance(stream, pa.RecordBatchReader)
+            else pa.RecordBatchReader.from_stream(stream)
+        )
+        for record_batch in reader:
+            df = pa.Table.from_batches([record_batch]).to_pandas()
+            if has_geom and geom_name in df.columns:
+                wkb_bytes = np.asarray(df[geom_name].values)
+                geometries = shapely.from_wkb(wkb_bytes)
+                tabular = df.drop(columns=[geom_name])
+                yield gpd.GeoDataFrame(tabular, geometry=geometries, crs=crs)  # type: ignore[arg-type]
+            else:
+                yield df
+
+
+def _iter_shapefile_encoded_batches(
+    file_path: str, batch_rows: int
+) -> Iterator["gpd.GeoDataFrame | pd.DataFrame"]:
+    """Chunked fallback for legacy-encoded shapefiles.
+
+    pyogrio's Arrow path can't always decode non-UTF-8 DBF attributes. Detect
+    the encoding once, probe the feature count, then read in fixed-size
+    windows with ``skip_features`` / ``max_features``. shapefile has a hard
+    2 GB-per-file limit so this loop terminates cheaply.
+    """
+    encoding = _detect_file_encoding(file_path)
+    info = pyogrio.read_info(file_path)
+    total = int(info.get("features", 0) or 0)
+    if total <= 0:
+        return
+    offset = 0
+    while offset < total:
+        batch = pyogrio.read_dataframe(
+            file_path,
+            encoding=encoding,
+            skip_features=offset,
+            max_features=batch_rows,
+        )
+        if len(batch) == 0:
+            break
+        yield batch
+        offset += len(batch)
+
+
+def _iter_data_batches(
+    file_path: str,
+    batch_rows: int = _READ_BATCH_ROWS,
+) -> Iterator["gpd.GeoDataFrame | pd.DataFrame"]:
+    """Yield bounded-memory batches from a geospatial or tabular file.
+
+    Dispatch by extension. Each batch carries at most ``batch_rows`` rows, so
+    peak memory is independent of file size. Returned objects are
+    GeoDataFrames when the source has geometry, plain DataFrames otherwise.
+    """
+    suffix = Path(file_path).suffix.lower()
+
+    if suffix in (".parquet", ".geoparquet"):
+        yield from _iter_parquet_batches(file_path, batch_rows)
+        return
+
+    try:
+        yield from _iter_pyogrio_arrow_batches(file_path, batch_rows)
+        return
+    except UnicodeDecodeError:
+        if suffix != ".shp":
+            raise
+        logger.warning(
+            "UTF-8 decode failed on %s; falling back to chunked non-Arrow read",
+            file_path,
+        )
+
+    yield from _iter_shapefile_encoded_batches(file_path, batch_rows)
 
 
 def _detect_file_encoding(file_path: str) -> str:
@@ -59,46 +206,13 @@ def _detect_file_encoding(file_path: str) -> str:
 
     try:
         with open(file_path_to_read, "rb") as f:
-            encoding = chardet.detect(f.read())["encoding"]
+            sample = f.read(_ENCODING_DETECT_BYTES)
+        encoding = chardet.detect(sample)["encoding"]
     except Exception as e:
         logger.warning(f"Failed to detect encoding for {file_path_to_read}: {e}")
         encoding = None
 
     return encoding or "utf-8"
-
-
-def _read_file_encoded(file_path: str) -> gpd.GeoDataFrame | pd.DataFrame:
-    """Read a geospatial file with the specified encoding.
-
-    Args:
-        file_path: Path to the file
-        encoding: Encoding to use
-
-    Returns:
-        GeoDataFrame or DataFrame with the file data
-    """
-    if Path(file_path).suffix.lower() in (".parquet", ".geoparquet"):
-        try:
-            return gpd.read_parquet(file_path)  # type: ignore[arg-type]
-        except ValueError:
-            return pd.read_parquet(file_path)
-
-    try:
-        # Try reading with UTF-8 first (common default)
-        data = gpd.read_file(file_path)  # type: ignore[arg-type]
-        return data
-    except UnicodeDecodeError:
-        logger.warning(
-            "Failed to read file with UTF-8 encoding, attempting to detect encoding and read again."
-        )
-
-    # Detect encoding (mainly for shapefiles, others default to UTF-8)
-    encoding = _detect_file_encoding(file_path)
-    logger.warning("Detected encoding: %s", encoding)
-    # Reading with detected encoding
-    data = gpd.read_file(file_path, encoding=encoding)  # type: ignore[arg-type]
-
-    return data
 
 
 def ingest_data_from_file_into_postgis(
@@ -174,8 +288,12 @@ def ingest_data_from_ftp_into_postgis(
             # Download FTP file using urlretrieve
             urlretrieve(ftp_url_with_auth, temp_file_path)
 
-            data = _read_file_encoded(str(temp_file_path))
-            write_data_to_postgis(data, table_name, engine, schema)
+            _write_batches_to_postgis(
+                _iter_data_batches(str(temp_file_path)),
+                table_name,
+                engine,
+                schema,
+            )
 
     # TODO: handle error for frontend
     except URLError as e:
@@ -250,9 +368,8 @@ def ingest_data_from_url_into_postgis(
         else:
             # Use requests for HTTP/HTTPS URLs
             resolved_url = resolve_url(url)
-            response = requests.get(resolved_url, auth=auth, timeout=300)
+            response = requests.get(resolved_url, auth=auth, timeout=None, stream=True)
             response.raise_for_status()
-            content = response.content
 
             content_disposition = response.headers.get("Content-Disposition")
             filename = None
@@ -271,11 +388,16 @@ def ingest_data_from_url_into_postgis(
                 temp_file_path = Path(temp_dir) / (
                     filename or Path(urlparse(resolved_url).path).name
                 )
+                response.raw.decode_content = True
                 with open(temp_file_path, "wb") as temp_file:
-                    temp_file.write(content)
+                    shutil.copyfileobj(response.raw, temp_file)
 
-                data = _read_file_encoded(str(temp_file_path))
-                write_data_to_postgis(data, table_name, engine, schema)
+                _write_batches_to_postgis(
+                    _iter_data_batches(str(temp_file_path)),
+                    table_name,
+                    engine,
+                    schema,
+                )
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
         raise
@@ -301,6 +423,8 @@ def ingest_data_from_database_into_postgis(
     """
     validate_schema_name(source_schema)
     validate_table_name(source_table)
+    validate_table_name(target_table)
+    validate_schema_name(target_schema)
 
     logger.info(
         f"Ingesting data from {source_schema}.{source_table} into staging table {target_table}"
@@ -308,18 +432,45 @@ def ingest_data_from_database_into_postgis(
 
     try:
         metadata = MetaData(schema=source_schema)
-        table = Table(source_table, metadata, autoload_with=source_engine)
+        source_tbl = Table(source_table, metadata, autoload_with=source_engine)
 
-        geom = _get_geo_column_from_table(table)
-        query = select(table)
+        geom_col = _get_geo_column_from_table(source_tbl)
+        srid = 0
+        if geom_col is not None:
+            geom_type = source_tbl.c[geom_col].type
+            if isinstance(geom_type, Geometry):
+                srid = geom_type.srid or 0
 
-        # Entire table loaded into memory — not suitable for very large tables without chunking
-        if geom is not None:
-            data = gpd.read_postgis(query, con=source_engine, geom_col=geom)  # type: ignore[call-overload]
-        else:
-            data = pd.read_sql(query, source_engine)
+        def _iter_source_batches() -> Iterator[gpd.GeoDataFrame | pd.DataFrame]:
+            stream_conn = source_engine.connect().execution_options(
+                stream_results=True, yield_per=_COPY_CHUNK_ROWS
+            )
+            try:
+                chunk_iter = pd.read_sql(  # pyright: ignore[reportUnknownMemberType]
+                    select(source_tbl), stream_conn, chunksize=_COPY_CHUNK_ROWS
+                )
+                for chunk in chunk_iter:
+                    if geom_col is not None and geom_col in chunk.columns:
+                        # Vectorised WKBElement → shapely: pull raw WKB bytes
+                        # once, decode the whole column in one shapely call.
+                        wkb_bytes = np.fromiter(
+                            (v.data if v is not None else None for v in chunk[geom_col]),
+                            dtype=object,
+                            count=len(chunk),
+                        )
+                        chunk[geom_col] = shapely.from_wkb(wkb_bytes)
+                        chunk = gpd.GeoDataFrame(
+                            chunk,
+                            geometry=geom_col,
+                            crs=f"EPSG:{srid}" if srid else None,
+                        )
+                    yield chunk
+            finally:
+                stream_conn.close()
 
-        write_data_to_postgis(data, target_table, target_engine, target_schema)
+        _write_batches_to_postgis(
+            _iter_source_batches(), target_table, target_engine, target_schema
+        )
     except Exception as e:
         logger.error(f"Error ingesting data from {source_schema}.{source_table}: {e}")
         raise
@@ -357,12 +508,12 @@ def ingest_data_from_ogc_service_into_postgis(
     gdal_source = f"{gdal_prefix}:{normalized_url}"
     logger.info(f"Ingesting OGC layer '{layer_name}' from {gdal_source} into {table_name}")
     try:
-        gdf = gpd.read_file(gdal_source, layer=layer_name)
-        # OGC API Features collections may have no geometry — treat as tabular data in that case
-        if gdf.geometry.isna().all():
-            logger.info(f"Layer '{layer_name}' has no valid geometries; ingesting as tabular data.")
-            gdf = pd.DataFrame(gdf.drop(columns=str(gdf.geometry.name)))
-        write_data_to_postgis(gdf, table_name, engine, schema)
+        _write_batches_to_postgis(
+            _iter_pyogrio_arrow_batches(gdal_source, _READ_BATCH_ROWS, layer=layer_name),
+            table_name,
+            engine,
+            schema,
+        )
     except Exception as e:
         logger.error(f"Error ingesting OGC layer '{layer_name}' from {gdal_source}: {e}")
         raise
@@ -476,88 +627,275 @@ def read_and_transform_data(
     return apply_transformations(data, config)
 
 
-def write_data_to_postgis(
-    data: gpd.GeoDataFrame | pd.DataFrame,
-    table_name: str,
-    engine: Engine,
-    schema: str = DEFAULT_SCHEMA,
-    create_id: bool = False,
-) -> None:
-    """Write a GeoDataFrame or DataFrame to a PostGIS table.
+def _srid_from_crs(crs: object) -> int:
+    """Best-effort SRID extraction for a (Geo)Series CRS. Returns 0 when unknown."""
+    if crs is None:
+        return 0
+    try:
+        epsg = crs.to_epsg()  # type: ignore[attr-defined]
+    except Exception:
+        return 0
+    return int(epsg) if epsg is not None else 0
 
-    Args:
-        data: GeoDataFrame or DataFrame to write
-        table_name: Name of the target table
-        engine: SQLAlchemy engine
-        schema: PostgreSQL schema name (optional)
-        create_id: If True, add an 'id_datafeeder' UUID column as primary key
+
+def _iter_csv_chunks(
+    data: pd.DataFrame,
+    geom_col: str | None,
+    srid: int,
+    chunk_rows: int = _COPY_CHUNK_ROWS,
+) -> Iterator[bytes]:
+    """Yield CSV-encoded byte chunks (one chunk = up to ``chunk_rows`` rows).
+
+    Geometries in ``geom_col`` are vectorised once per chunk to EWKB hex
+    (with SRID), so the geometry column lands on PostGIS as native ``geometry``
+    via the implicit EWKB-hex text cast.
+    """
+    n = len(data)
+    if n == 0:
+        return
+
+    for start in range(0, n, chunk_rows):
+        chunk = data.iloc[start : start + chunk_rows]
+
+        if geom_col is not None and geom_col in chunk.columns:
+            geom_arr = chunk[geom_col].to_numpy()
+            if srid:
+                geom_arr = shapely.set_srid(geom_arr, srid)
+            hex_arr = shapely.to_wkb(geom_arr, hex=True, include_srid=bool(srid))
+            chunk = pd.DataFrame(chunk).assign(**{geom_col: hex_arr})
+
+        buf = io.BytesIO()
+        chunk.to_csv(
+            buf,
+            index=False,
+            header=False,
+            na_rep="",
+            lineterminator="\n",
+            encoding="utf-8",
+        )
+        yield buf.getvalue()
+
+
+def _copy_bytes_to_postgres(
+    table_name: str,
+    schema: str,
+    columns: list[str],
+    chunks: Iterator[bytes],
+    engine: Engine,
+    *,
+    raw_conn: Any | None = None,
+) -> None:
+    """Stream pre-encoded CSV byte chunks into an *existing* table via COPY.
+
+    Caller is responsible for having created ``schema.table_name`` first.
+    Supports both psycopg2 (Airflow PostgresHook) and psycopg3 (backend);
+    the driver is dispatched on ``engine.dialect.driver``.
+
+    When ``raw_conn`` is provided, the caller owns its lifecycle — we open a
+    cursor on it for COPY and never commit/rollback/close. Otherwise a fresh
+    raw connection is borrowed from the engine pool and managed here.
     """
     # Validate identifiers to prevent SQL injection
     validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
     validate_schema_name(schema)
 
+    col_list = ", ".join(f'"{c}"' for c in columns)
+    fq_table = f'"{schema}"."{table_name}"'
+    copy_sql = f"COPY {fq_table} ({col_list}) FROM STDIN WITH (FORMAT CSV, HEADER false, NULL '')"
+
+    driver = engine.dialect.driver
+    own_conn = raw_conn is None
+    raw = engine.raw_connection() if own_conn else raw_conn
     try:
-        if not isinstance(data, gpd.GeoDataFrame):  # DataFrame
-            # Ensure there is no geom column
-            if DEFAULT_GEOMETRY_COLUMN in data.columns:
-                logger.warning(
-                    f"DataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column. Dropping it before writing to PostGIS."
+        cursor = raw.cursor()
+        try:
+            if driver == "psycopg":
+                with cursor.copy(copy_sql) as copy:
+                    for chunk in chunks:
+                        copy.write(chunk)
+            elif driver == "psycopg2":
+                buffer = _ChunkedReadable(chunks)
+                cursor.copy_expert(copy_sql, buffer)
+            else:
+                raise RuntimeError(
+                    f"Unsupported postgres driver for COPY: {driver!r}. "
+                    "Expected 'psycopg' or 'psycopg2'."
                 )
-                data.drop(columns=[DEFAULT_GEOMETRY_COLUMN], inplace=True)
+        finally:
+            cursor.close()
+        if own_conn:
+            raw.commit()
+    except Exception:
+        if own_conn:
+            raw.rollback()
+        raise
+    finally:
+        if own_conn:
+            raw.close()
 
-            # Write data to PostGIS as a regular table
-            data.to_sql(table_name, engine, if_exists="replace", schema=schema, index=False)
-        else:  # GeoDataFrame
-            # Ensure the geometry column is named 'geom' for PostGIS convention
-            if data.active_geometry_name is None:
-                logger.info("GeoDataFrame has no active geometry column set.")
 
-                # Ensure there is no geom column
-                if DEFAULT_GEOMETRY_COLUMN in data.columns:
-                    logger.warning(
-                        f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column."
-                        " Dropping it before writing to PostGIS."
-                    )
-                    data.drop(columns=[DEFAULT_GEOMETRY_COLUMN], inplace=True)
+def _normalise_geometry_columns(
+    data: "gpd.GeoDataFrame | pd.DataFrame",
+) -> "tuple[gpd.GeoDataFrame | pd.DataFrame, str | None]":
+    """Apply the ``geom``-column rules used historically by ``write_data_to_postgis``.
 
-            elif data.active_geometry_name == DEFAULT_GEOMETRY_COLUMN:
-                logger.info(
-                    f"GeoDataFrame has '{DEFAULT_GEOMETRY_COLUMN}' as active geometry column."
+    Returns the (possibly-modified) frame and the geometry column name to use
+    when streaming to PostGIS (``None`` for tabular output).
+    """
+    if not isinstance(data, gpd.GeoDataFrame):
+        if DEFAULT_GEOMETRY_COLUMN in data.columns:
+            logger.warning(
+                f"DataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column. "
+                "Dropping it before writing to PostGIS."
+            )
+            data = data.drop(columns=[DEFAULT_GEOMETRY_COLUMN])
+        return data, None
+
+    if data.active_geometry_name is None:
+        logger.info("GeoDataFrame has no active geometry column set.")
+        if DEFAULT_GEOMETRY_COLUMN in data.columns:
+            logger.warning(
+                f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column."
+                " Dropping it before writing to PostGIS."
+            )
+            data = data.drop(columns=[DEFAULT_GEOMETRY_COLUMN])
+        return data, None
+
+    if data.active_geometry_name == DEFAULT_GEOMETRY_COLUMN:
+        return data, DEFAULT_GEOMETRY_COLUMN
+
+    # active geom under a non-default name
+    if DEFAULT_GEOMETRY_COLUMN in data.columns:
+        logger.warning(
+            f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column."
+            " Overwriting it with the active geometry column."
+        )
+        return data, data.active_geometry_name
+    logger.info(f"Renaming active geometry column to '{DEFAULT_GEOMETRY_COLUMN}'")
+    data = data.rename_geometry(DEFAULT_GEOMETRY_COLUMN)
+    return data, DEFAULT_GEOMETRY_COLUMN
+
+
+def _write_batches_to_postgis(
+    batches: "Iterator[gpd.GeoDataFrame | pd.DataFrame]",
+    table_name: str,
+    engine: Engine,
+    schema: str = DEFAULT_SCHEMA,
+    create_id: bool = False,
+) -> int:
+    """Stream a sequence of DataFrame batches into ``schema.table_name`` via COPY.
+
+    DDL (table replacement) and all COPYs run inside a single transaction on
+    a shared raw connection, so a mid-stream failure rolls the replacement
+    back atomically. Returns the total number of rows written.
+    """
+    validate_table_name(table_name)
+    validate_schema_name(schema)
+
+    iterator = iter(batches)
+    try:
+        first = next(iterator)
+    except StopIteration as e:
+        raise ValueError("No data to write: batch iterator was empty.") from e
+
+    first, geom_col = _normalise_geometry_columns(first)
+    srid = 0
+    if isinstance(first, gpd.GeoDataFrame) and geom_col is not None:
+        srid = _srid_from_crs(first.crs)
+
+    total_rows = 0
+    columns = list(first.columns)
+    fq_table = f'"{schema}"."{table_name}"'
+
+    try:
+        with engine.begin() as sa_conn:
+            # Bootstrap target table with the right column types (1 DDL, no rows).
+            empty = first.head(0)
+            if isinstance(empty, gpd.GeoDataFrame) and geom_col is not None:
+                empty.to_postgis(
+                    table_name, sa_conn, if_exists="replace", schema=schema, index=False
                 )
             else:
-                logger.info(
-                    f"GeoDataFrame has '{data.active_geometry_name}' as active geometry column."
+                if isinstance(empty, gpd.GeoDataFrame):
+                    empty = pd.DataFrame(empty)
+                empty.to_sql(table_name, sa_conn, if_exists="replace", schema=schema, index=False)
+
+            raw_conn = sa_conn.connection  # type: ignore[attr-defined]
+
+            def _process(batch: "gpd.GeoDataFrame | pd.DataFrame") -> int:
+                normalised, _ = _normalise_geometry_columns(batch)
+                _copy_bytes_to_postgres(
+                    table_name,
+                    schema,
+                    columns,
+                    _iter_csv_chunks(normalised, geom_col, srid),
+                    engine,
+                    raw_conn=raw_conn,
                 )
+                return len(normalised)
 
-                if DEFAULT_GEOMETRY_COLUMN in data.columns:
-                    logger.warning(
-                        f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column."
-                        " Overwriting it with the active geometry column."
-                    )
-                else:
-                    logger.info(f"Renaming active geometry column to '{DEFAULT_GEOMETRY_COLUMN}'")
-                    data.rename_geometry(DEFAULT_GEOMETRY_COLUMN, inplace=True)
+            total_rows += _process(first)
+            for batch in iterator:
+                total_rows += _process(batch)
 
-            # Write data to PostGIS
-            data.to_postgis(table_name, engine, if_exists="replace", schema=schema, index=False)
-
-        if create_id:
-            with engine.connect() as conn:
-                conn.execute(
+            if create_id:
+                sa_conn.execute(
                     text(
-                        f'ALTER TABLE "{schema}"."{table_name}" '
-                        f"ADD COLUMN id_datafeeder UUID DEFAULT gen_random_uuid() NOT NULL"
+                        f"ALTER TABLE {fq_table} "
+                        "ADD COLUMN id_datafeeder UUID DEFAULT gen_random_uuid() NOT NULL"
                     )
                 )
-                conn.execute(
-                    text(f'ALTER TABLE "{schema}"."{table_name}" ADD PRIMARY KEY (id_datafeeder)')
+                sa_conn.execute(text(f"ALTER TABLE {fq_table} ADD PRIMARY KEY (id_datafeeder)"))
+                logger.info(
+                    f"Added 'id_datafeeder' UUID primary key column to {schema}.{table_name}"
                 )
-                conn.commit()
-            logger.info(f"Added 'id_datafeeder' UUID primary key column to {schema}.{table_name}")
-
-        # Log the number of inserted rows
-        row_count = _get_table_row_count(table_name, engine, schema)
-        logger.info(f"Successfully inserted {row_count} rows into {schema}.{table_name}")
     except Exception as e:
         logger.error(f"Error writing data to PostGIS table {schema}.{table_name}: {e}")
         raise
+
+    logger.info(f"Successfully inserted {total_rows} rows into {schema}.{table_name}")
+    return total_rows
+
+
+class _ChunkedReadable(io.RawIOBase):
+    """File-like adapter exposing a chunk iterator as a readable byte stream.
+
+    psycopg2's ``copy_expert`` expects a file with ``read(size)``; we feed it
+    chunks from our generator without ever materialising the full CSV.
+    """
+
+    # Trim the leading consumed slice once it exceeds this many bytes, to keep
+    # the bytearray from growing without bound on long COPY streams.
+    _TRIM_THRESHOLD = 1 << 20
+
+    def __init__(self, chunks: Iterator[bytes]) -> None:
+        super().__init__()
+        self._chunks = chunks
+        self._buf = bytearray()
+        self._pos = 0
+
+    def readable(self) -> bool:
+        return True
+
+    def read(self, size: int = -1) -> bytes:
+        if size < 0:
+            remaining = bytes(memoryview(self._buf)[self._pos :])
+            self._buf = bytearray()
+            self._pos = 0
+            return remaining + b"".join(self._chunks)
+
+        while len(self._buf) - self._pos < size:
+            try:
+                self._buf.extend(next(self._chunks))
+            except StopIteration:
+                break
+
+        end = min(self._pos + size, len(self._buf))
+        out = bytes(memoryview(self._buf)[self._pos : end])
+        self._pos = end
+
+        if self._pos >= self._TRIM_THRESHOLD:
+            del self._buf[: self._pos]
+            self._pos = 0
+
+        return out
