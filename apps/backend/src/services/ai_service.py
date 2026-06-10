@@ -261,6 +261,7 @@ def generate_ai_metadata(
             topic_categories=result.topic_categories,
             attribute_descriptions=result.attribute_descriptions,
             temporal_extent=result.temporal_extent,
+            table_name=final_table_name,
         )
         logger.info(
             f"GeoNetwork metadata updated with AI fields for IntegrityLink {integrity_link.id}"
