@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from ai.metadata_generator import AttributeInfo  # type: ignore[import-untyped]
+from ai.metadata_generator import AttributeInfo, TemporalExtent  # type: ignore[import-untyped]
 from geonetwork import GnApi  # type: ignore[import-untyped]
 from lxml import etree
 
@@ -635,8 +635,9 @@ class MetadataService:
         keywords: list[str],
         topic_categories: list[str],
         attribute_descriptions: list[AttributeInfo] | None = None,
+        temporal_extent: TemporalExtent | None = None,
     ) -> None:
-        """Patch title, abstract, keywords, topic categories and attribute catalog in an existing GeoNetwork record.
+        """Patch title, abstract, keywords, topic categories, attribute catalog and temporal extent.
 
         Fetches the current XML, updates the relevant fields in-place, then
         re-uploads with OVERWRITE so publication privileges are preserved.
@@ -649,6 +650,7 @@ class MetadataService:
             keywords: AI-generated keyword list.
             topic_categories: AI-generated ISO 19115 topic category codes (one or more).
             attribute_descriptions: AI-generated attribute/column descriptions (optional).
+            temporal_extent: AI-inferred temporal extent (optional).
         """
         xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
         root: _Element = etree.fromstring(xml_bytes)
@@ -665,10 +667,14 @@ class MetadataService:
             self._patch_ai_fields_19115_3(root, title, abstract, keywords, topic_categories)
             if attribute_descriptions:
                 self._patch_attribute_catalogue_19115_3(root, attribute_descriptions)
+            if temporal_extent and temporal_extent.type != "unknown":
+                self._patch_temporal_extent_19115_3(root, temporal_extent)
         else:
             self._patch_ai_fields_19139(root, title, abstract, keywords, topic_categories)
             if attribute_descriptions:
                 self._patch_attribute_catalogue_19139(root, attribute_descriptions)
+            if temporal_extent and temporal_extent.type != "unknown":
+                self._patch_temporal_extent_19139(root, temporal_extent)
 
         updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
         self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
@@ -938,3 +944,119 @@ class MetadataService:
         else:
             suppl_el: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}supplementalInformation")
             etree.SubElement(suppl_el, f"{{{ns_gco}}}CharacterString").text = suppl_text
+
+    @staticmethod
+    def _patch_temporal_extent_19115_3(
+        root: _Element,
+        temporal_extent: TemporalExtent,
+    ) -> None:
+        """Inject or replace a temporal extent in an ISO 19115-3 record.
+
+        Structure:
+          mri:extent/gex:EX_Extent/gex:temporalElement/gex:EX_TemporalExtent
+            /gex:extent/gml:TimePeriod  (or gml:TimeInstant)
+        """
+        ns = NS_19115_3
+        ns_mri = ns["mri"]
+        ns_gex = "http://standards.iso.org/iso/19115/-3/gex/1.0"
+        ns_gml = "http://www.opengis.net/gml/3.2"
+
+        id_info_list = root.xpath("mdb:identificationInfo/mri:MD_DataIdentification", namespaces=ns)
+        if not id_info_list:
+            return
+        id_info: _Element = id_info_list[0]
+
+        # Remove any existing AI-tagged temporal extent block
+        for extent_el in id_info.xpath("mri:extent", namespaces=ns):
+            if extent_el.xpath(
+                ".//gex:temporalElement//gco:CharacterString[contains(., 'ai-generated-temporal')]",
+                namespaces={**ns, "gex": ns_gex},
+            ):
+                id_info.remove(extent_el)
+
+        extent_wrapper: _Element = etree.SubElement(id_info, f"{{{ns_mri}}}extent")
+        ex_extent: _Element = etree.SubElement(extent_wrapper, f"{{{ns_gex}}}EX_Extent")
+
+        # Tag for future removal
+        desc_el: _Element = etree.SubElement(ex_extent, f"{{{ns_gex}}}description")
+        etree.SubElement(desc_el, f"{{{ns['gco']}}}CharacterString").text = "ai-generated-temporal"
+
+        temporal_el: _Element = etree.SubElement(ex_extent, f"{{{ns_gex}}}temporalElement")
+        ex_temporal: _Element = etree.SubElement(temporal_el, f"{{{ns_gex}}}EX_TemporalExtent")
+        extent_inner: _Element = etree.SubElement(ex_temporal, f"{{{ns_gex}}}extent")
+
+        if temporal_extent.type == "period":
+            time_el: _Element = etree.SubElement(extent_inner, f"{{{ns_gml}}}TimePeriod")
+            time_el.set(f"{{{ns_gml}}}id", "ai-temporal-period")
+            begin_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}beginPosition")
+            begin_el.text = temporal_extent.begin or ""
+            if not temporal_extent.begin:
+                begin_el.set("indeterminatePosition", "unknown")
+            end_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}endPosition")
+            end_el.text = temporal_extent.end or ""
+            if not temporal_extent.end:
+                end_el.set("indeterminatePosition", "unknown")
+        else:
+            # instant
+            time_el = etree.SubElement(extent_inner, f"{{{ns_gml}}}TimeInstant")
+            time_el.set(f"{{{ns_gml}}}id", "ai-temporal-instant")
+            pos_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}timePosition")
+            pos_el.text = temporal_extent.instant or temporal_extent.begin or ""
+
+    @staticmethod
+    def _patch_temporal_extent_19139(
+        root: _Element,
+        temporal_extent: TemporalExtent,
+    ) -> None:
+        """Inject or replace a temporal extent in an ISO 19139 record.
+
+        Structure:
+          gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent
+            /gmd:extent/gml:TimePeriod  (or gml:TimeInstant)
+        """
+        ns = NS_19139
+        ns_gmd = ns["gmd"]
+        ns_gco = ns["gco"]
+        ns_gml = "http://www.opengis.net/gml/3.2"
+
+        id_info_list = root.xpath("gmd:identificationInfo/gmd:MD_DataIdentification", namespaces=ns)
+        if not id_info_list:
+            return
+        id_info: _Element = id_info_list[0]
+
+        # Remove any existing AI-tagged temporal extent block
+        for extent_el in id_info.xpath("gmd:extent", namespaces=ns):
+            if extent_el.xpath(
+                ".//gmd:temporalElement//gco:CharacterString[contains(., 'ai-generated-temporal')]",
+                namespaces=ns,
+            ):
+                id_info.remove(extent_el)
+
+        extent_wrapper: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}extent")
+        ex_extent: _Element = etree.SubElement(extent_wrapper, f"{{{ns_gmd}}}EX_Extent")
+
+        # Tag for future removal
+        desc_el: _Element = etree.SubElement(ex_extent, f"{{{ns_gmd}}}description")
+        etree.SubElement(desc_el, f"{{{ns_gco}}}CharacterString").text = "ai-generated-temporal"
+
+        temporal_el: _Element = etree.SubElement(ex_extent, f"{{{ns_gmd}}}temporalElement")
+        ex_temporal: _Element = etree.SubElement(temporal_el, f"{{{ns_gmd}}}EX_TemporalExtent")
+        extent_inner: _Element = etree.SubElement(ex_temporal, f"{{{ns_gmd}}}extent")
+
+        if temporal_extent.type == "period":
+            time_el: _Element = etree.SubElement(extent_inner, f"{{{ns_gml}}}TimePeriod")
+            time_el.set(f"{{{ns_gml}}}id", "ai-temporal-period")
+            begin_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}beginPosition")
+            begin_el.text = temporal_extent.begin or ""
+            if not temporal_extent.begin:
+                begin_el.set("indeterminatePosition", "unknown")
+            end_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}endPosition")
+            end_el.text = temporal_extent.end or ""
+            if not temporal_extent.end:
+                end_el.set("indeterminatePosition", "unknown")
+        else:
+            # instant
+            time_el = etree.SubElement(extent_inner, f"{{{ns_gml}}}TimeInstant")
+            time_el.set(f"{{{ns_gml}}}id", "ai-temporal-instant")
+            pos_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}timePosition")
+            pos_el.text = temporal_extent.instant or temporal_extent.begin or ""
