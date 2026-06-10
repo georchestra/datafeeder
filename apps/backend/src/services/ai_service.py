@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import requests
 from ai.metadata_generator import generate_metadata
 from ai.providers import get_llm
 from geoalchemy2 import Geometry  # type: ignore[import-untyped]
@@ -17,25 +18,125 @@ from src.services.metadata_service import MetadataService
 logger = get_logger()
 
 
-def _get_priority_keywords() -> list[str]:
-    """Return the list of preferred keywords for AI metadata generation.
+def _fetch_thesaurus_keywords(
+    gn_api_url: str,
+    thesaurus_ids: list[str],
+    credentials: tuple[str, str],
+    max_results: int = 200,
+) -> list[str]:
+    """Fetch keyword labels from one or more GeoNetwork thesauruses.
 
-    Edit this list to steer the LLM towards the vocabulary used in your catalogue.
-    These keywords are suggested as first choices; the LLM may still pick others.
+    Uses the GeoNetwork REST API: GET /registries/vocabularies/{id}/keywords
+
+    Args:
+        gn_api_url: GeoNetwork API base URL (e.g. http://host/geonetwork/srv/api)
+        thesaurus_ids: List of thesaurus identifiers (e.g. "external.theme.inspire-theme")
+        credentials: (username, password) tuple for basic auth
+        max_results: Maximum number of keywords to fetch per thesaurus
+
+    Returns:
+        Deduplicated list of keyword label strings.
     """
-    return []
+    keywords: list[str] = []
+    for thesaurus_id in thesaurus_ids:
+        url = f"{gn_api_url}/registries/vocabularies/{thesaurus_id}/keywords"
+        try:
+            resp = requests.get(
+                url,
+                auth=credentials,
+                params={"maxResults": max_results, "lang": "fre,eng"},
+                timeout=10,
+                verify=False,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            # Response is a list of keyword objects with a "values" dict keyed by language
+            for item in data:
+                values: dict[str, str] = item.get("values", {})
+                label = values.get("fre") or values.get("eng") or next(iter(values.values()), None)
+                if label:
+                    keywords.append(label)
+        except Exception as err:
+            logger.warning("Could not fetch thesaurus %s from GeoNetwork: %s", thesaurus_id, err)
+    # Deduplicate while preserving order
+    seen: set[str] = set()
+    return [k for k in keywords if not (k in seen or seen.add(k))]  # type: ignore[func-returns-value]
 
 
-def _get_priority_topic_categories() -> list[str]:
-    """Return the list of preferred ISO 19115 topic categories for AI metadata generation.
+def _fetch_keywords_from_geonetwork(
+    gn_api_url: str,
+    credentials: tuple[str, str],
+    max_results: int = 200,
+) -> list[str]:
+    """Fetch keyword labels from all GeoNetwork thesauruses.
 
-    Edit this list to restrict or prioritise the topic categories relevant to your catalogue.
-    Valid values: "farming", "biota", "boundaries", "climatologyMeteorologyAtmosphere",
-    "economy", "elevation", "environment", "geoscientificInformation", "health",
-    "imageryBaseMapsEarthCover", "intelligenceMilitary", "inlandWaters", "location",
-    "oceans", "planningCadastre", "society", "structure", "transportation",
-    "utilitiesCommunication".
+    Auto-discovers all available thesauruses via GET /registries/vocabularies,
+    then fetches keywords for each.
+
+    Args:
+        gn_api_url: GeoNetwork API base URL
+        credentials: (username, password) tuple for basic auth
+        max_results: Maximum keywords per thesaurus
+
+    Returns:
+        Deduplicated list of keyword label strings.
     """
+    thesaurus_ids: list[str] = []
+    try:
+        resp = requests.get(
+            f"{gn_api_url}/registries/vocabularies",
+            auth=credentials,
+            timeout=10,
+            verify=False,
+        )
+        resp.raise_for_status()
+        thesaurus_ids = [t["key"] for t in resp.json() if "key" in t]
+        logger.info("Found %d thesauruses in GeoNetwork", len(thesaurus_ids))
+    except Exception as err:
+        logger.warning("Could not list GeoNetwork thesauruses: %s", err)
+        return []
+
+    # Step 2: fetch keywords for each thesaurus
+    return _fetch_thesaurus_keywords(gn_api_url, thesaurus_ids, credentials, max_results)
+
+
+def _fetch_topic_categories_from_geonetwork(
+    gn_api_url: str,
+    credentials: tuple[str, str],
+) -> list[str]:
+    """Fetch ISO 19115 MD_TopicCategoryCode values from GeoNetwork's registries API.
+
+    Uses: GET /api/registries/entries?registry={codelist_url}&lang=fre
+    Falls back to an empty list (LLM uses the full ISO list from the system prompt) on error.
+
+    Args:
+        gn_api_url: GeoNetwork API base URL (e.g. http://host/geonetwork/srv/api)
+        credentials: (username, password) tuple for basic auth
+
+    Returns:
+        List of ISO 19115 topic category code strings.
+    """
+    registry_url = (
+        "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml"
+        "#MD_TopicCategoryCode"
+    )
+    try:
+        resp = requests.get(
+            f"{gn_api_url}/registries/entries",
+            auth=credentials,
+            params={"registry": registry_url, "lang": "fre", "rows": 50},
+            timeout=10,
+            verify=False,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        # Each entry has a "value" (the code) and optional "label"
+        categories = [item["value"] for item in data if "value" in item]
+        if categories:
+            logger.info("Fetched %d topic categories from GeoNetwork", len(categories))
+            return categories
+    except Exception as err:
+        logger.warning("Could not fetch topic categories from GeoNetwork: %s", err)
     return []
 
 
@@ -112,6 +213,17 @@ def generate_ai_metadata(
         # Fetch 5 sample rows and bbox from the final table
         sample_rows, bbox = _get_sample_rows(final_table_name, target_schema)
 
+        # Build priority keywords: all GeoNetwork thesauruses
+        priority_kw = _fetch_keywords_from_geonetwork(
+            gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
+            credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        )
+
+        # Build priority topic categories: GeoNetwork codelist
+        gn_api_url = f"{settings.GEONETWORK_INTERNAL_URL}/srv/api"
+        gn_credentials = (settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD)
+        priority_topics = _fetch_topic_categories_from_geonetwork(gn_api_url, gn_credentials)
+
         result = generate_metadata(
             table_name=final_table_name,
             column_names=columns,
@@ -120,8 +232,8 @@ def generate_ai_metadata(
             title=integrity_link.integrity_title,
             sample_rows=sample_rows or None,
             bbox=bbox,
-            priority_keywords=_get_priority_keywords() or None,
-            priority_topic_categories=_get_priority_topic_categories() or None,
+            priority_keywords=priority_kw or None,
+            priority_topic_categories=priority_topics or None,
             system_prompt_path=Path(settings.AI_METADATA_SYSTEM_PROMPT_FILE)
             if settings.AI_METADATA_SYSTEM_PROMPT_FILE
             else None,
