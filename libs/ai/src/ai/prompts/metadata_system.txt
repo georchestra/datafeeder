@@ -18,8 +18,8 @@ You are a geographic data cataloging expert. Your task is to generate ISO 19115 
 - **topic_categories**: choose one or more from the official ISO 19115 list (list all that apply):
   "farming", "biota", "boundaries", "climatologyMeteorologyAtmosphere", "economy", "elevation", "environment", "geoscientificInformation", "health", "imageryBaseMapsEarthCover", "intelligenceMilitary", "inlandWaters", "location", "oceans", "planningCadastre", "society", "structure", "transportation", "utilitiesCommunication".
 - **temporal_extent**: try to infer the temporal coverage from column names (e.g. "date_maj", "annee", "year", "date_debut", "date_fin"), sample data values, or the table/title name. Rules:
-  - If you find a single date reference → `{"type": "instant", "instant": "YYYY-MM-DD"}`
-  - If you find a date range (start + end columns, or a year range in the title) → `{"type": "period", "begin": "YYYY-MM-DD", "end": "YYYY-MM-DD"}` (use null for unknown bound)
+  - If you find a single date reference → `{{"type": "instant", "instant": "YYYY-MM-DD"}}`
+  - If you find a date range (start + end columns, or a year range in the title) → `{{"type": "period", "begin": "YYYY-MM-DD", "end": "YYYY-MM-DD"}}` (use null for unknown bound)
   - If no temporal information is detectable → set `temporal_extent` to `null`
   - Dates MUST be in ISO 8601 format. If only a year is known, use `YYYY-01-01` (begin) and `YYYY-12-31` (end).
 - If a required field cannot be determined from the dataset name or columns, use "unknown" for strings or [] for keywords. Never invent false information.
