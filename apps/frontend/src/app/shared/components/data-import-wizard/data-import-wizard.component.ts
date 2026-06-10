@@ -213,7 +213,9 @@ export class DataImportWizardComponent {
   validationError = signal<string | null>(null)
   previewTabIndex = signal(0)
   hasExtentError = signal(false)
-  generateMetadataWithAi = signal(true)
+  generateMetadataWithAi = signal(
+    !this.integrityLinkStore.integrityLink()?.last_retrieval_timestamp
+  )
 
   columnConfigs = signal<ColumnConfig[]>([])
   forceProjection = signal<ForceProjection | null>(null)
