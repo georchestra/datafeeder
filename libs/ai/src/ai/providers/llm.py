@@ -30,6 +30,7 @@ def get_llm(
     api_key: str | None = None,
     base_url: str | None = None,
     temperature: float = 0.2,
+    think: bool = False,
     **kwargs: Any,
 ) -> BaseChatModel:
     """Return a LangChain chat model for the given provider.
@@ -42,6 +43,8 @@ def get_llm(
         api_key: API key for the provider (openai, mistral).
         base_url: Custom base URL (openai-compatible endpoint or ollama host).
         temperature: Sampling temperature (default 0.2 for deterministic outputs).
+        think: Enable/disable thinking mode (default False). Passed as model param
+            for Ollama, and via model_kwargs for OpenAI-compatible endpoints.
         **kwargs: Additional provider-specific overrides.
 
     Returns:
@@ -59,6 +62,7 @@ def get_llm(
             temperature=temperature,
             api_key=api_key,  # type: ignore[arg-type]
             base_url=base_url or None,
+            model_kwargs={"thinking": False} if not think else {},
         )
 
     if provider == "ollama":
@@ -68,6 +72,7 @@ def get_llm(
             model=resolved_model,
             temperature=temperature,
             base_url=base_url or "http://localhost:11434",
+            think=think,
         )
 
     if provider == "mistral":

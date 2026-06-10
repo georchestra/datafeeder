@@ -113,6 +113,10 @@ AI_API_KEY=                 # required for openai / mistral
 
 > ⚠️ **Never commit `docker/.envs-ai`** — it may contain API keys. It is already listed in `.gitignore`.
 
+#### Disabling thinking mode
+
+Some models (DeepSeek-R1, QwQ, etc.) run a reasoning step before answering, which significantly increases response time. Thinking mode is **disabled by default** in Datafeeder. If you use such a model and notice `<think>` tokens in the output or slow responses, ensure your model actually supports the `think=false` parameter — not all Ollama versions or llama.cpp builds honour it.
+
 3. Start the stack with the AI mode:
 
 ```bash

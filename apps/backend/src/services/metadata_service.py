@@ -629,11 +629,12 @@ class MetadataService:
     def update_ai_metadata(
         self,
         metadata_uuid: str,
+        title: str,
         abstract: str,
         keywords: list[str],
         topic_category: str,
     ) -> None:
-        """Patch abstract, keywords and topic category in an existing GeoNetwork record.
+        """Patch title, abstract, keywords and topic category in an existing GeoNetwork record.
 
         Fetches the current XML, updates the relevant fields in-place, then
         re-uploads with OVERWRITE so publication privileges are preserved.
@@ -641,6 +642,7 @@ class MetadataService:
 
         Args:
             metadata_uuid: UUID of the GeoNetwork metadata record.
+            title: AI-inferred title for the dataset.
             abstract: AI-generated abstract text.
             keywords: AI-generated keyword list.
             topic_category: AI-generated topic category code.
@@ -657,9 +659,9 @@ class MetadataService:
             return
 
         if schema == _SCHEMA_19115_3:
-            self._patch_ai_fields_19115_3(root, abstract, keywords, topic_category)
+            self._patch_ai_fields_19115_3(root, title, abstract, keywords, topic_category)
         else:
-            self._patch_ai_fields_19139(root, abstract, keywords, topic_category)
+            self._patch_ai_fields_19139(root, title, abstract, keywords, topic_category)
 
         updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
         self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
@@ -668,11 +670,12 @@ class MetadataService:
     @staticmethod
     def _patch_ai_fields_19115_3(
         root: _Element,
+        title: str,
         abstract: str,
         keywords: list[str],
         topic_category: str,
     ) -> None:
-        """Patch abstract, keywords and topicCategory in an ISO 19115-3 record."""
+        """Patch title, abstract, keywords and topicCategory in an ISO 19115-3 record."""
         ns = NS_19115_3
         id_info_list = root.xpath(
             "mdb:identificationInfo/mri:MD_DataIdentification",
@@ -682,7 +685,12 @@ class MetadataService:
             return
         id_info: _Element = id_info_list[0]
 
-        # --- abstract ---
+        # --- title ---
+        title_els = id_info.xpath(
+            "mri:citation/cit:CI_Citation/cit:title/gco:CharacterString", namespaces=ns
+        )
+        if title_els:
+            title_els[0].text = title
         abstract_els = id_info.xpath("mri:abstract/gco:CharacterString", namespaces=ns)
         if abstract_els:
             abstract_els[0].text = abstract
@@ -729,11 +737,12 @@ class MetadataService:
     @staticmethod
     def _patch_ai_fields_19139(
         root: _Element,
+        title: str,
         abstract: str,
         keywords: list[str],
         topic_category: str,
     ) -> None:
-        """Patch abstract, keywords and topicCategory in an ISO 19139 record."""
+        """Patch title, abstract, keywords and topicCategory in an ISO 19139 record."""
         ns = NS_19139
         ns_gmd = ns["gmd"]
         ns_gco = ns["gco"]
@@ -745,6 +754,13 @@ class MetadataService:
         if not id_info_list:
             return
         id_info: _Element = id_info_list[0]
+
+        # --- title ---
+        title_els = id_info.xpath(
+            "gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString", namespaces=ns
+        )
+        if title_els:
+            title_els[0].text = title
 
         # --- abstract ---
         abstract_els = id_info.xpath("gmd:abstract/gco:CharacterString", namespaces=ns)

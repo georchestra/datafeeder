@@ -48,6 +48,7 @@ def generate_ai_metadata(
             model=settings.AI_MODEL or None,
             api_key=settings.AI_API_KEY or None,
             base_url=settings.AI_BASE_URL or None,
+            think=False,
         )
 
         inspector = sa_inspect(data_engine)
@@ -81,6 +82,7 @@ def generate_ai_metadata(
         )
         metadata_service.update_ai_metadata(
             metadata_uuid=str(integrity_link.metadata_id),
+            title=result.title,
             abstract=result.abstract,
             keywords=result.keywords,
             topic_category=result.topic_category,

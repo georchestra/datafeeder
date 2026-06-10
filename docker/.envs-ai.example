@@ -8,14 +8,14 @@
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 AI_ENABLED=false
-AI_PROVIDER=ollama
+AI_PROVIDER=openai
 AI_MODEL=llama3.2:1b
 AI_API_KEY=
-AI_BASE_URL=http://ollama:11434
+AI_BASE_URL=http://localhost:11434
 AI_METADATA_SYSTEM_PROMPT_FILE=
 AI_METADATA_HUMAN_PROMPT_FILE=
 
 # Arize Phoenix tracing (optional — requires ai[phoenix] installed)
 AI_PHOENIX_ENABLED=false
-AI_PHOENIX_ENDPOINT=http://phoenix:6006/v1/traces
+AI_PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
 AI_PHOENIX_PROJECT=datafeeder
