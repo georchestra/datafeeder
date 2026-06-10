@@ -5,6 +5,7 @@ from pathlib import Path
 import requests
 from ai.metadata_generator import generate_metadata
 from ai.providers import get_llm
+from ai.utils import pg_type_to_iso19110  # type: ignore[import-untyped]
 from geoalchemy2 import Geometry  # type: ignore[import-untyped]
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy import inspect as sa_inspect
@@ -208,7 +209,9 @@ def generate_ai_metadata(
         inspector = sa_inspect(data_engine)
         raw_cols = inspector.get_columns(final_table_name, schema=target_schema)
         columns: list[str] = [col["name"] for col in raw_cols]
-        column_types: dict[str, str] = {col["name"]: str(col["type"]) for col in raw_cols}
+        column_types: dict[str, str] = {
+            col["name"]: pg_type_to_iso19110(str(col["type"])) for col in raw_cols
+        }
 
         # Fetch 5 sample rows and bbox from the final table
         sample_rows, bbox = _get_sample_rows(final_table_name, target_schema)
