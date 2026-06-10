@@ -57,12 +57,15 @@ def get_llm(
     resolved_model: str = model or _DEFAULT_MODELS.get(provider, "")
 
     if provider == "openai":
+        openai_model_kwargs: dict[str, Any] = {}
+        if not think:
+            openai_model_kwargs["stream_options"] = {"include_usage": False}
         return ChatOpenAI(
             model=resolved_model,
             temperature=temperature,
             api_key=api_key,  # type: ignore[arg-type]
             base_url=base_url or None,
-            model_kwargs={"thinking": False} if not think else {},
+            model_kwargs=openai_model_kwargs,
         )
 
     if provider == "ollama":
@@ -72,7 +75,7 @@ def get_llm(
             model=resolved_model,
             temperature=temperature,
             base_url=base_url or "http://localhost:11434",
-            think=think,
+            reasoning=think or None,
         )
 
     if provider == "mistral":
