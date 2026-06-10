@@ -105,9 +105,9 @@ def generate_ai_metadata(
         )
 
         inspector = sa_inspect(data_engine)
-        columns: list[str] = [
-            col["name"] for col in inspector.get_columns(final_table_name, schema=target_schema)
-        ]
+        raw_cols = inspector.get_columns(final_table_name, schema=target_schema)
+        columns: list[str] = [col["name"] for col in raw_cols]
+        column_types: dict[str, str] = {col["name"]: str(col["type"]) for col in raw_cols}
 
         # Fetch 5 sample rows and bbox from the final table
         sample_rows, bbox = _get_sample_rows(final_table_name, target_schema)
@@ -115,6 +115,7 @@ def generate_ai_metadata(
         result = generate_metadata(
             table_name=final_table_name,
             column_names=columns,
+            column_types=column_types,
             llm=llm,
             title=integrity_link.integrity_title,
             sample_rows=sample_rows or None,
@@ -146,6 +147,7 @@ def generate_ai_metadata(
             abstract=result.abstract,
             keywords=result.keywords,
             topic_categories=result.topic_categories,
+            attribute_descriptions=result.attribute_descriptions,
         )
         logger.info(
             f"GeoNetwork metadata updated with AI fields for IntegrityLink {integrity_link.id}"

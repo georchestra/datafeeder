@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from ai.metadata_generator import AttributeInfo  # type: ignore[import-untyped]
 from geonetwork import GnApi  # type: ignore[import-untyped]
 from lxml import etree
 
@@ -633,8 +634,9 @@ class MetadataService:
         abstract: str,
         keywords: list[str],
         topic_categories: list[str],
+        attribute_descriptions: list[AttributeInfo] | None = None,
     ) -> None:
-        """Patch title, abstract, keywords and topic categories in an existing GeoNetwork record.
+        """Patch title, abstract, keywords, topic categories and attribute catalog in an existing GeoNetwork record.
 
         Fetches the current XML, updates the relevant fields in-place, then
         re-uploads with OVERWRITE so publication privileges are preserved.
@@ -646,6 +648,7 @@ class MetadataService:
             abstract: AI-generated abstract text.
             keywords: AI-generated keyword list.
             topic_categories: AI-generated ISO 19115 topic category codes (one or more).
+            attribute_descriptions: AI-generated attribute/column descriptions (optional).
         """
         xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
         root: _Element = etree.fromstring(xml_bytes)
@@ -660,8 +663,12 @@ class MetadataService:
 
         if schema == _SCHEMA_19115_3:
             self._patch_ai_fields_19115_3(root, title, abstract, keywords, topic_categories)
+            if attribute_descriptions:
+                self._patch_attribute_catalogue_19115_3(root, attribute_descriptions)
         else:
             self._patch_ai_fields_19139(root, title, abstract, keywords, topic_categories)
+            if attribute_descriptions:
+                self._patch_attribute_catalogue_19139(root, attribute_descriptions)
 
         updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
         self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
@@ -792,3 +799,142 @@ class MetadataService:
         for cat in topic_categories:
             topic_wrapper: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}topicCategory")
             etree.SubElement(topic_wrapper, f"{{{ns_gmd}}}MD_TopicCategoryCode").text = cat
+
+    @staticmethod
+    def _patch_attribute_catalogue_19115_3(
+        root: _Element,
+        attribute_descriptions: list[AttributeInfo],
+    ) -> None:
+        """Add feature catalogue description and supplemental info for ISO 19115-3 records.
+
+        Uses two complementary storage locations:
+        - mdb:contentInfo/mrc:MD_FeatureCatalogueDescription: ISO 19115-3 standard location
+          with one MD_FeatureTypeInfo per attribute (name + SQL type in ScopedName codeSpace).
+        - mri:supplementalInformation: full text table (name | type | description) rendered
+          in GeoNetwork's default metadata view.
+        """
+        ns = NS_19115_3
+        ns_mdb = ns["mdb"]
+        ns_mrc = "http://standards.iso.org/iso/19115/-3/mrc/2.0"
+        ns_mri = ns["mri"]
+        ns_gco = ns["gco"]
+
+        # --- Remove any existing AI-tagged contentInfo block ---
+        for block in root.xpath("mdb:contentInfo", namespaces=ns):
+            anchor = block.xpath(
+                ".//mrc:MD_FeatureCatalogueDescription/mrc:featureCatalogueCitation"
+                "//gco:CharacterString[contains(., 'ai-generated')]",
+                namespaces={**ns, "mrc": ns_mrc},
+            )
+            if anchor:
+                root.remove(block)
+
+        # --- Build mdb:contentInfo/mrc:MD_FeatureCatalogueDescription ---
+        content_info: _Element = etree.SubElement(root, f"{{{ns_mdb}}}contentInfo")
+        feat_cat_desc: _Element = etree.SubElement(
+            content_info, f"{{{ns_mrc}}}MD_FeatureCatalogueDescription"
+        )
+        included: _Element = etree.SubElement(feat_cat_desc, f"{{{ns_mrc}}}includedWithDataset")
+        etree.SubElement(included, f"{{{ns_gco}}}Boolean").text = "true"
+
+        for attr in attribute_descriptions:
+            ft_info: _Element = etree.SubElement(feat_cat_desc, f"{{{ns_mrc}}}featureTypes")
+            md_ft: _Element = etree.SubElement(ft_info, f"{{{ns_mrc}}}MD_FeatureTypeInfo")
+            ft_name: _Element = etree.SubElement(md_ft, f"{{{ns_mrc}}}featureTypeName")
+            scoped: _Element = etree.SubElement(ft_name, f"{{{ns_gco}}}ScopedName")
+            scoped.set("codeSpace", attr.type)
+            scoped.text = attr.name
+
+        # Tag the citation so we can identify and remove it on re-generation
+        citation_wrapper: _Element = etree.SubElement(
+            feat_cat_desc, f"{{{ns_mrc}}}featureCatalogueCitation"
+        )
+        cit_ns = ns["cit"]
+        ci_cit: _Element = etree.SubElement(citation_wrapper, f"{{{cit_ns}}}CI_Citation")
+        cit_title: _Element = etree.SubElement(ci_cit, f"{{{cit_ns}}}title")
+        etree.SubElement(cit_title, f"{{{ns_gco}}}CharacterString").text = "ai-generated"
+
+        # --- supplementalInformation: full attribute table as text ---
+        id_info_list = root.xpath("mdb:identificationInfo/mri:MD_DataIdentification", namespaces=ns)
+        if not id_info_list:
+            return
+        id_info = id_info_list[0]
+        existing_suppl = id_info.xpath("mri:supplementalInformation", namespaces=ns)
+        table_lines = ["Catalogue d'attributs :"]
+        table_lines += [f"- {a.name} | {a.type} | {a.description}" for a in attribute_descriptions]
+        suppl_text = "\n".join(table_lines)
+        if existing_suppl:
+            cs = existing_suppl[0].find(f"{{{ns_gco}}}CharacterString")
+            if cs is not None:
+                cs.text = suppl_text
+            else:
+                etree.SubElement(
+                    existing_suppl[0], f"{{{ns_gco}}}CharacterString"
+                ).text = suppl_text
+        else:
+            suppl_el: _Element = etree.SubElement(id_info, f"{{{ns_mri}}}supplementalInformation")
+            etree.SubElement(suppl_el, f"{{{ns_gco}}}CharacterString").text = suppl_text
+
+    @staticmethod
+    def _patch_attribute_catalogue_19139(
+        root: _Element,
+        attribute_descriptions: list[AttributeInfo],
+    ) -> None:
+        """Add feature catalogue description and supplemental info for ISO 19139 records."""
+        ns = NS_19139
+        ns_gmd = ns["gmd"]
+        ns_gco = ns["gco"]
+
+        # --- Remove any existing AI-tagged contentInfo block ---
+        for block in root.xpath("gmd:contentInfo", namespaces=ns):
+            anchor = block.xpath(
+                ".//gmd:MD_FeatureCatalogueDescription/gmd:featureCatalogueCitation"
+                "//gco:CharacterString[contains(., 'ai-generated')]",
+                namespaces=ns,
+            )
+            if anchor:
+                root.remove(block)
+
+        # --- Build gmd:contentInfo/gmd:MD_FeatureCatalogueDescription ---
+        content_info: _Element = etree.SubElement(root, f"{{{ns_gmd}}}contentInfo")
+        feat_cat_desc: _Element = etree.SubElement(
+            content_info, f"{{{ns_gmd}}}MD_FeatureCatalogueDescription"
+        )
+        included: _Element = etree.SubElement(feat_cat_desc, f"{{{ns_gmd}}}includedWithDataset")
+        etree.SubElement(included, f"{{{ns_gco}}}Boolean").text = "true"
+
+        for attr in attribute_descriptions:
+            ft_info: _Element = etree.SubElement(feat_cat_desc, f"{{{ns_gmd}}}featureTypes")
+            md_ft: _Element = etree.SubElement(ft_info, f"{{{ns_gmd}}}MD_FeatureTypeInfo")
+            ft_name: _Element = etree.SubElement(md_ft, f"{{{ns_gmd}}}featureTypeName")
+            scoped: _Element = etree.SubElement(ft_name, f"{{{ns_gco}}}ScopedName")
+            scoped.set("codeSpace", attr.type)
+            scoped.text = attr.name
+
+        citation_wrapper: _Element = etree.SubElement(
+            feat_cat_desc, f"{{{ns_gmd}}}featureCatalogueCitation"
+        )
+        ci_cit: _Element = etree.SubElement(citation_wrapper, f"{{{ns_gmd}}}CI_Citation")
+        cit_title: _Element = etree.SubElement(ci_cit, f"{{{ns_gmd}}}title")
+        etree.SubElement(cit_title, f"{{{ns_gco}}}CharacterString").text = "ai-generated"
+
+        # --- supplementalInformation ---
+        id_info_list = root.xpath("gmd:identificationInfo/gmd:MD_DataIdentification", namespaces=ns)
+        if not id_info_list:
+            return
+        id_info = id_info_list[0]
+        existing_suppl = id_info.xpath("gmd:supplementalInformation", namespaces=ns)
+        table_lines = ["Catalogue d'attributs :"]
+        table_lines += [f"- {a.name} | {a.type} | {a.description}" for a in attribute_descriptions]
+        suppl_text = "\n".join(table_lines)
+        if existing_suppl:
+            cs = existing_suppl[0].find(f"{{{ns_gco}}}CharacterString")
+            if cs is not None:
+                cs.text = suppl_text
+            else:
+                etree.SubElement(
+                    existing_suppl[0], f"{{{ns_gco}}}CharacterString"
+                ).text = suppl_text
+        else:
+            suppl_el: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}supplementalInformation")
+            etree.SubElement(suppl_el, f"{{{ns_gco}}}CharacterString").text = suppl_text
