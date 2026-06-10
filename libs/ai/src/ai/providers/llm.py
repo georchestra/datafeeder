@@ -29,7 +29,7 @@ def get_llm(
     model: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
-    temperature: float = 0.2,
+    temperature: float = 0,
     think: bool = False,
     **kwargs: Any,
 ) -> BaseChatModel:

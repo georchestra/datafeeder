@@ -632,9 +632,9 @@ class MetadataService:
         title: str,
         abstract: str,
         keywords: list[str],
-        topic_category: str,
+        topic_categories: list[str],
     ) -> None:
-        """Patch title, abstract, keywords and topic category in an existing GeoNetwork record.
+        """Patch title, abstract, keywords and topic categories in an existing GeoNetwork record.
 
         Fetches the current XML, updates the relevant fields in-place, then
         re-uploads with OVERWRITE so publication privileges are preserved.
@@ -645,7 +645,7 @@ class MetadataService:
             title: AI-inferred title for the dataset.
             abstract: AI-generated abstract text.
             keywords: AI-generated keyword list.
-            topic_category: AI-generated topic category code.
+            topic_categories: AI-generated ISO 19115 topic category codes (one or more).
         """
         xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
         root: _Element = etree.fromstring(xml_bytes)
@@ -659,9 +659,9 @@ class MetadataService:
             return
 
         if schema == _SCHEMA_19115_3:
-            self._patch_ai_fields_19115_3(root, title, abstract, keywords, topic_category)
+            self._patch_ai_fields_19115_3(root, title, abstract, keywords, topic_categories)
         else:
-            self._patch_ai_fields_19139(root, title, abstract, keywords, topic_category)
+            self._patch_ai_fields_19139(root, title, abstract, keywords, topic_categories)
 
         updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
         self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
@@ -673,7 +673,7 @@ class MetadataService:
         title: str,
         abstract: str,
         keywords: list[str],
-        topic_category: str,
+        topic_categories: list[str],
     ) -> None:
         """Patch title, abstract, keywords and topicCategory in an ISO 19115-3 record."""
         ns = NS_19115_3
@@ -725,14 +725,11 @@ class MetadataService:
 
         # --- topicCategory ---
         ns_mri_uri = f"{{{ns_mri}}}"
-        existing_topic = id_info.xpath("mri:topicCategory/mri:MD_TopicCategoryCode", namespaces=ns)
-        if existing_topic:
-            existing_topic[0].text = topic_category
-        else:
+        for tc in id_info.xpath("mri:topicCategory", namespaces=ns):
+            id_info.remove(tc)
+        for cat in topic_categories:
             topic_wrapper: _Element = etree.SubElement(id_info, f"{ns_mri_uri}topicCategory")
-            etree.SubElement(
-                topic_wrapper, f"{ns_mri_uri}MD_TopicCategoryCode"
-            ).text = topic_category
+            etree.SubElement(topic_wrapper, f"{ns_mri_uri}MD_TopicCategoryCode").text = cat
 
     @staticmethod
     def _patch_ai_fields_19139(
@@ -740,7 +737,7 @@ class MetadataService:
         title: str,
         abstract: str,
         keywords: list[str],
-        topic_category: str,
+        topic_categories: list[str],
     ) -> None:
         """Patch title, abstract, keywords and topicCategory in an ISO 19139 record."""
         ns = NS_19139
@@ -790,11 +787,8 @@ class MetadataService:
         etree.SubElement(title_el, f"{{{ns_gco}}}CharacterString").text = "ai-generated"
 
         # --- topicCategory ---
-        existing_topic = id_info.xpath("gmd:topicCategory/gmd:MD_TopicCategoryCode", namespaces=ns)
-        if existing_topic:
-            existing_topic[0].text = topic_category
-        else:
+        for tc in id_info.xpath("gmd:topicCategory", namespaces=ns):
+            id_info.remove(tc)
+        for cat in topic_categories:
             topic_wrapper: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}topicCategory")
-            etree.SubElement(
-                topic_wrapper, f"{{{ns_gmd}}}MD_TopicCategoryCode"
-            ).text = topic_category
+            etree.SubElement(topic_wrapper, f"{{{ns_gmd}}}MD_TopicCategoryCode").text = cat

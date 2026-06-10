@@ -1,5 +1,9 @@
 Generate metadata for the following dataset:
-- Table name: {table_name}
-- Title: {title}
+- Dataset title: {title}
 - Columns: {columns}
+- Bounding box (minx miny maxx maxy): {bbox}
+- Sample data (first 5 rows):
+{sample}
+{priority_keywords}
+{priority_topics}
 {extra_context}
