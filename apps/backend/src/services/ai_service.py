@@ -95,3 +95,4 @@ def generate_ai_metadata(
             e,
             exc_info=True,
         )
+        raise

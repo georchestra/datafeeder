@@ -384,7 +384,7 @@ name = "datafeeder-backend"
 version = "0.1.0"
 source = { editable = "apps/backend" }
 dependencies = [
-    { name = "ai" },
+    { name = "ai", extra = ["ollama", "phoenix"] },
     { name = "alembic" },
     { name = "apache-airflow-client" },
     { name = "chardet" },
@@ -416,7 +416,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ai", editable = "libs/ai" },
+    { name = "ai", extras = ["phoenix", "ollama"], editable = "libs/ai" },
     { name = "alembic", specifier = "==1.18.4" },
     { name = "apache-airflow-client", specifier = "==3.1.8" },
     { name = "chardet", specifier = "==7.4.3" },

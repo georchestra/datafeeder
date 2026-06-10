@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -428,8 +429,20 @@ async def dag_success_callback(
     datafeeder_session.refresh(integrity_link)
 
     # Generate AI metadata if requested (soft failure — runs after metadata_id is set)
+    # TODO: trigger only if new final table created, not on every re-run with same final table
     if (integrity_link.extra_config or {}).get("generate_metadata_with_ai", False):
-        generate_ai_metadata_with_llm(integrity_link, target_schema, settings)
+        try:
+            await asyncio.to_thread(
+                generate_ai_metadata_with_llm, integrity_link, target_schema, settings
+            )
+            logger.info(f"AI metadata generation completed for IntegrityLink {integrity_link.id}")
+        except Exception as e:
+            logger.warning(
+                "AI metadata generation failed for IntegrityLink %s: %s",
+                integrity_link.id,
+                e,
+                exc_info=True,
+            )
 
     # Update revision date in GeoNetwork metadata (soft failure)
     if integrity_link.metadata_id is not None:

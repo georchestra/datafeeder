@@ -89,6 +89,40 @@ These services are included in the full setup of Datafeeder for geospatial data 
 - **GeoServer URL**: http://localhost:8080/geoserver
 - **GeoNetwork URL**: http://localhost:8080/geonetwork
 
+### AI metadata generation (optional)
+
+Datafeeder can automatically generate metadata fields (abstract, keywords, topic category) using an LLM after a dataset is imported. This feature is **disabled by default**.
+
+#### Setup
+
+1. Copy the example file and fill in your values:
+
+```bash
+cp docker/.envs-ai.example docker/.envs-ai
+```
+
+2. Edit `docker/.envs-ai`:
+
+```env
+AI_ENABLED=true
+AI_PROVIDER=ollama          # openai | ollama | mistral
+AI_MODEL=llama3.2:1b
+AI_BASE_URL=http://ollama:11434
+AI_API_KEY=                 # required for openai / mistral
+```
+
+> ⚠️ **Never commit `docker/.envs-ai`** — it may contain API keys. It is already listed in `.gitignore`.
+
+3. Start the stack with the AI mode:
+
+```bash
+make up-ai
+```
+
+This builds the backend with Phoenix observability extras and sets `AI_ENABLED=true` automatically.
+
+- **Phoenix UI**: http://localhost:6006
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.

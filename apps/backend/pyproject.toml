@@ -20,7 +20,7 @@ dependencies = [
     "fastapi[standard]==0.136.1",
     "uvicorn[standard]==0.46.0",
     "data_manipulation",
-    "ai",
+    "ai[phoenix,ollama]",
     "sqlmodel==0.0.38",
     "pyjwt==2.12.1",
     "pydantic==2.13.4",

@@ -60,9 +60,19 @@ class Settings(BaseSettings):
             datafeeder_config = f"{_default_datadir}/datafeeder-python/datafeeder.env"
         logger.info("Loading configuration from %s", datafeeder_config)
 
+    _ai_env_file: str = os.getenv("AI_ENV_FILE", "")
+    if _ai_env_file and os.path.exists(_ai_env_file):
+        logger.info("Loading AI configuration from %s", _ai_env_file)
+        _env_files = [datafeeder_config, _ai_env_file]
+    else:
+        if _ai_env_file:
+            logger.warning("AI_ENV_FILE set but not found: %s", _ai_env_file)
+        _env_files = datafeeder_config
+
     model_config = SettingsConfigDict(
-        # Load .env from workspace root, with defaults from georchestra properties
-        env_file=datafeeder_config,
+        # Load .env from workspace root, with defaults from georchestra properties.
+        # A second optional AI_ENV_FILE can hold secrets (API keys) without being committed.
+        env_file=_env_files,
         env_ignore_empty=False,
         extra="ignore",
     )
