@@ -151,7 +151,7 @@ def generate_metadata(
                 else ""
             ),
             "priority_topics": (
-                "- Preferred topic categories (favour these if they fit): "
+                "- Available topic categories (prioritize these when relevant): "
                 + ", ".join(priority_topic_categories)
                 if priority_topic_categories
                 else ""
