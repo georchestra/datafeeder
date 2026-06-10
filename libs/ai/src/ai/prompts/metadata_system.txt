@@ -26,12 +26,12 @@ You are a geographic data cataloging expert. Your task is to generate ISO 19115 
 
 **Examples:**
 - For a table "sanisettesparisfesfesfes" with columns "type", "adresse", "arrondissement", "geom", "date_maj" → 
-  Title: "Public Sanitary Facilities in Paris – Update 2023" 
+  Title: "Public sanitary facilities in Paris 2023" 
   Keywords: ["public toilets", "sanitation", "accessibility", "2023", "maintenance", "street furniture", "handicap access", "urban equipment", "city services", "cleaning schedule"]
   topic_categories = ["structure"]
 
 - For a table "ventes_immobilieres_2024" with columns "date_vente", "prix", "geom" → 
-  Title: "Real Estate Sales in France – 2024 Transactions"
+  Title: "Real estate sales in France – 2024 Transactions"
   Keywords: ["real estate", "property sales", "housing prices", "transactions", "land registry", "geolocated sales", "temporal coverage", "housing market", "price per square meter", "seller-buyer"]
   topic_categories = ["economy", "planningCadastre"]
 
