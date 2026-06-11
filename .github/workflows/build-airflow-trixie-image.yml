@@ -1,0 +1,41 @@
+name: build-docker-images.yml
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'docker/airflow-base/**'
+
+jobs:
+  build-airflow:
+    runs-on: ubuntu-latest
+    name: Build & push airflow base
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Getting image tag
+        id: version
+        run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build airflow-base
+        run: |
+          make build-airflow-base
+
+      - name: "Log in to docker.io"
+        if: github.repository == 'georchestra/datafeeder'
+        uses: docker/login-action@v3
+        with:
+          username: '${{ secrets.DOCKER_HUB_USERNAME }}'
+          password: '${{ secrets.DOCKER_HUB_PASSWORD }}'
+
+      - name: Push airflow
+        run: docker push georchestra/airflow-base:latest
+
+      - name: Push release
+        if: github.ref_type == 'tag'
+        run: |
+          docker tag georchestra/airflow-base:latest georchestra/airflow-base:${{ steps.version.outputs.VERSION }}
+          docker push georchestra/airflow-base:${{ steps.version.outputs.VERSION }}
