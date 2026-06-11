@@ -1,6 +1,14 @@
 # Display help message by default
 default: help
 
+# Apache Airflow base image (built locally on Debian Trixie from the official
+# Airflow Dockerfile, since apache/airflow only ships bookworm based images).
+AIRFLOW_VERSION ?= 3.2.2
+AIRFLOW_PYTHON_VERSION ?= 3.13.5
+AIRFLOW_BASE_IMAGE ?= datafeeder-airflow-base:$(AIRFLOW_VERSION)-trixie
+export AIRFLOW_VERSION
+export AIRFLOW_BASE_IMAGE
+
 help: ## Display this help message
 	@echo "Usage: make <target>"
 	@echo
@@ -28,6 +36,19 @@ test-backend-coverage: install-python ## Run backend tests with coverage report
 build-libs: install-python ## Build all shared libraries
 	uv build libs/data_manipulation
 
+build-airflow-base: ## Build the Debian Trixie based Apache Airflow base image (from the official Dockerfile)
+	@if [ -z "$$(docker images -q $(AIRFLOW_BASE_IMAGE))" ]; then \
+	  echo "Building $(AIRFLOW_BASE_IMAGE) (Airflow $(AIRFLOW_VERSION), Python $(AIRFLOW_PYTHON_VERSION) on debian:trixie-slim)..."; \
+	  docker build \
+	    --build-arg BASE_IMAGE=debian:trixie-slim \
+	    --build-arg AIRFLOW_VERSION=$(AIRFLOW_VERSION) \
+	    --build-arg AIRFLOW_PYTHON_VERSION=$(AIRFLOW_PYTHON_VERSION) \
+	    -t $(AIRFLOW_BASE_IMAGE) \
+	    docker/airflow-base; \
+	else \
+	  echo "$(AIRFLOW_BASE_IMAGE) already present, skipping (run 'docker rmi $(AIRFLOW_BASE_IMAGE)' to rebuild)."; \
+	fi
+
 up: build-libs ## Start all services including GeoServer and GeoNetwork using Docker Compose
 	docker compose --profile geoserver --profile geonetwork up -d --wait --build
 
@@ -42,5 +63,5 @@ run-backend: install-python ## Run the backend application
 	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" sh -c \
 	  'uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs'
 
-.PHONY: default help install-python fix-and-check-all-python build-libs up down down-v run-backend
+.PHONY: default help install-python fix-and-check-all-python build-libs build-airflow-base up down down-v run-backend
 

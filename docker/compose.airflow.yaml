@@ -23,8 +23,12 @@
 # This configuration supports basic configuration using environment variables or an .env file
 # The following variables are supported:
 #
-# AIRFLOW_VERSION              - Tag of the apache/airflow base image used by Dockerfile.airflow.
-#                                Default: 3.1.8
+# AIRFLOW_VERSION              - Apache Airflow version, used to tag the locally built
+#                                Debian Trixie base image (see `make build-airflow-base`).
+#                                Default: 3.2.2
+# AIRFLOW_BASE_IMAGE           - Trixie based Airflow base image used by Dockerfile.airflow.
+#                                Build it first with `make build-airflow-base`.
+#                                Default: datafeeder-airflow-base:3.2.2-trixie
 # AIRFLOW_UID                  - User ID in Airflow containers
 #                                Default: 50000
 # AIRFLOW_PROJ_DIR             - Base path to which all the files will be volumed.
@@ -51,7 +55,8 @@ x-airflow-common:
     dockerfile: ./docker/Dockerfile.airflow
     target: development
     args:
-      AIRFLOW_VERSION: ${AIRFLOW_VERSION:-3.1.8}
+      AIRFLOW_VERSION: ${AIRFLOW_VERSION:-3.2.2}
+      AIRFLOW_BASE_IMAGE: ${AIRFLOW_BASE_IMAGE:-datafeeder-airflow-base:3.2.2-trixie}
   env_file:
     - ../.env
   environment:

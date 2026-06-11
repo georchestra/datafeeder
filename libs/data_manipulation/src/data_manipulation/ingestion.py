@@ -11,7 +11,11 @@ from urllib.request import urlretrieve
 import requests
 from sqlalchemy.engine import Engine
 
-from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_NAME_MAX_LENGTH
+from data_manipulation.constants import (
+    DEFAULT_GEOMETRY_COLUMN,
+    DEFAULT_OGC_SRS,
+    POSTGIS_TABLE_NAME_MAX_LENGTH,
+)
 from data_manipulation.utils import resolve_url
 from data_manipulation.validators import validate_schema_name, validate_table_name
 
@@ -187,11 +191,14 @@ def ingest_file_with_ogr2ogr(
         "-nln",
         f"{schema}.{table_name}",
         "-overwrite",
+        "-forceNullable",
         "-lco",
         f"GEOMETRY_NAME={DEFAULT_GEOMETRY_COLUMN}",
         "-lco",
         f"SCHEMA={schema}",
     ]
+    command_string = " ".join(command)
+    logger.debug(f"Running command: {command_string}")
 
     logger.info(f"Running ogr2ogr to ingest {file_path} into {schema}.{table_name}")
 
@@ -308,12 +315,14 @@ def ingest_data_from_database_into_postgis(
         "-nln",
         f"{target_schema}.{target_table}",
         "-overwrite",
+        "-forceNullable",
         "-lco",
         f"GEOMETRY_NAME={DEFAULT_GEOMETRY_COLUMN}",
         "-lco",
         f"SCHEMA={target_schema}",
     ]
-
+    command_string = " ".join(command)
+    logger.debug(f"Running command: {command_string}")
     # --------
     # WARNING: don't log the command — both PG connection strings contain credentials
     # --------
@@ -373,11 +382,21 @@ def ingest_data_from_ogc_service_into_postgis(
         "-nln",
         f"{schema}.{table_name}",
         "-overwrite",
+        "-forceNullable",
+        "-a_srs",
+        DEFAULT_OGC_SRS,
         "-lco",
         f"GEOMETRY_NAME={DEFAULT_GEOMETRY_COLUMN}",
+        "-nlt",
+        "PROMOTE_TO_MULTI",
+        "-nlt",
+        "CONVERT_TO_LINEAR",
         "-lco",
         f"SCHEMA={schema}",
     ]
+
+    command_string = " ".join(command)
+    logger.debug(f"Running command: {command_string}")
 
     if auth is not None:
         username, password = auth

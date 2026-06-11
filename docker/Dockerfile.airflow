@@ -1,6 +1,11 @@
 # syntax=docker/dockerfile:1
-ARG AIRFLOW_VERSION=3.1.8
+ARG AIRFLOW_VERSION=3.2.2
 ARG UV_VERSION=0.9.15
+
+# Debian Trixie based Apache Airflow image, built locally from the official
+# Airflow Dockerfile (docker/airflow-base) since apache/airflow only ships
+# bookworm based images. Build it with `make build-airflow-base`.
+ARG AIRFLOW_BASE_IMAGE=datafeeder-airflow-base:${AIRFLOW_VERSION}-trixie
 
 # Named stage for the uv binary so later `COPY --from=uv` works on BuildKit
 # versions that don't support variable expansion in `--from`.
@@ -11,14 +16,14 @@ FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 # root workspace, which can't satisfy airflow's fastapi cap alongside backend)
 # and build the data_manipulation wheel.
 # ============================================================================
-FROM python:3.12-slim AS builder
+FROM python:3.13-slim-trixie AS builder
 
 COPY --from=uv /uv /uvx /bin/
 
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never \
-    UV_PYTHON=python3.12 \
+    UV_PYTHON=python3.13 \
     UV_CACHE_DIR=/tmp/uv-cache \
     UV_NO_CACHE=1 \
     UV_FROZEN=1
@@ -33,12 +38,13 @@ RUN cd apps/elt \
  && uv build --wheel ../../libs/data_manipulation -o /tmp/wheels
 
 # ============================================================================
-# Base stage: airflow image + uv, shared by development and production
+# Base stage: Trixie based airflow image + uv, shared by development and
+# production. The base image is built from the official Airflow Dockerfile
+# (see docker/airflow-base and `make build-airflow-base`) on debian:trixie-slim
+# with the system Python 3.13 shipped by debian:trixie-slim, matching the
+# workspace's python pin.
 # ============================================================================
-# The `-python3.12` suffix matches the workspace's `requires-python` pin.
-# Without it, apache/airflow defaults to 3.13, which breaks lockfile-resolved
-# wheels (uv falls back to source builds against a toolchain-less image).
-FROM apache/airflow:${AIRFLOW_VERSION}-python3.12 AS base
+FROM ${AIRFLOW_BASE_IMAGE} AS base
 
 # Switch to root so we can install uv into /bin and run uv pip install --system
 # against the airflow interpreter. Each leaf stage drops back to USER airflow,
@@ -50,7 +56,7 @@ COPY --from=uv /uv /uvx /bin/
 # from uv.lock; UV_NO_CACHE keeps the layer small since the cache is single-use.
 # UV_PYTHON points at the airflow image's venv interpreter so `uv pip install
 # --system` installs alongside the preinstalled airflow + provider distribution
-# rather than failing to find a system python3.12.
+# rather than failing to find a system python3.13.
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never \
@@ -58,6 +64,37 @@ ENV UV_LINK_MODE=copy \
     UV_CACHE_DIR=/tmp/uv-cache \
     UV_NO_CACHE=1 \
     UV_FROZEN=1
+
+# GDAL > 3.9 from conda-forge. Bookworm only ships 3.6, so we install GDAL into
+# an isolated prefix via micromamba and expose the CLI through small wrapper
+# scripts (not bare symlinks). The wrappers force ${GDAL_PREFIX}/lib to the front
+# of LD_LIBRARY_PATH so the conda libstdc++/libproj/... always win: libgdal.so
+# carries no RUNPATH of its own, so any LD_LIBRARY_PATH inherited from the airflow
+# worker would otherwise drag in bookworm's too-old libstdc++ (missing
+# GLIBCXX_3.4.31 / CXXABI_1.3.15). We deliberately keep ${GDAL_PREFIX}/bin off the
+# global PATH so conda's python never shadows the airflow interpreter.
+# conda-forge splits GDAL drivers into per-format packages on top of
+# libgdal-core: libgdal-arrow-parquet provides the (Geo)Parquet driver and
+# libgdal-pg provides the live PostgreSQL/PostGIS driver (ogr_PG.so) that the
+# ELT uses to write into PostGIS via `ogr2ogr -f PostgreSQL`. Without it core
+# only ships PGDUMP (write-only SQL dump), not the network driver.
+ENV GDAL_PREFIX=/opt/gdal
+RUN --mount=type=cache,target=/opt/conda-cache,sharing=locked \
+    curl -Ls https://github.com/mamba-org/micromamba-releases/releases/latest/download/micromamba-linux-64 \
+      -o /usr/local/bin/micromamba \
+ && chmod +x /usr/local/bin/micromamba \
+ && MAMBA_ROOT_PREFIX=/opt/conda-cache micromamba create -y -p ${GDAL_PREFIX} \
+      -c conda-forge 'gdal>=3.12' libgdal-arrow-parquet libgdal-pg \
+ && for b in ogr2ogr ogrinfo gdalinfo gdal_translate gdalwarp gdalsrsinfo; do \
+      printf '#!/bin/sh\nexport LD_LIBRARY_PATH="%s/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\nexec "%s/bin/%s" "$@"\n' \
+        "${GDAL_PREFIX}" "${GDAL_PREFIX}" "$b" > /usr/local/bin/$b \
+      && chmod +x /usr/local/bin/$b; \
+    done \
+ && find ${GDAL_PREFIX} -name '*.a' -delete \
+ && rm -rf ${GDAL_PREFIX}/pkgs
+
+ENV GDAL_DATA=${GDAL_PREFIX}/share/gdal \
+    PROJ_DATA=${GDAL_PREFIX}/share/proj
 
 # ============================================================================
 # Development stage: deps only. libs/data_manipulation is bind-mounted under
@@ -72,14 +109,6 @@ FROM base AS development
 COPY --from=builder /tmp/requirements.txt /tmp/requirements.txt
 RUN uv pip install --system -r /tmp/requirements.txt \
  && rm -f /tmp/requirements.txt
-
-# Runtime deps nécessaires pour GDAL
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update \
-    && apt-get install -y --no-install-recommends \
-        gdal-bin libgdal-dev \
-    && rm -rf /var/lib/apt/lists/*
 
 USER airflow
 
