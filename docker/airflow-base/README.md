@@ -12,6 +12,7 @@ base image (build arg `BASE_IMAGE`).
   copied from the same tag.
 
 ## Build
+
 ```bash
 make build-airflow-base
 # equivalent to:

@@ -1,4 +1,4 @@
-name: build-docker-images.yml
+name: build-airflow-base-image.yml
 on:
   workflow_dispatch:
   push:
