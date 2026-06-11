@@ -87,6 +87,7 @@ def _fetch_keywords_from_geonetwork(
         resp = requests.get(
             f"{gn_api_url}/registries/vocabularies",
             auth=credentials,
+            headers={"Accept": "application/json"},
             timeout=10,
             verify=False,
         )
@@ -107,8 +108,8 @@ def _fetch_topic_categories_from_geonetwork(
 ) -> list[str]:
     """Fetch ISO 19115 MD_TopicCategoryCode values from GeoNetwork's registries API.
 
-    Uses: GET /api/registries/entries?registry={codelist_url}&lang=fre
-    Falls back to an empty list (LLM uses the full ISO list from the system prompt) on error.
+    Uses: GET /registries/entries?registry={codelist_url}
+    Falls back to the standard ISO 19115 list if the endpoint is unavailable.
 
     Args:
         gn_api_url: GeoNetwork API base URL (e.g. http://host/geonetwork/srv/api)
@@ -125,19 +126,21 @@ def _fetch_topic_categories_from_geonetwork(
         resp = requests.get(
             f"{gn_api_url}/registries/entries",
             auth=credentials,
+            headers={"Accept": "application/json"},
             params={"registry": registry_url, "lang": "fre", "rows": 50},
             timeout=10,
             verify=False,
         )
         resp.raise_for_status()
         data = resp.json()
-        # Each entry has a "value" (the code) and optional "label"
         categories = [item["value"] for item in data if "value" in item]
         if categories:
             logger.info("Fetched %d topic categories from GeoNetwork", len(categories))
             return categories
     except Exception as err:
-        logger.warning("Could not fetch topic categories from GeoNetwork: %s", err)
+        logger.warning(
+            "Could not fetch topic categories from GeoNetwork (%s) — using ISO 19115 fallback", err
+        )
     return []
 
 
@@ -222,10 +225,11 @@ def generate_ai_metadata(
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         )
 
-        # Build priority topic categories: GeoNetwork codelist
-        gn_api_url = f"{settings.GEONETWORK_INTERNAL_URL}/srv/api"
-        gn_credentials = (settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD)
-        priority_topics = _fetch_topic_categories_from_geonetwork(gn_api_url, gn_credentials)
+        # Build priority topic categories: GeoNetwork codelist, fallback to ISO 19115 list
+        priority_topics = _fetch_topic_categories_from_geonetwork(
+            gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
+            credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        )
 
         result = generate_metadata(
             table_name=final_table_name,

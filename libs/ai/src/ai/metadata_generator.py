@@ -15,14 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 def _format_sample(sample_rows: list[dict[str, object]] | None) -> str:
-    """Format sample rows as a compact CSV-like string for the prompt."""
+    """Format sample rows as a compact CSV-like string for the prompt (values only, no headers)."""
     if not sample_rows:
         return "not available"
-    lines = []
     headers = list(sample_rows[0].keys())
-    lines.append(", ".join(str(h) for h in headers))
-    for row in sample_rows:
-        lines.append(", ".join(str(row.get(h, "")) for h in headers))
+    lines = [", ".join(str(row.get(h, "")) for h in headers) for row in sample_rows]
     return "\n".join(lines)
 
 
@@ -135,13 +132,11 @@ def generate_metadata(
 
     result = chain.invoke(
         {
-            "table_name": table_name,
             "title": title or table_name,
             "columns_with_types": ", ".join(
                 f"{n} ({column_types[n]})" if column_types and n in column_types else n
                 for n in column_names
             ),
-            "columns": ", ".join(column_names),
             "sample": _format_sample(sample_rows),
             "bbox": bbox or "not available",
             "priority_keywords": (

@@ -432,10 +432,18 @@ async def dag_success_callback(
     # TODO: trigger only if new final table created, not on every re-run with same final table
     if (integrity_link.extra_config or {}).get("generate_metadata_with_ai", False):
         try:
-            await asyncio.to_thread(
-                generate_ai_metadata_with_llm, integrity_link, target_schema, settings
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    generate_ai_metadata_with_llm, integrity_link, target_schema, settings
+                ),
+                timeout=300,  # 5 minutes
             )
             logger.info(f"AI metadata generation completed for IntegrityLink {integrity_link.id}")
+        except asyncio.TimeoutError:
+            logger.warning(
+                "AI metadata generation timed out for IntegrityLink %s (>300s)",
+                integrity_link.id,
+            )
         except Exception as e:
             logger.warning(
                 "AI metadata generation failed for IntegrityLink %s: %s",

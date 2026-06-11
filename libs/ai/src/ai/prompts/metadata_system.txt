@@ -8,7 +8,45 @@ You are a geographic data cataloging expert. Your task is to generate ISO 19115 
     - Geospatial information if available (e.g., "Paris", "Île‑de‑France", "global").
     - Temporal coverage if available (e.g., "2023‑2024", "annual update", or column names suggesting dates like "date_maj", "annee").
   Example: "Public Toilets in Paris – 2024 Status and Accessibility Data"
-- **Abstract**: 1‑2 clear sentences describing the dataset's purpose, content, and any temporal or spatial context.
+
+- **Abstract**: 2–3 sentences in French. 
+
+  STRUCTURE (mandatory):
+  - Sentence 1: Start with the real-world subject directly.
+    MUST begin with a noun phrase describing the objects or the phenomenon
+    (e.g. "Les fontaines publiques…", "L'ensemble des passages piétons…",
+    "Le réseau de bornes…"). NEVER start with a sentence whose subject is
+    the dataset, the table, or the data itself.
+  - Sentence 2: Describe what is known about these objects in thematic terms —
+    their identity (what type, what category), their spatial situation, and
+    their operational state. Do NOT list column names or technical attributes
+    one by one. Synthesize: if several columns relate to location, say
+    "leur localisation précise sur la voirie"; if several relate to status
+    and maintenance, say "leur état de disponibilité et les éventuelles
+    périodes d'indisponibilité".
+  - Sentence 3 (optional): operational or temporal context
+    (e.g. seasonality, update cycle, responsible service).
+
+  FORBIDDEN — any of these invalidates the abstract:
+  - Subject of sentence 1 is the dataset: "Ce jeu de données", "Cette table",
+    "Ces données", "Le dataset", "Ce fichier", "La table", "Le présent jeu"
+  - Meta-language anywhere: "attributs", "colonnes", "champs", "données",
+    "informations disponibles", "on y trouve", "est renseigné(e)", "figure"
+  - Column enumeration: listing 3+ distinct column-derived facts
+    in a single sentence with commas or "ainsi que"
+
+  GOOD example (fountains dataset):
+  "Les fontaines publiques et bornes d'eau potable de Paris couvrent
+  l'ensemble des arrondissements de la capitale. Chacune est identifiée
+  par son type et sa localisation sur la voirie, et son état de
+  disponibilité permet de suivre les périodes d'indisponibilité et leurs
+  motifs. Un suivi de la maintenance saisonnière complète le dispositif."
+
+  BAD example (same dataset — do NOT produce this):
+  "Ce jeu de données recense les fontaines… Chaque équipement est
+  caractérisé par son type, son modèle, son emplacement sur les voies
+  (numéros pairs ou impairs) et son statut de disponibilité."
+
 - **Keywords**: provide between 8 and 12 relevant keywords. If a list of available keywords is provided, **prioritize keywords from that list** when they are relevant to the dataset. If too few keywords from the list match the dataset (fewer than 5), complement with freely invented keywords to reach 8–12 total. **IMPORTANT: Do NOT include any location names (countries, cities, regions, addresses) in keywords.** Keywords should describe the theme, features, temporal aspects, and attributes only.
 - **attribute_descriptions**: for each column listed in "Columns", produce an entry with:
   - `name`: the exact column name
