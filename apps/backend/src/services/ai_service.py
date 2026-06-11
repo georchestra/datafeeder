@@ -2,15 +2,16 @@
 
 from pathlib import Path
 
+import geopandas as gpd
 import requests
 from ai.metadata_generator import generate_metadata
 from ai.providers import get_llm
 from ai.utils import pg_type_to_iso19110  # type: ignore[import-untyped]
-from geoalchemy2 import Geometry  # type: ignore[import-untyped]
-from sqlalchemy import MetaData, Table, func, select
+from data_manipulation.ingestion import read_and_transform_data
+from data_manipulation.models import IntegrityTransformation
 from sqlalchemy import inspect as sa_inspect
 
-from src.core.config import Settings
+from src.core.config import Settings, get_staging_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
@@ -144,38 +145,80 @@ def _fetch_topic_categories_from_geonetwork(
     return []
 
 
-def _get_sample_rows(
-    table_name: str,
-    schema: str,
+def _get_sample_from_staging(
+    integrity_link: IntegrityLink,
     limit: int = 5,
-) -> tuple[list[dict[str, object]], str | None]:
-    """Fetch sample rows and bounding box from a PostGIS table.
+) -> tuple[list[str], dict[str, str], list[dict[str, object]], str | None]:
+    """Fetch column info and sample rows from the staging table with transformations applied.
 
-    Returns a tuple of (sample_rows, bbox) where sample_rows excludes the geometry
-    column and bbox is the ST_Extent string or None if unavailable.
+    Returns:
+        Tuple of (columns, column_types, sample_rows, bbox) where:
+        - columns: column names after transformation (excluded and geometry columns omitted)
+        - column_types: mapping of display column name → ISO 19110 type string
+        - sample_rows: up to `limit` rows as dicts (geometry excluded)
+        - bbox: bounding box string or None
     """
+    staging_table_name = integrity_link.staging_table_name
+    if not staging_table_name:
+        return [], {}, [], None
+
+    staging_schema = get_staging_schema()
+
+    config: IntegrityTransformation | None = None
+    if integrity_link.integrity_transformation:
+        try:
+            config = IntegrityTransformation.model_validate(integrity_link.integrity_transformation)
+        except Exception as err:
+            logger.warning("Could not parse transformation config: %s", err)
+
+    # Get staging column types from DB schema
+    staging_col_types: dict[str, str] = {}
+    try:
+        inspector = sa_inspect(data_engine)
+        raw_cols = inspector.get_columns(staging_table_name, schema=staging_schema)
+        staging_col_types = {col["name"]: pg_type_to_iso19110(str(col["type"])) for col in raw_cols}
+    except Exception as err:
+        logger.warning("Could not inspect staging table %s: %s", staging_table_name, err)
+
+    # Compute output column names and types (post-transformation, geometry excluded)
+    if config and config.columns:
+        columns: list[str] = []
+        column_types: dict[str, str] = {}
+        for col_cfg in config.columns:
+            if col_cfg.excluded or col_cfg.original_name == "geom":
+                continue
+            display_name = col_cfg.new_name or col_cfg.original_name
+            columns.append(display_name)
+            column_types[display_name] = staging_col_types.get(col_cfg.original_name, "string")
+    else:
+        columns = [n for n in staging_col_types if n != "geom"]
+        column_types = {n: t for n, t in staging_col_types.items() if n != "geom"}
+
+    # Fetch sample rows with transformations applied
     sample_rows: list[dict[str, object]] = []
     bbox: str | None = None
     try:
-        table_meta = MetaData(schema=schema)
-        tbl = Table(table_name, table_meta, autoload_with=data_engine)
-        with data_engine.connect() as conn:
-            rows = conn.execute(select(tbl).limit(limit)).mappings().all()
-            geom_cols = {col.name for col in tbl.c if isinstance(col.type, Geometry)}
-            sample_rows = [{k: v for k, v in row.items() if k not in geom_cols} for row in rows]
-            geom_col = next(iter(geom_cols), None)
-            if geom_col:
-                extent = conn.execute(select(func.ST_Extent(tbl.c[geom_col]))).scalar_one_or_none()
-                if extent:
-                    bbox = str(extent)
+        data = read_and_transform_data(
+            staging_table_name, data_engine, schema=staging_schema, config=config, limit=limit
+        )
+        if isinstance(data, gpd.GeoDataFrame) and not data.geometry.is_empty.all():
+            bounds = data.total_bounds  # [minx, miny, maxx, maxy]
+            bbox = f"BOX({bounds[0]} {bounds[1]},{bounds[2]} {bounds[3]})"
+        geom_col_name: str | None = (
+            data.geometry.name if isinstance(data, gpd.GeoDataFrame) else None
+        )  # type: ignore[assignment]
+        sample_rows = [
+            {str(k): v for k, v in row.items() if str(k) != geom_col_name}
+            for row in data.to_dict(orient="records")  # type: ignore[arg-type]
+        ]
     except Exception as err:
-        logger.warning("Could not fetch sample/bbox for table %s.%s: %s", schema, table_name, err)
-    return sample_rows, bbox
+        logger.warning("Could not fetch sample rows from staging %s: %s", staging_table_name, err)
+
+    return columns, column_types, sample_rows, bbox
 
 
 def generate_ai_metadata(
     integrity_link: IntegrityLink,
-    target_schema: str,
     settings: Settings,
 ) -> None:
     """Generate AI metadata for an integrity link and update GeoNetwork.
@@ -209,15 +252,8 @@ def generate_ai_metadata(
             think=False,
         )
 
-        inspector = sa_inspect(data_engine)
-        raw_cols = inspector.get_columns(final_table_name, schema=target_schema)
-        columns: list[str] = [col["name"] for col in raw_cols]
-        column_types: dict[str, str] = {
-            col["name"]: pg_type_to_iso19110(str(col["type"])) for col in raw_cols
-        }
-
-        # Fetch 5 sample rows and bbox from the final table
-        sample_rows, bbox = _get_sample_rows(final_table_name, target_schema)
+        # Fetch columns, types and sample rows from staging (final table may not exist yet)
+        columns, column_types, sample_rows, bbox = _get_sample_from_staging(integrity_link)
 
         # Build priority keywords: all GeoNetwork thesauruses
         priority_kw = _fetch_keywords_from_geonetwork(

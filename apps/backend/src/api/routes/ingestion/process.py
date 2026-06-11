@@ -1,4 +1,4 @@
-import asyncio
+import concurrent.futures
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -261,6 +261,27 @@ def process_staging_data(
                 exc_info=True,
             )
 
+    # Generate AI metadata if requested (soft failure)
+    if request.generate_metadata_with_ai:
+        integrity_link.final_table_name = final_table_name
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(generate_ai_metadata_with_llm, integrity_link, settings)
+                future.result(timeout=300)  # 5 minutes
+            logger.info(f"AI metadata generation completed for IntegrityLink {integrity_link.id}")
+        except concurrent.futures.TimeoutError:
+            logger.warning(
+                "AI metadata generation timed out for IntegrityLink %s (>300s)",
+                integrity_link.id,
+            )
+        except Exception as e:
+            logger.warning(
+                "AI metadata generation failed for IntegrityLink %s: %s",
+                integrity_link.id,
+                e,
+                exc_info=True,
+            )
+
     # Persist all changes before triggering the DAG
     integrity_link.final_table_name = final_table_name
     integrity_link.extra_config = {
@@ -427,30 +448,6 @@ async def dag_success_callback(
 
     datafeeder_session.commit()
     datafeeder_session.refresh(integrity_link)
-
-    # Generate AI metadata if requested (soft failure — runs after metadata_id is set)
-    # TODO: trigger only if new final table created, not on every re-run with same final table
-    if (integrity_link.extra_config or {}).get("generate_metadata_with_ai", False):
-        try:
-            await asyncio.wait_for(
-                asyncio.to_thread(
-                    generate_ai_metadata_with_llm, integrity_link, target_schema, settings
-                ),
-                timeout=300,  # 5 minutes
-            )
-            logger.info(f"AI metadata generation completed for IntegrityLink {integrity_link.id}")
-        except asyncio.TimeoutError:
-            logger.warning(
-                "AI metadata generation timed out for IntegrityLink %s (>300s)",
-                integrity_link.id,
-            )
-        except Exception as e:
-            logger.warning(
-                "AI metadata generation failed for IntegrityLink %s: %s",
-                integrity_link.id,
-                e,
-                exc_info=True,
-            )
 
     # Update revision date in GeoNetwork metadata (soft failure)
     if integrity_link.metadata_id is not None:
