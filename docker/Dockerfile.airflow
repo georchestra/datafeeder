@@ -5,7 +5,7 @@ ARG UV_VERSION=0.9.15
 # Debian Trixie based Apache Airflow image, built locally from the official
 # Airflow Dockerfile (docker/airflow-base) since apache/airflow only ships
 # bookworm based images. Build it with `make build-airflow-base`.
-ARG AIRFLOW_BASE_IMAGE=datafeeder-airflow-base:${AIRFLOW_VERSION}-trixie
+ARG AIRFLOW_BASE_IMAGE=georchestra/airflow-base:${AIRFLOW_VERSION}
 
 # Named stage for the uv binary so later `COPY --from=uv` works on BuildKit
 # versions that don't support variable expansion in `--from`.

@@ -5,7 +5,7 @@ default: help
 # Airflow Dockerfile, since apache/airflow only ships bookworm based images).
 AIRFLOW_VERSION ?= 3.2.2
 AIRFLOW_PYTHON_VERSION ?= 3.13.5
-AIRFLOW_BASE_IMAGE ?= datafeeder-airflow-base:$(AIRFLOW_VERSION)-trixie
+AIRFLOW_BASE_IMAGE ?= georchestra/airflow-base:$(AIRFLOW_VERSION)-trixie
 export AIRFLOW_VERSION
 export AIRFLOW_BASE_IMAGE
 
@@ -45,6 +45,7 @@ build-airflow-base: ## Build the Debian Trixie based Apache Airflow base image (
 	    --build-arg AIRFLOW_PYTHON_VERSION=$(AIRFLOW_PYTHON_VERSION) \
 	    -t $(AIRFLOW_BASE_IMAGE) \
 	    docker/airflow-base; \
+	  docker tag $(AIRFLOW_BASE_IMAGE) georchestra/airflow-base:latest; \
 	else \
 	  echo "$(AIRFLOW_BASE_IMAGE) already present, skipping (run 'docker rmi $(AIRFLOW_BASE_IMAGE)' to rebuild)."; \
 	fi
