@@ -1,28 +1,26 @@
-import json
 import re
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import Any, Optional
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
-import geopandas as gpd
-import pandas as pd
 import requests
 from airflow_client.client.models.dag_run_patch_body import DAGRunPatchBody
 from data_manipulation import (
     IntegrityTransformation,
     detect_column_type_from_sqla,
-    read_and_transform_data,
 )
 from data_manipulation.constants import DB_URI_PREFIX
 from data_manipulation.database import schema_exists, table_exists
-from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import ForceProjection as DataManipulationForceProjection
+from data_manipulation.transformation.transform_sql import (
+    detect_table_srid,
+    read_transformed_preview,
+)
 from data_manipulation.utils import sanitize_name
 from data_manipulation.validators import validate_schema_name, validate_table_name
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
-from shapely.geometry.base import BaseGeometry
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -774,33 +772,6 @@ def dag_failure_callback(
         datafeeder_session.commit()
 
 
-def _stringify_temporal_columns(df: pd.DataFrame) -> None:
-    """Stringify temporal columns in place so preview data is JSON-serializable.
-
-    Handles datetime64 columns and object-dtype columns holding Python
-    date/datetime objects (e.g. Parquet date32), which is_datetime64_any_dtype
-    does not detect. Geometry columns are left untouched.
-    """
-
-    # datetime is a subclass of date, so isinstance(v, date) matches both plain
-    # dates (Parquet date32) and full timestamps; isoformat() renders both cleanly.
-    def _iso(value: Any) -> Any:
-        return value.isoformat() if isinstance(value, date) else value
-
-    for col in df.columns:
-        series = df[col]
-        if pd.api.types.is_datetime64_any_dtype(series):
-            df[col] = series.astype(str)  # type: ignore[misc]
-        elif series.dtype == "object":
-            # Sample the first non-null value to decide the column's real type;
-            # an all-null column has nothing to serialize, so we skip it.
-            non_null = series.dropna()  # type: ignore[misc]
-            if not non_null.empty and isinstance(non_null.iloc[0], date):  # type: ignore[misc]
-                # Convert per-value (not astype) so any stray nulls survive as
-                # None instead of becoming the string "NaT"/"None".
-                df[col] = series.apply(_iso)  # type: ignore[misc]
-
-
 def _detect_original_projection(
     staging_table_name: str,
     engine: Any,
@@ -808,9 +779,7 @@ def _detect_original_projection(
 ) -> str | None:
     """Return the CRS string if the staging table contains geographic data."""
     try:
-        sample = read_data_from_postgis(staging_table_name, engine, schema, limit=1)
-        if isinstance(sample, gpd.GeoDataFrame) and sample.crs is not None:
-            return sample.crs.to_string()
+        return detect_table_srid(staging_table_name, engine, schema)
     except Exception as e:
         logger.warning(f"Could not detect original projection: {e}")
     return None
@@ -1097,7 +1066,7 @@ def get_staging_preview(
             config = IntegrityTransformation.model_validate(integrity_link.integrity_transformation)
         except Exception as e:
             logger.warning(f"Could not deserialize transformation config, using raw: {e}")
-    # SECURITY NOTE: when raw=True, config remains None and read_and_transform_data
+    # SECURITY NOTE: when raw=True, config remains None and read_transformed_preview
     # returns ALL columns including those marked as excluded in the saved config.
     # This is intentional — raw mode is a debug/fallback path used when the
     # transformation itself causes a preview error. If excluded columns contain
@@ -1136,70 +1105,17 @@ def get_staging_preview(
         )
 
     try:
-        transformed_data = read_and_transform_data(
-            staging_table_name, engine, schema, config, limit=limit
-        )
-
-        # Convert non-JSON-serializable temporal types to string (datetime, date, Timestamp).
-        _stringify_temporal_columns(transformed_data)
-
-        data: list[dict[str, Any]] = []
-        geojson_data = None
-        is_geographic = False
-
-        # Convert geometry to WKT for tabular display if GeoDataFrame
-        if isinstance(transformed_data, gpd.GeoDataFrame):
-            is_geographic = True
-
-            geometry_cols: list[str] = []
-            for col in transformed_data.columns:  # type: ignore[misc]
-                if not transformed_data[col].empty:  # type: ignore[misc]
-                    sample_item = transformed_data[col].iloc[0]
-                    sample: Any = sample_item  # type: ignore[misc]
-
-                    if isinstance(sample, BaseGeometry):
-                        geometry_cols.append(col)  # type: ignore[misc]
-                    elif hasattr(sample_item, "wkt"):  # type: ignore[misc]
-                        geometry_cols.append(col)  # type: ignore[misc]
-
-            logger.info(f"Found geometry columns: {geometry_cols}")
-
-            # Create GeoJSON for map display first, force to EPSG:4326
-            map_gdf = transformed_data.copy()
-
-            try:
-                if map_gdf.crs and map_gdf.crs.to_string() != "EPSG:4326":
-                    map_gdf = map_gdf.to_crs("EPSG:4326")
-                    logger.info(f"Reprojected data from {map_gdf.crs} to EPSG:4326 for map display")
-            except Exception as crs_error:
-                logger.warning(f"Could not reproject to EPSG:4326: {crs_error}")
-
-            # Modify transformed_data directly for tabular display
-            if "geom" in geometry_cols:
-                transformed_data["geom"] = transformed_data["geom"].apply(  # type: ignore[misc]
-                    lambda geom: geom.wkt if geom is not None else None  # type: ignore[misc]
-                )
-                geometry_cols.remove("geom")
-
-            # Drop extra geometry columns for tabular data
-            table_data = transformed_data.drop(columns=geometry_cols, errors="ignore")
-            data = table_data.to_dict(orient="records")  # type: ignore[misc]
-
-            geojson_str = map_gdf.to_json()  # type: ignore[misc]
-            geojson_data = json.loads(geojson_str) if geojson_str else None
-        else:
-            # Regular DataFrame, no geometry conversion needed
-            data = transformed_data.to_dict(orient="records")  # type: ignore[misc]
+        preview = read_transformed_preview(staging_table_name, engine, config, schema=schema, limit=limit)
+        data, geojson_data, is_geographic = preview.rows, preview.geojson, preview.is_geographic
 
         # If the geom column was excluded in the saved config, suppress map data
         # regardless of include_excluded. Raw mode bypasses this rule.
         if geom_excluded_in_config:
-            is_geographic = False
-            geojson_data = None
+            is_geographic, geojson_data = False, None
 
         return StagingPreviewResponse(
-            data=data,  # type: ignore[misc]
-            geojson=geojson_data,
+            data=data,
+            geojson=geojson_data,  # pyright: ignore[reportArgumentType] — pydantic validates the dict
             is_geographic=is_geographic,
         )
 
