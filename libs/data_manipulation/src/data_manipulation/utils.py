@@ -3,12 +3,9 @@
 import logging
 import re
 import unicodedata
-from typing import Union
 from urllib.parse import urljoin
 
 import requests
-from geopandas import GeoDataFrame
-from pandas import DataFrame
 
 from data_manipulation.constants import PG_IDENTIFIER_MAX_LENGTH
 from data_manipulation.logging import configure_logging
@@ -43,7 +40,7 @@ def sanitize_name(name: str, max_length: int = PG_IDENTIFIER_MAX_LENGTH) -> str:
         >>> sanitize_name("Org@123 #Test!")
         'org123_test'
         >>> sanitize_name("test--layer__name")
-        'test_layer_name'
+        'test__layer__name'
         >>> sanitize_name("123_dataset")
         'layer_123_dataset'
         >>> sanitize_name("_MyOrg_")
@@ -92,11 +89,6 @@ def resolve_url(url: str) -> str:
         return url
     except requests.RequestException as e:
         raise ValueError(f"Error checking URL {url}: {e}") from e
-
-
-def is_geo_dataframe(df: Union[GeoDataFrame, DataFrame]) -> bool:
-    """Check if a dataframe is a GeoDataFrame."""
-    return isinstance(df, GeoDataFrame)
 
 
 def compute_bbox_from_postgis_stextent_string(str_bbox: str) -> dict[str, float]:

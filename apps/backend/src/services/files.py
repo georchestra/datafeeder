@@ -1,3 +1,4 @@
+import shutil
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -57,11 +58,10 @@ async def upload_file_to_temp(
         file_is_zip = file_is_zip or file.content_type == "application/zip"
 
     try:
-        content = await file.read()
-        if not content:
+        with file_path.open("wb") as f:
+            shutil.copyfileobj(file.file, f)
+        if file_path.stat().st_size == 0:
             raise ValueError("Empty file uploaded")
-
-        file_path.write_bytes(content)
 
         if not file_path.exists():
             raise IOError(f"File was not created: {file_path}")

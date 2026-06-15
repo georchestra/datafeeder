@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from geoservercloud.models.datastore import DataStore
 from geoservercloud.models.featuretype import FeatureType
 
 from data_manipulation.geoserver import (  # type: ignore[reportUnknownVariableType]
@@ -16,8 +17,12 @@ class TestCreateWorkspace:
 
     @pytest.fixture
     def mock_geoserver(self) -> MagicMock:
-        """Create a mock GeoServerCloud instance."""
-        return MagicMock()
+        """Create a mock GeoServerCloud instance with a stubbed namespace lookup."""
+        geoserver = MagicMock()
+        geoserver.rest_service.rest_client.get.return_value.json.return_value = {
+            "namespace": {"uri": "http://example.com/ns/test_workspace"}
+        }
+        return geoserver
 
     def test_create_workspace_success(self, mock_geoserver: MagicMock) -> None:
         """Test successful workspace and datastore creation."""
@@ -39,14 +44,14 @@ class TestCreateWorkspace:
         # Verify workspace creation was called
         mock_geoserver.create_workspace.assert_called_once_with(workspace_name)
 
-        # Verify JNDI datastore creation was called with correct parameters
-        mock_geoserver.create_jndi_datastore.assert_called_once_with(
-            workspace_name=workspace_name,
-            datastore_name=datastore_name,
-            jndi_reference=jndi_reference,
-            pg_schema=pg_schema,
-            description=description,
-        )
+        # Verify the JNDI datastore was created via the REST service
+        mock_geoserver.rest_service.create_datastore.assert_called_once()
+        call = mock_geoserver.rest_service.create_datastore.call_args
+        assert call.kwargs["workspace_name"] == workspace_name
+        datastore = call.kwargs["datastore"]
+        assert isinstance(datastore, DataStore)
+        assert datastore.connection_parameters["jndiReferenceName"] == jndi_reference
+        assert datastore.connection_parameters["schema"] == pg_schema
 
     def test_create_workspace_handles_workspace_error(self, mock_geoserver: MagicMock) -> None:
         """Test that workspace creation errors are propagated."""
@@ -65,11 +70,13 @@ class TestCreateWorkspace:
         # Verify workspace creation was attempted
         mock_geoserver.create_workspace.assert_called_once()
         # Verify datastore creation was not attempted
-        mock_geoserver.create_jndi_datastore.assert_not_called()
+        mock_geoserver.rest_service.create_datastore.assert_not_called()
 
     def test_create_workspace_handles_datastore_error(self, mock_geoserver: MagicMock) -> None:
         """Test that datastore creation errors are propagated."""
-        mock_geoserver.create_jndi_datastore.side_effect = Exception("Datastore creation failed")
+        mock_geoserver.rest_service.create_datastore.side_effect = Exception(
+            "Datastore creation failed"
+        )
 
         with pytest.raises(Exception, match="Datastore creation failed"):
             create_workspace(
@@ -83,7 +90,7 @@ class TestCreateWorkspace:
 
         # Verify both operations were attempted
         mock_geoserver.create_workspace.assert_called_once()
-        mock_geoserver.create_jndi_datastore.assert_called_once()
+        mock_geoserver.rest_service.create_datastore.assert_called_once()
 
 
 class TestCreateLayer:
@@ -92,36 +99,42 @@ class TestCreateLayer:
     @pytest.fixture
     def mock_geoserver(self) -> MagicMock:
         """Create a mock GeoServerCloud instance."""
-        return MagicMock()
+        geoserver = MagicMock()
+        geoserver.url = "http://localhost:8080/geoserver"
+        geoserver.auth = ("admin", "geoserver")
+        return geoserver
 
     def test_create_layer_success(self, mock_geoserver: MagicMock) -> None:
-        """Test successful layer creation."""
+        """Test successful layer creation via the REST service."""
         workspace_name = "test_workspace"
         datastore_name = "test_datastore"
         table_name = "test_table"
         title = "Test Layer"
         abstract = "Test layer description"
 
-        create_layer(
-            geoserver=mock_geoserver,
-            workspace_name=workspace_name,
-            datastore_name=datastore_name,
-            table_name=table_name,
-            title=title,
-            abstract=abstract,
-        )
+        with patch("data_manipulation.geoserver.RestService") as mock_rest_service_class:
+            mock_rest_service_instance = MagicMock()
+            mock_rest_service_class.return_value = mock_rest_service_instance
 
-        # Verify feature type creation was called
-        mock_geoserver.create_feature_type.assert_called_once_with(
-            layer_name=table_name,
-            workspace_name=workspace_name,
-            datastore_name=datastore_name,
-            title=title,
-            abstract=abstract,
-            epsg=4326,
-        )
+            create_layer(
+                geoserver=mock_geoserver,
+                workspace_name=workspace_name,
+                datastore_name=datastore_name,
+                table_name=table_name,
+                title=title,
+                abstract=abstract,
+            )
 
-        # Verify get_feature_type was not called (no error occurred)
+        # The layer is created through RestService, not the geoserver client directly
+        mock_rest_service_class.assert_called_once_with(
+            url=mock_geoserver.url,
+            auth=mock_geoserver.auth,
+        )
+        mock_rest_service_instance.create_feature_type.assert_called_once()
+        feature_type_arg = mock_rest_service_instance.create_feature_type.call_args[0][0]
+        assert isinstance(feature_type_arg, FeatureType)
+
+        # No error occurred, so the existence fallback is not consulted
         mock_geoserver.get_feature_type.assert_not_called()
 
     def test_create_layer_with_error_but_layer_exists(self, mock_geoserver: MagicMock) -> None:
@@ -132,23 +145,24 @@ class TestCreateLayer:
         title = "Test Layer"
         abstract = "Test layer description"
 
-        # Mock create_feature_type to raise an exception
-        mock_geoserver.create_feature_type.side_effect = Exception("500 Server Error")
         # Mock get_feature_type to succeed (layer exists)
         mock_geoserver.get_feature_type.return_value = {"name": table_name}
 
-        # Should not raise an exception
-        create_layer(
-            geoserver=mock_geoserver,
-            workspace_name=workspace_name,
-            datastore_name=datastore_name,
-            table_name=table_name,
-            title=title,
-            abstract=abstract,
-        )
+        with patch("data_manipulation.geoserver.RestService") as mock_rest_service_class:
+            mock_rest_service_class.return_value.create_feature_type.side_effect = Exception(
+                "500 Server Error"
+            )
 
-        # Verify both methods were called
-        mock_geoserver.create_feature_type.assert_called_once()
+            # Should not raise: the layer exists despite the error
+            create_layer(
+                geoserver=mock_geoserver,
+                workspace_name=workspace_name,
+                datastore_name=datastore_name,
+                table_name=table_name,
+                title=title,
+                abstract=abstract,
+            )
+
         mock_geoserver.get_feature_type.assert_called_once_with(
             workspace_name=workspace_name,
             datastore_name=datastore_name,
@@ -163,26 +177,26 @@ class TestCreateLayer:
         title = "Test Layer"
         abstract = "Test layer description"
 
-        error_message = "Table does not exist"
-
-        # Mock create_feature_type to raise an exception
-        mock_geoserver.create_feature_type.side_effect = Exception(error_message)
         # Mock get_feature_type to also fail (layer doesn't exist)
         mock_geoserver.get_feature_type.side_effect = Exception("Layer not found")
 
-        # Should raise an exception with the original error
-        with pytest.raises(Exception, match=f"Failed to create layer '{table_name}' in GeoServer"):
-            create_layer(
-                geoserver=mock_geoserver,
-                workspace_name=workspace_name,
-                datastore_name=datastore_name,
-                table_name=table_name,
-                title=title,
-                abstract=abstract,
+        with patch("data_manipulation.geoserver.RestService") as mock_rest_service_class:
+            mock_rest_service_class.return_value.create_feature_type.side_effect = Exception(
+                "Table does not exist"
             )
 
-        # Verify both methods were called
-        mock_geoserver.create_feature_type.assert_called_once()
+            with pytest.raises(
+                Exception, match=f"Failed to create layer '{table_name}' in GeoServer"
+            ):
+                create_layer(
+                    geoserver=mock_geoserver,
+                    workspace_name=workspace_name,
+                    datastore_name=datastore_name,
+                    table_name=table_name,
+                    title=title,
+                    abstract=abstract,
+                )
+
         mock_geoserver.get_feature_type.assert_called_once()
 
     def test_create_layer_propagates_real_error(self, mock_geoserver: MagicMock) -> None:
@@ -194,18 +208,22 @@ class TestCreateLayer:
         abstract = "Test layer description"
 
         original_error = "Connection timeout"
-        mock_geoserver.create_feature_type.side_effect = Exception(original_error)
         mock_geoserver.get_feature_type.side_effect = Exception("Layer not found")
 
-        with pytest.raises(Exception) as exc_info:
-            create_layer(
-                geoserver=mock_geoserver,
-                workspace_name=workspace_name,
-                datastore_name=datastore_name,
-                table_name=table_name,
-                title=title,
-                abstract=abstract,
+        with patch("data_manipulation.geoserver.RestService") as mock_rest_service_class:
+            mock_rest_service_class.return_value.create_feature_type.side_effect = Exception(
+                original_error
             )
+
+            with pytest.raises(Exception) as exc_info:
+                create_layer(
+                    geoserver=mock_geoserver,
+                    workspace_name=workspace_name,
+                    datastore_name=datastore_name,
+                    table_name=table_name,
+                    title=title,
+                    abstract=abstract,
+                )
 
         # Verify the error message contains the original error
         assert original_error in str(exc_info.value)

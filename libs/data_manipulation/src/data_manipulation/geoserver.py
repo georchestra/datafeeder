@@ -127,17 +127,26 @@ def create_layer(
         abstract = table_name
 
     try:
-        native_bounding_box = {
-            **bbox,
-            "crs": {"$": f"EPSG:{epsg}", "@class": "projected"},
-        }
-        lat_lon_bounding_box = {
-            **bbox,
-            "crs": "EPSG:4326",
-        }
         if is_geographic:
             native_bounding_box = _get_native_bbox_from_bbox_string(bbox, epsg)
             lat_lon_bounding_box = _get_ll_bbox_from_native_bbox(bbox, epsg)
+        else:
+            # Non-geographic data: set inverted (empty) bounds so GeoServer
+            # records a null extent rather than a spurious real one.
+            native_bounding_box = {
+                "minx": 0,
+                "miny": 0,
+                "maxx": -1,
+                "maxy": -1,
+                "crs": {"$": f"EPSG:{epsg}", "@class": "projected"},
+            }
+            lat_lon_bounding_box = {
+                "minx": -1,
+                "miny": -1,
+                "maxx": 0,
+                "maxy": 0,
+                "crs": f"EPSG:{epsg}",
+            }
 
         feature_type = FeatureType(
             name=table_name,

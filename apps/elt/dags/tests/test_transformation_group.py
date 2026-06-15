@@ -57,8 +57,11 @@ def _load_transformation_module():
 
     dm_stub = types.ModuleType("data_manipulation")
     dm_stub.IntegrityTransformation = type("IntegrityTransformation", (), {})  # type: ignore[attr-defined]
-    dm_stub.read_and_transform_data = lambda *a, **kw: None  # type: ignore[attr-defined]
-    dm_stub.write_data_to_postgis = lambda *a, **kw: None  # type: ignore[attr-defined]
+
+    dm_transformation_stub = types.ModuleType("data_manipulation.transformation")
+
+    dm_transform_sql_stub = types.ModuleType("data_manipulation.transformation.transform_sql")
+    dm_transform_sql_stub.transform_staging_to_final = lambda *a, **kw: 0  # type: ignore[attr-defined]
 
     dm_db_stub = types.ModuleType("data_manipulation.database")
     dm_db_stub.create_schema = lambda *a, **kw: None  # type: ignore[attr-defined]
@@ -78,6 +81,8 @@ def _load_transformation_module():
         "airflow.utils": types.ModuleType("airflow.utils"),
         "airflow.utils.trigger_rule": trigger_rule_stub,
         "data_manipulation": dm_stub,
+        "data_manipulation.transformation": dm_transformation_stub,
+        "data_manipulation.transformation.transform_sql": dm_transform_sql_stub,
         "data_manipulation.database": dm_db_stub,
         "sqlalchemy": sqlalchemy_stub,
         "utils": utils_stub,
