@@ -3,12 +3,9 @@
 import logging
 import re
 import unicodedata
-from typing import Union
 from urllib.parse import urljoin
 
 import requests
-from geopandas import GeoDataFrame
-from pandas import DataFrame
 
 from data_manipulation.constants import PG_IDENTIFIER_MAX_LENGTH
 from data_manipulation.logging import configure_logging
@@ -82,7 +79,7 @@ def resolve_url(url: str) -> str:
         str: The final URL after redirection or the original URL if no redirection
     """
     try:
-        response = requests.head(url, allow_redirects=False, timeout=None)
+        response = requests.head(url, allow_redirects=False, timeout=10)
         if 300 <= response.status_code < 400:
             location = response.headers.get("Location")
             if location:
@@ -92,11 +89,6 @@ def resolve_url(url: str) -> str:
         return url
     except requests.RequestException as e:
         raise ValueError(f"Error checking URL {url}: {e}") from e
-
-
-def is_geo_dataframe(df: Union[GeoDataFrame, DataFrame]) -> bool:
-    """Check if a dataframe is a GeoDataFrame."""
-    return isinstance(df, GeoDataFrame)
 
 
 def compute_bbox_from_postgis_stextent_string(str_bbox: str) -> dict[str, float]:
