@@ -266,7 +266,9 @@ def process_staging_data(
         integrity_link.final_table_name = final_table_name
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(generate_ai_metadata_with_llm, integrity_link, settings)
+                future = executor.submit(
+                    generate_ai_metadata_with_llm, integrity_link, settings, request.ai_data_source
+                )
                 future.result(timeout=300)  # 5 minutes
             logger.info(f"AI metadata generation completed for IntegrityLink {integrity_link.id}")
         except concurrent.futures.TimeoutError:

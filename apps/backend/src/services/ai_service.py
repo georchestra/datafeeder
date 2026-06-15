@@ -1,17 +1,18 @@
 """Service for AI-based metadata generation."""
 
 from pathlib import Path
+from typing import Literal
 
 import geopandas as gpd
 import requests
-from ai.metadata_generator import generate_metadata
+from ai.metadata_generator import GeneratedMetadata, generate_metadata
 from ai.providers import get_llm
 from ai.utils import pg_type_to_iso19110  # type: ignore[import-untyped]
 from data_manipulation.ingestion import read_and_transform_data
 from data_manipulation.models import IntegrityTransformation
 from sqlalchemy import inspect as sa_inspect
 
-from src.core.config import Settings, get_staging_schema
+from src.core.config import Settings, get_data_schema, get_staging_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
@@ -217,31 +218,111 @@ def _get_sample_from_staging(
     return columns, column_types, sample_rows, bbox
 
 
-def generate_ai_metadata(
+def _get_sample_from_final(
     integrity_link: IntegrityLink,
-    settings: Settings,
-) -> None:
-    """Generate AI metadata for an integrity link and update GeoNetwork.
+    limit: int = 5,
+) -> tuple[list[str], dict[str, str], list[dict[str, object]], str | None]:
+    """Fetch column info and sample rows from the final table (already transformed).
 
-    Soft failure: logs a warning on error, never raises.
-    No-op if AI_ENABLED=False or if the integrity link has no metadata_id.
+    Returns:
+        Tuple of (columns, column_types, sample_rows, bbox) where:
+        - columns: column names (geometry and id_datafeeder excluded)
+        - column_types: mapping of column name → ISO 19110 type string
+        - sample_rows: up to `limit` rows as dicts (geometry excluded)
+        - bbox: bounding box string or None
     """
-    if not settings.AI_ENABLED:
-        logger.info("AI metadata generation is disabled (AI_ENABLED=False) — skipping")
-        return
-
-    if not integrity_link.metadata_id:
-        logger.info(
-            f"IntegrityLink {integrity_link.id} has no metadata_id yet — skipping AI generation"
-        )
-        return
-
     final_table_name = integrity_link.final_table_name
     if not final_table_name:
-        logger.warning(
-            f"IntegrityLink {integrity_link.id} has no final_table_name — skipping AI generation"
+        return [], {}, [], None
+
+    final_schema = get_data_schema(integrity_link.integrity_organization)
+
+    _EXCLUDED = {"geom", "id_datafeeder"}
+
+    # Get final table column types from DB schema
+    col_types: dict[str, str] = {}
+    try:
+        inspector = sa_inspect(data_engine)
+        raw_cols = inspector.get_columns(final_table_name, schema=final_schema)
+        col_types = {col["name"]: pg_type_to_iso19110(str(col["type"])) for col in raw_cols}
+    except Exception as err:
+        logger.warning("Could not inspect final table %s: %s", final_table_name, err)
+
+    columns = [n for n in col_types if n not in _EXCLUDED]
+    column_types = {n: t for n, t in col_types.items() if n not in _EXCLUDED}
+
+    # Fetch sample rows (no transformation — final table is already processed)
+    sample_rows: list[dict[str, object]] = []
+    bbox: str | None = None
+    try:
+        data = read_and_transform_data(
+            final_table_name, data_engine, schema=final_schema, config=None, limit=limit
         )
-        return
+        if isinstance(data, gpd.GeoDataFrame) and not data.geometry.is_empty.all():
+            bounds = data.total_bounds  # [minx, miny, maxx, maxy]
+            bbox = f"BOX({bounds[0]} {bounds[1]},{bounds[2]} {bounds[3]})"
+        geom_col_name: str | None = (
+            data.geometry.name if isinstance(data, gpd.GeoDataFrame) else None
+        )  # type: ignore[assignment]
+        sample_rows = [
+            {
+                str(k): v
+                for k, v in row.items()
+                if str(k) != geom_col_name and str(k) not in _EXCLUDED
+            }
+            for row in data.to_dict(orient="records")  # type: ignore[arg-type]
+        ]
+    except Exception as err:
+        logger.warning("Could not fetch sample rows from final table %s: %s", final_table_name, err)
+
+    return columns, column_types, sample_rows, bbox
+
+
+def generate_metadata_suggestions(
+    integrity_link: IntegrityLink,
+    settings: Settings,
+    data_source: Literal["staging", "final"] = "staging",
+) -> GeneratedMetadata:
+    """Generate AI metadata suggestions for an integrity link.
+
+    Args:
+        integrity_link: IntegrityLink record with staging/final data
+        settings: Application settings
+        data_source: Which table to use for analysis ("staging" or "final")
+
+    Returns:
+        GeneratedMetadata with suggested title, abstract, keywords, etc.
+
+    Raises:
+        ValueError: If AI is disabled or the requested table is not available
+        Exception: On LLM or data fetching errors
+    """
+    if not settings.AI_ENABLED:
+        raise ValueError("AI metadata generation is disabled (AI_ENABLED=False)")
+
+    if data_source == "staging":
+        if not integrity_link.staging_table_name:
+            raise ValueError(f"IntegrityLink {integrity_link.id} has no staging_table_name")
+        # Check if the staging table still physically exists (may have been cleaned up by Airflow)
+        staging_schema = get_staging_schema()
+        inspector = sa_inspect(data_engine)
+        staging_exists = inspector.has_table(
+            integrity_link.staging_table_name, schema=staging_schema
+        )
+        # Fallback: if the staging table is gone, try to use the final table instead
+        if not staging_exists:
+            data_source = "final"
+    if data_source == "final":
+        if not integrity_link.final_table_name:
+            raise ValueError(
+                f"IntegrityLink {integrity_link.id} has no final_table_name "
+                "(staging table was deleted and no final table available)"
+            )
+    table_name_for_llm = (
+        integrity_link.staging_table_name
+        if data_source == "staging"
+        else integrity_link.final_table_name
+    )
 
     try:
         llm = get_llm(
@@ -251,24 +332,43 @@ def generate_ai_metadata(
             base_url=settings.AI_BASE_URL or None,
             think=False,
         )
+    except Exception as e:
+        logger.error(f"Failed to initialize LLM: {e}", exc_info=True)
+        raise
 
-        # Fetch columns, types and sample rows from staging (final table may not exist yet)
-        columns, column_types, sample_rows, bbox = _get_sample_from_staging(integrity_link)
+    try:
+        if data_source == "staging":
+            columns, column_types, sample_rows, bbox = _get_sample_from_staging(integrity_link)
+        else:
+            columns, column_types, sample_rows, bbox = _get_sample_from_final(integrity_link)
+    except Exception as e:
+        logger.error(
+            f"Failed to fetch sample from {data_source} table: {e}", exc_info=True
+        )
+        raise
 
+    try:
         # Build priority keywords: all GeoNetwork thesauruses
         priority_kw = _fetch_keywords_from_geonetwork(
             gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         )
+    except Exception as e:
+        logger.warning(f"[AI Service] Failed to fetch keywords: {e}")
+        priority_kw = []
 
+    try:
         # Build priority topic categories: GeoNetwork codelist, fallback to ISO 19115 list
         priority_topics = _fetch_topic_categories_from_geonetwork(
             gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         )
+    except Exception as e:
+        priority_topics = []
 
+    try:
         result = generate_metadata(
-            table_name=final_table_name,
+            table_name=table_name_for_llm,
             column_names=columns,
             column_types=column_types,
             llm=llm,
@@ -284,11 +384,53 @@ def generate_ai_metadata(
             if settings.AI_METADATA_HUMAN_PROMPT_FILE
             else None,
         )
+        return result
+    except Exception as e:
+        logger.error(f"LLM metadata generation failed: {e}", exc_info=True)
+        raise
 
+
+def generate_ai_metadata(
+    integrity_link: IntegrityLink,
+    settings: Settings,
+    data_source: Literal["staging", "final"] = "staging",
+) -> None:
+    """Generate AI metadata for an integrity link and update GeoNetwork.
+
+    Soft failure: logs a warning on error, never raises.
+    No-op if AI_ENABLED=False or if the integrity link has no metadata_id.
+
+    Args:
+        integrity_link: IntegrityLink record
+        settings: Application settings
+        data_source: Which table to use for analysis (\"staging\" or \"final\")
+    """
+    if not settings.AI_ENABLED:
+        logger.info("AI metadata generation is disabled (AI_ENABLED=False) — skipping")
+        return
+
+    if not integrity_link.metadata_id:
         logger.info(
-            f"AI metadata generated for IntegrityLink {integrity_link.id}: "
-            f"topics={result.topic_categories}, keywords={result.keywords}"
+            f"IntegrityLink {integrity_link.id} has no metadata_id yet — skipping AI generation"
         )
+        return
+
+    if data_source == "final":
+        if not integrity_link.final_table_name:
+            logger.warning(
+                f"IntegrityLink {integrity_link.id} has no final_table_name — skipping AI generation"
+            )
+            return
+    else:
+        if not integrity_link.staging_table_name:
+            logger.warning(
+                f"IntegrityLink {integrity_link.id} has no staging_table_name — skipping AI generation"
+            )
+            return
+
+    try:
+        # Generate metadata suggestions
+        result = generate_metadata_suggestions(integrity_link, settings, data_source=data_source)
 
         metadata_service = MetadataService(
             gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
@@ -304,7 +446,7 @@ def generate_ai_metadata(
             topic_categories=result.topic_categories,
             attribute_descriptions=result.attribute_descriptions,
             temporal_extent=result.temporal_extent,
-            table_name=final_table_name,
+            table_name=integrity_link.final_table_name or "",
         )
         logger.info(
             f"GeoNetwork metadata updated with AI fields for IntegrityLink {integrity_link.id}"

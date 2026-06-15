@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from data_manipulation.models import CastType as CastType
@@ -58,6 +58,7 @@ class ProcessRequest(BaseModel):
     title: str | None = None
     recurrence: RecurrencePreset | None = None
     generate_metadata_with_ai: bool = False
+    ai_data_source: Literal["staging", "final"] = "staging"
 
 
 class UpdateMetadataGnRequest(BaseModel):

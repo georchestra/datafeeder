@@ -100,7 +100,33 @@
   </gn-ui-button>
   }
   <div class="flex-1"></div>
-  @if (currentPageSignal() !== 0) {
+  @if (currentPageSignal() === 0) { @if (isGeneratingAI()) {
+  <div class="flex items-center gap-2 text-teal-600 px-4 py-2">
+    <div class="flex items-center justify-center shrink-0">
+      <gn-ui-spinning-loader
+        class="[&_svg]:!text-teal-600"
+        [style.width.em]="2"
+        [style.height.em]="2"
+      />
+    </div>
+    <span class="text-base font-medium whitespace-nowrap">
+      {{ 'footer.aiGeneratingMetadata' | translate }}
+    </span>
+  </div>
+  } @else {
+  <gn-ui-button
+    type="default"
+    extraClass="!py-2 !text-teal-600 hover:!text-teal-700 !bg-transparent !border !border-transparent hover:!border-teal-600 !shadow-none hover:!bg-teal-50 transition-colors"
+    (buttonClick)="onGenerateWithAI()"
+  >
+    <span
+      class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-teal-600/20 mr-2"
+    >
+      <ng-icon name="iconoirSparks" size="1.2em" />
+    </span>
+    {{ 'footer.generateWithAI' | translate }}
+  </gn-ui-button>
+  } } @if (currentPageSignal() !== 0) {
   <gn-ui-button type="outline" (buttonClick)="previousPageButtonHandler()">
     {{ 'footer.previous' | translate }}
   </gn-ui-button>

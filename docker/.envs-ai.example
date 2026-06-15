@@ -8,8 +8,8 @@
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 AI_ENABLED=false
-AI_PROVIDER=openai
-AI_MODEL=gemma4:latest
+AI_PROVIDER=openrouter
+AI_MODEL=mistralai/mistral-small-2603
 AI_API_KEY=any_key
 AI_BASE_URL=http://localhost:11434
 AI_METADATA_SYSTEM_PROMPT_FILE=
