@@ -10,6 +10,39 @@ members = [
 ]
 
 [[package]]
+name = "adbc-driver-manager"
+version = "1.11.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e9/5e/50aab18cb501e42d3aca3cd2cc26c6637094fcaf5b6576e350c444188f1f/adbc_driver_manager-1.11.0.tar.gz", hash = "sha256:c64aaabeb5810109ab3d2961008f1b014e9f2d87b3df4416c2a080a40237af50", size = 233059, upload-time = "2026-04-07T00:17:28.263Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/55/42/424980ae511ccb779ab31f80890e29294bf8f1ace23b2a4a37baa3a11aca/adbc_driver_manager-1.11.0-cp312-cp312-macosx_10_15_x86_64.whl", hash = "sha256:08d3008cd6fee3d27b6265864b134902baacf00cd441dc750fb738615290004f", size = 610890, upload-time = "2026-04-07T00:15:45.138Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/66/5522e19e7f8c653a9031806175539479a4854d52a92acf449f703dc424cf/adbc_driver_manager-1.11.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:08f0a6e8030676b7fda5ffe095c33a819a15114541089b8d0fa8281d2dee2079", size = 585005, upload-time = "2026-04-07T00:15:47.094Z" },
+    { url = "https://files.pythonhosted.org/packages/cc/78/106987c8abe88feeb6c0e6e837549a77aebfd0ecb7dfbdcad953d7e8f66e/adbc_driver_manager-1.11.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:fb33beabe3a697a54ffcc9593b94705688f33b64741a17f7bdd37690f85a0ecf", size = 4687350, upload-time = "2026-04-07T00:15:49.743Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/bf/c203675aeaf204cbeb21b6da8d9d1a28ba78c180aa6fa7bc31a7386a7ee6/adbc_driver_manager-1.11.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:dba5306b90932e8af5e4a71756eec2f717f5fe283b1ad7cc7fb094fe4ef3f0f9", size = 4769988, upload-time = "2026-04-07T00:15:51.939Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/84/b31be789afede9e7bdaffab74effe7aef5d2ac3068ef2694f36b5b7dd334/adbc_driver_manager-1.11.0-cp312-cp312-win_amd64.whl", hash = "sha256:e5e9962e6e737e1c028cacb38c08141a8730f5c90cd397537413012ece901cc5", size = 772321, upload-time = "2026-04-07T00:15:54.365Z" },
+]
+
+[[package]]
+name = "adbc-driver-postgresql"
+version = "1.11.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "adbc-driver-manager" },
+    { name = "importlib-resources" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/68/10/2962c25035887cd03af3b348eac3302493936f45048c220021a802d07f12/adbc_driver_postgresql-1.11.0.tar.gz", hash = "sha256:f5688b8648ac7a86d8b89340231bb3686ac5df56ee95d1ca0b875dad5d52b48a", size = 32328, upload-time = "2026-04-07T00:17:29.232Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/79/c7/c90e2faea8f2eac9bbdf89ab3c6bad78e4d0361043cc59b63a37da143a55/adbc_driver_postgresql-1.11.0-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:c54e3119998c845d895ff548c2181c73313e9a52616c61a8cd918d8b4d5279ea", size = 3046985, upload-time = "2026-04-07T00:16:44.233Z" },
+    { url = "https://files.pythonhosted.org/packages/93/63/eb2ea42f7451a898e11847a0b949baa06cbe212a4de09e4c62e1bf9af448/adbc_driver_postgresql-1.11.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:9678d10d7597f775efd59f74cadd0c63fc40671ee52b65e289019ae8b5a2adf0", size = 3337180, upload-time = "2026-04-07T00:16:47.015Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/32/63e4b41f0e4cb36a61ed62edd151ea71c4cc555b2dd554a068812c8dae52/adbc_driver_postgresql-1.11.0-py3-none-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:03cca73acc3840c9751305cef86aa5a9971fe2374a7aabaf1704b3582b351518", size = 3800773, upload-time = "2026-04-07T00:16:48.977Z" },
+    { url = "https://files.pythonhosted.org/packages/ca/f8/93c681d2ccd5b0e70db58998b0f61a7bf52ccf6b9e199d5055c49ef37959/adbc_driver_postgresql-1.11.0-py3-none-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c5904ed3da009fe1361ddf6d5c1a61c8963a6d1dfeda0e96bd4445e028f37216", size = 3489464, upload-time = "2026-04-07T00:16:51.305Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/47/dd2322a40537ee9e22aa9937c70614ca29e9259d1b8b17441b92fbb49d5c/adbc_driver_postgresql-1.11.0-py3-none-win_amd64.whl", hash = "sha256:95c13b3203615b816a258db91c375785750cb82395b985f16c0dc6af88b932e3", size = 3067900, upload-time = "2026-04-07T00:16:53.08Z" },
+]
+
+[[package]]
 name = "alembic"
 version = "1.18.4"
 source = { registry = "https://pypi.org/simple" }
@@ -275,17 +308,20 @@ name = "data-manipulation"
 version = "0.1.0"
 source = { editable = "libs/data_manipulation" }
 dependencies = [
+    { name = "adbc-driver-postgresql" },
     { name = "chardet" },
     { name = "geoalchemy2" },
-    { name = "geopandas" },
     { name = "geoservercloud" },
     { name = "pyarrow" },
     { name = "pydantic" },
+    { name = "pyogrio" },
+    { name = "pyproj" },
     { name = "sqlalchemy" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "geopandas" },
     { name = "poethepoet" },
     { name = "pyright" },
     { name = "pytest" },
@@ -294,17 +330,20 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "adbc-driver-postgresql", specifier = "==1.11.0" },
     { name = "chardet", specifier = "==7.4.3" },
     { name = "geoalchemy2", specifier = "==0.19.0" },
-    { name = "geopandas", specifier = "==1.1.3" },
     { name = "geoservercloud", git = "https://github.com/camptocamp/python-geoservercloud.git" },
     { name = "pyarrow", specifier = "==24.0.0" },
     { name = "pydantic", specifier = "==2.13.4" },
+    { name = "pyogrio", specifier = "==0.12.1" },
+    { name = "pyproj", specifier = "==3.7.2" },
     { name = "sqlalchemy", specifier = "==2.0.49" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "geopandas", specifier = "==1.1.3" },
     { name = "poethepoet", specifier = ">0" },
     { name = "pyright", specifier = ">0" },
     { name = "pytest", specifier = ">0" },
@@ -318,7 +357,6 @@ source = { editable = "apps/backend" }
 dependencies = [
     { name = "alembic" },
     { name = "apache-airflow-client" },
-    { name = "chardet" },
     { name = "data-manipulation" },
     { name = "fastapi", extra = ["standard"] },
     { name = "geojson-pydantic" },
@@ -349,7 +387,6 @@ dev = [
 requires-dist = [
     { name = "alembic", specifier = "==1.18.4" },
     { name = "apache-airflow-client", specifier = "==3.1.8" },
-    { name = "chardet", specifier = "==7.4.3" },
     { name = "data-manipulation", editable = "libs/data_manipulation" },
     { name = "fastapi", extras = ["standard"], specifier = "==0.136.1" },
     { name = "geojson-pydantic", specifier = "==2.1.1" },
@@ -684,6 +721,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6f/6d/0703ccc57f3a7233505399edb88de3cbd678da106337b9fcde432b65ed60/idna-3.11.tar.gz", hash = "sha256:795dafcc9c04ed0c1fb032c2aa73654d8e8c5023a7df64a53f39190ada629902", size = 194582, upload-time = "2025-10-12T14:55:20.501Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0e/61/66938bbb5fc52dbdf84594873d5b51fb1f7c7794e9c0f5bd885f30bc507b/idna-3.11-py3-none-any.whl", hash = "sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea", size = 71008, upload-time = "2025-10-12T14:55:18.883Z" },
+]
+
+[[package]]
+name = "importlib-resources"
+version = "7.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/06/b56dfa750b44e86157093bc8fca0ab81dccbf5260510de4eaf1cb69b5b99/importlib_resources-7.1.0.tar.gz", hash = "sha256:0722d4c6212489c530f2a145a34c0a7a3b4721bc96a15fada5930e2a0b760708", size = 44985, upload-time = "2026-04-12T16:36:09.232Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/db/55a262f3606bebcae07cc14095338471ad7c0bbcaa37707e6f0ee49725b7/importlib_resources-7.1.0-py3-none-any.whl", hash = "sha256:1bd7b48b4088eddb2cd16382150bb515af0bd2c70128194392725f82ad2c96a1", size = 37232, upload-time = "2026-04-12T16:36:08.219Z" },
 ]
 
 [[package]]

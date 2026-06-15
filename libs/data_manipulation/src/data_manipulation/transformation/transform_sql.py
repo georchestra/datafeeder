@@ -1,40 +1,63 @@
-"""SQL-only transformation path: staging → final table.
+"""SQL-native transformation pipeline: staging → final table.
 
-The Airflow process DAG transforms the staging table into the final table.
-Historically this loaded everything into pandas, applied rename / cast /
-projection in Python, and wrote it back. For anything beyond a small table
-that double-trip dominates wall-clock and memory.
+Every transformation — column selection/exclusion, rename, type cast, filter,
+projection and geometry construction — is expressed as parameterized SQL
+(SQLAlchemy Core) and executed inside PostGIS. Data never leaves the database
+except for the small bounded preview.
 
-This module expresses the same transformations as one PostgreSQL statement
-(`CREATE TABLE final AS SELECT … FROM staging`), so the dataset never enters
-Python on the ELT path. The backend preview path (`read_and_transform_data`
-with `limit=10`) keeps the existing Python implementation — same semantics,
-guaranteed because filtering is already SQL-level via `build_sql_column_ops`.
+A single :func:`build_transformation_select` produces the canonical
+transformation ``SELECT`` used by both:
+
+* :func:`transform_staging_to_final` — ``CREATE TABLE <final> AS <select>``
+  (the Airflow process path), and
+* :func:`read_transformed_preview` — ``<select>`` + ``LIMIT`` with in-database
+  geometry serialization (the backend preview path).
+
+Building the query once guarantees preview and process apply identical
+transformations.
+
+Projection semantics for an existing geometry:
+
+* ``force_projection.type`` reprojects coordinates via ``ST_Transform`` — except
+  when the source SRID is 0 (unknown), where ``ST_SetSRID`` labels the SRID
+  in place because there is no source CRS to reproject from.
+* The map preview reprojects to EPSG:4326 for display, leaving SRID-0 geometry
+  as-is (rendered in whatever coordinate space it already carries).
 """
 
+import datetime
+import json
 import logging
 import re
+from dataclasses import dataclass, field
+from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
+    Column,
+    ColumnElement,
     MetaData,
     Table,
-    bindparam,
-    column,
+    func,
     literal_column,
     select,
     text,
 )
 from sqlalchemy.engine import Engine
+from sqlalchemy.sql import Select
+from sqlalchemy.sql.expression import case
 
-from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
-from data_manipulation.models import CastType, ColumnConfig, IntegrityTransformation
-from data_manipulation.transformation.filter_sql import build_sql_column_ops
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_NAME_MAX_LENGTH
+from data_manipulation.models import CastType, IntegrityTransformation
+from data_manipulation.transformation.filter_sql import build_filter_clause
 from data_manipulation.validators import validate_schema_name, validate_table_name
 
 logger = logging.getLogger(__name__)
 
-# Boolean-text mapping mirrored from _parse_bool_from_strings (transform_columns.py)
-# to keep preview/process parity (see CLAUDE.md backend.md: explicit mapper, no astype(bool)).
+DEFAULT_SRID = 4326
+
+# Boolean-text mapping mirrored from the former pandas parser so text-encoded
+# booleans cast identically on the preview and process paths.
 _BOOL_TRUE_TOKENS = ("true", "1", "yes", "on", "t", "y")
 _BOOL_FALSE_TOKENS = ("false", "0", "no", "off", "f", "n")
 
@@ -57,9 +80,11 @@ def _cast_expr(col_name: str, cast_type: CastType) -> str:
     """SQL expression that casts an existing column to the requested type.
 
     Bool-from-text mirrors the explicit token map used by the Python path so
-    preview and process produce identical results.
+    preview and process produce identical results. *col_name* is only ever a
+    name verified present in ``table.c``, but the double-quote doubling keeps
+    the identifier safe regardless.
     """
-    quoted = f'"{col_name}"'
+    quoted = '"' + col_name.replace('"', '""') + '"'
     if cast_type == CastType.BOOLEAN:
         true_list = ", ".join(f"'{t}'" for t in _BOOL_TRUE_TOKENS)
         false_list = ", ".join(f"'{t}'" for t in _BOOL_FALSE_TOKENS)
@@ -94,174 +119,391 @@ def _cast_expr(col_name: str, cast_type: CastType) -> str:
     return quoted
 
 
-def _build_select_expressions(
-    columns: list[ColumnConfig],
-    geom_expr: str | None,
-) -> list[str]:
-    """Return the SELECT list as raw SQL fragments (one entry per output column)."""
-    parts: list[str] = []
-    for cfg in columns:
-        if cfg.excluded:
-            continue
-        effective = cfg.new_name or cfg.original_name
-        if cfg.cast_type is not None:
-            expr = _cast_expr(cfg.original_name, cfg.cast_type)
-        else:
-            expr = f'"{cfg.original_name}"'
-        parts.append(f'{expr} AS "{effective}"')
-    if geom_expr is not None:
-        parts.append(f'{geom_expr} AS "{DEFAULT_GEOMETRY_COLUMN}"')
-    return parts
+def _geom_ref() -> ColumnElement[Any]:
+    """Reference the staging geometry column as a plain (untyped) column.
 
-
-def _build_geom_expression(
-    staging_table: Table,
-    config: IntegrityTransformation,
-) -> str | None:
-    """Build the SQL expression for the geometry column, or None for tabular data.
-
-    Three cases mirror the Python apply_transformations logic:
-      1. force_projection.x_column + force_projection.y_column → ST_MakePoint(x, y)
-      2. staging has a 'geom' column + force_projection.type set → ST_Transform(geom)
-      3. staging has a 'geom' column, no reprojection → pass through
+    Using :func:`literal_column` instead of the reflected GeoAlchemy2 column
+    avoids the automatic ``ST_AsEWKB(...)`` read-wrapping, so the geometry stays
+    a native ``geometry`` value usable by ``CREATE TABLE AS`` and ``ST_*``.
     """
-    fp = config.force_projection
-    has_staging_geom = DEFAULT_GEOMETRY_COLUMN in staging_table.c
-
-    if fp is not None and fp.x_column and fp.y_column:
-        srid = _parse_srid(fp.type)
-        x_expr = f'"{fp.x_column}"::double precision'
-        y_expr = f'"{fp.y_column}"::double precision'
-        point_expr = f"ST_SetSRID(ST_MakePoint({x_expr}, {y_expr}), {srid})"
-        return point_expr
-
-    if has_staging_geom:
-        if fp is not None and fp.type:
-            dst_srid = _parse_srid(fp.type)
-            if dst_srid:
-                return f'ST_Transform("{DEFAULT_GEOMETRY_COLUMN}", {dst_srid})'
-        return f'"{DEFAULT_GEOMETRY_COLUMN}"'
-
-    return None
+    return literal_column(f'"{DEFAULT_GEOMETRY_COLUMN}"')
 
 
-def _build_where_sql(
-    columns: list[ColumnConfig],
-    staging_table: Table,
-    engine: Engine,
-) -> tuple[str, dict[str, object]]:
-    """Compile WHERE clauses from build_sql_column_ops into a SQL string + bind params.
+def _force_srid_expr(geom: ColumnElement[Any], srid: int) -> ColumnElement[Any]:
+    """Project *geom* to *srid*, labelling in place when the source SRID is 0.
 
-    Compiling via SQLAlchemy keeps user filter values as bound parameters
-    (no SQL injection) while still emitting raw SQL we can splice into the
-    surrounding `CREATE TABLE … AS SELECT` text.
+    A SRID of 0 means the source CRS is unknown, so ``ST_Transform`` has nothing
+    to reproject from; ``ST_SetSRID`` assigns the requested SRID instead.
     """
-    _, where_clauses = build_sql_column_ops(columns, staging_table)
-    if not where_clauses:
-        return "", {}
-
-    # Use a select() to compile the WHERE; SQLAlchemy 2.x renders bound params.
-    stmt = select(literal_column("1")).where(*where_clauses)
-    compiled = stmt.compile(
-        bind=engine, compile_kwargs={"render_postcompile": True, "literal_binds": False}
+    return case(
+        (func.ST_SRID(geom) == 0, func.ST_SetSRID(geom, srid)),
+        else_=func.ST_Transform(geom, srid),
     )
-    sql = str(compiled)
-    where_idx = sql.upper().rfind(" WHERE ")
-    if where_idx == -1:
-        return "", {}
-    return sql[where_idx + len(" WHERE ") :], dict(compiled.params)
 
 
-def transform_in_place_via_sql(
-    staging_table_name: str,
-    staging_schema: str,
-    target_table_name: str,
-    target_schema: str,
+def _display_4326_expr(geom: ColumnElement[Any]) -> ColumnElement[Any]:
+    """Project *geom* to EPSG:4326 for the preview map, leaving SRID-0 as-is."""
+    return case(
+        (func.ST_SRID(geom) == 0, geom),
+        else_=func.ST_Transform(geom, DEFAULT_SRID),
+    )
+
+
+@dataclass
+class TransformationQuery:
+    """Result of :func:`build_transformation_select`.
+
+    Attributes:
+        select: The canonical transformation ``SELECT`` against the staging table.
+        geom_column: Name of the geometry output column (always
+            :data:`DEFAULT_GEOMETRY_COLUMN`) when the result is geographic, else
+            ``None``.
+        property_columns: Ordered names of the non-geometry output columns.
+    """
+
+    select: Select[Any]
+    geom_column: str | None
+    property_columns: list[str] = field(default_factory=list)
+
+
+def build_transformation_select(
+    table: Table, config: IntegrityTransformation | None
+) -> TransformationQuery:
+    """Build the canonical transformation ``SELECT`` for a staging table.
+
+    Applies, entirely in SQL:
+
+    * column selection + exclusion (excluded columns are never selected),
+    * rename (``new_name``) via column labels,
+    * type cast (boolean/numeric/text/date) with invalid values coerced to NULL,
+    * per-column ILIKE filters as bound-parameter ``WHERE`` clauses,
+    * geometry handling:
+        - X/Y columns → ``ST_SetSRID(ST_MakePoint(x, y), srid)``,
+        - existing geom + forced projection → reproject (or label SRID when
+          source SRID is 0),
+        - existing geom, no/unparseable projection → passthrough.
+
+    The geometry output is always named :data:`DEFAULT_GEOMETRY_COLUMN`; a
+    ``new_name`` configured on the geometry column is ignored.
+
+    Args:
+        table: SQLAlchemy ``Table`` for the staging table.
+        config: Transformation configuration. ``None`` selects all columns
+            unchanged (passthrough), preserving any geometry column.
+
+    Returns:
+        A :class:`TransformationQuery`.
+    """
+    columns = config.columns if config is not None else None
+    force = config.force_projection if config is not None else None
+
+    geom_srid = _parse_srid(force.type) if force else 0
+    x_col = force.x_column if force and force.x_column else None
+    y_col = force.y_column if force and force.y_column else None
+    build_point = bool(x_col and y_col)
+
+    select_exprs: list[ColumnElement[Any]] = []
+    where_clauses: list[ColumnElement[Any]] = []
+    property_columns: list[str] = []
+    geom_out: str | None = None
+
+    def _emit_existing_geom() -> None:
+        nonlocal geom_out
+        geom = _geom_ref()
+        expr = _force_srid_expr(geom, geom_srid) if geom_srid else geom
+        select_exprs.append(expr.label(DEFAULT_GEOMETRY_COLUMN))
+        geom_out = DEFAULT_GEOMETRY_COLUMN
+
+    if columns:
+        for col_config in columns:
+            if col_config.excluded:
+                continue
+            name = col_config.original_name
+            if name not in table.c:
+                logger.warning("Column '%s' not found in table '%s', skipping", name, table.name)
+                continue
+
+            if name == DEFAULT_GEOMETRY_COLUMN:
+                # Geometry is emitted separately and never renamed. When X/Y
+                # columns build the point, the existing geom is discarded.
+                if not build_point:
+                    _emit_existing_geom()
+                continue
+
+            col: Column[Any] = table.c[name]
+            if col_config.cast_type:
+                expr: ColumnElement[Any] = literal_column(_cast_expr(name, col_config.cast_type))
+            else:
+                expr = col
+            effective = col_config.new_name or col_config.original_name
+            select_exprs.append(expr.label(effective))
+            property_columns.append(effective)
+
+            if col_config.filter is not None:
+                where_clauses.append(build_filter_clause(table.c[name], col_config.filter))
+    else:
+        for col in table.c:
+            if col.name == DEFAULT_GEOMETRY_COLUMN:
+                if not build_point:
+                    _emit_existing_geom()
+                continue
+            select_exprs.append(col)
+            property_columns.append(col.name)
+
+    if build_point and x_col is not None and y_col is not None:
+        srid = geom_srid or DEFAULT_SRID
+        x_expr = literal_column(_cast_expr(x_col, CastType.NUMERIC))
+        y_expr = literal_column(_cast_expr(y_col, CastType.NUMERIC))
+        point = func.ST_SetSRID(func.ST_MakePoint(x_expr, y_expr), srid)
+        select_exprs.append(point.label(DEFAULT_GEOMETRY_COLUMN))
+        geom_out = DEFAULT_GEOMETRY_COLUMN
+
+    stmt = select(*select_exprs).select_from(table)
+    if where_clauses:
+        stmt = stmt.where(*where_clauses)
+
+    return TransformationQuery(select=stmt, geom_column=geom_out, property_columns=property_columns)
+
+
+# --------------------------------------------------------------------------- #
+# Process path: staging -> final (CREATE TABLE AS)
+# --------------------------------------------------------------------------- #
+
+
+def transform_staging_to_final(
+    staging_table: str,
+    final_table: str,
     engine: Engine,
-    config: IntegrityTransformation | None,
+    config: IntegrityTransformation | None = None,
+    *,
+    staging_schema: str = "staging",
+    final_schema: str = "data",
     create_id: bool = True,
 ) -> int:
-    """Run the staging → final transformation entirely in SQL.
+    """Transform a staging table into a final table entirely in the database.
 
-    Returns the number of rows written to the final table.
+    Runs ``CREATE TABLE <final_schema>.<final_table> AS <transformation SELECT>``
+    and optionally adds an ``id_datafeeder`` UUID primary key plus a GIST index
+    on the geometry column. No data is loaded into Python memory.
 
-    The dataset never leaves PostgreSQL: SELECT projects renamed/cast columns,
-    PostGIS builds the geometry (X/Y or ST_Transform), the result is
-    materialised into ``target_schema.target_table_name`` and a UUID primary
-    key is added.
+    Args:
+        staging_table: Source staging table name.
+        final_table: Target final table name.
+        engine: SQLAlchemy engine for the (single) PostGIS database.
+        config: Transformation configuration (``None`` = passthrough copy).
+        staging_schema: Schema of the staging table.
+        final_schema: Schema of the final table.
+        create_id: When True, add an ``id_datafeeder`` UUID primary key.
+
+    Returns:
+        Number of rows written to the final table.
     """
-    validate_table_name(staging_table_name)
     validate_schema_name(staging_schema)
-    validate_table_name(target_table_name)
-    validate_schema_name(target_schema)
+    validate_schema_name(final_schema)
+    validate_table_name(staging_table)
+    # The GIST index name budget (idx_<table>_geom) applies to the final table.
+    validate_table_name(final_table, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
 
     metadata = MetaData(schema=staging_schema)
-    staging_table = Table(staging_table_name, metadata, autoload_with=engine)
+    table = Table(staging_table, metadata, autoload_with=engine)
 
-    columns = (config.columns if config is not None else None) or []
-    if columns:
-        select_parts = _build_select_expressions(
-            columns,
-            _build_geom_expression(staging_table, config) if config is not None else None,
-        )
-        where_sql, where_params = _build_where_sql(columns, staging_table, engine)
-    else:
-        # No column config — pass every staging column through unchanged. Geometry,
-        # if present, follows the same rules as the configured case.
-        select_parts = [f'"{c.name}"' for c in staging_table.c if c.name != DEFAULT_GEOMETRY_COLUMN]
-        geom_expr = _build_geom_expression(staging_table, config) if config is not None else None
-        if geom_expr is None and DEFAULT_GEOMETRY_COLUMN in staging_table.c:
-            geom_expr = f'"{DEFAULT_GEOMETRY_COLUMN}"'
-        if geom_expr is not None:
-            select_parts.append(f'{geom_expr} AS "{DEFAULT_GEOMETRY_COLUMN}"')
-        where_sql, where_params = "", {}
-
-    if not select_parts:
-        raise ValueError(
-            f"transform_in_place_via_sql: no columns selected from {staging_schema}.{staging_table_name}"
-        )
-
-    fq_target = f'"{target_schema}"."{target_table_name}"'
-    fq_staging = f'"{staging_schema}"."{staging_table_name}"'
-    select_clause = ", ".join(select_parts)
-    where_clause = f" WHERE {where_sql}" if where_sql else ""
-    create_sql = (
-        f"DROP TABLE IF EXISTS {fq_target}; "
-        f"CREATE TABLE {fq_target} AS SELECT {select_clause} FROM {fq_staging}{where_clause}"
-    )
-
-    logger.info(
-        f"Running SQL transform: {staging_schema}.{staging_table_name} "
-        f"→ {target_schema}.{target_table_name}"
-    )
-    logger.debug(f"SQL: {create_sql}")
+    tq = build_transformation_select(table, config)
+    compiled = tq.select.compile(dialect=engine.dialect)
 
     with engine.begin() as conn:
-        # Drop is its own statement so AS-SELECT runs cleanly afterwards.
-        conn.execute(text(f"DROP TABLE IF EXISTS {fq_target}"))
-        bound = text(
-            f"CREATE TABLE {fq_target} AS SELECT {select_clause} FROM {fq_staging}{where_clause}"
+        # Replace semantics: CREATE TABLE AS requires the target not to exist.
+        conn.execute(text(f'DROP TABLE IF EXISTS "{final_schema}"."{final_table}"'))
+        # exec_driver_sql passes the DBAPI-paramstyle SQL + params straight
+        # through, keeping every filter value a bound parameter.
+        conn.exec_driver_sql(
+            f'CREATE TABLE "{final_schema}"."{final_table}" AS {compiled.string}',
+            compiled.params,
         )
-        for k, v in where_params.items():
-            bound = bound.bindparams(bindparam(k, value=v))
-        conn.execute(bound)
 
         if create_id:
             conn.execute(
                 text(
-                    f"ALTER TABLE {fq_target} "
+                    f'ALTER TABLE "{final_schema}"."{final_table}" '
                     "ADD COLUMN id_datafeeder UUID DEFAULT gen_random_uuid() NOT NULL"
                 )
             )
-            conn.execute(text(f"ALTER TABLE {fq_target} ADD PRIMARY KEY (id_datafeeder)"))
+            conn.execute(
+                text(f'ALTER TABLE "{final_schema}"."{final_table}" ADD PRIMARY KEY (id_datafeeder)')
+            )
 
-        row_count = conn.execute(text(f"SELECT count(*) FROM {fq_target}")).scalar() or 0
+        if tq.geom_column:
+            conn.execute(
+                text(
+                    f'CREATE INDEX "idx_{final_table}_geom" '
+                    f'ON "{final_schema}"."{final_table}" USING GIST ("{tq.geom_column}")'
+                )
+            )
 
-    logger.info(f"SQL transform wrote {row_count} rows to {target_schema}.{target_table_name}")
+        row_count = (
+            conn.execute(text(f'SELECT count(*) FROM "{final_schema}"."{final_table}"')).scalar()
+            or 0
+        )
+
+    logger.info(
+        "Transformed %s.%s -> %s.%s (%d rows)",
+        staging_schema,
+        staging_table,
+        final_schema,
+        final_table,
+        row_count,
+    )
     return int(row_count)
 
 
-__all__ = ["transform_in_place_via_sql"]
+# --------------------------------------------------------------------------- #
+# Preview path: staging -> bounded rows + GeoJSON
+# --------------------------------------------------------------------------- #
 
 
-_ = column  # keep import noise low — column() reserved for future extensions
+@dataclass
+class PreviewResult:
+    """Bounded, JSON-serializable preview of a transformed staging table.
+
+    Attributes:
+        rows: Tabular rows (geometry rendered as WKT under ``geom``).
+        geojson: A GeoJSON ``FeatureCollection`` (EPSG:4326) or ``None``.
+        is_geographic: Whether the transformed result has a geometry column.
+    """
+
+    rows: list[dict[str, Any]]
+    geojson: dict[str, Any] | None
+    is_geographic: bool
+
+
+def _json_safe(value: Any) -> Any:
+    """Convert DB-native scalar types to JSON-serializable equivalents."""
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        return value.isoformat()
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return bytes(value).hex()
+    return value
+
+
+def read_transformed_preview(
+    staging_table: str,
+    engine: Engine,
+    config: IntegrityTransformation | None = None,
+    *,
+    schema: str = "staging",
+    limit: int | None = 10,
+) -> PreviewResult:
+    """Read a bounded, transformed preview of a staging table.
+
+    Builds the same transformation ``SELECT`` as the process path, applies a
+    ``LIMIT`` and serializes geometry in the database: WKT for the tabular rows
+    (``geom``) and GeoJSON reprojected to EPSG:4326 for map display. No
+    geopandas/pandas involved.
+
+    Args:
+        staging_table: Staging table name.
+        engine: SQLAlchemy engine.
+        config: Transformation configuration (``None`` = passthrough).
+        schema: Staging schema.
+        limit: Maximum number of rows (``None`` = no limit).
+
+    Returns:
+        A :class:`PreviewResult`.
+    """
+    validate_table_name(staging_table)
+    validate_schema_name(schema)
+
+    metadata = MetaData(schema=schema)
+    table = Table(staging_table, metadata, autoload_with=engine)
+
+    tq = build_transformation_select(table, config)
+    core = tq.select.subquery()
+
+    geojson_label = "__geojson__"
+    geom_column = tq.geom_column
+    has_geom = geom_column is not None
+
+    select_cols: list[ColumnElement[Any]] = []
+    for col in core.c:
+        if col.name == geom_column:
+            select_cols.append(func.ST_AsText(col).label(DEFAULT_GEOMETRY_COLUMN))
+        else:
+            select_cols.append(col)
+    if geom_column is not None:
+        geom_col = core.c[geom_column]
+        select_cols.append(
+            func.ST_AsGeoJSON(_display_4326_expr(geom_col)).label(geojson_label)
+        )
+
+    stmt = select(*select_cols)
+    if limit is not None and limit > 0:
+        stmt = stmt.limit(limit)
+
+    rows: list[dict[str, Any]] = []
+    features: list[dict[str, Any]] = []
+
+    with engine.connect() as conn:
+        result = conn.execute(stmt)
+        for mapping in result.mappings():
+            record = dict(mapping)
+            geometry_geojson = record.pop(geojson_label, None) if has_geom else None
+
+            row = {key: _json_safe(val) for key, val in record.items()}
+            rows.append(row)
+
+            if has_geom and geometry_geojson:
+                properties = {
+                    key: val for key, val in row.items() if key != DEFAULT_GEOMETRY_COLUMN
+                }
+                features.append(
+                    {
+                        "type": "Feature",
+                        "geometry": json.loads(geometry_geojson),
+                        "properties": properties,
+                    }
+                )
+
+    geojson = {"type": "FeatureCollection", "features": features} if has_geom and features else None
+    return PreviewResult(rows=rows, geojson=geojson, is_geographic=has_geom)
+
+
+# --------------------------------------------------------------------------- #
+# CRS detection
+# --------------------------------------------------------------------------- #
+
+
+def detect_table_srid(staging_table: str, engine: Engine, schema: str | None = None) -> str | None:
+    """Return the CRS (``EPSG:NNNN``) of a staging table's geometry, if any.
+
+    Reads ``ST_SRID`` from the first geometry row. Returns ``None`` when the
+    table has no geometry column or no detectable SRID.
+    """
+    validate_table_name(staging_table)
+    if schema:
+        validate_schema_name(schema)
+
+    try:
+        metadata = MetaData(schema=schema)
+        table = Table(staging_table, metadata, autoload_with=engine)
+    except Exception as exc:
+        logger.warning("Could not reflect table for SRID detection: %s", exc)
+        return None
+
+    if DEFAULT_GEOMETRY_COLUMN not in table.c:
+        return None
+
+    try:
+        with engine.connect() as conn:
+            srid = conn.execute(
+                select(func.ST_SRID(_geom_ref())).select_from(table).limit(1)
+            ).scalar()
+    except Exception as exc:
+        logger.warning("Could not detect original projection: %s", exc)
+        return None
+
+    if srid:
+        return f"EPSG:{srid}"
+    return None

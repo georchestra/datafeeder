@@ -3,14 +3,14 @@
 Gated by ``DATAFEEDER_RUN_BENCH=1`` because the test materialises a
 synthetic ~150 MB GeoJSON on disk; skip on every normal CI run.
 
-We exercise ``_iter_data_batches`` directly with a no-op consumer so the
+We exercise ``open_file`` directly with a no-op consumer so the
 read path (the dominant memory pressure pre-streaming) runs end-to-end
 while DB plumbing is bypassed.
 
 Acceptance bar: peak RSS delta during the full read of the file must
 stay well under the on-disk size. The pre-streaming reader loaded the
 whole frame into Python, so RSS scaled with the file size; the new path
-keeps it bounded by ``_READ_BATCH_ROWS``.
+keeps it bounded by ``BATCH_ROWS``.
 """
 
 from __future__ import annotations
@@ -24,9 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from data_manipulation.ingestion import (
-    _iter_data_batches,  # pyright: ignore[reportPrivateUsage]
-)
+from data_manipulation.arrow_reader import open_file
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("DATAFEEDER_RUN_BENCH") != "1",
@@ -105,9 +103,10 @@ def test_file_reader_peak_rss_stays_bounded(tmp_path: Path) -> None:
 
     baseline_mb = _ru_maxrss_mb()
     with _RssWatchdog() as rss:
-        for batch in _iter_data_batches(str(path)):
-            batches_seen += 1
-            rows_seen += len(batch)
+        with open_file(str(path)) as src:
+            for batch in src.reader:
+                batches_seen += 1
+                rows_seen += batch.num_rows
 
     peak_delta_mb = rss.peak_mb - baseline_mb
     # Bound: the new reader yields one batch at a time, so memory should be
