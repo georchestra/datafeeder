@@ -8,7 +8,7 @@ from airflow.sdk import task, task_group
 from airflow.utils.trigger_rule import TriggerRule
 from data_manipulation import IntegrityTransformation
 from data_manipulation.database import create_schema
-from data_manipulation.transformation.transform_sql import transform_in_place_via_sql
+from data_manipulation.transformation.transform_sql import transform_staging_to_final
 from sqlalchemy import MetaData, Table
 from utils import get_data_sql_engine, get_staging_schema
 
@@ -110,13 +110,13 @@ def process_transformation_group(
                     f"Running SQL transform {staging_schema}.{staging_table_name} "
                     f"→ {final_schema}.{final_table_name}"
                 )
-                row_count = transform_in_place_via_sql(
-                    staging_table_name=staging_table_name,
+                row_count = transform_staging_to_final(
+                    staging_table_name,
+                    final_table_name,
+                    engine,
+                    transformation_config,
                     staging_schema=staging_schema,
-                    target_table_name=final_table_name,
-                    target_schema=final_schema,
-                    engine=engine,
-                    config=transformation_config,
+                    final_schema=final_schema,
                     create_id=True,
                 )
                 if row_count == 0:

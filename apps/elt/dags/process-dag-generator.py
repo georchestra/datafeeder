@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 from airflow import DAG
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
-from utils import get_datafeeder_pg_hook, normalize_nan
+from utils import get_records_as_dicts, normalize_nan
 
 
 def load_scheduled_integrity_links():
@@ -26,7 +26,7 @@ def load_scheduled_integrity_links():
         FROM datafeeder.integrity_link
         WHERE schedule NOTNULL AND schedule NOT LIKE ''
     """
-    return get_datafeeder_pg_hook().get_pandas_df(sql).to_dict(orient="records")
+    return get_records_as_dicts(sql)
 
 
 def _build_callback_url(route: str, integrity_link_id: str, final_table_name: str) -> str:

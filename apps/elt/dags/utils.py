@@ -1,8 +1,7 @@
 import os
 from datetime import timedelta
-from typing import TypeVar
+from typing import Any, TypeVar
 
-import pandas as pd
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.sdk import Variable
 from sqlalchemy.engine import Engine
@@ -57,20 +56,35 @@ def get_staging_timeout() -> timedelta:
     return timedelta(seconds=seconds)
 
 
-def normalize_nan(value: T | None, default: T) -> T:
-    """Normalize NA/NaN/None values to a default.
+def get_records_as_dicts(sql: str) -> list[dict[str, Any]]:
+    """Run *sql* on the Datafeeder database and return rows as dicts.
 
-    pandas.DataFrame.to_dict() converts SQL NULL to float('nan') / numpy.nan,
-    which are truthy in Python. This breaks the common `value or default` pattern.
-    Use this function to properly handle NA/NaN values from pandas DataFrames.
+    SQL NULLs come back as ``None``. Uses a raw cursor so the ELT image needs
+    no pandas dependency.
+    """
+    conn = get_datafeeder_pg_hook().get_conn()
+    with conn.cursor() as cursor:
+        cursor.execute(sql)
+        columns = [desc[0] for desc in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+
+def normalize_nan(value: T | None, default: T) -> T:
+    """Normalize NaN/None values to a default.
+
+    Database NULLs read through a raw cursor come back as ``None``; this also
+    guards against float ``NaN`` (which is truthy and would defeat the common
+    `value or default` pattern).
 
     Args:
         value: The value to check (can be None, NaN, or any valid value)
-        default: The value to return if value is NA/NaN/None
+        default: The value to return if value is NaN/None
 
     Returns:
-        The original value if it's not NA/NaN/None, otherwise the default
+        The original value if it's not NaN/None, otherwise the default
     """
-    if value is None or pd.isna(value):
+    if value is None:
+        return default
+    if isinstance(value, float) and value != value:
         return default
     return value
