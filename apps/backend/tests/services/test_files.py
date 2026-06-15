@@ -1,4 +1,5 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+import io
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import UploadFile
@@ -63,12 +64,20 @@ class TestUploadFileToTemp:
 
     @pytest.fixture
     def mock_upload_file(self) -> MagicMock:
-        """Create a mock UploadFile."""
+        """Create a mock UploadFile whose `.file` is a readable byte stream."""
         file = MagicMock(spec=UploadFile)
         file.filename = "test_file.json"
         file.content_type = "application/json"
-        file.read = AsyncMock(return_value=b'{"test": "data"}')
+        file.file = io.BytesIO(b'{"test": "data"}')
         return file
+
+    @staticmethod
+    def _mock_file_path(*, st_size: int = 16, exists: bool = True) -> MagicMock:
+        """Build a mocked target Path supporting the streaming-write code path."""
+        mock_file_path = MagicMock()
+        mock_file_path.stat.return_value.st_size = st_size
+        mock_file_path.exists.return_value = exists
+        return mock_file_path
 
     @pytest.mark.asyncio
     @patch("src.services.files.get_settings")
@@ -83,32 +92,23 @@ class TestUploadFileToTemp:
         """Test successful file upload."""
         mock_get_settings.return_value = mock_settings
 
-        # Mock Path behavior for original filename parsing
         mock_original_path = MagicMock()
         mock_original_path.stem = "test_file"
         mock_original_path.suffix = ".json"
 
-        # Mock Path behavior for tmp directory and file path
         mock_tmp_path = MagicMock()
-        mock_file_path = MagicMock()
-        mock_file_path.exists = MagicMock(return_value=True)
-        mock_file_path.write_bytes = MagicMock()
+        mock_file_path = self._mock_file_path()
         mock_tmp_path.__truediv__ = MagicMock(return_value=mock_file_path)
-        mock_tmp_path.mkdir = MagicMock()
 
-        # Configure Path mock to return different objects based on call
         mock_path.side_effect = [mock_tmp_path, mock_original_path]
 
         source_file_name, source_file_type, file_url = await upload_file_to_temp(mock_upload_file)
 
-        # Verify the file was read
-        mock_upload_file.read.assert_called_once()
-
         # Verify the tmp directory was created
         mock_tmp_path.mkdir.assert_called_once_with(parents=True, exist_ok=True)
 
-        # Verify the file content was written
-        mock_file_path.write_bytes.assert_called_once_with(b'{"test": "data"}')
+        # Verify the file was streamed to disk
+        mock_file_path.open.assert_called_once_with("wb")
 
         # Verify result contains the filename with unique ID
         assert source_file_name.startswith("test_file")
@@ -126,24 +126,18 @@ class TestUploadFileToTemp:
         """Test file upload with zip extension."""
         mock_get_settings.return_value = mock_settings
 
-        # Create mock zip file
         zip_file = MagicMock(spec=UploadFile)
         zip_file.filename = "archive.zip"
         zip_file.content_type = "application/zip"
-        zip_file.read = AsyncMock(return_value=b"fake zip content")
+        zip_file.file = io.BytesIO(b"fake zip content")
 
-        # Mock Path behavior for original filename parsing
         mock_original_path = MagicMock()
         mock_original_path.stem = "archive"
         mock_original_path.suffix = ".zip"
 
-        # Mock Path behavior for tmp directory and file path
         mock_tmp_path = MagicMock()
-        mock_file_path = MagicMock()
-        mock_file_path.exists = MagicMock(return_value=True)
-        mock_file_path.write_bytes = MagicMock()
+        mock_file_path = self._mock_file_path()
         mock_tmp_path.__truediv__ = MagicMock(return_value=mock_file_path)
-        mock_tmp_path.mkdir = MagicMock()
 
         mock_path.side_effect = [mock_tmp_path, mock_original_path]
 
@@ -153,7 +147,7 @@ class TestUploadFileToTemp:
         assert source_file_name.endswith(".zip")
         assert source_file_type == FileType.ZIP
         assert file_url.endswith(".zip")
-        mock_file_path.write_bytes.assert_called_once_with(b"fake zip content")
+        mock_file_path.open.assert_called_once_with("wb")
 
     @pytest.mark.asyncio
     @patch("src.services.files.get_settings")
@@ -161,36 +155,34 @@ class TestUploadFileToTemp:
     async def test_upload_file_no_filename(
         self, mock_path: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock
     ) -> None:
-        """Test file upload when no filename is provided."""
+        """Test file upload when no filename is provided.
+
+        Extension is derived solely from the filename, so a missing filename
+        yields no extension (and no detected file type) — content_type only
+        influences the zip flag.
+        """
         mock_get_settings.return_value = mock_settings
 
-        # Create mock file without filename
         file = MagicMock(spec=UploadFile)
         file.filename = None
         file.content_type = "text/csv"
-        file.read = AsyncMock(return_value=b"content")
+        file.file = io.BytesIO(b"content")
 
-        # Mock Path behavior for original filename parsing
+        # Path("uploaded_file") has stem "uploaded_file" and no suffix.
         mock_original_path = MagicMock()
         mock_original_path.stem = "uploaded_file"
-        mock_original_path.suffix = ".csv"
+        mock_original_path.suffix = ""
 
-        # Mock Path behavior for tmp directory and file path
         mock_tmp_path = MagicMock()
-        mock_file_path = MagicMock()
-        mock_file_path.exists = MagicMock(return_value=True)
-        mock_file_path.write_bytes = MagicMock()
+        mock_file_path = self._mock_file_path()
         mock_tmp_path.__truediv__ = MagicMock(return_value=mock_file_path)
-        mock_tmp_path.mkdir = MagicMock()
 
         mock_path.side_effect = [mock_tmp_path, mock_original_path]
 
         source_file_name, source_file_type, file_url = await upload_file_to_temp(file)
 
-        # Verify default filename is used with extension
-        assert source_file_name.startswith("uploaded_file")
-        assert source_file_name.endswith(".csv")
-        assert source_file_type == FileType.CSV
+        assert source_file_name == "uploaded_file"
+        assert source_file_type is None
         assert file_url.startswith("http://localhost:8000/internal/files/uploaded_file")
 
     @pytest.mark.asyncio
@@ -205,15 +197,16 @@ class TestUploadFileToTemp:
     ) -> None:
         """Test file upload with empty content raises error."""
         mock_get_settings.return_value = mock_settings
-        mock_upload_file.read = AsyncMock(return_value=b"")
+        mock_upload_file.file = io.BytesIO(b"")
 
-        # Mock Path behavior for original filename parsing
         mock_original_path = MagicMock()
         mock_original_path.stem = "test_file"
         mock_original_path.suffix = ".json"
 
-        # Mock Path behavior for tmp directory
         mock_tmp_path = MagicMock()
+        mock_file_path = self._mock_file_path(st_size=0)
+        mock_tmp_path.__truediv__ = MagicMock(return_value=mock_file_path)
+
         mock_path.side_effect = [mock_tmp_path, mock_original_path]
 
         with pytest.raises(ValueError, match="Empty file uploaded"):
@@ -229,22 +222,17 @@ class TestUploadFileToTemp:
         mock_settings: MagicMock,
         mock_upload_file: MagicMock,
     ) -> None:
-        """Test file upload when write fails."""
+        """Test file upload when the write fails."""
         mock_get_settings.return_value = mock_settings
 
-        # Mock Path behavior for original filename parsing
         mock_original_path = MagicMock()
         mock_original_path.stem = "test_file"
         mock_original_path.suffix = ".json"
 
-        # Mock Path behavior with write failure
         mock_tmp_path = MagicMock()
-        mock_file_path = MagicMock()
-        mock_file_path.write_bytes = MagicMock(side_effect=IOError("Disk full"))
-        mock_file_path.exists = MagicMock(return_value=True)
-        mock_file_path.unlink = MagicMock()
+        mock_file_path = self._mock_file_path(exists=True)
+        mock_file_path.open.side_effect = IOError("Disk full")
         mock_tmp_path.__truediv__ = MagicMock(return_value=mock_file_path)
-        mock_tmp_path.mkdir = MagicMock()
 
         mock_path.side_effect = [mock_tmp_path, mock_original_path]
 
@@ -264,21 +252,17 @@ class TestUploadFileToTemp:
         mock_settings: MagicMock,
         mock_upload_file: MagicMock,
     ) -> None:
-        """Test file upload when file is not created after write."""
+        """Test file upload when the file is missing after the write."""
         mock_get_settings.return_value = mock_settings
 
-        # Mock Path behavior for original filename parsing
         mock_original_path = MagicMock()
         mock_original_path.stem = "test_file"
         mock_original_path.suffix = ".json"
 
-        # Mock Path behavior where file doesn't exist after write
         mock_tmp_path = MagicMock()
-        mock_file_path = MagicMock()
-        mock_file_path.exists = MagicMock(return_value=False)
-        mock_file_path.write_bytes = MagicMock()
+        # Non-empty write, but the file doesn't exist afterwards.
+        mock_file_path = self._mock_file_path(st_size=16, exists=False)
         mock_tmp_path.__truediv__ = MagicMock(return_value=mock_file_path)
-        mock_tmp_path.mkdir = MagicMock()
 
         mock_path.side_effect = [mock_tmp_path, mock_original_path]
 

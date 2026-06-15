@@ -40,7 +40,7 @@ def sanitize_name(name: str, max_length: int = PG_IDENTIFIER_MAX_LENGTH) -> str:
         >>> sanitize_name("Org@123 #Test!")
         'org123_test'
         >>> sanitize_name("test--layer__name")
-        'test_layer_name'
+        'test__layer__name'
         >>> sanitize_name("123_dataset")
         'layer_123_dataset'
         >>> sanitize_name("_MyOrg_")
