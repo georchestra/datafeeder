@@ -196,6 +196,8 @@ class Settings(BaseSettings):
     AI_BASE_URL: str = ""
     AI_METADATA_SYSTEM_PROMPT_FILE: str = ""
     AI_METADATA_HUMAN_PROMPT_FILE: str = ""
+    AI_METADATA_SAMPLE_LIMIT: int = 5
+    AI_METADATA_TEMPERATURE: float = 0
 
     # Arize Phoenix tracing (optional)
     AI_PHOENIX_ENABLED: bool = False

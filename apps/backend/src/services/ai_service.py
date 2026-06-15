@@ -1,7 +1,7 @@
 """Service for AI-based metadata generation."""
 
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import geopandas as gpd
 import requests
@@ -282,6 +282,8 @@ def generate_metadata_suggestions(
     integrity_link: IntegrityLink,
     settings: Settings,
     data_source: Literal["staging", "final"] = "staging",
+    mode: str = "regenerate",
+    current_values: dict[str, Any] | None = None,
 ) -> GeneratedMetadata:
     """Generate AI metadata suggestions for an integrity link.
 
@@ -318,11 +320,11 @@ def generate_metadata_suggestions(
                 f"IntegrityLink {integrity_link.id} has no final_table_name "
                 "(staging table was deleted and no final table available)"
             )
-    table_name_for_llm = (
+    table_name_for_llm: str = (
         integrity_link.staging_table_name
         if data_source == "staging"
         else integrity_link.final_table_name
-    )
+    )  # type: ignore[assignment]  # validated non-None above
 
     try:
         llm = get_llm(
@@ -330,6 +332,7 @@ def generate_metadata_suggestions(
             model=settings.AI_MODEL or None,
             api_key=settings.AI_API_KEY or None,
             base_url=settings.AI_BASE_URL or None,
+            temperature=settings.AI_METADATA_TEMPERATURE,
             think=False,
         )
     except Exception as e:
@@ -337,10 +340,15 @@ def generate_metadata_suggestions(
         raise
 
     try:
+        limit = settings.AI_METADATA_SAMPLE_LIMIT
         if data_source == "staging":
-            columns, column_types, sample_rows, bbox = _get_sample_from_staging(integrity_link)
+            columns, column_types, sample_rows, bbox = _get_sample_from_staging(
+                integrity_link, limit=limit
+            )
         else:
-            columns, column_types, sample_rows, bbox = _get_sample_from_final(integrity_link)
+            columns, column_types, sample_rows, bbox = _get_sample_from_final(
+                integrity_link, limit=limit
+            )
     except Exception as e:
         logger.error(
             f"Failed to fetch sample from {data_source} table: {e}", exc_info=True
@@ -359,12 +367,12 @@ def generate_metadata_suggestions(
 
     try:
         # Build priority topic categories: GeoNetwork codelist, fallback to ISO 19115 list
-        priority_topics = _fetch_topic_categories_from_geonetwork(
+        topics = _fetch_topic_categories_from_geonetwork(
             gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         )
     except Exception as e:
-        priority_topics = []
+        topics = []
 
     try:
         result = generate_metadata(
@@ -375,15 +383,18 @@ def generate_metadata_suggestions(
             title=integrity_link.integrity_title,
             sample_rows=sample_rows or None,
             bbox=bbox,
-            priority_keywords=priority_kw or None,
-            priority_topic_categories=priority_topics or None,
+            keywords=priority_kw or None,
+            priority_topic_categories=topics or None,
             system_prompt_path=Path(settings.AI_METADATA_SYSTEM_PROMPT_FILE)
             if settings.AI_METADATA_SYSTEM_PROMPT_FILE
             else None,
             human_prompt_path=Path(settings.AI_METADATA_HUMAN_PROMPT_FILE)
             if settings.AI_METADATA_HUMAN_PROMPT_FILE
             else None,
+            mode=mode,
+            current_values=current_values if mode == "rewrite" else None,
         )
+
         return result
     except Exception as e:
         logger.error(f"LLM metadata generation failed: {e}", exc_info=True)

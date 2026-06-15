@@ -7,6 +7,7 @@ import { RecurrencePreset } from '../models/recurrence-preset'
  * Request model for final import endpoint
  */
 export interface ProcessRequest {
+  ai_data_source?: 'staging' | 'final'
   generate_metadata_with_ai?: boolean
   integrity_link_id: string
   recurrence?: RecurrencePreset | null

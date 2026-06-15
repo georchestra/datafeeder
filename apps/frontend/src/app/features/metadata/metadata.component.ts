@@ -19,14 +19,11 @@ import {
   iconoirNumber2Square,
   iconoirNumber3Square,
   iconoirRefreshCircle,
-  iconoirOpenNewWindow,
-  iconoirSparks
+  iconoirOpenNewWindow
 } from '@ng-icons/iconoir'
-import { TranslatePipe, TranslateService } from '@ngx-translate/core'
-import { MatDialog } from '@angular/material/dialog'
+import { TranslatePipe } from '@ngx-translate/core'
 import {
   ButtonComponent,
-  ConfirmationDialogComponent,
   DEFAULT_CONFIGURATION,
   EditorFacade,
   RecordFormComponent,
@@ -48,29 +45,20 @@ import { Api } from '../../core/api/api'
 import {
   getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
-  getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet,
-  generateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdGet
+  getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet
 } from '../../core/api/functions'
 import { TaskStatus } from '../../core/api/models'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
-import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import { FooterService } from '../../core/layout/footer.service'
 import { IntlinkNavService } from '../../core/layout/intlink-nav.service'
 import { MetadataSaveService } from '../../core/layout/metadata-save.service'
 import { SettingsService } from '../../core/settings/settings.service'
+import { AiGenerateButtonComponent } from './ai-generate-button.component'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
 marker('metadata.processing.queued')
 marker('metadata.processing.running')
 marker('footer.previous')
-marker('footer.generateWithAI')
-marker('footer.aiGeneratingMetadata')
-marker('metadata.ai.confirmOverwrite.title')
-marker('metadata.ai.confirmOverwrite.message')
-marker('metadata.ai.confirmOverwrite.confirm')
-marker('metadata.ai.confirmOverwrite.cancel')
-marker('errors.operation.aiMetadataGeneration')
-marker('info.operation.aiMetadataGeneration')
 marker('footer.openInCatalogue')
 marker('footer.saveAndOpenInCatalogue')
 marker('footer.next.resources')
@@ -95,7 +83,8 @@ const PAGE_KEY_ACCESS_CONTACT = 'editor.record.form.page.accessAndContact'
     TranslatePipe,
     RecordFormComponent,
     RouterLink,
-    SpinningLoaderComponent
+    SpinningLoaderComponent,
+    AiGenerateButtonComponent
   ],
   templateUrl: './metadata.component.html',
   styleUrl: './metadata.component.css',
@@ -106,8 +95,7 @@ const PAGE_KEY_ACCESS_CONTACT = 'editor.record.form.page.accessAndContact'
       iconoirNumber2Square,
       iconoirNumber3Square,
       iconoirRefreshCircle,
-      iconoirOpenNewWindow,
-      iconoirSparks
+      iconoirOpenNewWindow
     })
   ]
 })
@@ -120,9 +108,6 @@ export class MetadataComponent implements OnInit {
   private footerService = inject(FooterService)
   private destroyRef = inject(DestroyRef)
   private api = inject(Api)
-  private matDialog = inject(MatDialog)
-  private translate = inject(TranslateService)
-  private operationToastStore = inject(OperationToastStore)
   private settingsService = inject(SettingsService)
 
   aiMetadataEnabled = computed(() => {
@@ -136,8 +121,6 @@ export class MetadataComponent implements OnInit {
   processingStatus = signal<TaskStatus | null>(null)
   processingStatusLoaded = signal(false)
   processingDagRunId = signal<string | null>(null)
-  isGeneratingAI = signal(false)
-
   isRecordLoaded = toSignal(this.editor.record$.pipe(map((record) => !!record)))
   pages = toSignal(
     this.editor.editorConfig$.pipe(map((config) => config.pages))
@@ -353,78 +336,5 @@ export class MetadataComponent implements OnInit {
 
   onReconfigureClick(): Promise<void> {
     return this.navService.reconfigure()
-  }
-
-  async onGenerateWithAI(): Promise<void> {
-    const intlinkId = this.store.intlinkId()
-    if (!intlinkId) {
-      console.error('No integrity link ID available')
-      return
-    }
-
-    // Check if there are unsaved changes
-    if (this.changedSinceSave()) {
-      const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
-        data: {
-          title: this.translate.instant('metadata.ai.confirmOverwrite.title'),
-          message: this.translate.instant(
-            'metadata.ai.confirmOverwrite.message'
-          ),
-          confirmText: this.translate.instant(
-            'metadata.ai.confirmOverwrite.confirm'
-          ),
-          cancelText: this.translate.instant(
-            'metadata.ai.confirmOverwrite.cancel'
-          ),
-          focusCancel: 'cancel'
-        }
-      })
-      const confirmed = await firstValueFrom(dialogRef.afterClosed())
-      if (!confirmed) return
-    }
-
-    this.isGeneratingAI.set(true)
-
-    try {
-      console.log('Calling LLM endpoint for integrity link:', intlinkId)
-
-      // Call the API to generate metadata
-      const generatedMetadata = await this.api.invoke(
-        generateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdGet,
-        { intlink_id: intlinkId }
-      )
-
-      console.log('Generated metadata:', generatedMetadata)
-
-      // Update the record with generated metadata
-      const currentRecord = await firstValueFrom(this.editor.record$)
-      if (currentRecord) {
-        const updatedRecord = {
-          ...currentRecord,
-          title: generatedMetadata.title || currentRecord.title,
-          abstract: generatedMetadata.abstract || currentRecord.abstract,
-          keywords: generatedMetadata.keywords.map((kw) => ({
-            label: kw,
-            type: 'theme'
-          })),
-          topics: generatedMetadata.topic_categories || []
-        }
-
-        this.editor.updateRecordField('title', updatedRecord.title)
-        this.editor.updateRecordField('abstract', updatedRecord.abstract)
-        this.editor.updateRecordField('keywords', updatedRecord.keywords)
-        this.editor.updateRecordField('topics', updatedRecord.topics)
-
-        console.log('Record updated with AI-generated metadata')
-        this.operationToastStore.addAISuccess(
-          'info.operation.aiMetadataGeneration'
-        )
-      }
-    } catch (error) {
-      console.error('Error generating metadata with AI:', error)
-      this.operationToastStore.addError('aiMetadataGeneration')
-    } finally {
-      this.isGeneratingAI.set(false)
-    }
   }
 }

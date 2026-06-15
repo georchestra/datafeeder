@@ -93,10 +93,12 @@ def generate_metadata(
     extra_context: dict[str, Any] | None = None,
     sample_rows: list[dict[str, object]] | None = None,
     bbox: str | None = None,
-    priority_keywords: list[str] | None = None,
+    keywords: list[str] | None = None,
     priority_topic_categories: list[str] | None = None,
     system_prompt_path: Path | str | None = None,
     human_prompt_path: Path | str | None = None,
+    mode: str = "regenerate",
+    current_values: dict[str, Any] | None = None,
 ) -> GeneratedMetadata:
     """Generate dataset metadata using an LLM.
 
@@ -111,7 +113,7 @@ def generate_metadata(
         extra_context: Any additional context to pass to the prompt (optional)
         sample_rows: Up to 5 sample rows from the table for richer inference (optional)
         bbox: Bounding box string "minx, miny, maxx, maxy" for geographic context (optional)
-        priority_keywords: Preferred keywords to use when relevant (optional)
+        keywords: Preferred keywords to use when relevant (optional)
         priority_topic_categories: Preferred ISO 19115 topic categories to favour (optional)
         system_prompt_path: Path to a custom system prompt file (optional)
         human_prompt_path: Path to a custom human prompt file (optional)
@@ -132,26 +134,45 @@ def generate_metadata(
 
     result = chain.invoke(
         {
-            "title": title or table_name,
+            "title": (current_values.get("title") if current_values else None) or title or table_name,
             "columns_with_types": ", ".join(
                 f"{n} ({column_types[n]})" if column_types and n in column_types else n
                 for n in column_names
             ),
             "sample": _format_sample(sample_rows),
             "bbox": bbox or "not available",
-            "priority_keywords": (
-                "- Available keywords (prioritize these when relevant, complement with free keywords if fewer than 5 match): "
-                + ", ".join(priority_keywords)
-                if priority_keywords
+            "current_abstract": (
+                f"{current_values['abstract']}"
+                if current_values and current_values.get("abstract")
                 else ""
             ),
-            "priority_topics": (
-                "- Available topic categories (prioritize these when relevant): "
-                + ", ".join(priority_topic_categories)
+            "current_keywords": (
+                f"{current_values['keywords']}"
+                if current_values and current_values.get("keywords")
+                else ""
+            ),
+            "current_topics": (
+                f"{current_values['topics']}"
+                if current_values and current_values.get("topics")
+                else ""
+            ),
+            "keywords": (
+                ", ".join(keywords)
+                if keywords
+                else ""
+            ),
+            "topics": (
+                ", ".join(priority_topic_categories)
                 if priority_topic_categories
                 else ""
             ),
-            "extra_context": (f"Additional context: {extra_context}" if extra_context else ""),
+            "extra_context": (extra_context if extra_context else ""),
+            "mode_instruction": (
+                "REWRITE — improve, rephrase and enrich the existing values provided above. "
+                "Keep the meaning but make them clearer, more professional and more complete."
+                if mode == "rewrite"
+                else "REGENERATE — For title only, minor rewording allowed to integrate current_abstract location. Other fields: no reformulation."
+            ),
         }
     )
 

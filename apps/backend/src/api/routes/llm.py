@@ -1,9 +1,10 @@
 """LLM-powered metadata generation routes."""
 
-from typing import Literal
+from typing import Any, Literal
 
 from ai.metadata_generator import GeneratedMetadata
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, GroupIdsDep
 from src.core.config import get_settings
@@ -16,13 +17,21 @@ logger = get_logger()
 router = APIRouter(prefix="/llm", tags=["LLM"])
 
 
-@router.get("/generate_metadata/{intlink_id}", response_model=GeneratedMetadata)
+class GenerateMetadataRequest(BaseModel):
+    """Request body for AI metadata generation."""
+
+    mode: Literal["regenerate", "rewrite"] = "regenerate"
+    data_source: Literal["staging", "final"] = "staging"
+    current_values: dict[str, Any] | None = None
+
+
+@router.post("/generate_metadata/{intlink_id}", response_model=GeneratedMetadata)
 def generate_metadata_for_integrity_link(
     intlink_id: str,
+    body: GenerateMetadataRequest,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     group_ids: GroupIdsDep,
-    data_source: Literal["staging", "final"] = "staging",
 ) -> GeneratedMetadata:
     """Generate AI-powered metadata suggestions for an integrity link.
 
@@ -63,7 +72,13 @@ def generate_metadata_for_integrity_link(
     try:
         # Generate metadata suggestions using the AI service
         logger.info(f"[LLM] Calling generate_metadata_suggestions for {intlink_id}...")
-        result = generate_metadata_suggestions(integrity_link, settings, data_source=data_source)
+        result = generate_metadata_suggestions(
+            integrity_link,
+            settings,
+            data_source=body.data_source,
+            mode=body.mode,
+            current_values=body.current_values,
+        )
         logger.info(f"[LLM] Successfully generated metadata for {intlink_id}")
         return result
 

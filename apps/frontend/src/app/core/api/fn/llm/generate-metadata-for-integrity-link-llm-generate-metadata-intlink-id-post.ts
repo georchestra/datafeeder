@@ -8,30 +8,27 @@ import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
 import { GeneratedMetadata } from '../../models/generated-metadata'
+import { GenerateMetadataRequest } from '../../models/generate-metadata-request'
 
-export interface GenerateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdGet$Params {
+export interface GenerateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdPost$Params {
   intlink_id: string
-  body?: {
-    mode?: 'regenerate' | 'rewrite'
-    data_source?: 'staging' | 'final'
-    current_values?: { [key: string]: string } | null
-  }
+  body: GenerateMetadataRequest
 }
 
-export function generateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdGet(
+export function generateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdPost(
   http: HttpClient,
   rootUrl: string,
-  params: GenerateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdGet$Params,
+  params: GenerateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdPost$Params,
   context?: HttpContext
 ): Observable<StrictHttpResponse<GeneratedMetadata>> {
   const rb = new requestBuilders(
     rootUrl,
-    generateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdGet.PATH,
+    generateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdPost.PATH,
     'post'
   )
   if (params) {
     rb.path('intlink_id', params.intlink_id, {})
-    rb.body(params.body ?? {}, 'application/json')
+    rb.body(params.body, 'application/json')
   }
 
   return http
@@ -46,5 +43,5 @@ export function generateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdGet(
     )
 }
 
-generateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdGet.PATH =
+generateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdPost.PATH =
   '/llm/generate_metadata/{intlink_id}'

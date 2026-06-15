@@ -101,19 +101,7 @@
   }
   <div class="flex-1"></div>
   @if (currentPageSignal() === 0 && aiMetadataEnabled()) {
-  <gn-ui-button
-    type="default"
-    extraClass="!py-2 !text-teal-600 hover:!text-teal-700 !bg-transparent !border !border-transparent hover:!border-teal-600 !shadow-none hover:!bg-teal-50 transition-colors"
-    [disabled]="isGeneratingAI()"
-    (buttonClick)="onGenerateWithAI()"
-  >
-    <span
-      class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-teal-600/20 mr-2"
-    >
-      <ng-icon name="iconoirSparks" size="1.2em" [class.animate-spin]="isGeneratingAI()" />
-    </span>
-    {{ (isGeneratingAI() ? 'footer.aiGeneratingMetadata' : 'footer.generateWithAI') | translate }}
-  </gn-ui-button>
+  <app-ai-generate-button />
   } @if (currentPageSignal() !== 0) {
   <gn-ui-button type="outline" (buttonClick)="previousPageButtonHandler()">
     {{ 'footer.previous' | translate }}

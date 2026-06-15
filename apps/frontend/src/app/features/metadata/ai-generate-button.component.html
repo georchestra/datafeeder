@@ -1,0 +1,189 @@
+<div class="relative">
+  <!-- Click-outside backdrop -->
+  @if (aiDropdownOpen()) {
+  <div class="fixed inset-0 z-40" (click)="aiDropdownOpen.set(false)"></div>
+  }
+  <!-- Dropdown panel (opens upward) -->
+  @if (aiDropdownOpen()) {
+  <div
+    class="absolute bottom-full right-0 mb-2 w-72 bg-white rounded-lg shadow-xl border border-gray-300 z-50"
+  >
+    <div class="px-1 pt-1 pb-0.5">
+      <!-- Rewrite & improve -->
+      <button
+        type="button"
+        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent hover:bg-secondary-active transition-colors text-left disabled:opacity-50"
+        [disabled]="isGeneratingAI() || aiSelectedFieldsCount() === 0"
+        (click)="onGenerateWithAI('rewrite')"
+      >
+        <span
+          class="flex-shrink-0 w-8 h-8 rounded-lg bg-teal-600/10 flex items-center justify-center text-teal-600"
+        >
+          <ng-icon name="iconoirMagicWand" size="1.1em" />
+        </span>
+        <div>
+          <div class="text-sm text-secondary-darker">
+            {{ 'footer.ai.rewriteAndImprove' | translate }}
+          </div>
+          <div class="text-xs text-gray-700">
+            {{ 'footer.ai.rewriteAndImprove.hint' | translate }}
+          </div>
+        </div>
+      </button>
+      <!-- Regenerate -->
+      <button
+        type="button"
+        class="w-full flex items-center gap-3 px-3 py-2.5 mx-0 mt-0.5 mb-0.5 rounded-lg border border-transparent hover:bg-secondary-active transition-colors text-left disabled:opacity-50"
+        [disabled]="isGeneratingAI() || aiSelectedFieldsCount() === 0"
+        (click)="onGenerateWithAI('regenerate')"
+      >
+        <span
+          class="flex-shrink-0 w-8 h-8 rounded-lg bg-teal-600/10 flex items-center justify-center text-teal-600"
+        >
+          <ng-icon name="iconoirSparks" size="1.1em" />
+        </span>
+        <div>
+          <div class="text-sm text-secondary-darker">
+            {{ 'footer.ai.regenerate' | translate }}
+          </div>
+          <div class="text-xs text-gray-700">
+            {{ 'footer.ai.regenerate.hint' | translate }}
+          </div>
+        </div>
+      </button>
+    </div>
+    <!-- end px-1 wrapper -->
+    <!-- Apply to fields -->
+    <div class="border-t border-gray-200 px-4 pt-3 pb-3 bg-[#faf9f6]">
+      <div class="flex items-center justify-between mb-2">
+        <span
+          class="text-xs font-semibold text-gray-700 uppercase tracking-wider"
+        >
+          {{ 'footer.ai.applyToFields' | translate }}
+        </span>
+        <button
+          type="button"
+          class="text-xs text-teal-600 hover:text-teal-700 transition-colors"
+          (click)="toggleAllAiFields()"
+        >
+          {{
+            (aiSelectedFieldsCount() > 0
+              ? 'footer.ai.deselectAll'
+              : 'footer.ai.selectAll'
+            ) | translate
+          }}
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-y-2 gap-x-3">
+        <label
+          class="flex items-center gap-2 cursor-pointer text-sm text-gray-800 select-none"
+        >
+          <input
+            type="checkbox"
+            [checked]="aiFields().title"
+            (change)="toggleAiField('title')"
+            class="accent-teal-500 w-4 h-4 rounded cursor-pointer"
+          />
+          {{ 'footer.ai.field.title' | translate }}
+        </label>
+        <label
+          class="flex items-center gap-2 cursor-pointer text-sm text-gray-800 select-none"
+        >
+          <input
+            type="checkbox"
+            [checked]="aiFields().abstract"
+            (change)="toggleAiField('abstract')"
+            class="accent-teal-500 w-4 h-4 rounded cursor-pointer"
+          />
+          {{ 'footer.ai.field.abstract' | translate }}
+        </label>
+        <label
+          class="flex items-center gap-2 cursor-pointer text-sm text-gray-800 select-none"
+        >
+          <input
+            type="checkbox"
+            [checked]="aiFields().keywords"
+            (change)="toggleAiField('keywords')"
+            class="accent-teal-500 w-4 h-4 rounded cursor-pointer"
+          />
+          {{ 'footer.ai.field.keywords' | translate }}
+        </label>
+        <label
+          class="flex items-center gap-2 cursor-pointer text-sm text-gray-800 select-none"
+        >
+          <input
+            type="checkbox"
+            [checked]="aiFields().topics"
+            (change)="toggleAiField('topics')"
+            class="accent-teal-500 w-4 h-4 rounded cursor-pointer"
+          />
+          {{ 'footer.ai.field.topics' | translate }}
+        </label>
+        <label
+          class="flex items-center gap-2 cursor-pointer text-sm text-gray-800 select-none"
+        >
+          <input
+            type="checkbox"
+            [checked]="aiFields().dateExtents"
+            (change)="toggleAiField('dateExtents')"
+            class="accent-teal-500 w-4 h-4 rounded cursor-pointer"
+          />
+          {{ 'footer.ai.field.dateExtents' | translate }}
+        </label>
+        <label
+          class="flex items-center gap-2 cursor-pointer text-sm text-gray-800 select-none"
+        >
+          <input
+            type="checkbox"
+            [checked]="aiFields().attributeTables"
+            (change)="toggleAiField('attributeTables')"
+            class="accent-teal-500 w-4 h-4 rounded cursor-pointer"
+          />
+          {{ 'footer.ai.field.attributeTables' | translate }}
+        </label>
+      </div>
+      <div class="mt-3 -mx-4 border-t border-gray-200"></div>
+      <div class="mt-3 text-xs text-gray-500 flex items-center gap-1.5">
+        <ng-icon name="iconoirSparks" size="0.9em" class="text-teal-500" />
+        {{ aiSelectedFieldsCount() }}
+        {{ 'footer.ai.fieldsSelected' | translate }}
+      </div>
+    </div>
+  </div>
+  }
+  <!-- Split button -->
+  <div class="flex rounded overflow-hidden border border-secondary shadow-sm">
+    <button
+      type="button"
+      class="flex items-center gap-2 px-[1em] py-[1em] bg-transparent hover:bg-secondary-active text-secondary text-[1em] leading-none font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      [disabled]="isGeneratingAI() || aiSelectedFieldsCount() === 0"
+      (click)="onGenerateWithAI(lastAiMode())"
+    >
+      <ng-icon
+        name="iconoirSparks"
+        size="1.1em"
+        class="-my-[0.5em] flex-shrink-0"
+        [class.animate-spin]="isGeneratingAI()"
+      />
+      {{
+        (isGeneratingAI() ? 'footer.aiGeneratingMetadata' : mainAiLabelKey())
+          | translate
+      }}
+    </button>
+    <div class="w-px bg-secondary/30"></div>
+    <button
+      type="button"
+      class="flex items-center justify-center px-[0.75em] py-[1em] bg-transparent hover:bg-secondary-active text-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      [disabled]="isGeneratingAI()"
+      (click)="toggleAiDropdown()"
+      [attr.aria-expanded]="aiDropdownOpen()"
+    >
+      <ng-icon
+        name="iconoirNavArrowDown"
+        size="1em"
+        class="flex-shrink-0 transition-transform"
+        [class.rotate-180]="aiDropdownOpen()"
+      />
+    </button>
+  </div>
+</div>

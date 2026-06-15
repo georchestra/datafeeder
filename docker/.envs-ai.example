@@ -14,6 +14,8 @@ AI_API_KEY=any_key
 AI_BASE_URL=http://localhost:11434
 AI_METADATA_SYSTEM_PROMPT_FILE=
 AI_METADATA_HUMAN_PROMPT_FILE=
+AI_METADATA_SAMPLE_LIMIT=5  # Number of sample rows sent to the LLM (default: 5)
+AI_METADATA_TEMPERATURE=0  # LLM sampling temperature for metadata generation (default: 0)
 
 # Arize Phoenix tracing (optional — requires ai[phoenix] installed)
 AI_PHOENIX_ENABLED=false
