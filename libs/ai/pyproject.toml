@@ -16,12 +16,14 @@ requires-python = "==3.12.*"
 dependencies = [
     "langchain-core>=0.3",
     "langchain-openai>=0.3",   # default provider; always installed
+    "langchain-openrouter>=0.1",
     "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
-ollama  = ["langchain-ollama>=0.3"]
-mistral = ["langchain-mistralai>=0.2"]
+ollama      = ["langchain-ollama>=0.3"]
+mistral     = ["langchain-mistralai>=0.2"]
+openrouter  = ["langchain-openrouter>=0.1"]
 phoenix = [
     "arize-phoenix-otel>=0.6",
     "openinference-instrumentation-langchain>=0.1",

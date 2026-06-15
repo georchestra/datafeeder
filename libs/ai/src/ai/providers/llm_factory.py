@@ -15,6 +15,11 @@ try:
 except ImportError:
     _ChatMistralAI = None  # type: ignore[assignment,misc]
 
+try:
+    from langchain_openrouter import ChatOpenRouter as _ChatOpenRouter
+except ImportError:
+    _ChatOpenRouter = None  # type: ignore[assignment,misc]
+
 Provider = Literal["openai", "ollama", "mistral", "openrouter"]
 
 _DEFAULT_MODELS: dict[str, str] = {
@@ -91,12 +96,15 @@ def get_llm(
         )
 
     if provider == "openrouter":
-        return ChatOpenAI(
+        if _ChatOpenRouter is None:
+            raise ImportError(
+                "langchain-openrouter is not installed. Run: pip install 'ai[openrouter]'"
+            )
+        return _ChatOpenRouter(
             model=resolved_model,
             temperature=temperature,
-            api_key=api_key,  # type: ignore[arg-type]
-            base_url=base_url or "https://openrouter.ai/api/v1",
-            model_kwargs={},
+            openrouter_api_key=api_key,  # type: ignore[arg-type]
+            reasoning=None if think else {"effort": "none"},
         )
 
     raise ValueError(
