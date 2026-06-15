@@ -57,6 +57,7 @@ import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import { FooterService } from '../../core/layout/footer.service'
 import { IntlinkNavService } from '../../core/layout/intlink-nav.service'
 import { MetadataSaveService } from '../../core/layout/metadata-save.service'
+import { SettingsService } from '../../core/settings/settings.service'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
 marker('metadata.processing.queued')
@@ -122,6 +123,13 @@ export class MetadataComponent implements OnInit {
   private matDialog = inject(MatDialog)
   private translate = inject(TranslateService)
   private operationToastStore = inject(OperationToastStore)
+  private settingsService = inject(SettingsService)
+
+  aiMetadataEnabled = computed(() => {
+    const features =
+      this.settingsService.getSetting<string[]>('enabled_features')
+    return features?.includes('ai_metadata') ?? false
+  })
 
   readonly footerTpl = viewChild<TemplateRef<unknown>>('footerTpl')
 

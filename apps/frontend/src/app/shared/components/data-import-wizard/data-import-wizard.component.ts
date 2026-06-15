@@ -164,6 +164,12 @@ export class DataImportWizardComponent {
     )
   })
 
+  aiMetadataEnabled = computed(() => {
+    const features =
+      this.settingsService.getSetting<string[]>('enabled_features')
+    return features?.includes('ai_metadata') ?? false
+  })
+
   initialDatabaseSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
     if (
