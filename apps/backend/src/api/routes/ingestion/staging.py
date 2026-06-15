@@ -1105,7 +1105,9 @@ def get_staging_preview(
         )
 
     try:
-        preview = read_transformed_preview(staging_table_name, engine, config, schema=schema, limit=limit)
+        preview = read_transformed_preview(
+            staging_table_name, engine, config, schema=schema, limit=limit
+        )
         data, geojson_data, is_geographic = preview.rows, preview.geojson, preview.is_geographic
 
         # If the geom column was excluded in the saved config, suppress map data

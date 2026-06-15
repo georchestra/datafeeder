@@ -84,9 +84,7 @@ class TestNormalizeBatch:
         assert out.column("tags").to_pylist() == ["[1, 2]", None]
 
     def test_dictionary_decoded_values(self) -> None:
-        batch = pa.record_batch(
-            {"cat": pa.array(["a", "b", "a"]).dictionary_encode()}
-        )
+        batch = pa.record_batch({"cat": pa.array(["a", "b", "a"]).dictionary_encode()})
         target = normalize_schema(batch.schema, None)
         out = _normalize_batch(batch, target)
         assert out.column("cat").to_pylist() == ["a", "b", "a"]
@@ -97,7 +95,7 @@ class TestGeometryFixupDdl:
         ddl = geometry_fixup_ddl("staging", "communes", 2154)
         assert ddl == [
             'ALTER TABLE "staging"."communes" ALTER COLUMN "geom" '
-            "TYPE geometry(Geometry, 2154) USING ST_GeomFromWKB(\"geom\", 2154)",
+            'TYPE geometry(Geometry, 2154) USING ST_GeomFromWKB("geom", 2154)',
             'CREATE INDEX "idx_communes_geom" ON "staging"."communes" USING GIST ("geom")',
         ]
 
@@ -120,8 +118,10 @@ class TestWriteArrowToPostgis:
         if batches:
             schema = batches[0].schema
         else:
-            schema = pa.schema([("id", pa.int64()), ("geom", pa.binary())]) if geo else pa.schema(
-                [("id", pa.int64())]
+            schema = (
+                pa.schema([("id", pa.int64()), ("geom", pa.binary())])
+                if geo
+                else pa.schema([("id", pa.int64())])
             )
         reader = pa.RecordBatchReader.from_batches(schema, iter(batches))
         return ArrowSource(reader=reader, geo=geo)
@@ -164,9 +164,7 @@ class TestWriteArrowToPostgis:
         conn.commit.assert_called_once()
 
     @patch("data_manipulation.postgis_writer.dbapi.connect")
-    def test_no_commit_when_ingest_raises(
-        self, mock_connect: MagicMock, engine: MagicMock
-    ) -> None:
+    def test_no_commit_when_ingest_raises(self, mock_connect: MagicMock, engine: MagicMock) -> None:
         connect, conn, cur = self._connect_mock()
         mock_connect.side_effect = connect
         cur.adbc_ingest.side_effect = RuntimeError("boom")
@@ -180,9 +178,7 @@ class TestWriteArrowToPostgis:
         conn.commit.assert_not_called()
 
     @patch("data_manipulation.postgis_writer.dbapi.connect")
-    def test_empty_reader_still_ingests(
-        self, mock_connect: MagicMock, engine: MagicMock
-    ) -> None:
+    def test_empty_reader_still_ingests(self, mock_connect: MagicMock, engine: MagicMock) -> None:
         connect, conn, cur = self._connect_mock()
         mock_connect.side_effect = connect
         cur.adbc_ingest.return_value = 0

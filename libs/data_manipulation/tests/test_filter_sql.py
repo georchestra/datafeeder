@@ -28,9 +28,7 @@ def _make_table() -> Table:
 
 def _filter(value: str, operator: FilterOperator) -> BinaryExpression[Any]:
     table = _make_table()
-    clause = build_filter_clause(
-        table.c.name, ColumnFilter(operator=operator, value=value)
-    )
+    clause = build_filter_clause(table.c.name, ColumnFilter(operator=operator, value=value))
     assert isinstance(clause, BinaryExpression)
     return clause
 

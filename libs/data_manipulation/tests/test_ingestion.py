@@ -499,9 +499,7 @@ class TestIngestDataFromOgcServiceIntoPostgis:
 
         assert mock_open_ogr.call_args.args[0] == "WFS:https://example.com/wfs"
         assert mock_open_ogr.call_args.kwargs["layer"] == "ns:buildings"
-        mock_write.assert_called_once_with(
-            sentinel, "buildings_stg", mock_engine, schema="public"
-        )
+        mock_write.assert_called_once_with(sentinel, "buildings_stg", mock_engine, schema="public")
 
     @patch("data_manipulation.ingestion.write_arrow_to_postgis")
     @patch("data_manipulation.ingestion.open_ogr")

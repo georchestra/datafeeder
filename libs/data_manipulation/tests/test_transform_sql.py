@@ -121,7 +121,7 @@ def test_select_renames_and_excludes() -> None:
     assert tq.property_columns == ["id", "label"]
     assert tq.geom_column is None
     sql = str(tq.select.compile(dialect=_PG))
-    assert 'AS label' in sql
+    assert "AS label" in sql
     assert "secret" not in sql
 
 
@@ -256,8 +256,13 @@ def test_filter_reaches_ctas_as_bound_parameter(
     )
 
     rows = transform_staging_to_final(
-        "staging_tbl", "final_tbl", engine, config,
-        staging_schema="staging", final_schema="data", create_id=False,
+        "staging_tbl",
+        "final_tbl",
+        engine,
+        config,
+        staging_schema="staging",
+        final_schema="data",
+        create_id=False,
     )
     assert rows == 7
 
@@ -271,9 +276,7 @@ def test_filter_reaches_ctas_as_bound_parameter(
 
 @patch("data_manipulation.transformation.transform_sql.MetaData")
 @patch("data_manipulation.transformation.transform_sql.Table")
-def test_executor_statement_ordering(
-    mock_table_cls: MagicMock, _mock_metadata: MagicMock
-) -> None:
+def test_executor_statement_ordering(mock_table_cls: MagicMock, _mock_metadata: MagicMock) -> None:
     """DROP -> CTAS -> id column -> PK -> CREATE INDEX (GIST) -> count."""
     mock_table_cls.return_value = _staging_table(geom=True)
 
@@ -283,8 +286,13 @@ def test_executor_statement_ordering(
     )
 
     transform_staging_to_final(
-        "staging_tbl", "final_tbl", engine, config,
-        staging_schema="staging", final_schema="data", create_id=True,
+        "staging_tbl",
+        "final_tbl",
+        engine,
+        config,
+        staging_schema="staging",
+        final_schema="data",
+        create_id=True,
     )
 
     # text()-based statements go through conn.execute; CTAS goes through exec_driver_sql.
@@ -297,14 +305,12 @@ def test_executor_statement_ordering(
 
     assert drop_idx < id_idx < pk_idx < index_idx < count_idx
     assert conn.exec_driver_sql.call_count == 1  # the CTAS
-    assert 'idx_final_tbl_geom' in executed[index_idx]
+    assert "idx_final_tbl_geom" in executed[index_idx]
 
 
 @patch("data_manipulation.transformation.transform_sql.MetaData")
 @patch("data_manipulation.transformation.transform_sql.Table")
-def test_no_geom_skips_index(
-    mock_table_cls: MagicMock, _mock_metadata: MagicMock
-) -> None:
+def test_no_geom_skips_index(mock_table_cls: MagicMock, _mock_metadata: MagicMock) -> None:
     mock_table_cls.return_value = _staging_table(geom=False)
     engine, conn = _engine_with_conn_spy()
     config = IntegrityTransformation(columns=[ColumnConfig(original_name="id")])
@@ -322,9 +328,7 @@ def test_no_geom_skips_index(
 
 @patch("data_manipulation.transformation.transform_sql.MetaData")
 @patch("data_manipulation.transformation.transform_sql.Table")
-def test_preview_shape_and_json_safe(
-    mock_table_cls: MagicMock, _mock_metadata: MagicMock
-) -> None:
+def test_preview_shape_and_json_safe(mock_table_cls: MagicMock, _mock_metadata: MagicMock) -> None:
     mock_table_cls.return_value = _staging_table(geom=True)
 
     engine = MagicMock(spec=Engine)

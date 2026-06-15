@@ -328,7 +328,9 @@ def transform_staging_to_final(
                 )
             )
             conn.execute(
-                text(f'ALTER TABLE "{final_schema}"."{final_table}" ADD PRIMARY KEY (id_datafeeder)')
+                text(
+                    f'ALTER TABLE "{final_schema}"."{final_table}" ADD PRIMARY KEY (id_datafeeder)'
+                )
             )
 
         if tq.geom_column:
@@ -434,9 +436,7 @@ def read_transformed_preview(
             select_cols.append(col)
     if geom_column is not None:
         geom_col = core.c[geom_column]
-        select_cols.append(
-            func.ST_AsGeoJSON(_display_4326_expr(geom_col)).label(geojson_label)
-        )
+        select_cols.append(func.ST_AsGeoJSON(_display_4326_expr(geom_col)).label(geojson_label))
 
     stmt = select(*select_cols)
     if limit is not None and limit > 0:

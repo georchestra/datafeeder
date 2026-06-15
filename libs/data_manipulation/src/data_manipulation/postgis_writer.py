@@ -94,9 +94,7 @@ def _normalize_batch(batch: pa.RecordBatch, target_schema: pa.Schema) -> pa.Reco
     return pa.RecordBatch.from_arrays(arrays, schema=target_schema)
 
 
-def _source_index(
-    src_schema: pa.Schema, target_field: pa.Field, target_schema: pa.Schema
-) -> int:
+def _source_index(src_schema: pa.Schema, target_field: pa.Field, target_schema: pa.Schema) -> int:
     """Locate the source column feeding ``target_field`` in the normalised schema.
 
     Names are unchanged except the renamed geometry column, which is the single
@@ -132,9 +130,7 @@ def _normalize_array(array: pa.Array, target_type: pa.DataType) -> pa.Array:
     return array
 
 
-def _normalizing_reader(
-    reader: pa.RecordBatchReader, geo: GeoMeta | None
-) -> pa.RecordBatchReader:
+def _normalizing_reader(reader: pa.RecordBatchReader, geo: GeoMeta | None) -> pa.RecordBatchReader:
     """Wrap a reader so every batch is normalised to the target schema lazily."""
     target_schema = normalize_schema(reader.schema, geo)
 
@@ -155,14 +151,8 @@ def geometry_fixup_ddl(schema: str, table: str, srid: int) -> list[str]:
             f"USING ST_GeomFromWKB({geom}, {srid})"
         )
     else:
-        alter = (
-            f"ALTER TABLE {fq} ALTER COLUMN {geom} TYPE geometry "
-            f"USING ST_GeomFromWKB({geom})"
-        )
-    index = (
-        f'CREATE INDEX "idx_{table}_{DEFAULT_GEOMETRY_COLUMN}" '
-        f"ON {fq} USING GIST ({geom})"
-    )
+        alter = f"ALTER TABLE {fq} ALTER COLUMN {geom} TYPE geometry USING ST_GeomFromWKB({geom})"
+    index = f'CREATE INDEX "idx_{table}_{DEFAULT_GEOMETRY_COLUMN}" ON {fq} USING GIST ({geom})'
     return [alter, index]
 
 

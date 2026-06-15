@@ -106,9 +106,7 @@ class TestSqlaToArrow:
         )
 
         select_stmt, schema, geo = _sqla_to_arrow(table)
-        compiled = str(
-            select_stmt.compile(compile_kwargs={"literal_binds": True})
-        )
+        compiled = str(select_stmt.compile(compile_kwargs={"literal_binds": True}))
 
         assert "ST_AsBinary" in compiled
         assert "CAST" in compiled.upper()

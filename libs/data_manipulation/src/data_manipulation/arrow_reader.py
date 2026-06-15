@@ -222,9 +222,7 @@ def _sqla_to_arrow(table: Table) -> tuple[Select[Any], pa.Schema, GeoMeta | None
         col_type = col.type
 
         if isinstance(col_type, Geometry):
-            select_exprs.append(
-                func.ST_AsBinary(literal_column(f'"{name}"')).label(name)
-            )
+            select_exprs.append(func.ST_AsBinary(literal_column(f'"{name}"')).label(name))
             fields.append(pa.field(name, pa.binary()))
             if geo is None or name == "geom":
                 srid = col_type.srid if col_type.srid and col_type.srid > 0 else 0
