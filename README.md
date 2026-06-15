@@ -1,6 +1,6 @@
 # Datafeeder
 
-Data ingestion module for geOrchestra
+Data ingestion module for geOrchestra - supports CSV, GeoPackage, GeoJSON, Zipped-Shapefile, Parquet, GeoParquet files & OGC services, FTP, Database. 
 
 ## Prerequisites
 
