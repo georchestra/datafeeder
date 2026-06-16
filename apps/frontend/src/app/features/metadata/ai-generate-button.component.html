@@ -177,7 +177,7 @@
     </button>
     <button
       type="button"
-      class="flex items-center justify-center pl-1 pr-2 py-2 bg-transparent text-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      class="flex items-center justify-center px-2 py-2 bg-transparent text-secondary hover:bg-secondary-dark/20 rounded-r-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       [disabled]="isGeneratingAI()"
       (click)="toggleAiDropdown()"
       [attr.aria-expanded]="aiDropdownOpen()"
