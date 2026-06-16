@@ -6,8 +6,12 @@ installed, or if the Phoenix server is unreachable, this module is a no-op.
 
 import logging
 
-from openinference.instrumentation.langchain import LangChainInstrumentor
-from phoenix.otel import register as _phoenix_register
+try:
+    from openinference.instrumentation.langchain import LangChainInstrumentor
+    from phoenix.otel import register as _phoenix_register
+except ImportError:  # Optional dependency
+    LangChainInstrumentor = None  # type: ignore[assignment]
+    _phoenix_register = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +29,10 @@ def setup_phoenix_tracing(
         endpoint: URL of the Phoenix OTLP trace collector.
         project_name: Project name displayed in the Phoenix UI.
     """
+    if LangChainInstrumentor is None or _phoenix_register is None:
+        logger.warning("Phoenix tracing dependencies are not installed, tracing disabled")
+        return
+
     try:
         tracer_provider = _phoenix_register(
             project_name=project_name,

@@ -219,9 +219,7 @@ export class DataImportWizardComponent {
   validationError = signal<string | null>(null)
   previewTabIndex = signal(0)
   hasExtentError = signal(false)
-  generateMetadataWithAi = signal(
-    !this.integrityLinkStore.integrityLink()?.last_retrieval_timestamp
-  )
+  generateMetadataWithAi = signal(false)
 
   columnConfigs = signal<ColumnConfig[]>([])
   forceProjection = signal<ForceProjection | null>(null)
@@ -250,6 +248,13 @@ export class DataImportWizardComponent {
     this.handleIntegrityLinkLoadError()
 
     this.destroyRef.onDestroy(() => this.footerService.setContent(null))
+
+    effect(() => {
+      const link = this.integrityLinkStore.integrityLink()
+      if (link && !link.last_retrieval_timestamp) {
+        untracked(() => this.generateMetadataWithAi.set(true))
+      }
+    })
 
     effect(() => {
       const tpl = this.footerTpl()

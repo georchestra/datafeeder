@@ -105,10 +105,10 @@ cp docker/.envs-ai.example docker/.envs-ai
 
 ```env
 AI_ENABLED=true
-AI_PROVIDER=ollama          # openai | ollama | mistral
+AI_PROVIDER=ollama          # openai | ollama | mistral | openrouter
 AI_MODEL=llama3.2:1b
 AI_BASE_URL=http://ollama:11434
-AI_API_KEY=                 # required for openai / mistral
+AI_API_KEY=                 # required for openai / mistral / openrouter
 ```
 
 > ⚠️ **Never commit `docker/.envs-ai`** — it may contain API keys. It is already listed in `.gitignore`.

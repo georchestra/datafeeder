@@ -44,13 +44,12 @@ def get_llm(
     All configuration must be passed explicitly — no env var lookups.
 
     Args:
-        provider: LLM provider name: "openai", "ollama" or "mistral".
+        provider: LLM provider name: "openai", "ollama", "mistral", or "openrouter".
         model: Model name. Defaults to the provider default if not provided.
-        api_key: API key for the provider (openai, mistral).
+        api_key: API key for the provider (openai, mistral, openrouter).
         base_url: Custom base URL (openai-compatible endpoint or ollama host).
-        temperature: Sampling temperature (default 0.2 for deterministic outputs).
-        think: Enable/disable thinking mode (default False). Passed as model param
-            for Ollama, and via model_kwargs for OpenAI-compatible endpoints.
+        temperature: Sampling temperature (default 0 for deterministic outputs).
+        think: Provider-specific reasoning toggle (currently used for Ollama/OpenRouter).
         **kwargs: Additional provider-specific overrides.
 
     Returns:

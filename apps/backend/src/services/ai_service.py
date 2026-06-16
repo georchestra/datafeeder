@@ -111,7 +111,7 @@ def _fetch_topic_categories_from_geonetwork(
     """Fetch ISO 19115 MD_TopicCategoryCode values from GeoNetwork's registries API.
 
     Uses: GET /registries/entries?registry={codelist_url}
-    Falls back to the standard ISO 19115 list if the endpoint is unavailable.
+    Returns an empty list if the endpoint is unavailable.
 
     Args:
         gn_api_url: GeoNetwork API base URL (e.g. http://host/geonetwork/srv/api)
@@ -141,7 +141,7 @@ def _fetch_topic_categories_from_geonetwork(
             return categories
     except Exception as err:
         logger.warning(
-            "Could not fetch topic categories from GeoNetwork (%s) — using ISO 19115 fallback", err
+            "Could not fetch topic categories from GeoNetwork (%s), returning an empty list", err
         )
     return []
 
@@ -350,9 +350,7 @@ def generate_metadata_suggestions(
                 integrity_link, limit=limit
             )
     except Exception as e:
-        logger.error(
-            f"Failed to fetch sample from {data_source} table: {e}", exc_info=True
-        )
+        logger.error(f"Failed to fetch sample from {data_source} table: {e}", exc_info=True)
         raise
 
     try:
@@ -371,7 +369,7 @@ def generate_metadata_suggestions(
             gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         )
-    except Exception as e:
+    except Exception:
         topics = []
 
     try:
@@ -469,4 +467,3 @@ def generate_ai_metadata(
             e,
             exc_info=True,
         )
-        raise

@@ -152,7 +152,9 @@
   </div>
   }
   <!-- Split button -->
-  <div class="group/btn flex rounded-lg overflow-hidden hover:bg-secondary-active transition-colors">
+  <div
+    class="group/btn flex rounded-lg overflow-hidden hover:bg-secondary-active transition-colors"
+  >
     <button
       type="button"
       class="flex items-center gap-2.5 pl-3 pr-1 py-2 bg-transparent text-secondary-darker text-[1em] leading-none font-medium disabled:opacity-40 disabled:cursor-not-allowed"
@@ -162,7 +164,11 @@
       <span
         class="flex-shrink-0 w-7 h-7 rounded-lg bg-teal-600/10 flex items-center justify-center text-teal-600"
       >
-        <ng-icon name="iconoirSparks" size="1em" [class.animate-spin]="isGeneratingAI()" />
+        <ng-icon
+          name="iconoirSparks"
+          size="1em"
+          [class.animate-spin]="isGeneratingAI()"
+        />
       </span>
       {{
         (isGeneratingAI() ? 'footer.aiGeneratingMetadata' : mainAiLabelKey())

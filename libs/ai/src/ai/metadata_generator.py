@@ -134,7 +134,9 @@ def generate_metadata(
 
     result = chain.invoke(
         {
-            "title": (current_values.get("title") if current_values else None) or title or table_name,
+            "title": (current_values.get("title") if current_values else None)
+            or title
+            or table_name,
             "columns_with_types": ", ".join(
                 f"{n} ({column_types[n]})" if column_types and n in column_types else n
                 for n in column_names
@@ -156,16 +158,8 @@ def generate_metadata(
                 if current_values and current_values.get("topics")
                 else ""
             ),
-            "keywords": (
-                ", ".join(keywords)
-                if keywords
-                else ""
-            ),
-            "topics": (
-                ", ".join(priority_topic_categories)
-                if priority_topic_categories
-                else ""
-            ),
+            "keywords": (", ".join(keywords) if keywords else ""),
+            "topics": (", ".join(priority_topic_categories) if priority_topic_categories else ""),
             "extra_context": (extra_context if extra_context else ""),
             "mode_instruction": (
                 "REWRITE — improve, rephrase and enrich the existing values provided above. "

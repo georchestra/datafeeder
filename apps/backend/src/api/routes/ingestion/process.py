@@ -269,11 +269,11 @@ def process_staging_data(
                 future = executor.submit(
                     generate_ai_metadata_with_llm, integrity_link, settings, request.ai_data_source
                 )
-                future.result(timeout=300)  # 5 minutes
+                future.result(timeout=120)  # 2 minutes
             logger.info(f"AI metadata generation completed for IntegrityLink {integrity_link.id}")
         except concurrent.futures.TimeoutError:
             logger.warning(
-                "AI metadata generation timed out for IntegrityLink %s (>300s)",
+                "AI metadata generation timed out for IntegrityLink %s (>120s)",
                 integrity_link.id,
             )
         except Exception as e:

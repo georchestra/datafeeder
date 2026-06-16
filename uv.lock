@@ -17,7 +17,6 @@ source = { editable = "libs/ai" }
 dependencies = [
     { name = "langchain-core" },
     { name = "langchain-openai" },
-    { name = "langchain-openrouter" },
     { name = "pydantic" },
 ]
 
@@ -51,7 +50,6 @@ requires-dist = [
     { name = "langchain-mistralai", marker = "extra == 'mistral'", specifier = ">=0.2" },
     { name = "langchain-ollama", marker = "extra == 'ollama'", specifier = ">=0.3" },
     { name = "langchain-openai", specifier = ">=0.3" },
-    { name = "langchain-openrouter", specifier = ">=0.1" },
     { name = "langchain-openrouter", marker = "extra == 'openrouter'", specifier = ">=0.1" },
     { name = "openinference-instrumentation-langchain", marker = "extra == 'phoenix'", specifier = ">=0.1" },
     { name = "pydantic", specifier = ">=2.0" },
@@ -390,7 +388,7 @@ name = "datafeeder-backend"
 version = "0.1.0"
 source = { editable = "apps/backend" }
 dependencies = [
-    { name = "ai", extra = ["ollama", "phoenix"] },
+    { name = "ai", extra = ["ollama", "openrouter", "phoenix"] },
     { name = "alembic" },
     { name = "apache-airflow-client" },
     { name = "chardet" },
@@ -422,7 +420,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ai", extras = ["phoenix", "ollama"], editable = "libs/ai" },
+    { name = "ai", extras = ["phoenix", "ollama", "openrouter"], editable = "libs/ai" },
     { name = "alembic", specifier = "==1.18.4" },
     { name = "apache-airflow-client", specifier = "==3.1.8" },
     { name = "chardet", specifier = "==7.4.3" },
