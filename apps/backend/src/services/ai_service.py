@@ -53,6 +53,7 @@ def _fetch_thesaurus_keywords(
 
     except Exception as err:
         logger.warning("Could not fetch thesaurus %s from GeoNetwork: %s", thesaurus_id, err)
+        raise(err)
     # Deduplicate while preserving order
     seen: set[str] = set()
     return [k for k in keywords if not (k in seen or seen.add(k))]  # type: ignore[func-returns-value]
@@ -176,30 +177,18 @@ def _fetch_topic_categories_from_geonetwork(
     Returns:
         List of ISO 19115 topic category code strings.
     """
-    # not sure where this fixed list comes from in datafeeder frontend
-    return [
-        "Biota",
-        "Boundaries",
-        "Climatology / Meteorology / Atmosphere",
-        "Economy",
-        "Elevation",
-        "Environnement",
-        "Farming",
-        "Geoscientific Information",
-        "Health",
-        "Imagery / Base Maps / Earth Cover",
-        "Inland Waters",
-        "Intelligence / Military",
-        "Location",
-        "Oceans",
-        "Planning / Cadastre",
-        "Society",
-        "Structure",
-        "Transportation",
-        "Utilities / Communication",
-    ]
-    thesaurus_id = "external.theme.httpinspireeceuropaeutheme-theme"
-    return [v for uri, v in _fetch_thesaurus_keywords(gn_api, thesaurus_id)]
+    try:
+        thesaurus_id = "external.theme.TopicCategory.en"
+        return [uri.split('/')[-1] for uri, label in _fetch_thesaurus_keywords(gn_api, thesaurus_id)]
+    except Exception as err:
+        logger.warning("Thesaurus %s seems to be unavailable (%s). "
+                       "Falling back on constant ISO list", thesaurus_id, err)
+        # Fallback iso list
+        return ['biota', 'boundaries', 'climatologyMeteorologyAtmosphere', 'economy', 'elevation',
+                'environment', 'farming', 'geoscientificInformation', 'health',
+                'imageryBaseMapsEarthCover', 'inlandWaters', 'intelligenceMilitary',
+                'location', 'oceans', 'planningCadastre', 'society', 'structure',
+                'transportation', 'utilitiesCommunication']
 
 
 def _get_sample_from_staging(
@@ -424,6 +413,7 @@ def generate_metadata_suggestions(
                     gn_api, thesaurus_id
             )
         ]
+    except Exception as e:
         logger.warning(f"[AI Service] Failed to fetch keywords: {e}")
         priority_kw = []
 
