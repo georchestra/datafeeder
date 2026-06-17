@@ -36,9 +36,7 @@ class TestReadFileEncodedParquet:
 
         result = _read_file_encoded("test.geoparquet")
 
-        mock_read_parquet.assert_called_once_with(
-            "test.geoparquet", rows=slice(0, CHUNK_SIZE, None)
-        )
+        mock_read_parquet.assert_called_once_with("test.geoparquet")
         assert result is mock_gdf
 
     @patch("data_manipulation.ingestion.pd.read_parquet")
@@ -52,12 +50,8 @@ class TestReadFileEncodedParquet:
 
         result = _read_file_encoded("test.parquet")
 
-        mock_gpd_read_parquet.assert_called_once_with(
-            "test.parquet", rows=slice(0, CHUNK_SIZE, None)
-        )
-        mock_pd_read_parquet.assert_called_once_with(
-            "test.parquet", rows=slice(0, CHUNK_SIZE, None)
-        )
+        mock_gpd_read_parquet.assert_called_once_with("test.parquet")
+        mock_pd_read_parquet.assert_called_once_with("test.parquet")
         assert result is mock_df
 
     @patch("data_manipulation.ingestion.gpd.read_parquet")
@@ -67,7 +61,7 @@ class TestReadFileEncodedParquet:
 
         result = _read_file_encoded("test.parquet")
 
-        mock_read_parquet.assert_called_once_with("test.parquet", rows=slice(0, CHUNK_SIZE, None))
+        mock_read_parquet.assert_called_once_with("test.parquet")
         assert result is mock_gdf
 
 

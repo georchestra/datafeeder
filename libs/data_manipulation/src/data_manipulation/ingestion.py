@@ -476,6 +476,7 @@ def read_data_from_postgis(
     schema: str | None = None,
     limit: int | None = None,
     columns: list[ColumnConfig] | None = None,
+    offset: int | None = None,
 ) -> pd.DataFrame:
     """Read data from a PostGIS table.
 
@@ -494,6 +495,9 @@ def read_data_from_postgis(
             excluded columns are omitted from the SELECT and active filters are
             applied as WHERE clauses.  When ``None``, all columns are returned
             without filtering.
+        offset: Number of rows to skip (applied after filters).  When provided,
+            a stable ``ORDER BY`` is added so that ``LIMIT``/``OFFSET`` pagination
+            returns each row exactly once across successive calls.
 
     Returns:
         GeoDataFrame or DataFrame containing the (filtered) table data.
@@ -523,12 +527,21 @@ def read_data_from_postgis(
                 query = query.where(*where_clauses)
 
             has_geom = any(col.key == DEFAULT_GEOMETRY_COLUMN for col in select_cols)
+            order_columns = list(select_cols)
         else:
             query = select(table)
             has_geom = DEFAULT_GEOMETRY_COLUMN in table.c
+            order_columns = list(table.primary_key.columns) or list(table.columns)
+
+        # A stable ORDER BY is required for deterministic LIMIT/OFFSET pagination.
+        if offset is not None:
+            query = query.order_by(*order_columns)
 
         if limit is not None and limit > 0:
             query = query.limit(limit)
+
+        if offset is not None and offset > 0:
+            query = query.offset(offset)
 
         # Pass the Select object directly — both pd.read_sql and gpd.read_postgis
         # accept a SQLAlchemy Selectable natively in SQLAlchemy 2.x.
@@ -548,6 +561,7 @@ def read_and_transform_data(
     schema: str | None = None,
     config: IntegrityTransformation | None = None,
     limit: int | None = None,
+    offset: int | None = None,
 ) -> pd.DataFrame:
     """Single pipeline entry point: read data and apply all transformations.
 
@@ -565,12 +579,16 @@ def read_and_transform_data(
         config: Transformation configuration.  ``None`` = return raw data
             unchanged (no column filtering, no transformations).
         limit: Row limit (``None`` = all rows).
+        offset: Number of rows to skip for chunked reads (``None`` = from the
+            start).  Enables deterministic ``LIMIT``/``OFFSET`` pagination.
 
     Returns:
         Transformed GeoDataFrame or DataFrame.
     """
     columns = config.columns if config is not None else None
-    data = read_data_from_postgis(table_name, engine, schema=schema, limit=limit, columns=columns)
+    data = read_data_from_postgis(
+        table_name, engine, schema=schema, limit=limit, columns=columns, offset=offset
+    )
 
     if config is None:
         return data
