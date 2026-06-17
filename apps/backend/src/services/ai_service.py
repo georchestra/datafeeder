@@ -61,7 +61,7 @@ def _fetch_thesaurus_keywords(
     try:
         resp = gn_api.session.get(
             url,
-            params=params,
+            params={"rows": max_results, "thesaurus": thesaurus_id, "uri": f"*{filter}*"},
         )
         resp.raise_for_status()
         data = resp.json()
@@ -117,6 +117,34 @@ def _fetch_thesaurus_children_by_name(
             if label == keyword_parent_name
         ),
         []
+    )
+
+
+def _fetch_thesaurus_children(
+    gn_api: str,
+    thesaurus_id: str,
+    keyword_parent_id: str,
+    max_level: int = 1,
+    max_results: int = 200,
+) -> list[tuple[str, str]]:
+    """Fetch themes from one GeoNetwork thesaurus.
+
+    This method uses the convention of the GEMET thesaurus: top level themes have URIs starting with
+    http://www.eionet.europa.eu/gemet/theme/
+
+    Args:
+        gn_api: GeoNetwork API wrapper (github.com/camptocamp/python-geonetwork)
+        thesaurus_id: thesaurus identifiers (e.g. "external.theme.inspire-theme")
+        max_results: Maximum number of keywords to fetch per thesaurus
+
+    Returns:
+        Tuple (key, label) for each keyword.
+    """
+    return _fetch_thesaurus_keywords(
+        gn_api,
+        thesaurus_id,
+        "*http://www.eionet.europa.eu/gemet/theme/*",
+        max_results
     )
 
 
@@ -191,7 +219,7 @@ def _fetch_thesaurus_from_geonetwork(
             f"{gn_api.api_url}/thesaurus?_content_type=json",
         )
         resp.raise_for_status()
-        thesaurus_ids = {t["key"]: t["title"] for t in resp.json()[0] if "key" in t}
+        thesaurus_ids = [t["key"] for t in resp.json()[0] if "key" in t]
         logger.info("Found %d thesauruses in GeoNetwork", len(thesaurus_ids))
     except Exception as err:
         logger.warning("Could not list GeoNetwork thesauruses: %s", err)
@@ -212,42 +240,30 @@ def _fetch_topic_categories_from_geonetwork(
     Returns:
         List of ISO 19115 topic category code strings.
     """
-    try:
-        # be careful, the list of topic keywords in geonetwork UI does not match perfectly with
-        # the thesaurus in ISO (ex. 'Society' instead of 'society', 'geoscientific information'
-        # instead of 'geoscientificInformation') so best would be to use the static list
-        thesaurus_id = "external.theme.TopicCategory.en"
-        return [uri.split('/')[-1] for uri, label in _fetch_thesaurus_keywords(gn_api, thesaurus_id)]
-    except Exception as err:
-        logger.warning("Thesaurus %s seems to be unavailable (%s). "
-                       "Falling back on constant ISO list", thesaurus_id, err)
-        # Fallback iso list
-        return ['biota', 'boundaries', 'climatologyMeteorologyAtmosphere', 'economy', 'elevation',
-                'environment', 'farming', 'geoscientific information', 'health',
-                'imageryBaseMapsEarthCover', 'inlandWaters', 'intelligenceMilitary',
-                'Location', 'Oceans', 'planningCadastre', 'Society', 'Structure',
-                'Transportation', 'utilitiesCommunication']
-
-
-def _compute_bbox(
-    table_name: str,
-    schema: str,
-    config: IntegrityTransformation | None,
-) -> str | None:
-    """Compute the extent of the transformed table geometry in the database.
-
-    Returns:
-        PostGIS ``ST_Extent`` string (``BOX(minx miny,maxx maxy)``) in the
-        table's native SRID, or None if the table has no (non-empty) geometry.
-    """
-    table = Table(table_name, MetaData(schema=schema), autoload_with=data_engine)
-    tq = build_transformation_select(table, config)
-    if tq.geom_column is None:
-        return None
-    core = tq.select.subquery()
-    with data_engine.connect() as conn:
-        ensure_cast_helpers(conn)
-        return conn.execute(select(func.ST_Extent(core.c[tq.geom_column]))).scalar()
+    # not sure where this fixed list comes from in datafeeder frontend
+    return [
+        "Biota",
+        "Boundaries",
+        "Climatology / Meteorology / Atmosphere",
+        "Economy",
+        "Elevation",
+        "Environnement",
+        "Farming",
+        "Geoscientific Information",
+        "Health",
+        "Imagery / Base Maps / Earth Cover",
+        "Inland Waters",
+        "Intelligence / Military",
+        "Location",
+        "Oceans",
+        "Planning / Cadastre",
+        "Society",
+        "Structure",
+        "Transportation",
+        "Utilities / Communication",
+    ]
+    thesaurus_id = "external.theme.httpinspireeceuropaeutheme-theme"
+    return [v for uri, v in _fetch_thesaurus_keywords(gn_api, thesaurus_id)]
 
 
 def _get_sample_from_staging(
@@ -463,40 +479,18 @@ def get_metadata_suggestions(
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
             verifytls=False
         )
-        all_thesaurus_titles = _fetch_thesaurus_from_geonetwork(gn_api)
-        # hardcoded whitelist for the moment => TODO move to datadir
-        # whitelist = ['external.theme.httpinspireeceuropaeutheme-theme', 'external.theme.dcat-type']
-        whitelist = [
-            'external.theme.thesaurus_mot_cle_thematique_culture_tourisme_sport',
-            'external.theme.thesaurus_mot_cle_thematique_amenagement_urbanisme_foncier',
-            'external.theme.thesaurus_mot_cle_thematique_assainissement_eau_hydrographie',
-            'external.theme.thesaurus_mot_cle_thematique_habitat_logement',
-            'external.theme.thesaurus_mot_cle_thematique_espace_public',
-            'external.theme.thesaurus_mot_cle_thematique_mobilite_transports_deplacement',
-            'external.theme.thesaurus_mot_cle_thematique_administration_action_publique',
-            'external.theme.thesaurus_mot_cle_thematique_participation_citoyenne_democratie_locale',
-            'external.theme.thesaurus_mot_cle_thematique_services_social_sante',
-            'external.theme.thesaurus_mot_cle_thematique_education',
-            'external.theme.thesaurus_mot_cle_thematique_economie_emploi',
-            'external.theme.thesaurus_mot_cle_thematique_environnement_energie',
+        priority_kw = [
+            value
+            for thesaurus_id in _fetch_thesaurus_from_geonetwork(gn_api)
+            for uri, value in _fetch_thesaurus_themes(  # limit to first level in GEMET thesaurus
+                    gn_api, thesaurus_id
+            )
         ]
-        thesaurus_titles = {k: v for k, v in all_thesaurus_titles.items() if k in whitelist}
-        all_kw = {
-            thesaurus_key: {
-                'title': thesaurus_title,
-                'kw': _fetch_thesaurus_keywords(
-                    gn_api,
-                    thesaurus_key,
-                    max_results=_MAX_KEYWORDS_PER_THESAURUS,
-                )
-            }
-            for thesaurus_key, thesaurus_title in thesaurus_titles.items()
-        }
-    except Exception as e:
         logger.warning(f"[AI Service] Failed to fetch keywords: {e}")
         all_kw = {}
 
     try:
+        topics = _fetch_topic_categories_from_geonetwork(gn_api=gn_api)
         topics = _fetch_topic_categories_from_geonetwork(gn_api=gn_api)
     except Exception:
         topics = []
