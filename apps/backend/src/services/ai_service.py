@@ -53,7 +53,7 @@ def _fetch_thesaurus_keywords(
     """
     keywords: list[str] = []
     url = f"{gn_api.api_url}/registries/vocabularies/search"
-    params = {"lang": "fre", "rows": max_results, "thesaurus": thesaurus_id}
+    params = {"rows": max_results, "thesaurus": thesaurus_id}
     if q is not None:
         params['q'] = q
     if uri_filter is not None:
