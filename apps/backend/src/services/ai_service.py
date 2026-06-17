@@ -178,6 +178,9 @@ def _fetch_topic_categories_from_geonetwork(
         List of ISO 19115 topic category code strings.
     """
     try:
+        # be careful, the list of topic keywords in geonetwork UI does not match perfectly with
+        # the thesaurus in ISO (ex. 'Society' instead of 'society', 'geoscientific information'
+        # instead of 'geoscientificInformation') so best would be to use the static list
         thesaurus_id = "external.theme.TopicCategory.en"
         return [uri.split('/')[-1] for uri, label in _fetch_thesaurus_keywords(gn_api, thesaurus_id)]
     except Exception as err:
@@ -185,10 +188,10 @@ def _fetch_topic_categories_from_geonetwork(
                        "Falling back on constant ISO list", thesaurus_id, err)
         # Fallback iso list
         return ['biota', 'boundaries', 'climatologyMeteorologyAtmosphere', 'economy', 'elevation',
-                'environment', 'farming', 'geoscientificInformation', 'health',
+                'environment', 'farming', 'geoscientific information', 'health',
                 'imageryBaseMapsEarthCover', 'inlandWaters', 'intelligenceMilitary',
-                'location', 'oceans', 'planningCadastre', 'society', 'structure',
-                'transportation', 'utilitiesCommunication']
+                'Location', 'Oceans', 'planningCadastre', 'Society', 'Structure',
+                'Transportation', 'utilitiesCommunication']
 
 
 def _get_sample_from_staging(
