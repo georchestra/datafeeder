@@ -284,6 +284,7 @@ def generate_metadata_suggestions(
     data_source: Literal["staging", "final"] = "staging",
     mode: str = "regenerate",
     current_values: dict[str, Any] | None = None,
+    extra_context: str | None = None,
 ) -> GeneratedMetadata:
     """Generate AI metadata suggestions for an integrity link.
 
@@ -379,6 +380,7 @@ def generate_metadata_suggestions(
             column_types=column_types,
             llm=llm,
             title=integrity_link.integrity_title,
+            extra_context=extra_context or None,
             sample_rows=sample_rows or None,
             bbox=bbox,
             keywords=priority_kw or None,

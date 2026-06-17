@@ -23,6 +23,7 @@ class GenerateMetadataRequest(BaseModel):
     mode: Literal["regenerate", "rewrite"] = "regenerate"
     data_source: Literal["staging", "final"] = "staging"
     current_values: dict[str, Any] | None = None
+    extra_context: str | None = None
 
 
 @router.post("/generate_metadata/{intlink_id}", response_model=GeneratedMetadata)
@@ -70,6 +71,7 @@ def generate_metadata_for_integrity_link(
             data_source=body.data_source,
             mode=body.mode,
             current_values=body.current_values,
+            extra_context=body.extra_context,
         )
         return result
 

@@ -1,8 +1,12 @@
 import { Component, computed, inject, signal } from '@angular/core'
+import { FormsModule } from '@angular/forms'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import {
+  iconoirEditPencil,
   iconoirMagicWand,
   iconoirNavArrowDown,
+  iconoirNavArrowLeft,
+  iconoirSend,
   iconoirSparks
 } from '@ng-icons/iconoir'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
@@ -22,6 +26,11 @@ marker('footer.ai.rewriteAndImprove')
 marker('footer.ai.rewriteAndImprove.hint')
 marker('footer.ai.regenerate')
 marker('footer.ai.regenerate.hint')
+marker('footer.ai.addYourPrompt')
+marker('footer.ai.addYourPrompt.hint')
+marker('footer.ai.promptPlaceholder')
+marker('footer.ai.send')
+marker('footer.ai.customPrompt.title')
 marker('footer.ai.applyToFields')
 marker('footer.ai.deselectAll')
 marker('footer.ai.selectAll')
@@ -49,13 +58,16 @@ type AiFieldKey =
 
 @Component({
   selector: 'app-ai-generate-button',
-  imports: [NgIconComponent, TranslatePipe],
+  imports: [NgIconComponent, TranslatePipe, FormsModule],
   templateUrl: './ai-generate-button.component.html',
   providers: [
     provideIcons({
+      iconoirEditPencil,
       iconoirMagicWand,
-      iconoirSparks,
-      iconoirNavArrowDown
+      iconoirNavArrowDown,
+      iconoirNavArrowLeft,
+      iconoirSend,
+      iconoirSparks
     })
   ]
 })
@@ -69,6 +81,8 @@ export class AiGenerateButtonComponent {
 
   isGeneratingAI = signal(false)
   aiDropdownOpen = signal(false)
+  aiDropdownView = signal<'main' | 'prompt'>('main')
+  aiCustomPrompt = signal('')
   lastAiMode = signal<'regenerate' | 'rewrite'>('regenerate')
 
   mainAiLabelKey = computed(() =>
@@ -95,7 +109,8 @@ export class AiGenerateButtonComponent {
   })
 
   async onGenerateWithAI(
-    mode: 'regenerate' | 'rewrite' = 'regenerate'
+    mode: 'regenerate' | 'rewrite' = 'regenerate',
+    extraContext?: string
   ): Promise<void> {
     this.aiDropdownOpen.set(false)
     this.lastAiMode.set(mode)
@@ -156,7 +171,8 @@ export class AiGenerateButtonComponent {
             mode,
             current_values: Object.keys(currentValues).length
               ? currentValues
-              : null
+              : null,
+            extra_context: extraContext || null
           }
         }
       )
@@ -212,7 +228,18 @@ export class AiGenerateButtonComponent {
     )
   }
 
+  async onSendCustomPrompt(): Promise<void> {
+    const prompt = this.aiCustomPrompt().trim()
+    if (!prompt) return
+    this.aiDropdownView.set('main')
+    await this.onGenerateWithAI('regenerate', prompt)
+    this.aiCustomPrompt.set('')
+  }
+
   toggleAiDropdown(): void {
+    if (!this.aiDropdownOpen()) {
+      this.aiDropdownView.set('main')
+    }
     this.aiDropdownOpen.update((v) => !v)
   }
 }

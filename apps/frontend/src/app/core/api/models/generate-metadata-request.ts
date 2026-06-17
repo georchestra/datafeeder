@@ -9,5 +9,6 @@ export interface GenerateMetadataRequest {
     [key: string]: any
   } | null
   data_source?: 'staging' | 'final'
+  extra_context?: string | null
   mode?: 'regenerate' | 'rewrite'
 }
