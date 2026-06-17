@@ -688,9 +688,36 @@ class TestWriteDataToPostgis:
         with patch.object(gdf, "to_postgis") as mock_to_postgis:
             write_data_to_postgis(gdf, "test_table", mock_engine, "public")
 
-            mock_to_postgis.assert_called_once_with(
-                "test_table", mock_engine, if_exists="replace", schema="public", index=False
-            )
+            mock_to_postgis.assert_called_once()
+            args, kwargs = mock_to_postgis.call_args
+            assert args == ("test_table", mock_engine)
+            assert kwargs["if_exists"] == "replace"
+            assert kwargs["schema"] == "public"
+            assert kwargs["index"] is False
+            # The geometry column must be created as a generic GEOMETRY type so that
+            # chunked appends with mixed geometry types do not clash.
+            geom_dtype = kwargs["dtype"]["geom"]
+            assert geom_dtype.geometry_type == "GEOMETRY"
+
+    @patch("data_manipulation.ingestion._get_table_row_count")
+    def test_write_geodataframe_pins_srid_from_crs(
+        self,
+        mock_get_row_count: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """The generic GEOMETRY column inherits the SRID of the GeoDataFrame CRS."""
+        gdf = GeoDataFrame(
+            {"col1": [1, 2]},
+            geometry=gpd.GeoSeries([Point(0, 0), Point(1, 1)], name="geom", crs="EPSG:4326"),
+        )
+        mock_get_row_count.return_value = 2
+
+        with patch.object(gdf, "to_postgis") as mock_to_postgis:
+            write_data_to_postgis(gdf, "test_table", mock_engine, "public")
+
+            geom_dtype = mock_to_postgis.call_args.kwargs["dtype"]["geom"]
+            assert geom_dtype.geometry_type == "GEOMETRY"
+            assert geom_dtype.srid == 4326
 
     @patch("data_manipulation.ingestion._get_table_row_count")
     def test_write_geodataframe_renames_geometry_column(

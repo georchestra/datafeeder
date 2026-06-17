@@ -659,8 +659,25 @@ def write_data_to_postgis(
                     logger.info(f"Renaming active geometry column to '{DEFAULT_GEOMETRY_COLUMN}'")
                     data.rename_geometry(DEFAULT_GEOMETRY_COLUMN, inplace=True)
 
-            # Write data to PostGIS
-            data.to_postgis(table_name, engine, if_exists=if_exists, schema=schema, index=False)
+            # Write data to PostGIS. Force a generic GEOMETRY column type (instead of letting
+            # GeoPandas infer Point/LineString/... from the current frame) so that chunked
+            # appends with heterogeneous geometry types — or a first chunk that happens to be
+            # homogeneous — don't clash with later chunks. The SRID is pinned to the data CRS
+            # so PostGIS still rejects mismatched projections.
+            geom_dtype: dict[str, Geometry] | None = None
+            if data.active_geometry_name is not None:
+                srid = data.crs.to_epsg() if data.crs is not None else None
+                geom_dtype = {
+                    data.active_geometry_name: Geometry(geometry_type="GEOMETRY", srid=srid or 0)
+                }
+            data.to_postgis(
+                table_name,
+                engine,
+                if_exists=if_exists,
+                schema=schema,
+                index=False,
+                dtype=geom_dtype,
+            )
 
         if create_id:
             with engine.connect() as conn:
