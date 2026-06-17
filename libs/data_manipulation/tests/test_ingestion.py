@@ -14,6 +14,7 @@ from sqlalchemy.engine import Engine
 from data_manipulation import IntegrityTransformation, apply_transformations
 from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.ingestion import (
+    CHUNK_SIZE,
     _read_file_encoded,  # pyright: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
     ingest_data_from_file_into_postgis,
@@ -35,7 +36,9 @@ class TestReadFileEncodedParquet:
 
         result = _read_file_encoded("test.geoparquet")
 
-        mock_read_parquet.assert_called_once_with("test.geoparquet")
+        mock_read_parquet.assert_called_once_with(
+            "test.geoparquet", rows=slice(0, CHUNK_SIZE, None)
+        )
         assert result is mock_gdf
 
     @patch("data_manipulation.ingestion.pd.read_parquet")
@@ -49,8 +52,12 @@ class TestReadFileEncodedParquet:
 
         result = _read_file_encoded("test.parquet")
 
-        mock_gpd_read_parquet.assert_called_once_with("test.parquet")
-        mock_pd_read_parquet.assert_called_once_with("test.parquet")
+        mock_gpd_read_parquet.assert_called_once_with(
+            "test.parquet", rows=slice(0, CHUNK_SIZE, None)
+        )
+        mock_pd_read_parquet.assert_called_once_with(
+            "test.parquet", rows=slice(0, CHUNK_SIZE, None)
+        )
         assert result is mock_df
 
     @patch("data_manipulation.ingestion.gpd.read_parquet")
@@ -60,7 +67,7 @@ class TestReadFileEncodedParquet:
 
         result = _read_file_encoded("test.parquet")
 
-        mock_read_parquet.assert_called_once_with("test.parquet")
+        mock_read_parquet.assert_called_once_with("test.parquet", rows=slice(0, CHUNK_SIZE, None))
         assert result is mock_gdf
 
 
@@ -72,98 +79,61 @@ class TestIngestDataFromFileIntoPostgis:
         """Create a mock SQLAlchemy engine."""
         return Mock(spec=Engine)
 
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    @patch("data_manipulation.ingestion._detect_file_encoding")
-    def test_ingest_with_detected_encoding_success(
+    @patch("data_manipulation.ingestion.ingest_data_from_url_into_postgis")
+    def test_ingest_delegates_to_url_function(
         self,
-        mock_detect_encoding: Mock,
-        mock_read_file: Mock,
-        mock_write_data: Mock,
+        mock_ingest_url: Mock,
         mock_engine: Mock,
     ) -> None:
-        """Test successful ingestion with detected encoding."""
+        """A local file path is delegated to the URL ingestion function."""
+        ingest_data_from_file_into_postgis("test.geojson", "test_table", mock_engine, "public")
 
-        mock_detect_encoding.return_value = "utf-8"
+        mock_ingest_url.assert_called_once_with("test.geojson", "test_table", mock_engine, "public")
+
+    @patch("data_manipulation.ingestion.ingest_data_from_url_into_postgis")
+    def test_ingest_propagates_errors(
+        self,
+        mock_ingest_url: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """Errors raised while ingesting are propagated to the caller."""
+        mock_ingest_url.side_effect = Exception("boom")
+
+        with pytest.raises(Exception, match="boom"):
+            ingest_data_from_file_into_postgis("test.geojson", "test_table", mock_engine, "public")
+
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_read_file_encoded_utf8_success(self, mock_read_file: Mock) -> None:
+        """The first chunk is read without an explicit encoding (UTF-8 default)."""
         mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
         mock_read_file.return_value = mock_gdf
 
-        ingest_data_from_file_into_postgis("test.geojson", "test_table", mock_engine, "public")
+        result = _read_file_encoded("test.geojson")
 
-        mock_detect_encoding.assert_called_once_with("test.geojson")
-        mock_read_file.assert_called_once_with("test.geojson", encoding="utf-8")
-        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
+        mock_read_file.assert_called_once_with("test.geojson", rows=slice(0, CHUNK_SIZE, None))
+        assert result is mock_gdf
 
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
     @patch("data_manipulation.ingestion.gpd.read_file")
     @patch("data_manipulation.ingestion._detect_file_encoding")
-    def test_ingest_with_encoding_fallback_to_latin1(
+    def test_read_file_encoded_falls_back_to_detected_encoding(
         self,
         mock_detect_encoding: Mock,
         mock_read_file: Mock,
-        mock_write_data: Mock,
-        mock_engine: Mock,
     ) -> None:
-        """Test ingestion falls back to latin-1 when UTF-8 fails."""
-
-        mock_detect_encoding.return_value = "utf-8"
+        """On a UnicodeDecodeError the detected encoding is used for a second attempt."""
+        mock_detect_encoding.return_value = "latin-1"
         mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-
-        # First call with utf-8 raises UnicodeDecodeError, second call with latin-1 succeeds
         mock_read_file.side_effect = [UnicodeDecodeError("utf-8", b"", 0, 1, ""), mock_gdf]
 
-        ingest_data_from_file_into_postgis("test.geojson", "test_table", mock_engine, "public")
+        result = _read_file_encoded("test.shp")
 
         assert mock_read_file.call_count == 2
-        mock_read_file.assert_any_call("test.geojson", encoding="utf-8")
-        mock_read_file.assert_any_call("test.geojson", encoding="latin-1")
-        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    @patch("data_manipulation.ingestion._detect_file_encoding")
-    def test_ingest_with_encoding_fallback_to_cp1252(
-        self,
-        mock_detect_encoding: Mock,
-        mock_read_file: Mock,
-        mock_write_data: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test ingestion falls back to cp1252 when UTF-8 and latin-1 fail."""
-
-        mock_detect_encoding.return_value = "utf-8"
-        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-
-        # First two calls fail, third call with cp1252 succeeds
-        mock_read_file.side_effect = [
-            UnicodeDecodeError("utf-8", b"", 0, 1, ""),
-            UnicodeDecodeError("latin-1", b"", 0, 1, ""),
-            mock_gdf,
-        ]
-
-        ingest_data_from_file_into_postgis("test.geojson", "test_table", mock_engine, "public")
-
-        assert mock_read_file.call_count == 3
-        mock_read_file.assert_any_call("test.geojson", encoding="utf-8")
-        mock_read_file.assert_any_call("test.geojson", encoding="latin-1")
-        mock_read_file.assert_any_call("test.geojson", encoding="cp1252")
-        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
-
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    @patch("data_manipulation.ingestion._detect_file_encoding")
-    def test_ingest_raises_exception_on_error(
-        self,
-        mock_detect_encoding: Mock,
-        mock_read_file: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test ingestion raises exception when all encoding attempts fail."""
-
-        mock_detect_encoding.return_value = "utf-8"
-        mock_read_file.side_effect = Exception("Failed to read file")
-
-        with pytest.raises(Exception, match="Failed to read file"):
-            ingest_data_from_file_into_postgis("test.geojson", "test_table", mock_engine, "public")
+        mock_read_file.assert_any_call("test.shp", rows=slice(0, CHUNK_SIZE, None))
+        mock_read_file.assert_any_call(
+            "test.shp", rows=slice(0, CHUNK_SIZE, None), encoding="latin-1"
+        )
+        mock_detect_encoding.assert_called_once_with("test.shp")
+        assert result is mock_gdf
 
 
 class TestIngestDataFromUrlIntoPostgis:
@@ -205,7 +175,9 @@ class TestIngestDataFromUrlIntoPostgis:
             "http://example.com/data.geojson", auth=None, timeout=300
         )
         mock_read_file.assert_called_once()
-        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
+        mock_write_data.assert_called_once_with(
+            mock_gdf, "test_table", mock_engine, "public", if_exists="replace"
+        )
 
     @patch("data_manipulation.ingestion.write_data_to_postgis")
     @patch("data_manipulation.ingestion.gpd.read_file")
@@ -326,7 +298,9 @@ class TestIngestDataFromUrlIntoPostgis:
         mock_read_parquet.assert_called_once()
         path_arg = mock_read_parquet.call_args.args[0]
         assert path_arg.endswith(".parquet")
-        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
+        mock_write_data.assert_called_once_with(
+            mock_gdf, "test_table", mock_engine, "public", if_exists="replace"
+        )
 
     @patch("data_manipulation.ingestion.write_data_to_postgis")
     @patch("data_manipulation.ingestion.gpd.read_parquet")
@@ -352,7 +326,9 @@ class TestIngestDataFromUrlIntoPostgis:
         mock_read_parquet.assert_called_once()
         path_arg = mock_read_parquet.call_args.args[0]
         assert path_arg.endswith(".geoparquet")
-        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
+        mock_write_data.assert_called_once_with(
+            mock_gdf, "test_table", mock_engine, "public", if_exists="replace"
+        )
 
     @patch("data_manipulation.ingestion.write_data_to_postgis")
     @patch("data_manipulation.ingestion.gpd.read_parquet")
@@ -378,7 +354,9 @@ class TestIngestDataFromUrlIntoPostgis:
         mock_read_parquet.assert_called_once()
         path_arg = mock_read_parquet.call_args.args[0]
         assert path_arg.endswith("export.parquet")
-        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
+        mock_write_data.assert_called_once_with(
+            mock_gdf, "test_table", mock_engine, "public", if_exists="replace"
+        )
 
 
 class TestIngestDataFromFtpIntoPostgis:
@@ -413,7 +391,9 @@ class TestIngestDataFromFtpIntoPostgis:
         # Verify URL without auth is passed
         assert "ftp://example.com/data.geojson" in str(mock_urlretrieve.call_args[0][0])
         mock_read_file.assert_called_once()
-        mock_write_data.assert_called_once_with(mock_gdf, "test_table", mock_engine, "public")
+        mock_write_data.assert_called_once_with(
+            mock_gdf, "test_table", mock_engine, "public", if_exists="replace"
+        )
 
     @patch("data_manipulation.ingestion.write_data_to_postgis")
     @patch("data_manipulation.ingestion._read_file_encoded")
@@ -915,15 +895,19 @@ class TestIngestDataFromDatabaseIntoPostgis:
         )
 
         mock_read_sql.assert_called_once()
-        mock_write.assert_called_once_with(df, "staging_table", mock_target_engine, "staging")
+        mock_write.assert_called_once_with(
+            df, "staging_table", mock_target_engine, "staging", if_exists="replace"
+        )
 
     @patch("data_manipulation.ingestion.write_data_to_postgis")
     @patch("data_manipulation.ingestion.gpd.read_postgis")
     @patch("data_manipulation.ingestion.select")
     @patch("data_manipulation.ingestion.Table")
     @patch("data_manipulation.ingestion.MetaData")
+    @patch("data_manipulation.ingestion._get_geo_column_from_table", return_value="geom")
     def test_ingest_geographic_table(
         self,
+        mock_get_geo: Mock,
         mock_metadata: Mock,
         mock_table_cls: Mock,
         mock_select: Mock,
@@ -949,7 +933,9 @@ class TestIngestDataFromDatabaseIntoPostgis:
         )
 
         mock_read_postgis.assert_called_once()
-        mock_write.assert_called_once_with(gdf, "staging_table", mock_target_engine, "staging")
+        mock_write.assert_called_once_with(
+            gdf, "staging_table", mock_target_engine, "staging", if_exists="replace"
+        )
 
     @patch("data_manipulation.ingestion.Table")
     @patch("data_manipulation.ingestion.MetaData")
@@ -1031,8 +1017,12 @@ class TestIngestDataFromOgcServiceIntoPostgis:
             schema="public",
         )
 
-        mock_read_file.assert_called_once_with("WFS:https://example.com/wfs", layer="ns:buildings")
-        mock_write.assert_called_once_with(mock_gdf, "buildings_stg", mock_engine, "public")
+        mock_read_file.assert_called_once_with(
+            "WFS:https://example.com/wfs", layer="ns:buildings", rows=slice(0, CHUNK_SIZE, None)
+        )
+        mock_write.assert_called_once_with(
+            mock_gdf, "buildings_stg", mock_engine, "public", if_exists="replace"
+        )
 
     @patch("data_manipulation.ingestion.write_data_to_postgis")
     @patch("data_manipulation.ingestion.gpd.read_file")
@@ -1055,8 +1045,12 @@ class TestIngestDataFromOgcServiceIntoPostgis:
             schema="public",
         )
 
-        mock_read_file.assert_called_once_with("OAPIF:https://example.com/ogcapi", layer="parcels")
-        mock_write.assert_called_once_with(mock_gdf, "parcels_stg", mock_engine, "public")
+        mock_read_file.assert_called_once_with(
+            "OAPIF:https://example.com/ogcapi", layer="parcels", rows=slice(0, CHUNK_SIZE, None)
+        )
+        mock_write.assert_called_once_with(
+            mock_gdf, "parcels_stg", mock_engine, "public", if_exists="replace"
+        )
 
     @patch("data_manipulation.ingestion.write_data_to_postgis")
     @patch("data_manipulation.ingestion.gpd.read_file")
@@ -1158,4 +1152,6 @@ def test_oapif_url_normalized_before_gdal(
         engine=Mock(spec=Engine),
     )
 
-    mock_read_file.assert_called_once_with(expected_gdal_source, layer="my_layer")
+    mock_read_file.assert_called_once_with(
+        expected_gdal_source, layer="my_layer", rows=slice(0, CHUNK_SIZE, None)
+    )
