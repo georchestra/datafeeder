@@ -24,7 +24,8 @@ logger = get_logger()
 def _fetch_thesaurus_keywords(
     gn_api: GnApi,
     thesaurus_id: str,
-    filter: str = "",
+    q: str | None = None,
+    uri_filter: str | None = None,
     max_results: int = 200,
 ) -> list[tuple[str, str]]:
     """Fetch keyword ids and labels from one GeoNetwork thesaurus.
@@ -41,10 +42,15 @@ def _fetch_thesaurus_keywords(
     """
     keywords: list[str] = []
     url = f"{gn_api.api_url}/registries/vocabularies/search"
+    params = {"rows": max_results, "thesaurus": thesaurus_id}
+    if q is not None:
+        params['q'] = q
+    if uri_filter is not None:
+        params["uri"] = f"*{uri_filter}*"
     try:
         resp = gn_api.session.get(
             url,
-            params={"rows": max_results, "thesaurus": thesaurus_id, "uri": f"*{filter}*"},
+            params=params,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -53,7 +59,7 @@ def _fetch_thesaurus_keywords(
 
     except Exception as err:
         logger.warning("Could not fetch thesaurus %s from GeoNetwork: %s", thesaurus_id, err)
-        raise(err)
+        raise err
     # Deduplicate while preserving order
     seen: set[str] = set()
     return [k for k in keywords if not (k in seen or seen.add(k))]  # type: ignore[func-returns-value]
@@ -80,8 +86,26 @@ def _fetch_thesaurus_themes(
     return _fetch_thesaurus_keywords(
         gn_api,
         thesaurus_id,
-        "*http://www.eionet.europa.eu/gemet/theme/*",
-        max_results
+        uri_filter="*http://www.eionet.europa.eu/gemet/theme/*",
+        max_results=max_results,
+    )
+
+
+def _fetch_thesaurus_children_by_name(
+    gn_api: str,
+    thesaurus_id: str,
+    keyword_parent_name: str,
+    max_level: int = 1,
+    max_results: int = 200,
+) -> list[tuple[str, str]]:
+    keywords = _fetch_thesaurus_keywords(gn_api, thesaurus_id, q=keyword_parent_name)
+    return sum(
+        (
+            _fetch_thesaurus_children(gn_api, thesaurus_id, uri, max_level, max_results)
+            for uri, label in keywords
+            if label == keyword_parent_name
+        ),
+        []
     )
 
 
@@ -409,13 +433,21 @@ def generate_metadata_suggestions(
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
             verifytls=False
         )
-        priority_kw = [
+        priority_kw = set(
             value
             for thesaurus_id in _fetch_thesaurus_from_geonetwork(gn_api)
             for uri, value in _fetch_thesaurus_themes(  # limit to first level in GEMET thesaurus
                     gn_api, thesaurus_id
             )
-        ]
+        )
+        for current_kw in current_values.get('keywords', []).split(', '):
+            child_keywords = _fetch_thesaurus_children_by_name(
+                gn_api,
+                'external.theme.gemet',
+                current_kw
+            )
+            priority_kw.update(value for uri, value in child_keywords)
+        priority_kw = list(priority_kw)
     except Exception as e:
         logger.warning(f"[AI Service] Failed to fetch keywords: {e}")
         priority_kw = []
