@@ -25,6 +25,10 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SCHEMA = "public"
 
+# Bytes sampled for encoding detection. chardet's accuracy is unchanged for a sample
+# this size, and reading only a sample avoids loading multi-GB files into memory.
+_ENCODING_DETECT_BYTES = 256 * 1024
+
 
 def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
     metadata = MetaData(schema=schema)
@@ -59,7 +63,8 @@ def _detect_file_encoding(file_path: str) -> str:
 
     try:
         with open(file_path_to_read, "rb") as f:
-            encoding = chardet.detect(f.read())["encoding"]
+            sample = f.read(_ENCODING_DETECT_BYTES)
+        encoding = chardet.detect(sample)["encoding"]
     except Exception as e:
         logger.warning(f"Failed to detect encoding for {file_path_to_read}: {e}")
         encoding = None
