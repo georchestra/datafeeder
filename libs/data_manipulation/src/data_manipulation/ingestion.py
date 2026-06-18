@@ -10,6 +10,7 @@ from urllib.request import urlretrieve
 import chardet
 import geopandas as gpd
 import pandas as pd
+import pyarrow.parquet as pq
 import requests
 from geoalchemy2 import Geometry
 from sqlalchemy import MetaData, Table, func, select, text
@@ -94,12 +95,13 @@ def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.Data
     # Parquet is columnar and not row-sliceable cheaply: read it fully on the first
     # chunk and signal completion afterwards to avoid re-reading / duplicating rows.
     if Path(file_path).suffix.lower() in (".parquet", ".geoparquet"):
-        if i > 0:
+        ds = pq.ParquetDataset(file_path)
+        if i > len(ds.fragments):
             return gpd.GeoDataFrame()
         try:
-            return gpd.read_parquet(file_path)  # type: ignore[arg-type]
+            return gpd.read_parquet(ds.fragments[i].path)  # type: ignore[arg-type]
         except ValueError:
-            return pd.read_parquet(file_path)
+            return pd.read_parquet(ds.fragments[i].path)
 
     try:
         # Try reading with UTF-8 first (common default)
