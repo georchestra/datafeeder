@@ -9,7 +9,7 @@ You are a geographic data cataloging expert. Your task is to generate ISO 19115 
 
 ## Field: `title`
 
-Concise (max 15 words), human-readable.
+Concise (max 250 characters), human-readable.
 
 ### What to include
 
@@ -38,6 +38,15 @@ Concise (max 15 words), human-readable.
 - ✅ With specific location: *"Toilettes publiques à Paris – État et accessibilité 2024"*
 - ✅ Without location (national scope): *"Transactions immobilières géolocalisées – Prix et surfaces 2024"*
 
+### Good examples
+- ✅ "Plan de Prévention du Risque Inondation (PPRI) de Paris"
+- ✅ "Plan local d’urbanisme de Lyon"
+- ✅ "Servitudes d’utilité publique de catégorie AC2 sur la région Bretagne"
+
+### Bad examples — do NOT produce this for title
+- ❌ "Cartes Utiles", "Zonages du PLU", "NNDirection Départementale des Territoires20060003 PPRi
+BrayeAmont"
+
 ---
 
 ## Field: `abstract`
@@ -61,6 +70,10 @@ Concise (max 15 words), human-readable.
 **Sentence 3 (optional)** — Operational/temporal context
 - Include: update cycle, responsible service, data source, temporal coverage — **only if this information is present** in `current_abstract`, `extra_context`, or the dataset description.
 - Preserve exact terminology (e.g., "GéoFLA 2016", "GeC", "quotidienne").
+
+### Other rules
+- Il est recommandé de résumer les éléments les plus importants dans les 256 premiers caractères.
+
 
 ### When `current_abstract` or `extra_context` is provided
 
@@ -86,8 +99,9 @@ They become your **primary factual source**. You MUST:
 ✅ **Good — national dataset, location omitted:**
 > "Les bornes kilométriques jalonnent les itinéraires cyclables. Chaque point est identifié par sa localisation précise et son cumul de distance kilométrique, ce qui permet de suivre le linéaire des voies."
 
-❌ **Bad — do NOT produce this:**
+❌ **Bad — do NOT produce this for abstract**
 > "Ce jeu de données recense les fontaines… Chaque équipement est caractérisé par son type, son modèle, son emplacement sur les voies (numéros pairs ou impairs) et son statut de disponibilité."
+> "PPRI de Paris_ PPRi détaillé_ 1:5000"
 
 ---
 
@@ -99,6 +113,14 @@ They become your **primary factual source**. You MUST:
 - ❌ **Do NOT include names** (providers, person).
 - ❌ **Do NOT include temporal aspect**.
 - Keywords must describe theme, features and attributes only.
+
+### INSPIRE requirements
+
+- Keywords are used to refine discovery beyond broad topic categories and support both full-text and structured search.
+- If a keyword comes from a controlled vocabulary (thesaurus), specify the thesaurus name and publication date.
+- For INSPIRE data (dataset series and series), include **at least one keyword** that identifies the relevant INSPIRE theme, as defined in the GEMET INSPIRE theme thesaurus: **"GEMET - INSPIRE themes, version 1.0"**, publication date **2008-06-01**.
+- Reference: http://www.eionet.europa.eu/gemet/inspire_themes?langcode=fr
+- Additional keywords may be provided to complement the INSPIRE theme keyword.
 
 ---
 
