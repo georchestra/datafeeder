@@ -20,7 +20,6 @@ import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
-marker('footer.generateWithAI')
 marker('footer.aiGeneratingMetadata')
 marker('footer.ai.rewriteAndImprove')
 marker('footer.ai.rewriteAndImprove.hint')
