@@ -1,10 +1,11 @@
 import logging
 import re
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Literal
 from urllib.error import URLError
-from urllib.parse import quote, unquote, urlparse
+from urllib.parse import quote, unquote, urlencode, urlparse, urlunparse
 from urllib.request import urlretrieve
 
 import chardet
@@ -409,11 +410,60 @@ def ingest_data_from_database_into_postgis(
 
 _GDAL_PROTOCOL_PREFIX = {"wfs": "WFS", "ogcFeatures": "OAPIF"}
 _OAPIF_COLLECTIONS_RE = re.compile(r"/collections(/.*)?$")
+_WFS_JSON_FORMATS = ("application/json", "application/geo+json", "json", "geojson")
 
 
 def _normalize_oapif_url(url: str) -> str:
     """Strip /collections[/...] suffixes so GDAL's OAPIF driver receives the service root."""
     return _OAPIF_COLLECTIONS_RE.sub("", url.rstrip("/"))
+
+
+def _wfs_json_output_format(service_url: str) -> str | None:
+    """Return the first JSON-compatible outputFormat advertised by GetCapabilities, or None."""
+    try:
+        resp = requests.get(
+            service_url,
+            params={"SERVICE": "WFS", "REQUEST": "GetCapabilities"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        root = ET.fromstring(resp.content)
+        advertised = {
+            el.text.strip().lower()
+            for el in root.iter()
+            if (el.tag.split("}")[-1] if "}" in el.tag else el.tag) == "Value" and el.text
+        }
+        for fmt in _WFS_JSON_FORMATS:
+            if fmt in advertised:
+                return fmt
+    except Exception as exc:
+        logger.warning("Could not read WFS GetCapabilities from %s: %s", service_url, exc)
+    return None
+
+
+def _wfs_geojson_chunk_url(
+    service_url: str,
+    layer_name: str,
+    offset: int,
+    count: int,
+    output_format: str = "application/json",
+) -> str:
+    """Build a WFS 2.0 GetFeature URL requesting JSON output with pagination.
+
+    Bypasses the GML driver (and its curved-geometry issues) by requesting
+    a JSON format directly from the server.
+    """
+    parsed = urlparse(service_url)
+    params = {
+        "SERVICE": "WFS",
+        "VERSION": "2.0.0",
+        "REQUEST": "GetFeature",
+        "TYPENAMES": layer_name,
+        "OUTPUTFORMAT": output_format,
+        "startIndex": str(offset),
+        "count": str(count),
+    }
+    return urlunparse(parsed._replace(query=urlencode(params)))
 
 
 def ingest_data_from_ogc_service_into_postgis(
@@ -438,11 +488,32 @@ def ingest_data_from_ogc_service_into_postgis(
     normalized_url = _normalize_oapif_url(service_url) if protocol == "ogcFeatures" else service_url
     gdal_source = f"{gdal_prefix}:{normalized_url}"
     logger.info(f"Ingesting OGC layer '{layer_name}' from {gdal_source} into {table_name}")
+
+    wfs_json_fmt = _wfs_json_output_format(service_url) if protocol == "wfs" else None
+    use_wfs_fallback = protocol == "wfs" and wfs_json_fmt is None
+    if use_wfs_fallback:
+        logger.warning(
+            "WFS at %s does not advertise a JSON output format; falling back to default WFS output format",
+            service_url,
+        )
+    else:
+        logger.info(
+            "WFS at %s advertises JSON output format '%s'; using it for chunked ingestion",
+            service_url,
+            wfs_json_fmt,
+        )
+
     try:
         i = 0
         while True:
-            rows = slice(i * CHUNK_SIZE, i * CHUNK_SIZE + CHUNK_SIZE, None)
-            gdf = gpd.read_file(gdal_source, layer=layer_name, rows=rows)
+            if wfs_json_fmt:
+                url = _wfs_geojson_chunk_url(
+                    service_url, layer_name, i * CHUNK_SIZE, CHUNK_SIZE, wfs_json_fmt
+                )
+                gdf = gpd.read_file(url)
+            else:
+                rows = slice(i * CHUNK_SIZE, i * CHUNK_SIZE + CHUNK_SIZE, None)
+                gdf = gpd.read_file(gdal_source, layer=layer_name, rows=rows)
             if gdf.empty:
                 break
             chunk_len = len(gdf)
