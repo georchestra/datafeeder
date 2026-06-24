@@ -37,12 +37,19 @@ app = FastAPI()
 # Setup Arize Phoenix tracing if enabled
 _settings = get_settings()
 if _settings.AI_PHOENIX_ENABLED:
-    from ai.tracing import setup_phoenix_tracing
+    try:
+        from ai.tracing import setup_phoenix_tracing
 
-    setup_phoenix_tracing(
-        endpoint=_settings.AI_PHOENIX_ENDPOINT,
-        project_name=_settings.AI_PHOENIX_PROJECT,
-    )
+        setup_phoenix_tracing(
+            endpoint=_settings.AI_PHOENIX_ENDPOINT,
+            project_name=_settings.AI_PHOENIX_PROJECT,
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to enable Phoenix tracing — continuing without tracing: %s",
+            e,
+            exc_info=True,
+        )
 
 # Configure CORS
 app.add_middleware(
