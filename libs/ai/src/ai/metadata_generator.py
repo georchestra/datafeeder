@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 _MAX_PROMPT_KEYWORDS = 100
 
 
-def _format_sample(sample_rows: list[dict[str, object]] | None) -> str:
+def format_sample(sample_rows: list[Any] | None) -> str:
     """Format sample rows as a compact CSV-like string for the prompt (values only, no headers)."""
     if not sample_rows:
         return "not available"
@@ -24,7 +24,7 @@ def _format_sample(sample_rows: list[dict[str, object]] | None) -> str:
     return "\n".join(lines)
 
 
-def _format_column_headers(
+def format_column_headers(
     column_names: list[str], column_types: dict[str, str] | None = None
 ) -> str:
     """Format column names with their types as a comma-separated string.
@@ -42,7 +42,7 @@ def _format_column_headers(
     )
 
 
-def _format_keywords_for_prompt(keywords: list[str] | None) -> str:
+def format_keywords_for_prompt(keywords: list[str] | None) -> str:
     """Deduplicate and cap keywords before injecting them into the LLM prompt."""
     if not keywords:
         return ""
@@ -54,7 +54,7 @@ def _format_keywords_for_prompt(keywords: list[str] | None) -> str:
     return ", ".join(deduped[:_MAX_PROMPT_KEYWORDS])
 
 
-def _format_title_for_prompt(
+def format_title_for_prompt(
     table_name: str,
     title: str | None,
     current_values: dict[str, Any] | None,
@@ -63,38 +63,38 @@ def _format_title_for_prompt(
     return (current_values.get("title") if current_values else None) or title or table_name
 
 
-def _format_bbox_for_prompt(bbox: str | None) -> str:
+def format_bbox_for_prompt(bbox: str | None) -> str:
     """Normalize bbox value for prompt injection."""
     return bbox or "not available"
 
 
-def _format_current_abstract_for_prompt(current_values: dict[str, Any] | None) -> str:
+def format_current_abstract_for_prompt(current_values: dict[str, Any] | None) -> str:
     """Format current abstract value for rewrite mode context."""
     if current_values and current_values.get("abstract"):
         return f"{current_values['abstract']}"
     return ""
 
 
-def _format_current_keywords_for_prompt(current_values: dict[str, Any] | None) -> str:
+def format_current_keywords_for_prompt(current_values: dict[str, Any] | None) -> str:
     """Format current keywords value for rewrite mode context."""
     if current_values and current_values.get("keywords"):
         return f"{current_values['keywords']}"
     return ""
 
 
-def _format_current_topics_for_prompt(current_values: dict[str, Any] | None) -> str:
+def format_current_topics_for_prompt(current_values: dict[str, Any] | None) -> str:
     """Format current topics value for rewrite mode context."""
     if current_values and current_values.get("topics"):
         return f"{current_values['topics']}"
     return ""
 
 
-def _format_topics_for_prompt(priority_topic_categories: list[str] | None) -> str:
+def format_topics_for_prompt(priority_topic_categories: list[str] | None) -> str:
     """Format preferred topic categories for prompt injection."""
     return ", ".join(priority_topic_categories) if priority_topic_categories else ""
 
 
-def _format_extra_context_for_prompt(
+def format_extra_context_for_prompt(
     extra_context: str | dict[str, Any] | None,
 ) -> str | dict[str, Any]:
     """Format extra context payload for prompt injection."""
@@ -151,16 +151,16 @@ def generate_metadata(
 
     result = chain.invoke(
         {
-            "title": _format_title_for_prompt(table_name, title, current_values),
-            "columns_with_types": _format_column_headers(column_names, column_types),
-            "sample": _format_sample(sample_rows),
-            "bbox": _format_bbox_for_prompt(bbox),
-            "current_abstract": _format_current_abstract_for_prompt(current_values),
-            "current_keywords": _format_current_keywords_for_prompt(current_values),
-            "current_topics": _format_current_topics_for_prompt(current_values),
-            "keywords": _format_keywords_for_prompt(keywords),
-            "topics": _format_topics_for_prompt(priority_topic_categories),
-            "extra_context": _format_extra_context_for_prompt(extra_context),
+            "title": format_title_for_prompt(table_name, title, current_values),
+            "columns_with_types": format_column_headers(column_names, column_types),
+            "sample": format_sample(sample_rows),
+            "bbox": format_bbox_for_prompt(bbox),
+            "current_abstract": format_current_abstract_for_prompt(current_values),
+            "current_keywords": format_current_keywords_for_prompt(current_values),
+            "current_topics": format_current_topics_for_prompt(current_values),
+            "keywords": format_keywords_for_prompt(keywords),
+            "topics": format_topics_for_prompt(priority_topic_categories),
+            "extra_context": format_extra_context_for_prompt(extra_context),
             "mode_instruction": (
                 "REWRITE — improve, rephrase and enrich the existing values if provided above. "
                 "Keep the meaning but make them clearer, more professional and more complete."
