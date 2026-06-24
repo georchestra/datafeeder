@@ -124,6 +124,15 @@ They become your **primary factual source**. You MUST:
 
 ---
 
+## Field: `attribute_descriptions`
+
+For each column listed in "Columns", produce an entry with:
+- `name`: exact column name
+- `type`: ISO 19110 type as given (e.g., "integer", "string (50)", "GM_Point")
+- `description`: concise French description of the column content. For geometry columns, describe the geometry type (point, polygone, etc.). Never leave empty.
+
+---
+
 ## Field: `topic_categories`
 
 Choose one or more ISO 19115 topic category codes (`MD_TopicCategoryCode`).

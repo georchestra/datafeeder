@@ -105,7 +105,3 @@ def get_llm(
             openrouter_api_key=api_key,  # type: ignore[arg-type]
             reasoning=None if think else {"effort": "none"},
         )
-
-    raise ValueError(
-        f"Unsupported provider '{provider}'. Available: {', '.join(_DEFAULT_MODELS.keys())}"
-    )

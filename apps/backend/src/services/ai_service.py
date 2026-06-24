@@ -5,7 +5,8 @@ from typing import Any, Literal
 
 import geopandas as gpd
 import requests
-from ai.metadata_generator import GeneratedMetadata, generate_metadata
+from ai.metadata_generator import generate_metadata
+from ai.metadata_generator_models import GeneratedMetadata
 from ai.providers import get_llm
 from ai.utils import pg_type_to_iso19110  # type: ignore[import-untyped]
 from data_manipulation.ingestion import read_and_transform_data
@@ -303,12 +304,16 @@ def generate_metadata_suggestions(
     if not settings.AI_ENABLED:
         raise ValueError("AI metadata generation is disabled")
 
-    system_prompt_path = (Path(settings.AI_METADATA_SYSTEM_PROMPT_FILE)
+    system_prompt_path = (
+        Path(settings.AI_METADATA_SYSTEM_PROMPT_FILE)
         if settings.AI_METADATA_SYSTEM_PROMPT_FILE
-        else None)
-    human_prompt_path = (Path(settings.AI_METADATA_HUMAN_PROMPT_FILE)
+        else None
+    )
+    human_prompt_path = (
+        Path(settings.AI_METADATA_HUMAN_PROMPT_FILE)
         if settings.AI_METADATA_HUMAN_PROMPT_FILE
-        else None)
+        else None
+    )
 
     if data_source == "staging":
         if not integrity_link.staging_table_name:

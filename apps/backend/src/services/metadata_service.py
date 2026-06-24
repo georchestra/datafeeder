@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from ai.metadata_generator import AttributeInfo, TemporalExtent  # type: ignore[import-untyped]
+from ai.metadata_generator_models import AttributeInfo, TemporalExtent
 from geonetwork import GnApi  # type: ignore[import-untyped]
 from lxml import etree
 

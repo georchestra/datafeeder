@@ -2,7 +2,7 @@
 
 from typing import Any, Literal
 
-from ai.metadata_generator import GeneratedMetadata
+from ai.metadata_generator_models import GeneratedMetadata
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
