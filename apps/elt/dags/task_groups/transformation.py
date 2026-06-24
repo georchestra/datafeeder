@@ -7,6 +7,7 @@ from airflow.exceptions import AirflowException
 from airflow.sdk import task, task_group
 from airflow.utils.trigger_rule import TriggerRule
 from data_manipulation import (
+    CHUNK_SIZE,
     IntegrityTransformation,
     read_and_transform_data,
     write_data_to_postgis,
@@ -85,22 +86,6 @@ def process_transformation_group(
             staging_schema = get_staging_schema()
 
             try:
-                logger.info(
-                    f"Reading and transforming data from {staging_schema}.{staging_table_name}"
-                )
-                transformed_data = read_and_transform_data(
-                    table_name=staging_table_name,
-                    engine=engine,
-                    schema=staging_schema,
-                    config=transformation_config,
-                    limit=None,
-                )
-                logger.info(f"Transformations applied to {len(transformed_data)} rows")
-
-                if transformed_data.empty:
-                    logger.error("No data to write after transformation.")
-                    raise AirflowException("No data to write after transformation.")
-
                 # If this is a re-run (has last_retrieval_timestamp), drop the old final table first
                 last_retrieval_timestamp = params.get("last_retrieval_timestamp")
                 if last_retrieval_timestamp:
@@ -124,15 +109,54 @@ def process_transformation_group(
                         )
 
                 create_schema(engine, final_schema)
-                logger.info(f"Writing data to {final_schema}.{final_table_name}")
-                write_data_to_postgis(
-                    data=transformed_data,
-                    table_name=final_table_name,
-                    engine=engine,
-                    schema=final_schema,
-                    create_id=True,
+
+                logger.info(
+                    f"Reading, transforming and writing data from "
+                    f"{staging_schema}.{staging_table_name} to {final_schema}.{final_table_name}"
                 )
-                logger.info(f"Successfully wrote {len(transformed_data)} rows to final table")
+
+                # Read, transform and write one chunk at a time to keep the memory footprint
+                # low for large tables (mirrors the chunked ingestion in ingestion.py).
+                i = 0
+                total_rows = 0
+                while True:
+                    transformed_data = read_and_transform_data(
+                        table_name=staging_table_name,
+                        engine=engine,
+                        schema=staging_schema,
+                        config=transformation_config,
+                        limit=CHUNK_SIZE,
+                        offset=i * CHUNK_SIZE,
+                    )
+                    if transformed_data.empty:
+                        break
+
+                    chunk_len = len(transformed_data)
+                    write_data_to_postgis(
+                        data=transformed_data,
+                        table_name=final_table_name,
+                        engine=engine,
+                        schema=final_schema,
+                        # The UUID primary key is created once on the first chunk; subsequent
+                        # appended rows receive their id_datafeeder from the column default.
+                        create_id=i == 0,
+                        if_exists="replace" if i == 0 else "append",
+                    )
+                    total_rows += chunk_len
+                    logger.info(
+                        f"Transformed and wrote chunk {i} ({chunk_len} rows) to final table"
+                    )
+
+                    # A short read means the staging table is exhausted — avoid an extra empty query.
+                    if chunk_len < CHUNK_SIZE:
+                        break
+                    i += 1
+
+                if total_rows == 0:
+                    logger.error("No data to write after transformation.")
+                    raise AirflowException("No data to write after transformation.")
+
+                logger.info(f"Successfully wrote {total_rows} rows to final table")
 
             except Exception as e:
                 raise AirflowException(f"Failed to transform and load data: {e}")

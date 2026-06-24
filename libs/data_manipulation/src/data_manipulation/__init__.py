@@ -1,4 +1,5 @@
 from data_manipulation.ingestion import (
+    CHUNK_SIZE,
     ingest_data_from_file_into_postgis,
     ingest_data_from_ogc_service_into_postgis,
     ingest_data_from_url_into_postgis,
@@ -21,6 +22,7 @@ from data_manipulation.type_detection import detect_column_type_from_sqla
 
 __all__ = [
     "hello",
+    "CHUNK_SIZE",
     "ingest_data_from_file_into_postgis",
     "ingest_data_from_ogc_service_into_postgis",
     "ingest_data_from_url_into_postgis",

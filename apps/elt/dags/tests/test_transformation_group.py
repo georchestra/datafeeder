@@ -5,6 +5,8 @@ import sys
 import types
 from pathlib import Path
 
+import pytest
+
 
 class _FakeTask:
     """Stand-in for a decorated Airflow task: records kwargs, supports >>."""
@@ -56,6 +58,7 @@ def _load_transformation_module():
     trigger_rule_stub.TriggerRule = _TriggerRule  # type: ignore[attr-defined]
 
     dm_stub = types.ModuleType("data_manipulation")
+    dm_stub.CHUNK_SIZE = 10000  # type: ignore[attr-defined]
     dm_stub.IntegrityTransformation = type("IntegrityTransformation", (), {})  # type: ignore[attr-defined]
     dm_stub.read_and_transform_data = lambda *a, **kw: None  # type: ignore[attr-defined]
     dm_stub.write_data_to_postgis = lambda *a, **kw: None  # type: ignore[attr-defined]
@@ -112,6 +115,88 @@ def _clean_task_kwargs(**factory_kwargs) -> dict:
     group = _transformation.process_transformation_group(**factory_kwargs)
     group()  # execute the group body so the @task decorators run
     return _TASK_REGISTRY["clean_staging_table_task"].kwargs
+
+
+def _build_read_task(**factory_kwargs) -> _FakeTask:
+    """Build the group and return its read_transform_write_task wrapper."""
+    _TASK_REGISTRY.clear()
+    group = _transformation.process_transformation_group(**factory_kwargs)
+    group()
+    return _TASK_REGISTRY["read_transform_write_task"]
+
+
+class TestReadTransformWriteChunking:
+    """The read/transform/write task streams the staging table in chunks."""
+
+    class _FakeFrame:
+        def __init__(self, n: int) -> None:
+            self._n = n
+
+        @property
+        def empty(self) -> bool:
+            return self._n == 0
+
+        def __len__(self) -> int:
+            return self._n
+
+    def _run_task(self, monkeypatch, chunk_lengths, chunk_size=2):
+        """Execute the task with read_and_transform_data yielding chunk_lengths."""
+        read_calls: list[dict] = []
+        write_calls: list[dict] = []
+
+        frames = [self._FakeFrame(n) for n in chunk_lengths]
+
+        def fake_read(**kwargs):
+            read_calls.append(kwargs)
+            return frames.pop(0) if frames else self._FakeFrame(0)
+
+        def fake_write(**kwargs):
+            write_calls.append(kwargs)
+
+        monkeypatch.setattr(_transformation, "CHUNK_SIZE", chunk_size)
+        monkeypatch.setattr(_transformation, "read_and_transform_data", fake_read)
+        monkeypatch.setattr(_transformation, "write_data_to_postgis", fake_write)
+        monkeypatch.setattr(_transformation, "create_schema", lambda *a, **kw: None)
+        monkeypatch.setattr(_transformation, "get_data_sql_engine", lambda: object())
+        monkeypatch.setattr(_transformation, "get_staging_schema", lambda: "staging")
+
+        task = _build_read_task(group_id="g")
+        context = {
+            "params": {
+                "final_table_name": "final_t",
+                "staging_table_name": "staging_t",
+                "integrity_transformation": {},
+            },
+            "ti": object(),
+        }
+        task.fn(**context)
+        return read_calls, write_calls
+
+    def test_streams_in_chunks_with_offsets(self, monkeypatch):
+        """Two full chunks then a short chunk: reads paginate by offset, writes append."""
+        read_calls, write_calls = self._run_task(monkeypatch, [2, 2, 1], chunk_size=2)
+
+        assert [c["offset"] for c in read_calls] == [0, 2, 4]
+        assert all(c["limit"] == 2 for c in read_calls)
+
+        assert len(write_calls) == 3
+        assert write_calls[0]["if_exists"] == "replace"
+        assert write_calls[0]["create_id"] is True
+        assert all(w["if_exists"] == "append" for w in write_calls[1:])
+        assert all(w["create_id"] is False for w in write_calls[1:])
+
+    def test_short_first_chunk_stops_after_one_read(self, monkeypatch):
+        """A first chunk smaller than CHUNK_SIZE ends the loop without an extra query."""
+        read_calls, write_calls = self._run_task(monkeypatch, [1], chunk_size=2)
+
+        assert len(read_calls) == 1
+        assert len(write_calls) == 1
+        assert write_calls[0]["if_exists"] == "replace"
+
+    def test_empty_staging_raises(self, monkeypatch):
+        """An empty staging table raises and never writes."""
+        with pytest.raises(Exception, match="Failed to transform and load data"):
+            self._run_task(monkeypatch, [0], chunk_size=2)
 
 
 class TestCleanStagingTableTriggerRule:
