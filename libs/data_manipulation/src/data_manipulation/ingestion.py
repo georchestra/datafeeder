@@ -36,6 +36,7 @@ _ENCODING_DETECT_BYTES = 256 * 1024
 # (only one chunk is held in memory / converted to WKB at a time) for large files.
 CHUNK_SIZE = int(os.getenv("DATAFEEDER_CHUNK_SIZE", 25000))
 
+
 def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
     metadata = MetaData(schema=schema)
     table = Table(table_name, metadata, autoload_with=engine)
