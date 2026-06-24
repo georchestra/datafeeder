@@ -12,6 +12,7 @@ from ai.metadata_generator_models import GeneratedMetadata, LlmMetadataMode
 from ai.utils import load_prompt
 
 logger = logging.getLogger(__name__)
+_MAX_PROMPT_KEYWORDS = 100
 
 
 def _format_sample(sample_rows: list[dict[str, object]] | None) -> str:
@@ -39,6 +40,65 @@ def _format_column_headers(
         f"{n} ({column_types[n]})" if column_types and n in column_types else n
         for n in column_names
     )
+
+
+def _format_keywords_for_prompt(keywords: list[str] | None) -> str:
+    """Deduplicate and cap keywords before injecting them into the LLM prompt."""
+    if not keywords:
+        return ""
+
+    # Keep order, drop empty values, and hard-cap size to avoid prompt bloat.
+    seen: set[str] = set()
+    cleaned = [k.strip() for k in keywords if k.strip()]
+    deduped = [k for k in cleaned if not (k in seen or seen.add(k))]
+    return ", ".join(deduped[:_MAX_PROMPT_KEYWORDS])
+
+
+def _format_title_for_prompt(
+    table_name: str,
+    title: str | None,
+    current_values: dict[str, Any] | None,
+) -> str:
+    """Resolve title value sent to the prompt."""
+    return (current_values.get("title") if current_values else None) or title or table_name
+
+
+def _format_bbox_for_prompt(bbox: str | None) -> str:
+    """Normalize bbox value for prompt injection."""
+    return bbox or "not available"
+
+
+def _format_current_abstract_for_prompt(current_values: dict[str, Any] | None) -> str:
+    """Format current abstract value for rewrite mode context."""
+    if current_values and current_values.get("abstract"):
+        return f"{current_values['abstract']}"
+    return ""
+
+
+def _format_current_keywords_for_prompt(current_values: dict[str, Any] | None) -> str:
+    """Format current keywords value for rewrite mode context."""
+    if current_values and current_values.get("keywords"):
+        return f"{current_values['keywords']}"
+    return ""
+
+
+def _format_current_topics_for_prompt(current_values: dict[str, Any] | None) -> str:
+    """Format current topics value for rewrite mode context."""
+    if current_values and current_values.get("topics"):
+        return f"{current_values['topics']}"
+    return ""
+
+
+def _format_topics_for_prompt(priority_topic_categories: list[str] | None) -> str:
+    """Format preferred topic categories for prompt injection."""
+    return ", ".join(priority_topic_categories) if priority_topic_categories else ""
+
+
+def _format_extra_context_for_prompt(
+    extra_context: str | dict[str, Any] | None,
+) -> str | dict[str, Any]:
+    """Format extra context payload for prompt injection."""
+    return extra_context if extra_context else ""
 
 
 def generate_metadata(
@@ -91,30 +151,16 @@ def generate_metadata(
 
     result = chain.invoke(
         {
-            "title": (current_values.get("title") if current_values else None)
-            or title
-            or table_name,
+            "title": _format_title_for_prompt(table_name, title, current_values),
             "columns_with_types": _format_column_headers(column_names, column_types),
             "sample": _format_sample(sample_rows),
-            "bbox": bbox or "not available",
-            "current_abstract": (
-                f"{current_values['abstract']}"
-                if current_values and current_values.get("abstract")
-                else ""
-            ),
-            "current_keywords": (
-                f"{current_values['keywords']}"
-                if current_values and current_values.get("keywords")
-                else ""
-            ),
-            "current_topics": (
-                f"{current_values['topics']}"
-                if current_values and current_values.get("topics")
-                else ""
-            ),
-            "keywords": (", ".join(keywords) if keywords else ""),
-            "topics": (", ".join(priority_topic_categories) if priority_topic_categories else ""),
-            "extra_context": (extra_context if extra_context else ""),
+            "bbox": _format_bbox_for_prompt(bbox),
+            "current_abstract": _format_current_abstract_for_prompt(current_values),
+            "current_keywords": _format_current_keywords_for_prompt(current_values),
+            "current_topics": _format_current_topics_for_prompt(current_values),
+            "keywords": _format_keywords_for_prompt(keywords),
+            "topics": _format_topics_for_prompt(priority_topic_categories),
+            "extra_context": _format_extra_context_for_prompt(extra_context),
             "mode_instruction": (
                 "REWRITE — improve, rephrase and enrich the existing values if provided above. "
                 "Keep the meaning but make them clearer, more professional and more complete."
