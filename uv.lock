@@ -46,11 +46,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "arize-phoenix-otel", marker = "extra == 'phoenix'", specifier = ">=0.6" },
-    { name = "langchain-core", specifier = ">=0.3" },
-    { name = "langchain-mistralai", marker = "extra == 'mistral'", specifier = ">=0.2" },
-    { name = "langchain-ollama", marker = "extra == 'ollama'", specifier = ">=0.3" },
-    { name = "langchain-openai", specifier = ">=0.3" },
-    { name = "langchain-openrouter", marker = "extra == 'openrouter'", specifier = ">=0.1" },
+    { name = "langchain-core", specifier = ">=0.3,<2.0" },
+    { name = "langchain-mistralai", marker = "extra == 'mistral'", specifier = ">=0.2,<2.0" },
+    { name = "langchain-ollama", marker = "extra == 'ollama'", specifier = ">=0.3,<2.0" },
+    { name = "langchain-openai", specifier = ">=0.3,<2.0" },
+    { name = "langchain-openrouter", marker = "extra == 'openrouter'", specifier = ">=0.1,<1.0" },
     { name = "openinference-instrumentation-langchain", marker = "extra == 'phoenix'", specifier = ">=0.1" },
     { name = "pydantic", specifier = ">=2.0" },
 ]

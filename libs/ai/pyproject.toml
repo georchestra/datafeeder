@@ -14,15 +14,16 @@ description = "AI/LLM utilities for Datafeeder (metadata generation, etc.)"
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
-    "langchain-core>=0.3",
-    "langchain-openai>=0.3",   # default provider; always installed
+    "langchain-core>=0.3,<2.0",
+    "langchain-openai>=0.3,<2.0",   # default provider; always installed
     "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
-ollama      = ["langchain-ollama>=0.3"]
-mistral     = ["langchain-mistralai>=0.2"]
-openrouter  = ["langchain-openrouter>=0.1"]
+# Optional providers with flexible versioning to ensure resolver can find compatible versions
+ollama      = ["langchain-ollama>=0.3,<2.0"]
+mistral     = ["langchain-mistralai>=0.2,<2.0"]
+openrouter  = ["langchain-openrouter>=0.1,<1.0"]
 phoenix = [
     "arize-phoenix-otel>=0.6",
     "openinference-instrumentation-langchain>=0.1",

@@ -250,13 +250,6 @@ export class DataImportWizardComponent {
     this.destroyRef.onDestroy(() => this.footerService.setContent(null))
 
     effect(() => {
-      const link = this.integrityLinkStore.integrityLink()
-      if (link && !link.last_retrieval_timestamp) {
-        untracked(() => this.generateMetadataWithAi.set(true))
-      }
-    })
-
-    effect(() => {
       const tpl = this.footerTpl()
       untracked(() => this.footerService.setContent(tpl ?? null))
     })

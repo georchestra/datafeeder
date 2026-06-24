@@ -1,4 +1,15 @@
-"""LLM provider factory — returns a LangChain BaseChatModel for the requested provider."""
+"""LLM provider factory — returns a LangChain BaseChatModel for the requested provider.
+
+Provider-Specific Compatibility:
+- `reasoning` kwarg (passed as `think` parameter) is handled differently per provider:
+  * ChatOllama: accepts `reasoning=bool | None` (provider-specific feature)
+  * ChatOpenRouter: accepts `reasoning=dict | None` with {"effort": "light|medium|hard"} levels
+  * ChatOpenAI, ChatMistralAI: don't support reasoning parameter
+- Version pinning (==X.Y.*) ensures consistent behavior across environments.
+- Tests validate each provider can be instantiated without errors.
+
+See: pyproject.toml for strict version constraints.
+"""
 
 from typing import Any, Literal
 
@@ -49,7 +60,10 @@ def get_llm(
         api_key: API key for the provider (openai, mistral, openrouter). Defaults to empty string.
         base_url: Custom base URL (openai-compatible endpoint or ollama host).
         temperature: Sampling temperature (default 0 for deterministic outputs).
-        think: Provider-specific reasoning toggle (currently used for Ollama/OpenRouter).
+        think: Provider-specific reasoning toggle:
+            - ollama: enables/disables reasoning (bool → LLM decision)
+            - openrouter: controls reasoning effort (False="none", True="high")
+            - openai, mistral: parameter ignored (not supported by these providers)
 
     Returns:
         A LangChain BaseChatModel instance.
@@ -57,6 +71,11 @@ def get_llm(
     Raises:
         ValueError: If the provider is not supported.
         ImportError: If the required provider package is not installed.
+
+    Note:
+        Provider SDK version changes may affect parameter handling. Strict version
+        pinning (==X.Y.*) ensures consistent behavior. If parameter compatibility
+        issues arise, update version constraints and run provider smoke tests.
     """
     resolved_model: str = model or _DEFAULT_MODELS.get(provider, "")
 
