@@ -27,6 +27,7 @@ def _fetch_thesaurus_keywords(
     thesaurus_ids: list[str],
     credentials: tuple[str, str],
     max_results: int = 200,
+    verify_tls: bool = True,
 ) -> list[str]:
     """Fetch keyword labels from one or more GeoNetwork thesauruses.
 
@@ -50,7 +51,7 @@ def _fetch_thesaurus_keywords(
                 auth=credentials,
                 params={"maxResults": max_results, "lang": "fre,eng"},
                 timeout=10,
-                verify=False,
+                verify=verify_tls,
             )
             resp.raise_for_status()
             data = resp.json()
@@ -71,6 +72,7 @@ def _fetch_keywords_from_geonetwork(
     gn_api_url: str,
     credentials: tuple[str, str],
     max_results: int = 200,
+    verify_tls: bool = True,
 ) -> list[str]:
     """Fetch keyword labels from all GeoNetwork thesauruses.
 
@@ -92,7 +94,7 @@ def _fetch_keywords_from_geonetwork(
             auth=credentials,
             headers={"Accept": "application/json"},
             timeout=10,
-            verify=False,
+            verify=verify_tls,
         )
         resp.raise_for_status()
         thesaurus_ids = [t["key"] for t in resp.json() if "key" in t]
@@ -102,12 +104,19 @@ def _fetch_keywords_from_geonetwork(
         return []
 
     # Step 2: fetch keywords for each thesaurus
-    return _fetch_thesaurus_keywords(gn_api_url, thesaurus_ids, credentials, max_results)
+    return _fetch_thesaurus_keywords(
+        gn_api_url,
+        thesaurus_ids,
+        credentials,
+        max_results,
+        verify_tls=verify_tls,
+    )
 
 
 def _fetch_topic_categories_from_geonetwork(
     gn_api_url: str,
     credentials: tuple[str, str],
+    verify_tls: bool = True,
 ) -> list[str]:
     """Fetch ISO 19115 MD_TopicCategoryCode values from GeoNetwork's registries API.
 
@@ -132,7 +141,7 @@ def _fetch_topic_categories_from_geonetwork(
             headers={"Accept": "application/json"},
             params={"registry": registry_url, "lang": "fre", "rows": 50},
             timeout=10,
-            verify=False,
+            verify=verify_tls,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -371,6 +380,7 @@ def generate_metadata_suggestions(
         priority_kw = _fetch_keywords_from_geonetwork(
             gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+            verify_tls=settings.GEONETWORK_VERIFY_TLS,
         )
     except Exception as e:
         logger.warning(f"Failed to fetch keywords from GeoNetwork: {e}", exc_info=True)
@@ -381,6 +391,7 @@ def generate_metadata_suggestions(
         topics = _fetch_topic_categories_from_geonetwork(
             gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+            verify_tls=settings.GEONETWORK_VERIFY_TLS,
         )
     except Exception as e:
         logger.warning(f"Failed to fetch topic categories from GeoNetwork: {e}", exc_info=True)
@@ -456,7 +467,7 @@ def generate_ai_metadata(
             gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
             datadir_path=settings.DATADIR_PATH,
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-            verify_tls=False,
+            verify_tls=settings.GEONETWORK_VERIFY_TLS,
         )
         metadata_service.update_ai_metadata(
             metadata_uuid=str(integrity_link.metadata_id),

@@ -179,6 +179,8 @@ class Settings(BaseSettings):
 
     GEONETWORK_PASSWORD: str = "testadmin"
 
+    GEONETWORK_VERIFY_TLS: bool = True
+
     # This is odd, apparently any UUID works as XSRF token
     GEONETWORK_XSRF_TOKEN: str = "c9f33266-e242-4198-a18c-b01290dce5f1"
 
