@@ -226,7 +226,7 @@
   >
     <button
       type="button"
-      class="flex items-center gap-2.5 pl-3 pr-1 py-2 bg-transparent text-secondary-darker text-[1em] leading-none font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+      class="flex items-center gap-2.5 pl-3 pr-4 py-2 bg-transparent text-secondary-darker text-[1em] leading-none font-medium disabled:opacity-40 disabled:cursor-not-allowed"
       [disabled]="isGeneratingAI() || aiSelectedFieldsCount() === 0"
       (click)="onGenerateWithAI(lastAiMode())"
     >
@@ -244,19 +244,20 @@
           | translate
       }}
     </button>
+    <!--
     <button
       type="button"
       class="flex items-center justify-center px-2 py-2 bg-transparent text-secondary hover:bg-secondary-dark/20 rounded-r-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       [disabled]="isGeneratingAI()"
       (click)="toggleAiDropdown()"
       [attr.aria-expanded]="aiDropdownOpen()"
-    >
+    > Dropdown arrow 
       <ng-icon
         name="iconoirNavArrowDown"
         size="1em"
         class="flex-shrink-0 transition-transform"
         [class.rotate-180]="aiDropdownOpen()"
       />
-    </button>
+    </button> -->
   </div>
 </div>
