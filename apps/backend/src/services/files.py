@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import UploadFile
+from starlette.concurrency import run_in_threadpool
 
 from src.core.config import get_settings
 from src.models.data_import import EXTENSION_MAP, FileType
@@ -61,7 +62,7 @@ async def upload_file_to_temp(
         if not content:
             raise ValueError("Empty file uploaded")
 
-        file_path.write_bytes(content)
+        await run_in_threadpool(file_path.write_bytes, content)
 
         if not file_path.exists():
             raise IOError(f"File was not created: {file_path}")

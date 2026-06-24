@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import tempfile
 import xml.etree.ElementTree as ET
@@ -33,7 +34,7 @@ DEFAULT_SCHEMA = "public"
 _ENCODING_DETECT_BYTES = 256 * 1024
 # Number of rows read and written to PostGIS per chunk. Keeps the memory footprint low
 # (only one chunk is held in memory / converted to WKB at a time) for large files.
-CHUNK_SIZE = 50000
+CHUNK_SIZE = int(os.getenv("DATAFEEDER_CHUNK_SIZE", 50000))
 
 
 def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
