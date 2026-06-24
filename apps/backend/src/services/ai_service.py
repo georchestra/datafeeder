@@ -301,7 +301,14 @@ def generate_metadata_suggestions(
         Exception: On LLM or data fetching errors
     """
     if not settings.AI_ENABLED:
-        raise ValueError("AI metadata generation is disabled (AI_ENABLED=False)")
+        raise ValueError("AI metadata generation is disabled")
+
+    system_prompt_path = (Path(settings.AI_METADATA_SYSTEM_PROMPT_FILE)
+        if settings.AI_METADATA_SYSTEM_PROMPT_FILE
+        else None)
+    human_prompt_path = (Path(settings.AI_METADATA_HUMAN_PROMPT_FILE)
+        if settings.AI_METADATA_HUMAN_PROMPT_FILE
+        else None)
 
     if data_source == "staging":
         if not integrity_link.staging_table_name:
@@ -385,12 +392,8 @@ def generate_metadata_suggestions(
             bbox=bbox,
             keywords=priority_kw or None,
             priority_topic_categories=topics or None,
-            system_prompt_path=Path(settings.AI_METADATA_SYSTEM_PROMPT_FILE)
-            if settings.AI_METADATA_SYSTEM_PROMPT_FILE
-            else None,
-            human_prompt_path=Path(settings.AI_METADATA_HUMAN_PROMPT_FILE)
-            if settings.AI_METADATA_HUMAN_PROMPT_FILE
-            else None,
+            system_prompt_path=system_prompt_path,
+            human_prompt_path=human_prompt_path,
             mode=mode,
             current_values=current_values if mode == "rewrite" else None,
         )

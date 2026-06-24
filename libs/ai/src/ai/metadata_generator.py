@@ -123,8 +123,8 @@ def generate_metadata(
     """
     parser = PydanticOutputParser(pydantic_object=GeneratedMetadata)
 
-    system_prompt = load_prompt("metadata_system.txt", system_prompt_path)
-    human_prompt = load_prompt("metadata_human.txt", human_prompt_path)
+    system_prompt = load_prompt(system_prompt_path, default="metadata_system.md")
+    human_prompt = load_prompt(human_prompt_path, default="metadata_human.md")
 
     prompt = ChatPromptTemplate.from_messages(
         [("system", system_prompt), ("human", human_prompt)]
@@ -162,10 +162,10 @@ def generate_metadata(
             "topics": (", ".join(priority_topic_categories) if priority_topic_categories else ""),
             "extra_context": (extra_context if extra_context else ""),
             "mode_instruction": (
-                "REWRITE — improve, rephrase and enrich the existing values provided above. "
+                "REWRITE — improve, rephrase and enrich the existing values if provided above. "
                 "Keep the meaning but make them clearer, more professional and more complete."
                 if mode == "rewrite"
-                else "REGENERATE — For title only, minor rewording allowed to integrate current_abstract location. Other fields: no reformulation."
+                else "REGENERATE — For title only, minor rewording allowed to integrate current_abstract location if provided. Other fields: no reformulation."
             ),
         }
     )

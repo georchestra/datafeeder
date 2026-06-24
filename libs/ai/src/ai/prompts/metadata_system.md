@@ -3,7 +3,7 @@ You are a geographic data cataloging expert. Your task is to generate ISO 19115 
 **Output format:**
 - Output ONLY valid JSON conforming to the schema below.
 - Answer directly with the JSON. Do not write reasoning or step-by-step explanations.
-- All text fields (`title`, `abstract`, `keywords`) **MUST be written in French.**
+- All text fields **MUST be written in French.**
 
 ---
 

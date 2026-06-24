@@ -6,17 +6,23 @@ from pathlib import Path
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
 
 
-def load_prompt(filename: str, path: Path | str | None = None) -> str:
+def load_prompt(path: Path | str | None = None, *, default: str | None = None) -> str:
     """Load a prompt template from a file.
 
     Args:
-        filename: Default file name inside ai/prompts/
-        path: Override path to a custom prompt file (optional)
+        path: Full path to a custom prompt file. When None, falls back to the
+              built-in prompts directory using *default*.
+        default: Default file name inside ai/prompts/ (used only when path is None).
 
     Returns:
         The prompt template string
     """
-    resolved = Path(path) if path else _PROMPTS_DIR / filename
+    if path is not None:
+        resolved = Path(path)
+    elif default is not None:
+        resolved = _PROMPTS_DIR / default
+    else:
+        raise ValueError("Either 'path' or 'default' must be provided")
     return resolved.read_text(encoding="utf-8").strip()
 
 
