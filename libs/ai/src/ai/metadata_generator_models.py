@@ -1,4 +1,8 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+LlmMetadataMode = Literal["regenerate", "rewrite"]
 
 
 class AttributeInfo(BaseModel):

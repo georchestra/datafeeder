@@ -6,6 +6,7 @@ from functools import lru_cache
 from string import Template
 from typing import Annotated, Any, Literal
 
+from ai.providers import Provider
 from data_manipulation.logging import configure_logging
 from pydantic import (
     AliasChoices,
@@ -190,7 +191,7 @@ class Settings(BaseSettings):
 
     # AI metadata generation
     AI_ENABLED: bool = False
-    AI_PROVIDER: str = "openai"
+    AI_PROVIDER: Provider = "openai"
     AI_MODEL: str = ""
     AI_API_KEY: str = ""
     AI_BASE_URL: str = ""

@@ -8,7 +8,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-from ai.metadata_generator_models import GeneratedMetadata
+from ai.metadata_generator_models import GeneratedMetadata, LlmMetadataMode
 from ai.utils import load_prompt
 
 logger = logging.getLogger(__name__)
@@ -21,6 +21,24 @@ def _format_sample(sample_rows: list[dict[str, object]] | None) -> str:
     headers = list(sample_rows[0].keys())
     lines = [", ".join(str(row.get(h, "")) for h in headers) for row in sample_rows]
     return "\n".join(lines)
+
+
+def _format_column_headers(
+    column_names: list[str], column_types: dict[str, str] | None = None
+) -> str:
+    """Format column names with their types as a comma-separated string.
+
+    Args:
+        column_names: List of column names
+        column_types: Optional mapping of column name → SQL type string
+
+    Returns:
+        Formatted string like "col1 (type1), col2, col3 (type3)"
+    """
+    return ", ".join(
+        f"{n} ({column_types[n]})" if column_types and n in column_types else n
+        for n in column_names
+    )
 
 
 def generate_metadata(
@@ -36,7 +54,7 @@ def generate_metadata(
     priority_topic_categories: list[str] | None = None,
     system_prompt_path: Path | str | None = None,
     human_prompt_path: Path | str | None = None,
-    mode: str = "regenerate",
+    mode: LlmMetadataMode = "regenerate",
     current_values: dict[str, Any] | None = None,
 ) -> GeneratedMetadata:
     """Generate dataset metadata using an LLM.
@@ -76,10 +94,7 @@ def generate_metadata(
             "title": (current_values.get("title") if current_values else None)
             or title
             or table_name,
-            "columns_with_types": ", ".join(
-                f"{n} ({column_types[n]})" if column_types and n in column_types else n
-                for n in column_names
-            ),
+            "columns_with_types": _format_column_headers(column_names, column_types),
             "sample": _format_sample(sample_rows),
             "bbox": bbox or "not available",
             "current_abstract": (

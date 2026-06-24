@@ -53,18 +53,11 @@ def generate_metadata_for_integrity_link(
     """
     settings = get_settings()
 
-    try:
-        # Load and authorize integrity link
-        integrity_link, _ = load_authorized_integrity_link(
-            intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, group_ids
-        )
-
-    except Exception:
-        logger.error(f"Failed to load integrity link {intlink_id}", exc_info=True)
-        raise
+    integrity_link, _ = load_authorized_integrity_link(
+        intlink_id, AccessLevel.METADATA_WRITE, geo_ctx, session, group_ids
+    )
 
     try:
-        # Generate metadata suggestions using the AI service
         result = generate_metadata_suggestions(
             integrity_link,
             settings,

@@ -6,7 +6,7 @@ from typing import Any, Literal
 import geopandas as gpd
 import requests
 from ai.metadata_generator import generate_metadata
-from ai.metadata_generator_models import GeneratedMetadata
+from ai.metadata_generator_models import GeneratedMetadata, LlmMetadataMode
 from ai.providers import get_llm
 from ai.utils import pg_type_to_iso19110  # type: ignore[import-untyped]
 from data_manipulation.ingestion import read_and_transform_data
@@ -283,7 +283,7 @@ def generate_metadata_suggestions(
     integrity_link: IntegrityLink,
     settings: Settings,
     data_source: Literal["staging", "final"] = "staging",
-    mode: str = "regenerate",
+    mode: LlmMetadataMode = "regenerate",
     current_values: dict[str, Any] | None = None,
     extra_context: str | None = None,
 ) -> GeneratedMetadata:
@@ -341,15 +341,15 @@ def generate_metadata_suggestions(
 
     try:
         llm = get_llm(
-            provider=settings.AI_PROVIDER,  # type: ignore[arg-type]
+            provider=settings.AI_PROVIDER,
             model=settings.AI_MODEL or None,
-            api_key=settings.AI_API_KEY or None,
+            api_key=settings.AI_API_KEY or "",
             base_url=settings.AI_BASE_URL or None,
             temperature=settings.AI_METADATA_TEMPERATURE,
             think=False,
         )
-    except Exception as e:
-        logger.error(f"Failed to initialize LLM: {e}", exc_info=True)
+    except Exception:
+        logger.error("Failed to initialize LLM")
         raise
 
     try:
@@ -373,7 +373,7 @@ def generate_metadata_suggestions(
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         )
     except Exception as e:
-        logger.warning(f"[AI Service] Failed to fetch keywords: {e}")
+        logger.warning(f"Failed to fetch keywords from GeoNetwork: {e}", exc_info=True)
         priority_kw = []
 
     try:
@@ -382,7 +382,8 @@ def generate_metadata_suggestions(
             gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
         )
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to fetch topic categories from GeoNetwork: {e}", exc_info=True)
         topics = []
 
     try:

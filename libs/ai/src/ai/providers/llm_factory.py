@@ -4,6 +4,7 @@ from typing import Any, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 try:
     from langchain_ollama import ChatOllama as _ChatOllama
@@ -33,11 +34,10 @@ _DEFAULT_MODELS: dict[str, str] = {
 def get_llm(
     provider: Provider,
     model: str | None = None,
-    api_key: str | None = None,
+    api_key: str = "",
     base_url: str | None = None,
     temperature: float = 0,
     think: bool = False,
-    **kwargs: Any,
 ) -> BaseChatModel:
     """Return a LangChain chat model for the given provider.
 
@@ -46,11 +46,10 @@ def get_llm(
     Args:
         provider: LLM provider name: "openai", "ollama", "mistral", or "openrouter".
         model: Model name. Defaults to the provider default if not provided.
-        api_key: API key for the provider (openai, mistral, openrouter).
+        api_key: API key for the provider (openai, mistral, openrouter). Defaults to empty string.
         base_url: Custom base URL (openai-compatible endpoint or ollama host).
         temperature: Sampling temperature (default 0 for deterministic outputs).
         think: Provider-specific reasoning toggle (currently used for Ollama/OpenRouter).
-        **kwargs: Additional provider-specific overrides.
 
     Returns:
         A LangChain BaseChatModel instance.
@@ -68,7 +67,7 @@ def get_llm(
         return ChatOpenAI(
             model=resolved_model,
             temperature=temperature,
-            api_key=api_key,  # type: ignore[arg-type]
+            api_key=SecretStr(api_key) if api_key else None,
             base_url=base_url or None,
             model_kwargs=openai_model_kwargs,
         )
@@ -91,7 +90,7 @@ def get_llm(
         return _ChatMistralAI(
             model=resolved_model,
             temperature=temperature,
-            api_key=api_key,  # type: ignore[arg-type]
+            api_key=SecretStr(api_key) if api_key else None,
         )
 
     if provider == "openrouter":
@@ -102,6 +101,6 @@ def get_llm(
         return _ChatOpenRouter(
             model=resolved_model,
             temperature=temperature,
-            openrouter_api_key=api_key,  # type: ignore[arg-type]
+            api_key=SecretStr(api_key) if api_key else None,
             reasoning=None if think else {"effort": "none"},
         )
