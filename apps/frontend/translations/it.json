@@ -190,7 +190,7 @@
   "footer.aiGeneratingMetadata": "Generazione in corso...",
   "footer.ai.rewriteAndImprove": "Riscrivi e migliora",
   "footer.ai.rewriteAndImprove.hint": "Perfeziona e valorizza il risultato",
-  "footer.ai.regenerate": "Genera da zero",
+  "footer.ai.regenerate": "Genera con l'IA",
   "footer.ai.regenerate.hint": "Basato solo sul dataset, ignorando i metadati esistenti",
   "footer.ai.addYourPrompt": "Aggiungi istruzione",
   "footer.ai.addYourPrompt.hint": "Scrivi un'istruzione personalizzata",

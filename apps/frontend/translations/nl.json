@@ -190,7 +190,7 @@
   "footer.aiGeneratingMetadata": "Genereren...",
   "footer.ai.rewriteAndImprove": "Herschrijven & verbeteren",
   "footer.ai.rewriteAndImprove.hint": "Verfijnen en opwaarderen",
-  "footer.ai.regenerate": "Genereren vanaf nul",
+  "footer.ai.regenerate": "Genereren met AI",
   "footer.ai.regenerate.hint": "Alleen op basis van de dataset, bestaande metadata wordt genegeerd",
   "footer.ai.addYourPrompt": "Eigen instructie toevoegen",
   "footer.ai.addYourPrompt.hint": "Schrijf een aangepaste instructie",

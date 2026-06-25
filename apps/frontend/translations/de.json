@@ -190,7 +190,7 @@
   "footer.aiGeneratingMetadata": "Generierung läuft...",
   "footer.ai.rewriteAndImprove": "Umschreiben & verbessern",
   "footer.ai.rewriteAndImprove.hint": "Ausgabe verfeinern und aufwerten",
-  "footer.ai.regenerate": "Von Grund auf generieren",
+  "footer.ai.regenerate": "Mit KI generieren",
   "footer.ai.regenerate.hint": "Nur auf Basis des Datensatzes, bestehende Metadaten werden ignoriert",
   "footer.ai.addYourPrompt": "Eigene Anweisung hinzufügen",
   "footer.ai.addYourPrompt.hint": "Eine benutzerdefinierte Anweisung schreiben",

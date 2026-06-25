@@ -222,11 +222,11 @@
   }
   <!-- Split button -->
   <div
-    class="group/btn flex rounded-lg overflow-hidden hover:bg-secondary-active transition-colors"
+    class="group/btn min-w-[200px] py-0.5 flex items-center justify-center rounded overflow-hidden border border-transparent hover:border hover:bg-secondary-active transition-colors"
   >
     <button
       type="button"
-      class="flex items-center gap-2.5 pl-3 pr-4 py-2 bg-transparent text-secondary-darker text-[1em] leading-none font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+      class="w-full flex items-center justify-center gap-2.5 pl-2 pr-3 py-2 bg-transparent text-secondary-darker text-[1em] leading-none font-medium text-center disabled:opacity-40 disabled:cursor-not-allowed"
       [disabled]="isGeneratingAI() || aiSelectedFieldsCount() === 0"
       (click)="onGenerateWithAI(lastAiMode())"
     >
