@@ -187,8 +187,6 @@
   "footer.next.events": "Schedule recurrence and check events",
   "footer.next.recurrence": "Schedule recurrence",
   "footer.next.resources": "Add related resources",
-  "footer.aiGeneratingMetadata": "Generating...",
-  "footer.ai.rewriteAndImprove": "Rewrite & improve",
   "footer.ai.rewriteAndImprove.hint": "Polish and elevate the output",
   "footer.ai.regenerate": "Generate with AI",
   "footer.ai.regenerate.hint": "Based on dataset only, ignoring existing metadata",

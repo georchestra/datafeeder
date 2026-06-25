@@ -187,8 +187,6 @@
   "footer.next.events": "",
   "footer.next.recurrence": "",
   "footer.next.resources": "",
-  "footer.aiGeneratingMetadata": "Genereren...",
-  "footer.ai.rewriteAndImprove": "Herschrijven & verbeteren",
   "footer.ai.rewriteAndImprove.hint": "Verfijnen en opwaarderen",
   "footer.ai.regenerate": "Genereren met AI",
   "footer.ai.regenerate.hint": "Alleen op basis van de dataset, bestaande metadata wordt genegeerd",

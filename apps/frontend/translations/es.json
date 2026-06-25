@@ -187,8 +187,6 @@
   "footer.next.events": "",
   "footer.next.recurrence": "",
   "footer.next.resources": "",
-  "footer.aiGeneratingMetadata": "Generando...",
-  "footer.ai.rewriteAndImprove": "Reescribir y mejorar",
   "footer.ai.rewriteAndImprove.hint": "Pulir y enriquecer el resultado",
   "footer.ai.regenerate": "Generar con IA",
   "footer.ai.regenerate.hint": "Basado solo en el conjunto de datos, ignorando los metadatos existentes",

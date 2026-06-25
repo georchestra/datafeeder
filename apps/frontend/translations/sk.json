@@ -187,8 +187,6 @@
   "footer.next.events": "",
   "footer.next.recurrence": "",
   "footer.next.resources": "",
-  "footer.aiGeneratingMetadata": "Generovanie...",
-  "footer.ai.rewriteAndImprove": "Prepísať a zlepšiť",
   "footer.ai.rewriteAndImprove.hint": "Vylepšiť a obohatiť výstup",
   "footer.ai.regenerate": "Generovať pomocou AI",
   "footer.ai.regenerate.hint": "Len na základe dátovéj sady, existujúce metadáta sú ignorované",

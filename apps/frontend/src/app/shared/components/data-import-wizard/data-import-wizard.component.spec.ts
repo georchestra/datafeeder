@@ -1275,7 +1275,11 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
 
     component.importData.update((d) => ({
       ...d,
-      source: { type: 'file', file: new File([], 'test.csv') }
+      source: {
+        type: 'file',
+        file: new File([], 'test.csv'),
+        authEnabled: false
+      }
     }))
 
     expect(component.cantConfigureDataset()).toBe(false)
@@ -1288,7 +1292,11 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
 
     component.importData.update((d) => ({
       ...d,
-      source: { type: 'file', file: new File([], 'test.csv') }
+      source: {
+        type: 'file',
+        file: new File([], 'test.csv'),
+        authEnabled: false
+      }
     }))
     component.importing.set(true)
 
@@ -1626,6 +1634,9 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
 // AI metadata generation toggle tests
 describe('DataImportWizardComponent - Generate Metadata With AI Toggle', () => {
   const mockSettingsService = {
+    currentSettings: signal({
+      projections: []
+    }),
     getSetting: vi.fn((key: string) =>
       key === 'enabled_features' ? ['ai_metadata'] : undefined
     )

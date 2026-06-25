@@ -188,8 +188,6 @@
   "footer.next.events": "Suivant",
   "footer.next.recurrence": "Suivant",
   "footer.next.resources": "Suivant",
-  "footer.aiGeneratingMetadata": "Génération en cours...",
-  "footer.ai.rewriteAndImprove": "Réécrire et améliorer",
   "footer.ai.rewriteAndImprove.hint": "Affiner et enrichir le résultat",
   "footer.ai.regenerate": "Générer avec l'IA",
   "footer.ai.regenerate.hint": "Basé uniquement sur le jeu de données, sans tenir compte des métadonnées existantes",
