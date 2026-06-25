@@ -100,7 +100,9 @@
   </gn-ui-button>
   }
   <div class="flex-1"></div>
-  @if (currentPageSignal() !== 0) {
+  @if (currentPageSignal() === 0 && aiMetadataEnabled()) {
+  <app-ai-generate-button />
+  } @if (currentPageSignal() !== 0) {
   <gn-ui-button type="outline" (buttonClick)="previousPageButtonHandler()">
     {{ 'footer.previous' | translate }}
   </gn-ui-button>

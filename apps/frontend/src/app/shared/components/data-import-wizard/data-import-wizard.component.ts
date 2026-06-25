@@ -21,7 +21,11 @@ import {
   iconoirXmark
 } from '@ng-icons/iconoir'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
-import { ButtonComponent, SpinningLoaderComponent } from 'geonetwork-ui'
+import {
+  ButtonComponent,
+  CheckToggleComponent,
+  SpinningLoaderComponent
+} from 'geonetwork-ui'
 import {
   Subject,
   catchError,
@@ -81,6 +85,8 @@ marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
 marker('i18nerror.sync.geonetwork')
 marker('import.metadataPublication.error')
+marker('import.dataSource.generateMetadataWithAi')
+marker('import.dataSource.generateMetadataWithAi.hint')
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 120000
@@ -106,6 +112,7 @@ export interface ImportWizardData {
     MatButtonToggleModule,
     NgIconComponent,
     ButtonComponent,
+    CheckToggleComponent,
     SpinningLoaderComponent,
     DataSourceSelectorComponent,
     DatasetTitleComponent,
@@ -157,6 +164,12 @@ export class DataImportWizardComponent {
     )
   })
 
+  aiMetadataEnabled = computed(() => {
+    const features =
+      this.settingsService.getSetting<string[]>('enabled_features')
+    return features?.includes('ai_metadata') ?? false
+  })
+
   initialDatabaseSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
     if (
@@ -206,6 +219,7 @@ export class DataImportWizardComponent {
   validationError = signal<string | null>(null)
   previewTabIndex = signal(0)
   hasExtentError = signal(false)
+  generateMetadataWithAi = signal(false)
 
   columnConfigs = signal<ColumnConfig[]>([])
   forceProjection = signal<ForceProjection | null>(null)
@@ -672,7 +686,8 @@ export class DataImportWizardComponent {
       await this.api.invoke(processStagingDataIngestionProcessPost, {
         body: {
           integrity_link_id: this.integrityLinkStore.intlinkId()!,
-          title: title
+          title: title,
+          generate_metadata_with_ai: this.generateMetadataWithAi()
         }
       })
 
