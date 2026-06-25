@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Literal
+from typing import Any
 from uuid import UUID
 
+from ai.metadata_generator_models import LlmMetadataDataSource
 from data_manipulation.models import CastType as CastType
 from data_manipulation.models import ColumnConfig as ColumnConfig
 from data_manipulation.models import ColumnFilter as ColumnFilter
@@ -58,7 +59,7 @@ class ProcessRequest(BaseModel):
     title: str | None = None
     recurrence: RecurrencePreset | None = None
     generate_metadata_with_ai: bool = False
-    ai_data_source: Literal["staging", "final"] = "staging"
+    ai_data_source: LlmMetadataDataSource = LlmMetadataDataSource.STAGING
 
 
 class UpdateMetadataGnRequest(BaseModel):

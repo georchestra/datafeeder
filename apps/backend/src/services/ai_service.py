@@ -1,12 +1,16 @@
 """Service for AI-based metadata generation."""
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import geopandas as gpd
 import requests
 from ai.metadata_generator import generate_metadata
-from ai.metadata_generator_models import GeneratedMetadata, LlmMetadataMode
+from ai.metadata_generator_models import (
+    GeneratedMetadata,
+    LlmMetadataDataSource,
+    LlmMetadataMode,
+)
 from ai.providers import get_llm
 from ai.utils import pg_type_to_iso19110  # type: ignore[import-untyped]
 from data_manipulation.ingestion import read_and_transform_data
@@ -291,8 +295,8 @@ def _get_sample_from_final(
 def generate_metadata_suggestions(
     integrity_link: IntegrityLink,
     settings: Settings,
-    data_source: Literal["staging", "final"] = "staging",
-    mode: LlmMetadataMode = "regenerate",
+    data_source: LlmMetadataDataSource = LlmMetadataDataSource.STAGING,
+    mode: LlmMetadataMode = LlmMetadataMode.REGENERATE,
     current_values: dict[str, Any] | None = None,
     extra_context: str | None = None,
 ) -> GeneratedMetadata:
@@ -324,7 +328,7 @@ def generate_metadata_suggestions(
         else None
     )
 
-    if data_source == "staging":
+    if data_source == LlmMetadataDataSource.STAGING:
         if not integrity_link.staging_table_name:
             raise ValueError(f"IntegrityLink {integrity_link.id} has no staging_table_name")
         # Check if the staging table still physically exists (may have been cleaned up by Airflow)
@@ -335,8 +339,8 @@ def generate_metadata_suggestions(
         )
         # Fallback: if the staging table is gone, try to use the final table instead
         if not staging_exists:
-            data_source = "final"
-    if data_source == "final":
+            data_source = LlmMetadataDataSource.FINAL
+    if data_source == LlmMetadataDataSource.FINAL:
         if not integrity_link.final_table_name:
             raise ValueError(
                 f"IntegrityLink {integrity_link.id} has no final_table_name "
@@ -344,7 +348,7 @@ def generate_metadata_suggestions(
             )
     table_name_for_llm: str = (
         integrity_link.staging_table_name
-        if data_source == "staging"
+        if data_source == LlmMetadataDataSource.STAGING
         else integrity_link.final_table_name
     )  # type: ignore[assignment]  # validated non-None above
 
@@ -363,7 +367,7 @@ def generate_metadata_suggestions(
 
     try:
         limit = settings.AI_METADATA_SAMPLE_LIMIT
-        if data_source == "staging":
+        if data_source == LlmMetadataDataSource.STAGING:
             columns, column_types, sample_rows, bbox = _get_sample_from_staging(
                 integrity_link, limit=limit
             )
@@ -412,7 +416,7 @@ def generate_metadata_suggestions(
             system_prompt_path=system_prompt_path,
             human_prompt_path=human_prompt_path,
             mode=mode,
-            current_values=current_values if mode == "rewrite" else None,
+            current_values=current_values if mode == LlmMetadataMode.REWRITE else None,
         )
 
         return result
@@ -424,7 +428,7 @@ def generate_metadata_suggestions(
 def generate_ai_metadata(
     integrity_link: IntegrityLink,
     settings: Settings,
-    data_source: Literal["staging", "final"] = "staging",
+    data_source: LlmMetadataDataSource = LlmMetadataDataSource.STAGING,
 ) -> None:
     """Generate AI metadata for an integrity link and update GeoNetwork.
 
@@ -446,7 +450,7 @@ def generate_ai_metadata(
         )
         return
 
-    if data_source == "final":
+    if data_source == LlmMetadataDataSource.FINAL:
         if not integrity_link.final_table_name:
             logger.warning(
                 f"IntegrityLink {integrity_link.id} has no final_table_name — skipping AI generation"

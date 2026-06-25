@@ -114,7 +114,7 @@ def generate_metadata(
     priority_topic_categories: list[str] | None = None,
     system_prompt_path: Path | str | None = None,
     human_prompt_path: Path | str | None = None,
-    mode: LlmMetadataMode = "regenerate",
+    mode: LlmMetadataMode = LlmMetadataMode.REGENERATE,
     current_values: dict[str, Any] | None = None,
 ) -> GeneratedMetadata:
     """Generate dataset metadata using an LLM.
@@ -164,7 +164,7 @@ def generate_metadata(
             "mode_instruction": (
                 "REWRITE — improve, rephrase and enrich the existing values if provided above. "
                 "Keep the meaning but make them clearer, more professional and more complete."
-                if mode == "rewrite"
+                if mode == LlmMetadataMode.REWRITE
                 else "REGENERATE — For title only, minor rewording allowed to integrate current_abstract location if provided. Other fields: no reformulation."
             ),
         }

@@ -11,11 +11,16 @@ import {
 } from '@ng-icons/iconoir'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import { MatDialog } from '@angular/material/dialog'
-import { ConfirmationDialogComponent, EditorFacade } from 'geonetwork-ui'
+import {
+  ConfirmationDialogComponent,
+  type CatalogRecord,
+  EditorFacade
+} from 'geonetwork-ui'
 import { firstValueFrom } from 'rxjs'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { Api } from '../../core/api/api'
 import { generateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdPost } from '../../core/api/functions'
+import { LlmMetadataDataSource } from '../../core/api/models/llm-metadata-data-source'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
@@ -46,6 +51,8 @@ marker('metadata.ai.confirmOverwrite.confirm')
 marker('metadata.ai.confirmOverwrite.cancel')
 marker('errors.operation.aiMetadataGeneration')
 marker('info.operation.aiMetadataGeneration')
+
+const LLM_METADATA_DATA_SOURCE_FINAL: LlmMetadataDataSource = 'final'
 
 type AiFieldKey =
   | 'title'
@@ -143,7 +150,9 @@ export class AiGenerateButtonComponent {
 
     try {
       const fields = this.aiFields()
-      const currentRecord = await firstValueFrom(this.editor.record$)
+      const currentRecord: CatalogRecord | null = (await firstValueFrom(
+        this.editor.record$
+      )) as CatalogRecord | null
 
       // Send ALL current values as context for the LLM (regardless of checkbox state).
       // The checkboxes only control which fields get updated in the form afterwards.
@@ -171,7 +180,8 @@ export class AiGenerateButtonComponent {
             current_values: Object.keys(currentValues).length
               ? currentValues
               : null,
-            extra_context: extraContext || null
+            extra_context: extraContext || null,
+            data_source: LLM_METADATA_DATA_SOURCE_FINAL
           }
         }
       )

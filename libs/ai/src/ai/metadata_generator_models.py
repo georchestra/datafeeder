@@ -1,8 +1,16 @@
-from typing import Literal
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
-LlmMetadataMode = Literal["regenerate", "rewrite"]
+
+class LlmMetadataMode(str, Enum):
+    REGENERATE = "regenerate"
+    REWRITE = "rewrite"
+
+
+class LlmMetadataDataSource(str, Enum):
+    STAGING = "staging"
+    FINAL = "final"
 
 
 class AttributeInfo(BaseModel):
@@ -55,9 +63,9 @@ class GeneratedMetadata(BaseModel):
         )
     )
     # -- NB. deactivated for now, but keep the field in the model for future use.
-    #attribute_descriptions: list[AttributeInfo] | None = Field(
+    # attribute_descriptions: list[AttributeInfo] | None = Field(
     #    description="Description of each attribute/column of the dataset"
-    #)
+    # )
     attribute_descriptions: None = Field(description="")
     temporal_extent: TemporalExtent | None = Field(
         default=None,

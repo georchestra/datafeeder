@@ -11,6 +11,7 @@ import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-comp
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { ApiConfiguration } from '../../../core/api/api-configuration'
 import { FileType, ImportType } from '../../../core/api/models'
+import { SettingsService } from '../../../core/settings/settings.service'
 import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { DataImportWizardComponent } from './data-import-wizard.component'
 import { FooterService } from '../../../core/layout/footer.service'
@@ -1148,6 +1149,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     const req = httpMock.expectOne('http://localhost:8000/ingestion/process/')
     expect(req.request.method).toBe('POST')
     expect(req.request.body).toEqual({
+      generate_metadata_with_ai: false,
       integrity_link_id: 'test-link-789',
       title: 'Test Dataset Title'
     })
@@ -1623,6 +1625,12 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
 
 // AI metadata generation toggle tests
 describe('DataImportWizardComponent - Generate Metadata With AI Toggle', () => {
+  const mockSettingsService = {
+    getSetting: vi.fn((key: string) =>
+      key === 'enabled_features' ? ['ai_metadata'] : undefined
+    )
+  }
+
   let mockIntegrityLinkStore: {
     intlinkId: ReturnType<typeof signal<string | null>>
     integrityLink: ReturnType<typeof signal>
@@ -1671,7 +1679,8 @@ describe('DataImportWizardComponent - Generate Metadata With AI Toggle', () => {
         {
           provide: FooterService,
           useValue: { content: signal(null), setContent: () => {} }
-        }
+        },
+        { provide: SettingsService, useValue: mockSettingsService }
       ]
     }).compileComponents()
   })

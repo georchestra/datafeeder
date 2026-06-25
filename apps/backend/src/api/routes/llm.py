@@ -1,8 +1,12 @@
 """LLM-powered metadata generation routes."""
 
-from typing import Any, Literal
+from typing import Any
 
-from ai.metadata_generator_models import GeneratedMetadata
+from ai.metadata_generator_models import (
+    GeneratedMetadata,
+    LlmMetadataDataSource,
+    LlmMetadataMode,
+)
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -20,8 +24,8 @@ router = APIRouter(prefix="/llm", tags=["LLM"])
 class GenerateMetadataRequest(BaseModel):
     """Request body for AI metadata generation."""
 
-    mode: Literal["regenerate", "rewrite"] = "regenerate"
-    data_source: Literal["staging", "final"] = "staging"
+    mode: LlmMetadataMode = LlmMetadataMode.REGENERATE
+    data_source: LlmMetadataDataSource = LlmMetadataDataSource.STAGING
     current_values: dict[str, Any] | None = None
     extra_context: str | None = None
 
