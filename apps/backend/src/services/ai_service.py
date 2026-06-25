@@ -469,7 +469,7 @@ def generate_ai_metadata(
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
             verify_tls=settings.GEONETWORK_VERIFY_TLS,
         )
-        metadata_service.update_ai_metadata(
+        metadata_service.update_metadata(
             metadata_uuid=str(integrity_link.metadata_id),
             title=result.title,
             abstract=result.abstract,
@@ -478,6 +478,7 @@ def generate_ai_metadata(
             attribute_descriptions=result.attribute_descriptions,
             temporal_extent=result.temporal_extent,
             table_name=integrity_link.final_table_name or "",
+            generate_by_ai=True,
         )
         logger.info(
             f"GeoNetwork metadata updated with AI fields for IntegrityLink {integrity_link.id}"

@@ -9,6 +9,7 @@ from lxml import etree
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleValue
+from src.services.metadata.metadata_patch_service import MetadataPatchService
 from src.services.metadata_service import (
     NS_19115_3,
     NS_19139,
@@ -70,6 +71,59 @@ class TestMetadataService:
 
             assert metadata_xml is not None
             assert isinstance(metadata_xml, str)
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_update_metadata_uses_public_patch_helpers(self, mock_gn_api: MagicMock) -> None:
+        """Test that update_metadata delegates to the public patch helpers."""
+        mock_api_instance = MagicMock()
+        mock_api_instance.get_metadataxml.return_value = (
+            b"<mdb:MD_Metadata xmlns:mdb='http://standards.iso.org/iso/19115/-3/mdb/2.0' "
+            b"xmlns:mri='http://standards.iso.org/iso/19115/-3/mri/1.0' "
+            b"xmlns:cit='http://standards.iso.org/iso/19115/-3/cit/2.0' "
+            b"xmlns:gco='http://standards.iso.org/iso/19115/-3/gco/1.0'>"
+            b"<mdb:identificationInfo><mri:MD_DataIdentification>"
+            b"<mri:citation><cit:CI_Citation><cit:title><gco:CharacterString>Old</gco:CharacterString>"
+            b"</cit:title></cit:CI_Citation></mri:citation>"
+            b"</mri:MD_DataIdentification></mdb:identificationInfo>"
+            b"</mdb:MD_Metadata>"
+        )
+        mock_gn_api.return_value = mock_api_instance
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+        )
+
+        patcher = MagicMock(spec=MetadataPatchService)
+        patcher.get_schema.return_value = "19115-3"
+        patcher.get_id_info.return_value = MagicMock()
+        service.metadata_patch_service = patcher
+
+        service.update_metadata(
+            metadata_uuid="metadata-uuid-123",
+            title="New title",
+            abstract="New abstract",
+            keywords=["water", "transport"],
+            topic_categories=["environment"],
+            table_name="test_table",
+        )
+
+        patcher.get_schema.assert_called_once()
+        patcher.get_id_info.assert_called_once()
+        patcher.patch_abstract.assert_called_once()
+        patcher.patch_title.assert_called_once()
+        patcher.patch_keywords.assert_called_once_with(
+            "19115-3",
+            patcher.get_id_info.return_value,
+            ["water", "transport"],
+            generate_by_ai=False,
+        )
+        patcher.patch_topic_categories.assert_called_once()
+        patcher.patch_attribute_catalogue.assert_not_called()
+        patcher.patch_temporal_extent.assert_not_called()
+        mock_api_instance.upload_metadata.assert_called_once()
+        _, kwargs = mock_api_instance.upload_metadata.call_args
+        assert kwargs["uuidprocessing"] == "OVERWRITE"
 
     @patch("src.services.metadata_service.GnApi")
     def test_publish_metadata_success(self, mock_gn_api: MagicMock) -> None:

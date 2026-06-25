@@ -20,6 +20,7 @@ from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleValue
+from src.services.metadata.metadata_patch_service import MetadataPatchService
 
 logger = get_logger()
 
@@ -71,6 +72,7 @@ class MetadataService:
         self.xslt_path: str = f"{datadir_path}/datafeeder-python/metadata_transform-19115-3.xsl"
         self.org_based_sync: bool = gn_sync_mode == "ORG"
         self.metadata_default_group_name: str = metadata_default_group_name
+        self.metadata_patch_service = MetadataPatchService(self.gn_api)
 
     def generate_metadata(
         self,
@@ -627,7 +629,7 @@ class MetadataService:
             )
             raise
 
-    def update_ai_metadata(
+    def update_metadata(
         self,
         metadata_uuid: str,
         title: str,
@@ -637,6 +639,7 @@ class MetadataService:
         attribute_descriptions: list[AttributeInfo] | None = None,
         temporal_extent: TemporalExtent | None = None,
         table_name: str = "",
+        generate_by_ai: bool = False,
     ) -> None:
         """Patch title, abstract, keywords, topic categories, attribute catalog and temporal extent.
 
@@ -645,19 +648,13 @@ class MetadataService:
         Supports both ISO 19115-3 and ISO 19139 schemas.
 
         Args:
-            metadata_uuid: UUID of the GeoNetwork metadata record.
-            title: AI-inferred title for the dataset.
-            abstract: AI-generated abstract text.
-            keywords: AI-generated keyword list.
-            topic_categories: AI-generated ISO 19115 topic category codes (one or more).
-            attribute_descriptions: AI-generated attribute/column descriptions (optional).
-            temporal_extent: AI-inferred temporal extent (optional).
-            table_name: Source table name, used as FC_FeatureType typeName (optional).
+            generate_by_ai: Whether to mark keywords with AI generation marker. Default False.
         """
         xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
-        root: _Element = etree.fromstring(xml_bytes)
+        root = etree.fromstring(xml_bytes)
+        patcher: Any = self.metadata_patch_service
 
-        schema = self._detect_schema(root)
+        schema = patcher.get_schema(root)
         if schema is None:
             logger.warning(
                 "Unsupported metadata schema for record %s — skipping AI metadata update",
@@ -665,397 +662,23 @@ class MetadataService:
             )
             return
 
-        if schema == _SCHEMA_19115_3:
-            self._patch_ai_fields_19115_3(root, title, abstract, keywords, topic_categories)
-            if attribute_descriptions:
-                self._patch_attribute_catalogue_19115_3(root, attribute_descriptions, table_name)
-            if temporal_extent and temporal_extent.type != "unknown":
-                self._patch_temporal_extent_19115_3(root, temporal_extent)
-        else:
-            self._patch_ai_fields_19139(root, title, abstract, keywords, topic_categories)
-            if attribute_descriptions:
-                self._patch_attribute_catalogue_19139(root, attribute_descriptions, table_name)
-            if temporal_extent and temporal_extent.type != "unknown":
-                self._patch_temporal_extent_19139(root, temporal_extent)
+        id_info = patcher.get_id_info(root, schema)
+        if id_info is None:
+            logger.warning(
+                "Could not find MD_DataIdentification in record %s — skipping AI metadata update",
+                metadata_uuid,
+            )
+            return
+
+        patcher.patch_abstract(schema, id_info, abstract)
+        patcher.patch_title(schema, id_info, title)
+        patcher.patch_keywords(schema, id_info, keywords, generate_by_ai=generate_by_ai)
+        patcher.patch_topic_categories(schema, id_info, topic_categories)
+        if attribute_descriptions:
+            patcher.patch_attribute_catalogue(schema, root, attribute_descriptions, table_name)
+        if temporal_extent and temporal_extent.type != "unknown":
+            patcher.patch_temporal_extent(schema, root, temporal_extent)
 
         updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
         self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
         logger.info("Updated AI metadata fields for record %s", metadata_uuid)
-
-    @staticmethod
-    def _patch_ai_fields_19115_3(
-        root: _Element,
-        title: str,
-        abstract: str,
-        keywords: list[str],
-        topic_categories: list[str],
-    ) -> None:
-        """Patch title, abstract, keywords and topicCategory in an ISO 19115-3 record."""
-        ns = NS_19115_3
-        id_info_list = root.xpath(
-            "mdb:identificationInfo/mri:MD_DataIdentification",
-            namespaces=ns,
-        )
-        if not id_info_list:
-            return
-        id_info: _Element = id_info_list[0]
-
-        # --- title ---
-        title_els = id_info.xpath(
-            "mri:citation/cit:CI_Citation/cit:title/gco:CharacterString", namespaces=ns
-        )
-        if title_els:
-            title_els[0].text = title
-        abstract_els = id_info.xpath("mri:abstract/gco:CharacterString", namespaces=ns)
-        if abstract_els:
-            abstract_els[0].text = abstract
-        else:
-            abstract_wrapper: _Element = etree.SubElement(id_info, f"{{{ns['mri']}}}abstract")
-            etree.SubElement(abstract_wrapper, f"{{{ns['gco']}}}CharacterString").text = abstract
-
-        # --- keywords ---
-        ns_mri = ns["mri"]
-        ns_gco = ns["gco"]
-        existing_kw_blocks = id_info.xpath("mri:descriptiveKeywords", namespaces=ns)
-        # Remove any existing AI-tagged keyword block (identified by a special anchor in thesaurusName)
-        for block in existing_kw_blocks:
-            anchor_texts = block.xpath(
-                "mri:MD_Keywords/mri:thesaurusName//gco:CharacterString[contains(., 'datafeeder-generated')]",
-                namespaces=ns,
-            )
-            if anchor_texts:
-                id_info.remove(block)
-
-        # Add a fresh keyword block
-        desc_kw: _Element = etree.SubElement(id_info, f"{{{ns_mri}}}descriptiveKeywords")
-        md_kw: _Element = etree.SubElement(desc_kw, f"{{{ns_mri}}}MD_Keywords")
-        for kw in keywords:
-            kw_el: _Element = etree.SubElement(md_kw, f"{{{ns_mri}}}keyword")
-            etree.SubElement(kw_el, f"{{{ns_gco}}}CharacterString").text = kw
-        # Tag this block so we can identify it in future updates
-        thesaurus_name: _Element = etree.SubElement(md_kw, f"{{{ns_mri}}}thesaurusName")
-        ci_citation: _Element = etree.SubElement(thesaurus_name, f"{{{ns['cit']}}}CI_Citation")
-        title_el: _Element = etree.SubElement(ci_citation, f"{{{ns['cit']}}}title")
-        etree.SubElement(title_el, f"{{{ns_gco}}}CharacterString").text = "datafeeder-generated"
-
-        # --- topicCategory ---
-        ns_mri_uri = f"{{{ns_mri}}}"
-        for tc in id_info.xpath("mri:topicCategory", namespaces=ns):
-            id_info.remove(tc)
-        for cat in topic_categories:
-            topic_wrapper: _Element = etree.SubElement(id_info, f"{ns_mri_uri}topicCategory")
-            etree.SubElement(topic_wrapper, f"{ns_mri_uri}MD_TopicCategoryCode").text = cat
-
-    @staticmethod
-    def _patch_ai_fields_19139(
-        root: _Element,
-        title: str,
-        abstract: str,
-        keywords: list[str],
-        topic_categories: list[str],
-    ) -> None:
-        """Patch title, abstract, keywords and topicCategory in an ISO 19139 record."""
-        ns = NS_19139
-        ns_gmd = ns["gmd"]
-        ns_gco = ns["gco"]
-
-        id_info_list = root.xpath(
-            "gmd:identificationInfo/gmd:MD_DataIdentification",
-            namespaces=ns,
-        )
-        if not id_info_list:
-            return
-        id_info: _Element = id_info_list[0]
-
-        # --- title ---
-        title_els = id_info.xpath(
-            "gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString", namespaces=ns
-        )
-        if title_els:
-            title_els[0].text = title
-
-        # --- abstract ---
-        abstract_els = id_info.xpath("gmd:abstract/gco:CharacterString", namespaces=ns)
-        if abstract_els:
-            abstract_els[0].text = abstract
-        else:
-            wrapper: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}abstract")
-            etree.SubElement(wrapper, f"{{{ns_gco}}}CharacterString").text = abstract
-
-        # --- keywords ---
-        for block in id_info.xpath("gmd:descriptiveKeywords", namespaces=ns):
-            anchor_texts = block.xpath(
-                "gmd:MD_Keywords/gmd:thesaurusName//gco:CharacterString[contains(., 'datafeeder-generated')]",
-                namespaces=ns,
-            )
-            if anchor_texts:
-                id_info.remove(block)
-
-        desc_kw: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}descriptiveKeywords")
-        md_kw: _Element = etree.SubElement(desc_kw, f"{{{ns_gmd}}}MD_Keywords")
-        for kw in keywords:
-            kw_el: _Element = etree.SubElement(md_kw, f"{{{ns_gmd}}}keyword")
-            etree.SubElement(kw_el, f"{{{ns_gco}}}CharacterString").text = kw
-        thesaurus_name: _Element = etree.SubElement(md_kw, f"{{{ns_gmd}}}thesaurusName")
-        ci_citation: _Element = etree.SubElement(thesaurus_name, f"{{{ns_gmd}}}CI_Citation")
-        title_el: _Element = etree.SubElement(ci_citation, f"{{{ns_gmd}}}title")
-        etree.SubElement(title_el, f"{{{ns_gco}}}CharacterString").text = "datafeeder-generated"
-
-        # --- topicCategory ---
-        for tc in id_info.xpath("gmd:topicCategory", namespaces=ns):
-            id_info.remove(tc)
-        for cat in topic_categories:
-            topic_wrapper: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}topicCategory")
-            etree.SubElement(topic_wrapper, f"{{{ns_gmd}}}MD_TopicCategoryCode").text = cat
-
-    @staticmethod
-    def _patch_attribute_catalogue_19115_3(
-        root: _Element,
-        attribute_descriptions: list[AttributeInfo],
-        table_name: str = "",
-    ) -> None:
-        """Inject an ISO 19110 feature catalogue inline for ISO 19115-3 records.
-
-        Generates a gfc:FC_FeatureCatalogue block under mdb:contentInfo with one
-        gfc:FC_FeatureAttribute per column (memberName, definition, cardinality,
-        code, valueType), matching the real GeoNetwork ISO 19110 format.
-        """
-        ns = NS_19115_3
-        ns_mdb = ns["mdb"]
-        ns_gco = ns["gco"]
-        ns_gfc = "http://standards.iso.org/iso/19110/gfc/1.1"
-
-        # --- Remove any existing AI-tagged contentInfo block ---
-        for block in root.xpath("mdb:contentInfo", namespaces=ns):
-            anchor = block.xpath(
-                ".//gfc:FC_FeatureCatalogue/gfc:name/gco:CharacterString[. = 'datafeeder-generated']",
-                namespaces={**ns, "gfc": ns_gfc},
-            )
-            if anchor:
-                root.remove(block)
-
-        # --- mdb:contentInfo/gfc:FC_FeatureCatalogue ---
-        content_info: _Element = etree.SubElement(root, f"{{{ns_mdb}}}contentInfo")
-        fc: _Element = etree.SubElement(content_info, f"{{{ns_gfc}}}FC_FeatureCatalogue")
-
-        # Tag for future removal
-        name_el: _Element = etree.SubElement(fc, f"{{{ns_gfc}}}name")
-        etree.SubElement(name_el, f"{{{ns_gco}}}CharacterString").text = "datafeeder-generated"
-        ver_el: _Element = etree.SubElement(fc, f"{{{ns_gfc}}}versionNumber")
-        etree.SubElement(ver_el, f"{{{ns_gco}}}CharacterString").text = "1.0"
-
-        # --- gfc:featureType/gfc:FC_FeatureType ---
-        ft_wrapper: _Element = etree.SubElement(fc, f"{{{ns_gfc}}}featureType")
-        fc_ft: _Element = etree.SubElement(ft_wrapper, f"{{{ns_gfc}}}FC_FeatureType")
-
-        tn_el: _Element = etree.SubElement(fc_ft, f"{{{ns_gfc}}}typeName")
-        tn_el.text = table_name or "dataset"
-        ia_el: _Element = etree.SubElement(fc_ft, f"{{{ns_gfc}}}isAbstract")
-        etree.SubElement(ia_el, f"{{{ns_gco}}}Boolean").text = "false"
-
-        for attr in attribute_descriptions:
-            coc: _Element = etree.SubElement(fc_ft, f"{{{ns_gfc}}}carrierOfCharacteristics")
-            fa: _Element = etree.SubElement(coc, f"{{{ns_gfc}}}FC_FeatureAttribute")
-
-            mn: _Element = etree.SubElement(fa, f"{{{ns_gfc}}}memberName")
-            mn.text = attr.name
-
-            defn: _Element = etree.SubElement(fa, f"{{{ns_gfc}}}definition")
-            etree.SubElement(defn, f"{{{ns_gco}}}CharacterString").text = attr.description
-
-            card: _Element = etree.SubElement(fa, f"{{{ns_gfc}}}cardinality")
-            etree.SubElement(card, f"{{{ns_gco}}}CharacterString").text = "0..1"
-
-            code_el: _Element = etree.SubElement(fa, f"{{{ns_gfc}}}code")
-            etree.SubElement(code_el, f"{{{ns_gco}}}CharacterString").text = attr.name
-
-            vt: _Element = etree.SubElement(fa, f"{{{ns_gfc}}}valueType")
-            type_name: _Element = etree.SubElement(vt, f"{{{ns_gco}}}TypeName")
-            aname: _Element = etree.SubElement(type_name, f"{{{ns_gco}}}aName")
-            etree.SubElement(aname, f"{{{ns_gco}}}CharacterString").text = attr.type
-
-    @staticmethod
-    def _patch_attribute_catalogue_19139(
-        root: _Element,
-        attribute_descriptions: list[AttributeInfo],
-        table_name: str = "",
-    ) -> None:
-        """Inject an ISO 19110 feature catalogue inline for ISO 19139 records.
-
-        Generates a gfc:FC_FeatureCatalogue block under gmd:contentInfo with one
-        gfc:FC_FeatureAttribute per column (memberName, definition, cardinality,
-        code, valueType), matching the real GeoNetwork ISO 19110 format.
-        """
-        ns = NS_19139
-        ns_gmd = ns["gmd"]
-        ns_gco = ns["gco"]
-        ns_gfc = "http://www.isotc211.org/2005/gfc"
-
-        # --- Remove any existing AI-tagged contentInfo block ---
-        for block in root.xpath("gmd:contentInfo", namespaces=ns):
-            anchor = block.xpath(
-                ".//gfc:FC_FeatureCatalogue/gfc:name/gco:CharacterString[. = 'datafeeder-generated']",
-                namespaces={**ns, "gfc": ns_gfc},
-            )
-            if anchor:
-                root.remove(block)
-
-        # --- gmd:contentInfo/gfc:FC_FeatureCatalogue ---
-        content_info: _Element = etree.SubElement(root, f"{{{ns_gmd}}}contentInfo")
-        fc: _Element = etree.SubElement(content_info, f"{{{ns_gfc}}}FC_FeatureCatalogue")
-
-        # Tag for future removal
-        name_el: _Element = etree.SubElement(fc, f"{{{ns_gfc}}}name")
-        etree.SubElement(name_el, f"{{{ns_gco}}}CharacterString").text = "datafeeder-generated"
-        ver_el: _Element = etree.SubElement(fc, f"{{{ns_gfc}}}versionNumber")
-        etree.SubElement(ver_el, f"{{{ns_gco}}}CharacterString").text = "1.0"
-
-        # --- gfc:featureType/gfc:FC_FeatureType ---
-        ft_wrapper: _Element = etree.SubElement(fc, f"{{{ns_gfc}}}featureType")
-        fc_ft: _Element = etree.SubElement(ft_wrapper, f"{{{ns_gfc}}}FC_FeatureType")
-
-        tn_el: _Element = etree.SubElement(fc_ft, f"{{{ns_gfc}}}typeName")
-        tn_el.text = table_name or "dataset"
-        ia_el: _Element = etree.SubElement(fc_ft, f"{{{ns_gfc}}}isAbstract")
-        etree.SubElement(ia_el, f"{{{ns_gco}}}Boolean").text = "false"
-
-        for attr in attribute_descriptions:
-            coc: _Element = etree.SubElement(fc_ft, f"{{{ns_gfc}}}carrierOfCharacteristics")
-            fa: _Element = etree.SubElement(coc, f"{{{ns_gfc}}}FC_FeatureAttribute")
-
-            mn: _Element = etree.SubElement(fa, f"{{{ns_gfc}}}memberName")
-            mn.text = attr.name
-
-            defn: _Element = etree.SubElement(fa, f"{{{ns_gfc}}}definition")
-            etree.SubElement(defn, f"{{{ns_gco}}}CharacterString").text = attr.description
-
-            card: _Element = etree.SubElement(fa, f"{{{ns_gfc}}}cardinality")
-            etree.SubElement(card, f"{{{ns_gco}}}CharacterString").text = "0..1"
-
-            code_el: _Element = etree.SubElement(fa, f"{{{ns_gfc}}}code")
-            etree.SubElement(code_el, f"{{{ns_gco}}}CharacterString").text = attr.name
-
-            vt: _Element = etree.SubElement(fa, f"{{{ns_gfc}}}valueType")
-            type_name: _Element = etree.SubElement(vt, f"{{{ns_gco}}}TypeName")
-            aname: _Element = etree.SubElement(type_name, f"{{{ns_gco}}}aName")
-            etree.SubElement(aname, f"{{{ns_gco}}}CharacterString").text = attr.type
-
-    @staticmethod
-    def _patch_temporal_extent_19115_3(
-        root: _Element,
-        temporal_extent: TemporalExtent,
-    ) -> None:
-        """Inject or replace a temporal extent in an ISO 19115-3 record.
-
-        Structure:
-          mri:extent/gex:EX_Extent/gex:temporalElement/gex:EX_TemporalExtent
-            /gex:extent/gml:TimePeriod  (or gml:TimeInstant)
-        """
-        ns = NS_19115_3
-        ns_mri = ns["mri"]
-        ns_gex = "http://standards.iso.org/iso/19115/-3/gex/1.0"
-        ns_gml = "http://www.opengis.net/gml/3.2"
-
-        id_info_list = root.xpath("mdb:identificationInfo/mri:MD_DataIdentification", namespaces=ns)
-        if not id_info_list:
-            return
-        id_info: _Element = id_info_list[0]
-
-        # Remove any existing AI-tagged temporal extent block
-        for extent_el in id_info.xpath("mri:extent", namespaces=ns):
-            if extent_el.xpath(
-                ".//gex:temporalElement//gco:CharacterString[contains(., 'datafeeder-generated-temporal')]",
-                namespaces={**ns, "gex": ns_gex},
-            ):
-                id_info.remove(extent_el)
-
-        extent_wrapper: _Element = etree.SubElement(id_info, f"{{{ns_mri}}}extent")
-        ex_extent: _Element = etree.SubElement(extent_wrapper, f"{{{ns_gex}}}EX_Extent")
-
-        # Tag for future removal
-        desc_el: _Element = etree.SubElement(ex_extent, f"{{{ns_gex}}}description")
-        etree.SubElement(
-            desc_el, f"{{{ns['gco']}}}CharacterString"
-        ).text = "datafeeder-generated-temporal"
-
-        temporal_el: _Element = etree.SubElement(ex_extent, f"{{{ns_gex}}}temporalElement")
-        ex_temporal: _Element = etree.SubElement(temporal_el, f"{{{ns_gex}}}EX_TemporalExtent")
-        extent_inner: _Element = etree.SubElement(ex_temporal, f"{{{ns_gex}}}extent")
-
-        if temporal_extent.type == "period":
-            time_el: _Element = etree.SubElement(extent_inner, f"{{{ns_gml}}}TimePeriod")
-            time_el.set(f"{{{ns_gml}}}id", "ai-temporal-period")
-            begin_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}beginPosition")
-            begin_el.text = temporal_extent.begin or ""
-            if not temporal_extent.begin:
-                begin_el.set("indeterminatePosition", "unknown")
-            end_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}endPosition")
-            end_el.text = temporal_extent.end or ""
-            if not temporal_extent.end:
-                end_el.set("indeterminatePosition", "unknown")
-        else:
-            # instant
-            time_el = etree.SubElement(extent_inner, f"{{{ns_gml}}}TimeInstant")
-            time_el.set(f"{{{ns_gml}}}id", "ai-temporal-instant")
-            pos_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}timePosition")
-            pos_el.text = temporal_extent.instant or temporal_extent.begin or ""
-
-    @staticmethod
-    def _patch_temporal_extent_19139(
-        root: _Element,
-        temporal_extent: TemporalExtent,
-    ) -> None:
-        """Inject or replace a temporal extent in an ISO 19139 record.
-
-        Structure:
-          gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent
-            /gmd:extent/gml:TimePeriod  (or gml:TimeInstant)
-        """
-        ns = NS_19139
-        ns_gmd = ns["gmd"]
-        ns_gco = ns["gco"]
-        ns_gml = "http://www.opengis.net/gml/3.2"
-
-        id_info_list = root.xpath("gmd:identificationInfo/gmd:MD_DataIdentification", namespaces=ns)
-        if not id_info_list:
-            return
-        id_info: _Element = id_info_list[0]
-
-        # Remove any existing AI-tagged temporal extent block
-        for extent_el in id_info.xpath("gmd:extent", namespaces=ns):
-            if extent_el.xpath(
-                ".//gmd:temporalElement//gco:CharacterString[contains(., 'datafeeder-generated-temporal')]",
-                namespaces=ns,
-            ):
-                id_info.remove(extent_el)
-
-        extent_wrapper: _Element = etree.SubElement(id_info, f"{{{ns_gmd}}}extent")
-        ex_extent: _Element = etree.SubElement(extent_wrapper, f"{{{ns_gmd}}}EX_Extent")
-
-        # Tag for future removal
-        desc_el: _Element = etree.SubElement(ex_extent, f"{{{ns_gmd}}}description")
-        etree.SubElement(
-            desc_el, f"{{{ns_gco}}}CharacterString"
-        ).text = "datafeeder-generated-temporal"
-
-        temporal_el: _Element = etree.SubElement(ex_extent, f"{{{ns_gmd}}}temporalElement")
-        ex_temporal: _Element = etree.SubElement(temporal_el, f"{{{ns_gmd}}}EX_TemporalExtent")
-        extent_inner: _Element = etree.SubElement(ex_temporal, f"{{{ns_gmd}}}extent")
-
-        if temporal_extent.type == "period":
-            time_el: _Element = etree.SubElement(extent_inner, f"{{{ns_gml}}}TimePeriod")
-            time_el.set(f"{{{ns_gml}}}id", "ai-temporal-period")
-            begin_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}beginPosition")
-            begin_el.text = temporal_extent.begin or ""
-            if not temporal_extent.begin:
-                begin_el.set("indeterminatePosition", "unknown")
-            end_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}endPosition")
-            end_el.text = temporal_extent.end or ""
-            if not temporal_extent.end:
-                end_el.set("indeterminatePosition", "unknown")
-        else:
-            # instant
-            time_el = etree.SubElement(extent_inner, f"{{{ns_gml}}}TimeInstant")
-            time_el.set(f"{{{ns_gml}}}id", "ai-temporal-instant")
-            pos_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}timePosition")
-            pos_el.text = temporal_extent.instant or temporal_extent.begin or ""
