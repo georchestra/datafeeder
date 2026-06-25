@@ -14,7 +14,7 @@ from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, GroupIdsDe
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.core.security import AccessLevel, load_authorized_integrity_link
-from src.services.ai_service import generate_metadata_suggestions
+from src.services.ai_service import get_metadata_suggestions
 
 logger = get_logger()
 
@@ -62,7 +62,7 @@ def generate_metadata_for_integrity_link(
     )
 
     try:
-        result = generate_metadata_suggestions(
+        result = get_metadata_suggestions(
             integrity_link,
             settings,
             data_source=body.data_source,

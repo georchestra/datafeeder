@@ -292,7 +292,7 @@ def _get_sample_from_final(
     return columns, column_types, sample_rows, bbox
 
 
-def generate_metadata_suggestions(
+def get_metadata_suggestions(
     integrity_link: IntegrityLink,
     settings: Settings,
     data_source: LlmMetadataDataSource = LlmMetadataDataSource.STAGING,
@@ -465,7 +465,7 @@ def generate_ai_metadata(
 
     try:
         # Generate metadata suggestions
-        result = generate_metadata_suggestions(integrity_link, settings, data_source=data_source)
+        result = get_metadata_suggestions(integrity_link, settings, data_source=data_source)
 
         metadata_service = MetadataService(
             gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
