@@ -243,7 +243,7 @@
   "import.dataSource.processingMessage": "Le jeu de données est en cours de traitement",
   "import.dataSource.sending": "Envoi en cours...",
   "import.dataSource.technicalInfo.button": "Informations techniques",
-  "import.dataSource.technicalInfo.message": "Formats acceptés : CSV, GeoJSON, GeoPackage, Parquet, GeoParquet, Shapefile zippé<br> Taille maximale : 1 Go<br> Limite de temps : 10 minutes",
+  "import.dataSource.technicalInfo.message": "Formats acceptés : CSV, GeoJSON, GeoPackage, Parquet, GeoParquet, Shapefile zippé<br> Taille maximale recommandée : 1 Go<br> Limite de temps : 10 minutes",
   "import.dataSource.technicalInfo.title": "Formats et limites",
   "import.dataSource.title": "Importer un jeu de données",
   "import.dataSource.url.enableAuth": "Authentification",
