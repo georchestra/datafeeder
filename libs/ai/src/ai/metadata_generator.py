@@ -1,5 +1,6 @@
 """AI-powered metadata generation using LangChain."""
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,27 @@ from ai.utils import load_prompt
 
 logger = logging.getLogger(__name__)
 _MAX_PROMPT_KEYWORDS = 100
+_MAX_PROMPT_TITLE_CHARS = 256
+_MAX_PROMPT_ABSTRACT_CHARS = 2048
+_MAX_PROMPT_KEYWORDS_CHARS = 1024
+_MAX_PROMPT_TOPICS_CHARS = 512
+_MAX_PROMPT_EXTRA_CONTEXT_CHARS = 1024
+
+
+def _truncate_text(value: str, max_chars: int) -> str:
+    """Truncate text to a maximum number of characters."""
+    return value[:max_chars]
+
+
+def _stringify_prompt_value(value: Any) -> str:
+    """Normalize prompt values to string form."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    return str(value)
 
 
 def format_sample(sample_rows: list[Any] | None) -> str:
@@ -51,7 +73,10 @@ def format_keywords_for_prompt(keywords: list[str] | None) -> str:
     seen: set[str] = set()
     cleaned = [k.strip() for k in keywords if k.strip()]
     deduped = [k for k in cleaned if not (k in seen or seen.add(k))]
-    return ", ".join(deduped[:_MAX_PROMPT_KEYWORDS])
+    return _truncate_text(
+        ", ".join(deduped[:_MAX_PROMPT_KEYWORDS]),
+        _MAX_PROMPT_KEYWORDS_CHARS,
+    )
 
 
 def format_title_for_prompt(
@@ -60,7 +85,10 @@ def format_title_for_prompt(
     current_values: dict[str, Any] | None,
 ) -> str:
     """Resolve title value sent to the prompt."""
-    return (current_values.get("title") if current_values else None) or title or table_name
+    resolved_title = (
+        (current_values.get("title") if current_values else None) or title or table_name
+    )
+    return _truncate_text(_stringify_prompt_value(resolved_title), _MAX_PROMPT_TITLE_CHARS)
 
 
 def format_bbox_for_prompt(bbox: str | None) -> str:
@@ -71,21 +99,30 @@ def format_bbox_for_prompt(bbox: str | None) -> str:
 def format_current_abstract_for_prompt(current_values: dict[str, Any] | None) -> str:
     """Format current abstract value for rewrite mode context."""
     if current_values and current_values.get("abstract"):
-        return f"{current_values['abstract']}"
+        return _truncate_text(
+            _stringify_prompt_value(current_values.get("abstract")),
+            _MAX_PROMPT_ABSTRACT_CHARS,
+        )
     return ""
 
 
 def format_current_keywords_for_prompt(current_values: dict[str, Any] | None) -> str:
     """Format current keywords value for rewrite mode context."""
     if current_values and current_values.get("keywords"):
-        return f"{current_values['keywords']}"
+        return _truncate_text(
+            _stringify_prompt_value(current_values.get("keywords")),
+            _MAX_PROMPT_KEYWORDS_CHARS,
+        )
     return ""
 
 
 def format_current_topics_for_prompt(current_values: dict[str, Any] | None) -> str:
     """Format current topics value for rewrite mode context."""
     if current_values and current_values.get("topics"):
-        return f"{current_values['topics']}"
+        return _truncate_text(
+            _stringify_prompt_value(current_values.get("topics")),
+            _MAX_PROMPT_TOPICS_CHARS,
+        )
     return ""
 
 
@@ -96,9 +133,14 @@ def format_topics_for_prompt(priority_topic_categories: list[str] | None) -> str
 
 def format_extra_context_for_prompt(
     extra_context: str | dict[str, Any] | None,
-) -> str | dict[str, Any]:
+) -> str:
     """Format extra context payload for prompt injection."""
-    return extra_context if extra_context else ""
+    if not extra_context:
+        return ""
+    if isinstance(extra_context, dict):
+        serialized = json.dumps(extra_context, ensure_ascii=False)
+        return _truncate_text(serialized, _MAX_PROMPT_EXTRA_CONTEXT_CHARS)
+    return _truncate_text(_stringify_prompt_value(extra_context), _MAX_PROMPT_EXTRA_CONTEXT_CHARS)
 
 
 def generate_metadata(
