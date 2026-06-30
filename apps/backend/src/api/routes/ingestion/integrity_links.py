@@ -171,7 +171,7 @@ def list_integrity_links(
 
         for i, (link, access_level) in enumerate(rows):
             if (
-                link.source_import_type == ImportType.EMPTY
+                link.source_import_type in (ImportType.EMPTY, ImportType.PREFILLED)
                 or (link.staging_table_name and link.staging_table_name in staging_tables)
                 or _final_exists(link)
             ):

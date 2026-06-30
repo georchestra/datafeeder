@@ -70,6 +70,8 @@
         [title]="
           store.isEmptyDataset()
             ? ('sidebar.unavailableForEmpty' | translate)
+            : store.isPrefilledDataset()
+            ? ('sidebar.unavailableForPrefilled' | translate)
             : !store.isRemoteDataset()
             ? ('sidebar.unavailableForLocal' | translate)
             : ''
@@ -103,13 +105,16 @@
       </span>
       }
 
-      <!-- Events — outside the tunnel; disabled for empty datasets, owner/admin only otherwise -->
-      @if (store.isEmptyDataset() || !store.isOwnerOrAdmin()) {
+      <!-- Events — outside the tunnel; disabled for empty/prefilled datasets, owner/admin only otherwise -->
+      @if (store.isEmptyDataset() || store.isPrefilledDataset() ||
+      !store.isOwnerOrAdmin()) {
       <span
         class="flex items-center gap-2 cursor-not-allowed rounded-md px-3 py-2 text-base text-gray-400"
         [title]="
           store.isEmptyDataset()
             ? ('sidebar.unavailableForEmpty' | translate)
+            : store.isPrefilledDataset()
+            ? ('sidebar.unavailableForPrefilled' | translate)
             : ''
         "
       >

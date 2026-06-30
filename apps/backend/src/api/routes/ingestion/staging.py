@@ -247,6 +247,11 @@ async def _process_import_source(
         case ImportType.EMPTY:
             raise HTTPException(status_code=422, detail="EMPTY datasets do not use staging import")
 
+        case ImportType.PREFILLED:
+            raise HTTPException(
+                status_code=422, detail="PREFILLED datasets do not use staging import"
+            )
+
     return _ImportSourceResult(
         source=source,
         url=url,

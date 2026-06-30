@@ -4,4 +4,11 @@
 /**
  * Supported import types
  */
-export type ImportType = 'url' | 'file' | 'database' | 'api' | 'ftp' | 'empty'
+export type ImportType =
+  | 'url'
+  | 'file'
+  | 'database'
+  | 'api'
+  | 'ftp'
+  | 'empty'
+  | 'prefilled'
