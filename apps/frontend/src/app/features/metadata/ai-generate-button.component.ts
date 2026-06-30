@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core'
+import { Component, inject, input, signal } from '@angular/core'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import { iconoirSparks } from '@ng-icons/iconoir'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
@@ -46,6 +46,7 @@ export class AiGenerateButtonComponent {
   private operationToastStore = inject(OperationToastStore)
 
   isGeneratingAI = signal(false)
+  disabled = input(false)
   lastAiMode = signal<'regenerate' | 'rewrite'>('rewrite')
 
   private changedSinceSave = toSignal(this.editor.changedSinceSave$, {

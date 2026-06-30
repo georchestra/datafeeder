@@ -101,7 +101,9 @@
   }
   <div class="flex-1"></div>
   @if (currentPageSignal() === 0 && aiMetadataEnabled()) {
-  <app-ai-generate-button />
+  <app-ai-generate-button
+    [disabled]="processingStatus() !== 'success' || !isRecordLoaded()"
+  />
   } @if (currentPageSignal() !== 0) {
   <gn-ui-button type="outline" (buttonClick)="previousPageButtonHandler()">
     {{ 'footer.previous' | translate }}

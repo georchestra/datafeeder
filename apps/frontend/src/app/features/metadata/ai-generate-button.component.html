@@ -4,8 +4,8 @@
   >
     <button
       type="button"
-      class="w-full flex items-center justify-center gap-2.5 pl-2 pr-3 py-2 bg-transparent text-secondary-darker text-[1em] leading-none font-medium text-center disabled:opacity-40 disabled:cursor-not-allowed"
-      [disabled]="isGeneratingAI()"
+      class="w-full flex items-center justify-center gap-2.5 pl-2 pr-3 py-2 bg-transparent text-secondary-darker text-[1em] leading-none font-medium text-center disabled:opacity-40"
+      [disabled]="isGeneratingAI() || disabled()"
       (click)="onGenerateWithAI(lastAiMode())"
     >
       <span
