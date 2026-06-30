@@ -69,7 +69,7 @@ export const rejectEmptyDatasetGuard: CanActivateFn = (route) => {
   const intlinkId = route.parent?.params['intlink_id']
   if (!intlinkId) return true
 
-  if (store.isEmptyDataset()) {
+  if (store.isEmptyDataset() || store.isPrefilledDataset()) {
     return new RedirectCommand(
       router.parseUrl(`/${intlinkId}/edit?unavailable=1`)
     )
