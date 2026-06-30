@@ -62,6 +62,16 @@ class IntegrityLink(SQLModel, table=True):
         sa_column_kwargs={"server_default": "current_timestamp"},
     )
 
+    def parse_data_id(self) -> tuple[str, str] | None:
+        """Split data_id formatted as 'workspace:layer' into its two components.
+
+        Returns (workspace, layer) or None if data_id is absent or has no ':'.
+        """
+        if self.data_id and ":" in self.data_id:
+            workspace, layer = self.data_id.split(":", 1)
+            return workspace, layer
+        return None
+
     @field_validator("integrity_organization")
     @classmethod
     def validate_organization(cls, v: str) -> str:

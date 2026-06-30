@@ -188,6 +188,9 @@ describe('rejectEmptyDatasetGuard', () => {
       clearIntegrityLink: vi.fn(),
       isEmptyDataset: computed(
         () => integrityLink()?.source_import_type === 'empty'
+      ),
+      isPrefilledDataset: computed(
+        () => integrityLink()?.source_import_type === 'prefilled'
       )
     }
   }

@@ -187,13 +187,9 @@ def _sync_data_sharing(
     workspace = integrity_link.integrity_organization.lower()
 
     final_table_name = integrity_link.final_table_name
-    if (
-        integrity_link.source_import_type == ImportType.PREFILLED
-        and integrity_link.data_id
-        and ":" in integrity_link.data_id
-    ):
-        workspace = integrity_link.data_id.split(":")[0].lower()
-        final_table_name = integrity_link.data_id.split(":")[1].lower()
+    if integrity_link.source_import_type == ImportType.PREFILLED:
+        if parts := integrity_link.parse_data_id():
+            workspace, final_table_name = parts[0].lower(), parts[1].lower()
 
     if not final_table_name:
         return

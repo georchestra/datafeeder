@@ -61,9 +61,12 @@ function createStore(
     isEmptyDataset: computed(
       () => integrityLink()?.source_import_type === 'empty'
     ),
+    isPrefilledDataset: computed(
+      () => integrityLink()?.source_import_type === 'prefilled'
+    ),
     isRemoteDataset: computed(() => {
       const t = integrityLink()?.source_import_type
-      return t != null && t !== 'file' && t !== 'empty'
+      return t != null && t !== 'file' && t !== 'empty' && t !== 'prefilled'
     })
   } as unknown as IntegrityLinkStore
 }
