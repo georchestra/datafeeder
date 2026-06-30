@@ -3,6 +3,5 @@
 
 export interface CreatePrefilledDatasetRequest {
   data_id: string
-  metadata_id?: string | null
-  title?: string | null
+  metadata_id: string
 }

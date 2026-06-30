@@ -2,18 +2,19 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from src.api.deps import DatafeederSessionDep, GeorchestraContextDep
+from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.data_import import ImportType, IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
+from src.services.metadata_service import MetadataService
 
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
 logger = get_logger()
 
 
 class CreatePrefilledDatasetRequest(BaseModel):
-    title: str | None = None
     data_id: str
-    metadata_id: str | None = None
+    metadata_id: str
 
 
 @router.post(
@@ -23,6 +24,7 @@ class CreatePrefilledDatasetRequest(BaseModel):
     summary="Create a prefilled dataset integrity link",
     description=(
         "Create an integrity link referencing data and metadata that already exist. "
+        "The title is fetched from the GeoNetwork record identified by metadata_id. "
         "No staging, processing DAG, or metadata publication is triggered. "
         "Recurrence scheduling and event logs are not available for this type."
     ),
@@ -32,15 +34,16 @@ def create_prefilled_dataset(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
 ) -> IntegrityLinkResponse:
-    is_admin = geo_ctx.is_administrator()
-    if not is_admin:
-        logger.warning(
-            "User %s attempted to create a prefilled dataset integrity link without admin privileges",
-            geo_ctx.username,
-        )
-        raise PermissionError("Only administrators can create prefilled dataset integrity links")
+    settings = get_settings()
 
-    title = request.title.strip() if request.title else "Untitled Dataset"
+    metadata_service = MetadataService(
+        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
+        datadir_path=settings.DATADIR_PATH,
+        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        gn_sync_mode=settings.GN_SYNC_MODE,
+        verify_tls=False,
+    )
+    title = metadata_service.get_title(request.metadata_id) or "Untitled Dataset"
 
     integrity_link = IntegrityLink(
         integrity_owner=geo_ctx.username,
@@ -55,7 +58,10 @@ def create_prefilled_dataset(
     session.refresh(integrity_link)
 
     logger.info(
-        "Created prefilled integrity link %s (data_id=%s)", integrity_link.id, request.data_id
+        "Created prefilled integrity link %s (data_id=%s, metadata_id=%s)",
+        integrity_link.id,
+        request.data_id,
+        request.metadata_id,
     )
 
     return IntegrityLinkResponse.model_validate(integrity_link)
