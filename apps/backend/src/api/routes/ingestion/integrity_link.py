@@ -389,7 +389,6 @@ def upsert_integrity_link_rule(
     session.flush()
     session.refresh(new_rule)
     if body.rule_type == RuleType.DATA:
-        print(body)
         try:
             _sync_data_sharing(session, integrity_link_id, integrity_link)
         except (GeoServerAclError, ConsoleServiceError) as e:
