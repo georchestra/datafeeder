@@ -25,7 +25,6 @@ export interface DagRunResponse {
   last_scheduling_decision?: string | null
   logical_date?: string | null
   note?: string | null
-  partition_key?: string | null
   queued_at?: string | null
   run_after: string
   run_type: DagRunType

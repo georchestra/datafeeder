@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from ai.metadata_generator_models import AttributeInfo, TemporalExtent
 from geonetwork import GnApi  # type: ignore[import-untyped]
 from lxml import etree
 
@@ -19,6 +20,7 @@ from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleValue
+from src.services.metadata.metadata_patch_service import MetadataPatchService
 
 logger = get_logger()
 
@@ -70,6 +72,7 @@ class MetadataService:
         self.xslt_path: str = f"{datadir_path}/datafeeder-python/metadata_transform-19115-3.xsl"
         self.org_based_sync: bool = gn_sync_mode == "ORG"
         self.metadata_default_group_name: str = metadata_default_group_name
+        self.metadata_patch_service = MetadataPatchService(self.gn_api)
 
     def generate_metadata(
         self,
@@ -625,3 +628,57 @@ class MetadataService:
                 exc_info=True,
             )
             raise
+
+    def update_metadata(
+        self,
+        metadata_uuid: str,
+        title: str,
+        abstract: str,
+        keywords: list[str],
+        topic_categories: list[str],
+        attribute_descriptions: list[AttributeInfo] | None = None,
+        temporal_extent: TemporalExtent | None = None,
+        table_name: str = "",
+        generate_by_ai: bool = False,
+    ) -> None:
+        """Patch title, abstract, keywords, topic categories, attribute catalog and temporal extent.
+
+        Fetches the current XML, updates the relevant fields in-place, then
+        re-uploads with OVERWRITE so publication privileges are preserved.
+        Supports both ISO 19115-3 and ISO 19139 schemas.
+
+        Args:
+            generate_by_ai: Whether to mark keywords with AI generation marker. Default False.
+        """
+        xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
+        root = etree.fromstring(xml_bytes)
+        patcher: Any = self.metadata_patch_service
+
+        schema = patcher.get_schema(root)
+        if schema is None:
+            logger.warning(
+                "Unsupported metadata schema for record %s — skipping AI metadata update",
+                metadata_uuid,
+            )
+            return
+
+        id_info = patcher.get_id_info(root, schema)
+        if id_info is None:
+            logger.warning(
+                "Could not find MD_DataIdentification in record %s — skipping AI metadata update",
+                metadata_uuid,
+            )
+            return
+
+        patcher.patch_abstract(schema, id_info, abstract)
+        patcher.patch_title(schema, id_info, title)
+        patcher.patch_keywords(schema, id_info, keywords, generate_by_ai=generate_by_ai)
+        patcher.patch_topic_categories(schema, id_info, topic_categories)
+        if attribute_descriptions:
+            patcher.patch_attribute_catalogue(schema, root, attribute_descriptions, table_name)
+        if temporal_extent and temporal_extent.type != "unknown":
+            patcher.patch_temporal_extent(schema, root, temporal_extent)
+
+        updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
+        self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
+        logger.info("Updated AI metadata fields for record %s", metadata_uuid)
