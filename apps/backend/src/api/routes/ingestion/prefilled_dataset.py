@@ -48,7 +48,7 @@ def create_prefilled_dataset(
     integrity_link = IntegrityLink(
         integrity_owner=geo_ctx.username,
         integrity_organization=geo_ctx.organization,
-        source_import_type=ImportType.PREFILLED,
+        source_import_type=ImportType.PREFILLED if request.data_id else ImportType.EMPTY,
         integrity_title=title,
         data_id=request.data_id,
         metadata_id=request.metadata_id,
@@ -58,7 +58,8 @@ def create_prefilled_dataset(
     session.refresh(integrity_link)
 
     logger.info(
-        "Created prefilled integrity link %s (data_id=%s, metadata_id=%s)",
+        "Created %s integrity link %s (data_id=%s, metadata_id=%s)",
+        ImportType.PREFILLED if request.data_id else ImportType.EMPTY,
         integrity_link.id,
         request.data_id,
         request.metadata_id,
