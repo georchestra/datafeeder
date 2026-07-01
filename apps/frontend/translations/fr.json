@@ -332,7 +332,7 @@
   "sidebar.reconfigureDataset.warningTitle": "Reconfigurer le jeu de données",
   "sidebar.recurrence": "Récurrence",
   "sidebar.unavailableForEmpty": "Non disponible pour un jeu de données sans données",
-  "sidebar.unavailableForPrefilled": "Non disponible pour un jeu de données pré-rempli",
+  "sidebar.unavailableForPrefilled": "Non disponible pour ce jeu de données",
   "sidebar.unavailableForLocal": "Non disponible pour des données importées depuis le poste utilisateur",
   "status.type.error": "Erreur",
   "status.type.queued": "En attente",

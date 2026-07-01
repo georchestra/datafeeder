@@ -331,7 +331,7 @@
   "sidebar.reconfigureDataset.warningTitle": "Reconfigure dataset",
   "sidebar.recurrence": "Recurrence",
   "sidebar.unavailableForEmpty": "Not available for a dataset without data",
-  "sidebar.unavailableForPrefilled": "Not available for a prefilled dataset",
+  "sidebar.unavailableForPrefilled": "Not available for this dataset",
   "sidebar.unavailableForLocal": "Not available for data imported from the user's machine",
   "status.type.error": "Error",
   "status.type.queued": "Queued",

@@ -167,16 +167,7 @@
 <!-- Footer template for /events and /authorizations — registered with FooterService -->
 <ng-template #footerTpl>
   @if (store.isOwnerOrAdmin()) {
-  <gn-ui-button
-    type="outline"
-    (buttonClick)="onReconfigureClick()"
-    [disabled]="store.isPrefilledDataset()"
-    [title]="
-      store.isPrefilledDataset()
-        ? ('sidebar.unavailableForPrefilled' | translate)
-        : ('sidebar.reconfigureDataset' | translate)
-    "
-  >
+  <gn-ui-button type="outline" (buttonClick)="onReconfigureClick()">
     <ng-icon name="iconoirRefreshCircle" size="1.1em" class="mr-1.5" />
     {{ 'sidebar.reconfigureDataset' | translate }}
   </gn-ui-button>
