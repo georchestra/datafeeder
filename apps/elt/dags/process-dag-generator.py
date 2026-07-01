@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 
 from airflow import DAG
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+from callback import _dag_success_callback
 from utils import get_datafeeder_pg_hook, normalize_nan
 
 
@@ -46,6 +47,7 @@ def create_dag(config):
         schedule=config.get("schedule"),
         tags=[config.get("id", "")],
         catchup=False,
+        on_success_callback=_dag_success_callback,
     )
 
     # Use a templated runtime timestamp ({{ ts_nodash }}) instead of a parse-time timestamp to avoid multiple dag versioning.
