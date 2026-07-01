@@ -25,6 +25,7 @@ class ImportType(str, Enum):
     API = "api"
     FTP = "ftp"
     EMPTY = "empty"
+    PREFILLED = "prefilled"
 
 
 class FileType(str, Enum):

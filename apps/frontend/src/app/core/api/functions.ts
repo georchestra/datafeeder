@@ -37,6 +37,8 @@ export type { GetStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet$Params 
 export { getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet as getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet } from './fn/ingestion/get-staging-preview-ingestion-staging-integrity-link-id-preview-get'
 export type { CreateEmptyDatasetIngestionIntegrityLinkEmptyPost$Params as CreateEmptyDatasetIngestionIntegrityLinkEmptyPost$Params } from './fn/ingestion/create-empty-dataset-ingestion-integrity-link-empty-post'
 export { createEmptyDatasetIngestionIntegrityLinkEmptyPost as createEmptyDatasetIngestionIntegrityLinkEmptyPost } from './fn/ingestion/create-empty-dataset-ingestion-integrity-link-empty-post'
+export type { CreatePrefilledDatasetIngestionIntegrityLinkPrefilledPost$Params as CreatePrefilledDatasetIngestionIntegrityLinkPrefilledPost$Params } from './fn/ingestion/create-prefilled-dataset-ingestion-integrity-link-prefilled-post'
+export { createPrefilledDatasetIngestionIntegrityLinkPrefilledPost as createPrefilledDatasetIngestionIntegrityLinkPrefilledPost } from './fn/ingestion/create-prefilled-dataset-ingestion-integrity-link-prefilled-post'
 export type { ListIntegrityLinksIngestionIntegrityLinksGet$Params as ListIntegrityLinksIngestionIntegrityLinksGet$Params } from './fn/ingestion/list-integrity-links-ingestion-integrity-links-get'
 export { listIntegrityLinksIngestionIntegrityLinksGet as listIntegrityLinksIngestionIntegrityLinksGet } from './fn/ingestion/list-integrity-links-ingestion-integrity-links-get'
 export type { GetIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet$Params as GetIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet$Params } from './fn/ingestion/get-integrity-link-ingestion-integrity-link-integrity-link-id-get'

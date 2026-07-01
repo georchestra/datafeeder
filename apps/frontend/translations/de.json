@@ -330,6 +330,7 @@
   "sidebar.reconfigureDataset.warningTitle": "",
   "sidebar.recurrence": "Wiederholung",
   "sidebar.unavailableForEmpty": "",
+  "sidebar.unavailableForPrefilled": "",
   "sidebar.unavailableForLocal": "Nicht verfügbar für vom Benutzergerät importierte Daten",
   "status.type.error": "",
   "status.type.queued": "",

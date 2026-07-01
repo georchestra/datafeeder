@@ -16,6 +16,7 @@ from src.core.security import (
     load_authorized_integrity_link,
 )
 from src.models.data_import import (
+    ImportType,
     IntegrityLinkGsPublishResponse,
     IntegrityLinkResponse,
     UpdateMetadataGnRequest,
@@ -140,7 +141,10 @@ def _sync_data_sharing(
     Raises:
         HTTPException(500): If role resolution or GeoServer ACL sync fails.
     """
-    if not integrity_link.final_table_name:
+    if (
+        not integrity_link.final_table_name
+        and integrity_link.source_import_type != ImportType.PREFILLED
+    ):
         return
 
     all_rules = list(
@@ -182,6 +186,14 @@ def _sync_data_sharing(
 
     workspace = integrity_link.integrity_organization.lower()
 
+    final_table_name = integrity_link.final_table_name
+    if integrity_link.source_import_type == ImportType.PREFILLED:
+        if parts := integrity_link.parse_data_id():
+            workspace, final_table_name = parts[0].lower(), parts[1].lower()
+
+    if not final_table_name:
+        return
+
     if geoserver_service is None:
         geoserver_service = GeoServerService(
             base_url=settings.GEOSERVER_INTERNAL_URL,
@@ -189,7 +201,7 @@ def _sync_data_sharing(
             password=settings.GEOSERVER_PASSWORD,
             public_url=settings.DATA_PUBLIC_URL,
         )
-    geoserver_service.sync_layer_acl(workspace, integrity_link.final_table_name, resolved)
+    geoserver_service.sync_layer_acl(workspace, final_table_name, resolved)
 
 
 @router.get(

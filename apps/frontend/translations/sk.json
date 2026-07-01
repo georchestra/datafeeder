@@ -330,6 +330,7 @@
   "sidebar.reconfigureDataset.warningTitle": "",
   "sidebar.recurrence": "Opakovanie",
   "sidebar.unavailableForEmpty": "",
+  "sidebar.unavailableForPrefilled": "",
   "sidebar.unavailableForLocal": "Nedostupné pre údaje importované z používateľského zariadenia",
   "status.type.error": "",
   "status.type.queued": "",

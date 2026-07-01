@@ -56,7 +56,8 @@
         (keydown.enter)="onRowKeydown($event, link)"
       >
         <div class="flex-1 truncate pl-2 pr-4 text-sm text-gray-2">
-          @if (link.has_final_table || link.source_import_type === 'empty') {
+          @if (link.has_final_table || link.source_import_type === 'empty' ||
+          link.source_import_type === 'prefilled') {
           {{ link.integrity_title }}
           @if (isReadOnly(link)) {
           <span

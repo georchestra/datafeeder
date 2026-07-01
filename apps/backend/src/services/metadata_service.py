@@ -467,6 +467,42 @@ class MetadataService:
                     attrib={"codeList": codelist_19139, "codeListValue": "revision"},
                 ).text = "revision"
 
+    def get_title(self, metadata_uuid: str) -> str | None:
+        """Fetch the title from an existing GeoNetwork metadata record.
+
+        Args:
+            metadata_uuid: UUID of the metadata record in GeoNetwork.
+
+        Returns:
+            Title string, or None if the record or title cannot be read.
+        """
+        try:
+            xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
+        except Exception as e:
+            logger.warning("Could not fetch metadata XML for %s: %s", metadata_uuid, e)
+            return None
+
+        root: _Element = etree.fromstring(xml_bytes)
+        schema = self._detect_schema(root)
+
+        if schema == _SCHEMA_19115_3:
+            nodes = root.xpath(
+                "mdb:identificationInfo/mri:MD_DataIdentification"
+                "/mri:citation/cit:CI_Citation/cit:title/gco:CharacterString",
+                namespaces=NS_19115_3,
+            )
+        elif schema == _SCHEMA_19139:
+            nodes = root.xpath(
+                "gmd:identificationInfo/gmd:MD_DataIdentification"
+                "/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString",
+                namespaces=NS_19139,
+            )
+        else:
+            logger.warning("Unsupported schema for title extraction on record %s", metadata_uuid)
+            return None
+
+        return nodes[0].text if nodes and nodes[0].text else None
+
     def update_revision_date(self, metadata_uuid: str, revision_date: datetime) -> None:
         """Fetch a GeoNetwork record, set its revision date, and save.
 

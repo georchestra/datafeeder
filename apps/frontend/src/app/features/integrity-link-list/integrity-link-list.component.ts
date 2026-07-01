@@ -25,7 +25,10 @@ import { SearchInputComponent } from '../../shared/components/search-input/searc
 import { QuickCreationComponent } from '../../shared/components/quick-creation/quick-creation.component'
 import { RecurrenceLabelPipe } from '../../shared/pipes/recurrence-label.pipe'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
-import { EMPTY_IMPORT_TYPE } from '../../core/stores/integrity-link.store'
+import {
+  EMPTY_IMPORT_TYPE,
+  PREFILLED_IMPORT_TYPE
+} from '../../core/stores/integrity-link.store'
 import { IntlinkNavService } from '../../core/layout/intlink-nav.service'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
@@ -130,7 +133,8 @@ export class IntegrityLinkListComponent {
     if (this.isReadOnly(link)) return
     if (
       !link.has_final_table &&
-      link.source_import_type !== EMPTY_IMPORT_TYPE
+      link.source_import_type !== EMPTY_IMPORT_TYPE &&
+      link.source_import_type !== PREFILLED_IMPORT_TYPE
     ) {
       this.router.navigate(['/', 'import', link.id], {
         queryParams: { step: 2 }

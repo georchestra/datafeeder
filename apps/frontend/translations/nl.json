@@ -330,6 +330,7 @@
   "sidebar.reconfigureDataset.warningTitle": "",
   "sidebar.recurrence": "Herhaling",
   "sidebar.unavailableForEmpty": "",
+  "sidebar.unavailableForPrefilled": "",
   "sidebar.unavailableForLocal": "Niet beschikbaar voor gegevens die vanaf de gebruikerscomputer zijn geïmporteerd",
   "status.type.error": "",
   "status.type.queued": "",
