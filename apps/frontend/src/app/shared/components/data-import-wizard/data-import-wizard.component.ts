@@ -20,6 +20,7 @@ import {
   iconoirWarningTriangle,
   iconoirXmark
 } from '@ng-icons/iconoir'
+import { FormsModule } from '@angular/forms'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import {
   ButtonComponent,
@@ -87,6 +88,11 @@ marker('i18nerror.sync.geonetwork')
 marker('import.metadataPublication.error')
 marker('import.dataSource.generateMetadataWithAi')
 marker('import.dataSource.generateMetadataWithAi.hint')
+marker('import.dataSource.ai.addContext')
+marker('import.dataSource.ai.editContext')
+marker('import.dataSource.ai.context.title')
+marker('import.dataSource.ai.context.optional')
+marker('import.dataSource.ai.context.placeholder')
 
 const POLL_INTERVAL_MS = 500
 const MAX_POLL_TIME_MS = 120000
@@ -109,6 +115,7 @@ export interface ImportWizardData {
   selector: 'app-data-import-wizard',
   host: { class: 'flex-1 min-h-0 block' },
   imports: [
+    FormsModule,
     MatButtonToggleModule,
     NgIconComponent,
     ButtonComponent,
@@ -220,6 +227,8 @@ export class DataImportWizardComponent {
   previewTabIndex = signal(0)
   hasExtentError = signal(false)
   generateMetadataWithAi = signal(false)
+  aiContextOpen = signal(false)
+  aiContext = signal('')
 
   columnConfigs = signal<ColumnConfig[]>([])
   forceProjection = signal<ForceProjection | null>(null)
@@ -687,8 +696,11 @@ export class DataImportWizardComponent {
         body: {
           integrity_link_id: this.integrityLinkStore.intlinkId()!,
           title: title,
-          generate_metadata_with_ai: this.generateMetadataWithAi()
-        }
+          generate_metadata_with_ai: this.generateMetadataWithAi(),
+          ...(this.aiContext().trim()
+            ? { extra_context: this.aiContext().trim() }
+            : {})
+        } as any
       })
 
       this.processing.set(false)
