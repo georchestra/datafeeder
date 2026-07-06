@@ -197,6 +197,7 @@
   "footer.ai.promptPlaceholder": "Bijv.: Nadruk op milieugegevens, updatefrequentie vermelden…",
   "footer.ai.send": "Genereren",
   "footer.ai.applyToFields": "Toepassen op velden",
+  "footer.ai.appliesToFields": "Van toepassing op",
   "footer.ai.deselectAll": "Alles deselecteren",
   "footer.ai.selectAll": "Alles selecteren",
   "footer.ai.fieldsSelected": "velden geselecteerd",

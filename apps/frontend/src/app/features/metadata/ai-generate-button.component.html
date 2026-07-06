@@ -183,21 +183,14 @@
       <div class="w-72 flex-shrink-0 flex flex-col">
         <!-- Header with back arrow -->
         <div class="flex items-center gap-2 px-3 pt-3 pb-2.5">
-          <button
-            type="button"
-            class="flex items-center justify-center w-6 h-6 rounded-md hover:bg-secondary-active transition-colors text-secondary-darker"
-            (click)="aiDropdownView.set('main')"
-          >
-            <ng-icon name="iconoirNavArrowLeft" size="1em" />
-          </button>
           <span class="text-sm font-medium text-secondary-darker">
             {{ 'footer.ai.customPrompt.title' | translate }}
           </span>
         </div>
         <!-- Textarea + send -->
-        <div class="h-full px-3 pb-3">
+        <div class="h-full px-3 pb-3 flex flex-col">
           <textarea
-            class="w-full h-32 text-sm text-gray-800 bg-white border border-gray-300 rounded px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent placeholder:text-gray-400"
+            class="w-full h-full text-sm text-gray-800 bg-white border border-gray-300 rounded px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent placeholder:text-gray-400"
             [placeholder]="'footer.ai.promptPlaceholder' | translate"
             [value]="aiCustomPrompt()"
             (input)="aiCustomPrompt.set($any($event.target).value)"
@@ -211,6 +204,21 @@
             <ng-icon name="iconoirSend" size="1em" />
             {{ 'footer.ai.send' | translate }}
           </button>
+        </div>
+        <div class="border-t border-gray-200 px-4 pt-3 pb-3 bg-[#faf9f6]">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-gray-700 tracking-wider">
+              {{ 'footer.ai.appliesToFields' | translate }}
+            </span>
+          </div>
+          <div class="flex flex-wrap gap-x-3 gap-y-1">
+            @for (fieldLabelKey of aiSelectedFieldLabelKeys(); track
+            fieldLabelKey) {
+            <span class="text-sm text-gray-800">
+              {{ fieldLabelKey | translate }}
+            </span>
+            }
+          </div>
         </div>
       </div>
     </div>

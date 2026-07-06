@@ -197,6 +197,7 @@
   "footer.ai.promptPlaceholder": "e.g. Focus on environmental data, mention the update frequency…",
   "footer.ai.send": "Generate",
   "footer.ai.applyToFields": "Apply to fields",
+  "footer.ai.appliesToFields": "Applies to",
   "footer.ai.deselectAll": "Deselect all",
   "footer.ai.selectAll": "Select all",
   "footer.ai.fieldsSelected": "fields selected",

@@ -197,6 +197,7 @@
   "footer.ai.promptPlaceholder": "Napr.: Zamerajte sa na environmentálne údaje, uveďte frekvenciu aktualizácie…",
   "footer.ai.send": "Generovať",
   "footer.ai.applyToFields": "Použiť na polia",
+  "footer.ai.appliesToFields": "Platí pre",
   "footer.ai.deselectAll": "Zrušiť výber všetkých",
   "footer.ai.selectAll": "Vybrať všetko",
   "footer.ai.fieldsSelected": "polí vybraných",

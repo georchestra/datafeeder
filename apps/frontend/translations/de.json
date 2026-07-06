@@ -197,6 +197,7 @@
   "footer.ai.promptPlaceholder": "z.B. Umweltdaten hervorheben, Aktualisierungsfrequenz erwähnen…",
   "footer.ai.send": "Generieren",
   "footer.ai.applyToFields": "Auf Felder anwenden",
+  "footer.ai.appliesToFields": "Gilt für",
   "footer.ai.deselectAll": "Alle abwählen",
   "footer.ai.selectAll": "Alle auswählen",
   "footer.ai.fieldsSelected": "Felder ausgewählt",

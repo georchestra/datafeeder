@@ -36,6 +36,7 @@ marker('footer.ai.promptPlaceholder')
 marker('footer.ai.send')
 marker('footer.ai.customPrompt.title')
 marker('footer.ai.applyToFields')
+marker('footer.ai.appliesToFields')
 marker('footer.ai.deselectAll')
 marker('footer.ai.selectAll')
 marker('footer.ai.fieldsSelected')
@@ -87,7 +88,7 @@ export class AiGenerateButtonComponent {
 
   isGeneratingAI = signal(false)
   aiDropdownOpen = signal(false)
-  aiDropdownView = signal<'main' | 'prompt'>('main')
+  aiDropdownView = signal<'prompt'>('prompt')
   aiCustomPrompt = signal('')
   disabled = input(false)
   lastAiMode = signal<'regenerate' | 'rewrite'>('regenerate')
@@ -109,6 +110,12 @@ export class AiGenerateButtonComponent {
 
   aiSelectedFieldsCount = computed(
     () => Object.values(this.aiFields()).filter(Boolean).length
+  )
+
+  aiSelectedFieldLabelKeys = computed(() =>
+    (Object.keys(this.aiFields()) as AiFieldKey[])
+      .filter((key) => this.aiFields()[key])
+      .map((key) => `footer.ai.field.${key}`)
   )
 
   private changedSinceSave = toSignal(this.editor.changedSinceSave$, {
@@ -241,14 +248,14 @@ export class AiGenerateButtonComponent {
   async onSendCustomPrompt(): Promise<void> {
     const prompt = this.aiCustomPrompt().trim()
     if (!prompt) return
-    this.aiDropdownView.set('main')
+    this.aiDropdownView.set('prompt')
     await this.onGenerateWithAI('regenerate', prompt)
     this.aiCustomPrompt.set('')
   }
 
   toggleAiDropdown(): void {
     if (!this.aiDropdownOpen()) {
-      this.aiDropdownView.set('main')
+      this.aiDropdownView.set('prompt')
     }
     this.aiDropdownOpen.update((v) => !v)
   }

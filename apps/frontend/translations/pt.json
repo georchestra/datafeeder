@@ -197,6 +197,7 @@
   "footer.ai.promptPlaceholder": "Ex.: Focar em dados ambientais, mencionar a frequência de atualização…",
   "footer.ai.send": "Gerar",
   "footer.ai.applyToFields": "Aplicar aos campos",
+  "footer.ai.appliesToFields": "Aplica-se a",
   "footer.ai.deselectAll": "Desmarcar todos",
   "footer.ai.selectAll": "Selecionar todos",
   "footer.ai.fieldsSelected": "campos selecionados",
