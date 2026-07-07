@@ -26,3 +26,8 @@ The backend also needs to be pointed at the Airflow instance: see `AIRFLOW_INTER
 Both DAGs accept `success_callback_url` / `failure_callback_url` parameters and call them on completion. These URLs
 point back at the backend (`BACKEND_INTERNAL_URL`), which is how the backend learns a run finished without polling
 Airflow continuously.
+
+## Source databases
+
+The `staging_dag` reads external source databases (the **Database** import type) through Airflow Connections.
+See [adding a source database](source_database.md) for how to configure one.

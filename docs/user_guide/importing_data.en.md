@@ -31,7 +31,7 @@ Once staged, you configure how the data should be transformed into its final, pu
 
 - **Column mapping**: rename, drop or reorder columns
 - **Projection**: reproject the geometry to a target CRS (the available projections are configured platform-wide)
-- **SQL filters**: restrict the rows carried over to the final table
+- **Filters**: restrict the rows carried over to the final table
 
 ## 3. Publish
 

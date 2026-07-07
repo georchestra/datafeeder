@@ -1,8 +1,6 @@
 # Managing datasets
 
-The dataset dashboard lists every `IntegrityLink` known to the platform: one row per dataset, with its current
-lifecycle status (staging, staged, processing, published, failed...), its source type, and its publication targets
-(GeoServer layer, GeoNetwork record).
+The dataset dashboard lists every `IntegrityLink` known to the platform: one row per dataset.
 
 From this dashboard you can:
 

@@ -60,6 +60,7 @@ nav:
             - technical_guides/configuration/backend.md
             - technical_guides/configuration/elt.md
             - technical_guides/configuration/frontend.md
+            - technical_guides/configuration/source_database.md
         - technical_guides/troubleshooting.md
     - Contribute:
         - technical_guides/contribute/index.md

@@ -1,5 +1,12 @@
 # Architecture
 
+## Design principles
+
+- The backend should, in theory, stay agnostic of the task orchestrator (Airflow today), GeoServer, GeoNetwork, or any other integrated service — these are integrations, not core assumptions. 
+- DAGs should stay small: a small, narrowly-scoped DAG is easier to reason about, debug and retry than a large one. 
+- Ingestion and transformation logic must live in `libs/data_manipulation/`, not in DAG task code, so the orchestrator stays a thin caller and the actual intelligence is testable and reusable independently of Airflow. 
+- Finally, the application should, in theory, be usable API-first: the frontend is just one client of the backend REST API, and any operation it exposes should remain automatable through the API alone.
+
 ## Backend (`apps/backend/`)
 
 FastAPI application. Exposes the REST API consumed by the frontend and by Airflow DAGs (via callbacks). Owns the
@@ -61,13 +68,7 @@ Feature modules:
 State is managed via NgRx. Shared UI primitives live in `shared/`, singletons (auth, settings, layout) in `core/`.
 
 The frontend depends on **[geonetwork-ui](https://github.com/geonetwork/geonetwork-ui)** (`geonetwork-ui` npm
-package) for two distinct purposes:
-
-- **UI component library**: `ButtonComponent`, `DropdownSelectorComponent`, `TextInputComponent`,
-  `MapContainerComponent`, `ConfirmationDialogComponent`, `SpinningLoaderComponent`, etc. — used throughout the app
-  as the base design system.
-- **Metadata editor**: `EditorFacade`, `RecordFormComponent`, `RecordsRepositoryInterface`,
-  `findConverterForDocument` — power the full ISO 19139 metadata editing flow in the `metadata` feature.
+package).
 
 ## IntegrityLink lifecycle
 
