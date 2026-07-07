@@ -1,6 +1,18 @@
 from enum import Enum
 
+from typing import TypedDict
 from pydantic import BaseModel, Field, field_validator
+
+
+class Thesaurus(TypedDict):
+    title: str
+    kw: list[tuple[str, str]]
+
+
+class KwStrategy(Enum):
+    PROMPTED = 1    # convert model to system prompt
+    STRUCTURED = 2  # structured llm output with all keywords at once
+    STAGED = 3      # 2-staged keyword selection: first choose thesaurus then select contained KWs
 
 
 class LlmMetadataMode(str, Enum):

@@ -7,6 +7,8 @@ RUN --mount=type=cache,target=/root/.npm \
     npm install
 
 COPY ./ .
+# patch geonetwork UI so that INSPIRE category keys match exactly with geonetwork
+RUN sed -i 's/geoscientific information/geoscientificInformation/;s/Location/location/;s/Oceans/oceans/;s/Society/society/;s/Structure/structure/;s/Transportation/transportation/' node_modules/geonetwork-ui/src/libs/feature/editor/src/lib/fields.config.ts
 RUN npm run build && ls -la dist/
 
 
