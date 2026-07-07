@@ -162,7 +162,7 @@ def generate_metadata(
     human_prompt_path: Path | str | None = None,
     mode: LlmMetadataMode = LlmMetadataMode.REGENERATE,
     current_values: dict[str, Any] | None = None,
-    keyword_strategy: KwStrategy = KwStrategy.STRUCTURED
+    keyword_strategy: KwStrategy = KwStrategy.STAGED
 ) -> GeneratedMetadata:
     """Generate dataset metadata using an LLM.
 
@@ -280,7 +280,7 @@ def generate_metadata(
         )
         if keyword_strategy == KwStrategy.STAGED:
             # second stage where KW are actually selected from a narrower choice
-            kw = keywords[result.keywords[0].name]['kw']
+            kw = sum((keywords[k.name]['kw'] for k in result.keywords), [])
             Keywords = StrEnum('Themes', kw)
             KeywordModel = create_model('KeywordModel', keywords=list[Keywords])
 
