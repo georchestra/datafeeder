@@ -10,9 +10,9 @@ Generate metadata for the following dataset:
 {current_keywords}
 - Current topics:
 {current_topics}
-- Available keywords (prioritize these when relevant, complement with free keywords if fewer than 5 match): 
+- Available keywords (do not add keywords):
 {keywords}
-- Available topic categories (prioritize these when relevant): 
+- Available topic categories (do not add categories):
 {topics}
 - Additional context
 {extra_context}
