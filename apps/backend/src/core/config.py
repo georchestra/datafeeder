@@ -45,19 +45,19 @@ class Settings(BaseSettings):
     _default_datadir = get_default_datadir()
 
     if not os.path.exists(datafeeder_config) and not os.path.exists(
-        f"{_default_datadir}/datafeeder-python/datafeeder.env"
+        f"{_default_datadir}/datafeeder/datafeeder.env"
     ):
         logger.warning("Configuration file not found!")
         logger.warning("looked for DATAFEEDER_CONFIG at: %s", os.getenv("DATAFEEDER_CONFIG", ""))
         logger.warning(
             "looked for datafeeder.env at: %s",
-            f"{_default_datadir}/datafeeder-python/datafeeder.env",
+            f"{_default_datadir}/datafeeder/datafeeder.env",
         )
     else:
         if not os.path.exists(datafeeder_config) and os.path.exists(
-            f"{_default_datadir}/datafeeder-python/datafeeder.env"
+            f"{_default_datadir}/datafeeder/datafeeder.env"
         ):
-            datafeeder_config = f"{_default_datadir}/datafeeder-python/datafeeder.env"
+            datafeeder_config = f"{_default_datadir}/datafeeder/datafeeder.env"
         logger.info("Loading configuration from %s", datafeeder_config)
 
     model_config = SettingsConfigDict(
