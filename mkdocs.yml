@@ -1,0 +1,97 @@
+site_name: geOrchestra Datafeeder
+
+repo_url: https://github.com/georchestra/datafeeder
+repo_name: georchestra-datafeeder
+
+docs_dir: docs
+edit_uri: edit/main/docs/
+
+theme:
+  language: en
+  features:
+    - navigation.indexes
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.footer
+  logo: images/georchestra-logo-white.svg
+  favicon: images/favicon.ico
+  name: material
+
+extra:
+  version:
+    provider: mike
+  generator: false
+  social:
+    - icon: fontawesome/solid/paper-plane
+      link: mailto:psc@georchestra.org
+    - icon: fontawesome/brands/github
+      link: https://github.com/georchestra
+    - icon: fontawesome/brands/google
+      link: https://groups.google.com/g/georchestra?hl=en
+    - icon: fontawesome/regular/comments
+      link: https://matrix.to/#/#georchestra:osgeo.org
+
+copyright: '© 2026 - geOrchestra'
+
+extra_css:
+    - css/extra.css
+
+# 1st and 2nd level tree structure to manage here
+# These entries match the documentation template
+# Here do not put .fr or .en in the name of the markdown: the i18n plugin manages this for you
+
+nav:
+    - Home: index.md
+    - User guide:
+        - User guide: user_guide/index.md
+        - Importing a dataset: user_guide/importing_data.md
+        - Managing datasets: user_guide/managing_datasets.md
+        - Editing metadata: user_guide/metadata.md
+        - Authorizations: user_guide/authorizations.md
+    - Install guide:
+        - Index: technical_guides/index.md
+        - technical_guides/presentation.md
+        - Installation:
+            - technical_guides/installation/index.md
+            - technical_guides/installation/prerequisites.md
+            - technical_guides/installation/quickstart.md
+        - Configuration:
+            - technical_guides/configuration/index.md
+            - technical_guides/configuration/backend.md
+            - technical_guides/configuration/elt.md
+            - technical_guides/configuration/frontend.md
+            - technical_guides/configuration/source_database.md
+        - technical_guides/troubleshooting.md
+    - Contribute:
+        - technical_guides/contribute/index.md
+        - technical_guides/contribute/architecture.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - def_list
+
+plugins:
+  - search
+  - callouts
+  - i18n:
+        docs_structure: suffix
+        fallback_to_default: true
+        reconfigure_material: true
+        reconfigure_search: true
+        languages:
+          - locale: en
+            default: true
+            name: English
+            build: true
+            site_name: "geOrchestra Datafeeder"
+          # - locale: fr
+          #   name: Français
+          #   build: true
+          #   site_name: "Datafeeder : ingestion de données geOrchestra"
+
+  - git-revision-date-localized:
+      enable_creation_date: true
