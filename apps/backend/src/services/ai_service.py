@@ -450,22 +450,8 @@ def get_metadata_suggestions(
             verifytls=False
         )
         all_thesaurus_titles = _fetch_thesaurus_from_geonetwork(gn_api)
-        # hardcoded whitelist for the moment => TODO move to datadir
-        # whitelist = ['external.theme.httpinspireeceuropaeutheme-theme', 'external.theme.dcat-type']
-        whitelist = [
-            'external.theme.thesaurus_mot_cle_thematique_culture_tourisme_sport',
-            'external.theme.thesaurus_mot_cle_thematique_amenagement_urbanisme_foncier',
-            'external.theme.thesaurus_mot_cle_thematique_assainissement_eau_hydrographie',
-            'external.theme.thesaurus_mot_cle_thematique_habitat_logement',
-            'external.theme.thesaurus_mot_cle_thematique_espace_public',
-            'external.theme.thesaurus_mot_cle_thematique_mobilite_transports_deplacement',
-            'external.theme.thesaurus_mot_cle_thematique_administration_action_publique',
-            'external.theme.thesaurus_mot_cle_thematique_participation_citoyenne_democratie_locale',
-            'external.theme.thesaurus_mot_cle_thematique_services_social_sante',
-            'external.theme.thesaurus_mot_cle_thematique_education',
-            'external.theme.thesaurus_mot_cle_thematique_economie_emploi',
-            'external.theme.thesaurus_mot_cle_thematique_environnement_energie',
-        ]
+
+        whitelist = settings.AI_ALLOWED_THESAURUS.split(',')
         thesaurus_titles = {k: v for k, v in all_thesaurus_titles.items() if k in whitelist}
         all_kw = {
             thesaurus_key: {
