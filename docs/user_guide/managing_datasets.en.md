@@ -21,7 +21,7 @@ A dataset can be scheduled to re-import itself automatically. Available presets:
 - Every year
 
 On each run, Datafeeder re-fetches the data from the dataset's original source and re-applies its transformation, so
-the published layer and metadata stay in sync with the source without manual intervention.
+the published layer stays in sync with the source without manual intervention. Only the data publication date is updated in the metadata.
 
 ## Deleting a dataset
 
