@@ -12,7 +12,7 @@ check= "pyright ."
 
 [project]
 name = "datafeeder-python-monorepo"
-version = "0.1.0"
+version = "2.0.0"
 description = "Datafeeder python monorepo using uv"
 readme = "README.md"
 requires-python = "==3.12.*"
