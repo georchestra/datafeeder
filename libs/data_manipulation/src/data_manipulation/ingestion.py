@@ -98,7 +98,7 @@ def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.Data
     # chunk and signal completion afterwards to avoid re-reading / duplicating rows.
     if Path(file_path).suffix.lower() in (".parquet", ".geoparquet"):
         ds = pq.ParquetDataset(file_path)
-        if i > len(ds.fragments):
+        if i >= len(ds.fragments):
             return gpd.GeoDataFrame()
         try:
             return gpd.read_parquet(ds.fragments[i].path)  # type: ignore[arg-type]
