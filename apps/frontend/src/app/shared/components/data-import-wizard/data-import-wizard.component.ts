@@ -119,7 +119,6 @@ export interface ImportWizardData {
     MatButtonToggleModule,
     NgIconComponent,
     ButtonComponent,
-    CheckToggleComponent,
     SpinningLoaderComponent,
     DataSourceSelectorComponent,
     DatasetTitleComponent,
@@ -128,7 +127,6 @@ export interface ImportWizardData {
     DatasetPreviewTableComponent,
     DatasetPreviewMapComponent,
     UiAlertBoxComponent,
-    RecurrenceSelectorComponent,
     TechnicalInfoButtonComponent
   ],
   templateUrl: './data-import-wizard.component.html',
@@ -700,7 +698,7 @@ export class DataImportWizardComponent {
           ...(this.aiContext().trim()
             ? { extra_context: this.aiContext().trim() }
             : {})
-        } as any
+        }
       })
 
       this.processing.set(false)
