@@ -22,11 +22,7 @@ import {
 } from '@ng-icons/iconoir'
 import { FormsModule } from '@angular/forms'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
-import {
-  ButtonComponent,
-  CheckToggleComponent,
-  SpinningLoaderComponent
-} from 'geonetwork-ui'
+import { ButtonComponent, SpinningLoaderComponent } from 'geonetwork-ui'
 import {
   Subject,
   catchError,
@@ -74,7 +70,6 @@ import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-p
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 import { TechnicalInfoButtonComponent } from '../technical-info-button/technical-info-button.component'
-import { RecurrenceSelectorComponent } from '../recurrence-selector/recurrence-selector.component'
 import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { FooterService } from '../../../core/layout/footer.service'
 
