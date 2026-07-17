@@ -183,29 +183,43 @@
   } @else if (selectedTabIndex() === 1) {
   <div class="flex items-center gap-3">
     @if (aiMetadataEnabled()) {
-    <button
-      type="button"
-      class="flex items-center gap-0.5 pl-3 pr-5 py-1.5 border border-gray-300 rounded-sm cursor-pointer select-none disabled:cursor-not-allowed disabled:opacity-50 bg-gray-100 hover:bg-gray-400 transition-colors"
-      [disabled]="processing()"
-      (click)="generateMetadataWithAi.set(!generateMetadataWithAi())"
-    >
-      <gn-ui-check-toggle
-        [value]="generateMetadataWithAi()"
-        (toggled)="!processing() && generateMetadataWithAi.set($event)"
-        (click)="$event.stopPropagation()"
-        [title]="'import.dataSource.generateMetadataWithAi' | translate"
-        data-test="generate-metadata-with-ai"
+    <div class="relative">
+      <!-- Click-outside backdrop -->
+      @if (aiContextOpen()) {
+      <div class="fixed inset-0 z-40" (click)="aiContextOpen.set(false)"></div>
+      }
+      <!-- Context dropdown panel (opens upward) -->
+      @if (aiContextOpen()) {
+      <div
+        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-80 bg-white rounded shadow-xl border border-gray-300 z-50 overflow-hidden"
       >
-      </gn-ui-check-toggle>
-      <div class="flex flex-col text-left text-gray-900">
-        <span class="text-sm font-medium">
-          {{ 'import.dataSource.generateMetadataWithAi' | translate }}
-        </span>
-        <span class="text-xs">
-          {{ 'import.dataSource.generateMetadataWithAi.hint' | translate }}
-        </span>
+        <div class="flex items-center justify-between px-4 pt-3">
+          <span class="text-xs font-semibold text-gray-700 tracking-wider">
+            {{ 'import.dataSource.ai.context.title' | translate }}
+            <span class="font-normal normal-case text-gray-400 ml-1">
+              {{ 'import.dataSource.ai.context.optional' | translate }}
+            </span>
+          </span>
+          <button
+            type="button"
+            class="flex items-center justify-center w-6 h-6 rounded-md hover:bg-secondary-active transition-colors text-secondary-darker"
+            (click)="aiContextOpen.set(false)"
+          >
+            <ng-icon name="iconoirXmark" size="1em" />
+          </button>
+        </div>
+        <div class="px-4 py-3">
+          <textarea
+            class="w-full h-24 text-sm text-gray-800 bg-white border border-gray-300 rounded px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent placeholder:text-gray-400"
+            [placeholder]="
+              'import.dataSource.ai.context.placeholder' | translate
+            "
+            [(ngModel)]="aiContext"
+          ></textarea>
+        </div>
       </div>
-    </button>
+      }
+    </div>
     }
     <gn-ui-button
       type="primary"
