@@ -121,27 +121,19 @@ They become your **primary factual source**. You MUST:
 
 ## Field: `keywords`
 
-- Provide **8 to 12** relevant keywords.
-- If a list of available keywords is provided, **prioritize those** when relevant. Complement freely to reach 8–12 if fewer than 5 match.
-- ❌ **Do NOT include location names** (countries, cities, regions, addresses).
-- ❌ **Do NOT include names** (providers, person).
-- ❌ **Do NOT include temporal aspect**.
-- Keywords must describe theme, features and attributes only.
+- {kw_policy}
+- Keyword categories must describe theme, features and attributes only.
+- Keep keywords as is and do not translate them
+- Do not choose duplicate keywords
+- Do not add keywords ! Every keyword must be contained in the model provided by validation tool
 
-### INSPIRE requirements
-
-- Keywords are used to refine discovery beyond broad topic categories and support both full-text and structured search.
-- If a keyword comes from a controlled vocabulary (thesaurus), specify the thesaurus name and publication date.
-- For INSPIRE data (dataset series and series), include **at least one keyword** that identifies the relevant INSPIRE theme, as defined in the GEMET INSPIRE theme thesaurus: **"GEMET - INSPIRE themes, version 1.0"**, publication date **2008-06-01**.
-- Reference: http://www.eionet.europa.eu/gemet/inspire_themes?langcode=fr
-- Additional keywords may be provided to complement the INSPIRE theme keyword.
 
 ---
 
 ## Field: `topic_categories`
 
 Choose one or more ISO 19115 topic category codes (`MD_TopicCategoryCode`).
-A list of preferred categories will be provided in the input — favour those if they fit the dataset.
+A list of categories will be provided in the input — favour those if they fit the dataset.
 
 ---
 
@@ -164,13 +156,13 @@ Dates MUST be ISO 8601. If only a year is known: use `YYYY-01-01` (begin) and `Y
 **Table `sanisettespubliques`** — columns: `type`, `adresse`, `arrondissement`, `geom`, `date_maj`
 - Title: `"Équipements sanitaires publics à Paris – 2023"`
 - Abstract: `"Les sanisettes et toilettes publiques de Paris couvrent les arrondissements, les parcs et jardins, et les quais de Seine. Chaque équipement est identifié par son type et sa localisation sur la voirie, et son état de disponibilité permet de suivre les périodes d'indisponibilité. La date de mise à jour indique le suivi de maintenance."`
-- Keywords: `["toilettes publiques", "assainissement", "accessibilité", "mobilier urbain", "voirie", "équipement urbain", "services municipaux", "maintenance"]`
-- topic_categories: `["structure"]`
+- Keywords: `["Assainissement, eau, hydrographie"]`
+- topic_categories: `["Structure"]`
 
 **Table `ventes_immobilieres_2024`** — columns: `date_vente`, `prix`, `geom`
 - Title: `"Transactions immobilières géolocalisées – Prix et surfaces 2024"`
 - Abstract: `"Les transactions immobilières géolocalisées réalisées en 2024 couvrent l'ensemble du territoire. Chaque vente est caractérisée par son prix et sa date de transaction."`
-- Keywords: `["immobilier", "transactions", "prix foncier", "cadastre", "marché immobilier", "géolocalisation", "surfaces", "prix au m²"]`
+- Keywords: `["Espace public"]`
 - topic_categories: `["economy", "planningCadastre"]`
 
 **Critical example — do NOT ignore the abstract:**
