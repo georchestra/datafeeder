@@ -6,6 +6,7 @@ from functools import lru_cache
 from string import Template
 from typing import Annotated, Any, Literal
 
+from ai.providers import Provider
 from data_manipulation.logging import configure_logging
 from pydantic import (
     AliasChoices,
@@ -60,9 +61,19 @@ class Settings(BaseSettings):
             datafeeder_config = f"{_default_datadir}/datafeeder/datafeeder.env"
         logger.info("Loading configuration from %s", datafeeder_config)
 
+    _ai_env_file: str = os.getenv("AI_ENV_FILE", "")
+    if _ai_env_file and os.path.exists(_ai_env_file):
+        logger.info("Loading AI configuration from %s", _ai_env_file)
+        _env_files = [datafeeder_config, _ai_env_file]
+    else:
+        if _ai_env_file:
+            logger.warning("AI_ENV_FILE set but not found: %s", _ai_env_file)
+        _env_files = datafeeder_config
+
     model_config = SettingsConfigDict(
-        # Load .env from workspace root, with defaults from georchestra properties
-        env_file=datafeeder_config,
+        # Load .env from workspace root, with defaults from georchestra properties.
+        # A second optional AI_ENV_FILE can hold secrets (API keys) without being committed.
+        env_file=_env_files,
         env_ignore_empty=False,
         extra="ignore",
     )
@@ -168,6 +179,8 @@ class Settings(BaseSettings):
 
     GEONETWORK_PASSWORD: str = "testadmin"
 
+    GEONETWORK_VERIFY_TLS: bool = True
+
     # This is odd, apparently any UUID works as XSRF token
     GEONETWORK_XSRF_TOKEN: str = "c9f33266-e242-4198-a18c-b01290dce5f1"
 
@@ -177,6 +190,22 @@ class Settings(BaseSettings):
 
     # Console
     CONSOLE_INTERNAL_URL: str = "http://localhost:8085/console"
+
+    # AI metadata generation
+    AI_ENABLED: bool = False
+    AI_PROVIDER: Provider = "openai"
+    AI_MODEL: str = ""
+    AI_API_KEY: str = ""
+    AI_BASE_URL: str = ""
+    AI_METADATA_SYSTEM_PROMPT_FILE: str = ""
+    AI_METADATA_HUMAN_PROMPT_FILE: str = ""
+    AI_METADATA_SAMPLE_LIMIT: int = 5
+    AI_METADATA_TEMPERATURE: float = 0
+
+    # Arize Phoenix tracing (optional)
+    AI_PHOENIX_ENABLED: bool = False
+    AI_PHOENIX_ENDPOINT: str = "http://localhost:6006/v1/traces"
+    AI_PHOENIX_PROJECT: str = "datafeeder"
 
     # Metadata groups (for authorization UI)
     METADATA_GROUPS_LABEL_FILTER_REGEX: str = ""

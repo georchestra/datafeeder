@@ -25,6 +25,10 @@ export class OperationToastStore {
     this.add(`info.operation.${operationKey}`, 'info')
   }
 
+  addAISuccess(translationKey: string): void {
+    this.addCustom(translationKey, 'ai', 'iconoirSparks', 'secondary')
+  }
+
   remove(id: string): void {
     this.toasts.update((toasts) => toasts.filter((t) => t.id !== id))
   }
@@ -32,6 +36,20 @@ export class OperationToastStore {
   private add(translationKey: string, type: 'error' | 'info'): void {
     const id = globalThis.crypto.randomUUID()
     this.toasts.update((toasts) => [...toasts, { id, translationKey, type }])
+    globalThis.setTimeout(() => this.remove(id), TOAST_AUTO_DISMISS_MS)
+  }
+
+  private addCustom(
+    translationKey: string,
+    type: 'ai',
+    icon: string,
+    color: 'primary' | 'secondary'
+  ): void {
+    const id = globalThis.crypto.randomUUID()
+    this.toasts.update((toasts) => [
+      ...toasts,
+      { id, translationKey, type, customIcon: icon, customColor: color }
+    ])
     globalThis.setTimeout(() => this.remove(id), TOAST_AUTO_DISMISS_MS)
   }
 }

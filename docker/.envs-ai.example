@@ -1,0 +1,23 @@
+# AI/LLM configuration — copy this file to .envs-ai and fill in your values
+# This file is optional: if absent, AI generation is disabled (AI_ENABLED=false)
+#
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# !! WARNING: DO NOT COMMIT .envs-ai — it contains secrets (API keys).      !!
+# !! Only this .envs-ai.example file should be committed.                   !!
+# !! .envs-ai is already in .gitignore but double-check before any `git add`!!
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+AI_ENABLED=false
+AI_PROVIDER=openrouter
+AI_MODEL=mistralai/mistral-small-2603
+AI_API_KEY=any_key
+AI_BASE_URL=http://localhost:11434
+AI_METADATA_SYSTEM_PROMPT_FILE=
+AI_METADATA_HUMAN_PROMPT_FILE=
+AI_METADATA_SAMPLE_LIMIT=5  # Number of sample rows sent to the LLM (default: 5)
+AI_METADATA_TEMPERATURE=0  # LLM sampling temperature for metadata generation (default: 0)
+
+# Arize Phoenix tracing (optional — requires ai[phoenix] installed)
+AI_PHOENIX_ENABLED=false
+AI_PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
+AI_PHOENIX_PROJECT=datafeeder

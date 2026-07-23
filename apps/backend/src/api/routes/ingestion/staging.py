@@ -524,6 +524,7 @@ async def submit_staging(
         source_username=username if import_source.auth_enabled else None,
         source_password_encrypted=encrypted_password if import_source.auth_enabled else None,
         staging_table_name=staging_table_name,
+        extra_config={},
     )
     session.add(integrity_link)
     session.commit()
@@ -648,6 +649,7 @@ async def edit_staging(
     )
     integrity_link.staging_table_name = staging_table_name
     integrity_link.integrity_transformation = None  # Clear any existing transformations on edit !! warning this may break process if recurrent edits are needed, need to find better way to handle this
+    integrity_link.extra_config = {}
 
     session.commit()
     session.refresh(integrity_link)
