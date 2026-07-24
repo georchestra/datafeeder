@@ -19,6 +19,12 @@ uv run pytest -k parquet               # one case by id
 uv run pytest --headed=false           # headless
 ```
 
+## Generate with playwright
+
+```bash
+uv run playwright codegen http://localhost:8080
+```
+
 ## Worker memory
 
 Watch the airflow-worker container's memory usage while a test run triggers an import:
