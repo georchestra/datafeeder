@@ -91,7 +91,7 @@ class GeneratedMetadata(BaseModel):
     # attribute_descriptions: list[AttributeInfo] | None = Field(
     #    description="Description of each attribute/column of the dataset"
     # )
-    attribute_descriptions: None = Field(default=None, description="")
+    attribute_descriptions: list[AttributeInfo] | None = Field(default=None, description="")
     temporal_extent: TemporalExtent | None = Field(
         default=None,
         description=(

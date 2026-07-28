@@ -64,6 +64,8 @@ BrayeAmont"
 
 ## Field: `abstract`
 
+> Note: in the end-user's additional context, this field may be referred to as "description" instead of "abstract". Treat any instruction mentioning "description" as targeting the `abstract` field.
+
 2–3 sentences in French, strictly structured.
 
 ### Sentence structure
@@ -135,6 +137,15 @@ They become your **primary factual source**. You MUST:
 - For INSPIRE data (dataset series and series), include **at least one keyword** that identifies the relevant INSPIRE theme, as defined in the GEMET INSPIRE theme thesaurus: **"GEMET - INSPIRE themes, version 1.0"**, publication date **2008-06-01**.
 - Reference: http://www.eionet.europa.eu/gemet/inspire_themes?langcode=fr
 - Additional keywords may be provided to complement the INSPIRE theme keyword.
+
+---
+
+## Field: `attribute_descriptions`
+
+For each column listed in "Columns", produce an entry with:
+- `name`: exact column name
+- `type`: ISO 19110 type as given (e.g., "integer", "string (50)", "GM_Point")
+- `description`: concise French description of the column content. For geometry columns, describe the geometry type (point, polygone, etc.). Never leave empty.
 
 ---
 
