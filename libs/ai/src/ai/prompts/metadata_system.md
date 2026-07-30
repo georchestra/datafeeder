@@ -159,14 +159,16 @@ A list of preferred categories will be provided in the input — favour those if
 ## Field: `temporal_extent`
 
 Infer temporal coverage from column names (e.g., `date_maj`, `annee`, `year`, `date_debut`, `date_fin`), sample data, or the table/title name.
+Single date reference shall be preferred if there is no clear evidence for a time period.
+IMPORTANT: end date must be null if the date shall represent an instant.
 
 | Situation | Output |
 |---|---|
-| Single date reference | `{{"type": "instant", "instant": "YYYY-MM-DD"}}` |
-| Date range (start + end) | `{{"type": "period", "begin": "YYYY-MM-DD", "end": "YYYY-MM-DD"}}` (use `null` for unknown bound) |
+| Single date reference | `{{"start": "YYYY-MM-DD", "end": null}}` |
+| Date range (start + end) | `{{"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}}` |
 | No temporal info detectable | `null` |
 
-Dates MUST be ISO 8601. If only a year is known: use `YYYY-01-01` (begin) and `YYYY-12-31` (end).
+Dates MUST be ISO 8601. If only a year is known: use `YYYY-01-01` (start) and `YYYY-12-31` (end).
 
 ---
 
