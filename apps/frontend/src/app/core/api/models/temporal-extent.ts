@@ -6,22 +6,16 @@
  */
 export interface TemporalExtent {
   /**
-   * Start date/time in ISO 8601 format (e.g. '2023-01-01' or '2023-01-01T00:00:00'). Required when type='period', optional when type='instant'.
+   * Start date/time in ISO 8601 format (e.g. '2023-01-01' or '2023-01-01T00:00:00'). Start of period.
+   Date of Validity in case of instant without duration.
    */
-  begin?: string | null
+  start?: string | null
 
   /**
-   * End date/time in ISO 8601 format. Required when type='period'. Use null if open-ended or unknown.
+   * End date/time in ISO 8601 format. None if no time information is available.
+   None if no time information is available or time reference is an instant. End of time period.
    */
   end?: string | null
 
-  /**
-   * Date/time in ISO 8601 format when type='instant'.
-   */
-  instant?: string | null
-
-  /**
-   * Either 'instant' (single date/time) or 'period' (date range). Use 'unknown' if no temporal information can be inferred.
-   */
   type: string
 }
