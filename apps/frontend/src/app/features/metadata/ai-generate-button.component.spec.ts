@@ -89,12 +89,77 @@ describe('AiGenerateButtonComponent', () => {
   })
 
   describe('initial state', () => {
-    it('should default to rewrite mode', () => {
-      expect(component.lastAiMode()).toBe('rewrite')
+    it('should default to regenerate mode', () => {
+      expect(component.lastAiMode()).toBe('regenerate')
+    })
+
+    it('should have all fields checked by default', () => {
+      const fields = component.aiFields()
+      expect(Object.values(fields).every(Boolean)).toBe(true)
+    })
+
+    it('should count all 6 fields selected', () => {
+      expect(component.aiSelectedFieldsCount()).toBe(6)
+    })
+
+    it('should start with dropdown closed', () => {
+      expect(component.aiDropdownOpen()).toBe(false)
     })
 
     it('should not be generating', () => {
       expect(component.isGeneratingAI()).toBe(false)
+    })
+  })
+
+  describe('toggleAiDropdown()', () => {
+    it('should open the dropdown', () => {
+      component.toggleAiDropdown()
+      expect(component.aiDropdownOpen()).toBe(true)
+    })
+
+    it('should close the dropdown when called again', () => {
+      component.toggleAiDropdown()
+      component.toggleAiDropdown()
+      expect(component.aiDropdownOpen()).toBe(false)
+    })
+  })
+
+  describe('toggleAiField()', () => {
+    it('should uncheck a field', () => {
+      component.toggleAiField('title')
+      expect(component.aiFields().title).toBe(false)
+      expect(component.aiSelectedFieldsCount()).toBe(5)
+    })
+
+    it('should recheck an unchecked field', () => {
+      component.toggleAiField('title')
+      component.toggleAiField('title')
+      expect(component.aiFields().title).toBe(true)
+    })
+  })
+
+  describe('toggleAllAiFields()', () => {
+    it('should deselect all when all are selected', () => {
+      component.toggleAllAiFields()
+      expect(component.aiSelectedFieldsCount()).toBe(0)
+      expect(Object.values(component.aiFields()).every((v) => !v)).toBe(true)
+    })
+
+    it('should select all when none are selected', () => {
+      component.toggleAllAiFields() // deselect all
+      component.toggleAllAiFields() // reselect all
+      expect(component.aiSelectedFieldsCount()).toBe(6)
+    })
+  })
+
+  describe('mainAiLabelKey', () => {
+    it('should return regenerate label by default', () => {
+      expect(component.mainAiLabelKey()).toBe('footer.ai.regenerate')
+    })
+
+    it('should return rewrite label after rewrite mode is set', () => {
+      component.lastAiMode.set('rewrite')
+      expect(component.mainAiLabelKey()).toBe('footer.ai.rewriteAndImprove')
     })
   })
 
@@ -110,9 +175,11 @@ describe('AiGenerateButtonComponent', () => {
       recordSubject.next(mockRecord)
     })
 
-    it('should set lastAiMode', async () => {
+    it('should set lastAiMode and close dropdown', async () => {
+      component.aiDropdownOpen.set(true)
       await component.onGenerateWithAI('rewrite')
       expect(component.lastAiMode()).toBe('rewrite')
+      expect(component.aiDropdownOpen()).toBe(false)
     })
 
     it('should call the API with mode and current values', async () => {
@@ -128,21 +195,26 @@ describe('AiGenerateButtonComponent', () => {
       })
     })
 
-    it('should update all fields in the editor', async () => {
+    it('should update only checked fields in the editor', async () => {
+      component.aiFields.update((f) => ({
+        ...f,
+        abstract: false,
+        topics: false
+      }))
       await component.onGenerateWithAI('regenerate')
       expect(mockEditorFacade.updateRecordField).toHaveBeenCalledWith(
         'title',
         'Generated Title'
       )
-      expect(mockEditorFacade.updateRecordField).toHaveBeenCalledWith(
+      expect(mockEditorFacade.updateRecordField).not.toHaveBeenCalledWith(
         'abstract',
-        'Generated abstract.'
+        expect.anything()
       )
       expect(mockEditorFacade.updateRecordField).toHaveBeenCalledWith(
         'keywords',
         expect.anything()
       )
-      expect(mockEditorFacade.updateRecordField).toHaveBeenCalledWith(
+      expect(mockEditorFacade.updateRecordField).not.toHaveBeenCalledWith(
         'topics',
         expect.anything()
       )

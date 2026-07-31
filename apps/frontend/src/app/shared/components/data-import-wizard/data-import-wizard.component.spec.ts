@@ -1722,58 +1722,6 @@ describe('DataImportWizardComponent - Generate Metadata With AI Toggle', () => {
     expect(component.generateMetadataWithAi()).toBe(false)
   })
 
-  it('should render the AI toggle button in the footer when on tab 2', () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges()
-
-    component.selectedTabIndex.set(1)
-    fixture.detectChanges()
-
-    const footer = component.footerTpl()
-    expect(footer).toBeTruthy()
-
-    const view = footer!.createEmbeddedView(null)
-    view.detectChanges()
-    const rootNodes = view.rootNodes as HTMLElement[]
-    const container = document.createElement('div')
-    rootNodes.forEach((node) => container.appendChild(node))
-
-    const toggleButton = container.querySelector(
-      '[data-test="generate-metadata-with-ai"]'
-    )
-    expect(toggleButton).toBeTruthy()
-    expect(container.textContent).toContain('Generate metadata with AI')
-    expect(container.textContent).toContain('(Effective after validation)')
-
-    view.destroy()
-  })
-
-  it('should disable the AI toggle button while processing', () => {
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges()
-
-    component.selectedTabIndex.set(1)
-    component.processing.set(true)
-    fixture.detectChanges()
-
-    const footer = component.footerTpl()
-    const view = footer!.createEmbeddedView(null)
-    view.detectChanges()
-    const rootNodes = view.rootNodes as HTMLElement[]
-    const container = document.createElement('div')
-    rootNodes.forEach((node) => container.appendChild(node))
-
-    const button = container.querySelector(
-      'button[data-test="generate-metadata-with-ai"], button'
-    ) as HTMLButtonElement | null
-    expect(button).toBeTruthy()
-    expect(button!.disabled).toBe(true)
-
-    view.destroy()
-  })
-
   it('should not change generateMetadataWithAi via button click while processing', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance

@@ -74,7 +74,11 @@ class GeneratedMetadata(BaseModel):
         max_length=256, description="A concise, human-readable title for the dataset"
     )
     abstract: str = Field(
-        max_length=2048, description="A clear description of the dataset contents and purpose"
+        max_length=2048,
+        description=(
+            "A clear description of the dataset contents and purpose, "
+            "written in Markdown syntax (e.g. **bold** on key terms)"
+        ),
     )
     keywords: list[str] = Field(description="Relevant thematic keywords for the dataset")
     topic_categories: list[str] = Field(
@@ -87,7 +91,7 @@ class GeneratedMetadata(BaseModel):
     # attribute_descriptions: list[AttributeInfo] | None = Field(
     #    description="Description of each attribute/column of the dataset"
     # )
-    attribute_descriptions: None = Field(default=None, description="")
+    attribute_descriptions: list[AttributeInfo] | None = Field(default=None, description="")
     temporal_extent: TemporalExtent | None = Field(
         default=None,
         description=(

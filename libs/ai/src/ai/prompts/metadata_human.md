@@ -1,3 +1,7 @@
+=== CONTEXTE ADDITIONNEL DE L'UTILISATEUR (PRIORITÉ ABSOLUE — voir la règle de priorité du system prompt) ===
+{extra_context}
+=== FIN DU CONTEXTE ADDITIONNEL ===
+
 Generate metadata for the following dataset:
 - Dataset title: {title}
 - Columns (name and ISO type): {columns_with_types}
@@ -14,7 +18,5 @@ Generate metadata for the following dataset:
 {keywords}
 - Available topic categories (prioritize these when relevant): 
 {topics}
-- Additional context
-{extra_context}
 - Instructions mode
 {mode_instruction}
