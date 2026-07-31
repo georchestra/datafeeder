@@ -336,7 +336,8 @@ def _extract_filetype(filename: str) -> FileType | None:
 def _extract_url_metadata(
     url: str, auth_enabled: bool = False, username: str | None = None, password: str | None = None
 ) -> tuple[str | None, FileType | None]:
-    """Extract file name and file type from a URL using HEAD request.
+    """Extract file name and file type from a URL using a HEAD request, falling back to GET
+    if the server doesn't support HEAD.
 
     Args:
         url: The URL to inspect
@@ -354,13 +355,20 @@ def _extract_url_metadata(
         headers = {
             "Accept": "*/*",
         }
-        head_response = requests.head(
-            url,
-            headers=headers,
-            allow_redirects=True,
-            auth=(username, password) if auth_enabled and username and password else None,
-        )
-        head_response.raise_for_status()
+        auth = (username, password) if auth_enabled and username and password else None
+
+        try:
+            head_response = requests.head(url, headers=headers, allow_redirects=True, auth=auth)
+            head_response.raise_for_status()
+        except requests.RequestException as head_error:
+            # Some servers (e.g. certain WFS endpoints) don't support HEAD requests
+            # properly and error out even though a GET on the same URL works fine.
+            logger.warning(f"HEAD request failed for URL {url} ({head_error}); retrying with GET")
+            head_response = requests.get(
+                url, headers=headers, allow_redirects=True, auth=auth, stream=True
+            )
+            head_response.raise_for_status()
+            head_response.close()
 
         source_file_name = None
         content_disposition = head_response.headers.get("content-disposition")
