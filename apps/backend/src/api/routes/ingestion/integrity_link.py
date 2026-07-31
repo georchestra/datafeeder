@@ -609,15 +609,19 @@ def toggle_publish_gs_integrity_link(
         session,
         group_ids,
     )
-    if not integrity_link.final_table_name:
+    workspace = integrity_link.integrity_organization.lower()
+    final_table_name = integrity_link.final_table_name
+    if integrity_link.source_import_type == ImportType.PREFILLED:
+        if parts := integrity_link.parse_data_id():
+            workspace, final_table_name = parts[0].lower(), parts[1].lower()
+
+    if not final_table_name:
         raise HTTPException(
             status_code=400,
             detail="IntegrityLink has no associated layer to publish/unpublish",
         )
 
-    acl_layer_name = GeoServerService.make_acl_layer_name(
-        integrity_link.integrity_organization, integrity_link.final_table_name
-    )
+    acl_layer_name = GeoServerService.make_acl_layer_name(workspace, final_table_name)
     gs_read_roles: list[str] | None = None
     try:
         if publish:
@@ -650,7 +654,7 @@ def toggle_publish_gs_integrity_link(
         )
         action = "Published" if publish else "Unpublished"
         logger.info(
-            f"{action} GeoServer layer {integrity_link.integrity_organization}/{integrity_link.final_table_name} "
+            f"{action} GeoServer layer {workspace}/{final_table_name} "
             f"for IntegrityLink {integrity_link_id}"
         )
 
