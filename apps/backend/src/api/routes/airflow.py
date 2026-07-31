@@ -6,9 +6,10 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, GroupIdsDep
+from src.core.config import get_settings
 from src.core.run_ids import extract_integrity_link_id
 from src.core.security import AccessLevel, load_authorized_integrity_link
-from src.core.task_executor import TaskStatus
+from src.core.task_executor import TaskExecutorType, TaskStatus
 from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
 
@@ -31,6 +32,12 @@ def get_dag_run_by_intlink(
     load_authorized_integrity_link(
         intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, group_ids
     )
+
+    if get_settings().TASK_EXECUTOR != TaskExecutorType.AIRFLOW:
+        # DAG run history is an Airflow-only concept (this route bypasses the
+        # BaseTaskExecutor abstraction on purpose). Other executors (e.g. LOCAL)
+        # don't track a run history, so there is nothing to list.
+        return DAGRunCollectionResponse(dag_runs=[], total_entries=0)
 
     try:
         dag_runs = get_dag_run_api().get_dag_runs(

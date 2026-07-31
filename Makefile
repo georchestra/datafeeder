@@ -28,19 +28,22 @@ test-backend-coverage: install-python ## Run backend tests with coverage report
 build-libs: install-python ## Build all shared libraries
 	uv build libs/data_manipulation
 
-up: build-libs ## Start all services including GeoServer and GeoNetwork using Docker Compose
+up: build-libs ## Start all services including GeoServer and GeoNetwork using Docker Compose (no Airflow, use up-airflow for that)
 	docker compose --profile geoserver --profile geonetwork up -d --wait --build
 
+up-airflow: build-libs ## Start all services including Airflow, GeoServer and GeoNetwork using Docker Compose
+	docker compose --profile geoserver --profile geonetwork --profile airflow up -d --wait --build
+
 down: ## Stop all services using Docker Compose
-	docker compose --profile geoserver --profile geonetwork down
+	docker compose --profile geoserver --profile geonetwork --profile airflow down
 
 down-v: ## Stop all services and remove volumes using Docker Compose
-	docker compose --profile geoserver --profile geonetwork down -v
+	docker compose --profile geoserver --profile geonetwork --profile airflow down -v
 
 run-backend: install-python ## Run the backend application
 	cd apps/backend && \
 	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" sh -c \
 	  'uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs'
 
-.PHONY: default help install-python fix-and-check-all-python build-libs up down down-v run-backend
+.PHONY: default help install-python fix-and-check-all-python build-libs up up-airflow down down-v run-backend
 
