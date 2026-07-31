@@ -364,5 +364,6 @@ class LocalTaskExecutor(BaseTaskExecutor):
             record = self._registry.get((task_id, run_id))
         return record.logs if record else ""
 
-    def get_task_note(self, _task_id: str, _run_id: str) -> str | None:
+    def get_task_note(self, task_id: str, run_id: str) -> str | None:
+        del task_id, run_id  # unused: no timeout mechanism to report a note for
         return None
