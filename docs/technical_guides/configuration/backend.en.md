@@ -48,7 +48,7 @@ counterpart.
 | `METADATA_GROUPS_LABEL_FILTER_REGEX` | Regex used to filter metadata groups shown in the authorization UI |
 | `DATA_GROUPS_LABEL_FILTER_REGEX` | Regex used to filter data groups shown in the GeoServer authorization UI |
 | `AIRFLOW_INTERNAL_URL` / `AIRFLOW_USERNAME` / `AIRFLOW_PASSWORD` | Airflow REST API used to trigger and monitor DAG runs |
-| `TASK_EXECUTOR` | Task execution engine. Only `AIRFLOW` is supported today |
+| `TASK_EXECUTOR` | Task execution engine: `AIRFLOW` (default) or `LOCAL` — see [Developing without Airflow](../contribute/local_executor.md) |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Lifetime of issued access tokens, in minutes |
 | `ENCRYPTION_KEY` | Encrypts sensitive data at rest (e.g. HTTP Basic Auth credentials for FTP/URL sources) |
 | `SECRET_KEY` | Signs internal auth tokens used between the backend and Airflow callbacks |
