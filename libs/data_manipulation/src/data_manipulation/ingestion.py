@@ -3,6 +3,7 @@ import os
 import re
 import tempfile
 import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 from typing import Literal
 from urllib.error import URLError
@@ -15,6 +16,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 import requests
 from geoalchemy2 import Geometry
+from pyarrow.lib import ArrowException
 from sqlalchemy import MetaData, Table, func, select, text
 from sqlalchemy.engine import Engine
 
@@ -69,9 +71,25 @@ def _detect_file_encoding(file_path: str) -> str:
             file_path_to_read = str(cpg_file)
 
     try:
-        with open(file_path_to_read, "rb") as f:
-            sample = f.read(_ENCODING_DETECT_BYTES)
-        encoding = chardet.detect(sample)["encoding"]
+        if path.suffix.lower() == ".zip" and zipfile.is_zipfile(file_path):
+            with zipfile.ZipFile(file_path) as zf:
+                names = zf.namelist()
+                if any(name.lower().endswith(".shp") for name in names):
+                    member = next((n for n in names if n.lower().endswith(".cpg")), None) or next(
+                        (n for n in names if n.lower().endswith(".dbf")), None
+                    )
+                    if member is not None:
+                        file_path_to_read = f"{file_path}!{member}"
+                        with zf.open(member) as f:
+                            sample = f.read(_ENCODING_DETECT_BYTES)
+                    else:
+                        sample = None
+                else:
+                    sample = None
+        else:
+            with open(file_path_to_read, "rb") as f:
+                sample = f.read(_ENCODING_DETECT_BYTES)
+        encoding = chardet.detect(sample)["encoding"] if sample else None
     except Exception as e:
         logger.warning(f"Failed to detect encoding for {file_path_to_read}: {e}")
         encoding = None
@@ -107,8 +125,16 @@ def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.Data
 
     try:
         # Try reading with UTF-8 first (common default)
-        return gpd.read_file(file_path, rows=rows)  # type: ignore[arg-type]
-    except UnicodeDecodeError:
+        result = gpd.read_file(file_path, rows=rows)  # type: ignore[arg-type]
+        # pyogrio/pyarrow validate text lazily: a bad encoding doesn't raise here, it
+        # raises whenever the string columns are first materialized (e.g. much later
+        # in pandas.to_sql when writing to PostGIS). Force that materialization now
+        # so we can catch and handle it in this try block instead.
+        for column in result.columns:
+            if pd.api.types.is_string_dtype(result[column].dtype):
+                result[column].to_numpy()
+        return result
+    except (UnicodeDecodeError, ArrowException):
         logger.warning(
             "Failed to read file with UTF-8 encoding, attempting to detect encoding and read again."
         )
