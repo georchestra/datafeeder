@@ -1,0 +1,39 @@
+#!/bin/bash
+# To be properly executed at geoserver container startup this script needs
+# the +x flag, so make sure to chmod it and commit/push it that way.
+#
+# Adds a second, org-scoped LDAP role service (name "orgs") to the GeoServer
+# security config, alongside the existing "my_ldap" one. It reads
+# ou=orgs,dc=georchestra,dc=org and exposes each organization as a
+# ROLE_ORG_<ORG> role, purely so it shows up as a selectable role in the
+# "Data security" UI (see /home/fnecas/dev/georchestra/solution-ui-roles-organismes-geoserver.md).
+#
+# Runs on every container start (CUSTOM_SCRIPTS_DIRECTORY scripts are not
+# one-shot like the datadir bootstrap) - safe to re-run, it just
+# (re)writes the same file every time.
+set -e
+
+DATADIR=/mnt/geoserver_datadir
+ROLE_SERVICE_DIR="$DATADIR/security/role/orgs"
+
+mkdir -p "$ROLE_SERVICE_DIR"
+
+cat > "$ROLE_SERVICE_DIR/config.xml" <<'EOF'
+<org.geoserver.security.ldap.LDAPRoleServiceConfig>
+  <id>-189534bb:153ae737769:-7fe1</id>
+  <name>orgs</name>
+  <className>org.geoserver.security.ldap.LDAPRoleService</className>
+  <serverURL>ldap://ldap:389</serverURL>
+  <groupSearchBase>ou=orgs,dc=georchestra,dc=org</groupSearchBase>
+  <allGroupsSearchFilter>objectClass=groupOfMembers</allGroupsSearchFilter>
+  <groupSearchFilter>member=uid={0},ou=users,dc=georchestra,dc=org</groupSearchFilter>
+  <rolePrefix>ORG_</rolePrefix>
+  <convertToUpperCase>true</convertToUpperCase>
+  <useTLS>false</useTLS>
+  <bindBeforeGroupSearch>true</bindBeforeGroupSearch>
+  <user>cn=admin,dc=georchestra,dc=org</user>
+  <password>secret</password>
+</org.geoserver.security.ldap.LDAPRoleServiceConfig>
+EOF
+
+echo "[INFO] geOrchestra: wrote $ROLE_SERVICE_DIR/config.xml (orgs role service)"

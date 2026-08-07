@@ -130,7 +130,9 @@ def _sync_data_sharing(
 ) -> None:
     """Sync DATA rules to GeoServer layer ACL.
 
-    Resolves role UUIDs to ROLE_xxx names via the Console API before syncing.
+    Resolves group_or_role UUIDs to GeoServer role names via the Console API before syncing:
+    organizations resolved to ROLE_ORG_xxx when DATA_SYNC_MODE=ORG, roles resolved to ROLE_xxx
+    when DATA_SYNC_MODE=ROLE.
     Skipped when integrity_link has no published layer (final_table_name absent).
 
     Args:
@@ -164,13 +166,21 @@ def _sync_data_sharing(
 
     id_to_name: dict[str, str] = {}
     if uuids_to_resolve:
-        # Only call Console when at least one non-EVERYONE role needs UUID resolution.
+        # Only call Console when at least one non-EVERYONE group_or_role needs UUID resolution.
         # This keeps EVERYONE-only configs resilient to Console outages.
         console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
-        all_roles = console_service.get_all_roles()  # raises ConsoleServiceError on failure
-        id_to_name = {
-            str(r["id"]): f"ROLE_{r['name']}" for r in all_roles if r.get("id") and r.get("name")
-        }
+        if settings.DATA_SYNC_MODE == "ORG":
+            all_orgs = console_service.get_all_organizations()  # raises ConsoleServiceError on failure
+            id_to_name = {
+                str(o["id"]): f"ROLE_ORG_{o['shortName'].upper()}"
+                for o in all_orgs
+                if o.get("id") and o.get("shortName")
+            }
+        else:
+            all_roles = console_service.get_all_roles()  # raises ConsoleServiceError on failure
+            id_to_name = {
+                str(r["id"]): f"ROLE_{r['name']}" for r in all_roles if r.get("id") and r.get("name")
+            }
 
     resolved: list[tuple[str, RuleValue]] = []
     for rule in data_rules:
@@ -180,7 +190,7 @@ def _sync_data_sharing(
         role_name = id_to_name.get(rule.group_or_role)
         if not role_name:
             raise ConsoleServiceError(
-                f"Could not resolve role '{rule.group_or_role}' for GeoServer ACL sync"
+                f"Could not resolve group_or_role '{rule.group_or_role}' for GeoServer ACL sync"
             )
         resolved.append((role_name, rule.rule_value))
 

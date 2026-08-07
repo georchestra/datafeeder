@@ -182,6 +182,8 @@ class Settings(BaseSettings):
     METADATA_GROUPS_LABEL_FILTER_REGEX: str = ""
 
     # Data groups (for GeoServer authorization UI)
+    DATA_SYNC_MODE: Literal["ORG", "ROLE"] = "ORG"
+
     DATA_GROUPS_LABEL_FILTER_REGEX: str = ""
 
     ### Validators and computed fields
@@ -274,7 +276,7 @@ class Settings(BaseSettings):
 # https://fastapi.tiangolo.com/advanced/settings/#creating-the-settings-only-once-with-lru-cache
 @lru_cache
 def get_settings():
-    logger.debug(Settings().model_dump())
+    logger.info(Settings().model_dump())
     return Settings()
 
 

@@ -15,20 +15,32 @@ router = APIRouter(prefix="/data/groups", tags=["Data"])
     "/",
     response_model=list[GroupItem],
     summary="List data groups",
-    description="Fetch roles from geOrchestra console and return identifier + label pairs.",
+    description=(
+        "Fetch groups from geOrchestra console and return identifier + label pairs. "
+        "Returns organizations when DATA_SYNC_MODE=ORG, roles when DATA_SYNC_MODE=ROLE."
+    ),
 )
 def list_groups(geo_ctx: GeorchestraContextDep) -> list[GroupItem]:
     settings = get_settings()
     console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
 
     try:
-        items = console_service.get_all_roles()
+        if settings.DATA_SYNC_MODE == "ORG":
+            items = console_service.get_all_organizations()
+            group_items = [
+                GroupItem(id=item["id"], label=item["name"])
+                for item in filter_console_items(items, settings.DATA_GROUPS_LABEL_FILTER_REGEX)
+                if item.get("id") and item.get("name")
+            ]
+        else:
+            items = console_service.get_all_roles()
+            group_items = [
+                GroupItem(id=item["id"], label=str(item["description"] or item["name"]))
+                for item in filter_console_items(items, settings.DATA_GROUPS_LABEL_FILTER_REGEX)
+                if item.get("id") and item.get("name")
+            ]
     except Exception as e:
         logger.error("Failed to fetch data groups from console: %s", e)
         raise HTTPException(status_code=502, detail=f"Failed to fetch groups from console: {e}")
 
-    return [
-        GroupItem(id=item["id"], label=str(item["description"] or item["name"]))
-        for item in filter_console_items(items, settings.DATA_GROUPS_LABEL_FILTER_REGEX)
-        if item.get("id") and item.get("name")
-    ]
+    return group_items

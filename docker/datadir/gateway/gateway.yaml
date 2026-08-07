@@ -6,6 +6,7 @@ spring.config.import: application.yaml, security.yaml, routes.yaml, roles-mappin
 
 georchestra:
   gateway:
+    organization-role-mapping-enabled: true
     default-headers:
       # Default security headers to append to proxied requests
       proxy: true
