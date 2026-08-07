@@ -1,0 +1,23 @@
+<div class="relative">
+  <div
+    class="group/btn min-w-[200px] py-0.5 flex items-center justify-center rounded overflow-hidden border border-transparent hover:border hover:bg-secondary-active transition-colors"
+  >
+    <button
+      type="button"
+      class="w-full flex items-center justify-center gap-2.5 pl-2 pr-3 py-2 bg-transparent text-secondary-darker text-[1em] leading-none font-medium text-center disabled:opacity-40"
+      [disabled]="isGeneratingAI() || disabled()"
+      (click)="onGenerateWithAI(lastAiMode())"
+    >
+      <span
+        class="flex-shrink-0 w-7 h-7 rounded-lg bg-teal-600/10 flex items-center justify-center text-teal-600"
+      >
+        <ng-icon
+          name="iconoirSparks"
+          size="1em"
+          [class.animate-spin]="isGeneratingAI()"
+        />
+      </span>
+      {{ 'footer.ai.regenerate' | translate }}
+    </button>
+  </div>
+</div>

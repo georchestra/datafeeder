@@ -34,6 +34,8 @@ services:
       - .envs-ldap
       - .envs-hosts
       - .envs-database-georchestra
+      - path: .envs-ai
+        required: false
     restart: always
 
   datadb:

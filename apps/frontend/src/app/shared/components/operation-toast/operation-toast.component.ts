@@ -3,7 +3,8 @@ import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import {
   iconoirCheckCircle,
   iconoirWarningTriangle,
-  iconoirXmark
+  iconoirXmark,
+  iconoirSparks
 } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
@@ -20,6 +21,7 @@ marker('errors.operation.deletion')
 marker('info.operation.metadataSave')
 marker('errors.operation.loadPresets')
 marker('errors.operation.updateSchedule')
+marker('info.operation.aiMetadataGeneration')
 
 @Component({
   selector: 'app-operation-toast',
@@ -27,7 +29,12 @@ marker('errors.operation.updateSchedule')
   templateUrl: './operation-toast.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
-    provideIcons({ iconoirWarningTriangle, iconoirXmark, iconoirCheckCircle })
+    provideIcons({
+      iconoirWarningTriangle,
+      iconoirXmark,
+      iconoirCheckCircle,
+      iconoirSparks
+    })
   ]
 })
 export class OperationToastComponent {

@@ -8,6 +8,8 @@
     [class]="
       toast.type === 'info'
         ? 'flex items-center gap-5 bg-[#e8f8ed] border border-[#2d9c50] rounded-[8px] p-3 w-[474px] shadow-[0px_3px_8px_0px_rgba(9,30,66,0.16),0px_0px_20px_0px_rgba(9,30,66,0.15)]'
+        : toast.type === 'ai' && toast.customColor === 'secondary'
+        ? 'flex items-center gap-5 bg-[#f0f9ff] border border-teal-600 rounded-[8px] p-3 w-[474px] shadow-[0px_3px_8px_0px_rgba(9,30,66,0.16),0px_0px_20px_0px_rgba(9,30,66,0.15)]'
         : 'flex items-center gap-5 bg-[#ffe5c8] border border-[#e30513] rounded-[8px] p-3 w-[474px] shadow-[0px_3px_8px_0px_rgba(9,30,66,0.16),0px_0px_20px_0px_rgba(9,30,66,0.15)]'
     "
     data-testid="operation-toast"
@@ -16,6 +18,11 @@
     <ng-icon
       name="iconoirCheckCircle"
       class="shrink-0 text-[#2d9c50] text-2xl"
+    />
+    } @else if (toast.type === 'ai' && toast.customIcon) {
+    <ng-icon
+      [name]="toast.customIcon"
+      class="shrink-0 text-teal-600 text-2xl"
     />
     } @else {
     <ng-icon

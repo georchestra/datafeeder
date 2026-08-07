@@ -89,6 +89,44 @@ These services are included in the full setup of Datafeeder for geospatial data 
 - **GeoServer URL**: http://localhost:8080/geoserver
 - **GeoNetwork URL**: http://localhost:8080/geonetwork
 
+### AI metadata generation (optional)
+
+Datafeeder can automatically generate metadata fields (abstract, keywords, topic category) using an LLM after a dataset is imported. This feature is **disabled by default**.
+
+#### Setup
+
+1. Copy the example file and fill in your values:
+
+```bash
+cp docker/.envs-ai.example docker/.envs-ai
+```
+
+2. Edit `docker/.envs-ai`:
+
+```env
+AI_ENABLED=true
+AI_PROVIDER=ollama          # openai | ollama | mistral | openrouter
+AI_MODEL=llama3.2:1b
+AI_BASE_URL=http://ollama:11434
+AI_API_KEY=                 # required for openai / mistral / openrouter
+```
+
+> ⚠️ **Never commit `docker/.envs-ai`** — it may contain API keys. It is already listed in `.gitignore`.
+
+#### Disabling thinking mode
+
+Some models (DeepSeek-R1, QwQ, etc.) run a reasoning step before answering, which significantly increases response time. Thinking mode is **disabled by default** in Datafeeder. If you use such a model and notice `<think>` tokens in the output or slow responses, ensure your model actually supports the `think=false` parameter — not all Ollama versions or llama.cpp builds honour it.
+
+3. Start the stack with the AI mode:
+
+```bash
+make up-ai
+```
+
+This builds the backend with Phoenix observability extras and sets `AI_ENABLED=true` automatically.
+
+- **Phoenix UI**: http://localhost:6006
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.

@@ -20,6 +20,7 @@ dependencies = [
     "fastapi[standard]==0.136.1",
     "uvicorn[standard]==0.46.0",
     "data_manipulation",
+    "ai[phoenix,ollama,openrouter]",
     "sqlmodel==0.0.38",
     "pyjwt==2.12.1",
     "pydantic==2.13.4",
@@ -48,6 +49,7 @@ dev = [
 
 [tool.uv.sources]
 data_manipulation = { workspace = true }
+ai = { workspace = true }
 
 [tool.ruff]
 extend = "../../ruff.toml"

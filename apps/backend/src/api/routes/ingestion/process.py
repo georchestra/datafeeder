@@ -1,3 +1,4 @@
+import concurrent.futures
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -33,6 +34,7 @@ from src.models import (
     ProcessResponse,
 )
 from src.models.integrity_link import IntegrityLink
+from src.services.ai_service import generate_ai_metadata as generate_ai_metadata_with_llm
 from src.services.airflow_client import get_dag_run_api
 from src.services.console_service import ConsoleService
 from src.services.executor_factory import get_task_executor
@@ -259,9 +261,40 @@ def process_staging_data(
                 exc_info=True,
             )
 
+    # Generate AI metadata if requested (soft failure)
+    if request.generate_metadata_with_ai:
+        integrity_link.final_table_name = final_table_name
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    generate_ai_metadata_with_llm, integrity_link, settings, request.ai_data_source
+                )
+                future.result(timeout=120)  # 2 minutes
+            logger.info(f"AI metadata generation completed for IntegrityLink {integrity_link.id}")
+        except concurrent.futures.TimeoutError:
+            logger.warning(
+                "AI metadata generation timed out for IntegrityLink %s (>120s)",
+                integrity_link.id,
+            )
+        except Exception as e:
+            logger.warning(
+                "AI metadata generation failed for IntegrityLink %s: %s",
+                integrity_link.id,
+                e,
+                exc_info=True,
+            )
+
     # Persist all changes before triggering the DAG
     integrity_link.final_table_name = final_table_name
-    session.commit()
+    integrity_link.extra_config = {
+        **(integrity_link.extra_config or {}),
+        "generate_metadata_with_ai": request.generate_metadata_with_ai,
+    }
+    try:
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
     session.refresh(integrity_link)
 
     # Build callback parameters (no user info needed — metadata already created)
@@ -288,6 +321,7 @@ def process_staging_data(
             failure_callback_url=failure_callback_url,
             last_retrieval_timestamp=integrity_link.last_retrieval_timestamp,
             target_schema=target_schema,
+            generate_metadata_with_ai=request.generate_metadata_with_ai,
         )
 
         return ProcessResponse(

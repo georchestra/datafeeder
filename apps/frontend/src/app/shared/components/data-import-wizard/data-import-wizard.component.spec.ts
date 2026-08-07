@@ -11,6 +11,7 @@ import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-comp
 import { TranslateTestingModule } from 'ngx-translate-testing'
 import { ApiConfiguration } from '../../../core/api/api-configuration'
 import { FileType, ImportType } from '../../../core/api/models'
+import { SettingsService } from '../../../core/settings/settings.service'
 import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { DataImportWizardComponent } from './data-import-wizard.component'
 import { FooterService } from '../../../core/layout/footer.service'
@@ -1148,6 +1149,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     const req = httpMock.expectOne('http://localhost:8000/ingestion/process/')
     expect(req.request.method).toBe('POST')
     expect(req.request.body).toEqual({
+      generate_metadata_with_ai: false,
       integrity_link_id: 'test-link-789',
       title: 'Test Dataset Title'
     })
@@ -1273,7 +1275,11 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
 
     component.importData.update((d) => ({
       ...d,
-      source: { type: 'file', file: new File([], 'test.csv') }
+      source: {
+        type: 'file',
+        file: new File([], 'test.csv'),
+        authEnabled: false
+      }
     }))
 
     expect(component.cantConfigureDataset()).toBe(false)
@@ -1286,7 +1292,11 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
 
     component.importData.update((d) => ({
       ...d,
-      source: { type: 'file', file: new File([], 'test.csv') }
+      source: {
+        type: 'file',
+        file: new File([], 'test.csv'),
+        authEnabled: false
+      }
     }))
     component.importing.set(true)
 
@@ -1618,6 +1628,175 @@ describe('DataImportWizardComponent - Preview Toggle', () => {
 
     const compiled = fixture.nativeElement as HTMLElement
     expect(compiled.textContent).toContain('Preview of the result')
+  })
+})
+
+// AI metadata generation toggle tests
+describe('DataImportWizardComponent - Generate Metadata With AI Toggle', () => {
+  const mockSettingsService = {
+    currentSettings: signal({
+      projections: []
+    }),
+    getSetting: vi.fn((key: string) =>
+      key === 'enabled_features' ? ['ai_metadata'] : undefined
+    )
+  }
+
+  let mockIntegrityLinkStore: {
+    intlinkId: ReturnType<typeof signal<string | null>>
+    integrityLink: ReturnType<typeof signal>
+    loadError: ReturnType<
+      typeof signal<'forbidden' | 'not_found' | 'server_error' | null>
+    >
+    setAndLoadIntegrityLink: ReturnType<typeof vi.fn>
+    clearIntegrityLink: ReturnType<typeof vi.fn>
+  }
+
+  beforeEach(async () => {
+    mockIntegrityLinkStore = {
+      intlinkId: signal<string | null>(null),
+      integrityLink: signal(null),
+      loadError: signal<'forbidden' | 'not_found' | 'server_error' | null>(
+        null
+      ),
+      setAndLoadIntegrityLink: vi.fn(),
+      clearIntegrityLink: vi.fn()
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({
+          en: {
+            'import.dataSource.generateMetadataWithAi':
+              'Generate metadata with AI',
+            'import.dataSource.generateMetadataWithAi.hint':
+              '(Effective after validation)'
+          }
+        })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: ApiConfiguration,
+          useValue: { rootUrl: 'http://localhost:8000' }
+        },
+        { provide: IntegrityLinkStore, useValue: mockIntegrityLinkStore },
+        {
+          provide: FooterService,
+          useValue: { content: signal(null), setContent: () => {} }
+        },
+        { provide: SettingsService, useValue: mockSettingsService }
+      ]
+    }).compileComponents()
+  })
+
+  it('should default generateMetadataWithAi to false', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    expect(component.generateMetadataWithAi()).toBe(false)
+  })
+
+  it('should set generateMetadataWithAi when toggled on', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.generateMetadataWithAi.set(true)
+
+    expect(component.generateMetadataWithAi()).toBe(true)
+  })
+
+  it('should toggle generateMetadataWithAi back and forth', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.generateMetadataWithAi.set(!component.generateMetadataWithAi())
+    expect(component.generateMetadataWithAi()).toBe(true)
+
+    component.generateMetadataWithAi.set(!component.generateMetadataWithAi())
+    expect(component.generateMetadataWithAi()).toBe(false)
+  })
+
+  it('should render the AI toggle button in the footer when on tab 2', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    fixture.detectChanges()
+
+    const footer = component.footerTpl()
+    expect(footer).toBeTruthy()
+
+    const view = footer!.createEmbeddedView(null)
+    view.detectChanges()
+    const rootNodes = view.rootNodes as HTMLElement[]
+    const container = document.createElement('div')
+    rootNodes.forEach((node) => container.appendChild(node))
+
+    const toggleButton = container.querySelector(
+      '[data-test="generate-metadata-with-ai"]'
+    )
+    expect(toggleButton).toBeTruthy()
+    expect(container.textContent).toContain('Generate metadata with AI')
+    expect(container.textContent).toContain('(Effective after validation)')
+
+    view.destroy()
+  })
+
+  it('should disable the AI toggle button while processing', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.processing.set(true)
+    fixture.detectChanges()
+
+    const footer = component.footerTpl()
+    const view = footer!.createEmbeddedView(null)
+    view.detectChanges()
+    const rootNodes = view.rootNodes as HTMLElement[]
+    const container = document.createElement('div')
+    rootNodes.forEach((node) => container.appendChild(node))
+
+    const button = container.querySelector(
+      'button[data-test="generate-metadata-with-ai"], button'
+    ) as HTMLButtonElement | null
+    expect(button).toBeTruthy()
+    expect(button!.disabled).toBe(true)
+
+    view.destroy()
+  })
+
+  it('should not change generateMetadataWithAi via button click while processing', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.selectedTabIndex.set(1)
+    component.processing.set(true)
+    fixture.detectChanges()
+
+    const footer = component.footerTpl()
+    const view = footer!.createEmbeddedView(null)
+    view.detectChanges()
+    const rootNodes = view.rootNodes as HTMLElement[]
+    const container = document.createElement('div')
+    rootNodes.forEach((node) => container.appendChild(node))
+
+    const button = container.querySelector('button') as HTMLButtonElement
+    button.click()
+    view.detectChanges()
+
+    expect(component.generateMetadataWithAi()).toBe(false)
+
+    view.destroy()
   })
 })
 

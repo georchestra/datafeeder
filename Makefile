@@ -31,6 +31,9 @@ build-libs: install-python ## Build all shared libraries
 up: build-libs ## Start all services including GeoServer and GeoNetwork using Docker Compose
 	docker compose --profile geoserver --profile geonetwork up -d --wait --build
 
+up-ai: build-libs ## Start all services with AI metadata generation and Phoenix observability (requires docker/.envs-ai)
+	docker compose --profile geoserver --profile geonetwork -f docker-compose.yaml -f docker/compose.ai.yaml up -d --wait --build
+
 down: ## Stop all services using Docker Compose
 	docker compose --profile geoserver --profile geonetwork down
 
@@ -39,8 +42,9 @@ down-v: ## Stop all services and remove volumes using Docker Compose
 
 run-backend: install-python ## Run the backend application
 	cd apps/backend && \
-	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" sh -c \
-	  'uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs'
+	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" \
+	AI_ENV_FILE="$(CURDIR)/docker/.envs-ai" \
+	sh -c 'uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs'
 
 .PHONY: default help install-python fix-and-check-all-python build-libs up down down-v run-backend
 
