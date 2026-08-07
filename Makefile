@@ -28,10 +28,10 @@ test-backend-coverage: install-python ## Run backend tests with coverage report
 build-libs: install-python ## Build all shared libraries
 	uv build libs/data_manipulation
 
-up: build-libs ## Start all services including GeoServer and GeoNetwork using Docker Compose (no Airflow, use up-airflow for that)
+up: build-libs ## Start all services including Airflow, GeoServer and GeoNetwork using Docker Compose
 	docker compose --profile airflow up -d --wait --build
 
-up-no-airflow: build-libs ## Start all services including Airflow, GeoServer and GeoNetwork using Docker Compose
+up-no-airflow: build-libs ## Start all services including GeoServer and GeoNetwork using Docker Compose (no Airflow, replaced with the local executor)
 	docker compose up -d --wait --build
 
 down: ## Stop all services using Docker Compose
