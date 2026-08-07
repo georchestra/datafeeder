@@ -21,3 +21,6 @@ AI_METADATA_TEMPERATURE=0  # LLM sampling temperature for metadata generation (d
 AI_PHOENIX_ENABLED=false
 AI_PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
 AI_PHOENIX_PROJECT=datafeeder
+
+# theasurus Whitelist
+AI_ALLOWED_THESAURUS=external.theme.httpinspireeceuropaeutheme-theme
