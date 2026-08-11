@@ -65,6 +65,7 @@ nav:
     - Contribute:
         - technical_guides/contribute/index.md
         - technical_guides/contribute/architecture.md
+        - technical_guides/contribute/local_executor.md
 
 markdown_extensions:
   - admonition

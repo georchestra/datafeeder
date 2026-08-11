@@ -14,6 +14,7 @@ class TaskExecutorType(str, Enum):
     """Type of task executor to use."""
 
     AIRFLOW = "AIRFLOW"
+    LOCAL = "LOCAL"
     # CELERY = "CELERY"
 
 

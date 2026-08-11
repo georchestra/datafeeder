@@ -6,6 +6,7 @@ from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.core.task_executor import BaseTaskExecutor, TaskExecutorType
 from src.services.executors.airflow_executor import AirflowTaskExecutor
+from src.services.executors.local_executor import LocalTaskExecutor
 
 logger = get_logger()
 
@@ -16,7 +17,7 @@ def get_task_executor() -> BaseTaskExecutor:
     Get the configured task executor.
 
     Returns:
-        BaseTaskExecutor: Configured task executor instance (Airflow)
+        BaseTaskExecutor: Configured task executor instance (Airflow or Local)
     """
     settings = get_settings()
     executor_type = settings.TASK_EXECUTOR
@@ -25,6 +26,9 @@ def get_task_executor() -> BaseTaskExecutor:
 
     if executor_type == TaskExecutorType.AIRFLOW:
         return AirflowTaskExecutor()
+
+    if executor_type == TaskExecutorType.LOCAL:
+        return LocalTaskExecutor()
 
     else:
         raise ValueError(f"Unknown task executor type: {executor_type}")

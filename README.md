@@ -37,6 +37,19 @@ cd apps/frontend && npm install && npm start
 
 `libs/data_manipulation` is bind-mounted into the Airflow containers, so source edits are picked up live. After changing `libs/data_manipulation/pyproject.toml` dependencies, rebuild with `docker compose up -d --build`.
 
+### Develop without Airflow
+
+When Airflow isn't needed (working on some UI, or integration with data or metadata provider), it may be faster to start the composition without it.
+Instead of above commands you can use those ones: 
+```
+# Launch without airflow
+make up-no-airflow
+# Then launch the backend:
+make run-backend-with-local-task-executor
+# And in another terminal, launch the frontend:
+cd apps/frontend && npm install && npm start
+```
+
 ## Application Access
 
 ### Gateway for the Authentication
