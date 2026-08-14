@@ -73,6 +73,10 @@ class TestIngestFileWithOgr2ogr:
         assert "staging.places" in cmd
         assert "-overwrite" in cmd
         assert "GEOMETRY_NAME=geom" in cmd
+        assert "SCHEMA=staging" in cmd
+        # NOT NULL constraints from the source layer (e.g. WFS gml_id) must not
+        # be propagated, otherwise COPY fails when the value is absent.
+        assert "-forceNullable" in cmd
 
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_missing_binary_raises_clean_error(self, mock_run: MagicMock, engine: Engine) -> None:
@@ -126,6 +130,13 @@ class TestIngestFromOgcService:
         cmd = mock_run.call_args[0][0]
         assert "WFS:https://example.org/wfs" in cmd
         assert "ns:buildings" in cmd
+        # WFS layers frequently declare gml_id NOT NULL while the GeoJSON output
+        # leaves it empty; the constraint must be dropped on the staging table.
+        assert "-forceNullable" in cmd
+        # GeoJSON output carries no SRID, so it must be assigned explicitly,
+        # otherwise the staging geometry ends up as SRID 0.
+        assert "-a_srs" in cmd
+        assert "EPSG:4326" in cmd
 
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_oapif_prefix_and_normalized_url(self, mock_run: MagicMock, engine: Engine) -> None:
