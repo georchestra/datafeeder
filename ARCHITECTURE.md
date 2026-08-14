@@ -47,8 +47,8 @@ Supported source types: `FILE`, `URL`, `FTP`, `DATABASE`, `API` (WFS / OGC API F
 ### Shared Library (`libs/data_manipulation/`)
 
 Python package imported by both the backend and the ELT DAGs. Contains:
-- Source-specific ingestion functions (file, URL, FTP, database, OGC services)
-- Transformation pipeline (column remapping, projection reprojection, geometry handling, SQL filters)
+- Source-specific ingestion functions that stream into PostGIS via `ogr2ogr`/GDAL (file, URL, FTP, database, OGC services)
+- SQL-native transformation pipeline (column remapping, projection, geometry handling, filters) executed server-side — data never leaves PostgreSQL except a bounded preview
 - GeoServer write helpers
 - Shared models (`IntegrityTransformation`, column config, etc.)
 
