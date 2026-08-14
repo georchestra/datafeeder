@@ -2,30 +2,18 @@ import logging
 import os
 import re
 import subprocess
-import time
 import tempfile
-import xml.etree.ElementTree as ET
-import zipfile
+import time
 from pathlib import Path
 from typing import Literal
 from urllib.error import URLError
 from urllib.parse import quote, unquote, urlencode, urlparse, urlunparse
 from urllib.request import urlretrieve
 
-import chardet
-import geopandas as gpd
-import pandas as pd
-import pyarrow.parquet as pq
 import requests
-from geoalchemy2 import Geometry
-from pyarrow.lib import ArrowException
-from sqlalchemy import MetaData, Table, func, select, text
 from sqlalchemy.engine import Engine
 
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_NAME_MAX_LENGTH
-from data_manipulation.models import ColumnConfig, IntegrityTransformation
-from data_manipulation.transformation.filter_sql import build_sql_column_ops
-from data_manipulation.transformation.transform import apply_transformations
 from data_manipulation.utils import resolve_url
 from data_manipulation.validators import validate_schema_name, validate_table_name
 
@@ -41,108 +29,36 @@ _ENCODING_DETECT_BYTES = 256 * 1024
 CHUNK_SIZE = int(os.getenv("DATAFEEDER_CHUNK_SIZE", 50000))
 
 
-def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
-    metadata = MetaData(schema=schema)
-    table = Table(table_name, metadata, autoload_with=engine)
-    count_query = select(func.count()).select_from(table)
+def _build_pg_connection_string(engine: Engine) -> str:
+    """Build a GDAL ``PG:`` connection string from a SQLAlchemy engine.
 
-    with engine.connect() as conn:
-        return conn.execute(count_query).scalar() or 0
-
-
-def _detect_file_encoding(file_path: str) -> str:
-    """Detect encoding for geospatial files.
-
-    Args:
-        file_path: Path to the file
-
-    Returns:
-        Detected encoding string
+    WARNING: the returned string embeds the database password — never log it.
     """
-    file_path_to_read = file_path
-    path = Path(file_path)
-
-    # GeoJSON must be UTF-8 according to RFC 7946
-    if path.suffix.lower() in (".geojson", ".json"):
-        return "utf-8"
-
-    # Check for .cpg file (encoding file for shapefiles)
-    if path.suffix.lower() == ".shp":
-        cpg_file = path.with_suffix(".cpg")
-        if cpg_file.exists():
-            file_path_to_read = str(cpg_file)
-
-    try:
-        if path.suffix.lower() == ".zip" and zipfile.is_zipfile(file_path):
-            with zipfile.ZipFile(file_path) as zf:
-                names = zf.namelist()
-                if any(name.lower().endswith(".shp") for name in names):
-                    member = next((n for n in names if n.lower().endswith(".cpg")), None) or next(
-                        (n for n in names if n.lower().endswith(".dbf")), None
-                    )
-                    if member is not None:
-                        file_path_to_read = f"{file_path}!{member}"
-                        with zf.open(member) as f:
-                            sample = f.read(_ENCODING_DETECT_BYTES)
-                    else:
-                        sample = None
-                else:
-                    sample = None
-        else:
-            with open(file_path_to_read, "rb") as f:
-                sample = f.read(_ENCODING_DETECT_BYTES)
-        encoding = chardet.detect(sample)["encoding"] if sample else None
-    except Exception as e:
-        logger.warning(f"Failed to detect encoding for {file_path_to_read}: {e}")
-        encoding = None
-
-    return encoding or "utf-8"
+    url = engine.url
+    pg_conn_parts = [
+        f"host={url.host}",
+        f"port={url.port or 5432}",
+        f"dbname={url.database}",
+        f"user={url.username}",
+        f"password={url.password}",
+    ]
+    return "PG:" + " ".join(part for part in pg_conn_parts if part.split("=", 1)[1])
 
 
-def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.DataFrame:
-    """Read a chunk of a geospatial file, handling encoding detection.
+def _run_ogr2ogr(command: list[str], *, context: str) -> None:
+    """Run an ogr2ogr command, raising a clean error on failure.
 
-    Reads ``CHUNK_SIZE`` rows starting at offset ``i * CHUNK_SIZE``. Returns an empty
-    frame once the offset is past the end of the file, which lets callers iterate until
-    the whole file has been ingested without ever loading it entirely in memory.
-
-    Args:
-        file_path: Path to the file
-        i: Zero-based chunk index
-
-    Returns:
-        GeoDataFrame or DataFrame with the chunk data (empty when there is no more data)
+    WARNING: never log *command* itself — it may contain a ``PG:`` connection
+    string or ``GDAL_HTTP_USERPWD`` credentials.
     """
-    logger.info("Use standard method")
-    if Path(file_path).suffix.lower() in (".parquet", ".geoparquet"):
-        ds = pq.ParquetDataset(file_path)
-        if i >= len(ds.fragments):
-            return gpd.GeoDataFrame()
-        try:
-            return gpd.read_parquet(ds.fragments[i].path)  # type: ignore[arg-type]
-        except ValueError:
-            return pd.read_parquet(ds.fragments[i].path)
-
     try:
-        # Try reading with UTF-8 first (common default)
-        result = gpd.read_file(file_path, rows=rows)  # type: ignore[arg-type]
-        # pyogrio/pyarrow validate text lazily: a bad encoding doesn't raise here, it
-        # raises whenever the string columns are first materialized (e.g. much later
-        # in pandas.to_sql when writing to PostGIS). Force that materialization now
-        # so we can catch and handle it in this try block instead.
-        for column in result.columns:
-            if pd.api.types.is_string_dtype(result[column].dtype):
-                result[column].to_numpy()
-        return result
-    except (UnicodeDecodeError, ArrowException):
-        logger.warning(
-            "Failed to read file with UTF-8 encoding, attempting to detect encoding and read again."
-        )
-
-    # Detect encoding (mainly for shapefiles, others default to UTF-8)
-    encoding = _detect_file_encoding(file_path)
-    logger.warning("Detected encoding: %s", encoding)
-    return gpd.read_file(file_path, rows=rows, encoding=encoding)  # type: ignore[arg-type]
+        subprocess.run(command, check=True, capture_output=True, text=True)
+    except FileNotFoundError as exc:
+        logger.error("ogr2ogr binary not found while %s", context)
+        raise Exception("ogr2ogr (GDAL) is not installed or not on PATH") from exc
+    except subprocess.CalledProcessError as exc:
+        logger.error("ogr2ogr failed while %s: %s", context, exc.stderr)
+        raise Exception(f"ogr2ogr failed: {exc.stderr}")
 
 
 def ingest_data_from_file_into_postgis(
@@ -218,25 +134,7 @@ def ingest_data_from_ftp_into_postgis(
             # Download FTP file using urlretrieve
             urlretrieve(ftp_url_with_auth, temp_file_path)
 
-            i = 0
-            while True:
-                data = _read_file_encoded(str(temp_file_path), i)
-                if data.empty:
-                    break
-                write_data_to_postgis(
-                    data, table_name, engine, schema, if_exists="replace" if i == 0 else "append"
-                )
-                logger.debug(
-                    "Ingested chunk %s (%s rows) from FTP %s into table %s",
-                    i,
-                    len(data),
-                    url,
-                    table_name,
-                )
-                # A short read means the file is exhausted — avoid an extra empty read.
-                if len(data) < CHUNK_SIZE:
-                    break
-                i += 1
+            ingest_file_with_ogr2ogr(str(temp_file_path), table_name, engine, schema)
 
     # TODO: handle error for frontend
     except URLError as e:
@@ -270,19 +168,6 @@ def ingest_data_from_ftp_into_postgis(
         raise
 
 
-def _get_geo_column_from_table(table: Table) -> str | None:
-    """Return default geometry column or the name of the first geometry column found in a table."""
-    if DEFAULT_GEOMETRY_COLUMN in table.c and isinstance(
-        table.c[DEFAULT_GEOMETRY_COLUMN], Geometry
-    ):
-        return DEFAULT_GEOMETRY_COLUMN
-    for column in table.columns:
-        if isinstance(column.type, Geometry):
-            logger.debug("Found geom column in source table: %s", column.name)
-            return column.name
-    return None
-
-
 def ingest_file_with_ogr2ogr(
     file_path: str,
     table_name: str,
@@ -300,15 +185,7 @@ def ingest_file_with_ogr2ogr(
     validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
     validate_schema_name(schema)
 
-    url = engine.url
-    pg_conn_parts = [
-        f"host={url.host}",
-        f"port={url.port or 5432}",
-        f"dbname={url.database}",
-        f"user={url.username}",
-        f"password={url.password}",
-    ]
-    pg_connection = "PG:" + " ".join(part for part in pg_conn_parts if part.split("=", 1)[1])
+    pg_connection = _build_pg_connection_string(engine)
 
     command = [
         "ogr2ogr",
@@ -327,14 +204,10 @@ def ingest_file_with_ogr2ogr(
 
     logger.info(f"Running ogr2ogr to ingest {file_path} into {schema}.{table_name}")
 
-    try:
-        # --------
-        # WARNING: don't log the command as the PG connection string contains credentials
-        # --------
-        subprocess.run(command, check=True, capture_output=True, text=True)
-    except subprocess.CalledProcessError as e:
-        logger.error(f"ogr2ogr failed ingesting {file_path}: {e.stderr}")
-        raise Exception(f"ogr2ogr failed: {e.stderr}")
+    # --------
+    # WARNING: don't log the command as the PG connection string contains credentials
+    # --------
+    _run_ogr2ogr(command, context=f"ingesting {file_path} into {schema}.{table_name}")
 
 
 def ingest_data_from_url_into_postgis(
@@ -389,7 +262,6 @@ def ingest_data_from_url_into_postgis(
                 with open(temp_file_path, "wb") as temp_file:
                     temp_file.write(content)
 
-
                 start = time.time()
 
                 ingest_file_with_ogr2ogr(str(temp_file_path), table_name, engine, schema)
@@ -425,56 +297,39 @@ def ingest_data_from_database_into_postgis(
     """
     validate_schema_name(source_schema)
     validate_table_name(source_table)
+    validate_schema_name(target_schema)
+    validate_table_name(target_table, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
 
     logger.info(
         f"Ingesting data from {source_schema}.{source_table} into staging table {target_table}"
     )
 
-    try:
-        metadata = MetaData(schema=source_schema)
-        table = Table(source_table, metadata, autoload_with=source_engine)
+    source_connection = _build_pg_connection_string(source_engine)
+    target_connection = _build_pg_connection_string(target_engine)
 
-        geom = _get_geo_column_from_table(table)
+    command = [
+        "ogr2ogr",
+        "-f",
+        "PostgreSQL",
+        target_connection,
+        source_connection,
+        f"{source_schema}.{source_table}",
+        "-nln",
+        f"{target_schema}.{target_table}",
+        "-overwrite",
+        "-lco",
+        f"GEOMETRY_NAME={DEFAULT_GEOMETRY_COLUMN}",
+        "-lco",
+        f"SCHEMA={target_schema}",
+    ]
 
-        # A stable ORDER BY is required so that LIMIT/OFFSET pagination returns each row
-        # exactly once. Prefer the primary key; fall back to all columns when absent.
-        order_columns = list(table.primary_key.columns) or list(table.columns)
-        base_query = select(table).order_by(*order_columns)
-
-        # Read and write one chunk at a time to keep the memory footprint low for large tables.
-        i = 0
-        while True:
-            query = base_query.limit(CHUNK_SIZE).offset(i * CHUNK_SIZE)
-            if geom is not None:
-                data = gpd.read_postgis(query, con=source_engine, geom_col=geom)  # type: ignore[call-overload]
-            else:
-                data = pd.read_sql(query, source_engine)
-            if data.empty:
-                break
-
-            write_data_to_postgis(
-                data,
-                target_table,
-                target_engine,
-                target_schema,
-                if_exists="replace" if i == 0 else "append",
-            )
-            logger.debug(
-                "Ingested chunk %s (%s rows) from table %s into table %s",
-                i,
-                len(data),
-                source_table,
-                target_table,
-            )
-
-            # A short read means we have reached the end of the table — avoid an extra empty query.
-            if len(data) < CHUNK_SIZE:
-                break
-            i += 1
-
-    except Exception as e:
-        logger.error(f"Error ingesting data from {source_schema}.{source_table}: {e}")
-        raise
+    # --------
+    # WARNING: don't log the command — both PG connection strings contain credentials
+    # --------
+    _run_ogr2ogr(
+        command,
+        context=f"ingesting {source_schema}.{source_table} into {target_schema}.{target_table}",
+    )
 
 
 _GDAL_PROTOCOL_PREFIX = {"wfs": "WFS", "ogcFeatures": "OAPIF"}
@@ -542,8 +397,9 @@ def ingest_data_from_ogc_service_into_postgis(
     table_name: str,
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
+    auth: tuple[str, str] | None = None,
 ) -> None:
-    """Ingest a WFS or OGC API Features layer into PostGIS using GeoPandas/GDAL.
+    """Ingest a WFS or OGC API Features layer into PostGIS using ogr2ogr/GDAL.
 
     `protocol` is the service protocol as stored: 'wfs' or 'ogcFeatures'.
     The GDAL driver prefix (WFS: / OAPIF:) is built internally.
@@ -551,293 +407,41 @@ def ingest_data_from_ogc_service_into_postgis(
     `layer_name` maps directly to the GDAL layer name in both cases:
     - WFS: the WFS typename (e.g. "ns:buildings"), set as identifierInService by geonetwork-ui
     - OAPIF: the collection ID (e.g. "buildings"), the `name` from OgcApiEndpoint.allCollections
-    No additional parameters are needed beyond layer=layer_name for basic ingestion.
+
+    `auth`, when provided, is an (username, password) tuple passed to GDAL as
+    HTTP Basic credentials via the GDAL_HTTP_USERPWD config option.
     """
     gdal_prefix = _GDAL_PROTOCOL_PREFIX.get(protocol, "WFS")
     normalized_url = _normalize_oapif_url(service_url) if protocol == "ogcFeatures" else service_url
     gdal_source = f"{gdal_prefix}:{normalized_url}"
     logger.info(f"Ingesting OGC layer '{layer_name}' from {gdal_source} into {table_name}")
 
-    wfs_json_fmt = _wfs_json_output_format(service_url) if protocol == "wfs" else None
-    use_wfs_fallback = protocol == "wfs" and wfs_json_fmt is None
-    if use_wfs_fallback:
-        logger.warning(
-            "WFS at %s does not advertise a JSON output format; falling back to default WFS output format",
-            service_url,
-        )
-    else:
-        logger.info(
-            "WFS at %s advertises JSON output format '%s'; using it for chunked ingestion",
-            service_url,
-            wfs_json_fmt,
-        )
-
-    try:
-        i = 0
-        while True:
-            if wfs_json_fmt:
-                url = _wfs_geojson_chunk_url(
-                    service_url, layer_name, i * CHUNK_SIZE, CHUNK_SIZE, wfs_json_fmt
-                )
-                gdf = gpd.read_file(url)
-            else:
-                rows = slice(i * CHUNK_SIZE, i * CHUNK_SIZE + CHUNK_SIZE, None)
-                gdf = gpd.read_file(gdal_source, layer=layer_name, rows=rows)
-            if gdf.empty:
-                break
-            chunk_len = len(gdf)
-            # OGC API Features collections may have no geometry — treat as tabular data in that case
-            data: gpd.GeoDataFrame | pd.DataFrame = gdf
-            if gdf.geometry.isna().all():
-                logger.info(
-                    f"Layer '{layer_name}' has no valid geometries; ingesting as tabular data."
-                )
-                data = pd.DataFrame(gdf.drop(columns=str(gdf.geometry.name)))
-            write_data_to_postgis(
-                data, table_name, engine, schema, if_exists="replace" if i == 0 else "append"
-            )
-            logger.debug(
-                "Ingested chunk %s (%s rows) from OGC service %s into table %s",
-                i,
-                chunk_len,
-                gdal_source,
-                table_name,
-            )
-            # A short read means the layer is exhausted — avoid an extra empty request.
-            if chunk_len < CHUNK_SIZE:
-                break
-            i += 1
-    except Exception as e:
-        logger.error(f"Error ingesting OGC layer '{layer_name}' from {gdal_source}: {e}")
-        raise
-
-
-def read_data_from_postgis(
-    table_name: str,
-    engine: Engine,
-    schema: str | None = None,
-    limit: int | None = None,
-    columns: list[ColumnConfig] | None = None,
-    offset: int | None = None,
-) -> pd.DataFrame:
-    """Read data from a PostGIS table.
-
-    When *columns* is provided, exclusion and filtering are applied at the SQL
-    level so that WHERE clauses execute *before* any LIMIT.  The resulting
-    SQLAlchemy ``Select`` object is passed directly to ``gpd.read_postgis`` /
-    ``pd.read_sql`` — never compiled to a string — so all filter values remain
-    bound parameters (no SQL injection risk).
-
-    Args:
-        table_name: Name of the table to read.
-        engine: SQLAlchemy engine.
-        schema: PostgreSQL schema name (optional).
-        limit: Maximum number of rows to return (applied after filters).
-        columns: Optional list of column configurations.  When provided,
-            excluded columns are omitted from the SELECT and active filters are
-            applied as WHERE clauses.  When ``None``, all columns are returned
-            without filtering.
-        offset: Number of rows to skip (applied after filters).  When provided,
-            a stable ``ORDER BY`` is added so that ``LIMIT``/``OFFSET`` pagination
-            returns each row exactly once across successive calls.
-
-    Returns:
-        GeoDataFrame or DataFrame containing the (filtered) table data.
-    """
-    # Validate identifiers to prevent SQL injection
-    validate_table_name(table_name)
-    if schema:
-        validate_schema_name(schema)
-
-    try:
-        # Use SQLAlchemy Core to safely construct the query
-        metadata = MetaData(schema=schema)
-        table = Table(table_name, metadata, autoload_with=engine)
-
-        if columns is not None:
-            select_cols, where_clauses = build_sql_column_ops(columns, table)
-
-            if not select_cols:
-                # All columns excluded — return an empty DataFrame immediately
-                logger.warning(
-                    f"All columns excluded for table {schema}.{table_name}, returning empty DataFrame"
-                )
-                return pd.DataFrame()
-
-            query = select(*select_cols)
-            if where_clauses:
-                query = query.where(*where_clauses)
-
-            has_geom = any(col.key == DEFAULT_GEOMETRY_COLUMN for col in select_cols)
-            order_columns = list(select_cols)
-        else:
-            query = select(table)
-            has_geom = DEFAULT_GEOMETRY_COLUMN in table.c
-            order_columns = list(table.primary_key.columns) or list(table.columns)
-
-        # A stable ORDER BY is required for deterministic LIMIT/OFFSET pagination.
-        if offset is not None:
-            query = query.order_by(*order_columns)
-
-        if limit is not None and limit > 0:
-            query = query.limit(limit)
-
-        if offset is not None and offset > 0:
-            query = query.offset(offset)
-
-        # Pass the Select object directly — both pd.read_sql and gpd.read_postgis
-        # accept a SQLAlchemy Selectable natively in SQLAlchemy 2.x.
-        # This guarantees that all filter values remain bound parameters.
-        if has_geom:
-            return gpd.read_postgis(query, con=engine, geom_col=DEFAULT_GEOMETRY_COLUMN)  # type: ignore[call-overload]
-        else:
-            return pd.read_sql(query, engine)
-    except Exception as e:
-        logger.error(f"Error reading data from PostGIS table {schema}.{table_name}: {e}")
-        raise
-
-
-def read_and_transform_data(
-    table_name: str,
-    engine: Engine,
-    schema: str | None = None,
-    config: IntegrityTransformation | None = None,
-    limit: int | None = None,
-    offset: int | None = None,
-) -> pd.DataFrame:
-    """Single pipeline entry point: read data and apply all transformations.
-
-    Combines ``read_data_from_postgis`` (SQL-level exclusion + filtering) with
-    ``apply_transformations`` (in-memory rename, cast, projection) in one call.
-
-    Both the backend GET preview (``limit=10``, config from DB) and the Airflow
-    process DAG (``limit=None``, config from DAG params) call this function
-    identically, which is the architectural guarantee for FR-021 consistency.
-
-    Args:
-        table_name: Name of the staging table.
-        engine: SQLAlchemy engine.
-        schema: PostgreSQL schema name (optional).
-        config: Transformation configuration.  ``None`` = return raw data
-            unchanged (no column filtering, no transformations).
-        limit: Row limit (``None`` = all rows).
-        offset: Number of rows to skip for chunked reads (``None`` = from the
-            start).  Enables deterministic ``LIMIT``/``OFFSET`` pagination.
-
-    Returns:
-        Transformed GeoDataFrame or DataFrame.
-    """
-    columns = config.columns if config is not None else None
-    data = read_data_from_postgis(
-        table_name, engine, schema=schema, limit=limit, columns=columns, offset=offset
-    )
-
-    if config is None:
-        return data
-
-    return apply_transformations(data, config)
-
-
-def write_data_to_postgis(
-    data: gpd.GeoDataFrame | pd.DataFrame,
-    table_name: str,
-    engine: Engine,
-    schema: str = DEFAULT_SCHEMA,
-    create_id: bool = False,
-    if_exists: Literal["fail", "replace", "append"] = "replace",
-) -> None:
-    """Write a GeoDataFrame or DataFrame to a PostGIS table.
-
-    Args:
-        data: GeoDataFrame or DataFrame to write
-        table_name: Name of the target table
-        engine: SQLAlchemy engine
-        schema: PostgreSQL schema name (optional)
-        create_id: If True, add an 'id_datafeeder' UUID column as primary key
-    """
-    # Validate identifiers to prevent SQL injection
     validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
     validate_schema_name(schema)
 
-    try:
-        if not isinstance(data, gpd.GeoDataFrame):  # DataFrame
-            # Ensure there is no geom column
-            if DEFAULT_GEOMETRY_COLUMN in data.columns:
-                logger.warning(
-                    f"DataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column. Dropping it before writing to PostGIS."
-                )
-                data.drop(columns=[DEFAULT_GEOMETRY_COLUMN], inplace=True)
+    pg_connection = _build_pg_connection_string(engine)
 
-            # Write data to PostGIS as a regular table
-            data.to_sql(table_name, engine, if_exists=if_exists, schema=schema, index=False)
-        else:  # GeoDataFrame
-            # Ensure the geometry column is named 'geom' for PostGIS convention
-            if data.active_geometry_name is None:
-                logger.info("GeoDataFrame has no active geometry column set.")
+    command = [
+        "ogr2ogr",
+        "-f",
+        "PostgreSQL",
+        pg_connection,
+        gdal_source,
+        layer_name,
+        "-nln",
+        f"{schema}.{table_name}",
+        "-overwrite",
+        "-lco",
+        f"GEOMETRY_NAME={DEFAULT_GEOMETRY_COLUMN}",
+        "-lco",
+        f"SCHEMA={schema}",
+    ]
 
-                # Ensure there is no geom column
-                if DEFAULT_GEOMETRY_COLUMN in data.columns:
-                    logger.warning(
-                        f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column."
-                        " Dropping it before writing to PostGIS."
-                    )
-                    data.drop(columns=[DEFAULT_GEOMETRY_COLUMN], inplace=True)
+    if auth is not None:
+        username, password = auth
+        # --------
+        # WARNING: don't log the command — GDAL_HTTP_USERPWD contains credentials
+        # --------
+        command += ["--config", "GDAL_HTTP_USERPWD", f"{username}:{password}"]
 
-            elif data.active_geometry_name == DEFAULT_GEOMETRY_COLUMN:
-                logger.info(
-                    f"GeoDataFrame has '{DEFAULT_GEOMETRY_COLUMN}' as active geometry column."
-                )
-            else:
-                logger.info(
-                    f"GeoDataFrame has '{data.active_geometry_name}' as active geometry column."
-                )
-
-                if DEFAULT_GEOMETRY_COLUMN in data.columns:
-                    logger.warning(
-                        f"GeoDataFrame already has a '{DEFAULT_GEOMETRY_COLUMN}' column."
-                        " Overwriting it with the active geometry column."
-                    )
-                else:
-                    logger.info(f"Renaming active geometry column to '{DEFAULT_GEOMETRY_COLUMN}'")
-                    data.rename_geometry(DEFAULT_GEOMETRY_COLUMN, inplace=True)
-
-            # Write data to PostGIS. Force a generic GEOMETRY column type (instead of letting
-            # GeoPandas infer Point/LineString/... from the current frame) so that chunked
-            # appends with heterogeneous geometry types — or a first chunk that happens to be
-            # homogeneous — don't clash with later chunks. The SRID is pinned to the data CRS
-            # so PostGIS still rejects mismatched projections.
-            geom_dtype: dict[str, Geometry] | None = None
-            if data.active_geometry_name is not None:
-                srid = data.crs.to_epsg() if data.crs is not None else None
-                geom_dtype = {
-                    data.active_geometry_name: Geometry(geometry_type="GEOMETRY", srid=srid or 0)
-                }
-            data.to_postgis(
-                table_name,
-                engine,
-                if_exists=if_exists,
-                schema=schema,
-                index=False,
-                dtype=geom_dtype,
-            )
-
-        if create_id:
-            with engine.connect() as conn:
-                conn.execute(
-                    text(
-                        f'ALTER TABLE "{schema}"."{table_name}" '
-                        f"ADD COLUMN id_datafeeder UUID DEFAULT gen_random_uuid() NOT NULL"
-                    )
-                )
-                conn.execute(
-                    text(f'ALTER TABLE "{schema}"."{table_name}" ADD PRIMARY KEY (id_datafeeder)')
-                )
-                conn.commit()
-            logger.info(f"Added 'id_datafeeder' UUID primary key column to {schema}.{table_name}")
-
-        # Log the number of inserted rows
-        row_count = _get_table_row_count(table_name, engine, schema)
-        logger.info(f"Successfully inserted {row_count} rows into {schema}.{table_name}")
-    except Exception as e:
-        logger.error(f"Error writing data to PostGIS table {schema}.{table_name}: {e}")
-        raise
+    _run_ogr2ogr(command, context=f"ingesting OGC layer '{layer_name}' into {schema}.{table_name}")

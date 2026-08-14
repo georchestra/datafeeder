@@ -1,8 +1,7 @@
 import os
 from datetime import timedelta
-from typing import TypeVar
+from typing import Any, TypeVar
 
-import pandas as pd
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.sdk import Variable
 from sqlalchemy.engine import Engine
@@ -60,9 +59,8 @@ def get_staging_timeout() -> timedelta:
 def normalize_nan(value: T | None, default: T) -> T:
     """Normalize NA/NaN/None values to a default.
 
-    pandas.DataFrame.to_dict() converts SQL NULL to float('nan') / numpy.nan,
-    which are truthy in Python. This breaks the common `value or default` pattern.
-    Use this function to properly handle NA/NaN values from pandas DataFrames.
+    Database NULLs read through a raw cursor come back as ``None``; this helper
+    also defends against float ``NaN`` without depending on pandas.
 
     Args:
         value: The value to check (can be None, NaN, or any valid value)
@@ -71,6 +69,22 @@ def normalize_nan(value: T | None, default: T) -> T:
     Returns:
         The original value if it's not NA/NaN/None, otherwise the default
     """
-    if value is None or pd.isna(value):
+    if value is None:
+        return default
+    if isinstance(value, float) and value != value:
         return default
     return value
+
+
+def get_records_as_dicts(sql: str) -> list[dict[str, Any]]:
+    """Run *sql* on the Datafeeder database and return rows as dicts.
+
+    Replaces the former ``PostgresHook.get_pandas_df(...).to_dict()`` so no
+    pandas dependency is required. SQL NULLs are returned as ``None``.
+    """
+    hook = get_datafeeder_pg_hook()
+    conn = hook.get_conn()
+    with conn.cursor() as cursor:
+        cursor.execute(sql)
+        columns = [desc[0] for desc in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
