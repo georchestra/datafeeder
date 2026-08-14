@@ -1,9 +1,10 @@
 from sqlalchemy import MetaData, Table, label, text
 from sqlmodel import Session, select
 
-from src.core.config import get_data_schema, is_shared_schema
+from src.core.config import get_data_schema, get_settings, is_shared_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
+from src.core.task_executor import TaskExecutorType
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import (
@@ -49,26 +50,34 @@ class DatasetDeletionService:
         Raises:
             Exception: If Airflow DAG deletion fails (other cleanup is skipped)
         """
+        # Steps 0, 1 and 5b are Airflow-only concepts (this service bypasses the
+        # BaseTaskExecutor abstraction on purpose). Other executors (e.g. LOCAL)
+        # have no DAGs or run history to clean up, and Airflow may not even be
+        # reachable in that setup.
+        is_airflow = get_settings().TASK_EXECUTOR == TaskExecutorType.AIRFLOW
+
         # Step 0: Cancel in-flight DAG runs for this dataset (best-effort) so a
         # run completing after deletion cannot recreate the staging/final table.
-        try:
-            cancel_dataset_runs(str(integrity_link.id))
-        except Exception as e:
-            logger.warning(
-                f"Failed to cancel in-flight DAG runs for IntegrityLink {integrity_link.id}: {e}",
-                exc_info=True,
-            )
+        if is_airflow:
+            try:
+                cancel_dataset_runs(str(integrity_link.id))
+            except Exception as e:
+                logger.warning(
+                    f"Failed to cancel in-flight DAG runs for IntegrityLink {integrity_link.id}: {e}",
+                    exc_info=True,
+                )
 
         # Step 1: Delete Airflow DAG (blocking). Attempted even when no schedule
         # is currently set: a previously cleared schedule leaves a stale
         # ingestion_<id> DAG in Airflow, and delete_dag tolerates 404.
-        dag_id = f"ingestion_{integrity_link.id}"
-        try:
-            delete_dag(dag_id)
-            logger.info(f"Deleted Airflow DAG {dag_id}")
-        except Exception as e:
-            logger.error(f"Failed to delete Airflow DAG {dag_id}: {e}", exc_info=True)
-            raise
+        if is_airflow:
+            dag_id = f"ingestion_{integrity_link.id}"
+            try:
+                delete_dag(dag_id)
+                logger.info(f"Deleted Airflow DAG {dag_id}")
+            except Exception as e:
+                logger.error(f"Failed to delete Airflow DAG {dag_id}: {e}", exc_info=True)
+                raise
 
         workspace_name = integrity_link.integrity_organization.lower()
         datastore_name = f"{workspace_name}_ds"
@@ -116,13 +125,14 @@ class DatasetDeletionService:
         # Step 5b: Purge Airflow run history (dag runs, task instances, XComs)
         # for this dataset (best-effort). Failed-run log files on the Airflow
         # volume are out of reach from the backend and are not removed.
-        try:
-            purge_dataset_dag_runs(str(integrity_link.id))
-        except Exception as e:
-            logger.warning(
-                f"Failed to purge Airflow run history for IntegrityLink {integrity_link.id}: {e}",
-                exc_info=True,
-            )
+        if is_airflow:
+            try:
+                purge_dataset_dag_runs(str(integrity_link.id))
+            except Exception as e:
+                logger.warning(
+                    f"Failed to purge Airflow run history for IntegrityLink {integrity_link.id}: {e}",
+                    exc_info=True,
+                )
 
         # Step 6: Delete IntegrityLink from DB (ON DELETE CASCADE removes IntegrityLinkRule rows)
         integrity_link_id = integrity_link.id
