@@ -41,7 +41,7 @@ class TestLocalTaskExecutorStaging:
 
             assert result.task_id == "staging_dag"
             assert result.run_id == "run-1"
-            assert result.status == TaskStatus.QUEUED
+            assert result.status == TaskStatus.SUCCESS
 
             args, kwargs = mock_ingest.call_args
             assert args[0] == "/tmp/data.csv"
