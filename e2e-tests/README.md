@@ -13,10 +13,11 @@ cp .env.example .env  # fill in real FTP / basic-auth credentials
 ## Run
 
 ```bash
-uv run pytest                          # all tests, headed
-uv run pytest tests/test_import.py     # one file
-uv run pytest -k parquet               # one case by id
-uv run pytest --headed=false           # headless
+uv run pytest                                                      # all tests, headed
+uv run pytest tests/test_import.py                                 # one file
+uv run pytest tests/test_import.py::TestDatafeeder::test_import_url  # one method (all its cases)
+uv run pytest -k parquet                                           # one case by id
+uv run pytest --headed=false                                       # headless
 ```
 
 ## Generate with playwright
