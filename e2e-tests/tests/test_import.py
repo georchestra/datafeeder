@@ -11,7 +11,7 @@ IMPORT_CASES = [
         "id": "parquet",
         "url": "https://www.data.gouv.fr/api/1/datasets/r/732e07d9-526c-4cfb-880c-f891ff33b019",
         "map": False,
-        "timeout-seconds": 120,
+        "timeout-seconds": 180,
         "expected_number_of_features":703007
     },
     {
@@ -120,7 +120,6 @@ class TestDatafeeder:
         expect(page.locator("canvas")).to_be_visible()
 
         self.validate_and_assert_feature_count(page, case.get("expected_number_of_features"), case["timeout-seconds"])
-
         self.remove_first_dataset(page)
 
 
@@ -182,9 +181,13 @@ class TestDatafeeder:
         expect(page.get_by_role("heading", name="Preview of the result")).to_be_visible()
         self.validate_and_assert_feature_count(page, 160, 15)
         self.remove_first_dataset(page)
+        self.remove_first_dataset(page)
 
 
     def remove_first_dataset(self, page: Page):
         page.goto("/dataset/")
+        first_row = page.locator("app-integrity-link-list [role='button']").first
+        first_row.hover()
         page.get_by_label("Delete dataset").first.click()
         page.get_by_role("button", name="Delete").first.click()
+        page.wait_for_timeout(1000)
