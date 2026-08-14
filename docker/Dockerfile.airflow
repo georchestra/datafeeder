@@ -72,6 +72,15 @@ FROM base AS development
 COPY --from=builder /tmp/requirements.txt /tmp/requirements.txt
 RUN uv pip install --system -r /tmp/requirements.txt \
  && rm -f /tmp/requirements.txt
+
+# Runtime deps nécessaires pour GDAL
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends \
+        gdal-bin libgdal-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 USER airflow
 
 # ============================================================================
