@@ -318,7 +318,6 @@ source = { editable = "apps/backend" }
 dependencies = [
     { name = "alembic" },
     { name = "apache-airflow-client" },
-    { name = "chardet" },
     { name = "data-manipulation" },
     { name = "fastapi", extra = ["standard"] },
     { name = "geojson-pydantic" },
@@ -349,7 +348,6 @@ dev = [
 requires-dist = [
     { name = "alembic", specifier = "==1.18.4" },
     { name = "apache-airflow-client", specifier = "==3.1.8" },
-    { name = "chardet", specifier = "==7.4.3" },
     { name = "data-manipulation", editable = "libs/data_manipulation" },
     { name = "fastapi", extras = ["standard"], specifier = "==0.136.1" },
     { name = "geojson-pydantic", specifier = "==2.1.1" },
