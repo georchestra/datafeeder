@@ -31,13 +31,11 @@ from data_manipulation.validators import validate_schema_name, validate_table_na
 logger = logging.getLogger(__name__)
 
 DEFAULT_SCHEMA = "public"
-
-# Bytes sampled for encoding detection. chardet's accuracy is unchanged for a sample
-# this size, and reading only a sample avoids loading multi-GB files into memory.
-_ENCODING_DETECT_BYTES = 256 * 1024
-# Number of rows read and written to PostGIS per chunk. Keeps the memory footprint low
-# (only one chunk is held in memory / converted to WKB at a time) for large files.
 CHUNK_SIZE = int(os.getenv("DATAFEEDER_CHUNK_SIZE", 50000))
+
+_ENCODING_DETECT_BYTES = 256 * 1024
+_DEFAULT_ENCODING = "utf-8"
+_UTF8_COMPATIBLE_ENCODINGS = (_DEFAULT_ENCODING, "ascii")
 _SHAPEFILE_FALLBACK_ENCODING = "cp1252"
 
 
@@ -81,7 +79,7 @@ def _parse_cpg_encoding(sample: bytes) -> str | None:
         logger.warning("Ignoring unusable .cpg encoding declaration: %r", declared)
         return None
 
-    return None if name in ("utf-8", "ascii") else name
+    return None if name in _UTF8_COMPATIBLE_ENCODINGS else name
 
 
 def _detect_shapefile_encoding(cpg_sample: bytes | None) -> str:
@@ -118,7 +116,7 @@ def _detect_file_encoding(file_path: str) -> str:
 
     # GeoJSON must be UTF-8 according to RFC 7946
     if path.suffix.lower() in (".geojson", ".json"):
-        return "utf-8"
+        return _DEFAULT_ENCODING
 
     try:
         if path.suffix.lower() == ".shp":
@@ -129,7 +127,7 @@ def _detect_file_encoding(file_path: str) -> str:
             with zipfile.ZipFile(file_path) as zf:
                 names = zf.namelist()
                 if not any(name.lower().endswith(".shp") for name in names):
-                    return "utf-8"
+                    return _DEFAULT_ENCODING
 
                 member = next((n for n in names if n.lower().endswith(".cpg")), None)
                 if member is None:
@@ -139,10 +137,10 @@ def _detect_file_encoding(file_path: str) -> str:
 
         with open(file_path, "rb") as f:
             sample = f.read(_ENCODING_DETECT_BYTES)
-        return chardet.detect(sample)["encoding"] or "utf-8"
+        return chardet.detect(sample)["encoding"] or _DEFAULT_ENCODING
     except Exception as e:
         logger.warning(f"Failed to detect encoding for {file_path}: {e}")
-        return "utf-8"
+        return _DEFAULT_ENCODING
 
 
 def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.DataFrame:

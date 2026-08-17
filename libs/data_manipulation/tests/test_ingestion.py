@@ -17,6 +17,9 @@ from sqlalchemy.engine import Engine
 from data_manipulation import IntegrityTransformation, apply_transformations
 from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.ingestion import (
+    _DEFAULT_ENCODING,  # pyright: ignore[reportPrivateUsage]
+    _SHAPEFILE_FALLBACK_ENCODING,  # pyright: ignore[reportPrivateUsage]
+    _UTF8_COMPATIBLE_ENCODINGS,  # pyright: ignore[reportPrivateUsage]
     CHUNK_SIZE,
     _detect_file_encoding,  # pyright: ignore[reportPrivateUsage]
     _read_file_encoded,  # pyright: ignore[reportPrivateUsage]
@@ -50,6 +53,15 @@ class TestDetectFileEncoding:
             if cpg is not None:
                 zf.writestr("t.cpg", cpg)
         return str(archive)
+
+    def test_encoding_constants_are_normalized_codec_names(self) -> None:
+        """The constants are compared against codecs.lookup().name, so they must match it.
+
+        A typo such as "utf8" names a real codec but never equals a normalized name, which
+        would silently stop _parse_cpg_encoding from discarding UTF-8 declarations.
+        """
+        for name in (_DEFAULT_ENCODING, _SHAPEFILE_FALLBACK_ENCODING, *_UTF8_COMPATIBLE_ENCODINGS):
+            assert codecs.lookup(name).name == name
 
     def test_loose_shapefile_uses_cpg_declaration(self, tmp_path: Path) -> None:
         """A .cpg is parsed as an encoding name, not sniffed as text."""
