@@ -17,7 +17,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 import requests
 from geoalchemy2 import Geometry
-from pyarrow.lib import ArrowException
+from pyarrow import ArrowException
 from sqlalchemy import MetaData, Table, func, select, text
 from sqlalchemy.engine import Engine
 
@@ -172,19 +172,16 @@ def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.Data
             return pd.read_parquet(ds.fragments[i].path)
 
     try:
-        # Try reading with UTF-8 first (common default)
-        result = gpd.read_file(file_path, rows=rows)  # type: ignore[arg-type]
-        # pyogrio/pyarrow validate text lazily: a bad encoding doesn't raise here, it
-        # raises whenever the string columns are first materialized (e.g. much later
-        # in pandas.to_sql when writing to PostGIS). Force that materialization now
-        # so we can catch and handle it in this try block instead.
-        for column in result.columns:
-            if pd.api.types.is_string_dtype(result[column].dtype):
-                result[column].to_numpy()
-        return result
-    except (UnicodeDecodeError, ArrowException):
+        # Try reading with UTF-8 first (common default). Undecodable text is reported
+        # right here: with PYOGRIO_USE_ARROW the conversion to pandas raises an
+        # ArrowException, and without it GDAL recodes from the encoding the shapefile
+        # declares (.cpg / .dbf language driver id) or from ISO-8859-1.
+        return gpd.read_file(file_path, rows=rows)  # type: ignore[arg-type]
+    except (UnicodeDecodeError, ArrowException) as e:
         logger.warning(
-            "Failed to read file with UTF-8 encoding, attempting to detect encoding and read again."
+            "Failed to read file with UTF-8 encoding (%s), detecting the encoding "
+            "and reading again.",
+            e,
         )
 
     # Detect encoding (mainly for shapefiles, others default to UTF-8)

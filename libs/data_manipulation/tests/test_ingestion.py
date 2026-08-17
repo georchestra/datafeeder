@@ -10,7 +10,7 @@ import geopandas as gpd
 import pytest
 import requests
 from geopandas import GeoDataFrame
-from pandas import DataFrame
+from pandas import DataFrame, Index
 from shapely.geometry import Point
 from sqlalchemy.engine import Engine
 
@@ -258,6 +258,14 @@ class TestIngestDataFromFileIntoPostgis:
         )
         mock_detect_encoding.assert_called_once_with("test.shp")
         assert result is mock_gdf
+
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_read_file_encoded_accepts_duplicate_column_labels(self, mock_read_file: Mock) -> None:
+        """GDAL can hand back repeated field names; the frame is returned untouched."""
+        mock_df = DataFrame([["a", "b", 1]], columns=Index(["name", "name", "val"]))
+        mock_read_file.return_value = mock_df
+
+        assert _read_file_encoded("dup.csv") is mock_df
 
 
 class TestIngestDataFromUrlIntoPostgis:
