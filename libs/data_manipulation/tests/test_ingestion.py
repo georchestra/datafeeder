@@ -1,5 +1,8 @@
 """Tests for data ingestion utilities in data_manipulation library."""
 
+import codecs
+import zipfile
+from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 from urllib.error import URLError
 
@@ -15,6 +18,7 @@ from data_manipulation import IntegrityTransformation, apply_transformations
 from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.ingestion import (
     CHUNK_SIZE,
+    _detect_file_encoding,  # pyright: ignore[reportPrivateUsage]
     _read_file_encoded,  # pyright: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
     ingest_data_from_file_into_postgis,
@@ -24,6 +28,73 @@ from data_manipulation.ingestion import (
     read_data_from_postgis,
     write_data_to_postgis,
 )
+
+
+class TestDetectFileEncoding:
+    """Encoding picked to retry a read that failed as UTF-8."""
+
+    @staticmethod
+    def _loose_shapefile(tmp_path: Path, cpg: bytes | None) -> str:
+        (tmp_path / "t.shp").write_bytes(b"")
+        (tmp_path / "t.dbf").write_bytes(b"")
+        if cpg is not None:
+            (tmp_path / "t.cpg").write_bytes(cpg)
+        return str(tmp_path / "t.shp")
+
+    @staticmethod
+    def _zipped_shapefile(tmp_path: Path, cpg: bytes | None) -> str:
+        archive = tmp_path / "shape.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("t.shp", b"")
+            zf.writestr("t.dbf", b"")
+            if cpg is not None:
+                zf.writestr("t.cpg", cpg)
+        return str(archive)
+
+    def test_loose_shapefile_uses_cpg_declaration(self, tmp_path: Path) -> None:
+        """A .cpg is parsed as an encoding name, not sniffed as text."""
+        assert _detect_file_encoding(self._loose_shapefile(tmp_path, b"ISO-8859-1")) == "iso8859-1"
+
+    def test_zipped_shapefile_uses_cpg_declaration(self, tmp_path: Path) -> None:
+        """The .cpg member of a zipped shapefile is parsed the same way."""
+        assert _detect_file_encoding(self._zipped_shapefile(tmp_path, b"ISO-8859-1")) == "iso8859-1"
+
+    def test_cpg_codepage_number_is_resolved(self, tmp_path: Path) -> None:
+        """A bare codepage, with or without a vendor prefix, resolves to its codec."""
+        assert _detect_file_encoding(self._loose_shapefile(tmp_path, b"ANSI 1252")) == "cp1252"
+
+    def test_unusable_cpg_is_ignored(self, tmp_path: Path) -> None:
+        """A .cpg that names no known codec never becomes the encoding."""
+        encoding = _detect_file_encoding(self._loose_shapefile(tmp_path, b"not-an-encoding\n"))
+
+        assert encoding != "ascii"
+        codecs.lookup(encoding)
+
+    def test_geojson_is_always_utf8(self, tmp_path: Path) -> None:
+        """GeoJSON is UTF-8 by RFC 7946, whatever the bytes look like."""
+        geojson = tmp_path / "t.geojson"
+        geojson.write_bytes("café".encode("latin-1"))
+
+        assert _detect_file_encoding(str(geojson)) == "utf-8"
+
+    def test_plain_text_file_is_sniffed(self, tmp_path: Path) -> None:
+        """Non-shapefile inputs keep using chardet on their raw bytes."""
+        csv = tmp_path / "t.csv"
+        csv.write_bytes(("name\n" + "Brévalé çà où\n" * 50).encode("latin-1"))
+
+        assert codecs.lookup(_detect_file_encoding(str(csv))).name != "utf-8"
+
+    def test_zip_without_shapefile_defaults_to_utf8(self, tmp_path: Path) -> None:
+        """Compressed bytes tell nothing about the encoding of the data inside."""
+        archive = tmp_path / "data.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("t.csv", "name\ncafé\n")
+
+        assert _detect_file_encoding(str(archive)) == "utf-8"
+
+    def test_unreadable_file_defaults_to_utf8(self, tmp_path: Path) -> None:
+        """Detection never raises; it falls back to UTF-8."""
+        assert _detect_file_encoding(str(tmp_path / "missing.csv")) == "utf-8"
 
 
 class TestReadFileEncodedParquet:
