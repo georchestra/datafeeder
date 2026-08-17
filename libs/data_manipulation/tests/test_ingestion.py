@@ -70,6 +70,18 @@ class TestDetectFileEncoding:
         assert encoding != "ascii"
         codecs.lookup(encoding)
 
+    def test_shapefile_without_cpg_falls_back_to_cp1252(self, tmp_path: Path) -> None:
+        """No sidecar at all: guess the codepage shapefiles are usually written in."""
+        assert _detect_file_encoding(self._loose_shapefile(tmp_path, None)) == "cp1252"
+
+    def test_zipped_shapefile_without_cpg_falls_back_to_cp1252(self, tmp_path: Path) -> None:
+        """Same for a zipped shapefile, rather than returning the UTF-8 that just failed."""
+        assert _detect_file_encoding(self._zipped_shapefile(tmp_path, None)) == "cp1252"
+
+    def test_shapefile_declaring_utf8_falls_back_to_cp1252(self, tmp_path: Path) -> None:
+        """A .cpg contradicted by the data is a wrong declaration, not an answer."""
+        assert _detect_file_encoding(self._zipped_shapefile(tmp_path, b"UTF-8")) == "cp1252"
+
     def test_geojson_is_always_utf8(self, tmp_path: Path) -> None:
         """GeoJSON is UTF-8 by RFC 7946, whatever the bytes look like."""
         geojson = tmp_path / "t.geojson"
@@ -95,6 +107,53 @@ class TestDetectFileEncoding:
     def test_unreadable_file_defaults_to_utf8(self, tmp_path: Path) -> None:
         """Detection never raises; it falls back to UTF-8."""
         assert _detect_file_encoding(str(tmp_path / "missing.csv")) == "utf-8"
+
+
+class TestReadFileEncodedShapefile:
+    """Reading real shapefiles whose text is not UTF-8."""
+
+    NAMES = ["Brévalé çà où ü0", "Ångström", "Müller & Cie", "Zoé"]
+
+    def _latin1_shapefile_zip(self, tmp_path: Path, cpg: bytes | None) -> str:
+        """Write a latin-1 shapefile with the given .cpg declaration and zip it."""
+        source = gpd.GeoDataFrame(
+            {"name": self.NAMES, "n": range(len(self.NAMES))},
+            geometry=[Point(i, i) for i in range(len(self.NAMES))],
+            crs="EPSG:4326",
+        )
+        source.to_file(tmp_path / "t.shp", encoding="ISO-8859-1")
+
+        cpg_file = tmp_path / "t.cpg"
+        cpg_file.unlink(missing_ok=True)
+        if cpg is not None:
+            cpg_file.write_bytes(cpg)
+
+        archive = tmp_path / "shape.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            for member in sorted(tmp_path.glob("t.*")):
+                zf.write(member, member.name)
+        return str(archive)
+
+    @pytest.mark.parametrize("cpg", [None, b"UTF-8"], ids=["no-cpg", "cpg-lies-utf8"])
+    @pytest.mark.parametrize("use_arrow", ["0", "1"])
+    def test_zipped_latin1_shapefile_reads_its_text_intact(
+        self,
+        tmp_path: Path,
+        cpg: bytes | None,
+        use_arrow: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A shapefile GDAL cannot decode is re-read with the fallback encoding.
+
+        Parametrized over PYOGRIO_USE_ARROW because only the Arrow path raises on
+        undecodable text, and Airflow enables it while local runs do not.
+        """
+        monkeypatch.setenv("PYOGRIO_USE_ARROW", use_arrow)
+        archive = self._latin1_shapefile_zip(tmp_path, cpg)
+
+        result = _read_file_encoded(archive)
+
+        assert list(result["name"]) == self.NAMES
 
 
 class TestReadFileEncodedParquet:

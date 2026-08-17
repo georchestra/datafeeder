@@ -38,6 +38,7 @@ _ENCODING_DETECT_BYTES = 256 * 1024
 # Number of rows read and written to PostGIS per chunk. Keeps the memory footprint low
 # (only one chunk is held in memory / converted to WKB at a time) for large files.
 CHUNK_SIZE = int(os.getenv("DATAFEEDER_CHUNK_SIZE", 50000))
+_SHAPEFILE_FALLBACK_ENCODING = "cp1252"
 
 
 def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
@@ -93,7 +94,15 @@ def _detect_shapefile_encoding(cpg_sample: bytes | None) -> str:
         Encoding string
     """
     declared = _parse_cpg_encoding(cpg_sample) if cpg_sample else None
-    return declared or "utf-8"
+    if declared is not None:
+        return declared
+
+    logger.warning(
+        "Shapefile declares no usable encoding, falling back to %s. Check the ingested "
+        "text for mojibake; a .cpg sidecar naming the right encoding fixes it at the source.",
+        _SHAPEFILE_FALLBACK_ENCODING,
+    )
+    return _SHAPEFILE_FALLBACK_ENCODING
 
 
 def _detect_file_encoding(file_path: str) -> str:
