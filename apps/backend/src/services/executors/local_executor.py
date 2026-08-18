@@ -12,6 +12,8 @@ always returns None.
 Run state lives in memory only and is lost on backend restart.
 """
 
+import os
+import tempfile
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
@@ -48,6 +50,13 @@ logger = get_logger()
 _STAGING_DAG_ID = "staging_dag"
 _PROCESS_DAG_ID = "process_dag"
 
+# Container to `docker exec` ogr2ogr into (see docker/compose.datafeeder.yaml, service
+# `datafeeder-gdal`, profile `local-executor`) since this executor runs outside of any
+# container with GDAL (typically on the host, via `make run-backend-with-local-task-
+# executor`). Empty disables the wrapper: ogr2ogr must then already be on PATH.
+_GDAL_DOCKER_EXEC_TARGET = os.getenv("DATAFEEDER_GDAL_DOCKER_EXEC_TARGET", "")
+_OGR2OGR_WRAPPER_DIR = os.path.join(tempfile.gettempdir(), "datafeeder-gdal-wrapper")
+
 
 @dataclass
 class _RunRecord:
@@ -59,7 +68,27 @@ class LocalTaskExecutor(BaseTaskExecutor):
     """Runs staging/process synchronously in-process instead of via Airflow."""
 
     def __init__(self) -> None:
+        self._install_ogr2ogr_docker_wrapper()
         self._registry: dict[tuple[str, str], _RunRecord] = {}
+
+    def _install_ogr2ogr_docker_wrapper(self) -> None:
+        """Make the `ogr2ogr` calls in data_manipulation.ingestion reach the
+        `datafeeder-gdal` sidecar container via `docker exec` instead of a local binary.
+
+        Written under the system temp dir (not /usr/local/bin) so it works without root/
+        sudo when this executor runs as a plain host process, then prepended to PATH.
+        """
+        if not _GDAL_DOCKER_EXEC_TARGET:
+            return
+        try:
+            os.makedirs(_OGR2OGR_WRAPPER_DIR, exist_ok=True)
+            wrapper_path = os.path.join(_OGR2OGR_WRAPPER_DIR, "ogr2ogr")
+            with open(wrapper_path, "w") as f:
+                f.write(f'#!/bin/sh\nexec docker exec "{_GDAL_DOCKER_EXEC_TARGET}" ogr2ogr "$@"\n')
+            os.chmod(wrapper_path, 0o755)
+            os.environ["PATH"] = _OGR2OGR_WRAPPER_DIR + os.pathsep + os.environ.get("PATH", "")
+        except OSError as e:
+            logger.warning(f"Failed to install ogr2ogr docker-exec wrapper: {e}")
 
     def _set_status(self, task_id: str, run_id: str, status: TaskStatus, logs: str = "") -> None:
         record = self._registry.get((task_id, run_id))

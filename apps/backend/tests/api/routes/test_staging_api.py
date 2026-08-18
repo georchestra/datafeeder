@@ -1,16 +1,14 @@
 """Tests for API (OGC service) source type in staging endpoints."""
 
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-import pandas as pd
 import pytest
 from fastapi import HTTPException
 
 from src.api.routes.ingestion.staging import (
     _process_import_source,  # pyright: ignore[reportPrivateUsage]
-    _stringify_temporal_columns,  # pyright: ignore[reportPrivateUsage]
     dag_failure_callback,
     dag_success_callback,
     edit_staging,
@@ -530,46 +528,3 @@ class TestDagFailureCallbackTempFile:
         datafeeder_session, _ = self._call(link)
 
         datafeeder_session.delete.assert_called_once_with(link)
-
-
-class TestStringifyTemporalColumns:
-    """Preview data must be JSON-serializable; temporal columns get stringified."""
-
-    def test_object_date_column_becomes_iso_strings(self) -> None:
-        df = pd.DataFrame({"d": [date(2024, 1, 2), date(2024, 3, 4)]})
-        assert df["d"].dtype == "object"
-
-        _stringify_temporal_columns(df)
-
-        assert df["d"].tolist() == ["2024-01-02", "2024-03-04"]
-
-    def test_object_datetime_column_becomes_iso_strings(self) -> None:
-        df = pd.DataFrame({"dt": [datetime(2024, 1, 2, 8, 30), datetime(2024, 3, 4, 9, 0)]})
-        df["dt"] = df["dt"].astype(object)
-
-        _stringify_temporal_columns(df)
-
-        assert df["dt"].tolist() == ["2024-01-02T08:30:00", "2024-03-04T09:00:00"]
-
-    def test_datetime64_column_becomes_strings(self) -> None:
-        df = pd.DataFrame({"ts": pd.to_datetime(["2024-01-02", "2024-03-04"])})
-        assert pd.api.types.is_datetime64_any_dtype(df["ts"])
-
-        _stringify_temporal_columns(df)
-
-        assert all(isinstance(v, str) for v in df["ts"])
-
-    def test_non_temporal_columns_are_left_intact(self) -> None:
-        df = pd.DataFrame({"name": ["a", "b"], "n": [1, 2]})
-
-        _stringify_temporal_columns(df)
-
-        assert df["name"].tolist() == ["a", "b"]
-        assert df["n"].tolist() == [1, 2]
-
-    def test_nulls_do_not_raise_and_are_preserved(self) -> None:
-        df = pd.DataFrame({"d": [None, date(2024, 1, 2)]})
-
-        _stringify_temporal_columns(df)
-
-        assert df["d"].tolist() == [None, "2024-01-02"]

@@ -40,7 +40,7 @@ up: build-libs ## Start all services including Airflow, GeoServer and GeoNetwork
 	docker compose --profile airflow up -d --wait --build
 
 up-no-airflow: build-libs ## Start all services including GeoServer and GeoNetwork using Docker Compose (no Airflow, replaced with the local executor)
-	docker compose up -d --wait --build
+	docker compose --profile local-executor up -d --wait --build
 
 build-airflow-base: ## Build the Debian Trixie based Apache Airflow base image (from the official Dockerfile)
 	@if [ -z "$$(docker images -q $(AIRFLOW_BASE_IMAGE))" ]; then \
@@ -67,9 +67,10 @@ run-backend: install-python ## Run the backend application
 	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" sh -c \
 	  'uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs'
 
-run-backend-with-local-task-executor: install-python ## Run the backend application
+run-backend-with-local-task-executor: install-python ## Run the backend application, using datafeeder-gdal (make up-no-airflow) for ogr2ogr
 	cd apps/backend && \
-	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" BACKEND_INTERNAL_URL="http://localhost:8000" TASK_EXECUTOR=LOCAL sh -c \
+	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" BACKEND_INTERNAL_URL="http://localhost:8000" TASK_EXECUTOR=LOCAL \
+	DATAFEEDER_GDAL_DOCKER_EXEC_TARGET=datafeeder-gdal sh -c \
 	  'uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs'
 
 .PHONY: default help install-python fix-and-check-all-python build-libs up up-no-airflow down down-v run-backend
