@@ -7,7 +7,6 @@ from airflow.exceptions import AirflowException
 from airflow.sdk import task, task_group
 from airflow.utils.trigger_rule import TriggerRule
 from data_manipulation import (
-    CHUNK_SIZE,
     IntegrityTransformation,
     transform_staging_to_final,
 )

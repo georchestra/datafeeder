@@ -77,6 +77,10 @@ class TestIngestFileWithOgr2ogr:
         # NOT NULL constraints from the source layer (e.g. WFS gml_id) must not
         # be propagated, otherwise COPY fails when the value is absent.
         assert "-forceNullable" in cmd
+        # Single geometries must be promoted to Multi* so a later feature that
+        # happens to be a Multi* type doesn't clash with the inferred column type.
+        assert "-nlt" in cmd
+        assert "PROMOTE_TO_MULTI" in cmd
 
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_missing_binary_raises_clean_error(self, mock_run: MagicMock, engine: Engine) -> None:
@@ -113,6 +117,8 @@ class TestIngestFromDatabase:
         assert any(c.startswith("PG:") and "dbhost" in c for c in cmd)
         assert "public.src" in cmd
         assert "staging.dest" in cmd
+        assert "-nlt" in cmd
+        assert "PROMOTE_TO_MULTI" in cmd
 
 
 class TestIngestFromOgcService:

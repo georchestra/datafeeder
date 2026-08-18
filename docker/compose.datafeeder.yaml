@@ -36,6 +36,23 @@ services:
       - .envs-database-georchestra
     restart: always
 
+  # GDAL/ogr2ogr sidecar for the LOCAL task executor: datafeeder-backend has no GDAL
+  # installed, so LocalTaskExecutor reaches ogr2ogr in this container via `docker exec`
+  # instead (see apps/backend/src/services/executors/local_executor.py).
+  datafeeder-gdal:
+    profiles:
+      - local-executor
+    image: ghcr.io/osgeo/gdal:alpine-small-3.13.2
+    container_name: datafeeder-gdal
+    # Host networking so ogr2ogr reaches datadb the same way the host-run backend does
+    # (localhost:5433, see POSTGRES_DATA_HOST/PORT in datafeeder.env) — the compose
+    # bridge network's `datadb` DNS alias isn't reachable from the host process.
+    network_mode: host
+    entrypoint: ["tail", "-f", "/dev/null"]
+    restart: unless-stopped
+    volumes:
+      - /tmp/:/tmp:rw
+
   datadb:
     image: postgis/postgis
     restart: always
