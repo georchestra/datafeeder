@@ -201,6 +201,12 @@ def ingest_file_with_ogr2ogr(
         f"{schema}.{table_name}",
         "-overwrite",
         "-forceNullable",
+        # Single geometries (e.g. a shapefile of simple Polygons) are promoted to
+        # their Multi* equivalent so a later chunk/feature that happens to be a
+        # Multi* geometry doesn't clash with the column type PostGIS inferred
+        # from the first rows.
+        "-nlt",
+        "PROMOTE_TO_MULTI",
         "-lco",
         f"GEOMETRY_NAME={DEFAULT_GEOMETRY_COLUMN}",
         "-lco",
@@ -325,6 +331,8 @@ def ingest_data_from_database_into_postgis(
         f"{target_schema}.{target_table}",
         "-overwrite",
         "-forceNullable",
+        "-nlt",
+        "PROMOTE_TO_MULTI",
         "-lco",
         f"GEOMETRY_NAME={DEFAULT_GEOMETRY_COLUMN}",
         "-lco",

@@ -29,6 +29,17 @@ the host-run backend. With `LOCAL`, ingestion runs in the backend's own process 
 Restart `make run-backend` after changing `datafeeder.env` — settings are cached at startup and `--reload` only
 watches source directories, not this file.
 
+### Ingesting files with the LOCAL executor
+
+`LocalTaskExecutor` calls `ogr2ogr` (via `data_manipulation.ingestion`) directly, so it needs GDAL somewhere. Since
+the backend runs as a plain host process here, `make up-no-airflow` also starts a `datafeeder-gdal` sidecar
+(`ghcr.io/osgeo/gdal:alpine-small-3.13.2`, `local-executor` Compose profile) for it to use, instead of requiring
+GDAL to be installed on the host.
+
+`make run-backend-with-local-task-executor` sets `DATAFEEDER_GDAL_DOCKER_EXEC_TARGET=datafeeder-gdal`;
+`LocalTaskExecutor` picks that up at startup and installs a small `ogr2ogr` wrapper (using the host's own `docker`
+CLI, so no extra setup is needed) that runs `docker exec datafeeder-gdal ogr2ogr ...` instead of a local binary.
+
 ## What it actually runs
 
 `LocalTaskExecutor` only covers the flows the backend itself triggers:
