@@ -89,7 +89,7 @@ The ELT application uses Apache Airflow for data orchestration and workflow mana
 
 ### Task Executors: Airflow 
 
-DataKern only supports one task execution engines: **Airflow** (default) and. 
+The Datafeeder only supports one task execution engine: **Airflow** (default). 
 
 - **Airflow**: Full-featured workflow orchestration with web UI, suitable for complex workflows
 
