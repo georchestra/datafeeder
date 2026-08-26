@@ -208,6 +208,9 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def POSTGRES_DATA_URI(self) -> PostgresDsn:
+        # _set_data_db_defaults guarantees these are set by the time this is accessed.
+        assert self.POSTGRES_DATA_USER is not None
+        assert self.POSTGRES_DATA_PASSWORD is not None
         return PostgresDsn.build(
             scheme="postgresql+psycopg",
             username=quote(self.POSTGRES_DATA_USER, safe=""),
