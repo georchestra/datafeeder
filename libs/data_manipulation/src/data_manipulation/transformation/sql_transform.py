@@ -318,6 +318,18 @@ def transform_staging_to_final(
         # through, keeping every filter value a bound parameter.
         conn.exec_driver_sql(ctas, compiled.params)
 
+        # CREATE TABLE AS copies data and column types but no indexes, so the
+        # spatial index PostGIS used to create through GeoPandas' to_postgis is
+        # gone. Without it every bbox query on the published table (GeoServer
+        # WMS/WFS) degrades to a sequential scan. Match the previous index name.
+        if tq.geom_column is not None:
+            conn.execute(
+                text(
+                    f'CREATE INDEX "idx_{final_table}_{tq.geom_column}" '
+                    f'ON "{final_schema}"."{final_table}" USING GIST ("{tq.geom_column}")'
+                )
+            )
+
         if create_id:
             conn.execute(
                 text(
