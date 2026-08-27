@@ -30,6 +30,8 @@ _ENCODING_DETECT_BYTES = 256 * 1024
 # Number of rows read and written to PostGIS per chunk. Keeps the memory footprint low
 # (only one chunk is held in memory / converted to WKB at a time) for large files.
 CHUNK_SIZE = int(os.getenv("DATAFEEDER_CHUNK_SIZE", 50000))
+# Bytes read per iteration when streaming an HTTP download to disk.
+_DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 
 
 def _build_pg_connection_string(engine: Engine) -> str:
@@ -245,33 +247,36 @@ def ingest_data_from_url_into_postgis(
         if parsed_url.scheme == "ftp":
             ingest_data_from_ftp_into_postgis(url, table_name, engine, schema, auth)
         else:
-            # Use requests for HTTP/HTTPS URLs
+            # Use requests for HTTP/HTTPS URLs. The response is streamed straight to
+            # disk: ogr2ogr needs a real file anyway, and buffering the whole body in
+            # memory first would defeat the point of handing the file to GDAL.
             resolved_url = resolve_url(url)
-            response = requests.get(resolved_url, auth=auth, timeout=300)
-            response.raise_for_status()
-            content = response.content
+            with requests.get(resolved_url, auth=auth, timeout=300, stream=True) as response:
+                response.raise_for_status()
 
-            content_disposition = response.headers.get("Content-Disposition")
-            filename = None
+                # Headers are available before the body is consumed.
+                content_disposition = response.headers.get("Content-Disposition")
+                filename = None
 
-            if content_disposition:
-                # e.g. 'attachment; filename="report.csv"'
-                for part in content_disposition.split(";"):
-                    part = part.strip()
-                    if part.startswith("filename="):
-                        filename = part.split("=", 1)[1].strip('"')
-                        filename = unquote(filename)
+                if content_disposition:
+                    # e.g. 'attachment; filename="report.csv"'
+                    for part in content_disposition.split(";"):
+                        part = part.strip()
+                        if part.startswith("filename="):
+                            filename = part.split("=", 1)[1].strip('"')
+                            filename = unquote(filename)
 
-                logger.info(f"Extracted filename from Content-Disposition: {filename}")
+                    logger.info(f"Extracted filename from Content-Disposition: {filename}")
 
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_file_path = Path(temp_dir) / (
-                    filename or Path(urlparse(resolved_url).path).name
-                )
-                with open(temp_file_path, "wb") as temp_file:
-                    temp_file.write(content)
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    temp_file_path = Path(temp_dir) / (
+                        filename or Path(urlparse(resolved_url).path).name
+                    )
+                    with open(temp_file_path, "wb") as temp_file:
+                        for chunk in response.iter_content(chunk_size=_DOWNLOAD_CHUNK_SIZE):
+                            temp_file.write(chunk)
 
-                ingest_file_with_ogr2ogr(str(temp_file_path), table_name, engine, schema)
+                    ingest_file_with_ogr2ogr(str(temp_file_path), table_name, engine, schema)
 
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
