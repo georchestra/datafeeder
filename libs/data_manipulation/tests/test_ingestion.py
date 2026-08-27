@@ -6,6 +6,7 @@ that *would* be executed.  Full integration runs in the Docker image.
 """
 
 import logging
+import struct
 import subprocess
 import zipfile
 from collections.abc import Iterator
@@ -18,6 +19,7 @@ from sqlalchemy.engine import Engine
 
 from data_manipulation.ingestion import (
     _build_pg_connection_string,  # type: ignore[reportPrivateUsage]
+    _detect_shapefile_encoding,  # type: ignore[reportPrivateUsage]
     _normalize_oapif_url,  # type: ignore[reportPrivateUsage]
     _resolve_zip_source,  # type: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
@@ -438,3 +440,120 @@ class TestIngestFromFtp:
         assert called_url.startswith("ftp://bob:")
         assert "pw%40ss" in called_url
         mock_ingest.assert_called_once()
+
+
+def _dbf(records: list[bytes], *, field: bytes = b"nom", width: int = 20) -> bytes:
+    """Build a minimal .dbf holding one text field, for encoding-detection tests."""
+    header_length = 32 + 32 + 1
+    header = struct.pack("<B3BIHH20x", 3, 125, 1, 1, len(records), header_length, width + 1)
+    header += field.ljust(11, b"\x00") + b"C" + b"\x00" * 4 + bytes([width]) + b"\x00" * 14
+    header += b"\x0d"
+    body = b"".join(b" " + r.ljust(width)[:width] for r in records) + b"\x1a"
+    return header + body
+
+
+_LATIN1_RECORDS = ["Café".encode("cp1252"), "Forêt".encode("cp1252")]
+
+
+class TestShapefileEncodingDetection:
+    """GDAL honours .cpg natively and assumes UTF-8 otherwise.
+
+    Only the no-.cpg, non-UTF-8 case needs SHAPE_ENCODING: without it ogr2ogr
+    aborts with "Non UTF-8 content found" and writes nothing.
+    """
+
+    def _shapefile(self, tmp_path: Path, *, cpg: str | None, dbf: bytes) -> str:
+        (tmp_path / "z.shp").write_bytes(b"\x00")
+        (tmp_path / "z.dbf").write_bytes(dbf)
+        if cpg is not None:
+            (tmp_path / "z.cpg").write_text(cpg)
+        return str(tmp_path / "z.shp")
+
+    def test_cpg_present_defers_to_gdal(self, tmp_path: Path) -> None:
+        path = self._shapefile(tmp_path, cpg="ISO-8859-1", dbf=_dbf(_LATIN1_RECORDS))
+        assert _detect_shapefile_encoding(path) is None
+
+    def test_missing_cpg_with_latin_text_detects_cp1252(self, tmp_path: Path) -> None:
+        path = self._shapefile(tmp_path, cpg=None, dbf=_dbf(_LATIN1_RECORDS))
+        assert _detect_shapefile_encoding(path) == "CP1252"
+
+    def test_ascii_content_defers_to_gdal(self, tmp_path: Path) -> None:
+        # ASCII is valid UTF-8; overriding would be pointless.
+        path = self._shapefile(tmp_path, cpg=None, dbf=_dbf([b"Paris", b"Lyon"]))
+        assert _detect_shapefile_encoding(path) is None
+
+    def test_non_shapefile_is_ignored(self, tmp_path: Path) -> None:
+        plain = tmp_path / "data.geojson"
+        plain.write_text('{"type":"FeatureCollection","features":[]}')
+        assert _detect_shapefile_encoding(str(plain)) is None
+
+    def test_zipped_shapefile_without_cpg_is_detected(self, tmp_path: Path) -> None:
+        archive = tmp_path / "z.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("z.shp", b"\x00")
+            zf.writestr("z.dbf", _dbf(_LATIN1_RECORDS))
+        assert _detect_shapefile_encoding(str(archive)) == "CP1252"
+
+    def test_zipped_shapefile_with_cpg_defers_to_gdal(self, tmp_path: Path) -> None:
+        archive = tmp_path / "z.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("z.shp", b"\x00")
+            zf.writestr("z.dbf", _dbf(_LATIN1_RECORDS))
+            zf.writestr("z.cpg", "ISO-8859-1")
+        assert _detect_shapefile_encoding(str(archive)) is None
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_shape_encoding_is_passed_to_ogr2ogr(
+        self, mock_run: MagicMock, engine: Engine, tmp_path: Path
+    ) -> None:
+        mock_run.return_value = _completed()
+        path = self._shapefile(tmp_path, cpg=None, dbf=_dbf(_LATIN1_RECORDS))
+
+        ingest_file_with_ogr2ogr(path, "places", engine, schema="staging")
+
+        cmd = mock_run.call_args[0][0]
+        assert "SHAPE_ENCODING" in cmd
+        assert "CP1252" in cmd
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_no_shape_encoding_when_cpg_present(
+        self, mock_run: MagicMock, engine: Engine, tmp_path: Path
+    ) -> None:
+        mock_run.return_value = _completed()
+        path = self._shapefile(tmp_path, cpg="UTF-8", dbf=_dbf(_LATIN1_RECORDS))
+
+        ingest_file_with_ogr2ogr(path, "places", engine, schema="staging")
+
+        assert "SHAPE_ENCODING" not in mock_run.call_args[0][0]
+
+
+class TestOgrErrorDetection:
+    """ogr2ogr exits 0 even when it aborts a layer, so stderr must be inspected."""
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_error_in_stderr_raises_despite_exit_zero(
+        self, mock_run: MagicMock, engine: Engine
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["ogr2ogr"],
+            returncode=0,
+            stdout="",
+            stderr="ERROR 1: Non UTF-8 content found when writing feature -1\n",
+        )
+        with pytest.raises(Exception, match="Non UTF-8 content"):
+            ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine)
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_warnings_do_not_raise(self, mock_run: MagicMock, engine: Engine) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["ogr2ogr"], returncode=0, stdout="", stderr="Warning 6: Normalized/laundered\n"
+        )
+        ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine)
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_error_word_in_a_path_does_not_raise(self, mock_run: MagicMock, engine: Engine) -> None:
+        # Anchored regex: only real "ERROR <n>:" lines count.
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["ogr2ogr"], returncode=0, stdout="", stderr="reading /data/error_log/x.shp\n"
+        )
+        ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine)
