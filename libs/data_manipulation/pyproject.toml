@@ -15,7 +15,6 @@ readme = "README.md"
 requires-python = "==3.13.*"
 
 dependencies = [
-    "chardet==7.4.3",
     "geoalchemy2==0.19.0",
     "geoservercloud",
     "pydantic==2.13.4",
