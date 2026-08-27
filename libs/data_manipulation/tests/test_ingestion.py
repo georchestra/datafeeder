@@ -356,10 +356,11 @@ class TestIngestFromOgcService:
         # WFS layers frequently declare gml_id NOT NULL while the GeoJSON output
         # leaves it empty; the constraint must be dropped on the staging table.
         assert "-forceNullable" in cmd
-        # GeoJSON output carries no SRID, so it must be assigned explicitly,
-        # otherwise the staging geometry ends up as SRID 0.
-        assert "-a_srs" in cmd
-        assert "EPSG:4326" in cmd
+        # A WFS serves whatever srsName was negotiated — commonly a projected CRS
+        # such as EPSG:2154. Since -a_srs relabels without reprojecting, forcing
+        # 4326 here would tag metric coordinates as degrees and silently move the
+        # data. Keep the SRS advertised by the service.
+        assert "-a_srs" not in cmd
 
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_oapif_prefix_and_normalized_url(self, mock_run: MagicMock, engine: Engine) -> None:
@@ -373,6 +374,22 @@ class TestIngestFromOgcService:
         )
         cmd = mock_run.call_args[0][0]
         assert "OAPIF:https://example.org/ogcapi" in cmd
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_oapif_assigns_wgs84(self, mock_run: MagicMock, engine: Engine) -> None:
+        # OAPIF serves GeoJSON, which RFC 7946 pins to WGS84 lon/lat, and GDAL may
+        # leave the geometry at SRID 0 — assigning 4326 is both safe and needed.
+        mock_run.return_value = _completed()
+        ingest_data_from_ogc_service_into_postgis(
+            service_url="https://example.org/ogcapi",
+            layer_name="buildings",
+            protocol="ogcFeatures",
+            table_name="places",
+            engine=engine,
+        )
+        cmd = mock_run.call_args[0][0]
+        assert "-a_srs" in cmd
+        assert "EPSG:4326" in cmd
 
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_auth_passed_via_gdal_config(self, mock_run: MagicMock, engine: Engine) -> None:

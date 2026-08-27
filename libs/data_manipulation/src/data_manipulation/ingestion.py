@@ -502,8 +502,6 @@ def ingest_data_from_ogc_service_into_postgis(
         f"{schema}.{table_name}",
         "-overwrite",
         "-forceNullable",
-        "-a_srs",
-        DEFAULT_OGC_SRS,
         "-lco",
         f"GEOMETRY_NAME={DEFAULT_GEOMETRY_COLUMN}",
         "-nlt",
@@ -513,6 +511,18 @@ def ingest_data_from_ogc_service_into_postgis(
         "-lco",
         f"SCHEMA={schema}",
     ]
+
+    # OGC API - Features serves GeoJSON, which RFC 7946 pins to WGS84 lon/lat, so
+    # stamping EPSG:4326 is safe and works around GDAL leaving SRID 0 (which would
+    # break the downstream ST_Transform).
+    #
+    # A WFS is NOT covered by that guarantee: it serves whatever srsName was
+    # negotiated, commonly a projected CRS such as EPSG:2154. Since -a_srs relabels
+    # without reprojecting, forcing 4326 there would tag metric coordinates as
+    # degrees and silently place the data far from where it belongs. Let GDAL keep
+    # the SRS advertised by the service instead.
+    if protocol == "ogcFeatures":
+        command += ["-a_srs", DEFAULT_OGC_SRS]
 
     if auth is not None:
         username, password = auth
