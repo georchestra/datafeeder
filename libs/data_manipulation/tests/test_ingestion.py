@@ -7,6 +7,8 @@ that *would* be executed.  Full integration runs in the Docker image.
 
 import logging
 import subprocess
+from collections.abc import Iterator
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,6 +21,7 @@ from data_manipulation.ingestion import (
     ingest_data_from_database_into_postgis,
     ingest_data_from_ftp_into_postgis,
     ingest_data_from_ogc_service_into_postgis,
+    ingest_data_from_url_into_postgis,
     ingest_file_with_ogr2ogr,
 )
 
@@ -105,6 +108,94 @@ class TestNoCredentialLogging:
             )
         assert "secret" not in caplog.text
         assert "wfspass" not in caplog.text
+
+
+def _identity_url(url: str) -> str:
+    """Stand in for resolve_url (which would hit the network) in tests."""
+    return url
+
+
+class _FakeResponse:
+    """Minimal stand-in for a streamed ``requests`` response.
+
+    ``content`` raises so a test fails loudly if the download ever buffers the
+    whole body in memory again instead of streaming it to disk.
+    """
+
+    def __init__(self, chunks: list[bytes], headers: dict[str, str] | None = None) -> None:
+        self._chunks = chunks
+        self.headers = headers or {}
+        self.iter_content_calls: list[int | None] = []
+
+    @property
+    def content(self) -> bytes:
+        raise AssertionError("response.content read: the download must be streamed")
+
+    def raise_for_status(self) -> None:
+        pass
+
+    def iter_content(self, chunk_size: int | None = None) -> Iterator[bytes]:
+        self.iter_content_calls.append(chunk_size)
+        yield from self._chunks
+
+    def __enter__(self) -> "_FakeResponse":
+        return self
+
+    def __exit__(self, *exc: object) -> bool:
+        return False
+
+
+class TestUrlDownloadIsStreamed:
+    @patch("data_manipulation.ingestion.ingest_file_with_ogr2ogr")
+    @patch("data_manipulation.ingestion.resolve_url", side_effect=_identity_url)
+    @patch("data_manipulation.ingestion.requests.get")
+    def test_streams_body_to_disk_without_buffering(
+        self,
+        mock_get: MagicMock,
+        _resolve: MagicMock,
+        mock_ingest: MagicMock,
+        engine: Engine,
+    ) -> None:
+        response = _FakeResponse([b"abc", b"def"])
+        mock_get.return_value = response
+
+        written: dict[str, bytes] = {}
+
+        def _capture(path: str, *args: object, **kwargs: object) -> None:
+            written["data"] = Path(path).read_bytes()
+
+        mock_ingest.side_effect = _capture
+
+        ingest_data_from_url_into_postgis(
+            "https://example.org/data.geojson", "places", engine, schema="staging"
+        )
+
+        # stream=True is what keeps requests from materialising the whole body.
+        assert mock_get.call_args.kwargs["stream"] is True
+        assert response.iter_content_calls, "body was not streamed via iter_content"
+        # Chunks are reassembled verbatim on disk.
+        assert written["data"] == b"abcdef"
+
+    @patch("data_manipulation.ingestion.ingest_file_with_ogr2ogr")
+    @patch("data_manipulation.ingestion.resolve_url", side_effect=_identity_url)
+    @patch("data_manipulation.ingestion.requests.get")
+    def test_content_disposition_still_names_the_file(
+        self,
+        mock_get: MagicMock,
+        _resolve: MagicMock,
+        mock_ingest: MagicMock,
+        engine: Engine,
+    ) -> None:
+        # Headers must remain readable before the body is consumed.
+        mock_get.return_value = _FakeResponse(
+            [b"x"], headers={"Content-Disposition": 'attachment; filename="report.geojson"'}
+        )
+
+        ingest_data_from_url_into_postgis(
+            "https://example.org/download?id=7", "places", engine, schema="staging"
+        )
+
+        assert Path(mock_ingest.call_args[0][0]).name == "report.geojson"
 
 
 class TestIngestFileWithOgr2ogr:
