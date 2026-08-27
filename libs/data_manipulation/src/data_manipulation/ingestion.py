@@ -212,9 +212,6 @@ def ingest_file_with_ogr2ogr(
         "-lco",
         f"SCHEMA={schema}",
     ]
-    command_string = " ".join(command)
-    logger.debug(f"Running command: {command_string}")
-
     logger.info(f"Running ogr2ogr to ingest {file_path} into {schema}.{table_name}")
 
     # --------
@@ -338,8 +335,6 @@ def ingest_data_from_database_into_postgis(
         "-lco",
         f"SCHEMA={target_schema}",
     ]
-    command_string = " ".join(command)
-    logger.debug(f"Running command: {command_string}")
     # --------
     # WARNING: don't log the command — both PG connection strings contain credentials
     # --------
@@ -460,9 +455,6 @@ def ingest_data_from_ogc_service_into_postgis(
         "-lco",
         f"SCHEMA={schema}",
     ]
-
-    command_string = " ".join(command)
-    logger.debug(f"Running command: {command_string}")
 
     if auth is not None:
         username, password = auth
