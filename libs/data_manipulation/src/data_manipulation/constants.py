@@ -3,10 +3,11 @@
 DEFAULT_GEOMETRY_COLUMN = "geom"
 DB_URI_PREFIX = "db://"
 
-# OGC API Features / WFS downloads are requested as GeoJSON, which is always
-# WGS84 lon/lat per RFC 7946. GDAL does not always stamp an SRID on the loaded
-# geometry (it ends up as SRID 0), which then breaks downstream ST_Transform.
-# We therefore assign this SRS explicitly when ingesting OGC services.
+# OGC API - Features serves GeoJSON, which RFC 7946 pins to WGS84 lon/lat. GDAL
+# does not always stamp an SRID on the loaded geometry (it ends up as SRID 0),
+# which then breaks downstream ST_Transform, so we assign this SRS explicitly.
+# Applies to OAPIF only: a WFS serves whatever srsName was negotiated (often a
+# projected CRS), and -a_srs relabels without reprojecting.
 DEFAULT_OGC_SRS = "EPSG:4326"
 
 # PostgreSQL caps identifiers at 63 chars. PostGIS auto-creates a spatial index
