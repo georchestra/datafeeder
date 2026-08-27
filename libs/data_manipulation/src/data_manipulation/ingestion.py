@@ -3,6 +3,7 @@ import os
 import re
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 from typing import Literal
 from urllib.error import URLError
@@ -32,6 +33,11 @@ _ENCODING_DETECT_BYTES = 256 * 1024
 CHUNK_SIZE = int(os.getenv("DATAFEEDER_CHUNK_SIZE", 50000))
 # Bytes read per iteration when streaming an HTTP download to disk.
 _DOWNLOAD_CHUNK_SIZE = 1024 * 1024
+# Shapefile sidecar files. Only the .shp names the dataset; the others accompany
+# it and must not be counted as separate datasets inside an archive.
+_SHAPEFILE_SIDECAR_SUFFIXES = frozenset(
+    {".shx", ".dbf", ".prj", ".cpg", ".sbn", ".sbx", ".qix", ".fbn", ".fbx", ".ain", ".aih"}
+)
 
 
 def _build_pg_connection_string(engine: Engine) -> str:
@@ -173,6 +179,57 @@ def ingest_data_from_ftp_into_postgis(
         raise
 
 
+def _resolve_zip_source(file_path: str) -> str:
+    """Return the GDAL source path for a ZIP archive.
+
+    GDAL cannot open a ``.zip`` by plain path — ``ogr.Open("x.zip")`` fails with
+    "not recognized as being in a supported file format". The archive must be
+    addressed through the ``/vsizip/`` virtual filesystem, and when the dataset
+    sits in a subdirectory that subdirectory has to be part of the path
+    (``/vsizip/x.zip/data``); ``/vsizip/x.zip`` alone fails just the same.
+
+    Only single-dataset archives are supported: ``ogr2ogr ... -nln <table>``
+    writes every layer it finds into that one table, so each layer would
+    silently overwrite the previous one (``-overwrite``) and only the last
+    would survive. Raise instead of losing data.
+
+    Non-ZIP paths are returned unchanged.
+    """
+    if not zipfile.is_zipfile(file_path):
+        return file_path
+
+    with zipfile.ZipFile(file_path) as archive:
+        names = [name for name in archive.namelist() if not name.endswith("/")]
+
+    # A shapefile is a set of sidecar files sharing one basename; every other
+    # supported format is a single file. Group by directory + stem so a
+    # shapefile counts once rather than once per extension.
+    datasets: dict[tuple[str, str], None] = {}
+    for name in names:
+        path = Path(name)
+        if path.suffix.lower() in _SHAPEFILE_SIDECAR_SUFFIXES:
+            continue
+        datasets[(str(path.parent), path.stem)] = None
+
+    if not datasets:
+        raise Exception(f"No geospatial dataset found in archive {Path(file_path).name}")
+
+    if len(datasets) > 1:
+        found = ", ".join(sorted(stem for _, stem in datasets))
+        raise Exception(
+            f"Archive {Path(file_path).name} contains multiple datasets ({found}). "
+            "Only single-dataset archives are supported: extract the one to import "
+            "and upload it on its own."
+        )
+
+    (parent, _stem) = next(iter(datasets))
+    source = f"/vsizip/{file_path}"
+    # "." is what Path(...).parent yields for a member at the archive root.
+    if parent not in (".", ""):
+        source = f"{source}/{parent}"
+    return source
+
+
 def ingest_file_with_ogr2ogr(
     file_path: str,
     table_name: str,
@@ -180,6 +237,9 @@ def ingest_file_with_ogr2ogr(
     schema: str = DEFAULT_SCHEMA,
 ) -> None:
     """Ingest a geospatial file into a PostGIS table using ogr2ogr.
+
+    ZIP archives are addressed through GDAL's ``/vsizip/`` virtual filesystem
+    (see :func:`_resolve_zip_source`).
 
     Args:
         file_path: Path to the local file to ingest
@@ -189,6 +249,8 @@ def ingest_file_with_ogr2ogr(
     """
     validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
     validate_schema_name(schema)
+
+    file_path = _resolve_zip_source(file_path)
 
     pg_connection = _build_pg_connection_string(engine)
 
