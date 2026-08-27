@@ -5,6 +5,7 @@ mocks ``subprocess.run`` (and the network helpers) and asserts on the command
 that *would* be executed.  Full integration runs in the Docker image.
 """
 
+import logging
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -57,6 +58,53 @@ class TestNormalizeOapifUrl:
 
     def test_leaves_plain_root_untouched(self) -> None:
         assert _normalize_oapif_url("https://x/ogcapi") == "https://x/ogcapi"
+
+
+class TestNoCredentialLogging:
+    """The ogr2ogr argv embeds PG passwords and GDAL_HTTP_USERPWD: never log it."""
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_file_ingest_does_not_log_password(
+        self, mock_run: MagicMock, engine: Engine, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        mock_run.return_value = _completed()
+        with caplog.at_level(logging.DEBUG, logger="data_manipulation.ingestion"):
+            ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine, schema="staging")
+        assert "secret" not in caplog.text
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_db_ingest_does_not_log_passwords(
+        self,
+        mock_run: MagicMock,
+        engine: Engine,
+        source_engine: Engine,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        mock_run.return_value = _completed()
+        with caplog.at_level(logging.DEBUG, logger="data_manipulation.ingestion"):
+            ingest_data_from_database_into_postgis(
+                "public", "src", source_engine, "dst", engine, "staging"
+            )
+        assert "secret" not in caplog.text
+        assert "srcpass" not in caplog.text
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_ogc_ingest_does_not_log_auth(
+        self, mock_run: MagicMock, engine: Engine, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        mock_run.return_value = _completed()
+        with caplog.at_level(logging.DEBUG, logger="data_manipulation.ingestion"):
+            ingest_data_from_ogc_service_into_postgis(
+                "wfs",
+                "https://example.org/wfs",
+                "ns:buildings",
+                "places",
+                engine,
+                schema="staging",
+                auth=("wfsuser", "wfspass"),
+            )
+        assert "secret" not in caplog.text
+        assert "wfspass" not in caplog.text
 
 
 class TestIngestFileWithOgr2ogr:
