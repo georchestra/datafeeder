@@ -5,8 +5,14 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 
-from src.api.routes.ingestion.integrity_links import BATCH_SIZE, list_integrity_links
+from src.api.routes.ingestion.integrity_links import (
+    BATCH_SIZE,
+    get_joinable_columns,
+    list_integrity_links,
+    list_joinable_tables,
+)
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.services.georchestra import GeorchestraContext
@@ -1052,3 +1058,251 @@ class TestListIntegrityLinksVisibility:
         query_str = str(executed_query)
         # Should have OR condition (owner = username OR EXISTS subquery)
         assert "OR" in query_str.upper() or "or" in query_str.lower()
+
+
+class TestListJoinableTables:
+    """Test the list_joinable_tables endpoint."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_data_session(self) -> MagicMock:
+        return MagicMock()
+
+    def _link(
+        self, title: str, final_table_name: str | None, owner: str = "user0"
+    ) -> IntegrityLink:
+        return IntegrityLink(
+            id=uuid4(),
+            integrity_title=title,
+            integrity_owner=owner,
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            final_table_name=final_table_name,
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+
+    def _geo_ctx(self, username: str, roles: set[str] | None = None) -> GeorchestraContext:
+        return GeorchestraContext(
+            username=username,
+            roles=roles or set(),
+            email="",
+            firstname="",
+            lastname="",
+            organization="",
+        )
+
+    def test_owner_sees_own_link_with_existing_final_table(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        link = self._link("Roads", "roads_final", owner="user0")
+        mock_session.execute.return_value.scalars.return_value.all.return_value = [link]
+        mock_data_session.execute.return_value.scalars.return_value.all.return_value = [
+            "roads_final"
+        ]
+
+        response = list_joinable_tables(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+        )
+
+        assert len(response) == 1
+        assert response[0].id == link.id
+        assert response[0].integrity_title == "Roads"
+        assert response[0].table_name == "roads_final"
+
+    def test_excludes_link_whose_final_table_does_not_exist(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        link = self._link("Ghost", "ghost_final", owner="user0")
+        mock_session.execute.return_value.scalars.return_value.all.return_value = [link]
+        mock_data_session.execute.return_value.scalars.return_value.all.return_value = []
+
+        response = list_joinable_tables(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+        )
+
+        assert response == []
+
+    def test_non_owner_without_rule_does_not_see_link(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        # Query itself is expected to filter server-side; a mocked session can't apply
+        # the real WHERE clause, so simulate the DB already having excluded the row.
+        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+        mock_data_session.execute.return_value.scalars.return_value.all.return_value = []
+
+        response = list_joinable_tables(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("someone_else"),
+            group_ids=[],
+        )
+
+        assert response == []
+
+    def test_query_restricted_to_owner_or_rule_for_non_admin(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+        mock_data_session.execute.return_value.scalars.return_value.all.return_value = []
+
+        list_joinable_tables(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user1"),
+            group_ids=[],
+        )
+
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        assert "user1" in str(executed_query.compile(compile_kwargs={"literal_binds": True}))
+
+    def test_admin_query_is_not_restricted_to_owner(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+        mock_data_session.execute.return_value.scalars.return_value.all.return_value = []
+
+        list_joinable_tables(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("admin", {"ADMINISTRATOR"}),
+            group_ids=[],
+        )
+
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        query_str = str(executed_query.compile(compile_kwargs={"literal_binds": True}))
+        assert "integrity_owner =" not in query_str
+
+
+class TestGetJoinableColumns:
+    """Test the get_joinable_columns endpoint."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_data_session(self) -> MagicMock:
+        return MagicMock()
+
+    def _geo_ctx(self, username: str, roles: set[str] | None = None) -> GeorchestraContext:
+        return GeorchestraContext(
+            username=username,
+            roles=roles or set(),
+            email="",
+            firstname="",
+            lastname="",
+            organization="",
+        )
+
+    def test_owner_returns_columns_of_final_table(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Roads",
+            integrity_owner="user0",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            final_table_name="roads_final",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+        mock_session.get.return_value = link
+        mock_session.exec.return_value.first.return_value = "OWNER"
+        mock_data_session.execute.return_value.scalars.return_value.all.return_value = [
+            "id",
+            "name",
+        ]
+        assert link.id is not None
+
+        response = get_joinable_columns(
+            integrity_link_id=link.id,
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+        )
+
+        assert [c.column_name for c in response] == ["id", "name"]
+
+    def test_403_when_user_has_no_access(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Roads",
+            integrity_owner="user0",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            final_table_name="roads_final",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+        mock_session.get.return_value = link
+        mock_session.exec.return_value.first.return_value = None
+        assert link.id is not None
+
+        with pytest.raises(HTTPException) as exc_info:
+            get_joinable_columns(
+                integrity_link_id=link.id,
+                session=mock_session,
+                data_session=mock_data_session,
+                geo_ctx=self._geo_ctx("someone_else"),
+                group_ids=[],
+            )
+
+        assert exc_info.value.status_code == 403
+
+    def test_404_when_link_not_found(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        mock_session.get.return_value = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            get_joinable_columns(
+                integrity_link_id=uuid4(),
+                session=mock_session,
+                data_session=mock_data_session,
+                geo_ctx=self._geo_ctx("user0"),
+                group_ids=[],
+            )
+
+        assert exc_info.value.status_code == 404
+
+    def test_404_when_link_has_no_final_table(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Not staged yet",
+            integrity_owner="user0",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            final_table_name=None,
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+        mock_session.get.return_value = link
+        mock_session.exec.return_value.first.return_value = "OWNER"
+        assert link.id is not None
+
+        with pytest.raises(HTTPException) as exc_info:
+            get_joinable_columns(
+                integrity_link_id=link.id,
+                session=mock_session,
+                data_session=mock_data_session,
+                geo_ctx=self._geo_ctx("user0"),
+                group_ids=[],
+            )
+
+        assert exc_info.value.status_code == 404

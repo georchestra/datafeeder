@@ -2,10 +2,10 @@ from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import Column, MetaData, String, Table, exists, or_
 from sqlalchemy import select as sa_select
-from sqlmodel import Session
+from sqlmodel import Session, col
 
 from src.api.deps import (
     DatafeederSessionDep,
@@ -15,8 +15,14 @@ from src.api.deps import (
 )
 from src.core.config import get_data_schema, get_settings, get_staging_schema
 from src.core.logging import get_logger
-from src.core.security import build_access_expr
-from src.models.data_import import ImportType, IntegrityLinkListItem, IntegrityLinkListResponse
+from src.core.security import AccessLevel, build_access_expr, load_authorized_integrity_link
+from src.models.data_import import (
+    ImportType,
+    IntegrityLinkListItem,
+    IntegrityLinkListResponse,
+    JoinableColumn,
+    JoinableTable,
+)
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule, RuleType
 from src.models.recurrence import RecurrencePreset
@@ -32,6 +38,14 @@ _info_tables = Table(
     MetaData(schema="information_schema"),
     Column("table_schema", String),
     Column("table_name", String),
+)
+
+_info_columns = Table(
+    "columns",
+    MetaData(schema="information_schema"),
+    Column("table_schema", String),
+    Column("table_name", String),
+    Column("column_name", String),
 )
 
 
@@ -76,6 +90,25 @@ def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tu
     return existing
 
 
+def _visibility_condition(username: str, group_ids: list[str]) -> Any:
+    """WHERE condition restricting IntegrityLink rows to ones the user may see.
+
+    Only call this for non-admins — admins should see everything unfiltered.
+    """
+    conditions: list[Any] = [IntegrityLink.integrity_owner == username]
+    if group_ids:
+        conditions.append(
+            exists(
+                sa_select(IntegrityLinkRule.id).where(  # type: ignore[reportArgumentType]
+                    IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
+                    IntegrityLinkRule.rule_type == RuleType.METADATA,
+                    IntegrityLinkRule.group_or_role.in_(group_ids),  # type: ignore[attr-defined]
+                )
+            )
+        )
+    return or_(*conditions)
+
+
 @router.get(
     "/",
     response_model=IntegrityLinkListResponse,
@@ -115,18 +148,7 @@ def list_integrity_links(
     if not is_admin:
         # Non-admins see: own datasets + datasets with METADATA rules matching any
         # of the user's group identifiers (org UUID in ORG mode, role UUIDs in ROLE mode).
-        conditions: list[Any] = [IntegrityLink.integrity_owner == geo_ctx.username]
-        if group_ids:
-            conditions.append(
-                exists(
-                    sa_select(IntegrityLinkRule.id).where(  # type: ignore[reportArgumentType]
-                        IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
-                        IntegrityLinkRule.rule_type == RuleType.METADATA,
-                        IntegrityLinkRule.group_or_role.in_(group_ids),  # type: ignore[attr-defined]
-                    )
-                )
-            )
-        query = query.where(or_(*conditions))
+        query = query.where(_visibility_condition(geo_ctx.username, group_ids))
 
     # Apply search filter if provided
     if search:
@@ -235,3 +257,76 @@ def list_integrity_links(
         offset=offset,
         next_offset=next_offset,
     )
+
+
+@router.get(
+    "/joinable-tables",
+    response_model=list[JoinableTable],
+    summary="List tables available for join",
+    description="List tables available for join with role-based filtering. "
+    "Normal users see only their own links, administrators see all links. "
+    "No filtering on COPY mode or reference datasets yet.",
+)
+def list_joinable_tables(
+    session: DatafeederSessionDep,
+    data_session: DataSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    group_ids: GroupIdsDep,
+) -> list[JoinableTable]:
+    """List tables available as join targets, restricted to datasets the caller can see."""
+    query = sa_select(IntegrityLink).where(col(IntegrityLink.final_table_name).is_not(None))
+
+    if not geo_ctx.is_administrator():
+        # Same visibility rule as the main integrity-links list: own datasets +
+        # datasets with a METADATA rule matching the user's org/role — a user
+        # shouldn't be able to discover table/column names of datasets they
+        # otherwise have no access to.
+        query = query.where(_visibility_condition(geo_ctx.username, group_ids))
+
+    links = session.execute(query).scalars().all()  # type: ignore[reportDeprecated]
+
+    existing_final = _check_final_existence([(lnk, None) for lnk in links], data_session)
+
+    return [
+        JoinableTable(
+            id=lnk.id,
+            integrity_title=lnk.integrity_title,
+            table_name=lnk.final_table_name,
+        )
+        for lnk in links
+        if (get_data_schema(lnk.integrity_organization), lnk.final_table_name) in existing_final
+    ]
+
+
+@router.get(
+    "/{integrity_link_id}/joinable-columns",
+    response_model=list[JoinableColumn],
+    summary="List the columns of a joinable table",
+)
+def get_joinable_columns(
+    integrity_link_id: UUID,
+    session: DatafeederSessionDep,
+    data_session: DataSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    group_ids: GroupIdsDep,
+) -> list[JoinableColumn]:
+    """List the columns of a joinable table; 404/403 mirror load_authorized_integrity_link."""
+    link, _ = load_authorized_integrity_link(
+        str(integrity_link_id), AccessLevel.METADATA_READ, geo_ctx, session, group_ids
+    )
+    if not link.final_table_name:
+        raise HTTPException(status_code=404, detail="IntegrityLink has no final table yet")
+
+    schema = get_data_schema(link.integrity_organization)
+    column_names = (
+        data_session.execute(  # type: ignore[reportDeprecated]
+            sa_select(_info_columns.c.column_name).where(
+                _info_columns.c.table_schema == schema,
+                _info_columns.c.table_name == link.final_table_name,
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    return [JoinableColumn(column_name=name) for name in column_names]
