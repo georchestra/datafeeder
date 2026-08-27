@@ -272,7 +272,6 @@ name = "data-manipulation"
 version = "0.1.0"
 source = { editable = "libs/data_manipulation" }
 dependencies = [
-    { name = "chardet" },
     { name = "geoalchemy2" },
     { name = "geoservercloud" },
     { name = "pydantic" },
@@ -290,7 +289,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "chardet", specifier = "==7.4.3" },
     { name = "geoalchemy2", specifier = "==0.19.0" },
     { name = "geoservercloud", git = "https://github.com/camptocamp/python-geoservercloud.git" },
     { name = "pydantic", specifier = "==2.13.4" },
