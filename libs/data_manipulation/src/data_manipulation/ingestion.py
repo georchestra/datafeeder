@@ -3,7 +3,6 @@ import os
 import re
 import subprocess
 import tempfile
-import time
 from pathlib import Path
 from typing import Literal
 from urllib.error import URLError
@@ -272,15 +271,7 @@ def ingest_data_from_url_into_postgis(
                 with open(temp_file_path, "wb") as temp_file:
                     temp_file.write(content)
 
-                start = time.time()
-
                 ingest_file_with_ogr2ogr(str(temp_file_path), table_name, engine, schema)
-
-                # Calculate the end time and time taken
-                end = time.time()
-                length = end - start
-
-                print("It took", length, "seconds.")
 
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")
