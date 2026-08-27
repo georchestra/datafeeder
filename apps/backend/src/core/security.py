@@ -5,7 +5,7 @@ from uuid import UUID
 
 import jwt
 from fastapi import HTTPException
-from sqlalchemy import case, exists, literal
+from sqlalchemy import case, exists, literal, or_
 from sqlalchemy.sql.expression import Label
 from sqlmodel import Session, select
 
@@ -139,6 +139,25 @@ def compute_effective_access(
         return None
 
     return EffectiveAccess(result)
+
+
+def visibility_condition(username: str, group_ids: list[str]) -> Any:
+    """WHERE condition restricting IntegrityLink rows to ones the user may see.
+
+    Only call this for non-admins — admins should see everything unfiltered.
+    """
+    conditions: list[Any] = [IntegrityLink.integrity_owner == username]
+    if group_ids:
+        conditions.append(
+            exists(
+                select(IntegrityLinkRule.id).where(  # type: ignore[reportArgumentType]
+                    IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
+                    IntegrityLinkRule.rule_type == RuleType.METADATA,
+                    IntegrityLinkRule.group_or_role.in_(group_ids),  # type: ignore[attr-defined]
+                )
+            )
+        )
+    return or_(*conditions)
 
 
 def load_authorized_integrity_link(
