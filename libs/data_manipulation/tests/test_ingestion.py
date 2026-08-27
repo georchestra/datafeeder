@@ -7,6 +7,7 @@ that *would* be executed.  Full integration runs in the Docker image.
 
 import logging
 import subprocess
+import zipfile
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -18,6 +19,7 @@ from sqlalchemy.engine import Engine
 from data_manipulation.ingestion import (
     _build_pg_connection_string,  # type: ignore[reportPrivateUsage]
     _normalize_oapif_url,  # type: ignore[reportPrivateUsage]
+    _resolve_zip_source,  # type: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
     ingest_data_from_ftp_into_postgis,
     ingest_data_from_ogc_service_into_postgis,
@@ -108,6 +110,82 @@ class TestNoCredentialLogging:
             )
         assert "secret" not in caplog.text
         assert "wfspass" not in caplog.text
+
+
+def _make_zip(path: Path, members: list[str]) -> str:
+    """Write a ZIP containing *members* (empty files) and return its path."""
+    with zipfile.ZipFile(path, "w") as archive:
+        for member in members:
+            archive.writestr(member, b"")
+    return str(path)
+
+
+_SHAPEFILE_MEMBERS = ["pts.shp", "pts.shx", "pts.dbf", "pts.prj", "pts.cpg"]
+
+
+class TestResolveZipSource:
+    """GDAL cannot open a .zip by plain path; it needs the /vsizip/ prefix.
+
+    Verified against GDAL 3.12: ogr.Open("x.zip") raises "not recognized as
+    being in a supported file format", while /vsizip/x.zip succeeds.
+    """
+
+    def test_plain_file_is_untouched(self, tmp_path: Path) -> None:
+        plain = tmp_path / "data.gpkg"
+        plain.write_bytes(b"not a zip")
+        assert _resolve_zip_source(str(plain)) == str(plain)
+
+    def test_shapefile_at_archive_root_gets_vsizip_prefix(self, tmp_path: Path) -> None:
+        archive = _make_zip(tmp_path / "places.zip", _SHAPEFILE_MEMBERS)
+        assert _resolve_zip_source(archive) == f"/vsizip/{archive}"
+
+    def test_shapefile_in_subdirectory_includes_that_subdirectory(self, tmp_path: Path) -> None:
+        # /vsizip/<zip> alone fails here — the subdirectory must be in the path.
+        archive = _make_zip(tmp_path / "nested.zip", [f"data/{m}" for m in _SHAPEFILE_MEMBERS])
+        assert _resolve_zip_source(archive) == f"/vsizip/{archive}/data"
+
+    def test_sidecars_do_not_count_as_separate_datasets(self, tmp_path: Path) -> None:
+        # .shx/.dbf/.prj/.cpg belong to the single pts dataset.
+        archive = _make_zip(tmp_path / "one.zip", _SHAPEFILE_MEMBERS)
+        assert _resolve_zip_source(archive).startswith("/vsizip/")
+
+    def test_single_non_shapefile_dataset_is_accepted(self, tmp_path: Path) -> None:
+        archive = _make_zip(tmp_path / "gpkg.zip", ["export.gpkg"])
+        assert _resolve_zip_source(archive) == f"/vsizip/{archive}"
+
+    def test_multiple_datasets_raise_instead_of_losing_data(self, tmp_path: Path) -> None:
+        # ogr2ogr -nln writes every layer into the same table, so with
+        # -overwrite each layer would silently replace the previous one.
+        archive = _make_zip(
+            tmp_path / "multi.zip", _SHAPEFILE_MEMBERS + ["second.shp", "second.dbf"]
+        )
+        with pytest.raises(Exception, match="multiple datasets"):
+            _resolve_zip_source(archive)
+
+    def test_multiple_datasets_error_names_them(self, tmp_path: Path) -> None:
+        archive = _make_zip(
+            tmp_path / "multi.zip", _SHAPEFILE_MEMBERS + ["second.shp", "second.dbf"]
+        )
+        with pytest.raises(Exception) as excinfo:
+            _resolve_zip_source(archive)
+        # The user has to know which layer to extract.
+        assert "pts" in str(excinfo.value) and "second" in str(excinfo.value)
+
+    def test_empty_archive_raises(self, tmp_path: Path) -> None:
+        archive = _make_zip(tmp_path / "empty.zip", [])
+        with pytest.raises(Exception, match="No geospatial dataset"):
+            _resolve_zip_source(archive)
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_ogr2ogr_receives_the_vsizip_path(
+        self, mock_run: MagicMock, engine: Engine, tmp_path: Path
+    ) -> None:
+        archive = _make_zip(tmp_path / "places.zip", _SHAPEFILE_MEMBERS)
+        mock_run.return_value = _completed()
+
+        ingest_file_with_ogr2ogr(archive, "places", engine, schema="staging")
+
+        assert f"/vsizip/{archive}" in mock_run.call_args[0][0]
 
 
 def _identity_url(url: str) -> str:
