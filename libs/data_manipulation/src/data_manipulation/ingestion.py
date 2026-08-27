@@ -10,6 +10,7 @@ from urllib.error import URLError
 from urllib.parse import quote, unquote, urlencode, urlparse, urlunparse
 from urllib.request import urlretrieve
 
+import chardet
 import requests
 from sqlalchemy.engine import Engine
 
@@ -33,6 +34,13 @@ _ENCODING_DETECT_BYTES = 256 * 1024
 CHUNK_SIZE = int(os.getenv("DATAFEEDER_CHUNK_SIZE", 50000))
 # Bytes read per iteration when streaming an HTTP download to disk.
 _DOWNLOAD_CHUNK_SIZE = 1024 * 1024
+# GDAL error lines, e.g. "ERROR 1: Non UTF-8 content found ...". Anchored at the
+# start of a line so a path or attribute value containing "error" doesn't match.
+_OGR_ERROR_RE = re.compile(r"^ERROR\s+\d+:", re.MULTILINE)
+# Single-byte Latin codepages chardet confuses with CP1252 on short samples.
+_WESTERN_LATIN_FALLBACK = frozenset(
+    {"cp1250", "windows1250", "iso88592", "iso88591", "latin1", "maccentraleurope"}
+)
 # Shapefile sidecar files. Only the .shp names the dataset; the others accompany
 # it and must not be counted as separate datasets inside an archive.
 _SHAPEFILE_SIDECAR_SUFFIXES = frozenset(
@@ -63,13 +71,26 @@ def _run_ogr2ogr(command: list[str], *, context: str) -> None:
     string or ``GDAL_HTTP_USERPWD`` credentials.
     """
     try:
-        subprocess.run(command, check=True, capture_output=True, text=True)
+        # errors="replace": ogr2ogr echoes the offending record when it rejects
+        # non-UTF-8 input, so stderr itself may not be valid UTF-8. Strict decoding
+        # would raise UnicodeDecodeError here and hide GDAL's actual message.
+        result = subprocess.run(
+            command, check=True, capture_output=True, text=True, errors="replace"
+        )
     except FileNotFoundError as exc:
         logger.error("ogr2ogr binary not found while %s", context)
         raise Exception("ogr2ogr (GDAL) is not installed or not on PATH") from exc
     except subprocess.CalledProcessError as exc:
         logger.error("ogr2ogr failed while %s: %s", context, exc.stderr)
-        raise Exception(f"ogr2ogr failed: {exc.stderr}")
+        raise Exception(f"ogr2ogr failed: {exc.stderr}") from exc
+
+    # ogr2ogr exits 0 even when it aborts a layer translation (e.g. "ERROR 1: Non
+    # UTF-8 content found when writing feature"), so check=True alone would report
+    # success while no table was created.
+    stderr = result.stderr or ""
+    if _OGR_ERROR_RE.search(stderr):
+        logger.error("ogr2ogr reported an error while %s: %s", context, stderr)
+        raise Exception(f"ogr2ogr failed: {stderr}")
 
 
 def ingest_data_from_file_into_postgis(
@@ -179,6 +200,110 @@ def ingest_data_from_ftp_into_postgis(
         raise
 
 
+def _dbf_text_payload(dbf_bytes: bytes) -> bytes:
+    """Return the record section of a ``.dbf``, skipping its binary header.
+
+    chardet classifies a whole ``.dbf`` as ``application/octet-stream`` and gives
+    up, because the fixed-width header and field descriptors drown out the few
+    accented bytes. Feeding it only the records makes detection work.
+
+    Falls back to the whole buffer when the header length is implausible.
+    """
+    # Bytes 8..10 of the DBF header hold the header length (little-endian uint16).
+    if len(dbf_bytes) < 12:
+        return dbf_bytes
+    header_length = int.from_bytes(dbf_bytes[8:10], "little")
+    if not 0 < header_length < len(dbf_bytes):
+        return dbf_bytes
+    # Drop the 0x1A end-of-file marker: chardet treats that control byte as a sign
+    # of binary content and gives up on an otherwise perfectly readable payload.
+    return dbf_bytes[header_length:].rstrip(b"\x1a")
+
+
+def _detect_shapefile_encoding(file_path: str) -> str | None:
+    """Guess the encoding of a shapefile's ``.dbf``, or ``None`` when not needed.
+
+    GDAL reads the ``.cpg`` sidecar natively and assumes UTF-8 when it is absent.
+    A shapefile shipped without a ``.cpg`` but encoded in e.g. CP1252 — common for
+    French data — then makes ogr2ogr abort with "Non UTF-8 content found". Sample
+    the ``.dbf`` and let chardet guess so the caller can pass SHAPE_ENCODING.
+
+    Returns ``None`` when the source is not a shapefile, already carries a
+    ``.cpg``, or when nothing could be detected — in all those cases GDAL's own
+    handling is correct and must not be overridden.
+    """
+    members = _shapefile_members(file_path)
+    if members is None:
+        return None
+    cpg_bytes, dbf_bytes = members
+    # A .cpg is authoritative and GDAL already honours it.
+    if cpg_bytes is not None or dbf_bytes is None:
+        return None
+
+    try:
+        detected = chardet.detect(_dbf_text_payload(dbf_bytes))["encoding"]
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Failed to detect shapefile encoding: %s", exc)
+        return None
+
+    if not detected:
+        return None
+
+    normalized = detected.lower().replace("-", "").replace("_", "")
+    if normalized in ("utf8", "ascii"):
+        # ASCII is a subset of UTF-8, so GDAL's default already reads it correctly.
+        return None
+
+    # On the short samples a .dbf provides, chardet routinely cannot tell the
+    # single-byte Latin codepages apart and returns a Central/Eastern European one
+    # (cp1250, iso-8859-2, ...) for Western European text — which decodes 'ê' as
+    # 'ę'. They agree on most of the range, so collapse them onto CP1252, the
+    # encoding shapefiles without a .cpg overwhelmingly use in Western Europe.
+    if normalized in _WESTERN_LATIN_FALLBACK:
+        logger.info(
+            "No .cpg alongside the shapefile; chardet guessed %s, using CP1252 instead",
+            detected,
+        )
+        return "CP1252"
+
+    logger.info("No .cpg alongside the shapefile; detected encoding %s", detected)
+    return detected
+
+
+def _shapefile_members(file_path: str) -> tuple[bytes | None, bytes | None] | None:
+    """Return ``(cpg_bytes, dbf_sample)`` for a shapefile, or ``None`` if not one.
+
+    Handles both a plain ``.shp`` on disk and a shapefile inside a ZIP, so the
+    encoding of zipped shapefiles can be detected without extracting them.
+    """
+    if zipfile.is_zipfile(file_path):
+        with zipfile.ZipFile(file_path) as archive:
+            names = [name for name in archive.namelist() if not name.endswith("/")]
+            if not any(name.lower().endswith(".shp") for name in names):
+                return None
+            cpg = next((n for n in names if n.lower().endswith(".cpg")), None)
+            dbf = next((n for n in names if n.lower().endswith(".dbf")), None)
+            cpg_bytes = archive.read(cpg) if cpg else None
+            dbf_bytes = None
+            if dbf:
+                with archive.open(dbf) as handle:
+                    dbf_bytes = handle.read(_ENCODING_DETECT_BYTES)
+        return cpg_bytes, dbf_bytes
+
+    path = Path(file_path)
+    if path.suffix.lower() != ".shp":
+        return None
+
+    cpg_path = path.with_suffix(".cpg")
+    dbf_path = path.with_suffix(".dbf")
+    cpg_bytes = cpg_path.read_bytes() if cpg_path.exists() else None
+    dbf_bytes = None
+    if dbf_path.exists():
+        with open(dbf_path, "rb") as handle:
+            dbf_bytes = handle.read(_ENCODING_DETECT_BYTES)
+    return cpg_bytes, dbf_bytes
+
+
 def _resolve_zip_source(file_path: str) -> str:
     """Return the GDAL source path for a ZIP archive.
 
@@ -250,6 +375,8 @@ def ingest_file_with_ogr2ogr(
     validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
     validate_schema_name(schema)
 
+    # Detect before rewriting the path: the helper reads the archive itself.
+    shape_encoding = _detect_shapefile_encoding(file_path)
     file_path = _resolve_zip_source(file_path)
 
     pg_connection = _build_pg_connection_string(engine)
@@ -275,6 +402,12 @@ def ingest_file_with_ogr2ogr(
         "-lco",
         f"SCHEMA={schema}",
     ]
+
+    # Only set when the shapefile has no .cpg and is not UTF-8; otherwise GDAL's
+    # own handling (.cpg, or UTF-8 by default) is already correct.
+    if shape_encoding is not None:
+        command += ["--config", "SHAPE_ENCODING", shape_encoding]
+
     logger.info(f"Running ogr2ogr to ingest {file_path} into {schema}.{table_name}")
 
     # --------
