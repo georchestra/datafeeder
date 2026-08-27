@@ -7,6 +7,8 @@ by both the process path (``CREATE TABLE AS``) and the preview path, so
 verifying its output guarantees preview/process parity (FR-021).
 """
 
+from unittest.mock import MagicMock, patch
+
 from sqlalchemy import Column, Integer, MetaData, Table, Text
 from sqlalchemy.dialects import postgresql
 
@@ -21,6 +23,7 @@ from data_manipulation.models import (
 from data_manipulation.transformation.sql_transform import (
     _parse_srid,  # type: ignore[reportPrivateUsage]
     build_transformation_select,
+    transform_staging_to_final,
 )
 
 
@@ -197,3 +200,71 @@ class TestProjection:
         assert tq.geom_column == "geom"
         assert "ST_MakePoint" in sql
         assert "ST_SetSRID" in sql
+
+
+class _RecordingConnection:
+    """Captures the SQL transform_staging_to_final executes, without a database."""
+
+    def __init__(self) -> None:
+        self.statements: list[str] = []
+
+    def execute(self, statement: object, *args: object, **kwargs: object) -> MagicMock:
+        self.statements.append(str(statement))
+        result = MagicMock()
+        result.scalar.return_value = 1
+        return result
+
+    def exec_driver_sql(self, statement: str, *args: object, **kwargs: object) -> MagicMock:
+        self.statements.append(statement)
+        return MagicMock()
+
+    def commit(self) -> None:
+        pass
+
+    def __enter__(self) -> "_RecordingConnection":
+        return self
+
+    def __exit__(self, *exc: object) -> bool:
+        return False
+
+
+def _run_transform(table: Table) -> list[str]:
+    """Run transform_staging_to_final against *table* and return executed SQL."""
+    conn = _RecordingConnection()
+    engine = MagicMock()
+    engine.connect.return_value = conn
+    engine.dialect = postgresql.dialect()
+
+    with patch("data_manipulation.transformation.sql_transform.Table", return_value=table):
+        transform_staging_to_final(
+            staging_table="places",
+            final_table="final_places",
+            engine=engine,
+            config=None,
+            staging_schema="staging",
+            final_schema="data",
+            create_id=False,
+        )
+    return conn.statements
+
+
+class TestSpatialIndex:
+    """CREATE TABLE AS copies no indexes, so the spatial index must be recreated.
+
+    Without it every bbox query on the published table (GeoServer WMS/WFS)
+    degrades to a sequential scan.
+    """
+
+    def test_geographic_table_gets_gist_index(self) -> None:
+        sql = " ".join(_run_transform(_staging_table(with_geom=True)))
+        assert "CREATE INDEX" in sql
+        assert "USING GIST" in sql
+
+    def test_index_name_matches_the_postgis_convention(self) -> None:
+        # to_postgis created idx_<table>_<geom_col>; keep that name.
+        sql = " ".join(_run_transform(_staging_table(with_geom=True)))
+        assert "idx_final_places_geom" in sql
+
+    def test_tabular_table_gets_no_index(self) -> None:
+        sql = " ".join(_run_transform(_staging_table(with_geom=False)))
+        assert "CREATE INDEX" not in sql
