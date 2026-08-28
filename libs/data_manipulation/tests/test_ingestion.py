@@ -1,9 +1,11 @@
 """Tests for data ingestion utilities in data_manipulation library."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 from urllib.error import URLError
 
 import geopandas as gpd
+import pandas as pd
 import pytest
 import requests
 from geopandas import GeoDataFrame
@@ -63,6 +65,53 @@ class TestReadFileEncodedParquet:
 
         mock_read_parquet.assert_called_once_with("test.parquet")
         assert result is mock_gdf
+
+
+class TestReadFileEncodedTabularJson:
+    """.json dispatch in _read_file_encoded (plain tabular JSON, never GeoJSON)."""
+
+    def test_array_of_records(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "data.json"
+        file_path.write_text('[{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}]')
+
+        result = _read_file_encoded(str(file_path))
+
+        assert result.to_dict("records") == [{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}]
+
+    def test_single_object_becomes_one_row(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "data.json"
+        file_path.write_text('{"id": 1, "name": "foo"}')
+
+        result = _read_file_encoded(str(file_path))
+
+        assert result.to_dict("records") == [{"id": 1, "name": "foo"}]
+
+    def test_records_with_sparse_keys_union_columns(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "data.json"
+        file_path.write_text('[{"id": 1, "name": "foo"}, {"id": 2, "price": 9.99}]')
+
+        result = _read_file_encoded(str(file_path))
+
+        assert sorted(result.columns) == ["id", "name", "price"]
+        assert result.loc[0, "name"] == "foo"
+        assert pd.isna(result.loc[1, "name"])
+        assert result.loc[1, "price"] == 9.99
+        assert pd.isna(result.loc[0, "price"])
+
+    def test_unsupported_top_level_scalar_raises(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "data.json"
+        file_path.write_text("42")
+
+        with pytest.raises(ValueError, match="Unsupported JSON structure"):
+            _read_file_encoded(str(file_path))
+
+    def test_second_chunk_is_empty(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "data.json"
+        file_path.write_text('[{"id": 1}, {"id": 2}]')
+
+        result = _read_file_encoded(str(file_path), i=1)
+
+        assert result.empty
 
 
 class TestIngestDataFromFileIntoPostgis:
@@ -739,6 +788,38 @@ class TestWriteDataToPostgis:
             # Should have been renamed to 'geom'
             assert gdf.geometry.name == "geom"
             mock_to_postgis.assert_called_once()
+
+    @patch("pandas.DataFrame.to_sql", autospec=True)
+    @patch("data_manipulation.ingestion._get_table_row_count")
+    def test_write_geodataframe_with_null_geometry_writes_as_plain_table(
+        self,
+        mock_get_row_count: Mock,
+        mock_to_sql: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """A geometry column that's entirely null (e.g. a GeoJSON FeatureCollection with
+        "geometry": null on every feature) is written as a plain table, not to_postgis,
+        which would otherwise crash trying to infer a PostGIS geometry type."""
+        gdf = GeoDataFrame(
+            {"col1": [1, 2]},
+            geometry=gpd.GeoSeries([None, None], name="geometry"),  # type: ignore[list-item]
+        )
+        mock_get_row_count.return_value = 2
+
+        with patch.object(gdf, "to_postgis") as mock_to_postgis:
+            write_data_to_postgis(gdf, "test_table", mock_engine, "public")
+
+        mock_to_postgis.assert_not_called()
+        mock_to_sql.assert_called_once()
+        # autospec=True binds self, so the instance it was called on is args[0].
+        written_frame, table_arg = mock_to_sql.call_args.args[0], mock_to_sql.call_args.args[1]
+        kwargs = mock_to_sql.call_args.kwargs
+        assert table_arg == "test_table"
+        assert kwargs["if_exists"] == "replace"
+        assert kwargs["schema"] == "public"
+        assert kwargs["index"] is False
+        # The written frame must not carry the (all-null, useless) geometry column.
+        assert "geometry" not in written_frame.columns
 
     @patch("data_manipulation.ingestion._get_table_row_count")
     def test_write_geodataframe_without_geometry(

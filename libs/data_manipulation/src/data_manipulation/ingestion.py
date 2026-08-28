@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -97,6 +98,19 @@ def _detect_file_encoding(file_path: str) -> str:
     return encoding or "utf-8"
 
 
+def _read_tabular_json(file_path: str) -> pd.DataFrame:
+    """Read a plain (non-GeoJSON) JSON file as a flat table: a list becomes rows,
+    a single object becomes one row."""
+    with open(file_path, "rb") as f:
+        data = json.load(f)
+
+    if isinstance(data, list):
+        return pd.DataFrame(data)
+    if isinstance(data, dict):
+        return pd.DataFrame([data])
+    raise ValueError(f"Unsupported JSON structure in {file_path}: expected an array or object")
+
+
 def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.DataFrame:
     """Read a chunk of a geospatial file, handling encoding detection.
 
@@ -122,6 +136,13 @@ def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.Data
             return gpd.read_parquet(ds.fragments[i].path)  # type: ignore[arg-type]
         except ValueError:
             return pd.read_parquet(ds.fragments[i].path)
+
+    # Not row-sliceable like a geospatial driver: read fully on the first chunk,
+    # same pattern as the Parquet branch above.
+    if Path(file_path).suffix.lower() == ".json":
+        if i > 0:
+            return pd.DataFrame()
+        return _read_tabular_json(file_path)
 
     try:
         # Try reading with UTF-8 first (common default)
@@ -728,6 +749,17 @@ def write_data_to_postgis(
 
             # Write data to PostGIS as a regular table
             data.to_sql(table_name, engine, if_exists=if_exists, schema=schema, index=False)
+        elif data.active_geometry_name is not None and bool(
+            data[data.active_geometry_name].isna().all()
+        ):
+            # to_postgis() can't infer a geometry type with zero non-null geometries
+            # (e.g. a GeoJSON FeatureCollection with "geometry": null everywhere).
+            logger.info(
+                f"Active geometry column '{data.active_geometry_name}' has no non-null "
+                "geometries; writing as a plain table."
+            )
+            plain_data = pd.DataFrame(data.drop(columns=[data.active_geometry_name]))
+            plain_data.to_sql(table_name, engine, if_exists=if_exists, schema=schema, index=False)
         else:  # GeoDataFrame
             # Ensure the geometry column is named 'geom' for PostGIS convention
             if data.active_geometry_name is None:
