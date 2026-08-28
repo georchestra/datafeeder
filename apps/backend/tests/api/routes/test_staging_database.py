@@ -1,6 +1,8 @@
 """Tests for database source type in staging endpoints."""
 
+from collections.abc import Generator
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -15,7 +17,7 @@ from src.api.routes.ingestion.staging import (
     edit_staging,
     get_staging_metadata,
 )
-from src.models.data_import import ImportType
+from src.models.data_import import FileType, ImportType, StagingMetadataResponse
 
 
 class TestDbIdentifierValidation:
@@ -216,6 +218,36 @@ class TestDagSuccessCallbackDeleteGuard:
         mock_delete.assert_called_once_with("/tmp/somefile.csv")
 
 
+@pytest.fixture
+def staging_metadata_deps() -> Generator[SimpleNamespace, None, None]:
+    """Patch every dependency get_staging_metadata needs besides the IntegrityLink
+    and staging table content, which each test configures itself via .load and
+    .table."""
+    with (
+        patch("src.api.routes.ingestion.staging.get_staging_schema", return_value="staging"),
+        patch("src.api.routes.ingestion.staging.select"),
+        patch("src.api.routes.ingestion.staging.Table") as mock_table,
+        patch("src.api.routes.ingestion.staging._resolve_columns") as mock_resolve_cols,
+        patch("src.api.routes.ingestion.staging._detect_original_projection") as mock_detect_proj,
+        patch("src.api.routes.ingestion.staging.load_authorized_integrity_link") as mock_load,
+    ):
+        mock_resolve_cols.return_value = ([], None)
+        mock_detect_proj.return_value = None
+        yield SimpleNamespace(load=mock_load, table=mock_table)
+
+
+def _call_get_staging_metadata() -> StagingMetadataResponse:
+    data_session = MagicMock()
+    data_session.scalar.return_value = 0
+    return get_staging_metadata(
+        data_session=data_session,
+        datafeeder_session=MagicMock(),
+        geo_ctx=MagicMock(),
+        integrity_link_id=str(uuid4()),
+        group_ids=[],
+    )
+
+
 class TestGetStagingMetadataTitleFallback:
     """Test title fallback logic in get_staging_metadata for database sources."""
 
@@ -382,6 +414,89 @@ class TestGetStagingMetadataTitleFallback:
         )
 
         assert result.title == ".hidden"
+
+
+class TestGetStagingMetadataFileTypeOverride:
+    """The extension-based file_type guess is corrected against the actual staging
+    table for the two ambiguous cases (json/geojson) since a .geojson source can
+    turn out to have no real geometry (e.g. an OGC Features service that always
+    emits GeoJSON), and vice versa."""
+
+    def test_geojson_without_geom_column_reports_json(
+        self, staging_metadata_deps: SimpleNamespace
+    ) -> None:
+        mock_link = MagicMock()
+        mock_link.integrity_title = "Tarifs"
+        mock_link.source_file_name = "data.geojson"
+        mock_link.source_file_type = FileType.GEOJSON
+        mock_link.source_import_type = ImportType.URL
+        mock_link.source_url = None
+        mock_link.integrity_transformation = None
+        mock_link.final_table_name = None
+        staging_metadata_deps.load.return_value = (mock_link, MagicMock())
+        staging_metadata_deps.table.return_value.c = {}  # no 'geom' column
+
+        result = _call_get_staging_metadata()
+
+        assert result.file_type == FileType.JSON
+
+    def test_geojson_with_geom_column_stays_geojson(
+        self, staging_metadata_deps: SimpleNamespace
+    ) -> None:
+        mock_link = MagicMock()
+        mock_link.integrity_title = "Parcelles"
+        mock_link.source_file_name = "data.geojson"
+        mock_link.source_file_type = FileType.GEOJSON
+        mock_link.source_import_type = ImportType.URL
+        mock_link.source_url = None
+        mock_link.integrity_transformation = None
+        mock_link.final_table_name = None
+        staging_metadata_deps.load.return_value = (mock_link, MagicMock())
+        staging_metadata_deps.table.return_value.c = {"geom": MagicMock()}
+
+        result = _call_get_staging_metadata()
+
+        assert result.file_type == FileType.GEOJSON
+
+    def test_json_with_geom_column_reports_geojson(
+        self, staging_metadata_deps: SimpleNamespace
+    ) -> None:
+        """Symmetric case: a .json source whose staging table does have a geom
+        column (e.g. valid GeoJSON uploaded with a .json extension)."""
+        mock_link = MagicMock()
+        mock_link.integrity_title = "Points"
+        mock_link.source_file_name = "data.json"
+        mock_link.source_file_type = FileType.JSON
+        mock_link.source_import_type = ImportType.URL
+        mock_link.source_url = None
+        mock_link.integrity_transformation = None
+        mock_link.final_table_name = None
+        staging_metadata_deps.load.return_value = (mock_link, MagicMock())
+        staging_metadata_deps.table.return_value.c = {"geom": MagicMock()}
+
+        result = _call_get_staging_metadata()
+
+        assert result.file_type == FileType.GEOJSON
+
+    def test_non_ambiguous_file_type_is_left_untouched(
+        self, staging_metadata_deps: SimpleNamespace
+    ) -> None:
+        """CSV/GPKG/etc. never go through the json/geojson override, regardless of
+        whether the staging table happens to have a geom column."""
+        mock_link = MagicMock()
+        mock_link.integrity_title = "Communes"
+        mock_link.source_file_name = "data.csv"
+        mock_link.source_file_type = FileType.CSV
+        mock_link.source_import_type = ImportType.URL
+        mock_link.source_url = None
+        mock_link.integrity_transformation = None
+        mock_link.final_table_name = None
+        staging_metadata_deps.load.return_value = (mock_link, MagicMock())
+        staging_metadata_deps.table.return_value.c = {}
+
+        result = _call_get_staging_metadata()
+
+        assert result.file_type == FileType.CSV
 
 
 class TestEditStagingDatabase:
