@@ -10,12 +10,11 @@ name = "datafeeder-airflow-elt"
 version = "0.1.0"
 description = "Airflow DAGs for ELT in Datafeeder"
 readme = "README.md"
-requires-python = "==3.12.*"
+requires-python = "==3.13.*"
 dependencies = [
     "data_manipulation",
-    "apache-airflow==3.1.8",  # keep in sync with AIRFLOW_VERSION in docker/Dockerfile.airflow
-    "apache-airflow-providers-postgres==6.6.3",
-    "apache-airflow-providers-fab==3.6.4", # https://github.com/apache/airflow/pull/62919 explicit dependency to be removed when upgrading to airflow 3.2.x
+    "apache-airflow==3.2.2",  # keep in sync with AIRFLOW_VERSION in docker/Dockerfile.airflow
+    "apache-airflow-providers-postgres==6.7.0",
 ]
 
 [dependency-groups]

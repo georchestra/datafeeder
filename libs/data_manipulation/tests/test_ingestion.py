@@ -1,1178 +1,559 @@
-"""Tests for data ingestion utilities in data_manipulation library."""
+"""Tests for ogr2ogr-based ingestion.
 
-from unittest.mock import MagicMock, Mock, patch
-from urllib.error import URLError
+``ogr2ogr``/GDAL is not installed in the unit-test environment, so every test
+mocks ``subprocess.run`` (and the network helpers) and asserts on the command
+that *would* be executed.  Full integration runs in the Docker image.
+"""
 
-import geopandas as gpd
+import logging
+import struct
+import subprocess
+import zipfile
+from collections.abc import Iterator
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
-import requests
-from geopandas import GeoDataFrame
-from pandas import DataFrame
-from shapely.geometry import Point
+from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
-from data_manipulation import IntegrityTransformation, apply_transformations
-from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.ingestion import (
-    CHUNK_SIZE,
-    _read_file_encoded,  # pyright: ignore[reportPrivateUsage]
+    _build_pg_connection_string,  # type: ignore[reportPrivateUsage]
+    _detect_shapefile_encoding,  # type: ignore[reportPrivateUsage]
+    _normalize_oapif_url,  # type: ignore[reportPrivateUsage]
+    _resolve_zip_source,  # type: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
-    ingest_data_from_file_into_postgis,
     ingest_data_from_ftp_into_postgis,
     ingest_data_from_ogc_service_into_postgis,
     ingest_data_from_url_into_postgis,
-    read_data_from_postgis,
-    write_data_to_postgis,
+    ingest_file_with_ogr2ogr,
 )
 
 
-class TestReadFileEncodedParquet:
-    """Parquet/GeoParquet dispatch in _read_file_encoded."""
+@pytest.fixture
+def engine() -> Engine:
+    # Engine creation does not open a connection; safe to use a fake URL.
+    return create_engine("postgresql://user:secret@dbhost:5432/datadb")
 
-    @patch("data_manipulation.ingestion.gpd.read_parquet")
-    def test_geoparquet_returns_geodataframe(self, mock_read_parquet: Mock) -> None:
-        mock_gdf = GeoDataFrame({"col1": [1], "geometry": [Point(0, 0)]})
-        mock_read_parquet.return_value = mock_gdf
 
-        result = _read_file_encoded("test.geoparquet")
+@pytest.fixture
+def source_engine() -> Engine:
+    return create_engine("postgresql://srcuser:srcpass@srchost:5433/srcdb")
 
-        mock_read_parquet.assert_called_once_with("test.geoparquet")
-        assert result is mock_gdf
 
-    @patch("data_manipulation.ingestion.pd.read_parquet")
-    @patch("data_manipulation.ingestion.gpd.read_parquet")
-    def test_plain_parquet_falls_back_to_pandas(
-        self, mock_gpd_read_parquet: Mock, mock_pd_read_parquet: Mock
+def _completed() -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(args=["ogr2ogr"], returncode=0, stdout="", stderr="")
+
+
+class TestPgConnectionString:
+    def test_contains_all_parts(self, engine: Engine) -> None:
+        conn = _build_pg_connection_string(engine)
+        assert conn.startswith("PG:")
+        assert "host=dbhost" in conn
+        assert "port=5432" in conn
+        assert "dbname=datadb" in conn
+        assert "user=user" in conn
+        assert "password=secret" in conn
+
+
+class TestNormalizeOapifUrl:
+    def test_strips_collections_suffix(self) -> None:
+        assert _normalize_oapif_url("https://x/ogcapi/collections/buildings") == "https://x/ogcapi"
+
+    def test_strips_trailing_collections(self) -> None:
+        assert _normalize_oapif_url("https://x/ogcapi/collections") == "https://x/ogcapi"
+
+    def test_leaves_plain_root_untouched(self) -> None:
+        assert _normalize_oapif_url("https://x/ogcapi") == "https://x/ogcapi"
+
+
+class TestNoCredentialLogging:
+    """The ogr2ogr argv embeds PG passwords and GDAL_HTTP_USERPWD: never log it."""
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_file_ingest_does_not_log_password(
+        self, mock_run: MagicMock, engine: Engine, caplog: pytest.LogCaptureFixture
     ) -> None:
-        mock_gpd_read_parquet.side_effect = ValueError("no geo metadata")
-        mock_df = DataFrame({"col1": [1, 2]})
-        mock_pd_read_parquet.return_value = mock_df
+        mock_run.return_value = _completed()
+        with caplog.at_level(logging.DEBUG, logger="data_manipulation.ingestion"):
+            ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine, schema="staging")
+        assert "secret" not in caplog.text
 
-        result = _read_file_encoded("test.parquet")
-
-        mock_gpd_read_parquet.assert_called_once_with("test.parquet")
-        mock_pd_read_parquet.assert_called_once_with("test.parquet")
-        assert result is mock_df
-
-    @patch("data_manipulation.ingestion.gpd.read_parquet")
-    def test_parquet_with_geo_metadata_returns_geodataframe(self, mock_read_parquet: Mock) -> None:
-        mock_gdf = GeoDataFrame({"col1": [1], "geometry": [Point(0, 0)]})
-        mock_read_parquet.return_value = mock_gdf
-
-        result = _read_file_encoded("test.parquet")
-
-        mock_read_parquet.assert_called_once_with("test.parquet")
-        assert result is mock_gdf
-
-
-class TestIngestDataFromFileIntoPostgis:
-    """Test cases for ingest_data_from_file_into_postgis function."""
-
-    @pytest.fixture
-    def mock_engine(self) -> Mock:
-        """Create a mock SQLAlchemy engine."""
-        return Mock(spec=Engine)
-
-    @patch("data_manipulation.ingestion.ingest_data_from_url_into_postgis")
-    def test_ingest_delegates_to_url_function(
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_db_ingest_does_not_log_passwords(
         self,
-        mock_ingest_url: Mock,
-        mock_engine: Mock,
+        mock_run: MagicMock,
+        engine: Engine,
+        source_engine: Engine,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """A local file path is delegated to the URL ingestion function."""
-        ingest_data_from_file_into_postgis("test.geojson", "test_table", mock_engine, "public")
+        mock_run.return_value = _completed()
+        with caplog.at_level(logging.DEBUG, logger="data_manipulation.ingestion"):
+            ingest_data_from_database_into_postgis(
+                "public", "src", source_engine, "dst", engine, "staging"
+            )
+        assert "secret" not in caplog.text
+        assert "srcpass" not in caplog.text
 
-        mock_ingest_url.assert_called_once_with("test.geojson", "test_table", mock_engine, "public")
-
-    @patch("data_manipulation.ingestion.ingest_data_from_url_into_postgis")
-    def test_ingest_propagates_errors(
-        self,
-        mock_ingest_url: Mock,
-        mock_engine: Mock,
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_ogc_ingest_does_not_log_auth(
+        self, mock_run: MagicMock, engine: Engine, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Errors raised while ingesting are propagated to the caller."""
-        mock_ingest_url.side_effect = Exception("boom")
+        mock_run.return_value = _completed()
+        with caplog.at_level(logging.DEBUG, logger="data_manipulation.ingestion"):
+            ingest_data_from_ogc_service_into_postgis(
+                "wfs",
+                "https://example.org/wfs",
+                "ns:buildings",
+                "places",
+                engine,
+                schema="staging",
+                auth=("wfsuser", "wfspass"),
+            )
+        assert "secret" not in caplog.text
+        assert "wfspass" not in caplog.text
 
-        with pytest.raises(Exception, match="boom"):
-            ingest_data_from_file_into_postgis("test.geojson", "test_table", mock_engine, "public")
 
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    def test_read_file_encoded_utf8_success(self, mock_read_file: Mock) -> None:
-        """The first chunk is read without an explicit encoding (UTF-8 default)."""
-        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        mock_read_file.return_value = mock_gdf
+def _make_zip(path: Path, members: list[str]) -> str:
+    """Write a ZIP containing *members* (empty files) and return its path."""
+    with zipfile.ZipFile(path, "w") as archive:
+        for member in members:
+            archive.writestr(member, b"")
+    return str(path)
 
-        result = _read_file_encoded("test.geojson")
 
-        mock_read_file.assert_called_once_with("test.geojson", rows=slice(0, CHUNK_SIZE, None))
-        assert result is mock_gdf
+_SHAPEFILE_MEMBERS = ["pts.shp", "pts.shx", "pts.dbf", "pts.prj", "pts.cpg"]
 
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    @patch("data_manipulation.ingestion._detect_file_encoding")
-    def test_read_file_encoded_falls_back_to_detected_encoding(
-        self,
-        mock_detect_encoding: Mock,
-        mock_read_file: Mock,
-    ) -> None:
-        """On a UnicodeDecodeError the detected encoding is used for a second attempt."""
-        mock_detect_encoding.return_value = "latin-1"
-        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        mock_read_file.side_effect = [UnicodeDecodeError("utf-8", b"", 0, 1, ""), mock_gdf]
 
-        result = _read_file_encoded("test.shp")
+class TestResolveZipSource:
+    """GDAL cannot open a .zip by plain path; it needs the /vsizip/ prefix.
 
-        assert mock_read_file.call_count == 2
-        mock_read_file.assert_any_call("test.shp", rows=slice(0, CHUNK_SIZE, None))
-        mock_read_file.assert_any_call(
-            "test.shp", rows=slice(0, CHUNK_SIZE, None), encoding="latin-1"
+    Verified against GDAL 3.12: ogr.Open("x.zip") raises "not recognized as
+    being in a supported file format", while /vsizip/x.zip succeeds.
+    """
+
+    def test_plain_file_is_untouched(self, tmp_path: Path) -> None:
+        plain = tmp_path / "data.gpkg"
+        plain.write_bytes(b"not a zip")
+        assert _resolve_zip_source(str(plain)) == str(plain)
+
+    def test_shapefile_at_archive_root_gets_vsizip_prefix(self, tmp_path: Path) -> None:
+        archive = _make_zip(tmp_path / "places.zip", _SHAPEFILE_MEMBERS)
+        assert _resolve_zip_source(archive) == f"/vsizip/{archive}"
+
+    def test_shapefile_in_subdirectory_includes_that_subdirectory(self, tmp_path: Path) -> None:
+        # /vsizip/<zip> alone fails here — the subdirectory must be in the path.
+        archive = _make_zip(tmp_path / "nested.zip", [f"data/{m}" for m in _SHAPEFILE_MEMBERS])
+        assert _resolve_zip_source(archive) == f"/vsizip/{archive}/data"
+
+    def test_sidecars_do_not_count_as_separate_datasets(self, tmp_path: Path) -> None:
+        # .shx/.dbf/.prj/.cpg belong to the single pts dataset.
+        archive = _make_zip(tmp_path / "one.zip", _SHAPEFILE_MEMBERS)
+        assert _resolve_zip_source(archive).startswith("/vsizip/")
+
+    def test_single_non_shapefile_dataset_is_accepted(self, tmp_path: Path) -> None:
+        archive = _make_zip(tmp_path / "gpkg.zip", ["export.gpkg"])
+        assert _resolve_zip_source(archive) == f"/vsizip/{archive}"
+
+    def test_multiple_datasets_raise_instead_of_losing_data(self, tmp_path: Path) -> None:
+        # ogr2ogr -nln writes every layer into the same table, so with
+        # -overwrite each layer would silently replace the previous one.
+        archive = _make_zip(
+            tmp_path / "multi.zip", _SHAPEFILE_MEMBERS + ["second.shp", "second.dbf"]
         )
-        mock_detect_encoding.assert_called_once_with("test.shp")
-        assert result is mock_gdf
+        with pytest.raises(Exception, match="multiple datasets"):
+            _resolve_zip_source(archive)
 
+    def test_multiple_datasets_error_names_them(self, tmp_path: Path) -> None:
+        archive = _make_zip(
+            tmp_path / "multi.zip", _SHAPEFILE_MEMBERS + ["second.shp", "second.dbf"]
+        )
+        with pytest.raises(Exception) as excinfo:
+            _resolve_zip_source(archive)
+        # The user has to know which layer to extract.
+        assert "pts" in str(excinfo.value) and "second" in str(excinfo.value)
 
-class TestIngestDataFromUrlIntoPostgis:
-    """Test cases for ingest_data_from_url_into_postgis function."""
+    def test_empty_archive_raises(self, tmp_path: Path) -> None:
+        archive = _make_zip(tmp_path / "empty.zip", [])
+        with pytest.raises(Exception, match="No geospatial dataset"):
+            _resolve_zip_source(archive)
 
-    @pytest.fixture
-    def mock_engine(self) -> Mock:
-        """Create a mock SQLAlchemy engine."""
-        return Mock(spec=Engine)
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    @patch("data_manipulation.ingestion.requests.get")
-    def test_ingest_from_url_success(
-        self,
-        mock_requests_get: Mock,
-        mock_read_file: Mock,
-        mock_write_data: Mock,
-        mock_engine: Mock,
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_ogr2ogr_receives_the_vsizip_path(
+        self, mock_run: MagicMock, engine: Engine, tmp_path: Path
     ) -> None:
-        """Test successful ingestion from URL."""
+        archive = _make_zip(tmp_path / "places.zip", _SHAPEFILE_MEMBERS)
+        mock_run.return_value = _completed()
 
-        # Mock the HTTP response
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.content = b"test data"
-        mock_response.headers = {}
-        mock_requests_get.return_value = mock_response
+        ingest_file_with_ogr2ogr(archive, "places", engine, schema="staging")
 
-        # Mock the GeoDataFrame
-        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        mock_read_file.return_value = mock_gdf
+        assert f"/vsizip/{archive}" in mock_run.call_args[0][0]
+
+
+def _identity_url(url: str) -> str:
+    """Stand in for resolve_url (which would hit the network) in tests."""
+    return url
+
+
+class _FakeResponse:
+    """Minimal stand-in for a streamed ``requests`` response.
+
+    ``content`` raises so a test fails loudly if the download ever buffers the
+    whole body in memory again instead of streaming it to disk.
+    """
+
+    def __init__(self, chunks: list[bytes], headers: dict[str, str] | None = None) -> None:
+        self._chunks = chunks
+        self.headers = headers or {}
+        self.iter_content_calls: list[int | None] = []
+
+    @property
+    def content(self) -> bytes:
+        raise AssertionError("response.content read: the download must be streamed")
+
+    def raise_for_status(self) -> None:
+        pass
+
+    def iter_content(self, chunk_size: int | None = None) -> Iterator[bytes]:
+        self.iter_content_calls.append(chunk_size)
+        yield from self._chunks
+
+    def __enter__(self) -> "_FakeResponse":
+        return self
+
+    def __exit__(self, *exc: object) -> bool:
+        return False
+
+
+class TestUrlDownloadIsStreamed:
+    @patch("data_manipulation.ingestion.ingest_file_with_ogr2ogr")
+    @patch("data_manipulation.ingestion.resolve_url", side_effect=_identity_url)
+    @patch("data_manipulation.ingestion.requests.get")
+    def test_streams_body_to_disk_without_buffering(
+        self,
+        mock_get: MagicMock,
+        _resolve: MagicMock,
+        mock_ingest: MagicMock,
+        engine: Engine,
+    ) -> None:
+        response = _FakeResponse([b"abc", b"def"])
+        mock_get.return_value = response
+
+        written: dict[str, bytes] = {}
+
+        def _capture(path: str, *args: object, **kwargs: object) -> None:
+            written["data"] = Path(path).read_bytes()
+
+        mock_ingest.side_effect = _capture
 
         ingest_data_from_url_into_postgis(
-            "http://example.com/data.geojson", "test_table", mock_engine, "public"
+            "https://example.org/data.geojson", "places", engine, schema="staging"
         )
 
-        mock_requests_get.assert_called_once_with(
-            "http://example.com/data.geojson", auth=None, timeout=300
-        )
-        mock_read_file.assert_called_once()
-        mock_write_data.assert_called_once_with(
-            mock_gdf, "test_table", mock_engine, "public", if_exists="replace"
-        )
+        # stream=True is what keeps requests from materialising the whole body.
+        assert mock_get.call_args.kwargs["stream"] is True
+        assert response.iter_content_calls, "body was not streamed via iter_content"
+        # Chunks are reassembled verbatim on disk.
+        assert written["data"] == b"abcdef"
 
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_file")
+    @patch("data_manipulation.ingestion.ingest_file_with_ogr2ogr")
+    @patch("data_manipulation.ingestion.resolve_url", side_effect=_identity_url)
     @patch("data_manipulation.ingestion.requests.get")
-    def test_ingest_from_url_with_auth(
+    def test_content_disposition_still_names_the_file(
         self,
-        mock_requests_get: Mock,
-        mock_read_file: Mock,
-        mock_write_data: Mock,
-        mock_engine: Mock,
+        mock_get: MagicMock,
+        _resolve: MagicMock,
+        mock_ingest: MagicMock,
+        engine: Engine,
     ) -> None:
-        """Test ingestion from URL with authentication."""
-
-        # Mock the HTTP response
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.content = b"test data"
-        mock_response.headers = {}
-        mock_requests_get.return_value = mock_response
-
-        # Mock the GeoDataFrame
-        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        mock_read_file.return_value = mock_gdf
-
-        auth = ("username", "password")
-        ingest_data_from_url_into_postgis(
-            "http://example.com/data.geojson", "test_table", mock_engine, "public", auth=auth
+        # Headers must remain readable before the body is consumed.
+        mock_get.return_value = _FakeResponse(
+            [b"x"], headers={"Content-Disposition": 'attachment; filename="report.geojson"'}
         )
-
-        mock_requests_get.assert_called_once_with(
-            "http://example.com/data.geojson", auth=auth, timeout=300
-        )
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    @patch("data_manipulation.ingestion.requests.get")
-    def test_ingest_from_url_with_content_disposition(
-        self,
-        mock_requests_get: Mock,
-        mock_read_file: Mock,
-        mock_write_data: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test ingestion from URL extracts filename from Content-Disposition."""
-
-        # Mock the HTTP response with Content-Disposition header
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.content = b"test data"
-        mock_response.headers = {"Content-Disposition": 'attachment; filename="data.geojson"'}
-        mock_requests_get.return_value = mock_response
-
-        # Mock the GeoDataFrame
-        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        mock_read_file.return_value = mock_gdf
 
         ingest_data_from_url_into_postgis(
-            "http://example.com/download", "test_table", mock_engine, "public"
+            "https://example.org/download?id=7", "places", engine, schema="staging"
         )
 
-        mock_requests_get.assert_called_once()
-        mock_read_file.assert_called_once()
-        # Verify that the file was saved with the extracted filename
-        call_args = mock_read_file.call_args[0][0]
-        assert "data.geojson" in str(call_args)
+        assert Path(mock_ingest.call_args[0][0]).name == "report.geojson"
 
-    @patch("data_manipulation.ingestion.requests.get")
-    def test_ingest_from_url_http_error(
-        self,
-        mock_requests_get: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test ingestion from URL raises exception on HTTP error."""
 
-        mock_requests_get.side_effect = requests.exceptions.HTTPError("404 Not Found")
+class TestIngestFileWithOgr2ogr:
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_builds_expected_command(self, mock_run: MagicMock, engine: Engine) -> None:
+        mock_run.return_value = _completed()
+        ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine, schema="staging")
 
-        with pytest.raises(requests.exceptions.HTTPError):
-            ingest_data_from_url_into_postgis(
-                "http://example.com/data.geojson", "test_table", mock_engine, "public"
-            )
+        mock_run.assert_called_once()
+        cmd = mock_run.call_args[0][0]
+        assert cmd[0] == "ogr2ogr"
+        assert "-f" in cmd and "PostgreSQL" in cmd
+        assert "/tmp/data.geojson" in cmd
+        assert "staging.places" in cmd
+        assert "-overwrite" in cmd
+        assert "GEOMETRY_NAME=geom" in cmd
+        assert "SCHEMA=staging" in cmd
+        # NOT NULL constraints from the source layer (e.g. WFS gml_id) must not
+        # be propagated, otherwise COPY fails when the value is absent.
+        assert "-forceNullable" in cmd
+        # Single geometries must be promoted to Multi* so a later feature that
+        # happens to be a Multi* type doesn't clash with the inferred column type.
+        assert "-nlt" in cmd
+        assert "PROMOTE_TO_MULTI" in cmd
 
-    @patch("data_manipulation.ingestion.requests.get")
-    def test_ingest_from_url_connection_error(
-        self,
-        mock_requests_get: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test ingestion from URL raises exception on connection error."""
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_missing_binary_raises_clean_error(self, mock_run: MagicMock, engine: Engine) -> None:
+        mock_run.side_effect = FileNotFoundError()
+        with pytest.raises(Exception, match="ogr2ogr"):
+            ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine)
 
-        mock_requests_get.side_effect = requests.exceptions.ConnectionError("Connection failed")
-
-        with pytest.raises(requests.exceptions.ConnectionError):
-            ingest_data_from_url_into_postgis(
-                "http://example.com/data.geojson", "test_table", mock_engine, "public"
-            )
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_parquet")
-    @patch("data_manipulation.ingestion.requests.get")
-    def test_ingest_parquet_url_by_extension(
-        self,
-        mock_requests_get: Mock,
-        mock_read_parquet: Mock,
-        mock_write_data: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        mock_response = Mock()
-        mock_response.content = b"parquet bytes"
-        mock_response.headers = {}
-        mock_requests_get.return_value = mock_response
-        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
-        mock_read_parquet.return_value = mock_gdf
-
-        ingest_data_from_url_into_postgis(
-            "http://example.com/layer.parquet", "test_table", mock_engine, "public"
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_ogr_failure_surfaces_stderr(self, mock_run: MagicMock, engine: Engine) -> None:
+        mock_run.side_effect = subprocess.CalledProcessError(
+            returncode=1, cmd=["ogr2ogr"], stderr="bad data"
         )
+        with pytest.raises(Exception, match="bad data"):
+            ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine)
 
-        mock_read_parquet.assert_called_once()
-        path_arg = mock_read_parquet.call_args.args[0]
-        assert path_arg.endswith(".parquet")
-        mock_write_data.assert_called_once_with(
-            mock_gdf, "test_table", mock_engine, "public", if_exists="replace"
-        )
 
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_parquet")
-    @patch("data_manipulation.ingestion.requests.get")
-    def test_ingest_geoparquet_url_by_extension(
-        self,
-        mock_requests_get: Mock,
-        mock_read_parquet: Mock,
-        mock_write_data: Mock,
-        mock_engine: Mock,
+class TestIngestFromDatabase:
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_streams_pg_to_pg(
+        self, mock_run: MagicMock, engine: Engine, source_engine: Engine
     ) -> None:
-        mock_response = Mock()
-        mock_response.content = b"geoparquet bytes"
-        mock_response.headers = {}
-        mock_requests_get.return_value = mock_response
-        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
-        mock_read_parquet.return_value = mock_gdf
-
-        ingest_data_from_url_into_postgis(
-            "http://example.com/layer.geoparquet", "test_table", mock_engine, "public"
-        )
-
-        mock_read_parquet.assert_called_once()
-        path_arg = mock_read_parquet.call_args.args[0]
-        assert path_arg.endswith(".geoparquet")
-        mock_write_data.assert_called_once_with(
-            mock_gdf, "test_table", mock_engine, "public", if_exists="replace"
-        )
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_parquet")
-    @patch("data_manipulation.ingestion.requests.get")
-    def test_ingest_parquet_url_with_content_disposition(
-        self,
-        mock_requests_get: Mock,
-        mock_read_parquet: Mock,
-        mock_write_data: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        mock_response = Mock()
-        mock_response.content = b"parquet bytes"
-        mock_response.headers = {"Content-Disposition": 'attachment; filename="export.parquet"'}
-        mock_requests_get.return_value = mock_response
-        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
-        mock_read_parquet.return_value = mock_gdf
-
-        ingest_data_from_url_into_postgis(
-            "http://example.com/download/42", "test_table", mock_engine, "public"
-        )
-
-        mock_read_parquet.assert_called_once()
-        path_arg = mock_read_parquet.call_args.args[0]
-        assert path_arg.endswith("export.parquet")
-        mock_write_data.assert_called_once_with(
-            mock_gdf, "test_table", mock_engine, "public", if_exists="replace"
-        )
-
-
-class TestIngestDataFromFtpIntoPostgis:
-    """Test cases for ingest_data_from_ftp_into_postgis function."""
-
-    @pytest.fixture
-    def mock_engine(self) -> Mock:
-        """Create a mock SQLAlchemy engine."""
-        return Mock(spec=Engine)
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion._read_file_encoded")
-    @patch("data_manipulation.ingestion.urlretrieve")
-    def test_ingest_from_ftp_success(
-        self,
-        mock_urlretrieve: Mock,
-        mock_read_file: Mock,
-        mock_write_data: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test successful ingestion from FTP."""
-
-        # Mock the GeoDataFrame
-        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        mock_read_file.return_value = mock_gdf
-
-        ingest_data_from_ftp_into_postgis(
-            "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
-        )
-
-        mock_urlretrieve.assert_called_once()
-        # Verify URL without auth is passed
-        assert "ftp://example.com/data.geojson" in str(mock_urlretrieve.call_args[0][0])
-        mock_read_file.assert_called_once()
-        mock_write_data.assert_called_once_with(
-            mock_gdf, "test_table", mock_engine, "public", if_exists="replace"
-        )
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion._read_file_encoded")
-    @patch("data_manipulation.ingestion.urlretrieve")
-    def test_ingest_from_ftp_with_auth(
-        self,
-        mock_urlretrieve: Mock,
-        mock_read_file: Mock,
-        mock_write_data: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test ingestion from FTP with authentication."""
-
-        # Mock the GeoDataFrame
-        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        mock_read_file.return_value = mock_gdf
-
-        auth = ("username", "password")
-        ingest_data_from_ftp_into_postgis(
-            "ftp://example.com/data.geojson", "test_table", mock_engine, "public", auth=auth
-        )
-
-        mock_urlretrieve.assert_called_once()
-        # Verify credentials are encoded in URL
-        called_url = str(mock_urlretrieve.call_args[0][0])
-        assert "username" in called_url
-        assert "password" in called_url
-        assert "@example.com" in called_url
-
-    @patch("data_manipulation.ingestion.urlretrieve")
-    def test_ingest_from_ftp_auth_failed(
-        self,
-        mock_urlretrieve: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test ingestion from FTP raises exception on authentication failure."""
-        mock_urlretrieve.side_effect = URLError("530 Login incorrect")
-
-        with pytest.raises(Exception, match="FTP authentication failed"):
-            ingest_data_from_ftp_into_postgis(
-                "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
-            )
-
-    @patch("data_manipulation.ingestion.urlretrieve")
-    def test_ingest_from_ftp_file_not_found(
-        self,
-        mock_urlretrieve: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test ingestion from FTP raises exception when file not found."""
-        mock_urlretrieve.side_effect = URLError("550 No such file")
-
-        with pytest.raises(Exception, match="FTP file not found"):
-            ingest_data_from_ftp_into_postgis(
-                "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
-            )
-
-    @patch("data_manipulation.ingestion.urlretrieve")
-    def test_ingest_from_ftp_timeout(
-        self,
-        mock_urlretrieve: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test ingestion from FTP raises exception on connection timeout."""
-        mock_urlretrieve.side_effect = URLError("Connection timed out")
-
-        with pytest.raises(Exception, match="FTP connection timeout"):
-            ingest_data_from_ftp_into_postgis(
-                "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
-            )
-
-    @patch("data_manipulation.ingestion.urlretrieve")
-    def test_ingest_from_ftp_connection_refused(
-        self,
-        mock_urlretrieve: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test ingestion from FTP raises exception when connection is refused."""
-        mock_urlretrieve.side_effect = URLError("Connection refused")
-
-        with pytest.raises(Exception, match="FTP connection refused"):
-            ingest_data_from_ftp_into_postgis(
-                "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
-            )
-
-    @patch("data_manipulation.ingestion.urlretrieve")
-    def test_ingest_from_ftp_network_error(
-        self,
-        mock_urlretrieve: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test ingestion from FTP raises exception on network error."""
-
-        mock_urlretrieve.side_effect = OSError("Network unreachable")
-
-        with pytest.raises(Exception, match="Network error"):
-            ingest_data_from_ftp_into_postgis(
-                "ftp://example.com/data.geojson", "test_table", mock_engine, "public"
-            )
-
-
-class TestReadDataFromPostgis:
-    """Test cases for read_data_from_postgis function."""
-
-    @pytest.fixture
-    def mock_engine(self) -> Mock:
-        """Create a mock SQLAlchemy engine."""
-        return Mock(spec=Engine)
-
-    @patch("data_manipulation.ingestion.gpd.read_postgis")
-    @patch("data_manipulation.ingestion.select")
-    @patch("data_manipulation.ingestion.Table")
-    @patch("data_manipulation.ingestion.MetaData")
-    def test_read_data_success_with_geometry(
-        self,
-        mock_metadata_class: Mock,
-        mock_table_class: Mock,
-        mock_select: Mock,
-        mock_read_postgis: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test successful data read from PostGIS with geometry column."""
-
-        # Mock the metadata and table
-        mock_metadata = MagicMock()
-        mock_metadata_class.return_value = mock_metadata
-        mock_table = MagicMock()
-        # Mock table.c to have the 'geom' column
-        mock_column = MagicMock()
-        mock_column.name = "geom"
-        mock_table.c = {"geom": mock_column, "col1": MagicMock()}
-        mock_table_class.return_value = mock_table
-
-        # Mock the select query
-        mock_query = MagicMock()
-        mock_select.return_value = mock_query
-        mock_compiled = MagicMock()
-        mock_compiled.__str__ = MagicMock(return_value="SELECT * FROM test_table")
-        mock_query.compile.return_value = mock_compiled
-
-        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        mock_read_postgis.return_value = mock_gdf
-
-        result = read_data_from_postgis("test_table", mock_engine, "public")
-
-        assert isinstance(result, GeoDataFrame)
-        assert len(result) == 2
-        mock_read_postgis.assert_called_once()
-        mock_metadata_class.assert_called_once_with(schema="public")
-        mock_table_class.assert_called_once_with(
-            "test_table", mock_metadata, autoload_with=mock_engine
-        )
-        mock_select.assert_called_once_with(mock_table)
-
-    @patch("data_manipulation.ingestion.pd.read_sql")
-    @patch("data_manipulation.ingestion.select")
-    @patch("data_manipulation.ingestion.Table")
-    @patch("data_manipulation.ingestion.MetaData")
-    def test_read_data_success_without_geometry(
-        self,
-        mock_metadata_class: Mock,
-        mock_table_class: Mock,
-        mock_select: Mock,
-        mock_read_sql: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test successful data read from PostGIS without geometry column."""
-
-        # Mock the metadata and table
-        mock_metadata = MagicMock()
-        mock_metadata_class.return_value = mock_metadata
-        mock_table = MagicMock()
-        # Mock table.c to NOT have the 'geom' column
-        mock_table.c = {"col1": MagicMock(), "col2": MagicMock()}
-        mock_table_class.return_value = mock_table
-
-        # Mock the select query
-        mock_query = MagicMock()
-        mock_select.return_value = mock_query
-        mock_compiled = MagicMock()
-        mock_compiled.__str__ = MagicMock(return_value="SELECT * FROM test_table")
-        mock_query.compile.return_value = mock_compiled
-
-        mock_df = DataFrame({"col1": [1, 2], "col2": ["a", "b"]})
-        mock_read_sql.return_value = mock_df
-
-        result = read_data_from_postgis("test_table", mock_engine, "public")
-
-        assert isinstance(result, DataFrame)
-        assert len(result) == 2
-        mock_read_sql.assert_called_once()
-        mock_metadata_class.assert_called_once_with(schema="public")
-        mock_table_class.assert_called_once_with(
-            "test_table", mock_metadata, autoload_with=mock_engine
-        )
-        mock_select.assert_called_once_with(mock_table)
-
-    @patch("data_manipulation.ingestion.gpd.read_postgis")
-    def test_read_data_validates_table_name(
-        self,
-        mock_read_postgis: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test that read_data validates table name."""
-
-        with pytest.raises(ValueError):
-            read_data_from_postgis("invalid-table-name!", mock_engine, "public")
-
-        mock_read_postgis.assert_not_called()
-
-    @patch("data_manipulation.ingestion.gpd.read_postgis")
-    def test_read_data_sql_injection_prevented(
-        self,
-        mock_read_postgis: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test that SQL injection attempts are prevented."""
-
-        malicious_names = [
-            "table; DROP TABLE users--",
-            "table' OR '1'='1",
-            'table" DROP SCHEMA public CASCADE--',
-        ]
-
-        for malicious_name in malicious_names:
-            with pytest.raises(ValueError):
-                read_data_from_postgis(malicious_name, mock_engine, "public")
-
-        mock_read_postgis.assert_not_called()
-
-    @patch("data_manipulation.ingestion.gpd.read_postgis")
-    @patch("data_manipulation.ingestion.select")
-    @patch("data_manipulation.ingestion.Table")
-    @patch("data_manipulation.ingestion.MetaData")
-    def test_read_data_raises_exception_on_error(
-        self,
-        mock_metadata_class: Mock,
-        mock_table_class: Mock,
-        mock_select: Mock,
-        mock_read_postgis: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test that errors during reading are raised."""
-
-        # Mock the metadata and table
-        mock_metadata = MagicMock()
-        mock_metadata_class.return_value = mock_metadata
-        mock_table = MagicMock()
-        # Mock table.c to have the 'geom' column
-        mock_table.c = {"geom": MagicMock()}
-        mock_table_class.return_value = mock_table
-
-        # Mock the select query
-        mock_query = MagicMock()
-        mock_select.return_value = mock_query
-        mock_compiled = MagicMock()
-        mock_compiled.__str__ = MagicMock(return_value="SELECT * FROM test_table")
-        mock_query.compile.return_value = mock_compiled
-
-
-class TestApplyTransformations:
-    """Test cases for apply_transformations function."""
-
-    def test_apply_transformations_returns_unchanged_for_now(self) -> None:
-        """Test that apply_transformations currently returns data unchanged."""
-
-        gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        transformation_config = IntegrityTransformation()
-
-        result = apply_transformations(gdf, transformation_config)
-
-        # For now, should return the same data
-        assert result.equals(gdf)
-
-
-class TestWriteDataToPostgis:
-    """Test cases for write_data_to_postgis function."""
-
-    @pytest.fixture
-    def mock_engine(self) -> Mock:
-        """Create a mock SQLAlchemy engine."""
-        return Mock(spec=Engine)
-
-    @patch("data_manipulation.ingestion._get_table_row_count")
-    def test_write_geodataframe_with_geom_column(
-        self,
-        mock_get_row_count: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test writing GeoDataFrame with 'geom' as active geometry."""
-
-        gdf = GeoDataFrame(
-            {"col1": [1, 2]},
-            geometry=gpd.GeoSeries([Point(0, 0), Point(1, 1)], name="geom"),
-        )
-        mock_get_row_count.return_value = 2
-
-        with patch.object(gdf, "to_postgis") as mock_to_postgis:
-            write_data_to_postgis(gdf, "test_table", mock_engine, "public")
-
-            mock_to_postgis.assert_called_once()
-            args, kwargs = mock_to_postgis.call_args
-            assert args == ("test_table", mock_engine)
-            assert kwargs["if_exists"] == "replace"
-            assert kwargs["schema"] == "public"
-            assert kwargs["index"] is False
-            # The geometry column must be created as a generic GEOMETRY type so that
-            # chunked appends with mixed geometry types do not clash.
-            geom_dtype = kwargs["dtype"]["geom"]
-            assert geom_dtype.geometry_type == "GEOMETRY"
-
-    @patch("data_manipulation.ingestion._get_table_row_count")
-    def test_write_geodataframe_pins_srid_from_crs(
-        self,
-        mock_get_row_count: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """The generic GEOMETRY column inherits the SRID of the GeoDataFrame CRS."""
-        gdf = GeoDataFrame(
-            {"col1": [1, 2]},
-            geometry=gpd.GeoSeries([Point(0, 0), Point(1, 1)], name="geom", crs="EPSG:4326"),
-        )
-        mock_get_row_count.return_value = 2
-
-        with patch.object(gdf, "to_postgis") as mock_to_postgis:
-            write_data_to_postgis(gdf, "test_table", mock_engine, "public")
-
-            geom_dtype = mock_to_postgis.call_args.kwargs["dtype"]["geom"]
-            assert geom_dtype.geometry_type == "GEOMETRY"
-            assert geom_dtype.srid == 4326
-
-    @patch("data_manipulation.ingestion._get_table_row_count")
-    def test_write_geodataframe_renames_geometry_column(
-        self,
-        mock_get_row_count: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test writing GeoDataFrame renames geometry column to 'geom'."""
-
-        gdf = GeoDataFrame(
-            {"col1": [1, 2]},
-            geometry=gpd.GeoSeries([Point(0, 0), Point(1, 1)], name="geometry"),
-        )
-        mock_get_row_count.return_value = 2
-
-        with patch.object(gdf, "to_postgis") as mock_to_postgis:
-            write_data_to_postgis(gdf, "test_table", mock_engine, "public")
-
-            # Should have been renamed to 'geom'
-            assert gdf.geometry.name == "geom"
-            mock_to_postgis.assert_called_once()
-
-    @patch("data_manipulation.ingestion._get_table_row_count")
-    def test_write_geodataframe_without_geometry(
-        self,
-        mock_get_row_count: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test writing GeoDataFrame without active geometry column."""
-
-        # Create a GeoDataFrame but set geometry to None
-        gdf = GeoDataFrame({"col1": [1, 2], "col2": [3, 4]})
-        gdf._geometry_column_name = None
-        mock_get_row_count.return_value = 2
-
-        with patch.object(gdf, "to_postgis") as mock_to_postgis:
-            write_data_to_postgis(gdf, "test_table", mock_engine, "public")
-
-            mock_to_postgis.assert_called_once()
-
-    @patch("data_manipulation.ingestion._get_table_row_count")
-    def test_write_dataframe_without_geometry(
-        self,
-        mock_get_row_count: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test writing regular DataFrame (non-geographic data)."""
-
-        df = DataFrame({"col1": [1, 2], "col2": [3, 4]})
-        mock_get_row_count.return_value = 2
-
-        with patch.object(df, "to_sql") as mock_to_sql:
-            write_data_to_postgis(df, "test_table", mock_engine, "public")
-
-            mock_to_sql.assert_called_once_with(
-                "test_table", mock_engine, if_exists="replace", schema="public", index=False
-            )
-
-    @patch("data_manipulation.ingestion._get_table_row_count")
-    def test_write_dataframe_removes_geom_column_if_present(
-        self,
-        mock_get_row_count: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test that DataFrame with 'geom' column has it removed."""
-
-        df = DataFrame({"col1": [1, 2], "geom": ["point1", "point2"]})
-        mock_get_row_count.return_value = 2
-
-        with patch("pandas.DataFrame.to_sql", return_value=None) as mock_to_sql:
-            write_data_to_postgis(df, "test_table", mock_engine, "public")
-
-            # Verify to_sql was called
-            mock_to_sql.assert_called_once()
-
-            # Verify the instance has the columns we expect
-            assert "geom" not in df.columns, "geom column should have been removed"
-            assert "col1" in df.columns, "col1 column should still be present"
-
-    def test_write_validates_table_name(self, mock_engine: Mock) -> None:
-        """Test that write_data validates table name."""
-
-        gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-
-        with pytest.raises(ValueError):
-            write_data_to_postgis(gdf, "invalid-table-name!", mock_engine, "public")
-
-    def test_write_rejects_table_name_too_long_for_postgis_index(self, mock_engine: Mock) -> None:
-        """Names that would overflow PostGIS's `idx_<table>_geom` index must be rejected up-front."""
-        gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        too_long = "a" * (POSTGIS_TABLE_NAME_MAX_LENGTH + 1)
-
-        with patch.object(gdf, "to_postgis") as mock_to_postgis:
-            with pytest.raises(ValueError, match="exceeds maximum"):
-                write_data_to_postgis(gdf, too_long, mock_engine, "public")
-            mock_to_postgis.assert_not_called()
-
-    def test_write_accepts_table_name_at_postgis_cap(self, mock_engine: Mock) -> None:
-        """A table name at the PostGIS-safe cap must pass validation."""
-        gdf = GeoDataFrame(
-            {"col1": [1, 2]},
-            geometry=gpd.GeoSeries([Point(0, 0), Point(1, 1)], name="geom"),
-        )
-        at_cap = "a" * POSTGIS_TABLE_NAME_MAX_LENGTH
-
-        with patch("data_manipulation.ingestion._get_table_row_count", return_value=2):
-            with patch.object(gdf, "to_postgis") as mock_to_postgis:
-                write_data_to_postgis(gdf, at_cap, mock_engine, "public")
-                mock_to_postgis.assert_called_once()
-
-    def test_write_sql_injection_prevented(self, mock_engine: Mock) -> None:
-        """Test that SQL injection attempts are prevented."""
-
-        gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        malicious_names = [
-            "table; DROP TABLE users--",
-            "table' OR '1'='1",
-            'table" DROP SCHEMA public CASCADE--',
-        ]
-
-        for malicious_name in malicious_names:
-            with pytest.raises(ValueError):
-                write_data_to_postgis(gdf, malicious_name, mock_engine, "public")
-
-    @patch("data_manipulation.ingestion._get_table_row_count")
-    def test_write_logs_row_count(
-        self,
-        mock_get_row_count: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test that row count is logged after successful write."""
-
-        gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-        mock_get_row_count.return_value = 2
-
-        with patch.object(gdf, "to_postgis"):
-            write_data_to_postgis(gdf, "test_table", mock_engine, "public")
-
-            mock_get_row_count.assert_called_once_with("test_table", mock_engine, "public")
-
-    @patch("data_manipulation.ingestion._get_table_row_count")
-    def test_write_raises_exception_on_error(
-        self,
-        mock_get_row_count: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Test that errors during writing are raised."""
-
-        gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]})
-
-        with patch.object(gdf, "to_postgis", side_effect=Exception("Write failed")):
-            with pytest.raises(Exception, match="Write failed"):
-                write_data_to_postgis(gdf, "test_table", mock_engine, "public")
-
-
-class TestIngestDataFromDatabaseIntoPostgis:
-    """Test cases for ingest_data_from_database_into_postgis function."""
-
-    @pytest.fixture
-    def mock_source_engine(self) -> Mock:
-        return Mock(spec=Engine)
-
-    @pytest.fixture
-    def mock_target_engine(self) -> Mock:
-        return Mock(spec=Engine)
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.pd.read_sql")
-    @patch("data_manipulation.ingestion.select")
-    @patch("data_manipulation.ingestion.Table")
-    @patch("data_manipulation.ingestion.MetaData")
-    def test_ingest_non_geographic_table(
-        self,
-        mock_metadata: Mock,
-        mock_table_cls: Mock,
-        mock_select: Mock,
-        mock_read_sql: Mock,
-        mock_write: Mock,
-        mock_source_engine: Mock,
-        mock_target_engine: Mock,
-    ) -> None:
-        """Non-geographic table is read with pd.read_sql and written to staging."""
-        mock_table = MagicMock()
-        mock_table.c.__contains__ = Mock(return_value=False)  # no geom column
-        mock_table_cls.return_value = mock_table
-        df = DataFrame({"id": [1, 2], "name": ["a", "b"]})
-        mock_read_sql.return_value = df
-
+        mock_run.return_value = _completed()
         ingest_data_from_database_into_postgis(
             source_schema="public",
-            source_table="communes",
-            source_engine=mock_source_engine,
-            target_table="staging_table",
-            target_engine=mock_target_engine,
+            source_table="src",
+            source_engine=source_engine,
+            target_table="dest",
+            target_engine=engine,
             target_schema="staging",
         )
-
-        mock_read_sql.assert_called_once()
-        mock_write.assert_called_once_with(
-            df, "staging_table", mock_target_engine, "staging", if_exists="replace"
-        )
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_postgis")
-    @patch("data_manipulation.ingestion.select")
-    @patch("data_manipulation.ingestion.Table")
-    @patch("data_manipulation.ingestion.MetaData")
-    @patch("data_manipulation.ingestion._get_geo_column_from_table", return_value="geom")
-    def test_ingest_geographic_table(
-        self,
-        mock_get_geo: Mock,
-        mock_metadata: Mock,
-        mock_table_cls: Mock,
-        mock_select: Mock,
-        mock_read_postgis: Mock,
-        mock_write: Mock,
-        mock_source_engine: Mock,
-        mock_target_engine: Mock,
-    ) -> None:
-        """Geographic table (has geom column) is read with gpd.read_postgis."""
-        mock_table = MagicMock()
-        mock_table.c.__contains__ = Mock(return_value=True)  # has geom column
-        mock_table_cls.return_value = mock_table
-        gdf = GeoDataFrame({"id": [1], "geom": [Point(0, 0)]})
-        mock_read_postgis.return_value = gdf
-
-        ingest_data_from_database_into_postgis(
-            source_schema="geo",
-            source_table="rivers",
-            source_engine=mock_source_engine,
-            target_table="staging_table",
-            target_engine=mock_target_engine,
-            target_schema="staging",
-        )
-
-        mock_read_postgis.assert_called_once()
-        mock_write.assert_called_once_with(
-            gdf, "staging_table", mock_target_engine, "staging", if_exists="replace"
-        )
-
-    @patch("data_manipulation.ingestion.Table")
-    @patch("data_manipulation.ingestion.MetaData")
-    def test_source_table_not_found_raises(
-        self,
-        mock_metadata: Mock,
-        mock_table_cls: Mock,
-        mock_source_engine: Mock,
-        mock_target_engine: Mock,
-    ) -> None:
-        """Exception is raised when source table does not exist."""
-        mock_table_cls.side_effect = Exception("Table not found")
-
-        with pytest.raises(Exception, match="Table not found"):
-            ingest_data_from_database_into_postgis(
-                source_schema="public",
-                source_table="inexistant",
-                source_engine=mock_source_engine,
-                target_table="staging_table",
-                target_engine=mock_target_engine,
-            )
-
-    def test_invalid_source_schema_raises(
-        self,
-        mock_source_engine: Mock,
-        mock_target_engine: Mock,
-    ) -> None:
-        """ValueError is raised for invalid schema name."""
-        with pytest.raises(ValueError):
-            ingest_data_from_database_into_postgis(
-                source_schema="Invalid-Schema",
-                source_table="my_table",
-                source_engine=mock_source_engine,
-                target_table="staging_table",
-                target_engine=mock_target_engine,
-            )
-
-    def test_invalid_source_table_raises(
-        self,
-        mock_source_engine: Mock,
-        mock_target_engine: Mock,
-    ) -> None:
-        """ValueError is raised for invalid table name."""
-        with pytest.raises(ValueError):
-            ingest_data_from_database_into_postgis(
-                source_schema="public",
-                source_table="123bad",
-                source_engine=mock_source_engine,
-                target_table="staging_table",
-                target_engine=mock_target_engine,
-            )
+        cmd = mock_run.call_args[0][0]
+        # both PG connection strings present
+        assert any(c.startswith("PG:") and "srchost" in c for c in cmd)
+        assert any(c.startswith("PG:") and "dbhost" in c for c in cmd)
+        assert "public.src" in cmd
+        assert "staging.dest" in cmd
+        assert "-nlt" in cmd
+        assert "PROMOTE_TO_MULTI" in cmd
 
 
-class TestIngestDataFromOgcServiceIntoPostgis:
-    """Test ingest_data_from_ogc_service_into_postgis."""
-
-    @pytest.fixture
-    def mock_engine(self) -> Mock:
-        return Mock(spec=Engine)
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    def test_wfs_uses_wfs_gdal_prefix(
-        self,
-        mock_read_file: Mock,
-        mock_write: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """WFS protocol produces a WFS: prefixed GDAL source string."""
-        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
-        mock_read_file.return_value = mock_gdf
-
+class TestIngestFromOgcService:
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_wfs_prefix(self, mock_run: MagicMock, engine: Engine) -> None:
+        mock_run.return_value = _completed()
         ingest_data_from_ogc_service_into_postgis(
-            service_url="https://example.com/wfs",
+            service_url="https://example.org/wfs",
             layer_name="ns:buildings",
             protocol="wfs",
-            table_name="buildings_stg",
-            engine=mock_engine,
-            schema="public",
+            table_name="places",
+            engine=engine,
+            schema="staging",
         )
+        cmd = mock_run.call_args[0][0]
+        assert "WFS:https://example.org/wfs" in cmd
+        assert "ns:buildings" in cmd
+        # WFS layers frequently declare gml_id NOT NULL while the GeoJSON output
+        # leaves it empty; the constraint must be dropped on the staging table.
+        assert "-forceNullable" in cmd
+        # A WFS serves whatever srsName was negotiated — commonly a projected CRS
+        # such as EPSG:2154. Since -a_srs relabels without reprojecting, forcing
+        # 4326 here would tag metric coordinates as degrees and silently move the
+        # data. Keep the SRS advertised by the service.
+        assert "-a_srs" not in cmd
 
-        mock_read_file.assert_called_once_with(
-            "WFS:https://example.com/wfs", layer="ns:buildings", rows=slice(0, CHUNK_SIZE, None)
-        )
-        mock_write.assert_called_once_with(
-            mock_gdf, "buildings_stg", mock_engine, "public", if_exists="replace"
-        )
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    def test_ogc_api_features_uses_oapif_gdal_prefix(
-        self,
-        mock_read_file: Mock,
-        mock_write: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """ogcFeatures protocol produces an OAPIF: prefixed GDAL source string."""
-        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
-        mock_read_file.return_value = mock_gdf
-
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_oapif_prefix_and_normalized_url(self, mock_run: MagicMock, engine: Engine) -> None:
+        mock_run.return_value = _completed()
         ingest_data_from_ogc_service_into_postgis(
-            service_url="https://example.com/ogcapi",
-            layer_name="parcels",
+            service_url="https://example.org/ogcapi/collections/buildings",
+            layer_name="buildings",
             protocol="ogcFeatures",
-            table_name="parcels_stg",
-            engine=mock_engine,
-            schema="public",
+            table_name="places",
+            engine=engine,
         )
+        cmd = mock_run.call_args[0][0]
+        assert "OAPIF:https://example.org/ogcapi" in cmd
 
-        mock_read_file.assert_called_once_with(
-            "OAPIF:https://example.com/ogcapi", layer="parcels", rows=slice(0, CHUNK_SIZE, None)
-        )
-        mock_write.assert_called_once_with(
-            mock_gdf, "parcels_stg", mock_engine, "public", if_exists="replace"
-        )
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    def test_unknown_protocol_falls_back_to_wfs_prefix(
-        self,
-        mock_read_file: Mock,
-        mock_write: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Unknown protocol value falls back to the WFS: GDAL prefix."""
-        mock_gdf = GeoDataFrame({"col1": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
-        mock_read_file.return_value = mock_gdf
-
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_oapif_assigns_wgs84(self, mock_run: MagicMock, engine: Engine) -> None:
+        # OAPIF serves GeoJSON, which RFC 7946 pins to WGS84 lon/lat, and GDAL may
+        # leave the geometry at SRID 0 — assigning 4326 is both safe and needed.
+        mock_run.return_value = _completed()
         ingest_data_from_ogc_service_into_postgis(
-            service_url="https://example.com/wfs",
-            layer_name="ns:rivers",
-            protocol="unknown_protocol",
-            table_name="rivers_stg",
-            engine=mock_engine,
-            schema="public",
-        )
-
-        gdal_source = mock_read_file.call_args.args[0]
-        assert gdal_source.startswith("WFS:")
-
-    @patch("data_manipulation.ingestion.write_data_to_postgis")
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    def test_no_geometry_ingests_as_tabular(
-        self,
-        mock_read_file: Mock,
-        mock_write: Mock,
-        mock_engine: Mock,
-    ) -> None:
-        """Layers with all-null geometries are ingested as plain tabular DataFrames."""
-        mock_gdf = GeoDataFrame({"col1": [1, 2]}, geometry=gpd.GeoSeries([None, None]))  # type: ignore[arg-type]
-        mock_read_file.return_value = mock_gdf
-
-        ingest_data_from_ogc_service_into_postgis(
-            service_url="https://example.com/ogcapi",
-            layer_name="observations",
+            service_url="https://example.org/ogcapi",
+            layer_name="buildings",
             protocol="ogcFeatures",
-            table_name="observations_stg",
-            engine=mock_engine,
-            schema="public",
+            table_name="places",
+            engine=engine,
         )
+        cmd = mock_run.call_args[0][0]
+        assert "-a_srs" in cmd
+        assert "EPSG:4326" in cmd
 
-        written = mock_write.call_args.args[0]
-        assert isinstance(written, DataFrame)
-        assert "geometry" not in written.columns
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_auth_passed_via_gdal_config(self, mock_run: MagicMock, engine: Engine) -> None:
+        mock_run.return_value = _completed()
+        ingest_data_from_ogc_service_into_postgis(
+            service_url="https://example.org/wfs",
+            layer_name="ns:buildings",
+            protocol="wfs",
+            table_name="places",
+            engine=engine,
+            auth=("alice", "s3cret"),
+        )
+        cmd = mock_run.call_args[0][0]
+        assert "--config" in cmd
+        assert "GDAL_HTTP_USERPWD" in cmd
+        assert "alice:s3cret" in cmd
 
-    @patch("data_manipulation.ingestion.gpd.read_file")
-    def test_read_exception_is_reraised(
-        self,
-        mock_read_file: Mock,
-        mock_engine: Mock,
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_no_auth_means_no_userpwd(self, mock_run: MagicMock, engine: Engine) -> None:
+        mock_run.return_value = _completed()
+        ingest_data_from_ogc_service_into_postgis(
+            service_url="https://example.org/wfs",
+            layer_name="ns:buildings",
+            protocol="wfs",
+            table_name="places",
+            engine=engine,
+        )
+        cmd = mock_run.call_args[0][0]
+        assert "GDAL_HTTP_USERPWD" not in cmd
+
+
+class TestIngestFromFtp:
+    @patch("data_manipulation.ingestion.ingest_file_with_ogr2ogr")
+    @patch("data_manipulation.ingestion.urlretrieve")
+    def test_builds_credentialed_url(
+        self, mock_retrieve: MagicMock, mock_ingest: MagicMock, engine: Engine
     ) -> None:
-        """Exceptions from gpd.read_file are propagated to the caller."""
-        mock_read_file.side_effect = RuntimeError("GDAL error")
+        ingest_data_from_ftp_into_postgis(
+            "ftp://ftp.example.org/data/file.gpkg",
+            "places",
+            engine,
+            auth=("bob", "pw@ss"),
+        )
+        # urlretrieve gets a credentialed URL (password URL-encoded)
+        called_url = mock_retrieve.call_args[0][0]
+        assert called_url.startswith("ftp://bob:")
+        assert "pw%40ss" in called_url
+        mock_ingest.assert_called_once()
 
-        with pytest.raises(RuntimeError, match="GDAL error"):
-            ingest_data_from_ogc_service_into_postgis(
-                service_url="https://example.com/wfs",
-                layer_name="ns:buildings",
-                protocol="wfs",
-                table_name="buildings_stg",
-                engine=mock_engine,
-                schema="public",
-            )
+
+def _dbf(records: list[bytes], *, field: bytes = b"nom", width: int = 20) -> bytes:
+    """Build a minimal .dbf holding one text field, for encoding-detection tests."""
+    header_length = 32 + 32 + 1
+    header = struct.pack("<B3BIHH20x", 3, 125, 1, 1, len(records), header_length, width + 1)
+    header += field.ljust(11, b"\x00") + b"C" + b"\x00" * 4 + bytes([width]) + b"\x00" * 14
+    header += b"\x0d"
+    body = b"".join(b" " + r.ljust(width)[:width] for r in records) + b"\x1a"
+    return header + body
 
 
-@pytest.mark.parametrize(
-    "service_url, expected_gdal_source",
-    [
-        ("https://host/v1", "OAPIF:https://host/v1"),
-        ("https://host/v1/", "OAPIF:https://host/v1"),
-        ("https://host/v1/collections", "OAPIF:https://host/v1"),
-        ("https://host/v1/collections/", "OAPIF:https://host/v1"),
-        ("https://host/v1/collections/my_layer", "OAPIF:https://host/v1"),
-        ("https://host/v1/collections/my_layer/items", "OAPIF:https://host/v1"),
-    ],
-)
-@patch("data_manipulation.ingestion.write_data_to_postgis")
-@patch("data_manipulation.ingestion.gpd.read_file")
-def test_oapif_url_normalized_before_gdal(
-    mock_read_file: Mock,
-    mock_write: Mock,
-    service_url: str,
-    expected_gdal_source: str,
-) -> None:
-    """GDAL always receives the service root URL regardless of what the user pasted."""
-    mock_gdf = GeoDataFrame({"col": [1]}, geometry=gpd.GeoSeries([Point(0, 0)]))
-    mock_read_file.return_value = mock_gdf
+_LATIN1_RECORDS = ["Café".encode("cp1252"), "Forêt".encode("cp1252")]
 
-    ingest_data_from_ogc_service_into_postgis(
-        service_url=service_url,
-        layer_name="my_layer",
-        protocol="ogcFeatures",
-        table_name="stg",
-        engine=Mock(spec=Engine),
-    )
 
-    mock_read_file.assert_called_once_with(
-        expected_gdal_source, layer="my_layer", rows=slice(0, CHUNK_SIZE, None)
-    )
+class TestShapefileEncodingDetection:
+    """GDAL honours .cpg natively and assumes UTF-8 otherwise.
+
+    Only the no-.cpg, non-UTF-8 case needs SHAPE_ENCODING: without it ogr2ogr
+    aborts with "Non UTF-8 content found" and writes nothing.
+    """
+
+    def _shapefile(self, tmp_path: Path, *, cpg: str | None, dbf: bytes) -> str:
+        (tmp_path / "z.shp").write_bytes(b"\x00")
+        (tmp_path / "z.dbf").write_bytes(dbf)
+        if cpg is not None:
+            (tmp_path / "z.cpg").write_text(cpg)
+        return str(tmp_path / "z.shp")
+
+    def test_cpg_present_defers_to_gdal(self, tmp_path: Path) -> None:
+        path = self._shapefile(tmp_path, cpg="ISO-8859-1", dbf=_dbf(_LATIN1_RECORDS))
+        assert _detect_shapefile_encoding(path) is None
+
+    def test_missing_cpg_with_latin_text_detects_cp1252(self, tmp_path: Path) -> None:
+        path = self._shapefile(tmp_path, cpg=None, dbf=_dbf(_LATIN1_RECORDS))
+        assert _detect_shapefile_encoding(path) == "CP1252"
+
+    def test_ascii_content_defers_to_gdal(self, tmp_path: Path) -> None:
+        # ASCII is valid UTF-8; overriding would be pointless.
+        path = self._shapefile(tmp_path, cpg=None, dbf=_dbf([b"Paris", b"Lyon"]))
+        assert _detect_shapefile_encoding(path) is None
+
+    def test_non_shapefile_is_ignored(self, tmp_path: Path) -> None:
+        plain = tmp_path / "data.geojson"
+        plain.write_text('{"type":"FeatureCollection","features":[]}')
+        assert _detect_shapefile_encoding(str(plain)) is None
+
+    def test_zipped_shapefile_without_cpg_is_detected(self, tmp_path: Path) -> None:
+        archive = tmp_path / "z.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("z.shp", b"\x00")
+            zf.writestr("z.dbf", _dbf(_LATIN1_RECORDS))
+        assert _detect_shapefile_encoding(str(archive)) == "CP1252"
+
+    def test_zipped_shapefile_with_cpg_defers_to_gdal(self, tmp_path: Path) -> None:
+        archive = tmp_path / "z.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("z.shp", b"\x00")
+            zf.writestr("z.dbf", _dbf(_LATIN1_RECORDS))
+            zf.writestr("z.cpg", "ISO-8859-1")
+        assert _detect_shapefile_encoding(str(archive)) is None
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_shape_encoding_is_passed_to_ogr2ogr(
+        self, mock_run: MagicMock, engine: Engine, tmp_path: Path
+    ) -> None:
+        mock_run.return_value = _completed()
+        path = self._shapefile(tmp_path, cpg=None, dbf=_dbf(_LATIN1_RECORDS))
+
+        ingest_file_with_ogr2ogr(path, "places", engine, schema="staging")
+
+        cmd = mock_run.call_args[0][0]
+        assert "SHAPE_ENCODING" in cmd
+        assert "CP1252" in cmd
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_no_shape_encoding_when_cpg_present(
+        self, mock_run: MagicMock, engine: Engine, tmp_path: Path
+    ) -> None:
+        mock_run.return_value = _completed()
+        path = self._shapefile(tmp_path, cpg="UTF-8", dbf=_dbf(_LATIN1_RECORDS))
+
+        ingest_file_with_ogr2ogr(path, "places", engine, schema="staging")
+
+        assert "SHAPE_ENCODING" not in mock_run.call_args[0][0]
+
+
+class TestOgrErrorDetection:
+    """ogr2ogr exits 0 even when it aborts a layer, so stderr must be inspected."""
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_error_in_stderr_raises_despite_exit_zero(
+        self, mock_run: MagicMock, engine: Engine
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["ogr2ogr"],
+            returncode=0,
+            stdout="",
+            stderr="ERROR 1: Non UTF-8 content found when writing feature -1\n",
+        )
+        with pytest.raises(Exception, match="Non UTF-8 content"):
+            ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine)
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_warnings_do_not_raise(self, mock_run: MagicMock, engine: Engine) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["ogr2ogr"], returncode=0, stdout="", stderr="Warning 6: Normalized/laundered\n"
+        )
+        ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine)
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_error_word_in_a_path_does_not_raise(self, mock_run: MagicMock, engine: Engine) -> None:
+        # Anchored regex: only real "ERROR <n>:" lines count.
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["ogr2ogr"], returncode=0, stdout="", stderr="reading /data/error_log/x.shp\n"
+        )
+        ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine)

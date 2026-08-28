@@ -11,6 +11,8 @@ always returns None.
 Run state lives in memory only and is lost on backend restart.
 """
 
+import os
+import tempfile
 import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor
@@ -21,10 +23,8 @@ from urllib.parse import quote
 
 import requests
 from data_manipulation import (
-    CHUNK_SIZE,
     IntegrityTransformation,
-    read_and_transform_data,
-    write_data_to_postgis,
+    transform_staging_to_final,
 )
 from data_manipulation.constants import DB_URI_PREFIX
 from data_manipulation.database import create_schema
@@ -50,6 +50,13 @@ _STAGING_DAG_ID = "staging_dag"
 _PROCESS_DAG_ID = "process_dag"
 _MAX_WORKERS = 4
 
+# Container to `docker exec` ogr2ogr into (see docker/compose.datafeeder.yaml, service
+# `datafeeder-gdal`, profile `local-executor`) since this executor runs outside of any
+# container with GDAL (typically on the host, via `make run-backend-with-local-task-
+# executor`). Empty disables the wrapper: ogr2ogr must then already be on PATH.
+_GDAL_DOCKER_EXEC_TARGET = os.getenv("DATAFEEDER_GDAL_DOCKER_EXEC_TARGET", "")
+_OGR2OGR_WRAPPER_DIR = os.path.join(tempfile.gettempdir(), "datafeeder-gdal-wrapper")
+
 
 @dataclass
 class _RunRecord:
@@ -61,11 +68,31 @@ class LocalTaskExecutor(BaseTaskExecutor):
     """Runs staging/process synchronously in-process instead of via Airflow."""
 
     def __init__(self) -> None:
+        self._install_ogr2ogr_docker_wrapper()
         self._pool = ThreadPoolExecutor(
             max_workers=_MAX_WORKERS, thread_name_prefix="local-task-executor"
         )
         self._registry: dict[tuple[str, str], _RunRecord] = {}
         self._registry_lock = threading.Lock()
+
+    def _install_ogr2ogr_docker_wrapper(self) -> None:
+        """Make the `ogr2ogr` calls in data_manipulation.ingestion reach the
+        `datafeeder-gdal` sidecar container via `docker exec` instead of a local binary.
+
+        Written under the system temp dir (not /usr/local/bin) so it works without root/
+        sudo when this executor runs as a plain host process, then prepended to PATH.
+        """
+        if not _GDAL_DOCKER_EXEC_TARGET:
+            return
+        try:
+            os.makedirs(_OGR2OGR_WRAPPER_DIR, exist_ok=True)
+            wrapper_path = os.path.join(_OGR2OGR_WRAPPER_DIR, "ogr2ogr")
+            with open(wrapper_path, "w") as f:
+                f.write(f'#!/bin/sh\nexec docker exec "{_GDAL_DOCKER_EXEC_TARGET}" ogr2ogr "$@"\n')
+            os.chmod(wrapper_path, 0o755)
+            os.environ["PATH"] = _OGR2OGR_WRAPPER_DIR + os.pathsep + os.environ.get("PATH", "")
+        except OSError as e:
+            logger.warning(f"Failed to install ogr2ogr docker-exec wrapper: {e}")
 
     def _set_status(self, task_id: str, run_id: str, status: TaskStatus, logs: str = "") -> None:
         with self._registry_lock:
@@ -280,38 +307,23 @@ class LocalTaskExecutor(BaseTaskExecutor):
 
         create_schema(data_engine, target_schema)
 
-        i = 0
-        total_rows = 0
-        while True:
-            transformed_data = read_and_transform_data(
-                table_name=staging_table_name,
-                engine=data_engine,
-                schema=staging_schema,
-                config=transformation_config,
-                limit=CHUNK_SIZE,
-                offset=i * CHUNK_SIZE,
-            )
-            if transformed_data.empty:
-                break
+        # Transformation runs entirely in PostGIS (CREATE TABLE AS) — no data is
+        # loaded into Python memory. Mirrors apps/elt/dags/task_groups/transformation.py
+        # so the direct (LOCAL executor) and Airflow flows apply identical logic.
+        row_count = transform_staging_to_final(
+            staging_table=staging_table_name,
+            final_table=final_table_name,
+            engine=data_engine,
+            config=transformation_config,
+            staging_schema=staging_schema,
+            final_schema=target_schema,
+            create_id=True,
+        )
 
-            chunk_len = len(transformed_data)
-            write_data_to_postgis(
-                data=transformed_data,
-                table_name=final_table_name,
-                engine=data_engine,
-                schema=target_schema,
-                create_id=i == 0,
-                if_exists="replace" if i == 0 else "append",
-            )
-            total_rows += chunk_len
-            if chunk_len < CHUNK_SIZE:
-                break
-            i += 1
-
-        if total_rows == 0:
+        if row_count == 0:
             raise ValueError("No data to write after transformation.")
 
-        logger.info(f"Successfully wrote {total_rows} rows to final table")
+        logger.info(f"Successfully wrote {row_count} rows to final table")
 
         logger.info(f"Dropping staging table {staging_schema}.{staging_table_name}")
         metadata = MetaData(schema=staging_schema)

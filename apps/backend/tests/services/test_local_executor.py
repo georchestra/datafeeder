@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
 import pytest
 
 from src.core.task_executor import TaskStatus
@@ -211,15 +210,13 @@ class TestLocalTaskExecutorDatabaseSource:
 class TestLocalTaskExecutorProcess:
     def test_trigger_process_task_success(self) -> None:
         executor = _sync_executor()
-        chunk = pd.DataFrame({"a": [1, 2]})
 
         with (
             patch("src.services.executors.local_executor.create_schema") as mock_create_schema,
             patch(
-                "src.services.executors.local_executor.read_and_transform_data",
-                return_value=chunk,
-            ) as mock_read,
-            patch("src.services.executors.local_executor.write_data_to_postgis") as mock_write,
+                "src.services.executors.local_executor.transform_staging_to_final",
+                return_value=2,
+            ) as mock_transform,
             patch("src.services.executors.local_executor.Table") as mock_table_cls,
             patch("src.services.executors.local_executor.data_engine"),
             patch("src.services.executors.local_executor.requests.post") as mock_post,
@@ -235,11 +232,12 @@ class TestLocalTaskExecutorProcess:
             )
 
             mock_create_schema.assert_called_once()
-            assert mock_read.call_args.kwargs["table_name"] == "stg_table"
-            assert mock_read.call_args.kwargs["offset"] == 0
-
-            assert mock_write.call_args.kwargs["create_id"] is True
-            assert mock_write.call_args.kwargs["if_exists"] == "replace"
+            # Transformation runs entirely in PostGIS (CREATE TABLE AS) — same
+            # canonical builder used by apps/elt/dags/task_groups/transformation.py.
+            assert mock_transform.call_args.kwargs["staging_table"] == "stg_table"
+            assert mock_transform.call_args.kwargs["final_table"] == "final_table"
+            assert mock_transform.call_args.kwargs["final_schema"] == "data"
+            assert mock_transform.call_args.kwargs["create_id"] is True
 
             # staging table dropped after a successful transform
             mock_table_cls.assert_called_once()
@@ -254,10 +252,10 @@ class TestLocalTaskExecutorProcess:
         with (
             patch("src.services.executors.local_executor.create_schema"),
             patch(
-                "src.services.executors.local_executor.read_and_transform_data",
-                return_value=pd.DataFrame(),
+                "src.services.executors.local_executor.transform_staging_to_final",
+                return_value=0,
             ),
-            patch("src.services.executors.local_executor.write_data_to_postgis") as mock_write,
+            patch("src.services.executors.local_executor.Table") as mock_table_cls,
             patch("src.services.executors.local_executor.data_engine"),
             patch("src.services.executors.local_executor.requests.post") as mock_post,
         ):
@@ -268,7 +266,9 @@ class TestLocalTaskExecutorProcess:
                 failure_callback_url="https://ko.example.com",
             )
 
-            mock_write.assert_not_called()
+            # No rows written to the final table means the staging table must
+            # not be dropped either — nothing was successfully transformed.
+            mock_table_cls.return_value.drop.assert_not_called()
             mock_post.assert_called_once_with("https://ko.example.com&reason=", timeout=10)
             status = executor.get_task_status("process_dag", "run-p2")
             assert status.status == TaskStatus.FAILED
