@@ -1,6 +1,7 @@
 """Tests for API (OGC service) source type in staging endpoints."""
 
 from datetime import date, datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -16,7 +17,19 @@ from src.api.routes.ingestion.staging import (
     edit_staging,
     get_staging_metadata,
 )
-from src.models.data_import import ImportType
+from src.models.data_import import ImportType, StagingMetadataResponse
+
+
+def _call_get_staging_metadata() -> StagingMetadataResponse:
+    data_session = MagicMock()
+    data_session.scalar.return_value = 0
+    return get_staging_metadata(
+        data_session=data_session,
+        datafeeder_session=MagicMock(),
+        geo_ctx=MagicMock(),
+        integrity_link_id=str(uuid4()),
+        group_ids=[],
+    )
 
 
 class TestProcessImportSourceApi:
@@ -166,20 +179,8 @@ class TestGetStagingMetadataTitleFallbackApi:
 
         assert result.title == "ns:buildings"
 
-    @patch("src.api.routes.ingestion.staging.get_staging_schema", return_value="staging")
-    @patch("src.api.routes.ingestion.staging.select")
-    @patch("src.api.routes.ingestion.staging.Table")
-    @patch("src.api.routes.ingestion.staging._resolve_columns")
-    @patch("src.api.routes.ingestion.staging._detect_original_projection")
-    @patch("src.api.routes.ingestion.staging.load_authorized_integrity_link")
     def test_layer_name_returned_in_response_for_api_type(
-        self,
-        mock_load: MagicMock,
-        mock_detect_proj: MagicMock,
-        mock_resolve_cols: MagicMock,
-        mock_table: MagicMock,
-        mock_select: MagicMock,
-        mock_get_schema: MagicMock,
+        self, staging_metadata_deps: SimpleNamespace
     ) -> None:
         """layer_name field in response matches source_layer for API import type."""
         mock_link = MagicMock()
@@ -191,38 +192,15 @@ class TestGetStagingMetadataTitleFallbackApi:
         mock_link.source_layer = "ns:buildings"
         mock_link.integrity_transformation = None
         mock_link.final_table_name = None
-        mock_load.return_value = (mock_link, MagicMock())
-        mock_resolve_cols.return_value = ([], None)
-        mock_detect_proj.return_value = None
+        staging_metadata_deps.load.return_value = (mock_link, MagicMock())
 
-        data_session = MagicMock()
-        data_session.scalar.return_value = 0
-
-        result = get_staging_metadata(
-            data_session=data_session,
-            datafeeder_session=MagicMock(),
-            geo_ctx=MagicMock(),
-            integrity_link_id=str(uuid4()),
-            group_ids=[],
-        )
+        result = _call_get_staging_metadata()
 
         assert result.title == "My WFS Layer"
         assert result.layer_name == "ns:buildings"
 
-    @patch("src.api.routes.ingestion.staging.get_staging_schema", return_value="staging")
-    @patch("src.api.routes.ingestion.staging.select")
-    @patch("src.api.routes.ingestion.staging.Table")
-    @patch("src.api.routes.ingestion.staging._resolve_columns")
-    @patch("src.api.routes.ingestion.staging._detect_original_projection")
-    @patch("src.api.routes.ingestion.staging.load_authorized_integrity_link")
     def test_layer_name_is_none_for_non_api_import_type(
-        self,
-        mock_load: MagicMock,
-        mock_detect_proj: MagicMock,
-        mock_resolve_cols: MagicMock,
-        mock_table: MagicMock,
-        mock_select: MagicMock,
-        mock_get_schema: MagicMock,
+        self, staging_metadata_deps: SimpleNamespace
     ) -> None:
         """layer_name is None in response for non-API import types."""
         mock_link = MagicMock()
@@ -234,20 +212,9 @@ class TestGetStagingMetadataTitleFallbackApi:
         mock_link.source_layer = None
         mock_link.integrity_transformation = None
         mock_link.final_table_name = None
-        mock_load.return_value = (mock_link, MagicMock())
-        mock_resolve_cols.return_value = ([], None)
-        mock_detect_proj.return_value = None
+        staging_metadata_deps.load.return_value = (mock_link, MagicMock())
 
-        data_session = MagicMock()
-        data_session.scalar.return_value = 0
-
-        result = get_staging_metadata(
-            data_session=data_session,
-            datafeeder_session=MagicMock(),
-            geo_ctx=MagicMock(),
-            integrity_link_id=str(uuid4()),
-            group_ids=[],
-        )
+        result = _call_get_staging_metadata()
 
         assert result.layer_name is None
 
