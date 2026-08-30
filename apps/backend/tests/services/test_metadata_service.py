@@ -1041,15 +1041,14 @@ class TestGenerateMetadataKeywords:
         assert "Template" in texts, "Template keyword must not be removed"
         assert "My Dataset" not in texts, "Dataset title must not be injected as a keyword"
 
-class TestGetTemplateUuid:
+class TestGenerateWithTemplateFromUserGroups:
     """Test _get_template_uuid() with mocked GeoNetwork calls."""
     @patch("src.services.metadata_service.GnApi")
-    def test_template_uuid_retrieved_from_gn(self, mock_gn_api: MagicMock) -> None:
+    def test_template_uuid_retrieved_from_groups(self, mock_gn_api: MagicMock) -> None:
         mock_api = MagicMock()
         mock_api.api_url = "http://test/api"
-        with open('tests/services/search_for_template_resp.json') as data_file:
-            data_loaded = json.load(data_file)
-        mock_api.search.return_value = data_loaded
+        with open('tests/services/gn_resp/search_for_template.json') as data_file:
+            mock_api.search.return_value = json.load(data_file)
         mock_api.session = MagicMock()
         mock_gn_api.return_value = mock_api
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
@@ -1067,3 +1066,65 @@ class TestGetTemplateUuid:
         uuids = service.get_templates_uuid([22])
 
         assert mock_api.search.call_args[0][0]['query']['bool']['must'][0]['query_string']['query'] == "(isTemplate:\"y\") AND (groupOwner:\"22\")"
+
+class TestResolveGroupFromLink:
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_resolve_group_org_based_sync(self, mock_gn_api: MagicMock) -> None:
+        mock_api = MagicMock()
+        def side_effect_func(value: str):
+            if value.endswith('users'):
+                with open('tests/services/gn_resp/list_users.json') as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+            else:
+                with open('tests/services/gn_resp/list_groups.json') as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+        mock_api.session.get = MagicMock(side_effect = side_effect_func)
+        with open('tests/services/gn_resp/search_for_template.json') as data_file:
+            mock_api.search.return_value = json.load(data_file)
+        mock_gn_api.return_value = mock_api
+        datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
+        service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
+
+        group_id = service.resolve_group_id(IntegrityLink(
+            integrity_owner="C2CMangeat",
+            integrity_organization="Zug",
+            source_import_type=ImportType.URL
+        ))
+
+        assert group_id == 5
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_resolve_group_user_based_sync(self, mock_gn_api: MagicMock) -> None:
+        mock_api = MagicMock()
+        def side_effect_func(value: str):
+            if value.endswith('users'):
+                with open('tests/services/gn_resp/list_users.json') as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+            else:
+                with open('tests/services/gn_resp/user_detail.json') as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+        mock_api.session.get = MagicMock(side_effect = side_effect_func)
+        mock_api.search = MagicMock()
+        with open('tests/services/gn_resp/search_for_template.json') as data_file:
+            mock_api.search.return_value = json.load(data_file)
+        mock_gn_api.return_value = mock_api
+        datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
+        service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
+
+        service.org_based_sync = False
+        group_id = service.resolve_group_id(IntegrityLink(
+            integrity_owner="C2CMangeat",
+            integrity_organization="Zug",
+            source_import_type=ImportType.URL
+        ))
+
+        assert group_id == 42
