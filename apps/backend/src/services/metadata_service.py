@@ -317,6 +317,30 @@ class MetadataService:
             group_id,
         )
 
+    def resolve_group_id(self, integrity_link: IntegrityLink) -> int | None:
+        username=integrity_link.integrity_owner
+        group_name=integrity_link.integrity_organization
+        session = self.gn_api.session
+
+        # 1. Find user ID by username
+        resp = session.get(f"{self.gn_api.api_url}/users")
+        resp.raise_for_status()
+        users = resp.json()
+        user_id = next((u["id"] for u in users if u["username"] == username), None)
+
+        if user_id is None:
+            logger.warning(
+                "Cannot set ownership: user '%s' not found in GeoNetwork",
+                username,
+            )
+            return
+
+        # 2. Resolve group ID based on sync strategy
+        if self.org_based_sync:
+            return self._resolve_group_by_org_name(session, group_name)
+        else:
+            return self._resolve_group_from_user(session, user_id)
+
     def _resolve_group_by_org_name(self, session: Any, group_name: str) -> int | None:
         """Resolve a GeoNetwork group ID by matching organization name.
 
