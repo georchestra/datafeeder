@@ -661,3 +661,61 @@ class MetadataService:
                 exc_info=True,
             )
             raise
+
+    def get_templates_uuid(self, groups_id: list[int]) -> list[str]:
+        group_owner_clause = " OR ".join(f'groupOwner:"{group_id}"' for group_id in groups_id)
+
+        req = {
+            "aggregations": {
+                "resourceType": {
+                    "terms": {
+                        "field": "resourceType",
+                        "exclude": [
+                            "theme",
+                            "place"
+                        ],
+                        "missing": "other"
+                    }
+                }
+            },
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "query_string": {
+                                "default_operator": "AND",
+                                "query": f'(isTemplate:"y") AND ({group_owner_clause})'
+                            }
+                        }
+                    ]
+                }
+            },
+            "_source": {
+                "includes": [
+                    "id",
+                    "uuid",
+                    "creat*",
+                    "group*",
+                    "resource*",
+                    "draft*",
+                    "owner*",
+                    "recordOwner",
+                    "status*",
+                    "tag*",
+                    "isTemplate",
+                    "valid",
+                    "isHarvested",
+                    "dateStamp",
+                    "changeDate",
+                    "documentStandard",
+                    "mdStatus*",
+                    "*inspire*"
+                ]
+            },
+            "from": 0,
+            "size": 1000
+        }
+        resp = self.gn_api.search(req)
+
+        templates_uuid = [md["_id"] for md in resp["hits"]["hits"]]
+        return templates_uuid
