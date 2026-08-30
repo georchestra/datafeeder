@@ -1046,7 +1046,6 @@ class TestGenerateWithTemplateFromUserGroups:
     @patch("src.services.metadata_service.GnApi")
     def test_template_uuid_retrieved_from_groups(self, mock_gn_api: MagicMock) -> None:
         mock_api = MagicMock()
-        mock_api.api_url = "http://test/api"
         with open('tests/services/gn_resp/search_for_template.json') as data_file:
             mock_api.search.return_value = json.load(data_file)
         mock_api.session = MagicMock()
@@ -1090,11 +1089,11 @@ class TestResolveGroupFromLink:
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
         service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
 
-        group_id = service.resolve_group_id(IntegrityLink(
+        group_id = service.resolve_group_id_from_link(IntegrityLink(
             integrity_owner="C2CMangeat",
             integrity_organization="Zug",
             source_import_type=ImportType.URL
-        ))
+        ))[1]
 
         assert group_id == 5
 
@@ -1121,10 +1120,10 @@ class TestResolveGroupFromLink:
         service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
 
         service.org_based_sync = False
-        group_id = service.resolve_group_id(IntegrityLink(
+        group_id = service.resolve_group_id_from_link(IntegrityLink(
             integrity_owner="C2CMangeat",
             integrity_organization="Zug",
             source_import_type=ImportType.URL
-        ))
+        ))[1]
 
         assert group_id == 42

@@ -276,11 +276,7 @@ class MetadataService:
         """
         session = self.gn_api.session
 
-        # 1. Find user ID by username
-        resp = session.get(f"{self.gn_api.api_url}/users")
-        resp.raise_for_status()
-        users = resp.json()
-        user_id = next((u["id"] for u in users if u["username"] == username), None)
+        user_id, group_id = self.resolve_group_id(username, group_name)
 
         if user_id is None:
             logger.warning(
@@ -288,12 +284,6 @@ class MetadataService:
                 username,
             )
             return
-
-        # 2. Resolve group ID based on sync strategy
-        if self.org_based_sync:
-            group_id = self._resolve_group_by_org_name(session, group_name)
-        else:
-            group_id = self._resolve_group_from_user(session, user_id)
 
         if group_id is None:
             logger.warning(
@@ -317,29 +307,28 @@ class MetadataService:
             group_id,
         )
 
-    def resolve_group_id(self, integrity_link: IntegrityLink) -> int | None:
+    def resolve_group_id_from_link(self, integrity_link: IntegrityLink) -> tuple[int| None, int| None]:
         username=integrity_link.integrity_owner
         group_name=integrity_link.integrity_organization
-        session = self.gn_api.session
+        return self.resolve_group_id(username, group_name)
 
+    def resolve_group_id(self, username: str, group_name: str) -> tuple[int| None, int| None] :
         # 1. Find user ID by username
+        session = self.gn_api.session
         resp = session.get(f"{self.gn_api.api_url}/users")
         resp.raise_for_status()
         users = resp.json()
         user_id = next((u["id"] for u in users if u["username"] == username), None)
 
         if user_id is None:
-            logger.warning(
-                "Cannot set ownership: user '%s' not found in GeoNetwork",
-                username,
-            )
-            return
+            return None, None
 
         # 2. Resolve group ID based on sync strategy
         if self.org_based_sync:
-            return self._resolve_group_by_org_name(session, group_name)
+            group_id = self._resolve_group_by_org_name(session, group_name)
         else:
-            return self._resolve_group_from_user(session, user_id)
+            group_id = self._resolve_group_from_user(session, user_id)
+        return user_id, group_id
 
     def _resolve_group_by_org_name(self, session: Any, group_name: str) -> int | None:
         """Resolve a GeoNetwork group ID by matching organization name.
