@@ -111,6 +111,23 @@ def _read_tabular_json(file_path: str) -> pd.DataFrame:
     raise ValueError(f"Unsupported JSON structure in {file_path}: expected an array or object")
 
 
+def _reject_geojson_without_geometry(file_path: str) -> None:
+    """Raise if a .geojson source has a null geometry on every feature. Checked
+    against the whole file (one geometry-only read), not just the chunk being
+    returned, so chunking doesn't affect the verdict. OGC WFS/OAPIF services are
+    exempt — they have their own null-geometry handling in
+    ingest_data_from_ogc_service_into_postgis.
+    """
+    if Path(file_path).suffix.lower() != ".geojson":
+        return
+    geometries = gpd.read_file(file_path, columns=[])  # type: ignore[arg-type]
+    if not geometries.empty and bool(geometries.geometry.isna().all()):
+        raise ValueError(
+            f"GeoJSON file {file_path} has no valid geometries: every feature's geometry "
+            "is null. Use a .json extension if this data is meant to be tabular."
+        )
+
+
 def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.DataFrame:
     """Read a chunk of a geospatial file, handling encoding detection.
 
@@ -154,6 +171,8 @@ def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.Data
         for column in result.columns:
             if pd.api.types.is_string_dtype(result[column].dtype):
                 result[column].to_numpy()
+        if i == 0:
+            _reject_geojson_without_geometry(file_path)
         return result
     except (UnicodeDecodeError, ArrowException):
         logger.warning(
@@ -163,7 +182,10 @@ def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.Data
     # Detect encoding (mainly for shapefiles, others default to UTF-8)
     encoding = _detect_file_encoding(file_path)
     logger.warning("Detected encoding: %s", encoding)
-    return gpd.read_file(file_path, rows=rows, encoding=encoding)  # type: ignore[arg-type]
+    result = gpd.read_file(file_path, rows=rows, encoding=encoding)  # type: ignore[arg-type]
+    if i == 0:
+        _reject_geojson_without_geometry(file_path)
+    return result
 
 
 def ingest_data_from_file_into_postgis(

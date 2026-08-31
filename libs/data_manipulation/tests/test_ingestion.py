@@ -114,6 +114,76 @@ class TestReadFileEncodedTabularJson:
         assert result.empty
 
 
+class TestReadFileEncodedGeojsonNullGeometry:
+    """.geojson sources whose geometry is null on every feature must raise, not
+    silently fall back to a plain table (OGC WFS/OAPIF services keep that fallback,
+    handled elsewhere)."""
+
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_geojson_all_null_geometry_raises(self, mock_read_file: Mock) -> None:
+        mock_read_file.return_value = GeoDataFrame({"col1": [1, 2], "geometry": [None, None]})
+
+        with pytest.raises(ValueError, match="no valid geometries"):
+            _read_file_encoded("data.geojson")
+
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_geojson_with_some_geometry_does_not_raise(self, mock_read_file: Mock) -> None:
+        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [Point(0, 0), None]})
+        mock_read_file.return_value = mock_gdf
+
+        result = _read_file_encoded("data.geojson")
+
+        assert result is mock_gdf
+
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_non_geojson_all_null_geometry_does_not_raise(self, mock_read_file: Mock) -> None:
+        """Shapefile/GeoPackage/etc. keep the generic null-geometry fallback."""
+        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [None, None]})
+        mock_read_file.return_value = mock_gdf
+
+        result = _read_file_encoded("data.gpkg")
+
+        assert result is mock_gdf
+
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_geojson_empty_terminating_chunk_does_not_raise(self, mock_read_file: Mock) -> None:
+        """End-of-file signal (empty chunk) isn't treated as all-null geometry."""
+        mock_read_file.return_value = GeoDataFrame({"col1": [], "geometry": []})
+
+        result = _read_file_encoded("data.geojson", i=1)
+
+        assert result.empty
+
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_geojson_all_null_trailing_chunk_does_not_raise(self, mock_read_file: Mock) -> None:
+        """A null-geometry chunk beyond the first doesn't abort the import."""
+        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [None, None]})
+        mock_read_file.return_value = mock_gdf
+
+        result = _read_file_encoded("data.geojson", i=1)
+
+        assert result is mock_gdf
+
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    def test_geojson_geometry_only_in_later_chunk_does_not_raise(
+        self, mock_read_file: Mock
+    ) -> None:
+        """The whole-file check must see geometry even if chunk 0 itself is null."""
+
+        def read_file_side_effect(
+            file_path: str, rows: object = None, columns: object = None, **kwargs: object
+        ) -> GeoDataFrame:
+            if columns == []:
+                return GeoDataFrame({"geometry": [None, Point(0, 0)]})
+            return GeoDataFrame({"col1": [1], "geometry": [None]})
+
+        mock_read_file.side_effect = read_file_side_effect
+
+        result = _read_file_encoded("data.geojson", i=0)
+
+        assert result.to_dict("records") == [{"col1": 1, "geometry": None}]
+
+
 class TestIngestDataFromFileIntoPostgis:
     """Test cases for ingest_data_from_file_into_postgis function."""
 
@@ -153,7 +223,10 @@ class TestIngestDataFromFileIntoPostgis:
 
         result = _read_file_encoded("test.geojson")
 
-        mock_read_file.assert_called_once_with("test.geojson", rows=slice(0, CHUNK_SIZE, None))
+        # .geojson also triggers the whole-file null-geometry check
+        mock_read_file.assert_any_call("test.geojson", rows=slice(0, CHUNK_SIZE, None))
+        mock_read_file.assert_any_call("test.geojson", columns=[])
+        assert mock_read_file.call_count == 2
         assert result is mock_gdf
 
     @patch("data_manipulation.ingestion.gpd.read_file")
@@ -217,7 +290,8 @@ class TestIngestDataFromUrlIntoPostgis:
         mock_requests_get.assert_called_once_with(
             "http://example.com/data.geojson", auth=None, timeout=300
         )
-        mock_read_file.assert_called_once()
+        # .geojson also triggers the whole-file null-geometry check
+        assert mock_read_file.call_count == 2
         mock_write_data.assert_called_once_with(
             mock_gdf, "test_table", mock_engine, "public", if_exists="replace"
         )
@@ -282,10 +356,40 @@ class TestIngestDataFromUrlIntoPostgis:
         )
 
         mock_requests_get.assert_called_once()
-        mock_read_file.assert_called_once()
+        # .geojson also triggers the whole-file null-geometry check
+        assert mock_read_file.call_count == 2
         # Verify that the file was saved with the extracted filename
         call_args = mock_read_file.call_args[0][0]
         assert "data.geojson" in str(call_args)
+
+    @patch("data_manipulation.ingestion.write_data_to_postgis")
+    @patch("data_manipulation.ingestion.gpd.read_file")
+    @patch("data_manipulation.ingestion.requests.get")
+    def test_ingest_from_url_geojson_all_null_geometry_raises(
+        self,
+        mock_requests_get: Mock,
+        mock_read_file: Mock,
+        mock_write_data: Mock,
+        mock_engine: Mock,
+    ) -> None:
+        """A .geojson URL source with no valid geometry fails ingestion outright
+        instead of being silently written as a non-spatial table."""
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b"test data"
+        mock_response.headers = {}
+        mock_requests_get.return_value = mock_response
+
+        mock_gdf = GeoDataFrame({"col1": [1, 2], "geometry": [None, None]})
+        mock_read_file.return_value = mock_gdf
+
+        with pytest.raises(ValueError, match="no valid geometries"):
+            ingest_data_from_url_into_postgis(
+                "http://example.com/data.geojson", "test_table", mock_engine, "public"
+            )
+
+        mock_write_data.assert_not_called()
 
     @patch("data_manipulation.ingestion.requests.get")
     def test_ingest_from_url_http_error(
