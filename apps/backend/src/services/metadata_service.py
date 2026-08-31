@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from geonetwork import GnApi  # type: ignore[import-untyped]
+from geonetwork import GnApi
 from lxml import etree
 
 if TYPE_CHECKING:
@@ -222,7 +222,7 @@ class MetadataService:
 
             # Parse JSON response and extract UUID
             response_data: Any = response.json()
-            metadata_uuid: str = response_data.get("uuid") or response_data.get("id")  # type: ignore[assignment]
+            metadata_uuid: str = response_data.get("uuid") or response_data.get("id")
             logger.info(f"Published metadata with UUID: {metadata_uuid}")
         except Exception as e:
             logger.error(f"Failed to publish metadata: {e}", exc_info=True)

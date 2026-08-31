@@ -803,15 +803,15 @@ def _stringify_temporal_columns(df: pd.DataFrame) -> None:
     for col in df.columns:
         series = df[col]
         if pd.api.types.is_datetime64_any_dtype(series):
-            df[col] = series.astype(str)  # type: ignore[misc]
+            df[col] = series.astype(str)
         elif series.dtype == "object":
             # Sample the first non-null value to decide the column's real type;
             # an all-null column has nothing to serialize, so we skip it.
-            non_null = series.dropna()  # type: ignore[misc]
-            if not non_null.empty and isinstance(non_null.iloc[0], date):  # type: ignore[misc]
+            non_null = series.dropna()
+            if not non_null.empty and isinstance(non_null.iloc[0], date):
                 # Convert per-value (not astype) so any stray nulls survive as
                 # None instead of becoming the string "NaT"/"None".
-                df[col] = series.apply(_iso)  # type: ignore[misc]
+                df[col] = series.apply(_iso)
 
 
 def _detect_original_projection(
@@ -1165,15 +1165,15 @@ def get_staging_preview(
             is_geographic = True
 
             geometry_cols: list[str] = []
-            for col in transformed_data.columns:  # type: ignore[misc]
-                if not transformed_data[col].empty:  # type: ignore[misc]
+            for col in transformed_data.columns:
+                if not transformed_data[col].empty:
                     sample_item = transformed_data[col].iloc[0]
-                    sample: Any = sample_item  # type: ignore[misc]
+                    sample: Any = sample_item
 
                     if isinstance(sample, BaseGeometry):
-                        geometry_cols.append(col)  # type: ignore[misc]
-                    elif hasattr(sample_item, "wkt"):  # type: ignore[misc]
-                        geometry_cols.append(col)  # type: ignore[misc]
+                        geometry_cols.append(col)
+                    elif hasattr(sample_item, "wkt"):
+                        geometry_cols.append(col)
 
             logger.info(f"Found geometry columns: {geometry_cols}")
 
@@ -1211,7 +1211,7 @@ def get_staging_preview(
             geojson_data = None
 
         return StagingPreviewResponse(
-            data=data,  # type: ignore[misc]
+            data=data,
             geojson=geojson_data,
             is_geographic=is_geographic,
         )

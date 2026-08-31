@@ -409,25 +409,25 @@ class TestBuildAccessExprShape:
 
     def test_empty_group_ids_emits_only_owner_branch(self) -> None:
         expr = build_access_expr("user1", [], is_admin=False)
-        case_expr = expr.element  # type: ignore[attr-defined]
+        case_expr = expr.element
         assert len(case_expr.whens) == 1  # owner only
 
     def test_single_group_emits_owner_write_read(self) -> None:
         expr = build_access_expr("user1", ["g1"], is_admin=False)
-        case_expr = expr.element  # type: ignore[attr-defined]
+        case_expr = expr.element
         assert len(case_expr.whens) == 3  # owner + write + read
 
     def test_multiple_groups_do_not_duplicate_write_read_branches(self) -> None:
         """Regression guard: a per-id loop would emit 1 + 2*N branches and let
         READ from an early group shadow WRITE from a later one."""
         expr = build_access_expr("user1", ["g1", "g2", "g3"], is_admin=False)
-        case_expr = expr.element  # type: ignore[attr-defined]
+        case_expr = expr.element
         assert len(case_expr.whens) == 3  # still owner + write + read
 
     def test_write_branch_precedes_read_branch(self) -> None:
         """WRITE must be checked before READ so WRITE takes priority."""
         expr = build_access_expr("user1", ["g1", "g2"], is_admin=False)
-        case_expr = expr.element  # type: ignore[attr-defined]
+        case_expr = expr.element
         values = [value.value for _, value in case_expr.whens]
         assert values.index("WRITE") < values.index("READ")
 

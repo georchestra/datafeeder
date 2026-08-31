@@ -55,7 +55,7 @@ def _convert_geom_column_to_geodataframe(df: pd.DataFrame, projection: str) -> g
     logger.info("Converting 'geom' column to geometry")
     try:
         # Parse geometries from 'geom' column (supports both WKT and WKB)
-        geometries = df[DEFAULT_GEOMETRY_COLUMN].apply(_parse_geometry)
+        geometries = df[DEFAULT_GEOMETRY_COLUMN].apply(_parse_geometry)  # type: ignore
 
         # Create GeoDataFrame with geometry column
         gdf = gpd.GeoDataFrame(df, geometry=geometries, crs=projection)  # type: ignore[no-any-return]

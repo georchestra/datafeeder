@@ -129,9 +129,9 @@ def cast_column_types(
                 # "False", "0", "no" correctly become False rather than True.
                 # pandas astype(bool) treats any non-empty string as True.
                 if col.dtype == object:
-                    df[effective_name] = _parse_bool_from_strings(col)  # type: ignore[arg-type]
+                    df[effective_name] = _parse_bool_from_strings(col)
                 else:
-                    df[effective_name] = col.astype(bool)  # type: ignore[union-attr]
+                    df[effective_name] = col.astype(bool)
             elif cast_type == CastType.NUMERIC:
                 df = df.copy()
                 df[effective_name] = pd.to_numeric(df[effective_name], errors="coerce")  # pyright: ignore[reportUnknownMemberType]
@@ -140,7 +140,7 @@ def cast_column_types(
                 df[effective_name] = df[effective_name].astype(str)  # pyright: ignore[reportUnknownMemberType]
             elif cast_type == CastType.DATE:
                 df = df.copy()
-                df[effective_name] = pd.to_datetime(df[effective_name], errors="coerce")  # type: ignore[arg-type]
+                df[effective_name] = pd.to_datetime(df[effective_name], errors="coerce")
             logger.info(f"Cast column '{effective_name}' to {cast_type}")
         except Exception as e:
             logger.warning(f"Failed to cast column '{effective_name}' to {cast_type}: {e}")
