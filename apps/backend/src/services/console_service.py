@@ -87,7 +87,7 @@ class ConsoleService:
             response = httpx.get(url, timeout=5.0)
             response.raise_for_status()
             try:
-                return response.json()  # type: ignore[no-any-return]
+                return response.json()
             except ValueError as exc:
                 logger.error("Console returned invalid JSON from %s", url)
                 raise ValueError(f"Console returned invalid JSON from {url}") from exc
@@ -145,7 +145,7 @@ class ConsoleService:
         response = httpx.get(url, timeout=5.0)
         response.raise_for_status()
         try:
-            return response.json()  # type: ignore[no-any-return]
+            return response.json()
         except ValueError as exc:
             logger.error("Console returned invalid JSON from %s", url)
             raise ValueError(f"Console returned invalid JSON from {url}") from exc
