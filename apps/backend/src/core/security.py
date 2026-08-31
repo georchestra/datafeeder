@@ -23,7 +23,7 @@ ALGORITHM = "HS256"
 def create_access_token(subject: str | Any, expires_delta: timedelta) -> str:
     expire = datetime.now(timezone.utc) + expires_delta
     to_encode = {"exp": expire, "sub": str(subject)}
-    encoded_jwt = jwt.encode(to_encode, get_settings().SECRET_KEY, algorithm=ALGORITHM)  # type: ignore[arg-type]
+    encoded_jwt = jwt.encode(to_encode, get_settings().SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
@@ -79,7 +79,7 @@ def build_access_expr(
         return literal(EffectiveAccess.ADMIN.value).label("access_level")  # type: ignore[return-value]
 
     conditions: list[tuple[Any, str]] = [
-        (IntegrityLink.integrity_owner == username, EffectiveAccess.OWNER.value),  # type: ignore[arg-type]
+        (IntegrityLink.integrity_owner == username, EffectiveAccess.OWNER.value),
     ]
 
     if group_ids:
@@ -130,9 +130,7 @@ def compute_effective_access(
     """
     access_expr = build_access_expr(geo_ctx.username, group_ids, geo_ctx.is_administrator())
     result = session.exec(
-        select(access_expr)
-        .select_from(IntegrityLink)  # type: ignore[arg-type]
-        .where(IntegrityLink.id == integrity_link.id)
+        select(access_expr).select_from(IntegrityLink).where(IntegrityLink.id == integrity_link.id)
     ).first()
 
     if result is None:
@@ -150,7 +148,7 @@ def visibility_condition(username: str, group_ids: list[str]) -> Any:
     if group_ids:
         conditions.append(
             exists(
-                select(IntegrityLinkRule.id).where(  # type: ignore[reportArgumentType]
+                select(IntegrityLinkRule.id).where(
                     IntegrityLinkRule.integrity_link_id == IntegrityLink.id,
                     IntegrityLinkRule.rule_type == RuleType.METADATA,
                     IntegrityLinkRule.group_or_role.in_(group_ids),  # type: ignore[attr-defined]
