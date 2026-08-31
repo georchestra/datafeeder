@@ -307,12 +307,14 @@ class MetadataService:
             group_id,
         )
 
-    def resolve_group_id_from_link(self, integrity_link: IntegrityLink) -> tuple[int| None, int| None]:
-        username=integrity_link.integrity_owner
-        group_name=integrity_link.integrity_organization
+    def resolve_group_id_from_link(
+        self, integrity_link: IntegrityLink
+    ) -> tuple[int | None, int | None]:
+        username = integrity_link.integrity_owner
+        group_name = integrity_link.integrity_organization
         return self.resolve_group_id(username, group_name)
 
-    def resolve_group_id(self, username: str, group_name: str) -> tuple[int| None, int| None] :
+    def resolve_group_id(self, username: str, group_name: str) -> tuple[int | None, int | None]:
         # 1. Find user ID by username
         session = self.gn_api.session
         resp = session.get(f"{self.gn_api.api_url}/users")
@@ -683,11 +685,8 @@ class MetadataService:
                 "resourceType": {
                     "terms": {
                         "field": "resourceType",
-                        "exclude": [
-                            "theme",
-                            "place"
-                        ],
-                        "missing": "other"
+                        "exclude": ["theme", "place"],
+                        "missing": "other",
                     }
                 }
             },
@@ -697,7 +696,7 @@ class MetadataService:
                         {
                             "query_string": {
                                 "default_operator": "AND",
-                                "query": f'(isTemplate:"y") AND ({group_owner_clause})'
+                                "query": f'(isTemplate:"y") AND ({group_owner_clause})',
                             }
                         }
                     ]
@@ -722,11 +721,11 @@ class MetadataService:
                     "changeDate",
                     "documentStandard",
                     "mdStatus*",
-                    "*inspire*"
+                    "*inspire*",
                 ]
             },
             "from": 0,
-            "size": 1000
+            "size": 1000,
         }
         resp = self.gn_api.search(req)
 
