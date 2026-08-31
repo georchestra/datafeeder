@@ -55,8 +55,10 @@ nav:
             - technical_guides/installation/index.md
             - technical_guides/installation/prerequisites.md
             - technical_guides/installation/quickstart.md
+            - technical_guides/installation/kubernetes.md
         - Configuration:
             - technical_guides/configuration/index.md
+            - technical_guides/configuration/databases.md
             - technical_guides/configuration/backend.md
             - technical_guides/configuration/elt.md
             - technical_guides/configuration/frontend.md
