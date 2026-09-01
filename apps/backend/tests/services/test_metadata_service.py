@@ -1084,15 +1084,18 @@ class TestGenerateMetadataKeywords:
 class TestGenerateWithTemplateFromUserGroups:
     """Test _get_template_uuid() with mocked GeoNetwork calls."""
 
-    @patch("src.services.metadata_service.GnApi")
-    def test_template_uuid_retrieved_from_groups(self, mock_gn_api: MagicMock) -> None:
+    def mock_gn_search_to_return_19_6(self, mock_gn_api: MagicMock) -> (MetadataService, MagicMock):
         mock_api = MagicMock()
         with open("tests/services/gn_resp/search_for_template.json") as data_file:
             mock_api.search.return_value = json.load(data_file)
         mock_api.session = MagicMock()
         mock_gn_api.return_value = mock_api
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
-        service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
+        return MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir)), mock_api
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_template_uuid_retrieved_from_groups(self, mock_gn_api: MagicMock) -> None:
+        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api)
 
         uuids = service.get_templates_uuid([3, 6, 19])
 
