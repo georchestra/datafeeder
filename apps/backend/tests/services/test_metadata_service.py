@@ -1149,13 +1149,13 @@ class TestResolveGroupFromLink:
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
         service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
 
-        group_id = service.resolve_group_id(
-            IntegrityLink(
-                integrity_owner="C2CMangeat",
-                integrity_organization="Zug",
-                source_import_type=ImportType.URL,
-            )
-        )[1]
+        link = IntegrityLink(
+            integrity_owner="C2CMangeat",
+            integrity_organization="Zug",
+            source_import_type=ImportType.URL,
+        )
+        user_id = service.resolve_user_id(link)
+        group_id = service.resolve_group_id(link, user_id)
 
         assert group_id == 5
 
@@ -1184,12 +1184,12 @@ class TestResolveGroupFromLink:
         service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
 
         service.org_based_sync = False
-        group_id = service.resolve_group_id(
-            IntegrityLink(
-                integrity_owner="C2CMangeat",
-                integrity_organization="Zug",
-                source_import_type=ImportType.URL,
-            )
-        )[1]
+        link = IntegrityLink(
+            integrity_owner="C2CMangeat",
+            integrity_organization="Zug",
+            source_import_type=ImportType.URL,
+        )
+        user_id = service.resolve_user_id(link)
+        group_id = service.resolve_group_id(link, user_id)
 
         assert group_id == 42
