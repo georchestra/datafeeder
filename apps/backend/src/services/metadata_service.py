@@ -274,7 +274,6 @@ class MetadataService:
                 and whose owner/organization identify the GeoNetwork user and group
         """
 
-        session = self.gn_api.session
         metadata_uuid = str(integrity_link.id)
         user_name = integrity_link.integrity_owner
 
@@ -296,7 +295,7 @@ class MetadataService:
             return
 
         # 3. Set ownership
-        resp = session.put(
+        resp = self.gn_api.session.put(
             f"{self.gn_api.api_url}/records/{metadata_uuid}/ownership",
             params={"groupIdentifier": group_id, "userIdentifier": user_id},
         )
@@ -314,8 +313,7 @@ class MetadataService:
         group_name = integrity_link.integrity_organization
 
         # 1. Find user ID by username
-        session = self.gn_api.session
-        resp = session.get(f"{self.gn_api.api_url}/users")
+        resp = self.gn_api.session.get(f"{self.gn_api.api_url}/users")
         resp.raise_for_status()
         users = resp.json()
         user_id = next((u["id"] for u in users if u["username"] == username), None)
@@ -325,16 +323,15 @@ class MetadataService:
 
         # 2. Resolve group ID based on sync strategy
         if self.org_based_sync:
-            group_id = self._resolve_group_by_org_name(session, group_name)
+            group_id = self._resolve_group_by_org_name(group_name)
         else:
-            group_id = self._resolve_group_from_user(session, user_id)
+            group_id = self._resolve_group_from_user(user_id)
         return user_id, group_id
 
-    def _resolve_group_by_org_name(self, session: Any, group_name: str) -> int | None:
+    def _resolve_group_by_org_name(self, group_name: str) -> int | None:
         """Resolve a GeoNetwork group ID by matching organization name.
 
         Args:
-            session: Authenticated HTTP session
             group_name: Organization/group name to look up (case-insensitive)
 
         Returns:
@@ -344,7 +341,7 @@ class MetadataService:
             "Resolving group by organization name '%s' (org-based sync)",
             group_name,
         )
-        resp = session.get(f"{self.gn_api.api_url}/groups")
+        resp = self.gn_api.session.get(f"{self.gn_api.api_url}/groups")
         resp.raise_for_status()
         groups = resp.json()
         return next(
@@ -352,7 +349,7 @@ class MetadataService:
             None,
         )
 
-    def _resolve_group_from_user(self, session: Any, user_id: int) -> int | None:
+    def _resolve_group_from_user(self, user_id: int) -> int | None:
         """Resolve a GeoNetwork group from the user's own memberships.
 
         Fetches the user's group memberships, filters out system groups
@@ -360,7 +357,6 @@ class MetadataService:
         Falls back to ``self.metadata_default_group_name`` via org-name lookup.
 
         Args:
-            session: Authenticated HTTP session
             user_id: GeoNetwork user ID
 
         Returns:
@@ -370,7 +366,7 @@ class MetadataService:
             "Resolving group from user %s memberships (user-groups sync)",
             user_id,
         )
-        resp = session.get(f"{self.gn_api.api_url}/users/{user_id}/groups")
+        resp = self.gn_api.session.get(f"{self.gn_api.api_url}/users/{user_id}/groups")
         resp.raise_for_status()
         memberships = resp.json()
 
@@ -386,7 +382,7 @@ class MetadataService:
             user_id,
             self.metadata_default_group_name,
         )
-        return self._resolve_group_by_org_name(session, self.metadata_default_group_name)
+        return self._resolve_group_by_org_name(self.metadata_default_group_name)
 
     @staticmethod
     def _detect_schema(root: _Element) -> str | None:
