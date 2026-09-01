@@ -12,6 +12,7 @@ from urllib.request import urlretrieve
 
 import chardet
 import geopandas as gpd
+import jq
 import pandas as pd
 import pyarrow.parquet as pq
 import requests
@@ -97,6 +98,45 @@ def _detect_file_encoding(file_path: str) -> str:
     return encoding or "utf-8"
 
 
+# Not yet user-configurable; the seam a future editable jq filter plugs into.
+DEFAULT_JQ_FILTER = "."
+
+
+def _apply_jq_filter(text: str, filter_expr: str = DEFAULT_JQ_FILTER) -> object:
+    """Run a jq filter against raw JSON text, returning the filtered Python value."""
+    return jq.compile(filter_expr).input_text(text).first()
+
+
+def _read_tabular_json(file_path: str) -> pd.DataFrame:
+    """Read a plain (non-GeoJSON) JSON file as a flat table: a list becomes rows,
+    a single object becomes one row."""
+    with open(file_path, encoding="utf-8") as f:
+        data = _apply_jq_filter(f.read())
+
+    if isinstance(data, list):
+        return pd.DataFrame(data)
+    if isinstance(data, dict):
+        return pd.DataFrame([data])
+    raise ValueError(f"Unsupported JSON structure in {file_path}: expected an array or object")
+
+
+def _reject_geojson_without_geometry(file_path: str) -> None:
+    """Raise if a .geojson source has a null geometry on every feature. Checked
+    against the whole file (one geometry-only read), not just the chunk being
+    returned, so chunking doesn't affect the verdict. OGC WFS/OAPIF services are
+    exempt — they have their own null-geometry handling in
+    ingest_data_from_ogc_service_into_postgis.
+    """
+    if Path(file_path).suffix.lower() != ".geojson":
+        return
+    geometries = gpd.read_file(file_path, columns=[])  # type: ignore[arg-type]
+    if not geometries.empty and bool(geometries.geometry.isna().all()):
+        raise ValueError(
+            f"GeoJSON file {file_path} has no valid geometries: every feature's geometry "
+            "is null. Use a .json extension if this data is meant to be tabular."
+        )
+
+
 def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.DataFrame:
     """Read a chunk of a geospatial file, handling encoding detection.
 
@@ -123,6 +163,13 @@ def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.Data
         except ValueError:
             return pd.read_parquet(ds.fragments[i].path)
 
+    # Not row-sliceable like a geospatial driver: read fully on the first chunk,
+    # same pattern as the Parquet branch above.
+    if Path(file_path).suffix.lower() == ".json":
+        if i > 0:
+            return pd.DataFrame()
+        return _read_tabular_json(file_path)
+
     try:
         # Try reading with UTF-8 first (common default)
         result = gpd.read_file(file_path, rows=rows)  # type: ignore[arg-type]
@@ -133,6 +180,8 @@ def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.Data
         for column in result.columns:
             if pd.api.types.is_string_dtype(result[column].dtype):
                 result[column].to_numpy()
+        if i == 0:
+            _reject_geojson_without_geometry(file_path)
         return result
     except (UnicodeDecodeError, ArrowException):
         logger.warning(
@@ -142,7 +191,10 @@ def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.Data
     # Detect encoding (mainly for shapefiles, others default to UTF-8)
     encoding = _detect_file_encoding(file_path)
     logger.warning("Detected encoding: %s", encoding)
-    return gpd.read_file(file_path, rows=rows, encoding=encoding)  # type: ignore[arg-type]
+    result = gpd.read_file(file_path, rows=rows, encoding=encoding)  # type: ignore[arg-type]
+    if i == 0:
+        _reject_geojson_without_geometry(file_path)
+    return result
 
 
 def ingest_data_from_file_into_postgis(
@@ -728,6 +780,17 @@ def write_data_to_postgis(
 
             # Write data to PostGIS as a regular table
             data.to_sql(table_name, engine, if_exists=if_exists, schema=schema, index=False)
+        elif data.active_geometry_name is not None and bool(
+            data[data.active_geometry_name].isna().all()
+        ):
+            # to_postgis() can't infer a geometry type with zero non-null geometries
+            # (e.g. a GeoJSON FeatureCollection with "geometry": null everywhere).
+            logger.info(
+                f"Active geometry column '{data.active_geometry_name}' has no non-null "
+                "geometries; writing as a plain table."
+            )
+            plain_data = pd.DataFrame(data.drop(columns=[data.active_geometry_name]))
+            plain_data.to_sql(table_name, engine, if_exists=if_exists, schema=schema, index=False)
         else:  # GeoDataFrame
             # Ensure the geometry column is named 'geom' for PostGIS convention
             if data.active_geometry_name is None:

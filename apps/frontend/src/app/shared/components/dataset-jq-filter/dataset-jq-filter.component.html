@@ -1,0 +1,10 @@
+@if (metadata()?.file_type === 'json') {
+<div class="p-6">
+  <h2 class="text-lg font-medium text-gray-900 mb-2">
+    {{ 'import.configuration.jqFilter' | translate }}
+  </h2>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+    <textarea matInput [value]="defaultFilter" rows="3" disabled></textarea>
+  </mat-form-field>
+</div>
+}

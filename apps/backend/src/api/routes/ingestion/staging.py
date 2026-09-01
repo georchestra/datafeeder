@@ -14,7 +14,7 @@ from data_manipulation import (
     detect_column_type_from_sqla,
     read_and_transform_data,
 )
-from data_manipulation.constants import DB_URI_PREFIX
+from data_manipulation.constants import DB_URI_PREFIX, DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.database import schema_exists, table_exists
 from data_manipulation.ingestion import read_data_from_postgis
 from data_manipulation.logging import configure_logging
@@ -927,6 +927,12 @@ def get_staging_metadata(
         MetaData(schema=schema),
         autoload_with=data_engine,
     )
+    if source_file_type in (FileType.JSON, FileType.GEOJSON):
+        # The extension-based guess made at submission time can be wrong for these
+        # two: a .geojson source with no real geometry (e.g. an OGC Features
+        # service that always emits GeoJSON) reads as a plain table, and vice
+        # versa. Report what the staging table actually turned out to be.
+        source_file_type = FileType.GEOJSON if DEFAULT_GEOMETRY_COLUMN in table.c else FileType.JSON
     row_count = data_session.scalar(select(func.count()).select_from(table)) or 0
     original_projection = _detect_original_projection(
         staging_table_name,

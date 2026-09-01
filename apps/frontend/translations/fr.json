@@ -218,6 +218,7 @@
   "import.columnHeader.error.empty": "Le nom de la colonne ne peut pas être vide.",
   "import.configuration.datasetTitle": "Titre du jeu de données",
   "import.configuration.datasetTitlePlaceholder": "Entrez un titre pour votre jeu de données",
+  "import.configuration.jqFilter": "Filtre JQ",
   "import.configuration.loading": "Chargement des données...",
   "import.configuration.maxLengthTitle": "255 caractères maximum",
   "import.configuration.minLengthTitle": "3 caractères minimum",

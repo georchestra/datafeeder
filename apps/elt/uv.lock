@@ -608,6 +608,7 @@ dependencies = [
     { name = "geoalchemy2" },
     { name = "geopandas" },
     { name = "geoservercloud" },
+    { name = "jq" },
     { name = "pyarrow" },
     { name = "pydantic" },
     { name = "sqlalchemy" },
@@ -627,6 +628,7 @@ requires-dist = [
     { name = "geoalchemy2", specifier = "==0.19.0" },
     { name = "geopandas", specifier = "==1.1.3" },
     { name = "geoservercloud", git = "https://github.com/camptocamp/python-geoservercloud.git" },
+    { name = "jq", specifier = ">=1.12.0" },
     { name = "pyarrow", specifier = "==24.0.0" },
     { name = "pydantic", specifier = "==2.13.4" },
     { name = "sqlalchemy", specifier = "==2.0.49" },
@@ -1131,6 +1133,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d3/59/322338183ecda247fb5d1763a6cbe46eff7222eaeebafd9fa65d4bf5cb11/jmespath-1.1.0.tar.gz", hash = "sha256:472c87d80f36026ae83c6ddd0f1d05d4e510134ed462851fd5f754c8c3cbb88d", size = 27377, upload-time = "2026-01-22T16:35:26.279Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl", hash = "sha256:a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64", size = 20419, upload-time = "2026-01-22T16:35:24.919Z" },
+]
+
+[[package]]
+name = "jq"
+version = "1.12.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/95/ec/3da01457bbd3c6a2fc8fea6736c0b657ffc628e3decbfb1fafcf33dc7dbe/jq-1.12.0.tar.gz", hash = "sha256:729b2d3418c8ca7dccfaa66b9fb7a98bec28474212650d27c5c04358ce26f55c", size = 1965902, upload-time = "2026-07-10T12:36:39.214Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/4b/4c7510b06e2f1b59cb83b9cef71a756e4ae7cc868309be3a55a43fb64ffa/jq-1.12.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:4df3d3feb9d9f2526416261c56a46808c07987283dbb3d272f0941839b9154a7", size = 416281, upload-time = "2026-07-10T12:35:21.807Z" },
+    { url = "https://files.pythonhosted.org/packages/38/10/19f037f1ff857e0398c0548803ce09dc9dd962978b83d7afeb25a6008986/jq-1.12.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:39cb15398a13c604051848c60598f1367f7dbb34c336ec495a5bd804429c9801", size = 424919, upload-time = "2026-07-10T12:35:23.475Z" },
+    { url = "https://files.pythonhosted.org/packages/8a/f3/3982e172926699eb6c5d30d7004ee6cf922837c16adba9327d3321e88255/jq-1.12.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:860d71c12ae8ce3bd5210193e7ca2acf19d521bb0c2d8fddd3e7571fa66c4ada", size = 757286, upload-time = "2026-07-10T12:35:24.868Z" },
+    { url = "https://files.pythonhosted.org/packages/ec/50/90f9c6f54a5e87e388b1837171be7c6ddd9d02be6eed4df5b2281d6f83ee/jq-1.12.0-cp312-cp312-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:59aeba4ce1a5b1a012025277d8266c769044cb33f0b1a1b6354bf5ee2987c408", size = 776143, upload-time = "2026-07-10T12:35:27.051Z" },
+    { url = "https://files.pythonhosted.org/packages/3d/e9/9e53b968add6455cd19acb5a01abdba6f06ee6dd8c3c45dd907ad1da7542/jq-1.12.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:73d91b05f83ad61e9af9b09588fb959742ca096d4c696b2685fd9daa716ed0b0", size = 744439, upload-time = "2026-07-10T12:35:28.893Z" },
+    { url = "https://files.pythonhosted.org/packages/45/51/75fb4883151152cc09a98091f2c4b0ec1e39686ab90a4a7453d0531bfb22/jq-1.12.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:46cbcb69732dcbe582b8af2bf24f8982dd063c21319285db38c1a1948c540dac", size = 770644, upload-time = "2026-07-10T12:35:30.534Z" },
+    { url = "https://files.pythonhosted.org/packages/05/c1/026afa899f3f5b475a2f715640c70f54323c8ac5f1964bff1e6d5f75cd8b/jq-1.12.0-cp312-cp312-win_amd64.whl", hash = "sha256:b0920d06c7f115fc7ce461f246a58a2dd7594ac491f214974ab3e5b367ea70da", size = 412137, upload-time = "2026-07-10T12:35:32.069Z" },
 ]
 
 [[package]]
