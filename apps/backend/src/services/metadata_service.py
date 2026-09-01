@@ -286,7 +286,7 @@ class MetadataService:
             )
             return
 
-        group_id = self.resolve_group_id(integrity_link, user_id)
+        group_id = self.resolve_group_id(integrity_link, user_id)[0]
 
         if group_id is None:
             logger.warning(
@@ -341,10 +341,12 @@ class MetadataService:
         resp = self.gn_api.session.get(f"{self.gn_api.api_url}/groups")
         resp.raise_for_status()
         groups = resp.json()
-        return next(
-            (g["id"] for g in groups if g["name"].lower() == group_name.lower()),
-            None,
-        )
+        return [
+            next(
+                (g["id"] for g in groups if g["name"].lower() == group_name.lower()),
+                None,
+            )
+        ]
 
     def _resolve_group_from_user(self, user_id: int) -> int | None:
         """Resolve a GeoNetwork group from the user's own memberships.
@@ -371,7 +373,7 @@ class MetadataService:
         non_system = [g["id"]["groupId"] for g in memberships if g["id"]["groupId"] > 2]
 
         if non_system:
-            return non_system[0]
+            return non_system
 
         # Fallback: resolve by default group name
         logger.info(
