@@ -89,11 +89,7 @@ def create_empty_dataset(
 
     # Ownership — soft failure
     try:
-        metadata_service.set_record_ownership(
-            metadata_uuid=str(integrity_link.id),
-            username=integrity_link.integrity_owner,
-            group_name=integrity_link.integrity_organization,
-        )
+        metadata_service.set_record_ownership(integrity_link)
     except Exception as e:
         logger.warning("Failed to set metadata ownership for %s: %s", integrity_link.id, e)
 
