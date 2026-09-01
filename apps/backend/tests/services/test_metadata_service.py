@@ -1097,10 +1097,12 @@ class TestGenerateWithTemplateFromUserGroups:
         uuids = service.get_templates_uuid([3, 6, 19])
 
         assert uuids == {
-            "19": ["ec39075b-f252-45f2-9760-cf067944555e"],
+            "19": [
+                {"uuid": "ec39075b-f252-45f2-9760-cf067944555e", "schema": "iso19115-3.2018.che"},
+            ],
             "6": [
-                "4a147cdd-b7f7-43e9-a6f6-750293287c84",
-                "5c46a628-e187-4569-ba8b-834c2817d6e2",
+                {"uuid": "4a147cdd-b7f7-43e9-a6f6-750293287c84", "schema": "iso19115-3.2018.che"},
+                {"uuid": "5c46a628-e187-4569-ba8b-834c2817d6e2", "schema": "iso19115-3.2018.che"},
             ],
         }
         assert (
