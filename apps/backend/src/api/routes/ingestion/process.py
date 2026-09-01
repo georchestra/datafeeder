@@ -246,11 +246,7 @@ def process_staging_data(
 
         # Ownership assignment — soft failure (non-critical)
         try:
-            metadata_service.set_record_ownership(
-                metadata_uuid=str(integrity_link.id),
-                username=integrity_link.integrity_owner,
-                group_name=integrity_link.integrity_organization,
-            )
+            metadata_service.set_record_ownership(integrity_link)
         except Exception as ownership_error:
             logger.warning(
                 "Failed to set metadata ownership for IntegrityLink %s: %s",

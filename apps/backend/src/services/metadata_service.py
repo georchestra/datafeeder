@@ -261,34 +261,36 @@ class MetadataService:
         )
         return self.publish_metadata(metadata_xml)
 
-    def set_record_ownership(self, metadata_uuid: str, username: str, group_name: str) -> None:
+    def set_record_ownership(self, integrity_link: IntegrityLink) -> None:
         """Set ownership of a GeoNetwork metadata record.
 
         Resolves user and group IDs, then sets ownership via GeoNetwork API.
         Group resolution strategy depends on ``self.org_based_sync``:
-        - True  → match *group_name* against all GN groups (org-based sync)
+        - True  → match *integrity_link.integrity_organization* against all GN groups (org-based sync)
         - False → use the user's own GN group memberships, with fallback
 
         Args:
-            metadata_uuid: UUID of the published metadata record
-            username: Owner username to match in GeoNetwork
-            group_name: Group name to match in GeoNetwork (used only when org_based_sync=True)
+            integrity_link: IntegrityLink record whose id is the published metadata UUID,
+                and whose owner/organization identify the GeoNetwork user and group
         """
-        session = self.gn_api.session
 
-        user_id, group_id = self.resolve_group_id(username, group_name)
+        session = self.gn_api.session
+        metadata_uuid = str(integrity_link.id)
+        user_name = integrity_link.integrity_owner
+
+        user_id, group_id = self.resolve_group_id(integrity_link)
 
         if user_id is None:
             logger.warning(
                 "Cannot set ownership: user '%s' not found in GeoNetwork",
-                username,
+                user_name,
             )
             return
 
         if group_id is None:
             logger.warning(
                 "Cannot set ownership: no group resolved for user '%s' (strategy=%s)",
-                username,
+                user_name,
                 "org-based" if self.org_based_sync else "user-groups",
             )
             return
@@ -302,19 +304,15 @@ class MetadataService:
         logger.info(
             "Set metadata %s ownership to user=%s (id=%s), group_id=%s",
             metadata_uuid,
-            username,
+            user_name,
             user_id,
             group_id,
         )
 
-    def resolve_group_id_from_link(
-        self, integrity_link: IntegrityLink
-    ) -> tuple[int | None, int | None]:
+    def resolve_group_id(self, integrity_link: IntegrityLink) -> tuple[int | None, int | None]:
         username = integrity_link.integrity_owner
         group_name = integrity_link.integrity_organization
-        return self.resolve_group_id(username, group_name)
 
-    def resolve_group_id(self, username: str, group_name: str) -> tuple[int | None, int | None]:
         # 1. Find user ID by username
         session = self.gn_api.session
         resp = session.get(f"{self.gn_api.api_url}/users")

@@ -183,11 +183,18 @@ class TestMetadataService:
             datadir_path="/test/datadir",
         )
 
-        service.set_record_ownership("some-uuid", "testuser", "test org")
+        metadata_uuid = uuid4()
+        integrity_link = IntegrityLink(
+            id=metadata_uuid,
+            integrity_owner="testuser",
+            integrity_organization="test org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         # Verify the PUT call with correct IDs
         mock_session.put.assert_called_once_with(
-            "http://test/api/records/some-uuid/ownership",
+            f"http://test/api/records/{metadata_uuid}/ownership",
             params={"groupIdentifier": 20, "userIdentifier": 42},
         )
 
@@ -214,7 +221,13 @@ class TestMetadataService:
         )
 
         # Should not raise, just warn and skip
-        service.set_record_ownership("some-uuid", "unknown_user", "Test Org")
+        integrity_link = IntegrityLink(
+            id=uuid4(),
+            integrity_owner="unknown_user",
+            integrity_organization="Test Org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         # PUT should never be called
         mock_session.put.assert_not_called()
@@ -241,7 +254,13 @@ class TestMetadataService:
             datadir_path="/test/datadir",
         )
 
-        service.set_record_ownership("some-uuid", "testuser", "Missing Org")
+        integrity_link = IntegrityLink(
+            id=uuid4(),
+            integrity_owner="testuser",
+            integrity_organization="Missing Org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         mock_session.put.assert_not_called()
 
@@ -277,11 +296,18 @@ class TestMetadataService:
             gn_sync_mode="ROLE",
         )
 
-        # group_name param is ignored in user-groups mode
-        service.set_record_ownership("some-uuid", "testuser", "Ignored Org")
+        # organization param is ignored in user-groups mode
+        metadata_uuid = uuid4()
+        integrity_link = IntegrityLink(
+            id=metadata_uuid,
+            integrity_owner="testuser",
+            integrity_organization="Ignored Org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         mock_session.put.assert_called_once_with(
-            "http://test/api/records/some-uuid/ownership",
+            f"http://test/api/records/{metadata_uuid}/ownership",
             params={"groupIdentifier": 15, "userIdentifier": 42},
         )
 
@@ -324,11 +350,18 @@ class TestMetadataService:
             metadata_default_group_name="sample",
         )
 
-        service.set_record_ownership("some-uuid", "testuser", "Ignored Org")
+        metadata_uuid = uuid4()
+        integrity_link = IntegrityLink(
+            id=metadata_uuid,
+            integrity_owner="testuser",
+            integrity_organization="Ignored Org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         # Should fall back to "sample" group (id=10)
         mock_session.put.assert_called_once_with(
-            "http://test/api/records/some-uuid/ownership",
+            f"http://test/api/records/{metadata_uuid}/ownership",
             params={"groupIdentifier": 10, "userIdentifier": 42},
         )
 
@@ -528,7 +561,13 @@ class TestMetadataService:
             metadata_default_group_name="nonexistent",
         )
 
-        service.set_record_ownership("some-uuid", "testuser", "Ignored Org")
+        integrity_link = IntegrityLink(
+            id=uuid4(),
+            integrity_owner="testuser",
+            integrity_organization="Ignored Org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         mock_session.put.assert_not_called()
 
@@ -1106,7 +1145,7 @@ class TestResolveGroupFromLink:
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
         service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
 
-        group_id = service.resolve_group_id_from_link(
+        group_id = service.resolve_group_id(
             IntegrityLink(
                 integrity_owner="C2CMangeat",
                 integrity_organization="Zug",
@@ -1141,7 +1180,7 @@ class TestResolveGroupFromLink:
         service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
 
         service.org_based_sync = False
-        group_id = service.resolve_group_id_from_link(
+        group_id = service.resolve_group_id(
             IntegrityLink(
                 integrity_owner="C2CMangeat",
                 integrity_organization="Zug",
