@@ -1094,16 +1094,18 @@ class TestGenerateWithTemplateFromUserGroups:
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
         service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
 
-        uuids = service.get_templates_uuid([6, 19])
+        uuids = service.get_templates_uuid([3, 6, 19])
 
-        assert uuids == [
-            "ec39075b-f252-45f2-9760-cf067944555e",
-            "4a147cdd-b7f7-43e9-a6f6-750293287c84",
-            "5c46a628-e187-4569-ba8b-834c2817d6e2",
-        ]
+        assert uuids == {
+            "19": ["ec39075b-f252-45f2-9760-cf067944555e"],
+            "6": [
+                "4a147cdd-b7f7-43e9-a6f6-750293287c84",
+                "5c46a628-e187-4569-ba8b-834c2817d6e2",
+            ],
+        }
         assert (
             mock_api.search.call_args[0][0]["query"]["bool"]["must"][0]["query_string"]["query"]
-            == '(isTemplate:"y") AND (groupOwner:"6" OR groupOwner:"19")'
+            == '(isTemplate:"y") AND (groupOwner:"3" OR groupOwner:"6" OR groupOwner:"19")'
         )
 
         uuids = service.get_templates_uuid([7, 11])
