@@ -701,7 +701,7 @@ class MetadataService:
             )
         return templates_by_group_owner
 
-    def choose_group_and_template(self, groups_id: list[int]) -> tuple[int, str] | None:
+    def choose_group_and_template(self, groups_id: list[int]) -> tuple[int, str | None]:
         templates_by_group_owner = self.get_templates_uuid(groups_id)
         if len(templates_by_group_owner) == 0:
             return sorted(groups_id)[0], None

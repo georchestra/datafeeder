@@ -1,6 +1,8 @@
 import json
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -1085,8 +1087,8 @@ class TestGenerateWithTemplateFromUserGroups:
     """Test _get_template_uuid() with mocked GeoNetwork calls."""
 
     def mock_gn_search_to_return_19_6(
-        self, mock_gn_api: MagicMock, rework_response
-    ) -> (MetadataService, MagicMock):
+        self, mock_gn_api: MagicMock, rework_response: Callable[[dict[Any, Any]], dict[Any, Any]]
+    ) -> tuple[MetadataService, MagicMock]:
         mock_api = MagicMock()
         with open("tests/services/gn_resp/search_for_template.json") as data_file:
             mock_api.search.return_value = rework_response(json.load(data_file))
@@ -1131,7 +1133,10 @@ class TestGenerateWithTemplateFromUserGroups:
 
     @patch("src.services.metadata_service.GnApi")
     def test_choose_group_and_template(self, mock_gn_api: MagicMock) -> None:
-        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, lambda data: data)
+        def identity(data: Any) -> Any:
+            return data
+
+        service = self.mock_gn_search_to_return_19_6(mock_gn_api, identity)[0]
 
         group, template = service.choose_group_and_template([3, 6, 19])
 
@@ -1140,11 +1145,11 @@ class TestGenerateWithTemplateFromUserGroups:
 
     @patch("src.services.metadata_service.GnApi")
     def test_choose_group_and_template_2(self, mock_gn_api: MagicMock) -> None:
-        def remove_last_two_hits(data: dict) -> dict:
+        def remove_last_two_hits(data: Any) -> Any:
             data["hits"]["hits"] = data["hits"]["hits"][:-2]
             return data
 
-        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, remove_last_two_hits)
+        service = self.mock_gn_search_to_return_19_6(mock_gn_api, remove_last_two_hits)[0]
 
         group, template = service.choose_group_and_template([3, 19])
 
@@ -1153,21 +1158,21 @@ class TestGenerateWithTemplateFromUserGroups:
 
     @patch("src.services.metadata_service.GnApi")
     def test_choose_group_and_template_3(self, mock_gn_api: MagicMock) -> None:
-        def empty_hits(data: dict) -> dict:
+        def empty_hits(data: Any) -> Any:
             data["hits"]["hits"] = []
             return data
 
-        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, empty_hits)
+        service = self.mock_gn_search_to_return_19_6(mock_gn_api, empty_hits)[0]
 
         group, template = service.choose_group_and_template([3])
 
         assert group == 3
-        assert template == None
+        assert template is None
 
         group, template = service.choose_group_and_template([11, 3])
 
         assert group == 3
-        assert template == None
+        assert template is None
 
 
 class TestResolveGroupFromLink:
