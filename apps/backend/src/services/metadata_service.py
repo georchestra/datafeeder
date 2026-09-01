@@ -675,7 +675,7 @@ class MetadataService:
             )
             raise
 
-    def get_templates_uuid(self, groups_id: list[int]) -> dict[str, list[str]]:
+    def get_templates_uuid(self, groups_id: list[int]) -> dict[str, list[dict[str, str]]]:
         group_owner_clause = " OR ".join(f'groupOwner:"{group_id}"' for group_id in groups_id)
         req = {
             "query": {
@@ -694,8 +694,13 @@ class MetadataService:
             "size": 1000,
         }
         resp = self.gn_api.search(req)
-        uuids_by_group_owner: dict[str, list[str]] = {}
+        templates_by_group_owner: dict[str, list[dict[str, str]]] = {}
         for md in resp["hits"]["hits"]:
             group_owner = md["_source"]["groupOwner"]
-            uuids_by_group_owner.setdefault(group_owner, []).append(md["_id"])
-        return uuids_by_group_owner
+            templates_by_group_owner.setdefault(group_owner, []).append(
+                {
+                    "uuid": md["_id"],
+                    "schema": md["_source"]["documentStandard"],
+                }
+            )
+        return templates_by_group_owner
