@@ -1174,6 +1174,116 @@ class TestGenerateWithTemplateFromUserGroups:
         assert group == 3
         assert template is None
 
+    @patch("src.services.metadata_service.GnApi")
+    def test_generate_with_template_from_gn(self, mock_gn_api: MagicMock) -> None:
+        def identity(data: Any) -> Any:
+            return data
+
+        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, identity)
+
+        def side_effect_func(value: str):
+            if value.endswith("users"):
+                with open("tests/services/gn_resp/list_users.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+            else:
+                with open("tests/services/gn_resp/user_detail.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+
+        mock_api.session.get = MagicMock(side_effect=side_effect_func)
+
+        with open("tests/services/gn_resp/template_bytes.xml", "rb") as data_file:
+            mock_api.get_metadataxml.return_value = data_file.read()
+
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="My Dataset",
+            integrity_owner="C2CMangeat",
+            integrity_organization="Org",
+            staging_table_name="stg",
+            created_at=datetime.now(timezone.utc),
+            last_retrieval_timestamp=datetime.now(timezone.utc),
+            source_import_type=ImportType.URL,
+        )
+
+        service.org_based_sync = False
+        xml_str = service.generate_metadata(link)
+
+        root = etree.fromstring(xml_str.encode())
+        locale = root.xpath("//lan:PT_Locale", namespaces=NS_19115_3)
+        assert locale[0].attrib["id"] == "DE"
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_generate_with_default_template_1(self, mock_gn_api: MagicMock) -> None:
+        def identity(data: Any) -> Any:
+            return data
+
+        service = self.mock_gn_search_to_return_19_6(mock_gn_api, identity)[0]
+
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="My Dataset",
+            integrity_owner="unknown",
+            integrity_organization="Org",
+            staging_table_name="stg",
+            created_at=datetime.now(timezone.utc),
+            last_retrieval_timestamp=datetime.now(timezone.utc),
+            source_import_type=ImportType.URL,
+        )
+
+        service.org_based_sync = False
+        xml_str = service.generate_metadata(link)
+
+        root = etree.fromstring(xml_str.encode())
+        locale = root.xpath("//lan:PT_Locale", namespaces=NS_19115_3)
+        assert locale[0].attrib["id"] == "FR"
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_generate_with_default_template_2(self, mock_gn_api: MagicMock) -> None:
+        def empty_hits(data: Any) -> Any:
+            data["hits"]["hits"] = []
+            return data
+
+        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, empty_hits)
+
+        def side_effect_func(value: str):
+            if value.endswith("users"):
+                with open("tests/services/gn_resp/list_users.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+            else:
+                with open("tests/services/gn_resp/user_detail.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+
+        mock_api.session.get = MagicMock(side_effect=side_effect_func)
+
+        with open("tests/services/gn_resp/template_bytes.xml", "rb") as data_file:
+            mock_api.get_metadataxml.return_value = data_file.read()
+
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="My Dataset",
+            integrity_owner="C2CMangeat",
+            integrity_organization="Org",
+            staging_table_name="stg",
+            created_at=datetime.now(timezone.utc),
+            last_retrieval_timestamp=datetime.now(timezone.utc),
+            source_import_type=ImportType.URL,
+        )
+
+        service.org_based_sync = False
+        xml_str = service.generate_metadata(link)
+
+        root = etree.fromstring(xml_str.encode())
+        locale = root.xpath("//lan:PT_Locale", namespaces=NS_19115_3)
+        assert locale[0].attrib["id"] == "FR"
+
 
 class TestResolveGroupFromLink:
     @patch("src.services.metadata_service.GnApi")
@@ -1242,4 +1352,4 @@ class TestResolveGroupFromLink:
         user_id = service.resolve_user_id(link)
         group_id = service.resolve_group_id(link, user_id)
 
-        assert group_id == [42, 55]
+        assert group_id == [19, 55]

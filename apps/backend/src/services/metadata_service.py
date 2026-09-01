@@ -31,6 +31,7 @@ NS_19115_3 = {
     "mri": "http://standards.iso.org/iso/19115/-3/mri/1.0",
     "cit": "http://standards.iso.org/iso/19115/-3/cit/2.0",
     "gco": "http://standards.iso.org/iso/19115/-3/gco/1.0",
+    "lan": "http://standards.iso.org/iso/19115/-3/lan/1.0",
 }
 
 NS_19139 = {
@@ -187,7 +188,17 @@ class MetadataService:
         ).text = f"Imported from staging table {integrity_link.staging_table_name}"
 
         # Apply XSLT transformation
-        xml_doc: _ElementTree = etree.parse(self.template_path)
+        user_id = self.resolve_user_id(integrity_link)
+        group_id = self.resolve_group_id(integrity_link, user_id)
+        template_uuid = self.choose_group_and_template(group_id)[1]
+        logger.info(f"Using template {template_uuid} for group {group_id}")
+
+        if template_uuid is None:
+            xml_doc: _ElementTree = etree.parse(self.template_path)
+        else:
+            resp = self.gn_api.get_metadataxml(template_uuid)
+            xml_doc: _ElementTree = etree.ElementTree(etree.fromstring(resp))
+
         root: _Element = xml_doc.getroot()
 
         # Embed props into the XML document (XSLT parameters can't be node-sets)
@@ -286,7 +297,8 @@ class MetadataService:
             )
             return
 
-        group_id = self.resolve_group_id(integrity_link, user_id)[0]
+        group_id = self.resolve_group_id(integrity_link, user_id)
+        group_id = self.choose_group_and_template(group_id)[0]
 
         if group_id is None:
             logger.warning(
@@ -318,14 +330,14 @@ class MetadataService:
             (u["id"] for u in users if u["username"] == integrity_link.integrity_owner), None
         )
 
-    def resolve_group_id(self, integrity_link: IntegrityLink, user_id) -> int | None:
-        if self.org_based_sync:
+    def resolve_group_id(self, integrity_link: IntegrityLink, user_id: int | None) -> list[int]:
+        if self.org_based_sync or user_id is None:
             group_id = self._resolve_group_by_org_name(integrity_link.integrity_organization)
         else:
             group_id = self._resolve_group_from_user(user_id)
         return group_id
 
-    def _resolve_group_by_org_name(self, group_name: str) -> int | None:
+    def _resolve_group_by_org_name(self, group_name: str) -> list[int]:
         """Resolve a GeoNetwork group ID by matching organization name.
 
         Args:
@@ -341,14 +353,9 @@ class MetadataService:
         resp = self.gn_api.session.get(f"{self.gn_api.api_url}/groups")
         resp.raise_for_status()
         groups = resp.json()
-        return [
-            next(
-                (g["id"] for g in groups if g["name"].lower() == group_name.lower()),
-                None,
-            )
-        ]
+        return [g["id"] for g in groups if g["name"].lower() == group_name.lower()]
 
-    def _resolve_group_from_user(self, user_id: int) -> int | None:
+    def _resolve_group_from_user(self, user_id: int) -> list[int]:
         """Resolve a GeoNetwork group from the user's own memberships.
 
         Fetches the user's group memberships, filters out system groups
@@ -701,7 +708,9 @@ class MetadataService:
             )
         return templates_by_group_owner
 
-    def choose_group_and_template(self, groups_id: list[int]) -> tuple[int, str | None]:
+    def choose_group_and_template(self, groups_id: list[int]) -> tuple[int | None, str | None]:
+        if len(groups_id) == 0:
+            return (None, None)
         templates_by_group_owner = self.get_templates_uuid(groups_id)
         if len(templates_by_group_owner) == 0:
             return sorted(groups_id)[0], None
