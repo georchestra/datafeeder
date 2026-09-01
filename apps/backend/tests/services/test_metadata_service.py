@@ -1084,10 +1084,12 @@ class TestGenerateMetadataKeywords:
 class TestGenerateWithTemplateFromUserGroups:
     """Test _get_template_uuid() with mocked GeoNetwork calls."""
 
-    def mock_gn_search_to_return_19_6(self, mock_gn_api: MagicMock) -> (MetadataService, MagicMock):
+    def mock_gn_search_to_return_19_6(
+        self, mock_gn_api: MagicMock, rework_response
+    ) -> (MetadataService, MagicMock):
         mock_api = MagicMock()
         with open("tests/services/gn_resp/search_for_template.json") as data_file:
-            mock_api.search.return_value = json.load(data_file)
+            mock_api.search.return_value = rework_response(json.load(data_file))
         mock_api.session = MagicMock()
         mock_gn_api.return_value = mock_api
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
@@ -1095,7 +1097,7 @@ class TestGenerateWithTemplateFromUserGroups:
 
     @patch("src.services.metadata_service.GnApi")
     def test_template_uuid_retrieved_from_groups(self, mock_gn_api: MagicMock) -> None:
-        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api)
+        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, lambda data: data)
 
         uuids = service.get_templates_uuid([3, 6, 19])
 
@@ -1126,6 +1128,46 @@ class TestGenerateWithTemplateFromUserGroups:
             mock_api.search.call_args[0][0]["query"]["bool"]["must"][0]["query_string"]["query"]
             == '(isTemplate:"y") AND (groupOwner:"22") AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")'
         )
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_choose_group_and_template(self, mock_gn_api: MagicMock) -> None:
+        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, lambda data: data)
+
+        group, template = service.choose_group_and_template([3, 6, 19])
+
+        assert group == 6
+        assert template == "5c46a628-e187-4569-ba8b-834c2817d6e2"
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_choose_group_and_template_2(self, mock_gn_api: MagicMock) -> None:
+        def remove_last_two_hits(data: dict) -> dict:
+            data["hits"]["hits"] = data["hits"]["hits"][:-2]
+            return data
+
+        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, remove_last_two_hits)
+
+        group, template = service.choose_group_and_template([3, 19])
+
+        assert group == 19
+        assert template == "ec39075b-f252-45f2-9760-cf067944555e"
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_choose_group_and_template_3(self, mock_gn_api: MagicMock) -> None:
+        def empty_hits(data: dict) -> dict:
+            data["hits"]["hits"] = []
+            return data
+
+        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, empty_hits)
+
+        group, template = service.choose_group_and_template([3])
+
+        assert group == 3
+        assert template == None
+
+        group, template = service.choose_group_and_template([11, 3])
+
+        assert group == 3
+        assert template == None
 
 
 class TestResolveGroupFromLink:
