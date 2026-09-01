@@ -1157,7 +1157,7 @@ class TestResolveGroupFromLink:
         user_id = service.resolve_user_id(link)
         group_id = service.resolve_group_id(link, user_id)
 
-        assert group_id == 5
+        assert group_id == [5]
 
     @patch("src.services.metadata_service.GnApi")
     def test_resolve_group_user_based_sync(self, mock_gn_api: MagicMock) -> None:
@@ -1192,4 +1192,4 @@ class TestResolveGroupFromLink:
         user_id = service.resolve_user_id(link)
         group_id = service.resolve_group_id(link, user_id)
 
-        assert group_id == 42
+        assert group_id == [42, 55]
