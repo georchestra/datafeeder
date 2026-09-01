@@ -69,12 +69,12 @@ def create_dag(config):
                 "integrity_transformation": config.get("integrity_transformation") or {},
                 "encrypted_credentials": config.get("source_password_encrypted", None),
                 "success_callback_url": _build_callback_url(
-                    "/ingestion/process/dag_success",
+                    "/internal/ingestion/process/dag_success",
                     config["id"],
                     config["final_table_name"],
                 ),
                 "failure_callback_url": _build_callback_url(
-                    "/ingestion/process/dag_failure",
+                    "/internal/ingestion/process/dag_failure",
                     config["id"],
                     config["final_table_name"],
                 ),
