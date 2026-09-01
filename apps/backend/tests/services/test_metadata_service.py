@@ -1098,30 +1098,30 @@ class TestGenerateWithTemplateFromUserGroups:
 
         assert uuids == {
             "19": [
-                {"uuid": "ec39075b-f252-45f2-9760-cf067944555e", "schema": "iso19115-3.2018.che"},
+                {"uuid": "ec39075b-f252-45f2-9760-cf067944555e", "schema": "iso19115-3.2018"},
             ],
             "6": [
-                {"uuid": "4a147cdd-b7f7-43e9-a6f6-750293287c84", "schema": "iso19115-3.2018.che"},
-                {"uuid": "5c46a628-e187-4569-ba8b-834c2817d6e2", "schema": "iso19115-3.2018.che"},
+                {"uuid": "4a147cdd-b7f7-43e9-a6f6-750293287c84", "schema": "iso19139"},
+                {"uuid": "5c46a628-e187-4569-ba8b-834c2817d6e2", "schema": "iso19115-3.2018"},
             ],
         }
         assert (
             mock_api.search.call_args[0][0]["query"]["bool"]["must"][0]["query_string"]["query"]
-            == '(isTemplate:"y") AND (groupOwner:"3" OR groupOwner:"6" OR groupOwner:"19")'
+            == '(isTemplate:"y") AND (groupOwner:"3" OR groupOwner:"6" OR groupOwner:"19") AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")'
         )
 
         uuids = service.get_templates_uuid([7, 11])
 
         assert (
             mock_api.search.call_args[0][0]["query"]["bool"]["must"][0]["query_string"]["query"]
-            == '(isTemplate:"y") AND (groupOwner:"7" OR groupOwner:"11")'
+            == '(isTemplate:"y") AND (groupOwner:"7" OR groupOwner:"11") AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")'
         )
 
         uuids = service.get_templates_uuid([22])
 
         assert (
             mock_api.search.call_args[0][0]["query"]["bool"]["must"][0]["query_string"]["query"]
-            == '(isTemplate:"y") AND (groupOwner:"22")'
+            == '(isTemplate:"y") AND (groupOwner:"22") AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")'
         )
 
 

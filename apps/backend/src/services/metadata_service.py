@@ -684,12 +684,13 @@ class MetadataService:
                         {
                             "query_string": {
                                 "default_operator": "AND",
-                                "query": f'(isTemplate:"y") AND ({group_owner_clause})',
+                                "query": f'(isTemplate:"y") AND ({group_owner_clause}) AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")',
                             }
                         }
                     ]
                 }
             },
+            "_source": {"includes": ["groupOwner", "documentStandard"]},
             "from": 0,
             "size": 1000,
         }
