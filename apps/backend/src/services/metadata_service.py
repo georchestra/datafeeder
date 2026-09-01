@@ -277,7 +277,7 @@ class MetadataService:
         metadata_uuid = str(integrity_link.id)
         user_name = integrity_link.integrity_owner
 
-        user_id, group_id = self.resolve_group_id(integrity_link)
+        user_id = self.resolve_user_id(integrity_link)
 
         if user_id is None:
             logger.warning(
@@ -285,6 +285,8 @@ class MetadataService:
                 user_name,
             )
             return
+
+        group_id = self.resolve_group_id(integrity_link, user_id)
 
         if group_id is None:
             logger.warning(
@@ -308,25 +310,20 @@ class MetadataService:
             group_id,
         )
 
-    def resolve_group_id(self, integrity_link: IntegrityLink) -> tuple[int | None, int | None]:
-        username = integrity_link.integrity_owner
-        group_name = integrity_link.integrity_organization
-
-        # 1. Find user ID by username
+    def resolve_user_id(self, integrity_link: IntegrityLink) -> int | None:
         resp = self.gn_api.session.get(f"{self.gn_api.api_url}/users")
         resp.raise_for_status()
         users = resp.json()
-        user_id = next((u["id"] for u in users if u["username"] == username), None)
+        return next(
+            (u["id"] for u in users if u["username"] == integrity_link.integrity_owner), None
+        )
 
-        if user_id is None:
-            return None, None
-
-        # 2. Resolve group ID based on sync strategy
+    def resolve_group_id(self, integrity_link: IntegrityLink, user_id) -> int | None:
         if self.org_based_sync:
-            group_id = self._resolve_group_by_org_name(group_name)
+            group_id = self._resolve_group_by_org_name(integrity_link.integrity_organization)
         else:
             group_id = self._resolve_group_from_user(user_id)
-        return user_id, group_id
+        return group_id
 
     def _resolve_group_by_org_name(self, group_name: str) -> int | None:
         """Resolve a GeoNetwork group ID by matching organization name.
