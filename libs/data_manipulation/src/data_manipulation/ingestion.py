@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import re
@@ -13,6 +12,7 @@ from urllib.request import urlretrieve
 
 import chardet
 import geopandas as gpd
+import jq
 import pandas as pd
 import pyarrow.parquet as pq
 import requests
@@ -98,11 +98,20 @@ def _detect_file_encoding(file_path: str) -> str:
     return encoding or "utf-8"
 
 
+# Not yet user-configurable; the seam a future editable jq filter plugs into.
+DEFAULT_JQ_FILTER = "."
+
+
+def _apply_jq_filter(text: str, filter_expr: str = DEFAULT_JQ_FILTER) -> object:
+    """Run a jq filter against raw JSON text, returning the filtered Python value."""
+    return jq.compile(filter_expr).input_text(text).first()
+
+
 def _read_tabular_json(file_path: str) -> pd.DataFrame:
     """Read a plain (non-GeoJSON) JSON file as a flat table: a list becomes rows,
     a single object becomes one row."""
-    with open(file_path, "rb") as f:
-        data = json.load(f)
+    with open(file_path, encoding="utf-8") as f:
+        data = _apply_jq_filter(f.read())
 
     if isinstance(data, list):
         return pd.DataFrame(data)

@@ -217,6 +217,7 @@
   "import.columnHeader.error.empty": "Der Spaltenname darf nicht leer sein",
   "import.configuration.datasetTitle": "",
   "import.configuration.datasetTitlePlaceholder": "",
+  "import.configuration.jqFilter": "",
   "import.configuration.loading": "",
   "import.configuration.maxLengthTitle": "",
   "import.configuration.minLengthTitle": "",

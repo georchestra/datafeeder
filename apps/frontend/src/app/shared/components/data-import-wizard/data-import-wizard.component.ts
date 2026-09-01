@@ -59,6 +59,7 @@ import type { SourceData } from '../data-source-selector/data-source-selector.co
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
 import { SettingsService } from '../../../core/settings/settings.service'
 import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
+import { DatasetJqFilterComponent } from '../dataset-jq-filter/dataset-jq-filter.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
 import type {
   ColumnAction,
@@ -109,6 +110,7 @@ export interface ImportWizardData {
     SpinningLoaderComponent,
     DataSourceSelectorComponent,
     DatasetTitleComponent,
+    DatasetJqFilterComponent,
     DatasetConfigurationComponent,
     TranslatePipe,
     DatasetPreviewTableComponent,

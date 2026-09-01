@@ -17,6 +17,7 @@ from data_manipulation import IntegrityTransformation, apply_transformations
 from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.ingestion import (
     CHUNK_SIZE,
+    _apply_jq_filter,  # pyright: ignore[reportPrivateUsage]
     _read_file_encoded,  # pyright: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
     ingest_data_from_file_into_postgis,
@@ -65,6 +66,20 @@ class TestReadFileEncodedParquet:
 
         mock_read_parquet.assert_called_once_with("test.parquet")
         assert result is mock_gdf
+
+
+class TestApplyJqFilter:
+    """_apply_jq_filter runs the (currently fixed) default jq filter."""
+
+    def test_identity_filter_returns_list_unchanged(self) -> None:
+        result = _apply_jq_filter('[{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}]')
+
+        assert result == [{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}]
+
+    def test_identity_filter_returns_object_unchanged(self) -> None:
+        result = _apply_jq_filter('{"id": 1, "name": "foo"}')
+
+        assert result == {"id": 1, "name": "foo"}
 
 
 class TestReadFileEncodedTabularJson:
