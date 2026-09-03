@@ -3,6 +3,7 @@ from uuid import UUID
 
 import pytest
 
+from src.core.task_executor import TaskExecutorType
 from src.models.integrity_link import IntegrityLink
 from src.services.dataset_deletion_service import DatasetDeletionService
 
@@ -309,6 +310,40 @@ class TestPurgeRunHistory:
         with patch("src.services.dataset_deletion_service.Table"):
             deletion_service.delete_dataset(link, session)
 
+        session.delete.assert_called_once_with(link)
+
+
+class TestLocalExecutor:
+    """With TASK_EXECUTOR=LOCAL, no Airflow calls are made and none can block deletion."""
+
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_local_executor_skips_airflow_calls(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        deletion_service: DatasetDeletionService,
+        mock_cancel_runs: MagicMock,
+        mock_purge_runs: MagicMock,
+        geoserver_svc: MagicMock,
+        metadata_svc: MagicMock,
+    ) -> None:
+        link = _make_link(schedule="@daily")
+        session = MagicMock()
+
+        with (
+            patch("src.services.dataset_deletion_service.Table"),
+            patch("src.services.dataset_deletion_service.get_settings") as mock_settings,
+        ):
+            mock_settings.return_value.TASK_EXECUTOR = TaskExecutorType.LOCAL
+            deletion_service.delete_dataset(link, session)
+
+        mock_cancel_runs.assert_not_called()
+        mock_delete_dag.assert_not_called()
+        mock_purge_runs.assert_not_called()
+        # Non-Airflow cleanup still runs normally
+        geoserver_svc.delete_layer.assert_called_once()
+        metadata_svc.delete_record.assert_called_once_with("uuid-meta-1")
         session.delete.assert_called_once_with(link)
 
 

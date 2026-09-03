@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-ARG UV_VERSION=0.9.15
+ARG UV_VERSION=0.12.4
 
 # Named stage for the uv binary so later `COPY --from=uv` works on BuildKit
 # versions that don't support variable expansion in `--from`.
