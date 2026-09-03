@@ -252,7 +252,7 @@ class TestReadDataFromPostgisWithColumns:
 
         # All returned rows must match the filter — filter is before LIMIT
         assert len(result) == 10
-        assert all(result["city"] == "Paris")  # type: ignore[reportUnknownArgumentType]
+        assert all(result["city"] == "Paris")
 
     def test_excluded_column_absent_from_result(self):
         """Excluded column is not present in the returned DataFrame."""
@@ -284,7 +284,7 @@ class TestReadDataFromPostgisWithColumns:
         result = read_data_from_postgis("staging", engine, columns=columns, limit=None)
 
         assert len(result) == 10
-        assert all(result["city"] == "Paris")  # type: ignore[reportUnknownArgumentType]
+        assert all(result["city"] == "Paris")
 
     def test_no_columns_param_returns_all_rows(self):
         """No columns param → all rows and columns returned."""
@@ -347,7 +347,7 @@ class TestReadDataFromPostgisWithColumns:
         result = read_data_from_postgis("staging", engine, columns=columns, limit=5)
 
         assert len(result) == 5
-        assert all(result["city"] == "Paris"), "limit-then-filter bug: 0 Paris rows returned"  # type: ignore[reportUnknownArgumentType]
+        assert all(result["city"] == "Paris"), "limit-then-filter bug: 0 Paris rows returned"
 
 
 # ===========================================================================
@@ -411,8 +411,8 @@ class TestReadAndTransformData:
 
         assert len(result_limited) == 10
         assert len(result_full) == 10  # Only 10 matching rows exist
-        assert all(result_limited["city"] == "Paris")  # type: ignore[reportUnknownArgumentType]
-        assert all(result_full["city"] == "Paris")  # type: ignore[reportUnknownArgumentType]
+        assert all(result_limited["city"] == "Paris")
+        assert all(result_full["city"] == "Paris")
 
 
 # ===========================================================================
@@ -470,7 +470,7 @@ class TestRenameColumns:
 
         result = rename_columns(df, columns)
 
-        assert sorted(result.columns.tolist()) == ["alpha", "beta", "c"]  # type: ignore[reportUnknownArgumentType]
+        assert sorted(result.columns.tolist()) == ["alpha", "beta", "c"]
 
 
 class TestCastColumnTypes:
@@ -494,7 +494,7 @@ class TestCastColumnTypes:
 
         assert pd.api.types.is_numeric_dtype(result["val"])
         # "not_a_number" should become NaN
-        assert pd.isna(result["val"].iloc[2])  # type: ignore[reportUnknownArgumentType]
+        assert pd.isna(result["val"].iloc[2])
 
     def test_cast_to_boolean(self):
         """CastType.BOOLEAN: numeric column cast to bool dtype (astype path)."""
@@ -542,7 +542,7 @@ class TestCastColumnTypes:
 
         assert pd.api.types.is_datetime64_any_dtype(result["dt"])
         # Invalid date → NaT
-        assert pd.isna(result["dt"].iloc[2])  # type: ignore[reportUnknownArgumentType]
+        assert pd.isna(result["dt"].iloc[2])
 
     def test_cast_type_none_leaves_column_unchanged(self):
         """cast_type=None: column dtype is not modified."""
@@ -674,4 +674,4 @@ class TestApplyTransformations:
 
         assert "renamed" in result.columns
         assert pd.api.types.is_numeric_dtype(result["renamed"])
-        assert result.crs.to_string() == "EPSG:3857"  # type: ignore[misc]
+        assert result.crs.to_string() == "EPSG:3857"

@@ -30,8 +30,8 @@ def create_geometries_from_columns(
 
     # Check for non-numeric values in coordinate columns with tolerance
     tolerance = 0.8  # 80% of non-numeric values allowed
-    x_numeric: pd.Series[float] = pd.to_numeric(df[x_column], errors="coerce")  # type: ignore[assignment]
-    y_numeric: pd.Series[float] = pd.to_numeric(df[y_column], errors="coerce")  # type: ignore[assignment]
+    x_numeric: pd.Series[float] = pd.to_numeric(df[x_column], errors="coerce")
+    y_numeric: pd.Series[float] = pd.to_numeric(df[y_column], errors="coerce")
     x_nan_ratio = x_numeric.isna().mean()
     y_nan_ratio = y_numeric.isna().mean()
 
@@ -44,8 +44,8 @@ def create_geometries_from_columns(
         gdf = gpd.GeoDataFrame(
             df,
             geometry=gpd.points_from_xy(
-                x_numeric,  # type: ignore[no-any-return]
-                y_numeric,  # type: ignore[no-any-return]
+                x_numeric,
+                y_numeric,
             ),
             crs=crs,
         )

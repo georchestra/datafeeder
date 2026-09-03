@@ -1,17 +1,17 @@
 """GeoServer layer creation utilities."""
 
-from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
+from geoservercloud import GeoServerCloud
 from geoservercloud.models.common import MetadataLink
 from geoservercloud.models.datastore import DataStore
 from geoservercloud.models.featuretype import FeatureType
 from geoservercloud.services import RestService
-from pydantic import BaseModel  # type: ignore[import-untyped]
-from pyproj import Transformer  # type: ignore[import-untyped]
+from pydantic import BaseModel
+from pyproj import Transformer
 
 from data_manipulation.utils import sanitize_name
 
 
-class WorkspaceCreationResult(BaseModel):  # type: ignore[misc]
+class WorkspaceCreationResult(BaseModel):
     """Result of workspace creation."""
 
     workspace: str
@@ -20,7 +20,7 @@ class WorkspaceCreationResult(BaseModel):  # type: ignore[misc]
 
 
 def create_workspace(
-    geoserver: GeoServerCloud,  # type: ignore[reportUnknownParameterType]
+    geoserver: GeoServerCloud,
     workspace_name: str,
     datastore_name: str,
     jndi_reference: str,
@@ -52,7 +52,7 @@ def create_workspace(
         pg_schema = workspace_name
 
     # Create workspace
-    geoserver.create_workspace(workspace_name)  # type: ignore[reportUnknownMemberType]
+    geoserver.create_workspace(workspace_name)
 
     # Retrieve namespace URI for the workspace because it must match datastore one
     # So if the workspace already exists before calling geoserver.create_workspace,
@@ -84,7 +84,7 @@ def create_workspace(
 
 
 def create_layer(
-    geoserver: GeoServerCloud,  # type: ignore[reportUnknownVariableType]
+    geoserver: GeoServerCloud,
     workspace_name: str,
     datastore_name: str | None,
     table_name: str,
@@ -154,8 +154,8 @@ def create_layer(
         )
 
         rest_service = RestService(
-            url=geoserver.url,  # type: ignore[reportUnknownMemberType]
-            auth=geoserver.auth,  # type: ignore[reportUnknownMemberType]
+            url=geoserver.url,
+            auth=geoserver.auth,
         )
         rest_service.create_feature_type(feature_type)
 
@@ -164,7 +164,7 @@ def create_layer(
         try:
             # Verify if the layer was actually created despite the error
             # (the error may not be critical)
-            geoserver.get_feature_type(  # type: ignore[reportUnknownMemberType]
+            geoserver.get_feature_type(
                 workspace_name=workspace_name,
                 datastore_name=datastore_name,
                 feature_type_name=table_name,
@@ -177,7 +177,7 @@ def create_layer(
 
 
 def update_layer_bbox(
-    geoserver: GeoServerCloud,  # type: ignore[reportUnknownVariableType]
+    geoserver: GeoServerCloud,
     workspace_name: str,
     datastore_name: str,
     table_name: str,
@@ -214,8 +214,8 @@ def update_layer_bbox(
     )
 
     rest_service = RestService(
-        url=geoserver.url,  # type: ignore[reportUnknownMemberType]
-        auth=geoserver.auth,  # type: ignore[reportUnknownMemberType]
+        url=geoserver.url,
+        auth=geoserver.auth,
     )
     rest_service.create_feature_type(feature_type)
 
