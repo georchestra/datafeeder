@@ -1,3 +1,4 @@
+import codecs
 import logging
 import os
 import re
@@ -16,7 +17,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 import requests
 from geoalchemy2 import Geometry
-from pyarrow.lib import ArrowException
+from pyarrow import ArrowException
 from sqlalchemy import MetaData, Table, func, select, text
 from sqlalchemy.engine import Engine
 
@@ -30,13 +31,12 @@ from data_manipulation.validators import validate_schema_name, validate_table_na
 logger = logging.getLogger(__name__)
 
 DEFAULT_SCHEMA = "public"
-
-# Bytes sampled for encoding detection. chardet's accuracy is unchanged for a sample
-# this size, and reading only a sample avoids loading multi-GB files into memory.
-_ENCODING_DETECT_BYTES = 256 * 1024
-# Number of rows read and written to PostGIS per chunk. Keeps the memory footprint low
-# (only one chunk is held in memory / converted to WKB at a time) for large files.
 CHUNK_SIZE = int(os.getenv("DATAFEEDER_CHUNK_SIZE", 50000))
+
+_ENCODING_DETECT_BYTES = 256 * 1024
+_DEFAULT_ENCODING = "utf-8"
+_UTF8_COMPATIBLE_ENCODINGS = (_DEFAULT_ENCODING, "ascii")
+_SHAPEFILE_FALLBACK_ENCODING = "cp1252"
 
 
 def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
@@ -48,8 +48,63 @@ def _get_table_row_count(table_name: str, engine: Engine, schema: str) -> int:
         return conn.execute(count_query).scalar() or 0
 
 
+def _parse_cpg_encoding(sample: bytes) -> str | None:
+    """Read the encoding a shapefile .cpg sidecar declares.
+
+    A .cpg *declares* the .dbf encoding as ASCII text ("ISO-8859-1", "UTF-8", "1252",
+    "ANSI 1252", ...), so it has to be parsed rather than handed to a charset detector:
+    chardet reports plain ASCII text as "ascii", which decodes nothing.
+
+    A declaration of UTF-8 or ASCII is discarded. The sidecar is only consulted after a
+    UTF-8 read has already failed, so honouring such a declaration would do no more than
+    repeat that read.
+
+    Args:
+        sample: Raw bytes of the .cpg sidecar
+
+    Returns:
+        Normalized codec name, or None when the sidecar declares nothing usable
+    """
+    try:
+        declared = sample.decode("ascii").strip()
+    except UnicodeDecodeError:
+        return None
+
+    # The codepage is the trailing token: "ANSI 1252" -> "1252", "LDID/87" -> "87".
+    candidate = re.split(r"[\s/]+", declared)[-1] if declared else ""
+
+    try:
+        name = codecs.lookup(candidate).name
+    except LookupError:
+        logger.warning("Ignoring unusable .cpg encoding declaration: %r", declared)
+        return None
+
+    return None if name in _UTF8_COMPATIBLE_ENCODINGS else name
+
+
+def _detect_shapefile_encoding(cpg_sample: bytes | None) -> str:
+    """Pick the encoding to re-read a shapefile with, from its .cpg sidecar.
+
+    Args:
+        cpg_sample: Raw bytes of the .cpg sidecar, or None when there is none
+
+    Returns:
+        Encoding string
+    """
+    declared = _parse_cpg_encoding(cpg_sample) if cpg_sample else None
+    if declared is not None:
+        return declared
+
+    logger.warning(
+        "Shapefile declares no usable encoding, falling back to %s. Check the ingested "
+        "text for mojibake; a .cpg sidecar naming the right encoding fixes it at the source.",
+        _SHAPEFILE_FALLBACK_ENCODING,
+    )
+    return _SHAPEFILE_FALLBACK_ENCODING
+
+
 def _detect_file_encoding(file_path: str) -> str:
-    """Detect encoding for geospatial files.
+    """Detect the encoding to retry a failed UTF-8 read with.
 
     Args:
         file_path: Path to the file
@@ -57,44 +112,35 @@ def _detect_file_encoding(file_path: str) -> str:
     Returns:
         Detected encoding string
     """
-    file_path_to_read = file_path
     path = Path(file_path)
 
     # GeoJSON must be UTF-8 according to RFC 7946
     if path.suffix.lower() in (".geojson", ".json"):
-        return "utf-8"
-
-    # Check for .cpg file (encoding file for shapefiles)
-    if path.suffix.lower() == ".shp":
-        cpg_file = path.with_suffix(".cpg")
-        if cpg_file.exists():
-            file_path_to_read = str(cpg_file)
+        return _DEFAULT_ENCODING
 
     try:
+        if path.suffix.lower() == ".shp":
+            cpg_file = path.with_suffix(".cpg")
+            return _detect_shapefile_encoding(cpg_file.read_bytes() if cpg_file.exists() else None)
+
         if path.suffix.lower() == ".zip" and zipfile.is_zipfile(file_path):
             with zipfile.ZipFile(file_path) as zf:
                 names = zf.namelist()
-                if any(name.lower().endswith(".shp") for name in names):
-                    member = next((n for n in names if n.lower().endswith(".cpg")), None) or next(
-                        (n for n in names if n.lower().endswith(".dbf")), None
-                    )
-                    if member is not None:
-                        file_path_to_read = f"{file_path}!{member}"
-                        with zf.open(member) as f:
-                            sample = f.read(_ENCODING_DETECT_BYTES)
-                    else:
-                        sample = None
-                else:
-                    sample = None
-        else:
-            with open(file_path_to_read, "rb") as f:
-                sample = f.read(_ENCODING_DETECT_BYTES)
-        encoding = chardet.detect(sample)["encoding"] if sample else None
-    except Exception as e:
-        logger.warning(f"Failed to detect encoding for {file_path_to_read}: {e}")
-        encoding = None
+                if not any(name.lower().endswith(".shp") for name in names):
+                    return _DEFAULT_ENCODING
 
-    return encoding or "utf-8"
+                member = next((n for n in names if n.lower().endswith(".cpg")), None)
+                if member is None:
+                    return _detect_shapefile_encoding(None)
+                with zf.open(member) as f:
+                    return _detect_shapefile_encoding(f.read(_ENCODING_DETECT_BYTES))
+
+        with open(file_path, "rb") as f:
+            sample = f.read(_ENCODING_DETECT_BYTES)
+        return chardet.detect(sample)["encoding"] or _DEFAULT_ENCODING
+    except Exception as e:
+        logger.warning(f"Failed to detect encoding for {file_path}: {e}")
+        return _DEFAULT_ENCODING
 
 
 def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.DataFrame:
@@ -124,19 +170,16 @@ def _read_file_encoded(file_path: str, i: int = 0) -> gpd.GeoDataFrame | pd.Data
             return pd.read_parquet(ds.fragments[i].path)
 
     try:
-        # Try reading with UTF-8 first (common default)
-        result = gpd.read_file(file_path, rows=rows)  # type: ignore[arg-type]
-        # pyogrio/pyarrow validate text lazily: a bad encoding doesn't raise here, it
-        # raises whenever the string columns are first materialized (e.g. much later
-        # in pandas.to_sql when writing to PostGIS). Force that materialization now
-        # so we can catch and handle it in this try block instead.
-        for column in result.columns:
-            if pd.api.types.is_string_dtype(result[column].dtype):
-                result[column].to_numpy()
-        return result
-    except (UnicodeDecodeError, ArrowException):
+        # Try reading with UTF-8 first (common default). Undecodable text is reported
+        # right here: with PYOGRIO_USE_ARROW the conversion to pandas raises an
+        # ArrowException, and without it GDAL recodes from the encoding the shapefile
+        # declares (.cpg / .dbf language driver id) or from ISO-8859-1.
+        return gpd.read_file(file_path, rows=rows)  # type: ignore[arg-type]
+    except (UnicodeDecodeError, ArrowException) as e:
         logger.warning(
-            "Failed to read file with UTF-8 encoding, attempting to detect encoding and read again."
+            "Failed to read file with UTF-8 encoding (%s), detecting the encoding "
+            "and reading again.",
+            e,
         )
 
     # Detect encoding (mainly for shapefiles, others default to UTF-8)
