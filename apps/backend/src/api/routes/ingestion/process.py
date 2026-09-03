@@ -40,6 +40,10 @@ from src.services.metadata_service import MetadataService
 from src.services.schedule_service import clear_schedule
 
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
+
+# Airflow-only callbacks; mounted under /internal (gateway restricts to ADMINISTRATOR).
+internal_router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
+
 logger = get_logger()
 settings = get_settings()
 
@@ -274,8 +278,12 @@ def process_staging_data(
     }
 
     # Build callback URLs
-    success_callback_url = build_callback_url("/ingestion/process/dag_success", callback_params)
-    failure_callback_url = build_callback_url("/ingestion/process/dag_failure", callback_params)
+    success_callback_url = build_callback_url(
+        "/internal/ingestion/process/dag_success", callback_params
+    )
+    failure_callback_url = build_callback_url(
+        "/internal/ingestion/process/dag_failure", callback_params
+    )
 
     try:
         executor = get_task_executor()
@@ -300,7 +308,7 @@ def process_staging_data(
         raise HTTPException(status_code=500, detail=f"Task execution error: {e}")
 
 
-@router.post("/dag_success")
+@internal_router.post("/dag_success")
 async def dag_success_callback(
     datafeeder_session: DatafeederSessionDep,
     geoserver_service: GeoServerServiceDep,
@@ -443,7 +451,7 @@ async def dag_success_callback(
     )
 
 
-@router.post("/dag_failure")
+@internal_router.post("/dag_failure")
 async def dag_failure_callback(
     data_session: DataSessionDep,
     datafeeder_session: DatafeederSessionDep,
