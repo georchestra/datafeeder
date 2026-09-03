@@ -2,7 +2,7 @@ name: Datafeeder CI Frontend
 run-name: 🩺 Frontend quality checks on ${{ github.event_name == 'pull_request' && 'PR' || '🌱' }} ${{ github.event_name == 'pull_request' && github.event.number || github.ref_name }}
 
 env:
-  NODE_VERSION: 22.20.0
+  NODE_VERSION: 22.23.2
   GEONETWORK_VERSION: 4.4.8
   ELASTICSEARCH_VERSION: 8.14.3
 
@@ -55,16 +55,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
         if: steps.npm-cache.outputs.cache-hit != 'true'
-        
+
       - name: Lint code
         run: npm run lint
-        
+
       - name: Type check
         run: npm run format:check
-        
+
       - name: Build application
         run: npm run build
-        
+
       - name: Run unit tests
         run: npm run test:ut:ci
 
@@ -100,7 +100,7 @@ jobs:
       #     echo "Waiting for backend to be ready..."
       #     timeout 30 bash -c 'until curl -f http://localhost:8000/version; do sleep 1; done'
       #     echo "Backend is ready!"
-        
+
       # - name: Run E2E tests
       #   run: npm run test:e2e:ci
 
