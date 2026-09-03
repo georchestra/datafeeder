@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-ARG AIRFLOW_VERSION=3.1.8
+ARG AIRFLOW_VERSION=3.3.0
 ARG UV_VERSION=0.12.4
 
 # Named stage for the uv binary so later `COPY --from=uv` works on BuildKit

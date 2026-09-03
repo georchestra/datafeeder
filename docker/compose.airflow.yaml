@@ -51,7 +51,7 @@ x-airflow-common:
     dockerfile: ./docker/Dockerfile.airflow
     target: development
     args:
-      AIRFLOW_VERSION: ${AIRFLOW_VERSION:-3.1.8}
+      AIRFLOW_VERSION: ${AIRFLOW_VERSION:-3.3.0}
   env_file:
     - ../.env
   environment:
