@@ -31,6 +31,7 @@ NS_19115_3 = {
     "mri": "http://standards.iso.org/iso/19115/-3/mri/1.0",
     "cit": "http://standards.iso.org/iso/19115/-3/cit/2.0",
     "gco": "http://standards.iso.org/iso/19115/-3/gco/1.0",
+    "lan": "http://standards.iso.org/iso/19115/-3/lan/1.0",
 }
 
 NS_19139 = {
@@ -187,7 +188,17 @@ class MetadataService:
         ).text = f"Imported from staging table {integrity_link.staging_table_name}"
 
         # Apply XSLT transformation
-        xml_doc: _ElementTree = etree.parse(self.template_path)
+        user_id = self.resolve_user_id(integrity_link)
+        group_id = self.resolve_group_id(integrity_link, user_id)
+        template_uuid = self.choose_group_and_template(group_id)[1]
+        logger.info(f"Using template {template_uuid} for group {group_id}")
+
+        if template_uuid is None:
+            xml_doc: _ElementTree = etree.parse(self.template_path)
+        else:
+            resp = self.gn_api.get_metadataxml(template_uuid)
+            xml_doc: _ElementTree = etree.ElementTree(etree.fromstring(resp))
+
         root: _Element = xml_doc.getroot()
 
         # Embed props into the XML document (XSLT parameters can't be node-sets)
@@ -261,26 +272,23 @@ class MetadataService:
         )
         return self.publish_metadata(metadata_xml)
 
-    def set_record_ownership(self, metadata_uuid: str, username: str, group_name: str) -> None:
+    def set_record_ownership(self, integrity_link: IntegrityLink) -> None:
         """Set ownership of a GeoNetwork metadata record.
 
         Resolves user and group IDs, then sets ownership via GeoNetwork API.
         Group resolution strategy depends on ``self.org_based_sync``:
-        - True  → match *group_name* against all GN groups (org-based sync)
+        - True  → match *integrity_link.integrity_organization* against all GN groups (org-based sync)
         - False → use the user's own GN group memberships, with fallback
 
         Args:
-            metadata_uuid: UUID of the published metadata record
-            username: Owner username to match in GeoNetwork
-            group_name: Group name to match in GeoNetwork (used only when org_based_sync=True)
+            integrity_link: IntegrityLink record whose id is the published metadata UUID,
+                and whose owner/organization identify the GeoNetwork user and group
         """
-        session = self.gn_api.session
 
-        # 1. Find user ID by username
-        resp = session.get(f"{self.gn_api.api_url}/users")
-        resp.raise_for_status()
-        users = resp.json()
-        user_id = next((u["id"] for u in users if u["username"] == username), None)
+        metadata_uuid = str(integrity_link.id)
+        username = integrity_link.integrity_owner
+
+        user_id = self.resolve_user_id(integrity_link)
 
         if user_id is None:
             logger.warning(
@@ -289,11 +297,8 @@ class MetadataService:
             )
             return
 
-        # 2. Resolve group ID based on sync strategy
-        if self.org_based_sync:
-            group_id = self._resolve_group_by_org_name(session, group_name)
-        else:
-            group_id = self._resolve_group_from_user(session, user_id)
+        group_id = self.resolve_group_id(integrity_link, user_id)
+        group_id = self.choose_group_and_template(group_id)[0]
 
         if group_id is None:
             logger.warning(
@@ -304,7 +309,7 @@ class MetadataService:
             return
 
         # 3. Set ownership
-        resp = session.put(
+        resp = self.gn_api.session.put(
             f"{self.gn_api.api_url}/records/{metadata_uuid}/ownership",
             params={"groupIdentifier": group_id, "userIdentifier": user_id},
         )
@@ -317,11 +322,25 @@ class MetadataService:
             group_id,
         )
 
-    def _resolve_group_by_org_name(self, session: Any, group_name: str) -> int | None:
+    def resolve_user_id(self, integrity_link: IntegrityLink) -> int | None:
+        resp = self.gn_api.session.get(f"{self.gn_api.api_url}/users")
+        resp.raise_for_status()
+        users = resp.json()
+        return next(
+            (u["id"] for u in users if u["username"] == integrity_link.integrity_owner), None
+        )
+
+    def resolve_group_id(self, integrity_link: IntegrityLink, user_id: int | None) -> list[int]:
+        if self.org_based_sync or user_id is None:
+            group_id = self._resolve_group_by_org_name(integrity_link.integrity_organization)
+        else:
+            group_id = self._resolve_group_from_user(user_id)
+        return group_id
+
+    def _resolve_group_by_org_name(self, group_name: str) -> list[int]:
         """Resolve a GeoNetwork group ID by matching organization name.
 
         Args:
-            session: Authenticated HTTP session
             group_name: Organization/group name to look up (case-insensitive)
 
         Returns:
@@ -331,15 +350,12 @@ class MetadataService:
             "Resolving group by organization name '%s' (org-based sync)",
             group_name,
         )
-        resp = session.get(f"{self.gn_api.api_url}/groups")
+        resp = self.gn_api.session.get(f"{self.gn_api.api_url}/groups")
         resp.raise_for_status()
         groups = resp.json()
-        return next(
-            (g["id"] for g in groups if g["name"].lower() == group_name.lower()),
-            None,
-        )
+        return [g["id"] for g in groups if g["name"].lower() == group_name.lower()]
 
-    def _resolve_group_from_user(self, session: Any, user_id: int) -> int | None:
+    def _resolve_group_from_user(self, user_id: int) -> list[int]:
         """Resolve a GeoNetwork group from the user's own memberships.
 
         Fetches the user's group memberships, filters out system groups
@@ -347,7 +363,6 @@ class MetadataService:
         Falls back to ``self.metadata_default_group_name`` via org-name lookup.
 
         Args:
-            session: Authenticated HTTP session
             user_id: GeoNetwork user ID
 
         Returns:
@@ -357,7 +372,7 @@ class MetadataService:
             "Resolving group from user %s memberships (user-groups sync)",
             user_id,
         )
-        resp = session.get(f"{self.gn_api.api_url}/users/{user_id}/groups")
+        resp = self.gn_api.session.get(f"{self.gn_api.api_url}/users/{user_id}/groups")
         resp.raise_for_status()
         memberships = resp.json()
 
@@ -365,7 +380,7 @@ class MetadataService:
         non_system = [g["id"]["groupId"] for g in memberships if g["id"]["groupId"] > 2]
 
         if non_system:
-            return non_system[0]
+            return non_system
 
         # Fallback: resolve by default group name
         logger.info(
@@ -373,7 +388,7 @@ class MetadataService:
             user_id,
             self.metadata_default_group_name,
         )
-        return self._resolve_group_by_org_name(session, self.metadata_default_group_name)
+        return self._resolve_group_by_org_name(self.metadata_default_group_name)
 
     @staticmethod
     def _detect_schema(root: _Element) -> str | None:
@@ -661,3 +676,47 @@ class MetadataService:
                 exc_info=True,
             )
             raise
+
+    def get_templates_uuid(self, groups_id: list[int]) -> dict[str, list[dict[str, str]]]:
+        group_owner_clause = " OR ".join(f'groupOwner:"{group_id}"' for group_id in groups_id)
+        req = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "query_string": {
+                                "default_operator": "AND",
+                                "query": f'(isTemplate:"y") AND ({group_owner_clause}) AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")',
+                            }
+                        }
+                    ]
+                }
+            },
+            "_source": {"includes": ["groupOwner", "documentStandard"]},
+            "from": 0,
+            "size": 1000,
+        }
+        resp = self.gn_api.search(req)
+        templates_by_group_owner: dict[str, list[dict[str, str]]] = {}
+        for md in resp["hits"]["hits"]:
+            group_owner = md["_source"]["groupOwner"]
+            templates_by_group_owner.setdefault(group_owner, []).append(
+                {
+                    "uuid": md["_id"],
+                    "schema": md["_source"]["documentStandard"],
+                }
+            )
+        return templates_by_group_owner
+
+    def choose_group_and_template(self, groups_id: list[int]) -> tuple[int | None, str | None]:
+        if len(groups_id) == 0:
+            return (None, None)
+        templates_by_group_owner = self.get_templates_uuid(groups_id)
+        if len(templates_by_group_owner) == 0:
+            return sorted(groups_id)[0], None
+        group_owner = sorted(templates_by_group_owner.keys(), key=int)[0]
+        templates = sorted(
+            templates_by_group_owner[group_owner],
+            key=lambda t: (not t["schema"].startswith("iso19115-3.2018"), t["uuid"]),
+        )
+        return int(group_owner), templates[0]["uuid"]

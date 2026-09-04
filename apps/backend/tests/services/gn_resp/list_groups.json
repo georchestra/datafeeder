@@ -1,0 +1,62 @@
+[
+  {
+    "logo": "1f8a59ef-2bd9-4119-9b05-458df6deb6c7.png",
+    "website": "https://www.fr.ch/scg/territoire-amenagement-et-constructions/cartes/centre-de-competence-sit",
+    "defaultCategory": {
+      "name": "cantonal",
+      "id": 42521579,
+      "label": {
+        "ger": "Kantonale",
+        "ita": "Cantonale",
+        "fre": "Cantonale",
+        "roh": "Kantonale",
+        "eng": "Cantonal"
+      }
+    },
+    "allowedCategories": [],
+    "enableAllowedCategories": false,
+    "minimumProfileForPrivileges": null,
+    "name": "Fribourg",
+    "id": 3,
+    "description": "Centre de comp\u00e9tence SIT\nVincent Grandgirard\n+ 41 26 305 31 77",
+    "email": "vincen-t.grandgirard@fr.ch",
+    "referrer": null,
+    "label": {
+      "ger": "Kanton Freiburg",
+      "ita": "Canton Friburgo",
+      "fre": "Canton de Fribourg",
+      "roh": "Chantun Friburg",
+      "eng": "Canton of Fribourg"
+    }
+  },
+  {
+    "logo": "b3302e3c-b6a7-4b71-aa10-1be70ddf742b.png",
+    "website": "http://geo.zg.ch",
+    "defaultCategory": {
+      "name": "cantonal",
+      "id": 42521579,
+      "label": {
+        "ger": "Kantonale",
+        "ita": "Cantonale",
+        "fre": "Cantonale",
+        "roh": "Kantonale",
+        "eng": "Cantonal"
+      }
+    },
+    "allowedCategories": [],
+    "enableAllowedCategories": false,
+    "minimumProfileForPrivileges": null,
+    "name": "Zug",
+    "id": 5,
+    "description": "Abteilung Geoinformation Kanton Zug\nGeoportal.GIS@zg.ch",
+    "email": "Geoportal.GIS@zg.ch",
+    "referrer": null,
+    "label": {
+      "ger": "Kanton Zug",
+      "ita": "Canton Zugo",
+      "fre": "Canton de Zoug",
+      "roh": "Kanton Zug",
+      "eng": "Canton of Zug"
+    }
+  }
+]

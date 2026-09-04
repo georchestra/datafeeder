@@ -1,0 +1,114 @@
+[
+  {
+    "enabled": true,
+    "name": "-",
+    "id": 21264,
+    "surname": "DE-Romands",
+    "username": "DERomands",
+    "profile": "UserAdmin",
+    "kind": null,
+    "emailAddresses": [
+      "Jean-Marc.Arzrouni@viteos.ch"
+    ],
+    "addresses": [
+      {
+        "country": "",
+        "state": "",
+        "id": 21264,
+        "address": "",
+        "city": "",
+        "zip": ""
+      }
+    ],
+    "organisation": "GRUT - Groupement romand des utilisateurs techniques",
+    "security": {
+      "authType": null,
+      "nodeId": "srv"
+    },
+    "lastLoginDate": "2024-12-03T16:11:57.3Z"
+  },
+  {
+    "enabled": true,
+    "name": "Christoph",
+    "id": 21727,
+    "surname": "Streit",
+    "username": "ltstc",
+    "profile": "Reviewer",
+    "kind": null,
+    "emailAddresses": [
+      "christoph.streit@swisstopo.ch"
+    ],
+    "addresses": [
+      {
+        "country": "ch",
+        "state": "",
+        "id": 21727,
+        "address": "Seftigenstrasse 264",
+        "city": "Wabern",
+        "zip": "3084"
+      }
+    ],
+    "organisation": "swisstopo Kartografie",
+    "security": {
+      "authType": null,
+      "nodeId": "srv"
+    },
+    "lastLoginDate": "2023-05-01T05:07:58.127Z"
+  },
+  {
+    "enabled": true,
+    "name": "Christophe",
+    "id": 25335328,
+    "surname": "Mangeat",
+    "username": "C2CMangeat",
+    "profile": "Administrator",
+    "kind": null,
+    "emailAddresses": [
+      "christophe.mangeat@camptocamp.com"
+    ],
+    "addresses": [
+      {
+        "country": "Fr",
+        "state": "",
+        "id": 25335329,
+        "address": "",
+        "city": "",
+        "zip": ""
+      }
+    ],
+    "organisation": "C2C",
+    "security": {
+      "authType": null,
+      "nodeId": "srv"
+    },
+    "lastLoginDate": "2026-08-30T09:18:31.109293Z"
+  },
+  {
+    "enabled": true,
+    "name": "zug",
+    "id": 513,
+    "surname": "admin",
+    "username": "admin_zg",
+    "profile": "UserAdmin",
+    "kind": null,
+    "emailAddresses": [
+      "alexander.konrad@zg.ch"
+    ],
+    "addresses": [
+      {
+        "country": "",
+        "state": "Zug",
+        "id": 513,
+        "address": "",
+        "city": "Zug",
+        "zip": "6300"
+      }
+    ],
+    "organisation": "",
+    "security": {
+      "authType": null,
+      "nodeId": "srv"
+    },
+    "lastLoginDate": "2026-04-28T15:15:06.423728Z"
+  }
+]

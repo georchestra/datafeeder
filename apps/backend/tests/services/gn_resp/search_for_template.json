@@ -1,0 +1,97 @@
+{
+  "took": 2,
+  "timed_out": false,
+  "_shards": {
+    "total": 1,
+    "successful": 1,
+    "skipped": 0,
+    "failed": 0
+  },
+  "hits": {
+    "total": {
+      "value": 3,
+      "relation": "eq"
+    },
+    "max_score": 11.680042,
+    "hits": [
+      {
+        "_index": "gn-records",
+        "_id": "ec39075b-f252-45f2-9760-cf067944555e",
+        "_score": 11.680042,
+        "_source": {
+          "id": "48908170",
+          "owner": "21637",
+          "groupOwner": "19",
+          "op0": "19",
+          "op1": "19",
+          "documentStandard": "iso19115-3.2018",
+          "op3": "19",
+          "op5": "19"
+        },
+        "ownerId": 21637,
+        "edit": true,
+        "canReview": true,
+        "owner": true,
+        "isPublishedToAll": false,
+        "view": true,
+        "notify": true,
+        "download": true,
+        "dynamic": true,
+        "featured": true,
+        "selected": false
+      },
+      {
+        "_index": "gn-records",
+        "_id": "4a147cdd-b7f7-43e9-a6f6-750293287c84",
+        "_score": 9.795893,
+        "_source": {
+          "id": "48920416",
+          "owner": "47224575",
+          "groupOwner": "6",
+          "op0": "6",
+          "op1": "6",
+          "documentStandard": "iso19139",
+          "op3": "6",
+          "op5": "6"
+        },
+        "ownerId": 47224575,
+        "edit": true,
+        "canReview": true,
+        "owner": true,
+        "isPublishedToAll": false,
+        "view": true,
+        "notify": true,
+        "download": true,
+        "dynamic": true,
+        "featured": true,
+        "selected": false
+      },
+      {
+        "_index": "gn-records",
+        "_id": "5c46a628-e187-4569-ba8b-834c2817d6e2",
+        "_score": 9.795893,
+        "_source": {
+          "id": "48920415",
+          "owner": "47224575",
+          "groupOwner": "6",
+          "op0": "6",
+          "op1": "6",
+          "documentStandard": "iso19115-3.2018",
+          "op3": "6",
+          "op5": "6"
+        },
+        "ownerId": 47224575,
+        "edit": true,
+        "canReview": true,
+        "owner": true,
+        "isPublishedToAll": false,
+        "view": true,
+        "notify": true,
+        "download": true,
+        "dynamic": true,
+        "featured": true,
+        "selected": false
+      }
+    ]
+  }
+}

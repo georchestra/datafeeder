@@ -1,5 +1,8 @@
+import json
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -182,11 +185,18 @@ class TestMetadataService:
             datadir_path="/test/datadir",
         )
 
-        service.set_record_ownership("some-uuid", "testuser", "test org")
+        metadata_uuid = uuid4()
+        integrity_link = IntegrityLink(
+            id=metadata_uuid,
+            integrity_owner="testuser",
+            integrity_organization="test org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         # Verify the PUT call with correct IDs
         mock_session.put.assert_called_once_with(
-            "http://test/api/records/some-uuid/ownership",
+            f"http://test/api/records/{metadata_uuid}/ownership",
             params={"groupIdentifier": 20, "userIdentifier": 42},
         )
 
@@ -213,7 +223,13 @@ class TestMetadataService:
         )
 
         # Should not raise, just warn and skip
-        service.set_record_ownership("some-uuid", "unknown_user", "Test Org")
+        integrity_link = IntegrityLink(
+            id=uuid4(),
+            integrity_owner="unknown_user",
+            integrity_organization="Test Org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         # PUT should never be called
         mock_session.put.assert_not_called()
@@ -240,7 +256,13 @@ class TestMetadataService:
             datadir_path="/test/datadir",
         )
 
-        service.set_record_ownership("some-uuid", "testuser", "Missing Org")
+        integrity_link = IntegrityLink(
+            id=uuid4(),
+            integrity_owner="testuser",
+            integrity_organization="Missing Org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         mock_session.put.assert_not_called()
 
@@ -276,11 +298,18 @@ class TestMetadataService:
             gn_sync_mode="ROLE",
         )
 
-        # group_name param is ignored in user-groups mode
-        service.set_record_ownership("some-uuid", "testuser", "Ignored Org")
+        # organization param is ignored in user-groups mode
+        metadata_uuid = uuid4()
+        integrity_link = IntegrityLink(
+            id=metadata_uuid,
+            integrity_owner="testuser",
+            integrity_organization="Ignored Org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         mock_session.put.assert_called_once_with(
-            "http://test/api/records/some-uuid/ownership",
+            f"http://test/api/records/{metadata_uuid}/ownership",
             params={"groupIdentifier": 15, "userIdentifier": 42},
         )
 
@@ -323,11 +352,18 @@ class TestMetadataService:
             metadata_default_group_name="sample",
         )
 
-        service.set_record_ownership("some-uuid", "testuser", "Ignored Org")
+        metadata_uuid = uuid4()
+        integrity_link = IntegrityLink(
+            id=metadata_uuid,
+            integrity_owner="testuser",
+            integrity_organization="Ignored Org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         # Should fall back to "sample" group (id=10)
         mock_session.put.assert_called_once_with(
-            "http://test/api/records/some-uuid/ownership",
+            f"http://test/api/records/{metadata_uuid}/ownership",
             params={"groupIdentifier": 10, "userIdentifier": 42},
         )
 
@@ -527,7 +563,13 @@ class TestMetadataService:
             metadata_default_group_name="nonexistent",
         )
 
-        service.set_record_ownership("some-uuid", "testuser", "Ignored Org")
+        integrity_link = IntegrityLink(
+            id=uuid4(),
+            integrity_owner="testuser",
+            integrity_organization="Ignored Org",
+            source_import_type=ImportType.URL,
+        )
+        service.set_record_ownership(integrity_link)
 
         mock_session.put.assert_not_called()
 
@@ -1039,3 +1081,275 @@ class TestGenerateMetadataKeywords:
         texts = [k.text for k in all_keywords]
         assert "Template" in texts, "Template keyword must not be removed"
         assert "My Dataset" not in texts, "Dataset title must not be injected as a keyword"
+
+
+class TestGenerateWithTemplateFromUserGroups:
+    """Test _get_template_uuid() with mocked GeoNetwork calls."""
+
+    def mock_gn_search_to_return_19_6(
+        self, mock_gn_api: MagicMock, rework_response: Callable[[dict[Any, Any]], dict[Any, Any]]
+    ) -> tuple[MetadataService, MagicMock]:
+        mock_api = MagicMock()
+        with open("tests/services/gn_resp/search_for_template.json") as data_file:
+            mock_api.search.return_value = rework_response(json.load(data_file))
+        mock_api.session = MagicMock()
+        mock_gn_api.return_value = mock_api
+        datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
+        return MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir)), mock_api
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_template_uuid_retrieved_from_groups(self, mock_gn_api: MagicMock) -> None:
+        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, lambda data: data)
+
+        uuids = service.get_templates_uuid([3, 6, 19])
+
+        assert uuids == {
+            "19": [
+                {"uuid": "ec39075b-f252-45f2-9760-cf067944555e", "schema": "iso19115-3.2018"},
+            ],
+            "6": [
+                {"uuid": "4a147cdd-b7f7-43e9-a6f6-750293287c84", "schema": "iso19139"},
+                {"uuid": "5c46a628-e187-4569-ba8b-834c2817d6e2", "schema": "iso19115-3.2018"},
+            ],
+        }
+        assert (
+            mock_api.search.call_args[0][0]["query"]["bool"]["must"][0]["query_string"]["query"]
+            == '(isTemplate:"y") AND (groupOwner:"3" OR groupOwner:"6" OR groupOwner:"19") AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")'
+        )
+
+        uuids = service.get_templates_uuid([7, 11])
+
+        assert (
+            mock_api.search.call_args[0][0]["query"]["bool"]["must"][0]["query_string"]["query"]
+            == '(isTemplate:"y") AND (groupOwner:"7" OR groupOwner:"11") AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")'
+        )
+
+        uuids = service.get_templates_uuid([22])
+
+        assert (
+            mock_api.search.call_args[0][0]["query"]["bool"]["must"][0]["query_string"]["query"]
+            == '(isTemplate:"y") AND (groupOwner:"22") AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")'
+        )
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_choose_group_and_template(self, mock_gn_api: MagicMock) -> None:
+        def identity(data: Any) -> Any:
+            return data
+
+        service = self.mock_gn_search_to_return_19_6(mock_gn_api, identity)[0]
+
+        group, template = service.choose_group_and_template([3, 6, 19])
+
+        assert group == 6
+        assert template == "5c46a628-e187-4569-ba8b-834c2817d6e2"
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_choose_group_and_template_2(self, mock_gn_api: MagicMock) -> None:
+        def remove_last_two_hits(data: Any) -> Any:
+            data["hits"]["hits"] = data["hits"]["hits"][:-2]
+            return data
+
+        service = self.mock_gn_search_to_return_19_6(mock_gn_api, remove_last_two_hits)[0]
+
+        group, template = service.choose_group_and_template([3, 19])
+
+        assert group == 19
+        assert template == "ec39075b-f252-45f2-9760-cf067944555e"
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_choose_group_and_template_3(self, mock_gn_api: MagicMock) -> None:
+        def empty_hits(data: Any) -> Any:
+            data["hits"]["hits"] = []
+            return data
+
+        service = self.mock_gn_search_to_return_19_6(mock_gn_api, empty_hits)[0]
+
+        group, template = service.choose_group_and_template([3])
+
+        assert group == 3
+        assert template is None
+
+        group, template = service.choose_group_and_template([11, 3])
+
+        assert group == 3
+        assert template is None
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_generate_with_template_from_gn(self, mock_gn_api: MagicMock) -> None:
+        def identity(data: Any) -> Any:
+            return data
+
+        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, identity)
+
+        def side_effect_func(value: str):
+            if value.endswith("users"):
+                with open("tests/services/gn_resp/list_users.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+            else:
+                with open("tests/services/gn_resp/user_detail.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+
+        mock_api.session.get = MagicMock(side_effect=side_effect_func)
+
+        with open("tests/services/gn_resp/template_bytes.xml", "rb") as data_file:
+            mock_api.get_metadataxml.return_value = data_file.read()
+
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="My Dataset",
+            integrity_owner="C2CMangeat",
+            integrity_organization="Org",
+            staging_table_name="stg",
+            created_at=datetime.now(timezone.utc),
+            last_retrieval_timestamp=datetime.now(timezone.utc),
+            source_import_type=ImportType.URL,
+        )
+
+        service.org_based_sync = False
+        xml_str = service.generate_metadata(link)
+
+        root = etree.fromstring(xml_str.encode())
+        locale = root.xpath("//lan:PT_Locale", namespaces=NS_19115_3)
+        assert locale[0].attrib["id"] == "DE"
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_generate_with_default_template_1(self, mock_gn_api: MagicMock) -> None:
+        def identity(data: Any) -> Any:
+            return data
+
+        service = self.mock_gn_search_to_return_19_6(mock_gn_api, identity)[0]
+
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="My Dataset",
+            integrity_owner="unknown",
+            integrity_organization="Org",
+            staging_table_name="stg",
+            created_at=datetime.now(timezone.utc),
+            last_retrieval_timestamp=datetime.now(timezone.utc),
+            source_import_type=ImportType.URL,
+        )
+
+        service.org_based_sync = False
+        xml_str = service.generate_metadata(link)
+
+        root = etree.fromstring(xml_str.encode())
+        locale = root.xpath("//lan:PT_Locale", namespaces=NS_19115_3)
+        assert locale[0].attrib["id"] == "FR"
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_generate_with_default_template_2(self, mock_gn_api: MagicMock) -> None:
+        def empty_hits(data: Any) -> Any:
+            data["hits"]["hits"] = []
+            return data
+
+        service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, empty_hits)
+
+        def side_effect_func(value: str):
+            if value.endswith("users"):
+                with open("tests/services/gn_resp/list_users.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+            else:
+                with open("tests/services/gn_resp/user_detail.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+
+        mock_api.session.get = MagicMock(side_effect=side_effect_func)
+
+        with open("tests/services/gn_resp/template_bytes.xml", "rb") as data_file:
+            mock_api.get_metadataxml.return_value = data_file.read()
+
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="My Dataset",
+            integrity_owner="C2CMangeat",
+            integrity_organization="Org",
+            staging_table_name="stg",
+            created_at=datetime.now(timezone.utc),
+            last_retrieval_timestamp=datetime.now(timezone.utc),
+            source_import_type=ImportType.URL,
+        )
+
+        service.org_based_sync = False
+        xml_str = service.generate_metadata(link)
+
+        root = etree.fromstring(xml_str.encode())
+        locale = root.xpath("//lan:PT_Locale", namespaces=NS_19115_3)
+        assert locale[0].attrib["id"] == "FR"
+
+
+class TestResolveGroupFromLink:
+    @patch("src.services.metadata_service.GnApi")
+    def test_resolve_group_org_based_sync(self, mock_gn_api: MagicMock) -> None:
+        mock_api = MagicMock()
+
+        def side_effect_func(value: str):
+            if value.endswith("users"):
+                with open("tests/services/gn_resp/list_users.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+            else:
+                with open("tests/services/gn_resp/list_groups.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+
+        mock_api.session.get = MagicMock(side_effect=side_effect_func)
+        with open("tests/services/gn_resp/search_for_template.json") as data_file:
+            mock_api.search.return_value = json.load(data_file)
+        mock_gn_api.return_value = mock_api
+        datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
+        service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
+
+        link = IntegrityLink(
+            integrity_owner="C2CMangeat",
+            integrity_organization="Zug",
+            source_import_type=ImportType.URL,
+        )
+        user_id = service.resolve_user_id(link)
+        group_id = service.resolve_group_id(link, user_id)
+
+        assert group_id == [5]
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_resolve_group_user_based_sync(self, mock_gn_api: MagicMock) -> None:
+        mock_api = MagicMock()
+
+        def side_effect_func(value: str):
+            if value.endswith("users"):
+                with open("tests/services/gn_resp/list_users.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+            else:
+                with open("tests/services/gn_resp/user_detail.json") as data_file:
+                    mock = MagicMock()
+                    mock.json.return_value = json.load(data_file)
+                    return mock
+
+        mock_api.session.get = MagicMock(side_effect=side_effect_func)
+        mock_api.search = MagicMock()
+        with open("tests/services/gn_resp/search_for_template.json") as data_file:
+            mock_api.search.return_value = json.load(data_file)
+        mock_gn_api.return_value = mock_api
+        datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
+        service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
+
+        service.org_based_sync = False
+        link = IntegrityLink(
+            integrity_owner="C2CMangeat",
+            integrity_organization="Zug",
+            source_import_type=ImportType.URL,
+        )
+        user_id = service.resolve_user_id(link)
+        group_id = service.resolve_group_id(link, user_id)
+
+        assert group_id == [19, 55]
