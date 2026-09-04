@@ -28,10 +28,11 @@ class TestSanitizeName:
         assert sanitize_name("name&with*symbols") == "namewithsymbols"
         assert sanitize_name("email@domain.com") == "emaildomaincom"
 
-    def test_hyphens_preserved(self):
-        """Test that hyphens are preserved (they're allowed)."""
-        assert sanitize_name("test-layer-name") == "test-layer-name"
-        assert sanitize_name("my-org-123") == "my-org-123"
+    def test_hyphens_replaced_with_underscores(self):
+        """Test that hyphens become underscores (PostgreSQL identifiers reject them
+        unless quoted)."""
+        assert sanitize_name("test-layer-name") == "test_layer_name"
+        assert sanitize_name("my-org-123") == "my_org_123"
 
     def test_underscores_preserved(self):
         """Test that underscores are preserved."""
@@ -39,9 +40,9 @@ class TestSanitizeName:
         assert sanitize_name("my_org_123") == "my_org_123"
 
     def test_multiple_underscores_and_hyphens(self):
-        """Test that multiple consecutive underscores/hyphens are preserved."""
-        assert sanitize_name("test--layer__name") == "test--layer__name"
-        assert sanitize_name("name___with---many") == "name___with---many"
+        """Test that consecutive separators are kept one-for-one, hyphens included."""
+        assert sanitize_name("test--layer__name") == "test__layer__name"
+        assert sanitize_name("name___with---many") == "name___with___many"
 
     def test_leading_trailing_underscores_removed(self):
         """Test that leading and trailing underscores are removed."""
