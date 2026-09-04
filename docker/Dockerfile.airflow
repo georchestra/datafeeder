@@ -39,10 +39,10 @@ RUN cd apps/elt \
 
 # ============================================================================
 # Base stage: Trixie based airflow image + uv, shared by development and
-# production. The base image is built from the official Airflow Dockerfile
-# (see docker/airflow-base and `make build-airflow-base`) on debian:trixie-slim
-# with the system Python 3.13 shipped by debian:trixie-slim, matching the
-# workspace's python pin.
+# production. The base image is built from the official Airflow Dockerfile with
+# local patches (see docker/airflow-base and `make build-airflow-base`) on
+# debian:trixie-slim, using the Python that Trixie packages — currently 3.13,
+# matching the workspace's python pin.
 # ============================================================================
 FROM ${AIRFLOW_BASE_IMAGE} AS base
 
@@ -65,14 +65,19 @@ ENV UV_LINK_MODE=copy \
     UV_NO_CACHE=1 \
     UV_FROZEN=1
 
-# GDAL > 3.9 from conda-forge. Bookworm only ships 3.6, so we install GDAL into
-# an isolated prefix via micromamba and expose the CLI through small wrapper
-# scripts (not bare symlinks). The wrappers force ${GDAL_PREFIX}/lib to the front
-# of LD_LIBRARY_PATH so the conda libstdc++/libproj/... always win: libgdal.so
-# carries no RUNPATH of its own, so any LD_LIBRARY_PATH inherited from the airflow
-# worker would otherwise drag in bookworm's too-old libstdc++ (missing
-# GLIBCXX_3.4.31 / CXXABI_1.3.15). We deliberately keep ${GDAL_PREFIX}/bin off the
-# global PATH so conda's python never shadows the airflow interpreter.
+# GDAL from conda-forge, which is the reason this image needs a Trixie base: no
+# Debian release ships GDAL >= 3.13, and the conda-forge build links against the
+# *system* libstdc++, requiring GLIBCXX_3.4.31 / CXXABI_1.3.15 (GCC 13+). On
+# bookworm ogr2ogr installs fine but dies at exec time with "version
+# `CXXABI_1.3.15' not found"; neither LD_LIBRARY_PATH nor ldconfig fixes it,
+# because libstdc++ is a direct NEEDED entry of the ogr2ogr binary and is
+# resolved outside the conda RUNPATH.
+# GDAL goes into an isolated prefix and the CLI is exposed through small wrapper
+# scripts (not bare symlinks) that put ${GDAL_PREFIX}/lib first in
+# LD_LIBRARY_PATH, so conda's libproj/libicu/... win over any system copy the
+# airflow worker may have in its environment. We deliberately keep
+# ${GDAL_PREFIX}/bin off the global PATH so conda's python never shadows the
+# airflow interpreter.
 # conda-forge splits GDAL drivers into per-format packages on top of
 # libgdal-core: libgdal-arrow-parquet provides the (Geo)Parquet driver and
 # libgdal-pg provides the live PostgreSQL/PostGIS driver (ogr_PG.so) that the
