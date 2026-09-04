@@ -286,14 +286,14 @@ class MetadataService:
         """
 
         metadata_uuid = str(integrity_link.id)
-        user_name = integrity_link.integrity_owner
+        username = integrity_link.integrity_owner
 
         user_id = self.resolve_user_id(integrity_link)
 
         if user_id is None:
             logger.warning(
                 "Cannot set ownership: user '%s' not found in GeoNetwork",
-                user_name,
+                username,
             )
             return
 
@@ -303,7 +303,7 @@ class MetadataService:
         if group_id is None:
             logger.warning(
                 "Cannot set ownership: no group resolved for user '%s' (strategy=%s)",
-                user_name,
+                username,
                 "org-based" if self.org_based_sync else "user-groups",
             )
             return
@@ -317,7 +317,7 @@ class MetadataService:
         logger.info(
             "Set metadata %s ownership to user=%s (id=%s), group_id=%s",
             metadata_uuid,
-            user_name,
+            username,
             user_id,
             group_id,
         )
