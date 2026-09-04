@@ -19,10 +19,10 @@ def sanitize_name(name: str, max_length: int = PG_IDENTIFIER_MAX_LENGTH) -> str:
     Sanitize a name for use in GeoServer workspace/layer names or database schema names.
 
     Removes or replaces special characters:
-    - Replaces spaces with underscores
-    - Removes any character that is not alphanumeric, underscore, or hyphen
+    - Replaces spaces and hyphens with underscores
+    - Removes any character that is not alphanumeric or underscore
     - Converts to lowercase for consistency
-    - Removes leading/trailing underscores or hyphens
+    - Removes leading/trailing underscores
     - Ensures the name doesn't start with a number (prefixes with 'layer_' if it does)
 
     Args:
@@ -40,7 +40,7 @@ def sanitize_name(name: str, max_length: int = PG_IDENTIFIER_MAX_LENGTH) -> str:
         >>> sanitize_name("Org@123 #Test!")
         'org123_test'
         >>> sanitize_name("test--layer__name")
-        'test_layer_name'
+        'test__layer__name'
         >>> sanitize_name("123_dataset")
         'layer_123_dataset'
         >>> sanitize_name("_MyOrg_")

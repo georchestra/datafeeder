@@ -1,6 +1,6 @@
 """Tests for database utility functions."""
 
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, patch
 
 from data_manipulation.database import schema_exists, table_exists
 
@@ -9,41 +9,37 @@ class TestSchemaExists:
     """Test cases for schema_exists function."""
 
     def test_schema_exists_returns_true(self) -> None:
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = ("public",)
-        mock_engine = MagicMock()
-        mock_engine.connect.return_value.__enter__ = Mock(return_value=mock_conn)
-        mock_engine.connect.return_value.__exit__ = Mock(return_value=False)
+        inspector = MagicMock()
+        inspector.has_schema.return_value = True
 
-        assert schema_exists(mock_engine, "public") is True
+        with patch("data_manipulation.database.inspect", return_value=inspector):
+            assert schema_exists(MagicMock(), "public") is True
+
+        inspector.has_schema.assert_called_once_with("public")
 
     def test_schema_not_exists_returns_false(self) -> None:
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = None
-        mock_engine = MagicMock()
-        mock_engine.connect.return_value.__enter__ = Mock(return_value=mock_conn)
-        mock_engine.connect.return_value.__exit__ = Mock(return_value=False)
+        inspector = MagicMock()
+        inspector.has_schema.return_value = False
 
-        assert schema_exists(mock_engine, "nonexistent") is False
+        with patch("data_manipulation.database.inspect", return_value=inspector):
+            assert schema_exists(MagicMock(), "nonexistent") is False
 
 
 class TestTableExists:
     """Test cases for table_exists function."""
 
     def test_table_exists_returns_true(self) -> None:
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = ("my_table",)
-        mock_engine = MagicMock()
-        mock_engine.connect.return_value.__enter__ = Mock(return_value=mock_conn)
-        mock_engine.connect.return_value.__exit__ = Mock(return_value=False)
+        inspector = MagicMock()
+        inspector.has_table.return_value = True
 
-        assert table_exists(mock_engine, "public", "my_table") is True
+        with patch("data_manipulation.database.inspect", return_value=inspector):
+            assert table_exists(MagicMock(), "public", "my_table") is True
+
+        inspector.has_table.assert_called_once_with("my_table", schema="public")
 
     def test_table_not_exists_returns_false(self) -> None:
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = None
-        mock_engine = MagicMock()
-        mock_engine.connect.return_value.__enter__ = Mock(return_value=mock_conn)
-        mock_engine.connect.return_value.__exit__ = Mock(return_value=False)
+        inspector = MagicMock()
+        inspector.has_table.return_value = False
 
-        assert table_exists(mock_engine, "public", "nonexistent") is False
+        with patch("data_manipulation.database.inspect", return_value=inspector):
+            assert table_exists(MagicMock(), "public", "nonexistent") is False
