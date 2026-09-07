@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../../../testing/translate-testing.module'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { OperationToastComponent } from './operation-toast.component'
 import { OperationToastStore } from '../../../core/stores/operation-toast.store'
