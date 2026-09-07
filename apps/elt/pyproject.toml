@@ -13,14 +13,14 @@ readme = "README.md"
 requires-python = "==3.13.*"
 dependencies = [
     "data_manipulation",
-    "apache-airflow==3.2.2",  # keep in sync with AIRFLOW_VERSION in docker/Dockerfile.airflow
-    "apache-airflow-providers-postgres==6.7.0",
+    "apache-airflow==3.3.0",  # keep in sync with AIRFLOW_VERSION in docker/Dockerfile.airflow
+    "apache-airflow-providers-postgres",
     # Required by docker/compose.airflow.yaml, which sets CeleryExecutor and
     # FabAuthManager. The apache/airflow image preinstalls both, but
     # docker/Dockerfile.airflow builds on the GDAL image and installs only what
     # this lock declares.
-    "apache-airflow-providers-celery==3.20.0",
-    "apache-airflow-providers-fab==3.6.4",
+    "apache-airflow-providers-celery",
+    "apache-airflow-providers-fab",
 ]
 
 [dependency-groups]

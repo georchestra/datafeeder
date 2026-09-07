@@ -1,7 +1,7 @@
 # Display help message by default
 default: help
 
-AIRFLOW_VERSION ?= 3.2.2
+AIRFLOW_VERSION ?= 3.3.0
 export AIRFLOW_VERSION
 
 help: ## Display this help message
