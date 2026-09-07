@@ -49,14 +49,26 @@ def _build_pg_connection_string(engine: Engine) -> str:
     WARNING: the returned string embeds the database password — never log it.
     """
     url = engine.url
-    pg_conn_parts = [
-        f"host={url.host}",
-        f"port={url.port or 5432}",
-        f"dbname={url.database}",
-        f"user={url.username}",
-        f"password={url.password}",
-    ]
-    return "PG:" + " ".join(part for part in pg_conn_parts if part.split("=", 1)[1])
+
+    # libpq splits keyword/value strings on whitespace, so a value containing a space
+    # (a legitimate password) would be truncated unless quoted, with backslashes and
+    # single quotes escaped.
+    def quoted(value: object) -> str:
+        escaped = str(value).replace("\\", "\\\\").replace("'", "\\'")
+        return f"'{escaped}'"
+
+    # Filtered on the value, not on the formatted string: an f-string turns a missing
+    # component into the literal "None", which an emptiness test cannot catch.
+    pg_conn_parts = {
+        "host": url.host,
+        "port": url.port or 5432,
+        "dbname": url.database,
+        "user": url.username,
+        "password": url.password,
+    }
+    return "PG:" + " ".join(
+        f"{key}={quoted(value)}" for key, value in pg_conn_parts.items() if value is not None
+    )
 
 
 def _run_ogr2ogr(command: list[str], *, context: str) -> None:
