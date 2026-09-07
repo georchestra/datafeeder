@@ -21,7 +21,7 @@ for the details.
 |---|---|
 | `AIRFLOW_UID` | User ID Airflow containers run as. Set in `.env`; `make install-python` writes your current UID automatically |
 | `AIRFLOW_STAGING_TIMEOUT_SECONDS` | Timeout, in seconds, for the staging task execution (default: `600`) |
-| `AIRFLOW_VERSION` | Airflow version installed by `Dockerfile.airflow`; keep in sync with `apps/elt/pyproject.toml` (default: `3.2.2`) |
+| `AIRFLOW_VERSION` | Airflow version installed by `Dockerfile.airflow`; keep in sync with `apps/elt/pyproject.toml` (default: `3.3.0`) |
 
 The backend also needs to be pointed at the Airflow instance: see `AIRFLOW_INTERNAL_URL`, `AIRFLOW_USERNAME` and
 `AIRFLOW_PASSWORD` in the [backend configuration](backend.md).

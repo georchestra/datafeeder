@@ -22,10 +22,8 @@ from urllib.parse import quote
 
 import requests
 from data_manipulation import (
-    CHUNK_SIZE,
     IntegrityTransformation,
-    read_and_transform_data,
-    write_data_to_postgis,
+    transform_staging_to_final,
 )
 from data_manipulation.constants import DB_URI_PREFIX
 from data_manipulation.database import create_schema
@@ -304,38 +302,23 @@ class LocalTaskExecutor(BaseTaskExecutor):
 
         create_schema(data_engine, target_schema)
 
-        i = 0
-        total_rows = 0
-        while True:
-            transformed_data = read_and_transform_data(
-                table_name=staging_table_name,
-                engine=data_engine,
-                schema=staging_schema,
-                config=transformation_config,
-                limit=CHUNK_SIZE,
-                offset=i * CHUNK_SIZE,
-            )
-            if transformed_data.empty:
-                break
+        # Transformation runs entirely in PostGIS (CREATE TABLE AS) — no data is
+        # loaded into Python memory. Mirrors apps/elt/dags/task_groups/transformation.py
+        # so the direct (LOCAL executor) and Airflow flows apply identical logic.
+        row_count = transform_staging_to_final(
+            staging_table=staging_table_name,
+            final_table=final_table_name,
+            engine=data_engine,
+            config=transformation_config,
+            staging_schema=staging_schema,
+            final_schema=target_schema,
+            create_id=True,
+        )
 
-            chunk_len = len(transformed_data)
-            write_data_to_postgis(
-                data=transformed_data,
-                table_name=final_table_name,
-                engine=data_engine,
-                schema=target_schema,
-                create_id=i == 0,
-                if_exists="replace" if i == 0 else "append",
-            )
-            total_rows += chunk_len
-            if chunk_len < CHUNK_SIZE:
-                break
-            i += 1
-
-        if total_rows == 0:
+        if row_count == 0:
             raise ValueError("No data to write after transformation.")
 
-        logger.info(f"Successfully wrote {total_rows} rows to final table")
+        logger.info(f"Successfully wrote {row_count} rows to final table")
 
         logger.info(f"Dropping staging table {staging_schema}.{staging_table_name}")
         metadata = MetaData(schema=staging_schema)
