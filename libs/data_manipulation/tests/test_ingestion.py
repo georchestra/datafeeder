@@ -49,11 +49,31 @@ class TestPgConnectionString:
     def test_contains_all_parts(self, engine: Engine) -> None:
         conn = _build_pg_connection_string(engine)
         assert conn.startswith("PG:")
-        assert "host=dbhost" in conn
-        assert "port=5432" in conn
-        assert "dbname=datadb" in conn
-        assert "user=user" in conn
-        assert "password=secret" in conn
+        assert "host='dbhost'" in conn
+        assert "port='5432'" in conn
+        assert "dbname='datadb'" in conn
+        assert "user='user'" in conn
+        assert "password='secret'" in conn
+
+    def test_password_with_space_is_quoted(self) -> None:
+        """libpq splits on whitespace, so an unquoted value would be truncated."""
+        conn = _build_pg_connection_string(
+            create_engine("postgresql+psycopg2://user:pa%20ss@dbhost:5432/datadb")
+        )
+        assert "password='pa ss'" in conn
+
+    def test_special_characters_are_escaped(self) -> None:
+        conn = _build_pg_connection_string(
+            create_engine("postgresql+psycopg2://user:qu%27o%5Cte@dbhost:5432/datadb")
+        )
+        assert "password='qu\\'o\\\\te'" in conn
+
+    def test_missing_components_are_omitted(self) -> None:
+        """A missing component must be dropped, not sent as the string "None"."""
+        conn = _build_pg_connection_string(create_engine("postgresql+psycopg2:///datadb"))
+        assert "None" not in conn
+        assert "host=" not in conn
+        assert "dbname='datadb'" in conn
 
 
 class TestNormalizeOapifUrl:
