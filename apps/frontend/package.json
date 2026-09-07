@@ -87,5 +87,11 @@
     "typescript-eslint": "^8.40.0",
     "vite": "^7.3.2",
     "vitest": "^3.1.1"
+  },
+  "overrides": {
+    "geonetwork-ui": {
+      "@ngx-translate/core": "$@ngx-translate/core",
+      "@ngx-translate/http-loader": "$@ngx-translate/http-loader"
+    }
   }
 }
