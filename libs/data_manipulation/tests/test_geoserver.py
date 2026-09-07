@@ -238,8 +238,10 @@ class TestCreateLayer:
         assert "Connection timeout" in str(exc_info.value)
         assert "nonexistent_table" in str(exc_info.value)
 
-    def test_create_layer_non_geographic_success(self, mock_geoserver: MagicMock) -> None:
-        """Test successful layer creation for non-geographic data with fake bounds."""
+    def test_create_layer_non_geographic_reprojects_placeholder(
+        self, mock_geoserver: MagicMock
+    ) -> None:
+        """Test that a non-geographic layer's latLon extent is reprojected, not mislabelled."""
         epsg = 2154
 
         with patch("data_manipulation.geoserver.RestService") as rest_service_class:
@@ -264,15 +266,16 @@ class TestCreateLayer:
         assert payload["name"] == "test_table"
         assert payload["srs"] == f"EPSG:{epsg}"
 
-        # is_geographic=False skips bbox derivation, so the default placeholder bounds
-        # are sent as-is and GeoServer treats the layer as having no valid extent.
+        # The native extent stays the placeholder, expressed in epsg...
         native_bbox = payload["nativeBoundingBox"]
         assert (native_bbox["minx"], native_bbox["miny"]) == (-1.0, -1.0)
         assert (native_bbox["maxx"], native_bbox["maxy"]) == (0.0, 0.0)
         assert native_bbox["crs"]["$"] == f"EPSG:{epsg}"
-        assert native_bbox["crs"]["@class"] == "projected"
 
+        # ...while the latLon one is actually converted to EPSG:4326 instead of
+        # reusing the epsg coordinates under a 4326 label.
         latlon_bbox = payload["latLonBoundingBox"]
-        assert (latlon_bbox["minx"], latlon_bbox["miny"]) == (-1.0, -1.0)
-        assert (latlon_bbox["maxx"], latlon_bbox["maxy"]) == (0.0, 0.0)
         assert latlon_bbox["crs"] == "EPSG:4326"
+        assert (latlon_bbox["minx"], latlon_bbox["miny"]) != (-1.0, -1.0)
+        assert -180 <= latlon_bbox["minx"] <= 180
+        assert -90 <= latlon_bbox["miny"] <= 90
