@@ -12,13 +12,13 @@ In short:
 
 ```bash
 make install-python   # installs Python deps via uv, writes AIRFLOW_UID into .env
-make up                # backend deps + docker compose (georchestra, geoserver, geonetwork)
+make up                # backend deps + docker compose (georchestra, geoserver, geonetwork, airflow)
 make run-backend       # backend, with auto-reload
 cd apps/frontend && npm install && npm start
 ```
 
-`make help` lists every available target. `make up` no longer starts Airflow by default — use
-`make up-airflow` for that, or set `TASK_EXECUTOR=LOCAL` to skip Airflow entirely during dev, see
+`make help` lists every available target. `make up` starts the Airflow stack too; use `make up-no-airflow`
+together with `TASK_EXECUTOR=LOCAL` to skip Airflow entirely during dev, see
 [Developing without Airflow](local_executor.md).
 
 ## Running the tests
