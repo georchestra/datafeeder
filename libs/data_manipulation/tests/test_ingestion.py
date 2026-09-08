@@ -175,6 +175,21 @@ class TestResolveZipSource:
         archive = _make_zip(tmp_path / "gpkg.zip", ["export.gpkg"])
         assert _resolve_zip_source(archive) == f"/vsizip/{archive}"
 
+    def test_macos_metadata_is_ignored(self, tmp_path: Path) -> None:
+        # Zipping from the Finder adds an __MACOSX/._<name> entry per member;
+        # ogrinfo /vsizip/... still reports the single pts layer.
+        archive = _make_zip(
+            tmp_path / "finder.zip",
+            _SHAPEFILE_MEMBERS + [f"__MACOSX/._{m}" for m in _SHAPEFILE_MEMBERS],
+        )
+        assert _resolve_zip_source(archive) == f"/vsizip/{archive}"
+
+    def test_appledouble_files_outside_macosx_are_ignored(self, tmp_path: Path) -> None:
+        # Some tools drop the ._ files next to the originals rather than under
+        # __MACOSX, which would otherwise look like a second dataset.
+        archive = _make_zip(tmp_path / "dotunderscore.zip", _SHAPEFILE_MEMBERS + ["._pts.shp"])
+        assert _resolve_zip_source(archive) == f"/vsizip/{archive}"
+
     def test_multiple_datasets_raise_instead_of_losing_data(self, tmp_path: Path) -> None:
         # ogr2ogr -nln writes every layer into the same table, so with
         # -overwrite each layer would silently replace the previous one.
