@@ -32,6 +32,7 @@ NS_19115_3 = {
     "cit": "http://standards.iso.org/iso/19115/-3/cit/2.0",
     "gco": "http://standards.iso.org/iso/19115/-3/gco/1.0",
     "lan": "http://standards.iso.org/iso/19115/-3/lan/1.0",
+    "mrd": "http://standards.iso.org/iso/19115/-3/mrd/1.0",
 }
 
 NS_19139 = {
@@ -42,6 +43,9 @@ NS_19139 = {
 _CODELIST_URL = (
     "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_DateTypeCode"
 )
+
+RESOURCE_TITLE_XPATH_19115_3 = "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions/mrd:MD_DigitalTransferOptions/mrd:onLine/cit:CI_OnlineResource/cit:description/gco:CharacterString"
+RESOURCE_TITLE_XPATH_19139 = "gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource/gmd:description/gco:CharacterString"
 
 
 class MetadataService:
@@ -555,6 +559,16 @@ class MetadataService:
         self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
         logger.info("Updated revision date for metadata record %s", metadata_uuid)
 
+    def update_online_resources_when_title_changed(self, xml_bytes: bytes, title: str) -> bytes:
+        root: _Element = etree.fromstring(xml_bytes)
+        schema = self._detect_schema(root)
+        if schema == _SCHEMA_19115_3:
+            self._update_online_resources_when_title_changed_19115_3(root, title)
+        else:
+            self._update_online_resources_when_title_changed_19139(root, title)
+
+        return etree.tostring(root, xml_declaration=True, encoding="UTF-8")
+
     def upload_metadata_xml(self, xml_bytes: bytes) -> None:
         """Upload raw XML bytes to GeoNetwork via OVERWRITE.
 
@@ -712,3 +726,15 @@ class MetadataService:
         group_owner = sorted(templates_by_group_owner.keys(), key=int)[0]
         template = sorted(templates_by_group_owner[group_owner], key=str)[0]
         return int(group_owner), template
+
+    @staticmethod
+    def _update_online_resources_when_title_changed_19115_3(root: _Element, title: str) -> _Element:
+        for online in root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3):
+            online.text = title
+        return root
+
+    @staticmethod
+    def _update_online_resources_when_title_changed_19139(root: _Element, title: str) -> _Element:
+        for online in root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139):
+            online.text = title
+        return root
