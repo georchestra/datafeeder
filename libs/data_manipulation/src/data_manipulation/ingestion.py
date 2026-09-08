@@ -311,6 +311,18 @@ def _shapefile_members(file_path: str) -> tuple[bytes | None, bytes | None] | No
     return cpg_bytes, dbf_bytes
 
 
+def _is_archive_metadata(name: str) -> bool:
+    """Whether an archive member is packaging metadata rather than user data.
+
+    Zipping a folder from the macOS Finder adds an ``__MACOSX`` tree holding one
+    ``._<name>`` AppleDouble file per entry. Counting those as datasets made a
+    plain shapefile look like two, and the archive was rejected even though GDAL
+    reports a single layer.
+    """
+    parts = Path(name).parts
+    return "__MACOSX" in parts or parts[-1].startswith("._")
+
+
 def _resolve_zip_source(file_path: str) -> str:
     """Return the GDAL source path for a ZIP archive.
 
@@ -331,7 +343,11 @@ def _resolve_zip_source(file_path: str) -> str:
         return file_path
 
     with zipfile.ZipFile(file_path) as archive:
-        names = [name for name in archive.namelist() if not name.endswith("/")]
+        names = [
+            name
+            for name in archive.namelist()
+            if not name.endswith("/") and not _is_archive_metadata(name)
+        ]
 
     # A shapefile is a set of sidecar files sharing one basename; every other
     # supported format is a single file. Group by directory + stem so a
