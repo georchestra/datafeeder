@@ -285,7 +285,10 @@ def update_metadata_gn(
     )
 
     try:
-        metadata_service.upload_metadata_xml(body.serialized_xml.encode("utf-8"))
+        updated_online_desc = metadata_service.update_online_resources_when_title_changed(
+            body.serialized_xml.encode("utf-8"), body.title
+        )
+        metadata_service.upload_metadata_xml(updated_online_desc)
     except Exception as e:
         logger.error(
             "GeoNetwork upload failed for IntegrityLink %s: %s",
