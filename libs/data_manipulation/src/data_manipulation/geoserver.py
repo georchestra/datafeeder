@@ -1,17 +1,21 @@
 """GeoServer layer creation utilities."""
 
-from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
+from geoservercloud import GeoServerCloud
 from geoservercloud.models.common import MetadataLink
 from geoservercloud.models.datastore import DataStore
 from geoservercloud.models.featuretype import FeatureType
 from geoservercloud.services import RestService
-from pydantic import BaseModel  # type: ignore[import-untyped]
-from pyproj import Transformer  # type: ignore[import-untyped]
+from pydantic import BaseModel
+from pyproj import Transformer
 
 from data_manipulation.utils import sanitize_name
 
+# Stand-in extent for layers whose real one is unknown, notably non-geographic
+# ones. GeoServer requires an extent, so it has to be something.
+_PLACEHOLDER_BBOX: dict[str, float] = {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0}
 
-class WorkspaceCreationResult(BaseModel):  # type: ignore[misc]
+
+class WorkspaceCreationResult(BaseModel):
     """Result of workspace creation."""
 
     workspace: str
@@ -20,7 +24,7 @@ class WorkspaceCreationResult(BaseModel):  # type: ignore[misc]
 
 
 def create_workspace(
-    geoserver: GeoServerCloud,  # type: ignore[reportUnknownParameterType]
+    geoserver: GeoServerCloud,
     workspace_name: str,
     datastore_name: str,
     jndi_reference: str,
@@ -52,7 +56,7 @@ def create_workspace(
         pg_schema = workspace_name
 
     # Create workspace
-    geoserver.create_workspace(workspace_name)  # type: ignore[reportUnknownMemberType]
+    geoserver.create_workspace(workspace_name)
 
     # Retrieve namespace URI for the workspace because it must match datastore one
     # So if the workspace already exists before calling geoserver.create_workspace,
@@ -84,7 +88,7 @@ def create_workspace(
 
 
 def create_layer(
-    geoserver: GeoServerCloud,  # type: ignore[reportUnknownVariableType]
+    geoserver: GeoServerCloud,
     workspace_name: str,
     datastore_name: str | None,
     table_name: str,
@@ -92,7 +96,7 @@ def create_layer(
     abstract: str | None = None,
     epsg: int = 4326,
     is_geographic: bool = True,
-    bbox: dict[str, float] = {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0},
+    bbox: dict[str, float] | None = None,
     metadata_links: list[MetadataLink] | None = None,
 ) -> None:
     """
@@ -107,7 +111,8 @@ def create_layer(
         abstract: Layer description/abstract (defaults to table_name if None)
         epsg: EPSG code for the coordinate reference system (defaults to 4326)
         is_geographic: Whether the data has valid geometry (defaults to True)
-                       If False, fake bounds will be set
+                       If False, *bbox* is ignored and a placeholder extent is sent
+        bbox: Extent of the data in *epsg*. Ignored when is_geographic is False.
 
     Raises:
         Exception: If the table doesn't exist in the database or GeoServer fails to create the layer
@@ -127,17 +132,13 @@ def create_layer(
         abstract = table_name
 
     try:
-        native_bounding_box = {
-            **bbox,
-            "crs": {"$": f"EPSG:{epsg}", "@class": "projected"},
-        }
-        lat_lon_bounding_box = {
-            **bbox,
-            "crs": "EPSG:4326",
-        }
-        if is_geographic:
-            native_bounding_box = _get_native_bbox_from_bbox_string(bbox, epsg)
-            lat_lon_bounding_box = _get_ll_bbox_from_native_bbox(bbox, epsg)
+        # Derive both extents the same way whether or not the layer is geographic.
+        # The non-geographic branch used to forward *bbox* as-is, which labelled the
+        # latLon extent EPSG:4326 while its coordinates were still in `epsg`, since
+        # only the geographic branch went through _get_ll_bbox_from_native_bbox.
+        effective_bbox = bbox if is_geographic and bbox else _PLACEHOLDER_BBOX
+        native_bounding_box = _get_native_bbox_from_bbox_string(effective_bbox, epsg)
+        lat_lon_bounding_box = _get_ll_bbox_from_native_bbox(effective_bbox, epsg)
 
         feature_type = FeatureType(
             name=table_name,
@@ -154,8 +155,8 @@ def create_layer(
         )
 
         rest_service = RestService(
-            url=geoserver.url,  # type: ignore[reportUnknownMemberType]
-            auth=geoserver.auth,  # type: ignore[reportUnknownMemberType]
+            url=geoserver.url,
+            auth=geoserver.auth,
         )
         rest_service.create_feature_type(feature_type)
 
@@ -164,7 +165,7 @@ def create_layer(
         try:
             # Verify if the layer was actually created despite the error
             # (the error may not be critical)
-            geoserver.get_feature_type(  # type: ignore[reportUnknownMemberType]
+            geoserver.get_feature_type(
                 workspace_name=workspace_name,
                 datastore_name=datastore_name,
                 feature_type_name=table_name,
@@ -177,7 +178,7 @@ def create_layer(
 
 
 def update_layer_bbox(
-    geoserver: GeoServerCloud,  # type: ignore[reportUnknownVariableType]
+    geoserver: GeoServerCloud,
     workspace_name: str,
     datastore_name: str,
     table_name: str,
@@ -214,8 +215,8 @@ def update_layer_bbox(
     )
 
     rest_service = RestService(
-        url=geoserver.url,  # type: ignore[reportUnknownMemberType]
-        auth=geoserver.auth,  # type: ignore[reportUnknownMemberType]
+        url=geoserver.url,
+        auth=geoserver.auth,
     )
     rest_service.create_feature_type(feature_type)
 

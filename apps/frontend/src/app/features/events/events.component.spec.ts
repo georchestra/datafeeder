@@ -13,7 +13,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../../testing/translate-testing.module'
 import { Api } from '../../core/api/api'
 import {
   getDagRunByIntlinkAirflowDagsDagIdRunsIntlinkIdGet,

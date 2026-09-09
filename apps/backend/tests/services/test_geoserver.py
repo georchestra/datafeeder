@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.models.integrity_link_rule import RuleValue
-from src.services.geoserver import (  # type: ignore[attr-defined]
+from src.services.geoserver import (
     _ACL_HEADERS,  # type: ignore[attr-defined]
     ACL_ROLE_EVERYONE,
     AclAccessType,
@@ -552,7 +552,7 @@ class TestAclLayerSetRule:
             return svc
 
     def test_post_succeeds_directly(self, service: GeoServerService) -> None:
-        service.acl_layer_post = MagicMock()  # type: ignore[method-assign]
+        service.acl_layer_post = MagicMock()
 
         service.acl_layer_set_rule("geor.my_layer", AclAccessType.READ, ["ROLE_IMPORT"])
 
@@ -561,9 +561,9 @@ class TestAclLayerSetRule:
         )
 
     def test_replaces_without_merging_on_409(self, service: GeoServerService) -> None:
-        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(409, "Conflict"))  # type: ignore[method-assign]
-        service.acl_layer_get = MagicMock(return_value=["ROLE_EXISTING"])  # type: ignore[method-assign]
-        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
+        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(409, "Conflict"))
+        service.acl_layer_get = MagicMock(return_value=["ROLE_EXISTING"])
+        service.acl_layer_put = MagicMock()
 
         service.acl_layer_set_rule("geor.my_layer", AclAccessType.READ, ["ROLE_IMPORT"])
 
@@ -573,7 +573,7 @@ class TestAclLayerSetRule:
         )
 
     def test_reraises_non_409_error(self, service: GeoServerService) -> None:
-        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(500, "Server error"))  # type: ignore[method-assign]
+        service.acl_layer_post = MagicMock(side_effect=GeoServerAclError(500, "Server error"))
 
         with pytest.raises(GeoServerAclError) as exc_info:
             service.acl_layer_set_rule("geor.my_layer", AclAccessType.READ, ["ROLE_IMPORT"])
@@ -597,9 +597,9 @@ class TestAclLayerRemoveRule:
             return svc
 
     def test_updates_with_remaining_roles(self, service: GeoServerService) -> None:
-        service.acl_layer_get = MagicMock(return_value=["ROLE_IMPORT", ACL_ROLE_EVERYONE])  # type: ignore[method-assign]
-        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
-        service.acl_layer_delete = MagicMock()  # type: ignore[method-assign]
+        service.acl_layer_get = MagicMock(return_value=["ROLE_IMPORT", ACL_ROLE_EVERYONE])
+        service.acl_layer_put = MagicMock()
+        service.acl_layer_delete = MagicMock()
 
         service.acl_layer_remove_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
 
@@ -609,9 +609,9 @@ class TestAclLayerRemoveRule:
         service.acl_layer_delete.assert_not_called()
 
     def test_deletes_when_no_roles_remain(self, service: GeoServerService) -> None:
-        service.acl_layer_get = MagicMock(return_value=[ACL_ROLE_EVERYONE])  # type: ignore[method-assign]
-        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
-        service.acl_layer_delete = MagicMock()  # type: ignore[method-assign]
+        service.acl_layer_get = MagicMock(return_value=[ACL_ROLE_EVERYONE])
+        service.acl_layer_put = MagicMock()
+        service.acl_layer_delete = MagicMock()
 
         service.acl_layer_remove_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
 
@@ -619,9 +619,9 @@ class TestAclLayerRemoveRule:
         service.acl_layer_put.assert_not_called()
 
     def test_get_returns_none_treated_as_empty(self, service: GeoServerService) -> None:
-        service.acl_layer_get = MagicMock(return_value=None)  # type: ignore[method-assign]
-        service.acl_layer_put = MagicMock()  # type: ignore[method-assign]
-        service.acl_layer_delete = MagicMock()  # type: ignore[method-assign]
+        service.acl_layer_get = MagicMock(return_value=None)
+        service.acl_layer_put = MagicMock()
+        service.acl_layer_delete = MagicMock()
 
         service.acl_layer_remove_rule("geor.my_layer", AclAccessType.READ, [ACL_ROLE_EVERYONE])
 
@@ -794,7 +794,7 @@ class TestUpdateLayerTitle:
         mock_endpoints.featuretype.return_value = (
             "http://gs/workspaces/myws/datastores/myds/featuretypes/my_table.json"
         )
-        service.geoserver.rest_service.rest_endpoints = mock_endpoints  # type: ignore[misc]
+        service.geoserver.rest_service.rest_endpoints = mock_endpoints
         rest_client.put.return_value.status_code = 200
 
         service.update_layer_title("myws", "myds", "my_table", "My Layer Title")
@@ -809,7 +809,7 @@ class TestUpdateLayerTitle:
     ) -> None:
         """The URL is built using rest_endpoints.featuretype(ws, ds, name)."""
         mock_endpoints = MagicMock()
-        service.geoserver.rest_service.rest_endpoints = mock_endpoints  # type: ignore[misc]
+        service.geoserver.rest_service.rest_endpoints = mock_endpoints
         rest_client.put.return_value.status_code = 200
 
         service.update_layer_title("ws1", "ds1", "layer1", "Title")
