@@ -1,0 +1,277 @@
+[
+  {
+    "id": {
+      "profile": "Administrator",
+      "userId": 25335328,
+      "groupId": 0
+    },
+    "user": {
+      "enabled": true,
+      "name": "Christophe",
+      "id": 25335328,
+      "surname": "Mangeat",
+      "username": "C2CMangeat",
+      "profile": "Administrator",
+      "kind": null,
+      "emailAddresses": [
+        "christophe.mangeat@camptocamp.com"
+      ],
+      "addresses": [
+        {
+          "country": "Fr",
+          "state": "",
+          "id": 25335329,
+          "address": "",
+          "city": "",
+          "zip": ""
+        }
+      ],
+      "organisation": "C2C",
+      "security": {
+        "authType": null,
+        "nodeId": "srv"
+      },
+      "lastLoginDate": "2026-08-30T09:18:31.109293Z"
+    },
+    "group": {
+      "logo": null,
+      "website": null,
+      "defaultCategory": null,
+      "allowedCategories": [],
+      "enableAllowedCategories": false,
+      "minimumProfileForPrivileges": null,
+      "name": "intranet",
+      "id": 0,
+      "description": null,
+      "email": null,
+      "referrer": null,
+      "label": {
+        "ger": "Intranet",
+        "ita": "Intranet",
+        "fre": "Intranet",
+        "roh": "Intranet",
+        "eng": "Intranet"
+      }
+    }
+  },
+  {
+    "id": {
+      "profile": "Administrator",
+      "userId": 25335328,
+      "groupId": 1
+    },
+    "user": {
+      "enabled": true,
+      "name": "Christophe",
+      "id": 25335328,
+      "surname": "Mangeat",
+      "username": "C2CMangeat",
+      "profile": "Administrator",
+      "kind": null,
+      "emailAddresses": [
+        "christophe.mangeat@camptocamp.com"
+      ],
+      "addresses": [
+        {
+          "country": "Fr",
+          "state": "",
+          "id": 25335329,
+          "address": "",
+          "city": "",
+          "zip": ""
+        }
+      ],
+      "organisation": "C2C",
+      "security": {
+        "authType": null,
+        "nodeId": "srv"
+      },
+      "lastLoginDate": "2026-08-30T09:18:31.109293Z"
+    },
+    "group": {
+      "logo": null,
+      "website": null,
+      "defaultCategory": null,
+      "allowedCategories": [],
+      "enableAllowedCategories": false,
+      "minimumProfileForPrivileges": null,
+      "name": "all",
+      "id": 1,
+      "description": null,
+      "email": null,
+      "referrer": null,
+      "label": {
+        "ger": "Alle",
+        "ita": "Alle",
+        "fre": "Tous",
+        "roh": "Alle",
+        "eng": "All"
+      }
+    }
+  },
+  {
+    "id": {
+      "profile": "Administrator",
+      "userId": 25335328,
+      "groupId": -1
+    },
+    "user": {
+      "enabled": true,
+      "name": "Christophe",
+      "id": 25335328,
+      "surname": "Mangeat",
+      "username": "C2CMangeat",
+      "profile": "Administrator",
+      "kind": null,
+      "emailAddresses": [
+        "christophe.mangeat@camptocamp.com"
+      ],
+      "addresses": [
+        {
+          "country": "Fr",
+          "state": "",
+          "id": 25335329,
+          "address": "",
+          "city": "",
+          "zip": ""
+        }
+      ],
+      "organisation": "C2C",
+      "security": {
+        "authType": null,
+        "nodeId": "srv"
+      },
+      "lastLoginDate": "2026-08-30T09:18:31.109293Z"
+    },
+    "group": {
+      "logo": "",
+      "website": "",
+      "defaultCategory": null,
+      "allowedCategories": [],
+      "enableAllowedCategories": false,
+      "minimumProfileForPrivileges": null,
+      "name": "GUEST",
+      "id": -1,
+      "description": "Reserved Guest Group",
+      "email": "",
+      "referrer": null,
+      "label": {
+        "ger": "Gast",
+        "ita": "Ospite",
+        "fre": "Invit\u00e9",
+        "roh": "",
+        "eng": "Guest"
+      }
+    }
+  },
+  {
+    "id": {
+      "profile": "Administrator",
+      "userId": 25335328,
+      "groupId": 19
+    },
+    "user": {
+      "enabled": true,
+      "name": "Christophe",
+      "id": 25335328,
+      "surname": "Mangeat",
+      "username": "C2CMangeat",
+      "profile": "Administrator",
+      "kind": null,
+      "emailAddresses": [
+        "christophe.mangeat@camptocamp.com"
+      ],
+      "addresses": [
+        {
+          "country": "Fr",
+          "state": "",
+          "id": 25335329,
+          "address": "",
+          "city": "",
+          "zip": ""
+        }
+      ],
+      "organisation": "C2C",
+      "security": {
+        "authType": null,
+        "nodeId": "srv"
+      },
+      "lastLoginDate": "2026-08-30T09:18:31.109293Z"
+    },
+    "group": {
+      "logo": "45a561ff-92fe-4f91-818c-59f720bc66ab.png",
+      "website": "",
+      "defaultCategory": null,
+      "allowedCategories": [],
+      "enableAllowedCategories": false,
+      "minimumProfileForPrivileges": null,
+      "name": "TestGroup",
+      "id": 42,
+      "description": "Just for testing no real or published data should be in this group",
+      "email": "jesse.eichar@camptocamp.com",
+      "referrer": null,
+      "label": {
+        "ger": "TestGroup",
+        "ita": "TestGroup",
+        "fre": "TestGroup",
+        "roh": "TestGroup",
+        "eng": "TestGroup"
+      }
+    }
+  },
+  {
+    "id": {
+      "profile": "Administrator",
+      "userId": 25335328,
+      "groupId": 55
+    },
+    "user": {
+      "enabled": true,
+      "name": "Christophe",
+      "id": 25335328,
+      "surname": "Mangeat",
+      "username": "C2CMangeat",
+      "profile": "Administrator",
+      "kind": null,
+      "emailAddresses": [
+        "christophe.mangeat@camptocamp.com"
+      ],
+      "addresses": [
+        {
+          "country": "Fr",
+          "state": "",
+          "id": 25335329,
+          "address": "",
+          "city": "",
+          "zip": ""
+        }
+      ],
+      "organisation": "C2C",
+      "security": {
+        "authType": null,
+        "nodeId": "srv"
+      },
+      "lastLoginDate": "2026-08-30T09:18:31.109293Z"
+    },
+    "group": {
+      "logo": "f861b7b3-c8ef-471d-b0fd-d42467a857f9.png",
+      "website": "http://www.geocat.ch",
+      "defaultCategory": null,
+      "allowedCategories": [],
+      "enableAllowedCategories": false,
+      "minimumProfileForPrivileges": null,
+      "name": "TestPartner",
+      "id": 55,
+      "description": "Test-Instanz, um den Partnern die Moeglichkeit zu geben, auf der produktiven Applikation Tests auszufuehren. VORSICHT: Daten koennen jederzeit ohne Vorwarnung geloescht werden!",
+      "email": "geocat@swisstopo.ch",
+      "referrer": null,
+      "label": {
+        "ger": "TestPartner",
+        "ita": "TestPartner",
+        "fre": "TestPartner",
+        "roh": "TestPartner",
+        "eng": "TestPartner"
+      }
+    }
+  }
+]
