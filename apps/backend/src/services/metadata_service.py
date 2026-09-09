@@ -677,7 +677,7 @@ class MetadataService:
             )
             raise
 
-    def get_templates_uuid(self, groups_id: list[int]) -> dict[str, list[dict[str, str]]]:
+    def get_templates_uuid(self, groups_id: list[int]) -> dict[str, list[str]]:
         group_owner_clause = " OR ".join(f'groupOwner:"{group_id}"' for group_id in groups_id)
         req = {
             "query": {
@@ -686,26 +686,21 @@ class MetadataService:
                         {
                             "query_string": {
                                 "default_operator": "AND",
-                                "query": f'(isTemplate:"y") AND ({group_owner_clause}) AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")',
+                                "query": f'(isTemplate:"y") AND ({group_owner_clause}) AND (documentStandard:"iso19115-3.2018")',
                             }
                         }
                     ]
                 }
             },
-            "_source": {"includes": ["groupOwner", "documentStandard"]},
+            "_source": {"includes": ["groupOwner"]},
             "from": 0,
             "size": 1000,
         }
         resp = self.gn_api.search(req)
-        templates_by_group_owner: dict[str, list[dict[str, str]]] = {}
+        templates_by_group_owner: dict[str, list[str]] = {}
         for md in resp["hits"]["hits"]:
             group_owner = md["_source"]["groupOwner"]
-            templates_by_group_owner.setdefault(group_owner, []).append(
-                {
-                    "uuid": md["_id"],
-                    "schema": md["_source"]["documentStandard"],
-                }
-            )
+            templates_by_group_owner.setdefault(group_owner, []).append(md["_id"])
         return templates_by_group_owner
 
     def choose_group_and_template(self, groups_id: list[int]) -> tuple[int | None, str | None]:
@@ -715,8 +710,5 @@ class MetadataService:
         if len(templates_by_group_owner) == 0:
             return sorted(groups_id)[0], None
         group_owner = sorted(templates_by_group_owner.keys(), key=int)[0]
-        templates = sorted(
-            templates_by_group_owner[group_owner],
-            key=lambda t: (not t["schema"].startswith("iso19115-3.2018"), t["uuid"]),
-        )
-        return int(group_owner), templates[0]["uuid"]
+        template = sorted(templates_by_group_owner[group_owner], key=str)[0]
+        return int(group_owner), template

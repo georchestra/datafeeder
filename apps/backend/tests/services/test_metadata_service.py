@@ -1104,31 +1104,29 @@ class TestGenerateWithTemplateFromUserGroups:
         uuids = service.get_templates_uuid([3, 6, 19])
 
         assert uuids == {
-            "19": [
-                {"uuid": "ec39075b-f252-45f2-9760-cf067944555e", "schema": "iso19115-3.2018"},
-            ],
+            "19": ["ec39075b-f252-45f2-9760-cf067944555e"],
             "6": [
-                {"uuid": "4a147cdd-b7f7-43e9-a6f6-750293287c84", "schema": "iso19139"},
-                {"uuid": "5c46a628-e187-4569-ba8b-834c2817d6e2", "schema": "iso19115-3.2018"},
+                "4a147cdd-b7f7-43e9-a6f6-750293287c84",
+                "5c46a628-e187-4569-ba8b-834c2817d6e2",
             ],
         }
         assert (
             mock_api.search.call_args[0][0]["query"]["bool"]["must"][0]["query_string"]["query"]
-            == '(isTemplate:"y") AND (groupOwner:"3" OR groupOwner:"6" OR groupOwner:"19") AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")'
+            == '(isTemplate:"y") AND (groupOwner:"3" OR groupOwner:"6" OR groupOwner:"19") AND (documentStandard:"iso19115-3.2018")'
         )
 
         uuids = service.get_templates_uuid([7, 11])
 
         assert (
             mock_api.search.call_args[0][0]["query"]["bool"]["must"][0]["query_string"]["query"]
-            == '(isTemplate:"y") AND (groupOwner:"7" OR groupOwner:"11") AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")'
+            == '(isTemplate:"y") AND (groupOwner:"7" OR groupOwner:"11") AND (documentStandard:"iso19115-3.2018")'
         )
 
         uuids = service.get_templates_uuid([22])
 
         assert (
             mock_api.search.call_args[0][0]["query"]["bool"]["must"][0]["query_string"]["query"]
-            == '(isTemplate:"y") AND (groupOwner:"22") AND (documentStandard:"iso19115-3.2018" OR documentStandard:"iso19139")'
+            == '(isTemplate:"y") AND (groupOwner:"22") AND (documentStandard:"iso19115-3.2018")'
         )
 
     @patch("src.services.metadata_service.GnApi")
@@ -1141,7 +1139,7 @@ class TestGenerateWithTemplateFromUserGroups:
         group, template = service.choose_group_and_template([3, 6, 19])
 
         assert group == 6
-        assert template == "5c46a628-e187-4569-ba8b-834c2817d6e2"
+        assert template == "4a147cdd-b7f7-43e9-a6f6-750293287c84"
 
     @patch("src.services.metadata_service.GnApi")
     def test_choose_group_and_template_2(self, mock_gn_api: MagicMock) -> None:
