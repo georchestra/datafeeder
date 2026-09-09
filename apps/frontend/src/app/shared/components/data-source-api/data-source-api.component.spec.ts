@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../testing/translate-testing.module'
 import { DatasetServiceDistribution } from 'geonetwork-ui'
 import {
   type ApiData,

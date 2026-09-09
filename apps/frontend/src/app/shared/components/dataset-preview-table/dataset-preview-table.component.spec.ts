@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing'
 import { DatasetPreviewTableComponent } from './dataset-preview-table.component'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../testing/translate-testing.module'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import type {
   StagingMetadataResponse,

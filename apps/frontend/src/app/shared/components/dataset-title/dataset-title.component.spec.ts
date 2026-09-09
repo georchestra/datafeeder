@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing'
 import { provideHttpClient } from '@angular/common/http'
 import { provideHttpClientTesting } from '@angular/common/http/testing'
 import { DatasetTitleComponent } from './dataset-title.component'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../testing/translate-testing.module'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import type { StagingMetadataResponse } from '../../../core/api/models'
 

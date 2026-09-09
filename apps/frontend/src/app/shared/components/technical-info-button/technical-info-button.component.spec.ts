@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing'
 import { Overlay, OverlayRef } from '@angular/cdk/overlay'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../testing/translate-testing.module'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TechnicalInfoButtonComponent } from './technical-info-button.component'
 

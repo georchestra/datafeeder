@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing'
 import { ColumnTypeSelectComponent } from './column-type-select.component'
 import type { CastType } from './column-type-select.component'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../testing/translate-testing.module'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 
 const translations = {
