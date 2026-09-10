@@ -12,7 +12,7 @@ from data_manipulation import (
     detect_table_srid,
     read_transformed_preview,
 )
-from data_manipulation.constants import DB_URI_PREFIX
+from data_manipulation.constants import DB_URI_PREFIX, DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.database import schema_exists, table_exists
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import ForceProjection as DataManipulationForceProjection
@@ -894,6 +894,10 @@ def get_staging_metadata(
         MetaData(schema=schema),
         autoload_with=data_engine,
     )
+    if source_file_type in (FileType.JSON, FileType.GEOJSON):
+        # The extension-based guess can be wrong (e.g. a geometry-less .geojson); report
+        # what the staging table actually turned out to be.
+        source_file_type = FileType.GEOJSON if DEFAULT_GEOMETRY_COLUMN in table.c else FileType.JSON
     row_count = data_session.scalar(select(func.count()).select_from(table)) or 0
     original_projection = _detect_original_projection(
         staging_table_name,
