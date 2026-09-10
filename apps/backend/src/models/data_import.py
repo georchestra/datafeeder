@@ -188,6 +188,20 @@ class IntegrityLinkListResponse(BaseModel):
     next_offset: int  # raw DB offset to pass verbatim on the next page request
 
 
+class JoinableTable(BaseModel):
+    """A table available as a join target."""
+
+    id: UUID
+    integrity_title: str | None
+    table_name: str
+
+
+class JoinableColumn(BaseModel):
+    """A column of a joinable table."""
+
+    column_name: str
+
+
 class IntegrityLinkResponse(BaseModel):
     """Response model for IntegrityLink entity."""
 
