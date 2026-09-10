@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing'
 import { HttpErrorResponse } from '@angular/common/http'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../../testing/translate-testing.module'
 import { Api } from '../../core/api/api'
 import {
   deleteIntegrityLinkRuleIngestionIntegrityLinkIntegrityLinkIdRulesRuleIdDelete,

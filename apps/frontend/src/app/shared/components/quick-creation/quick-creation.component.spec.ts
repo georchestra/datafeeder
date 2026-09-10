@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { provideRouter, Router } from '@angular/router'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../../../testing/translate-testing.module'
 import { Api } from '../../../core/api/api'
 import { OperationToastStore } from '../../../core/stores/operation-toast.store'
 import { QuickCreationComponent } from './quick-creation.component'

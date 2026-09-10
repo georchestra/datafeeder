@@ -9,7 +9,7 @@ import { Component, Input } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { MatDialog } from '@angular/material/dialog'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../../testing/translate-testing.module'
 import { of } from 'rxjs'
 import { Api } from '../../core/api/api'
 import {
