@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing'
 import { ColumnFilterFormComponent } from './column-filter-form.component'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../../../testing/translate-testing.module'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import type { ColumnFilter } from '../../../core/api/models/column-filter'
 

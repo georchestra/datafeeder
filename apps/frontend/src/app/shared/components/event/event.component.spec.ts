@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common'
 import { EventComponent, Event } from './event.component'
 import { StatusBadgeComponent } from '../status-badge/status-badge.component'
 import { EventTypeBadgeComponent } from '../event-type-badge/event-type-badge.component'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../../../testing/translate-testing.module'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 
 describe('EventComponent', () => {

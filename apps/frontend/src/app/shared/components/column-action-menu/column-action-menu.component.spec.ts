@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing'
 import { ColumnActionMenuComponent } from './column-action-menu.component'
-import { TranslateTestingModule } from 'ngx-translate-testing'
+import { TranslateTestingModule } from '../../../../testing/translate-testing.module'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import type { ColumnConfig } from '../../../core/api/models'
 

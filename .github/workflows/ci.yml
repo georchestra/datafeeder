@@ -84,7 +84,11 @@ jobs:
       - name: Type check
         working-directory: ./libs/data_manipulation
         run: uv run poe check --verbose
-  
+
+      - name: Run tests
+        working-directory: ./libs/data_manipulation
+        run: uv run pytest tests/ -v
+
   airflow-elt:
     runs-on: ubuntu-latest
     name: Airflow ELT

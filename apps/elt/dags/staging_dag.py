@@ -37,15 +37,15 @@ logger = logging.getLogger(__name__)
             minLength=1,
         ),
         "success_callback_url": Param(
-            default="",
+            default=None,
             type=["null", "string"],
-            description="URL to call on success",
+            description="URL to call on success (optional)",
             minLength=1,
         ),
         "failure_callback_url": Param(
-            default="",
+            default=None,
             type=["null", "string"],
-            description="URL to call on failure",
+            description="URL to call on failure (optional)",
             minLength=1,
         ),
         "encrypted_credentials": Param(
