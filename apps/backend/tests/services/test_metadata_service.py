@@ -14,8 +14,11 @@ from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleValue
 from src.services.metadata_service import (
     NS_19115_3,
-    NS_19139,
     MetadataService,
+)
+from tests.services.metadata_service_internals.samples import SAMPLE_19115_3_NO_REVISION
+from tests.services.metadata_service_internals.test_update_revision_date_19115 import (
+    CITATION_REVISION_XPATH_191153,
 )
 
 
@@ -574,307 +577,6 @@ class TestMetadataService:
         mock_session.put.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# Helpers for revision-date tests
-# ---------------------------------------------------------------------------
-
-_SAMPLE_19115_3_NO_REVISION = b"""\
-<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
-                 xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
-                 xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0"
-                 xmlns:mri="http://standards.iso.org/iso/19115/-3/mri/1.0">
-  <mdb:dateInfo>
-    <cit:CI_Date>
-      <cit:date><gco:DateTime>2024-01-01T00:00:00</gco:DateTime></cit:date>
-      <cit:dateType>
-        <cit:CI_DateTypeCode codeList="x" codeListValue="creation"/>
-      </cit:dateType>
-    </cit:CI_Date>
-  </mdb:dateInfo>
-  <mdb:identificationInfo>
-    <mri:MD_DataIdentification>
-      <mri:citation>
-        <cit:CI_Citation>
-          <cit:date>
-            <cit:CI_Date>
-              <cit:date><gco:Date>2024-01-01</gco:Date></cit:date>
-              <cit:dateType>
-                <cit:CI_DateTypeCode codeList="x" codeListValue="creation"/>
-              </cit:dateType>
-            </cit:CI_Date>
-          </cit:date>
-        </cit:CI_Citation>
-      </mri:citation>
-    </mri:MD_DataIdentification>
-  </mdb:identificationInfo>
-</mdb:MD_Metadata>
-"""
-
-_SAMPLE_19115_3_WITH_REVISION = b"""\
-<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
-                 xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
-                 xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0"
-                 xmlns:mri="http://standards.iso.org/iso/19115/-3/mri/1.0">
-  <mdb:dateInfo>
-    <cit:CI_Date>
-      <cit:date><gco:DateTime>2024-01-01T00:00:00</gco:DateTime></cit:date>
-      <cit:dateType>
-        <cit:CI_DateTypeCode codeList="x" codeListValue="creation"/>
-      </cit:dateType>
-    </cit:CI_Date>
-  </mdb:dateInfo>
-  <mdb:dateInfo>
-    <cit:CI_Date>
-      <cit:date><gco:DateTime>2024-06-01T10:00:00</gco:DateTime></cit:date>
-      <cit:dateType>
-        <cit:CI_DateTypeCode codeList="x" codeListValue="revision"/>
-      </cit:dateType>
-    </cit:CI_Date>
-  </mdb:dateInfo>
-  <mdb:identificationInfo>
-    <mri:MD_DataIdentification>
-      <mri:citation>
-        <cit:CI_Citation>
-          <cit:date>
-            <cit:CI_Date>
-              <cit:date><gco:Date>2024-01-01</gco:Date></cit:date>
-              <cit:dateType>
-                <cit:CI_DateTypeCode codeList="x" codeListValue="creation"/>
-              </cit:dateType>
-            </cit:CI_Date>
-          </cit:date>
-          <cit:date>
-            <cit:CI_Date>
-              <cit:date><gco:Date>2024-06-01</gco:Date></cit:date>
-              <cit:dateType>
-                <cit:CI_DateTypeCode codeList="x" codeListValue="revision"/>
-              </cit:dateType>
-            </cit:CI_Date>
-          </cit:date>
-        </cit:CI_Citation>
-      </mri:citation>
-    </mri:MD_DataIdentification>
-  </mdb:identificationInfo>
-</mdb:MD_Metadata>
-"""
-
-_SAMPLE_19139_NO_REVISION = b"""\
-<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd"
-                 xmlns:gco="http://www.isotc211.org/2005/gco">
-  <gmd:identificationInfo>
-    <gmd:MD_DataIdentification>
-      <gmd:citation>
-        <gmd:CI_Citation>
-          <gmd:date>
-            <gmd:CI_Date>
-              <gmd:date><gco:Date>2024-01-01</gco:Date></gmd:date>
-              <gmd:dateType>
-                <gmd:CI_DateTypeCode codeList="x" codeListValue="creation"/>
-              </gmd:dateType>
-            </gmd:CI_Date>
-          </gmd:date>
-        </gmd:CI_Citation>
-      </gmd:citation>
-    </gmd:MD_DataIdentification>
-  </gmd:identificationInfo>
-</gmd:MD_Metadata>
-"""
-
-_SAMPLE_19139_WITH_REVISION = b"""\
-<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd"
-                 xmlns:gco="http://www.isotc211.org/2005/gco">
-  <gmd:identificationInfo>
-    <gmd:MD_DataIdentification>
-      <gmd:citation>
-        <gmd:CI_Citation>
-          <gmd:date>
-            <gmd:CI_Date>
-              <gmd:date><gco:Date>2024-01-01</gco:Date></gmd:date>
-              <gmd:dateType>
-                <gmd:CI_DateTypeCode codeList="x" codeListValue="creation"/>
-              </gmd:dateType>
-            </gmd:CI_Date>
-          </gmd:date>
-          <gmd:date>
-            <gmd:CI_Date>
-              <gmd:date><gco:Date>2024-06-01</gco:Date></gmd:date>
-              <gmd:dateType>
-                <gmd:CI_DateTypeCode codeList="x" codeListValue="revision"/>
-              </gmd:dateType>
-            </gmd:CI_Date>
-          </gmd:date>
-        </gmd:CI_Citation>
-      </gmd:citation>
-    </gmd:MD_DataIdentification>
-  </gmd:identificationInfo>
-</gmd:MD_Metadata>
-"""
-
-_SAMPLE_19115_3_WITH_REVISION_DATETIME = b"""\
-<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
-                 xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
-                 xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0"
-                 xmlns:mri="http://standards.iso.org/iso/19115/-3/mri/1.0">
-  <mdb:identificationInfo>
-    <mri:MD_DataIdentification>
-      <mri:citation>
-        <cit:CI_Citation>
-          <cit:date>
-            <cit:CI_Date>
-              <cit:date><gco:DateTime>2024-06-01T10:00:00</gco:DateTime></cit:date>
-              <cit:dateType>
-                <cit:CI_DateTypeCode codeList="x" codeListValue="revision"/>
-              </cit:dateType>
-            </cit:CI_Date>
-          </cit:date>
-        </cit:CI_Citation>
-      </mri:citation>
-    </mri:MD_DataIdentification>
-  </mdb:identificationInfo>
-</mdb:MD_Metadata>
-"""
-
-_SAMPLE_19139_WITH_REVISION_DATETIME = b"""\
-<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd"
-                 xmlns:gco="http://www.isotc211.org/2005/gco">
-  <gmd:identificationInfo>
-    <gmd:MD_DataIdentification>
-      <gmd:citation>
-        <gmd:CI_Citation>
-          <gmd:date>
-            <gmd:CI_Date>
-              <gmd:date><gco:DateTime>2024-06-01T10:00:00</gco:DateTime></gmd:date>
-              <gmd:dateType>
-                <gmd:CI_DateTypeCode codeList="x" codeListValue="revision"/>
-              </gmd:dateType>
-            </gmd:CI_Date>
-          </gmd:date>
-        </gmd:CI_Citation>
-      </gmd:citation>
-    </gmd:MD_DataIdentification>
-  </gmd:identificationInfo>
-</gmd:MD_Metadata>
-"""
-
-
-class TestDetectSchema:
-    def test_detects_19115_3(self) -> None:
-        root = etree.fromstring(_SAMPLE_19115_3_NO_REVISION)
-        assert MetadataService._detect_schema(root) == "19115-3"  # pyright: ignore[reportPrivateUsage]
-
-    def test_detects_19139(self) -> None:
-        root = etree.fromstring(_SAMPLE_19139_NO_REVISION)
-        assert MetadataService._detect_schema(root) == "19139"  # pyright: ignore[reportPrivateUsage]
-
-    def test_returns_none_for_unsupported(self) -> None:
-        root = etree.fromstring(b"<root/>")
-        assert MetadataService._detect_schema(root) is None  # pyright: ignore[reportPrivateUsage]
-
-
-_CITATION_REVISION_XPATH_191153 = (
-    "mdb:identificationInfo/mri:MD_DataIdentification"
-    "/mri:citation/cit:CI_Citation"
-    "/cit:date/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
-    "/@codeListValue='revision']/cit:date/gco:DateTime"
-)
-
-
-class TestUpdateRevisionDate191153:
-    """Tests for _update_revision_date_19115_3."""
-
-    def test_insert_when_absent(self) -> None:
-        root = etree.fromstring(_SAMPLE_19115_3_NO_REVISION)
-        rev_date = datetime(2025, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19115_3(root, rev_date)  # pyright: ignore[reportPrivateUsage]
-
-        # citation-level data revision date is inserted as gco:DateTime
-        dt_nodes = root.xpath(_CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
-        assert len(dt_nodes) == 1
-        assert dt_nodes[0].text == "2025-03-15T14:30:00Z"
-
-        # metadata-level mdb:dateInfo is NOT modified
-        assert (
-            len(
-                root.xpath(
-                    "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
-                    "/@codeListValue='revision']",
-                    namespaces=NS_19115_3,
-                )
-            )
-            == 0
-        )
-
-    def test_replace_gco_date_with_datetime(self) -> None:
-        """Existing gco:Date revision is replaced with gco:DateTime."""
-        root = etree.fromstring(_SAMPLE_19115_3_WITH_REVISION)
-        rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19115_3(root, rev_date)  # pyright: ignore[reportPrivateUsage]
-
-        dt_nodes = root.xpath(_CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
-        assert len(dt_nodes) == 1
-        assert dt_nodes[0].text == "2025-12-31T23:59:59Z"
-
-        # metadata-level mdb:dateInfo[revision] is NOT modified
-        mdb_nodes = root.xpath(
-            "mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
-            "/@codeListValue='revision']/cit:date/gco:DateTime",
-            namespaces=NS_19115_3,
-        )
-        assert len(mdb_nodes) == 1
-        assert mdb_nodes[0].text == "2024-06-01T10:00:00"
-
-    def test_replace_existing_datetime(self) -> None:
-        """Existing gco:DateTime revision is updated in place."""
-        root = etree.fromstring(_SAMPLE_19115_3_WITH_REVISION_DATETIME)
-        rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19115_3(root, rev_date)  # pyright: ignore[reportPrivateUsage]
-
-        dt_nodes = root.xpath(_CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
-        assert len(dt_nodes) == 1
-        assert dt_nodes[0].text == "2025-12-31T23:59:59Z"
-
-
-_CITATION_REVISION_XPATH_19139 = (
-    "gmd:identificationInfo/gmd:MD_DataIdentification"
-    "/gmd:citation/gmd:CI_Citation"
-    "/gmd:date/gmd:CI_Date[gmd:dateType/gmd:CI_DateTypeCode"
-    "/@codeListValue='revision']/gmd:date/gco:DateTime"
-)
-
-
-class TestUpdateRevisionDate19139:
-    """Tests for _update_revision_date_19139."""
-
-    def test_insert_when_absent(self) -> None:
-        root = etree.fromstring(_SAMPLE_19139_NO_REVISION)
-        rev_date = datetime(2025, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19139(root, rev_date)  # pyright: ignore[reportPrivateUsage]
-
-        dt_nodes = root.xpath(_CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
-        assert len(dt_nodes) == 1
-        assert dt_nodes[0].text == "2025-03-15T14:30:00Z"
-
-    def test_replace_gco_date_with_datetime(self) -> None:
-        """Existing gco:Date revision is replaced with gco:DateTime."""
-        root = etree.fromstring(_SAMPLE_19139_WITH_REVISION)
-        rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19139(root, rev_date)  # pyright: ignore[reportPrivateUsage]
-
-        dt_nodes = root.xpath(_CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
-        assert len(dt_nodes) == 1
-        assert dt_nodes[0].text == "2025-12-31T23:59:59Z"
-
-    def test_replace_existing_datetime(self) -> None:
-        """Existing gco:DateTime revision is updated in place."""
-        root = etree.fromstring(_SAMPLE_19139_WITH_REVISION_DATETIME)
-        rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19139(root, rev_date)  # pyright: ignore[reportPrivateUsage]
-
-        dt_nodes = root.xpath(_CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
-        assert len(dt_nodes) == 1
-        assert dt_nodes[0].text == "2025-12-31T23:59:59Z"
-
-
 class TestUpdateRevisionDateEndToEnd:
     """Test update_revision_date() with mocked GeoNetwork calls."""
 
@@ -882,7 +584,7 @@ class TestUpdateRevisionDateEndToEnd:
     def test_fetch_update_save_19115_3(self, mock_gn_api: MagicMock) -> None:
         mock_api = MagicMock()
         mock_api.api_url = "http://test/api"
-        mock_api.get_metadataxml.return_value = _SAMPLE_19115_3_NO_REVISION
+        mock_api.get_metadataxml.return_value = SAMPLE_19115_3_NO_REVISION
 
         mock_gn_api.return_value = mock_api
 
@@ -897,7 +599,7 @@ class TestUpdateRevisionDateEndToEnd:
         # Verify the saved XML contains the citation-level data revision date as gco:DateTime
         saved_xml = mock_api.upload_metadata.call_args[0][0]
         root = etree.fromstring(saved_xml)
-        dt_nodes = root.xpath(_CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
+        dt_nodes = root.xpath(CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
         assert dt_nodes[0].text == "2025-06-01T12:00:00Z"
 
     @patch("src.services.metadata_service.GnApi")
