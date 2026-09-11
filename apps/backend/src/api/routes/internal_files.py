@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 
 from src.core.config import get_settings
 
-router = APIRouter(prefix="/files", tags=["Files"])
+router = APIRouter(prefix="/files", tags=["Files"], include_in_schema=False)
 
 
 def read_file(filename: str) -> FileResponse:

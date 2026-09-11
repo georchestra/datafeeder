@@ -57,6 +57,12 @@ configure_logging(logger)
 
 router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 
+# Airflow-only callbacks; mounted under /internal (gateway restricts to ADMINISTRATOR).
+# Excluded from the schema so the Angular client never generates wrappers for them.
+internal_router = APIRouter(
+    prefix="/ingestion/staging", tags=["Ingestion"], include_in_schema=False
+)
+
 _OAPIF_COLLECTIONS_RE = re.compile(r"/collections(/.*)?$")
 
 
@@ -281,8 +287,12 @@ def _trigger_staging_task(
         "dag_id": "staging_dag",
         "dag_run_id": dag_run_id,
     }
-    success_callback_url = build_callback_url("/ingestion/staging/dag_success", callback_params)
-    failure_callback_url = build_callback_url("/ingestion/staging/dag_failure", callback_params)
+    success_callback_url = build_callback_url(
+        "/internal/ingestion/staging/dag_success", callback_params
+    )
+    failure_callback_url = build_callback_url(
+        "/internal/ingestion/staging/dag_failure", callback_params
+    )
 
     logger.info(f"Success callback URL: {success_callback_url}")
     logger.info(f"Failure callback URL: {failure_callback_url}")
@@ -697,7 +707,7 @@ def _delete_temp_source_file(integrity_link: IntegrityLink) -> None:
             logger.error(f"Error deleting temp file: {e}")
 
 
-@router.post("/dag_success")
+@internal_router.post("/dag_success")
 def dag_success_callback(
     session: DatafeederSessionDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
@@ -730,7 +740,7 @@ def dag_success_callback(
     _delete_temp_source_file(integrity_link)
 
 
-@router.post("/dag_failure")
+@internal_router.post("/dag_failure")
 def dag_failure_callback(
     datafeeder_session: DatafeederSessionDep,
     data_session: DataSessionDep,
