@@ -175,6 +175,8 @@ class Settings(BaseSettings):
 
     METADATA_DEFAULT_GROUP_NAME: str = "sample"
 
+    METADATA_ADMIN_DEFAULT_GROUP_NAME: str = "sample"
+
     # Console
     CONSOLE_INTERNAL_URL: str = "http://localhost:8085/console"
 

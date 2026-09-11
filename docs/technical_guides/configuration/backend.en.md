@@ -44,6 +44,7 @@ counterpart.
 | `GEONETWORK_XSRF_TOKEN` | XSRF token sent to GeoNetwork (any UUID is accepted) |
 | `GN_SYNC_MODE` | `ORG` or `ROLE` — which geOrchestra group flavor GeoNetwork groups are synced from |
 | `METADATA_DEFAULT_GROUP_NAME` | Default GeoNetwork group name used when publishing metadata |
+| `METADATA_ADMIN_DEFAULT_GROUP_NAME`| Default GeoNetwork group name used when publishing metadata user having administrator profile |
 | `CONSOLE_INTERNAL_URL` | Internal URL of the geOrchestra console |
 | `METADATA_GROUPS_LABEL_FILTER_REGEX` | Regex used to filter metadata groups shown in the authorization UI |
 | `DATA_GROUPS_LABEL_FILTER_REGEX` | Regex used to filter data groups shown in the GeoServer authorization UI |
