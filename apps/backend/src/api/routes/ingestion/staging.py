@@ -58,7 +58,10 @@ configure_logging(logger)
 router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
 
 # Airflow-only callbacks; mounted under /internal (gateway restricts to ADMINISTRATOR).
-internal_router = APIRouter(prefix="/ingestion/staging", tags=["Ingestion"])
+# Excluded from the schema so the Angular client never generates wrappers for them.
+internal_router = APIRouter(
+    prefix="/ingestion/staging", tags=["Ingestion"], include_in_schema=False
+)
 
 _OAPIF_COLLECTIONS_RE = re.compile(r"/collections(/.*)?$")
 
