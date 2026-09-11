@@ -23,6 +23,29 @@ datafeeder/
 - **Shared library** (`libs/data_manipulation/`): imported by both the backend and the ELT DAGs — source-specific
   ingestion, the transformation pipeline, GeoServer write helpers, shared models.
 
+## Component interactions
+
+![Datafeeder component interactions](../images/datafeeder-architecture.jpg)
+
+!!! info "How the pieces talk to each other"
+
+    - **DF Front → DF back**: the Angular frontend talks exclusively to the backend REST API.
+    - **DF back → Console**: gets users/roles/orgs, to resolve ownership and authorization rules on datasets.
+    - **DF back → geOrchestra DB**: saves `IntegrityLink` records (and their rules/schedules) in the `datafeeder`
+      schema.
+    - **DF back → Data DB**: reads staging data (e.g. to preview/validate a table before publishing).
+    - **DF back → GeoServer**: creates workspaces/layers when a dataset is published.
+    - **DF back → GeoNetwork**: pushes the dataset's metadata record.
+    - **DF back → Airflow**: triggers the `staging_dag` / `process_dag` DAG runs.
+    - **Airflow → geOrchestra DB**: reads the `IntegrityLink` table to know which datasets are scheduled for a
+      recurring re-run.
+    - **Airflow → Data DB**: reads/writes the actual dataset content (staging → final tables).
+    - **Airflow → Airflow DB**: saves its own bookkeeping (DAG/task run history, Connections, ...).
+    - **GeoServer → Data DB**: reads the published layers' data through JNDI.
+
+    See [Databases](configuration/databases.md) for why the geOrchestra, Data and Airflow databases are kept
+    separate.
+
 ## Dataset lifecycle
 
 A dataset (an `IntegrityLink` record) goes through the following pipeline:

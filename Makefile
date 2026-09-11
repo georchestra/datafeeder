@@ -50,4 +50,10 @@ run-backend-with-local-task-executor: install-python ## Run the backend applicat
 	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" BACKEND_INTERNAL_URL="http://localhost:8000" TASK_EXECUTOR=LOCAL sh -c \
 	  'uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs'
 
-.PHONY: default help install-python fix-and-check-all-python build-libs up up-no-airflow down down-v run-backend
+docs-serve: ## Serve the documentation locally with live-reload (http://127.0.0.1:8000)
+	uv run --with-requirements mkdocs_requirements.txt mkdocs serve
+
+docs-build: ## Build the static documentation site into ./site
+	uv run --with-requirements mkdocs_requirements.txt mkdocs build
+
+.PHONY: default help install-python fix-and-check-all-python build-libs up up-no-airflow down down-v run-backend docs-serve docs-build
