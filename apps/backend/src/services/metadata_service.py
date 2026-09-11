@@ -32,6 +32,7 @@ NS_19115_3 = {
     "cit": "http://standards.iso.org/iso/19115/-3/cit/2.0",
     "gco": "http://standards.iso.org/iso/19115/-3/gco/1.0",
     "lan": "http://standards.iso.org/iso/19115/-3/lan/1.0",
+    "mrd": "http://standards.iso.org/iso/19115/-3/mrd/1.0",
 }
 
 NS_19139 = {
@@ -42,6 +43,9 @@ NS_19139 = {
 _CODELIST_URL = (
     "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_DateTypeCode"
 )
+
+RESOURCE_TITLE_XPATH_19115_3 = "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions/mrd:MD_DigitalTransferOptions/mrd:onLine/cit:CI_OnlineResource/cit:description/gco:CharacterString"
+RESOURCE_TITLE_XPATH_19139 = "gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource/gmd:description/gco:CharacterString"
 
 
 class MetadataService:
@@ -55,6 +59,7 @@ class MetadataService:
         verify_tls: bool = False,
         gn_sync_mode: str = "ORG",
         metadata_default_group_name: str = "sample",
+        metadata_admin_default_group_name: str = "sample",
     ):
         """Initialize with GeoNetwork API client and paths to metadata files.
 
@@ -65,12 +70,14 @@ class MetadataService:
             verify_tls: Whether to verify TLS certificates
             gn_sync_mode: "ORG" to resolve group by org name; "ROLE" to use user's GN memberships
             metadata_default_group_name: Fallback group name when user has no non-system groups
+            metadata_admin_default_group_name: Fallback group name when user has admin profile
         """
         self.gn_api: Any = GnApi(api_url=gn_api_url, credentials=credentials, verifytls=verify_tls)
         self.template_path: str = f"{datadir_path}/datafeeder/metadata_template-19115-3.xml"
         self.xslt_path: str = f"{datadir_path}/datafeeder/metadata_transform-19115-3.xsl"
         self.org_based_sync: bool = gn_sync_mode == "ORG"
         self.metadata_default_group_name: str = metadata_default_group_name
+        self.metadata_admin_default_group_name: str = metadata_admin_default_group_name
 
     def generate_metadata(
         self,
@@ -188,8 +195,8 @@ class MetadataService:
         ).text = f"Imported from staging table {integrity_link.staging_table_name}"
 
         # Apply XSLT transformation
-        user_id = self.resolve_user_id(integrity_link)
-        group_id = self.resolve_group_id(integrity_link, user_id)
+        user_id, profile = self.resolve_user_id(integrity_link)
+        group_id = self.resolve_group_id(integrity_link, user_id, profile)
         template_uuid = self.choose_group_and_template(group_id)[1]
         logger.info(f"Using template {template_uuid} for group {group_id}")
 
@@ -288,7 +295,7 @@ class MetadataService:
         metadata_uuid = str(integrity_link.id)
         username = integrity_link.integrity_owner
 
-        user_id = self.resolve_user_id(integrity_link)
+        user_id, profile = self.resolve_user_id(integrity_link)
 
         if user_id is None:
             logger.warning(
@@ -297,7 +304,7 @@ class MetadataService:
             )
             return
 
-        group_id = self.resolve_group_id(integrity_link, user_id)
+        group_id = self.resolve_group_id(integrity_link, user_id, profile)
         group_id = self.choose_group_and_template(group_id)[0]
 
         if group_id is None:
@@ -322,19 +329,26 @@ class MetadataService:
             group_id,
         )
 
-    def resolve_user_id(self, integrity_link: IntegrityLink) -> int | None:
+    def resolve_user_id(self, integrity_link: IntegrityLink) -> tuple[int | None, str | None]:
         resp = self.gn_api.session.get(f"{self.gn_api.api_url}/users")
         resp.raise_for_status()
         users = resp.json()
         return next(
-            (u["id"] for u in users if u["username"] == integrity_link.integrity_owner), None
+            (
+                (u["id"], u["profile"])
+                for u in users
+                if u["username"] == integrity_link.integrity_owner
+            ),
+            (None, None),
         )
 
-    def resolve_group_id(self, integrity_link: IntegrityLink, user_id: int | None) -> list[int]:
+    def resolve_group_id(
+        self, integrity_link: IntegrityLink, user_id: int | None, profile: str | None
+    ) -> list[int]:
         if self.org_based_sync or user_id is None:
             group_id = self._resolve_group_by_org_name(integrity_link.integrity_organization)
         else:
-            group_id = self._resolve_group_from_user(user_id)
+            group_id = self._resolve_group_from_user(user_id, profile)
         return group_id
 
     def _resolve_group_by_org_name(self, group_name: str) -> list[int]:
@@ -355,7 +369,7 @@ class MetadataService:
         groups = resp.json()
         return [g["id"] for g in groups if g["name"].lower() == group_name.lower()]
 
-    def _resolve_group_from_user(self, user_id: int) -> list[int]:
+    def _resolve_group_from_user(self, user_id: int, profile: str | None) -> list[int]:
         """Resolve a GeoNetwork group from the user's own memberships.
 
         Fetches the user's group memberships, filters out system groups
@@ -372,6 +386,14 @@ class MetadataService:
             "Resolving group from user %s memberships (user-groups sync)",
             user_id,
         )
+        if profile == "Administrator":
+            logger.info(
+                "User %s has admin profile, falling back to default admin group '%s'",
+                user_id,
+                self.metadata_admin_default_group_name,
+            )
+            return self._resolve_group_by_org_name(self.metadata_admin_default_group_name)
+
         resp = self.gn_api.session.get(f"{self.gn_api.api_url}/users/{user_id}/groups")
         resp.raise_for_status()
         memberships = resp.json()
@@ -382,7 +404,6 @@ class MetadataService:
         if non_system:
             return non_system
 
-        # Fallback: resolve by default group name
         logger.info(
             "User %s has no non-system groups, falling back to default group '%s'",
             user_id,
@@ -555,6 +576,16 @@ class MetadataService:
         self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
         logger.info("Updated revision date for metadata record %s", metadata_uuid)
 
+    def update_online_resources_when_title_changed(self, xml_bytes: bytes, title: str) -> bytes:
+        root: _Element = etree.fromstring(xml_bytes)
+        schema = self._detect_schema(root)
+        if schema == _SCHEMA_19115_3:
+            self._update_online_resources_when_title_changed_19115_3(root, title)
+        else:
+            self._update_online_resources_when_title_changed_19139(root, title)
+
+        return etree.tostring(root, xml_declaration=True, encoding="UTF-8")
+
     def upload_metadata_xml(self, xml_bytes: bytes) -> None:
         """Upload raw XML bytes to GeoNetwork via OVERWRITE.
 
@@ -712,3 +743,15 @@ class MetadataService:
         group_owner = sorted(templates_by_group_owner.keys(), key=int)[0]
         template = sorted(templates_by_group_owner[group_owner], key=str)[0]
         return int(group_owner), template
+
+    @staticmethod
+    def _update_online_resources_when_title_changed_19115_3(root: _Element, title: str) -> _Element:
+        for online in root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3):
+            online.text = title
+        return root
+
+    @staticmethod
+    def _update_online_resources_when_title_changed_19139(root: _Element, title: str) -> _Element:
+        for online in root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139):
+            online.text = title
+        return root

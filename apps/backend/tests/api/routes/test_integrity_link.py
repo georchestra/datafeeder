@@ -1945,6 +1945,9 @@ class TestUpdateMetadataGn:
         ):
             mock_ms = MagicMock()
             mock_ms_cls.return_value = mock_ms
+            mock_ms.update_online_resources_when_title_changed.return_value = (
+                b"<xml>metadata updated</xml>"
+            )
 
             update_metadata_gn(
                 session=mock_session,
@@ -1954,7 +1957,10 @@ class TestUpdateMetadataGn:
                 body=self._body("New Title"),
             )
 
-        mock_ms.upload_metadata_xml.assert_called_once_with(b"<xml>metadata</xml>")
+        mock_ms.update_online_resources_when_title_changed.assert_called_once_with(
+            b"<xml>metadata</xml>", "New Title"
+        )
+        mock_ms.upload_metadata_xml.assert_called_once_with(b"<xml>metadata updated</xml>")
         # integrity_title updated before commit
         link = mock_session.add.call_args[0][0]
         assert link.integrity_title == "New Title"
