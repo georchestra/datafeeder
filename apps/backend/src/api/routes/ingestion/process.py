@@ -42,7 +42,10 @@ from src.services.schedule_service import clear_schedule
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
 
 # Airflow-only callbacks; mounted under /internal (gateway restricts to ADMINISTRATOR).
-internal_router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
+# Excluded from the schema so the Angular client never generates wrappers for them.
+internal_router = APIRouter(
+    prefix="/ingestion/process", tags=["Ingestion"], include_in_schema=False
+)
 
 logger = get_logger()
 settings = get_settings()
