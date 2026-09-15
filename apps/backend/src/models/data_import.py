@@ -28,12 +28,10 @@ class ImportType(str, Enum):
     PREFILLED = "prefilled"
 
 
+# Distinct from EffectiveAccess (security.py, the caller's access level).
+# Lives here, not in security.py, to avoid a circular import via ImportType.
 class PublicAccess(str, Enum):
-    """Public access level of a dataset, shown on the dashboard.
-
-    Distinct from EffectiveAccess (security.py, the caller's access level).
-    Lives here, not in security.py, to avoid a circular import via ImportType.
-    """
+    """Public access level of a dataset, shown on the dashboard."""
 
     UNCONFIGURED = "unconfigured"
     RESTRICTED = "restricted"

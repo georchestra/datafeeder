@@ -3,7 +3,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import Column, MetaData, String, Table, and_, exists, or_
+from sqlalchemy import Column, MetaData, String, Table, and_, case, exists, or_
 from sqlalchemy import select as sa_select
 from sqlmodel import Session, col
 
@@ -56,7 +56,7 @@ _info_columns = Table(
 
 
 def _check_staging_existence(rows: Sequence[Any], data_session: Session) -> set[str]:
-    staging_candidates = {lnk.staging_table_name for lnk, _ in rows if lnk.staging_table_name}
+    staging_candidates = {lnk.staging_table_name for lnk, *_ in rows if lnk.staging_table_name}
     if not staging_candidates:
         return set()
     return set(
@@ -75,7 +75,7 @@ def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tu
     # Group final candidates by their target schema (org-specific or shared "data").
     # A single query per distinct schema avoids cross-schema false positives.
     final_candidates_by_schema: dict[str, set[str]] = {}
-    for lnk, _ in rows:
+    for lnk, *_ in rows:
         if lnk.final_table_name:
             schema = get_data_schema(lnk.integrity_organization)
             final_candidates_by_schema.setdefault(schema, set()).add(lnk.final_table_name)
@@ -96,27 +96,19 @@ def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tu
     return existing
 
 
-def _public_access_condition(levels: Sequence[PublicAccess]) -> Any:
-    """Build the WHERE condition matching any of the given public access levels.
-
-    Mirrors the Python computation in list_integrity_links. The rule-exists
-    check is intentionally unfiltered (any IntegrityLinkRule row) — do not
-    reuse build_access_expr's caller-scoped subquery here, it answers a
-    different question and would desync from has_integrity_rules/public_access.
-    """
-    gn = col(IntegrityLink.gn_is_published)
-    gs = col(IntegrityLink.gs_is_published)
-    rule_exists = exists(
-        sa_select(col(IntegrityLinkRule.id)).where(
-            col(IntegrityLinkRule.integrity_link_id) == IntegrityLink.id
-        )
+# Any IntegrityLinkRule row counts, unlike build_access_expr's caller-scoped subquery.
+_rule_exists = exists(
+    sa_select(col(IntegrityLinkRule.id)).where(
+        col(IntegrityLinkRule.integrity_link_id) == IntegrityLink.id
     )
-    condition_by_level = {
-        PublicAccess.OPEN: and_(gn, gs),
-        PublicAccess.RESTRICTED: and_(or_(gn, gs, rule_exists), ~and_(gn, gs)),
-        PublicAccess.UNCONFIGURED: and_(~gn, ~gs, ~rule_exists),
-    }
-    return or_(*(condition_by_level[level] for level in levels))
+)
+_gn = col(IntegrityLink.gn_is_published)
+_gs = col(IntegrityLink.gs_is_published)
+_public_access_expr = case(
+    (and_(_gn, _gs), PublicAccess.OPEN.value),
+    (or_(_gn, _gs, _rule_exists), PublicAccess.RESTRICTED.value),
+    else_=PublicAccess.UNCONFIGURED.value,
+)
 
 
 @router.get(
@@ -164,7 +156,12 @@ def list_integrity_links(
     is_admin = geo_ctx.is_administrator()
 
     access_expr = build_access_expr(geo_ctx.username, group_ids, is_admin)
-    query = sa_select(IntegrityLink, access_expr.label("access_level"))
+    query = sa_select(
+        IntegrityLink,
+        access_expr.label("access_level"),
+        _rule_exists.label("has_integrity_rules"),
+        _public_access_expr.label("public_access"),
+    )
 
     if not is_admin:
         # Non-admins see: own datasets + datasets with METADATA rules matching any
@@ -175,7 +172,7 @@ def list_integrity_links(
     if search:
         query = query.where(IntegrityLink.integrity_title.ilike(f"%{search}%"))  # type: ignore[union-attr]
     if access:
-        query = query.where(_public_access_condition(access))
+        query = query.where(_public_access_expr.in_([level.value for level in access]))
     if recurrence:
         query = query.where(IntegrityLink.schedule.in_([preset.cron for preset in recurrence]))  # type: ignore[union-attr]
 
@@ -190,7 +187,7 @@ def list_integrity_links(
     # have orphaned tables (staging/final dropped), many chunks may be scanned before accumulating
     # BATCH_SIZE items. On large instances this can become expensive. A future improvement would
     # be to increase the chunk size beyond BATCH_SIZE+1 or hard-cap the total rows scanned.
-    accumulated: list[tuple[IntegrityLink, Any, bool, int]] = []
+    accumulated: list[tuple[Any, bool, int]] = []
     fetch_offset = offset
     last_chunk_len = 0
 
@@ -216,13 +213,14 @@ def list_integrity_links(
                 lnk.final_table_name,
             ) in existing_final
 
-        for i, (link, access_level) in enumerate(rows):
+        for i, row in enumerate(rows):
+            link = row[0]
             if (
                 link.source_import_type in (ImportType.EMPTY, ImportType.PREFILLED)
                 or (link.staging_table_name and link.staging_table_name in staging_tables)
                 or _final_exists(link)
             ):
-                accumulated.append((link, access_level, _final_exists(link), fetch_offset + i))
+                accumulated.append((row, _final_exists(link), fetch_offset + i))
 
         if last_chunk_len < BATCH_SIZE + 1:
             break  # DB exhausted
@@ -241,7 +239,7 @@ def list_integrity_links(
 
     has_more = len(accumulated) > BATCH_SIZE
     items_rows = accumulated[:BATCH_SIZE]
-    next_offset = accumulated[BATCH_SIZE][3] if has_more else fetch_offset + last_chunk_len
+    next_offset = accumulated[BATCH_SIZE][2] if has_more else fetch_offset + last_chunk_len
 
     logger.info(
         f"Listed {len(items_rows)} integrity links for user '{geo_ctx.username}' "
@@ -249,32 +247,14 @@ def list_integrity_links(
     )
 
     items: list[IntegrityLinkListItem] = []
-    for link, access_level, has_final, _ in items_rows:
+    for (link, access_level, has_rules, public_access), has_final, _ in items_rows:
         item = IntegrityLinkListItem.model_validate(link)
         item.access_level = access_level
         item.has_final_table = bool(has_final)
         item.preset_id = RecurrencePreset.from_cron(link.schedule) if link.schedule else None
+        item.has_integrity_rules = bool(has_rules)
+        item.public_access = PublicAccess(public_access)
         items.append(item)
-
-    link_uuids = [UUID(item.id) for item in items]
-    rules_with_links: set[UUID] = set(
-        session.execute(  # type: ignore[reportDeprecated]
-            sa_select(IntegrityLinkRule.integrity_link_id)  # type: ignore[reportArgumentType]
-            .where(IntegrityLinkRule.integrity_link_id.in_(link_uuids))  # type: ignore[union-attr]
-            .distinct()
-        )
-        .scalars()
-        .all()
-    )
-    for item in items:
-        item.has_integrity_rules = UUID(item.id) in rules_with_links
-        item.public_access = (
-            PublicAccess.OPEN
-            if item.gn_is_published and item.gs_is_published
-            else PublicAccess.RESTRICTED
-            if item.gn_is_published or item.gs_is_published or item.has_integrity_rules
-            else PublicAccess.UNCONFIGURED
-        )
 
     usernames = list({item.integrity_owner for item in items})
     display_names = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).fetch_users_by_usernames(

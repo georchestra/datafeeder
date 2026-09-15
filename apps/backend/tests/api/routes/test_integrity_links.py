@@ -14,7 +14,7 @@ from src.api.routes.ingestion.integrity_links import (
     list_integrity_links,
     list_joinable_tables,
 )
-from src.models.data_import import ImportType, PublicAccess
+from src.models.data_import import ImportType, IntegrityLinkListResponse, PublicAccess
 from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
@@ -78,9 +78,9 @@ class TestListIntegrityLinks:
         )
 
     def _setup_session(self, mock_session: MagicMock, links: list[IntegrityLink]) -> None:
-        """Set up datafeeder session mock to return (link, access_level) 2-tuples via .all()."""
+        """Set up datafeeder session mock to return list rows via .all()."""
         mock_exec = MagicMock()
-        mock_exec.all.return_value = [(link, "OWNER") for link in links]
+        mock_exec.all.return_value = [(link, "OWNER", False, "unconfigured") for link in links]
         mock_session.execute.return_value = mock_exec
 
     def _setup_data_session(
@@ -901,7 +901,7 @@ class TestListIntegrityLinksVisibility:
 
         link = self._make_link(owner="user1")
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "OWNER")]
+        mock_exec_result.all.return_value = [(link, "OWNER", False, "unconfigured")]
         mock_session.execute.return_value = mock_exec_result
         staging = [link.staging_table_name] if link.staging_table_name else []
         self._setup_data_session(mock_data_session, staging)
@@ -929,7 +929,9 @@ class TestListIntegrityLinksVisibility:
 
         links = [self._make_link(owner="someone"), self._make_link(owner="another")]
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "ADMIN") for link in links]
+        mock_exec_result.all.return_value = [
+            (link, "ADMIN", False, "unconfigured") for link in links
+        ]
         mock_session.execute.return_value = mock_exec_result
         self._setup_data_session(mock_data_session, ["staging_test"])
 
@@ -959,7 +961,7 @@ class TestListIntegrityLinksVisibility:
         group_id = "test-group-uuid"
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "READ")]
+        mock_exec_result.all.return_value = [(link, "READ", False, "unconfigured")]
         mock_session.execute.return_value = mock_exec_result
         staging = [link.staging_table_name] if link.staging_table_name else []
         self._setup_data_session(mock_data_session, staging)
@@ -989,7 +991,7 @@ class TestListIntegrityLinksVisibility:
         group_id = "test-group-uuid"
 
         mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "WRITE")]
+        mock_exec_result.all.return_value = [(link, "WRITE", False, "unconfigured")]
         mock_session.execute.return_value = mock_exec_result
         staging = [link.staging_table_name] if link.staging_table_name else []
         self._setup_data_session(mock_data_session, staging)
@@ -1096,58 +1098,42 @@ class TestPublicAccessComputation:
         defaults.update(overrides)
         return IntegrityLink(**defaults)
 
-    def _public_access(
-        self,
-        mock_session: MagicMock,
-        mock_data_session: MagicMock,
-        link: IntegrityLink,
-        rule_link_ids: list[Any],
-    ) -> PublicAccess:
+    def _list(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, rows: list[Any]
+    ) -> IntegrityLinkListResponse:
         mock_main = MagicMock()
-        mock_main.all.return_value = [(link, "OWNER")]
-        mock_rules = MagicMock()
-        mock_rules.scalars.return_value.all.return_value = rule_link_ids
-        mock_session.execute.side_effect = [mock_main, mock_rules]
-
-        response = list_integrity_links(
+        mock_main.all.return_value = rows
+        mock_session.execute.return_value = mock_main
+        return list_integrity_links(
             session=mock_session,
             data_session=mock_data_session,
             geo_ctx=self._geo_ctx("user0"),
             group_ids=[],
             offset=0,
         )
-        assert len(response.items) == 1
-        return response.items[0].public_access
 
-    def test_open_when_both_published(
+    def test_row_values_propagate_to_item(
         self, mock_session: MagicMock, mock_data_session: MagicMock
     ) -> None:
-        link = self._link(gn_is_published=True, gs_is_published=True)
-        assert self._public_access(mock_session, mock_data_session, link, []) == (PublicAccess.OPEN)
-
-    def test_restricted_when_only_gn_published(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
-    ) -> None:
-        link = self._link(gn_is_published=True, gs_is_published=False)
-        assert self._public_access(mock_session, mock_data_session, link, []) == (
-            PublicAccess.RESTRICTED
+        link = self._link()
+        response = self._list(
+            mock_session, mock_data_session, [(link, "OWNER", True, "restricted")]
         )
 
-    def test_restricted_when_rule_exists_and_nothing_published(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
-    ) -> None:
-        link = self._link(gn_is_published=False, gs_is_published=False)
-        assert self._public_access(mock_session, mock_data_session, link, [link.id]) == (
-            PublicAccess.RESTRICTED
-        )
+        assert response.items[0].has_integrity_rules is True
+        assert response.items[0].public_access == PublicAccess.RESTRICTED
 
-    def test_unconfigured_when_nothing_published_and_no_rule(
+    def test_public_access_computed_in_sql(
         self, mock_session: MagicMock, mock_data_session: MagicMock
     ) -> None:
-        link = self._link(gn_is_published=False, gs_is_published=False)
-        assert self._public_access(mock_session, mock_data_session, link, []) == (
-            PublicAccess.UNCONFIGURED
-        )
+        self._list(mock_session, mock_data_session, [])
+
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        query_str = str(executed_query.compile(compile_kwargs={"literal_binds": True}))
+        assert "AS has_integrity_rules" in query_str
+        assert "AS public_access" in query_str
+        for level in PublicAccess:
+            assert f"'{level.value}'" in query_str
 
 
 class TestListIntegrityLinksAccessRecurrenceFilters:
@@ -1181,9 +1167,10 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         return str(executed_query.compile(compile_kwargs={"literal_binds": True}))
 
     def _where_clause(self, mock_session: MagicMock) -> str:
-        # gn_is_published/gs_is_published are also selected columns, so asserting on the
-        # WHERE clause alone (not the full query) is required to actually test the filter.
-        return self._compiled_first_query(mock_session).split("WHERE", 1)[1]
+        # public_access is also a selected column, so asserting on the top-level WHERE
+        # clause alone (not the full query) is required to actually test the filter.
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        return str(executed_query.whereclause.compile(compile_kwargs={"literal_binds": True}))
 
     def test_recurrence_filter_added_to_query(
         self, mock_session: MagicMock, mock_data_session: MagicMock
