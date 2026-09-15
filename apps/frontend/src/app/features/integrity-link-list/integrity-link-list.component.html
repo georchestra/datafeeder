@@ -19,17 +19,31 @@
       <span class="mb-2 block text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.filters.title' | translate }}
       </span>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center justify-between">
+        <!-- Statut has no backend support yet — empty choices, not wired to any filter. -->
         <app-multi-select-dropdown
-          label="integrityLinks.visibility"
-          [choices]="accessChoices"
-          [(selected)]="selectedAccess"
+          label="integrityLinks.filters.status"
+          [choices]="statusChoices"
+          [(selected)]="selectedStatus"
         />
-        <app-multi-select-dropdown
-          label="integrityLinks.recurrence"
-          [choices]="recurrenceChoices"
-          [(selected)]="selectedRecurrence"
-        />
+        <div class="flex items-center gap-3">
+          <app-multi-select-dropdown
+            label="integrityLinks.visibility"
+            [choices]="accessChoices"
+            [(selected)]="selectedAccess"
+          />
+          <app-multi-select-dropdown
+            label="integrityLinks.recurrence"
+            [choices]="recurrenceChoices"
+            [(selected)]="selectedRecurrence"
+          />
+          <!-- Référence has no backend support yet — empty choices, not wired to any filter. -->
+          <app-multi-select-dropdown
+            label="integrityLinks.filters.reference"
+            [choices]="referenceChoices"
+            [(selected)]="selectedReference"
+          />
+        </div>
       </div>
     </div>
 

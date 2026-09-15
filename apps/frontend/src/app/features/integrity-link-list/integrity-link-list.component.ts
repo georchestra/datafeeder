@@ -95,6 +95,12 @@ export class IntegrityLinkListComponent {
   searchQuery = signal('')
   selectedAccess = signal<string[]>([])
   selectedRecurrence = signal<string[]>([])
+  // Statut/Référence have no backend support yet — placeholder dropdowns
+  // for layout only, not wired into filters/reload.
+  selectedStatus = signal<string[]>([])
+  selectedReference = signal<string[]>([])
+  readonly statusChoices: MultiSelectChoice[] = []
+  readonly referenceChoices: MultiSelectChoice[] = []
   deleting = signal<string | null>(null)
   private nextOffset = signal(0)
 
