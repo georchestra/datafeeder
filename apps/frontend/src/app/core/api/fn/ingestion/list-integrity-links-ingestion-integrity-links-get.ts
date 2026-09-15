@@ -8,6 +8,8 @@ import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
 import { IntegrityLinkListResponse } from '../../models/integrity-link-list-response'
+import { PublicAccess } from '../../models/public-access'
+import { RecurrencePreset } from '../../models/recurrence-preset'
 
 export interface ListIntegrityLinksIngestionIntegrityLinksGet$Params {
   /**
@@ -19,6 +21,16 @@ export interface ListIntegrityLinksIngestionIntegrityLinksGet$Params {
    * Filter by integrity title (case-insensitive)
    */
   search?: string | null
+
+  /**
+   * Filter by public access level
+   */
+  access?: Array<PublicAccess> | null
+
+  /**
+   * Filter by recurrence preset
+   */
+  recurrence?: Array<RecurrencePreset> | null
 }
 
 export function listIntegrityLinksIngestionIntegrityLinksGet(
@@ -35,6 +47,8 @@ export function listIntegrityLinksIngestionIntegrityLinksGet(
   if (params) {
     rb.query('offset', params.offset, {})
     rb.query('search', params.search, {})
+    rb.query('access', params.access, {})
+    rb.query('recurrence', params.recurrence, {})
   }
 
   return http
