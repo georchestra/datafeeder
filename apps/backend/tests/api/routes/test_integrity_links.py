@@ -1,6 +1,7 @@
 """Tests for integrity_links API routes."""
 
 from datetime import datetime, timezone
+from typing import Any
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -13,7 +14,7 @@ from src.api.routes.ingestion.integrity_links import (
     list_integrity_links,
     list_joinable_tables,
 )
-from src.models.data_import import ImportType
+from src.models.data_import import ImportType, PublicAccess
 from src.models.integrity_link import IntegrityLink
 from src.services.georchestra import GeorchestraContext
 
@@ -1058,6 +1059,94 @@ class TestListIntegrityLinksVisibility:
         query_str = str(executed_query)
         # Should have OR condition (owner = username OR EXISTS subquery)
         assert "OR" in query_str.upper() or "or" in query_str.lower()
+
+
+class TestPublicAccessComputation:
+    """Test the public_access field computed by list_integrity_links."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_data_session(self) -> MagicMock:
+        return MagicMock()
+
+    def _geo_ctx(self, username: str) -> GeorchestraContext:
+        return GeorchestraContext(
+            username=username,
+            roles=set(),
+            email="",
+            firstname="",
+            lastname="",
+            organization="",
+        )
+
+    def _link(self, **overrides: Any) -> IntegrityLink:
+        defaults: dict[str, Any] = dict(
+            id=uuid4(),
+            integrity_title="Test",
+            integrity_owner="user0",
+            integrity_organization="testorg",
+            source_import_type=ImportType.EMPTY,
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+        defaults.update(overrides)
+        return IntegrityLink(**defaults)
+
+    def _public_access(
+        self,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        link: IntegrityLink,
+        rule_link_ids: list[Any],
+    ) -> PublicAccess:
+        mock_main = MagicMock()
+        mock_main.all.return_value = [(link, "OWNER")]
+        mock_rules = MagicMock()
+        mock_rules.scalars.return_value.all.return_value = rule_link_ids
+        mock_session.execute.side_effect = [mock_main, mock_rules]
+
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+        )
+        assert len(response.items) == 1
+        return response.items[0].public_access
+
+    def test_open_when_both_published(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        link = self._link(gn_is_published=True, gs_is_published=True)
+        assert self._public_access(mock_session, mock_data_session, link, []) == (PublicAccess.OPEN)
+
+    def test_restricted_when_only_gn_published(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        link = self._link(gn_is_published=True, gs_is_published=False)
+        assert self._public_access(mock_session, mock_data_session, link, []) == (
+            PublicAccess.RESTRICTED
+        )
+
+    def test_restricted_when_rule_exists_and_nothing_published(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        link = self._link(gn_is_published=False, gs_is_published=False)
+        assert self._public_access(mock_session, mock_data_session, link, [link.id]) == (
+            PublicAccess.RESTRICTED
+        )
+
+    def test_unconfigured_when_nothing_published_and_no_rule(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        link = self._link(gn_is_published=False, gs_is_published=False)
+        assert self._public_access(mock_session, mock_data_session, link, []) == (
+            PublicAccess.UNCONFIGURED
+        )
 
 
 class TestListJoinableTables:

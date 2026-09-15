@@ -28,6 +28,18 @@ class ImportType(str, Enum):
     PREFILLED = "prefilled"
 
 
+class PublicAccess(str, Enum):
+    """Public access level of a dataset, shown on the dashboard.
+
+    Distinct from EffectiveAccess (security.py, the caller's access level).
+    Lives here, not in security.py, to avoid a circular import via ImportType.
+    """
+
+    UNCONFIGURED = "unconfigured"
+    RESTRICTED = "restricted"
+    OPEN = "open"
+
+
 class FileType(str, Enum):
     """Supported file types"""
 
@@ -169,6 +181,7 @@ class IntegrityLinkListItem(BaseModel):
     gn_is_published: bool = False
     gs_is_published: bool = False
     has_integrity_rules: bool = False
+    public_access: PublicAccess = PublicAccess.UNCONFIGURED
     has_final_table: bool = False
     owner_display_name: str | None = None
 

@@ -27,6 +27,7 @@ from src.models.data_import import (
     IntegrityLinkListResponse,
     JoinableColumn,
     JoinableTable,
+    PublicAccess,
 )
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule
@@ -229,6 +230,13 @@ def list_integrity_links(
     )
     for item in items:
         item.has_integrity_rules = UUID(item.id) in rules_with_links
+        item.public_access = (
+            PublicAccess.OPEN
+            if item.gn_is_published and item.gs_is_published
+            else PublicAccess.RESTRICTED
+            if item.gn_is_published or item.gs_is_published or item.has_integrity_rules
+            else PublicAccess.UNCONFIGURED
+        )
 
     usernames = list({item.integrity_owner for item in items})
     display_names = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).fetch_users_by_usernames(
