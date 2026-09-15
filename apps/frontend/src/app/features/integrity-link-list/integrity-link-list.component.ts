@@ -1,9 +1,16 @@
-import { Component, effect, inject, signal } from '@angular/core'
+import { Component, computed, effect, inject, signal } from '@angular/core'
 import { DatePipe } from '@angular/common'
 import { Router } from '@angular/router'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import { TranslatePipe, TranslateService } from '@ngx-translate/core'
-import { Subject, debounceTime, distinctUntilChanged } from 'rxjs'
+import {
+  Subject,
+  debounceTime,
+  distinctUntilChanged,
+  map,
+  skip,
+  startWith
+} from 'rxjs'
 import { firstValueFrom } from 'rxjs'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { MatDialog } from '@angular/material/dialog'
@@ -13,7 +20,13 @@ import {
   deleteIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdDelete,
   listIntegrityLinksIngestionIntegrityLinksGet
 } from '../../core/api/functions'
-import { IntegrityLinkListItem } from '../../core/api/models'
+import {
+  IntegrityLinkListItem,
+  PublicAccess,
+  RecurrencePreset
+} from '../../core/api/models'
+import { PUBLIC_ACCESS } from '../../core/api/models/public-access-array'
+import { RECURRENCE_PRESET } from '../../core/api/models/recurrence-preset-array'
 import {
   iconoirPlus,
   iconoirChatBubbleWarning,
@@ -24,6 +37,10 @@ import {
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 import { QuickCreationComponent } from '../../shared/components/quick-creation/quick-creation.component'
 import { RecurrenceLabelPipe } from '../../shared/pipes/recurrence-label.pipe'
+import {
+  MultiSelectChoice,
+  MultiSelectDropdownComponent
+} from '../../shared/components/multi-select-dropdown/multi-select-dropdown.component'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import {
   EMPTY_IMPORT_TYPE,
@@ -47,7 +64,8 @@ const DEBOUNCE_TIME = 300
     NgIconComponent,
     SearchInputComponent,
     QuickCreationComponent,
-    RecurrenceLabelPipe
+    RecurrenceLabelPipe,
+    MultiSelectDropdownComponent
   ],
   templateUrl: './integrity-link-list.component.html',
   providers: [
@@ -75,19 +93,48 @@ export class IntegrityLinkListComponent {
   hasMore = signal<boolean>(false)
   loadingMore = signal<boolean>(false)
   searchQuery = signal('')
+  selectedAccess = signal<string[]>([])
+  selectedRecurrence = signal<string[]>([])
   deleting = signal<string | null>(null)
   private nextOffset = signal(0)
 
-  private searchSubject = new Subject<string>()
+  readonly accessChoices: MultiSelectChoice[] = PUBLIC_ACCESS.map((id) => ({
+    id,
+    label: `integrityLinks.visibility.${id}`
+  }))
+  readonly recurrenceChoices: MultiSelectChoice[] = RECURRENCE_PRESET.map(
+    (id) => ({ id, label: `recurrence.preset.${id}` })
+  )
+
+  hasActiveFilters = computed(
+    () =>
+      this.searchQuery().length > 0 ||
+      this.selectedAccess().length > 0 ||
+      this.selectedRecurrence().length > 0
+  )
+
+  private filters = computed(() => ({
+    search: this.searchQuery(),
+    access: this.selectedAccess(),
+    recurrence: this.selectedRecurrence()
+  }))
+
+  private reloadSubject = new Subject<void>()
+  private requestId = 0
 
   constructor() {
     effect(() => {
-      this.searchSubject.next(this.searchQuery())
+      this.filters()
+      this.reloadSubject.next()
     })
-    this.searchSubject
+    this.reloadSubject
       .pipe(
+        map(() => JSON.stringify(this.filters())),
         debounceTime(DEBOUNCE_TIME),
+        // seed with the initial filters so the constructor load is not repeated
+        startWith(JSON.stringify(this.filters())),
         distinctUntilChanged(),
+        skip(1),
         takeUntilDestroyed()
       )
       .subscribe(() => {
@@ -98,6 +145,7 @@ export class IntegrityLinkListComponent {
   }
 
   private async loadIntegrityLinks(append = false): Promise<void> {
+    const requestId = ++this.requestId
     if (!append) {
       this.hasMore.set(false)
       this.nextOffset.set(0)
@@ -105,10 +153,17 @@ export class IntegrityLinkListComponent {
     try {
       const offset = append ? this.nextOffset() : 0
       const search = this.searchQuery() || undefined
+      const access = this.selectedAccess().length
+        ? (this.selectedAccess() as PublicAccess[])
+        : undefined
+      const recurrence = this.selectedRecurrence().length
+        ? (this.selectedRecurrence() as RecurrencePreset[])
+        : undefined
       const response = await this.api.invoke(
         listIntegrityLinksIngestionIntegrityLinksGet,
-        { offset, search }
+        { offset, search, access, recurrence }
       )
+      if (requestId !== this.requestId) return
       if (append) {
         this.integrityLinks.update((items) => [...items, ...response.items])
       } else {
@@ -119,8 +174,10 @@ export class IntegrityLinkListComponent {
     } catch (error) {
       console.error('Failed to load integrity links:', error)
     } finally {
-      this.loading.set(false)
-      this.loadingMore.set(false)
+      if (requestId === this.requestId) {
+        this.loading.set(false)
+        this.loadingMore.set(false)
+      }
     }
   }
 
@@ -157,19 +214,6 @@ export class IntegrityLinkListComponent {
   onViewClick(event: Event, link: IntegrityLinkListItem): void {
     event.stopPropagation()
     this.navService.openCatalogue(link.metadata_id)
-  }
-
-  getVisibility(
-    link: IntegrityLinkListItem
-  ): 'open' | 'restricted' | 'unconfigured' {
-    if (link.gn_is_published && link.gs_is_published) return 'open'
-    if (
-      link.gn_is_published ||
-      link.gs_is_published ||
-      link.has_integrity_rules
-    )
-      return 'restricted'
-    return 'unconfigured'
   }
 
   isReadOnly(link: IntegrityLinkListItem): boolean {
