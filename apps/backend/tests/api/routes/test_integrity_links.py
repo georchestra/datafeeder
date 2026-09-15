@@ -16,6 +16,7 @@ from src.api.routes.ingestion.integrity_links import (
 )
 from src.models.data_import import ImportType, PublicAccess
 from src.models.integrity_link import IntegrityLink
+from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
 
 _CONSOLE_PATCH = "src.api.routes.ingestion.integrity_links.ConsoleService"
@@ -1147,6 +1148,95 @@ class TestPublicAccessComputation:
         assert self._public_access(mock_session, mock_data_session, link, []) == (
             PublicAccess.UNCONFIGURED
         )
+
+
+class TestListIntegrityLinksAccessRecurrenceFilters:
+    """Test the access and recurrence query params on list_integrity_links."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_data_session(self) -> MagicMock:
+        return MagicMock()
+
+    def _geo_ctx(self, username: str) -> GeorchestraContext:
+        return GeorchestraContext(
+            username=username,
+            roles=set(),
+            email="",
+            firstname="",
+            lastname="",
+            organization="",
+        )
+
+    def _empty_result(self, mock_session: MagicMock) -> None:
+        mock_main = MagicMock()
+        mock_main.all.return_value = []
+        mock_session.execute.return_value = mock_main
+
+    def _compiled_first_query(self, mock_session: MagicMock) -> str:
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        return str(executed_query.compile(compile_kwargs={"literal_binds": True}))
+
+    def _where_clause(self, mock_session: MagicMock) -> str:
+        # gn_is_published/gs_is_published are also selected columns, so asserting on the
+        # WHERE clause alone (not the full query) is required to actually test the filter.
+        return self._compiled_first_query(mock_session).split("WHERE", 1)[1]
+
+    def test_recurrence_filter_added_to_query(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            recurrence=[RecurrencePreset.EVERY_DAY],
+        )
+
+        query_str = self._compiled_first_query(mock_session)
+        assert "schedule IN" in query_str
+        assert RecurrencePreset.EVERY_DAY.cron in query_str
+
+    def test_access_filter_added_to_query(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            access=[PublicAccess.OPEN],
+        )
+
+        where_clause = self._where_clause(mock_session)
+        assert "gn_is_published" in where_clause
+        assert "gs_is_published" in where_clause
+
+    def test_no_filter_params_omits_filter_clauses(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+        )
+
+        where_clause = self._where_clause(mock_session)
+        assert "schedule IN" not in where_clause
+        assert "gn_is_published" not in where_clause
 
 
 class TestListJoinableTables:

@@ -1,9 +1,9 @@
 from collections.abc import Sequence
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import Column, MetaData, String, Table
+from sqlalchemy import Column, MetaData, String, Table, and_, exists, or_
 from sqlalchemy import select as sa_select
 from sqlmodel import Session, col
 
@@ -96,12 +96,37 @@ def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tu
     return existing
 
 
+def _public_access_condition(levels: Sequence[PublicAccess]) -> Any:
+    """Build the WHERE condition matching any of the given public access levels.
+
+    Mirrors the Python computation in list_integrity_links. The rule-exists
+    check is intentionally unfiltered (any IntegrityLinkRule row) — do not
+    reuse build_access_expr's caller-scoped subquery here, it answers a
+    different question and would desync from has_integrity_rules/public_access.
+    """
+    gn = col(IntegrityLink.gn_is_published)
+    gs = col(IntegrityLink.gs_is_published)
+    rule_exists = exists(
+        sa_select(IntegrityLinkRule.id).where(  # type: ignore[reportArgumentType]
+            IntegrityLinkRule.integrity_link_id == IntegrityLink.id
+        )
+    )
+    condition_by_level = {
+        PublicAccess.OPEN: and_(gn, gs),
+        PublicAccess.RESTRICTED: and_(or_(gn, gs, rule_exists), ~and_(gn, gs)),
+        PublicAccess.UNCONFIGURED: and_(~gn, ~gs, ~rule_exists),
+    }
+    return or_(*(condition_by_level[level] for level in levels))
+
+
 @router.get(
     "/",
     response_model=IntegrityLinkListResponse,
     summary="List integrity links",
     description="List integrity links with role-based filtering. "
-    "Normal users see only their own links, administrators see all links.",
+    "Normal users see only their own links, administrators see all links. "
+    "Supports filtering by title search, public access level, and recurrence preset "
+    "(AND across filters, OR within a filter's multiple values).",
 )
 def list_integrity_links(
     session: DatafeederSessionDep,
@@ -110,6 +135,12 @@ def list_integrity_links(
     group_ids: GroupIdsDep,
     offset: int = Query(0, ge=0, description="Number of items to skip (for lazy loading)"),
     search: str | None = Query(None, description="Filter by integrity title (case-insensitive)"),
+    access: Annotated[
+        list[PublicAccess] | None, Query(description="Filter by public access level")
+    ] = None,
+    recurrence: Annotated[
+        list[RecurrencePreset] | None, Query(description="Filter by recurrence preset")
+    ] = None,
 ) -> IntegrityLinkListResponse:
     """
     List integrity links with role-based access control.
@@ -123,6 +154,9 @@ def list_integrity_links(
         data_session: Data engine session for table existence checks (injected)
         geo_ctx: geOrchestra security context with username and roles
         offset: Number of items to skip for pagination (lazy loading)
+        search: Case-insensitive substring match on integrity_title
+        access: Public access levels to include (OR'd together)
+        recurrence: Recurrence presets to include (OR'd together)
 
     Returns:
         IntegrityLinkListResponse with items, has_more flag, and current offset
@@ -140,6 +174,10 @@ def list_integrity_links(
     # Apply search filter if provided
     if search:
         query = query.where(IntegrityLink.integrity_title.ilike(f"%{search}%"))  # type: ignore[union-attr]
+    if access:
+        query = query.where(_public_access_condition(access))
+    if recurrence:
+        query = query.where(IntegrityLink.schedule.in_([preset.cron for preset in recurrence]))  # type: ignore[union-attr]
 
     base_query = query.order_by(IntegrityLink.created_at.desc())  # type: ignore[union-attr]
 
