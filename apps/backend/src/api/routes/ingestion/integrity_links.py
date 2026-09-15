@@ -107,8 +107,8 @@ def _public_access_condition(levels: Sequence[PublicAccess]) -> Any:
     gn = col(IntegrityLink.gn_is_published)
     gs = col(IntegrityLink.gs_is_published)
     rule_exists = exists(
-        sa_select(IntegrityLinkRule.id).where(  # type: ignore[reportArgumentType]
-            IntegrityLinkRule.integrity_link_id == IntegrityLink.id
+        sa_select(col(IntegrityLinkRule.id)).where(
+            col(IntegrityLinkRule.integrity_link_id) == IntegrityLink.id
         )
     )
     condition_by_level = {
