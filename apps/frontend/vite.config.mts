@@ -18,6 +18,10 @@ export default defineConfig(() => ({
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     setupFiles: ['src/test-setup.ts'],
     reporters: ['default'],
+    // Dev machine is RAM-constrained; parallel workers cause OOM segfaults.
+    fileParallelism: false,
+    pool: 'forks',
+    poolOptions: { forks: { maxForks: 1 } },
     coverage: {
       reportsDirectory: './coverage/frontend',
       provider: 'v8' as const,
