@@ -8,7 +8,7 @@ FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 # ============================================================================
 # Base stage: Common setup for all targets
 # ============================================================================
-FROM python:3.12-slim AS base
+FROM python:3.13-slim AS base
 
 # Install required dependencies with APT
 RUN apt-get update && \
@@ -23,7 +23,7 @@ COPY --from=uv /uv /uvx /bin/
 # - Silence uv complaining about not being able to use hard links,
 # - tell uv to byte-compile packages for faster application startups,
 # - prevent uv from accidentally downloading isolated Python builds,
-# - pick a Python (use `/usr/bin/python3.12` on uv 0.5.0 and later),
+# - pick a Python (use `/usr/bin/python3.13` on uv 0.5.0 and later),
 # - declare `/app` as the target for `uv sync`.
 # - declare a cache directory for uv to use
 # - disable uv caching to ensure fresh installs in CI/CD environments
@@ -31,7 +31,7 @@ COPY --from=uv /uv /uvx /bin/
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never \
-    UV_PYTHON=python3.12 \
+    UV_PYTHON=python3.13 \
     UV_CACHE_DIR=/tmp/uv-cache \
     UV_NO_CACHE=1 \
     UV_FROZEN=1

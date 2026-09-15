@@ -30,16 +30,8 @@ def _load_build_callback_url():
     ]:
         sys.modules.setdefault(mod_name, stub)
 
-    class _FakeDF:
-        def to_dict(self, orient):
-            return []
-
-    class _FakeHook:
-        def get_pandas_df(self, sql):
-            return _FakeDF()
-
     utils_stub = types.ModuleType("utils")
-    utils_stub.get_datafeeder_pg_hook = lambda: _FakeHook()  # type: ignore[attr-defined]
+    utils_stub.get_records_as_dicts = lambda sql: []  # type: ignore[attr-defined]
     utils_stub.normalize_nan = lambda value, default: default if value is None else value  # type: ignore[attr-defined]
     sys.modules["utils"] = utils_stub
 

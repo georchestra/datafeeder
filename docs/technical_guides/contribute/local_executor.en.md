@@ -3,7 +3,7 @@
 Running the full Airflow stack (redis, api-server, scheduler, dag-processor, worker, triggerer) is not always
 necessary to work on the datafeeder: staging and process are, in the end, plain Python calls into
 `libs/data_manipulation/`. The `LOCAL` task executor runs that logic directly inside the backend process, so a
-dev loop can be just `make up`, `make run-backend`, `npm start` — no Airflow containers involved.
+dev loop can be just `make up-no-airflow`, `make run-backend`, `npm start` — no Airflow containers involved.
 
 This complements the [`BaseTaskExecutor` abstraction](architecture.md#design-principles): `AirflowTaskExecutor`
 (`apps/backend/src/services/executors/airflow_executor.py`) and `LocalTaskExecutor`
@@ -23,11 +23,24 @@ BACKEND_INTERNAL_URL=http://localhost:8000
 the host-run backend. With `LOCAL`, ingestion runs in the backend's own process on the host, so it must be
 `localhost` — using the Docker-only hostname here fails with a DNS resolution error.
 
-`make up` no longer starts Airflow (the 7 Airflow services are behind the `airflow` Compose profile). Use
-`make up-airflow` when you actually need to test against real Airflow.
+Use `make up-no-airflow` instead of `make up`: the 7 Airflow services sit behind the `airflow` Compose profile,
+which `up` enables and `up-no-airflow` replaces with the `local-executor` one. Go back to `make up` when you
+actually need to test against real Airflow.
 
 Restart `make run-backend` after changing `datafeeder.env` — settings are cached at startup and `--reload` only
 watches source directories, not this file.
+
+### Ingesting files with the LOCAL executor
+
+`LocalTaskExecutor` calls `ogr2ogr` (via `data_manipulation.ingestion`) directly, so it needs GDAL somewhere. Since
+the backend runs as a plain host process here, `make up-no-airflow` also starts a `datafeeder-gdal` sidecar
+(`ghcr.io/osgeo/gdal:alpine-normal-3.13.2`, `local-executor` Compose profile) for it to use, instead of requiring
+GDAL to be installed on the host. `alpine-normal` rather than `alpine-small`, because only the former ships the
+Parquet driver that `FileType.PARQUET` accepts.
+
+`make run-backend-with-local-task-executor` sets `DATAFEEDER_GDAL_DOCKER_EXEC_TARGET=datafeeder-gdal`;
+`LocalTaskExecutor` picks that up at startup and installs a small `ogr2ogr` wrapper (using the host's own `docker`
+CLI, so no extra setup is needed) that runs `docker exec datafeeder-gdal ogr2ogr ...` instead of a local binary.
 
 ## What it actually runs
 
@@ -62,5 +75,5 @@ DAG calling back.
   indefinitely.
 
 None of this matters for the day-to-day loop of importing a file, mapping columns, and checking the published
-layer — which is what `LOCAL` is for. Reach for `make up-airflow` (`TASK_EXECUTOR=AIRFLOW`) as soon as you need
+layer — which is what `LOCAL` is for. Reach for `make up` (`TASK_EXECUTOR=AIRFLOW`) as soon as you need
 to test recurrence, real task logs, or anything involving the scheduler.

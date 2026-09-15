@@ -23,8 +23,10 @@
 # This configuration supports basic configuration using environment variables or an .env file
 # The following variables are supported:
 #
-# AIRFLOW_VERSION              - Tag of the apache/airflow base image used by Dockerfile.airflow.
-#                                Default: 3.1.8
+# AIRFLOW_VERSION              - Apache Airflow version installed by Dockerfile.airflow,
+#                                which also selects the image the entrypoint is taken from.
+#                                Keep in sync with apps/elt/pyproject.toml.
+#                                Default: 3.3.0
 # AIRFLOW_UID                  - User ID in Airflow containers
 #                                Default: 50000
 # AIRFLOW_PROJ_DIR             - Base path to which all the files will be volumed.
@@ -89,7 +91,6 @@ x-airflow-common:
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
     AIRFLOW__API_AUTH__JWT_SECRET: 'nty6o8yV+OsnfEvsZ/ehZQ=='
     BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://host.docker.internal:8000}
-    PYOGRIO_USE_ARROW: 1
   volumes:
     - ../apps/elt/dags:/opt/airflow/dags
     - ../libs/data_manipulation/src/data_manipulation:/opt/airflow/dags/data_manipulation
