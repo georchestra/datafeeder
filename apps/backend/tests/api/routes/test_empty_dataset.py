@@ -72,7 +72,6 @@ class TestCreateEmptyDataset:
                 return_value=_mock_settings(),
             ),
             patch("src.api.routes.ingestion.empty_dataset.ConsoleService") as mock_console_cls,
-            patch("src.api.routes.ingestion.empty_dataset.MetadataService") as mock_ms_cls,
             patch(
                 "src.api.routes.ingestion.empty_dataset.IntegrityLinkResponse.model_validate",
                 return_value=MagicMock(
@@ -86,12 +85,12 @@ class TestCreateEmptyDataset:
                 "name": "Test Org",
                 "mail": "org@example.com",
             }
-            mock_ms_cls.return_value = MagicMock()
 
             result = create_empty_dataset(
                 request=CreateEmptyDatasetRequest(title="My Dataset"),
                 session=session,
                 geo_ctx=_geo_ctx(),
+                metadata_service=MagicMock(),
             )
 
         assert result.source_import_type == ImportType.EMPTY
@@ -113,7 +112,6 @@ class TestCreateEmptyDataset:
                 return_value=_mock_settings(),
             ),
             patch("src.api.routes.ingestion.empty_dataset.ConsoleService") as mock_console_cls,
-            patch("src.api.routes.ingestion.empty_dataset.MetadataService") as mock_ms_cls,
             patch(
                 "src.api.routes.ingestion.empty_dataset.IntegrityLinkResponse.model_validate",
                 return_value=MagicMock(
@@ -124,12 +122,12 @@ class TestCreateEmptyDataset:
             ),
         ):
             mock_console_cls.return_value.get_organization.return_value = None
-            mock_ms_cls.return_value = MagicMock()
 
             result = create_empty_dataset(
                 request=CreateEmptyDatasetRequest(),
                 session=session,
                 geo_ctx=_geo_ctx(),
+                metadata_service=MagicMock(),
             )
 
         added_link = session.add.call_args[0][0]
@@ -149,18 +147,17 @@ class TestCreateEmptyDataset:
                 return_value=_mock_settings(),
             ),
             patch("src.api.routes.ingestion.empty_dataset.ConsoleService") as mock_console_cls,
-            patch("src.api.routes.ingestion.empty_dataset.MetadataService") as mock_ms_cls,
         ):
             mock_console_cls.return_value.get_organization.return_value = None
             mock_ms = MagicMock()
             mock_ms.create_and_publish_metadata.side_effect = RuntimeError("GeoNetwork down")
-            mock_ms_cls.return_value = mock_ms
 
             with pytest.raises(HTTPException) as exc_info:
                 create_empty_dataset(
                     request=CreateEmptyDatasetRequest(title="My Dataset"),
                     session=session,
                     geo_ctx=_geo_ctx(),
+                    metadata_service=mock_ms,
                 )
 
         assert exc_info.value.status_code == 500

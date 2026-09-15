@@ -1,13 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from src.api.deps import DatafeederSessionDep, GeorchestraContextDep
+from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, MetadataServiceDep
 from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.data_import import ImportType, IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
 from src.services.console_service import ConsoleService
-from src.services.metadata_service import MetadataService
 
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
 logger = get_logger()
@@ -32,6 +31,7 @@ def create_empty_dataset(
     request: CreateEmptyDatasetRequest,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
+    metadata_service: MetadataServiceDep,
 ) -> IntegrityLinkResponse:
     title = request.title.strip() if request.title else "Untitled Dataset"
     settings = get_settings()
@@ -59,14 +59,6 @@ def create_empty_dataset(
             contact_email = geo_ctx.email
             user_first_name = geo_ctx.firstname
             user_last_name = geo_ctx.lastname
-
-        metadata_service = MetadataService(
-            gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
-            datadir_path=settings.DATADIR_PATH,
-            credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-            gn_sync_mode=settings.GN_SYNC_MODE,
-            verify_tls=False,
-        )
 
         # No layer_urls → no online resources in the metadata record
         metadata_service.create_and_publish_metadata(
