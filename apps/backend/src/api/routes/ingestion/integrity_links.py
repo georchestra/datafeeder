@@ -13,6 +13,7 @@ from src.api.deps import (
     GeorchestraContextDep,
     GroupIdsDep,
 )
+from src.api.routes.groups_common import GroupItem
 from src.core.config import get_data_schema, get_settings, get_staging_schema
 from src.core.logging import get_logger
 from src.core.security import (
@@ -267,6 +268,74 @@ def list_integrity_links(
         offset=offset,
         next_offset=next_offset,
     )
+
+
+@router.get(
+    "/organizations",
+    response_model=list[GroupItem],
+    summary="List distinct organizations across accessible integrity links",
+    description="Distinct integrity_organization values across integrity links the caller "
+    "can see, paired with their console long name for display in a filter dropdown.",
+)
+def list_integrity_link_organizations(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    group_ids: GroupIdsDep,
+) -> list[GroupItem]:
+    """List distinct organizations, restricted to datasets the caller can see."""
+    query = sa_select(col(IntegrityLink.integrity_organization)).distinct()
+    if not geo_ctx.is_administrator():
+        query = query.where(visibility_condition(geo_ctx.username, group_ids))
+
+    short_names = session.execute(query).scalars().all()  # type: ignore[reportDeprecated]
+    if not short_names:
+        return []
+
+    try:
+        organizations = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).get_all_organizations()
+        long_names = {
+            org["shortName"]: org["name"]
+            for org in organizations
+            if org.get("shortName") and org.get("name")
+        }
+    except Exception as e:
+        logger.warning(f"Failed to fetch organizations from console: {e}", exc_info=True)
+        long_names = {}
+
+    return [
+        GroupItem(id=short_name, label=long_names.get(short_name, short_name))
+        for short_name in sorted(short_names)
+    ]
+
+
+@router.get(
+    "/owners",
+    response_model=list[GroupItem],
+    summary="List distinct owners across accessible integrity links",
+    description="Distinct integrity_owner values across integrity links the caller can see, "
+    "paired with their console display name for display in a filter dropdown.",
+)
+def list_integrity_link_owners(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    group_ids: GroupIdsDep,
+) -> list[GroupItem]:
+    """List distinct owners, restricted to datasets the caller can see."""
+    query = sa_select(col(IntegrityLink.integrity_owner)).distinct()
+    if not geo_ctx.is_administrator():
+        query = query.where(visibility_condition(geo_ctx.username, group_ids))
+
+    usernames = session.execute(query).scalars().all()  # type: ignore[reportDeprecated]
+    if not usernames:
+        return []
+
+    display_names = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).fetch_users_by_usernames(
+        list(usernames)
+    )
+    return [
+        GroupItem(id=username, label=display_names.get(username) or username)
+        for username in sorted(usernames)
+    ]
 
 
 @router.get(
