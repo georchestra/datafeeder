@@ -75,6 +75,8 @@ describe('IntegrityLinkListComponent', () => {
             'integrityLinks.title': 'Integrity Links',
             'integrityLinks.loadMore': 'Load More',
             'integrityLinks.noItems': 'No items',
+            'integrityLinks.emptyList': 'No dataset found',
+            'integrityLinks.noResults': 'No results',
             'integrityLinks.view': 'View',
             'dashboard.deleteDataset': 'Delete dataset',
             'dashboard.deleteDatasetConfirm': 'Are you sure?',
@@ -957,9 +959,14 @@ describe('IntegrityLinkListComponent', () => {
         (r) => r.url === 'http://localhost:8000/ingestion/integrity-links/'
       )
       req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+      await new Promise((resolve) => setTimeout(resolve, 10))
       fixture.detectChanges()
 
       expect(component.hasActiveFilters()).toBe(true)
+
+      const compiled = fixture.nativeElement as HTMLElement
+      expect(compiled.textContent).toContain('No results')
+      expect(compiled.textContent).not.toContain('No dataset found')
     })
 
     it('should not reload when a filter change is reverted within the debounce window', async () => {
