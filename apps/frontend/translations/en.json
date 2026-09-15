@@ -281,6 +281,7 @@
   "integrityLinks.edit": "Edit dataset",
   "integrityLinks.dashboard": "My datasets",
   "integrityLinks.emptyList": "No dataset found",
+  "integrityLinks.filters.title": "Filter your data",
   "integrityLinks.loadMore": "Load more",
   "integrityLinks.noFinalTable": "Ingestion to configure",
   "integrityLinks.noResults": "No results found",
