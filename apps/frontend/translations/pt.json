@@ -281,6 +281,8 @@
   "integrityLinks.dashboard": "",
   "integrityLinks.edit": "",
   "integrityLinks.emptyList": "",
+  "integrityLinks.filters.reference": "",
+  "integrityLinks.filters.status": "",
   "integrityLinks.filters.title": "",
   "integrityLinks.loadMore": "",
   "integrityLinks.noFinalTable": "Ingestão a configurar",

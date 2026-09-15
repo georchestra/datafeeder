@@ -282,6 +282,8 @@
   "integrityLinks.edit": "Modifier le jeu de données",
   "integrityLinks.dashboard": "Mes jeux de données",
   "integrityLinks.emptyList": "Aucun jeu de données trouvé",
+  "integrityLinks.filters.reference": "Référence",
+  "integrityLinks.filters.status": "Statut",
   "integrityLinks.filters.title": "Filtrer vos données",
   "integrityLinks.loadMore": "Charger plus",
   "integrityLinks.noFinalTable": "Brouillon",
