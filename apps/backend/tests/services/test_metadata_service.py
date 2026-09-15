@@ -1,4 +1,4 @@
-import json
+import copy
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +20,70 @@ from tests.services.metadata_service_internals.samples import SAMPLE_19115_3_NO_
 from tests.services.metadata_service_internals.test_update_revision_date_19115 import (
     CITATION_REVISION_XPATH_191153,
 )
+
+SEARCH_FOR_TEMPLATE_RESPONSE: dict[str, Any] = {
+    "hits": {
+        "hits": [
+            {
+                "_id": "ec39075b-f252-45f2-9760-cf067944555e",
+                "_source": {
+                    "groupOwner": "19",
+                },
+            },
+            {
+                "_id": "4a147cdd-b7f7-43e9-a6f6-750293287c84",
+                "_source": {
+                    "groupOwner": "6",
+                },
+            },
+            {
+                "_id": "5c46a628-e187-4569-ba8b-834c2817d6e2",
+                "_source": {
+                    "groupOwner": "6",
+                },
+            },
+        ]
+    }
+}
+
+LIST_USERS_JOHN_IS_REVIEWER: list[dict[str, Any]] = [
+    {
+        "id": 25335328,
+        "username": "John",
+        "profile": "Reviewer",
+    }
+]
+
+LIST_USERS_JOHN_IS_ADMIN: list[dict[str, Any]] = [
+    {
+        "id": 25335328,
+        "username": "John",
+        "profile": "Administrator",
+    }
+]
+
+LIST_GROUPS_ZUG: list[dict[str, Any]] = [
+    {
+        "name": "Zug",
+        "id": 5,
+    }
+]
+
+LIST_GROUPS_FRIBOURG: list[dict[str, Any]] = [
+    {
+        "name": "Fribourg",
+        "id": 3,
+    }
+]
+
+USER_DETAIL_GROUPS_19_55: list[dict[str, Any]] = [
+    {
+        "id": {"profile": "Administrator", "groupId": 19},
+    },
+    {
+        "id": {"profile": "Administrator", "groupId": 55},
+    },
+]
 
 
 class TestMetadataService:
@@ -800,8 +864,7 @@ class TestGenerateWithTemplateFromUserGroups:
         self, mock_gn_api: MagicMock, rework_response: Callable[[dict[Any, Any]], dict[Any, Any]]
     ) -> tuple[MetadataService, MagicMock]:
         mock_api = MagicMock()
-        with open("tests/services/gn_resp/search_for_template.json") as data_file:
-            mock_api.search.return_value = rework_response(json.load(data_file))
+        mock_api.search.return_value = rework_response(copy.deepcopy(SEARCH_FOR_TEMPLATE_RESPONSE))
         mock_api.session = MagicMock()
         mock_gn_api.return_value = mock_api
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
@@ -890,16 +953,11 @@ class TestGenerateWithTemplateFromUserGroups:
         service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, identity)
 
         def side_effect_func(value: str):
-            if value.endswith("users"):
-                with open("tests/services/gn_resp/list_users.json") as data_file:
-                    mock = MagicMock()
-                    mock.json.return_value = json.load(data_file)
-                    return mock
-            else:
-                with open("tests/services/gn_resp/user_detail.json") as data_file:
-                    mock = MagicMock()
-                    mock.json.return_value = json.load(data_file)
-                    return mock
+            mock = MagicMock()
+            mock.json.return_value = (
+                LIST_USERS_JOHN_IS_REVIEWER if value.endswith("users") else USER_DETAIL_GROUPS_19_55
+            )
+            return mock
 
         mock_api.session.get = MagicMock(side_effect=side_effect_func)
 
@@ -909,7 +967,7 @@ class TestGenerateWithTemplateFromUserGroups:
         link = IntegrityLink(
             id=uuid4(),
             integrity_title="My Dataset",
-            integrity_owner="C2CMangeat",
+            integrity_owner="John",
             integrity_organization="Org",
             staging_table_name="stg",
             created_at=datetime.now(timezone.utc),
@@ -958,16 +1016,11 @@ class TestGenerateWithTemplateFromUserGroups:
         service, mock_api = self.mock_gn_search_to_return_19_6(mock_gn_api, empty_hits)
 
         def side_effect_func(value: str):
-            if value.endswith("users"):
-                with open("tests/services/gn_resp/list_users.json") as data_file:
-                    mock = MagicMock()
-                    mock.json.return_value = json.load(data_file)
-                    return mock
-            else:
-                with open("tests/services/gn_resp/user_detail.json") as data_file:
-                    mock = MagicMock()
-                    mock.json.return_value = json.load(data_file)
-                    return mock
+            mock = MagicMock()
+            mock.json.return_value = (
+                LIST_USERS_JOHN_IS_REVIEWER if value.endswith("users") else USER_DETAIL_GROUPS_19_55
+            )
+            return mock
 
         mock_api.session.get = MagicMock(side_effect=side_effect_func)
 
@@ -977,7 +1030,7 @@ class TestGenerateWithTemplateFromUserGroups:
         link = IntegrityLink(
             id=uuid4(),
             integrity_title="My Dataset",
-            integrity_owner="C2CMangeat",
+            integrity_owner="John",
             integrity_organization="Org",
             staging_table_name="stg",
             created_at=datetime.now(timezone.utc),
@@ -999,26 +1052,20 @@ class TestResolveGroupFromLink:
         mock_api = MagicMock()
 
         def side_effect_func(value: str):
-            if value.endswith("users"):
-                with open("tests/services/gn_resp/list_users.json") as data_file:
-                    mock = MagicMock()
-                    mock.json.return_value = json.load(data_file)
-                    return mock
-            else:
-                with open("tests/services/gn_resp/list_groups.json") as data_file:
-                    mock = MagicMock()
-                    mock.json.return_value = json.load(data_file)
-                    return mock
+            mock = MagicMock()
+            mock.json.return_value = (
+                LIST_USERS_JOHN_IS_REVIEWER if value.endswith("users") else LIST_GROUPS_ZUG
+            )
+            return mock
 
         mock_api.session.get = MagicMock(side_effect=side_effect_func)
-        with open("tests/services/gn_resp/search_for_template.json") as data_file:
-            mock_api.search.return_value = json.load(data_file)
+        mock_api.search.return_value = {"hits": {"hits": []}}
         mock_gn_api.return_value = mock_api
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
         service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
 
         link = IntegrityLink(
-            integrity_owner="C2CMangeat",
+            integrity_owner="John",
             integrity_organization="Zug",
             source_import_type=ImportType.URL,
         )
@@ -1032,28 +1079,22 @@ class TestResolveGroupFromLink:
         mock_api = MagicMock()
 
         def side_effect_func(value: str):
-            if value.endswith("users"):
-                with open("tests/services/gn_resp/list_users.json") as data_file:
-                    mock = MagicMock()
-                    mock.json.return_value = json.load(data_file)
-                    return mock
-            else:
-                with open("tests/services/gn_resp/user_detail.json") as data_file:
-                    mock = MagicMock()
-                    mock.json.return_value = json.load(data_file)
-                    return mock
+            mock = MagicMock()
+            mock.json.return_value = (
+                LIST_USERS_JOHN_IS_REVIEWER if value.endswith("users") else USER_DETAIL_GROUPS_19_55
+            )
+            return mock
 
         mock_api.session.get = MagicMock(side_effect=side_effect_func)
         mock_api.search = MagicMock()
-        with open("tests/services/gn_resp/search_for_template.json") as data_file:
-            mock_api.search.return_value = json.load(data_file)
+        mock_api.search.return_value = {"hits": {"hits": []}}
         mock_gn_api.return_value = mock_api
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
         service = MetadataService(gn_api_url="http://test/api", datadir_path=str(datadir))
 
         service.org_based_sync = False
         link = IntegrityLink(
-            integrity_owner="C2CMangeat",
+            integrity_owner="John",
             integrity_organization="Zug",
             source_import_type=ImportType.URL,
         )
@@ -1068,21 +1109,15 @@ class TestResolveGroupFromLink:
         mock_api = MagicMock()
 
         def side_effect_func(value: str):
-            if value.endswith("users"):
-                with open("tests/services/gn_resp/list_users_with_admin.json") as data_file:
-                    mock = MagicMock()
-                    mock.json.return_value = json.load(data_file)
-                    return mock
-            else:
-                with open("tests/services/gn_resp/list_groups.json") as data_file:
-                    mock = MagicMock()
-                    mock.json.return_value = json.load(data_file)
-                    return mock
+            mock = MagicMock()
+            mock.json.return_value = (
+                LIST_USERS_JOHN_IS_ADMIN if value.endswith("users") else LIST_GROUPS_FRIBOURG
+            )
+            return mock
 
         mock_api.session.get = MagicMock(side_effect=side_effect_func)
         mock_api.search = MagicMock()
-        with open("tests/services/gn_resp/search_for_template.json") as data_file:
-            mock_api.search.return_value = json.load(data_file)
+        mock_api.search.return_value = {"hits": {"hits": []}}
         mock_gn_api.return_value = mock_api
         datadir = Path(__file__).resolve().parents[4] / "docker" / "datadir"
         service = MetadataService(
@@ -1093,7 +1128,7 @@ class TestResolveGroupFromLink:
 
         service.org_based_sync = False
         link = IntegrityLink(
-            integrity_owner="C2CMangeat",
+            integrity_owner="John",
             integrity_organization="Zug",
             source_import_type=ImportType.URL,
         )
