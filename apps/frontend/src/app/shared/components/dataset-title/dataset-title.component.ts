@@ -4,6 +4,8 @@ import {
   effect,
   inject,
   output,
+  viewChild,
+  ElementRef,
   ChangeDetectionStrategy
 } from '@angular/core'
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms'
@@ -35,6 +37,8 @@ export class DatasetTitleComponent {
   metadata = input<StagingMetadataResponse | undefined>()
   isReconfiguring = input<boolean>(false)
 
+  private titleInput = viewChild<ElementRef<HTMLInputElement>>('titleInput')
+
   form = this.fb.group({
     title: this.fb.control('', {
       nonNullable: true,
@@ -47,10 +51,12 @@ export class DatasetTitleComponent {
   })
 
   constructor() {
-    // Sync metadata title to form when loaded
+    // Sync metadata title to form when reconfiguring an existing dataset.
+    // For a new ingestion, leave the field empty instead of pre-filling it
+    // with the backend's filename-derived default.
     effect(() => {
       const meta = this.metadata()
-      if (meta) {
+      if (meta && this.isReconfiguring()) {
         const title = meta.title ?? ''
         this.form.patchValue({ title }, { emitEvent: false })
       }
@@ -70,6 +76,13 @@ export class DatasetTitleComponent {
     // Propagate user edits back to parent
     this.form.controls.title.valueChanges.subscribe((value) => {
       this.titleChanged.emit(value)
+    })
+
+    // Focus the title input once it renders. Using the native `autofocus`
+    // attribute instead races with Angular Material's FocusMonitor setup
+    // and spuriously marks the control as touched before the user interacts.
+    effect(() => {
+      this.titleInput()?.nativeElement.focus()
     })
   }
 
