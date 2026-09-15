@@ -1238,6 +1238,62 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         assert "schedule IN" not in where_clause
         assert "gn_is_published" not in where_clause
 
+    def test_recurrence_filter_with_multiple_values_ors_them(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            recurrence=[RecurrencePreset.EVERY_DAY, RecurrencePreset.EVERY_WEEK],
+        )
+
+        query_str = self._compiled_first_query(mock_session)
+        assert RecurrencePreset.EVERY_DAY.cron in query_str
+        assert RecurrencePreset.EVERY_WEEK.cron in query_str
+
+    def test_access_filter_with_multiple_values_ors_them(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            access=[PublicAccess.OPEN, PublicAccess.UNCONFIGURED],
+        )
+
+        where_clause = self._where_clause(mock_session)
+        assert " OR " in where_clause
+        assert "gn_is_published" in where_clause
+
+    def test_access_and_recurrence_filters_combine_with_and(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            access=[PublicAccess.OPEN],
+            recurrence=[RecurrencePreset.EVERY_DAY],
+        )
+
+        where_clause = self._where_clause(mock_session)
+        assert "gn_is_published" in where_clause
+        assert "schedule IN" in where_clause
+        assert " AND " in where_clause
+
 
 class TestListJoinableTables:
     """Test the list_joinable_tables endpoint."""
