@@ -20,6 +20,7 @@ from src.api.deps import (
     GeorchestraContextDep,
     GeoServerServiceDep,
     GroupIdsDep,
+    MetadataServiceDep,
 )
 from src.core.callback import build_callback_url
 from src.core.config import get_data_schema, get_settings, get_staging_schema
@@ -36,7 +37,6 @@ from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.console_service import ConsoleService
 from src.services.executor_factory import get_task_executor
-from src.services.metadata_service import MetadataService
 from src.services.schedule_service import clear_schedule
 
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
@@ -90,6 +90,7 @@ def process_staging_data(
     geo_ctx: GeorchestraContextDep,
     group_ids: GroupIdsDep,
     geoserver_service: GeoServerServiceDep,
+    metadata_service: MetadataServiceDep,
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
     sec_email: str = Header("", alias="sec-email", include_in_schema=False),
     sec_firstname: str = Header("", alias="sec-firstname", include_in_schema=False),
@@ -223,14 +224,6 @@ def process_staging_data(
             else:
                 logger.info("Organization not found, using user info for metadata contact")
 
-            metadata_service = MetadataService(
-                gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
-                datadir_path=settings.DATADIR_PATH,
-                credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-                gn_sync_mode=settings.GN_SYNC_MODE,
-                verify_tls=False,
-            )
-
             metadata_id = metadata_service.create_and_publish_metadata(
                 integrity_link,
                 user_email=contact_email,
@@ -311,6 +304,7 @@ def process_staging_data(
 async def dag_success_callback(
     datafeeder_session: DatafeederSessionDep,
     geoserver_service: GeoServerServiceDep,
+    metadata_service: MetadataServiceDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
     target_schema: str = Query(
@@ -427,12 +421,6 @@ async def dag_success_callback(
     # Update revision date in GeoNetwork metadata (soft failure)
     if integrity_link.metadata_id is not None:
         try:
-            metadata_service = MetadataService(
-                gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
-                datadir_path=settings.DATADIR_PATH,
-                credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-                verify_tls=False,
-            )
             metadata_service.update_revision_date(
                 str(integrity_link.metadata_id), datetime.now(timezone.utc)
             )

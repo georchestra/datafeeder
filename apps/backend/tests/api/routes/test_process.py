@@ -167,39 +167,37 @@ def _make_mock_geoserver() -> AsyncMock:
 class TestDagSuccessCallbackRevisionDate:
     """Tests for the revision date update logic in dag_success_callback."""
 
-    @patch("src.api.routes.ingestion.process.MetadataService")
     @patch("src.api.routes.ingestion.process.Table")
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_calls_update_revision_date_when_metadata_id_set(
         self,
         mock_create_schema: MagicMock,
         mock_table_cls: MagicMock,
-        mock_metadata_service_cls: MagicMock,
     ) -> None:
         """When metadata_id is set, update_revision_date() must be called."""
         link = _make_integrity_link_with_metadata()
         mock_table_cls.return_value.c = {}  # no geometry column
+        mock_metadata_service = MagicMock()
 
         await dag_success_callback(
             datafeeder_session=_make_mock_session(link),
             geoserver_service=_make_mock_geoserver(),
+            metadata_service=mock_metadata_service,
             integrity_link_id=str(link.id),
             final_table_name="final_test",
         )
 
-        mock_metadata_service_cls.return_value.update_revision_date.assert_called_once()
-        call_args = mock_metadata_service_cls.return_value.update_revision_date.call_args
+        mock_metadata_service.update_revision_date.assert_called_once()
+        call_args = mock_metadata_service.update_revision_date.call_args
         assert call_args[0][0] == str(link.id)
         assert isinstance(call_args[0][1], datetime)
 
-    @patch("src.api.routes.ingestion.process.MetadataService")
     @patch("src.api.routes.ingestion.process.Table")
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_skips_update_when_metadata_id_is_none(
         self,
         mock_create_schema: MagicMock,
         mock_table_cls: MagicMock,
-        mock_metadata_service_cls: MagicMock,
     ) -> None:
         """When metadata_id is None, update_revision_date() must not be called."""
         link = IntegrityLink(
@@ -210,29 +208,30 @@ class TestDagSuccessCallbackRevisionDate:
             staging_table_name="staging_test",
         )
         mock_table_cls.return_value.c = {}
+        mock_metadata_service = MagicMock()
 
         await dag_success_callback(
             datafeeder_session=_make_mock_session(link),
             geoserver_service=_make_mock_geoserver(),
+            metadata_service=mock_metadata_service,
             integrity_link_id=str(link.id),
             final_table_name="final_test",
         )
 
-        mock_metadata_service_cls.return_value.update_revision_date.assert_not_called()
+        mock_metadata_service.update_revision_date.assert_not_called()
 
-    @patch("src.api.routes.ingestion.process.MetadataService")
     @patch("src.api.routes.ingestion.process.Table")
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_soft_failure_does_not_raise(
         self,
         mock_create_schema: MagicMock,
         mock_table_cls: MagicMock,
-        mock_metadata_service_cls: MagicMock,
     ) -> None:
         """When update_revision_date() raises, the callback must not propagate the error."""
         link = _make_integrity_link_with_metadata()
         mock_table_cls.return_value.c = {}
-        mock_metadata_service_cls.return_value.update_revision_date.side_effect = RuntimeError(
+        mock_metadata_service = MagicMock()
+        mock_metadata_service.update_revision_date.side_effect = RuntimeError(
             "GeoNetwork unavailable"
         )
 
@@ -240,6 +239,7 @@ class TestDagSuccessCallbackRevisionDate:
         await dag_success_callback(
             datafeeder_session=_make_mock_session(link),
             geoserver_service=_make_mock_geoserver(),
+            metadata_service=mock_metadata_service,
             integrity_link_id=str(link.id),
             final_table_name="final_test",
         )
