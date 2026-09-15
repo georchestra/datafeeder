@@ -32,6 +32,7 @@ export default tseslint.config(
         FileReader: 'readonly',
         navigator: 'readonly',
         MouseEvent: 'readonly',
+        KeyboardEvent: 'readonly',
         Event: 'readonly',
         HTMLElement: 'readonly',
         HTMLInputElement: 'readonly',
