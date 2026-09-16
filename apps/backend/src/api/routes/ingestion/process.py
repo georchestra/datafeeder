@@ -405,6 +405,15 @@ async def dag_success_callback(
             f"{integrity_link.data_id}, geographic={is_geographic}, bbox={bbox}"
         )
 
+        layer_urls = geoserver_service.build_layer_urls_for_metadata(
+            workspace_name=workspace_name,
+            table_name=final_table_name,
+            is_geographic=is_geographic,
+        )
+        metadata_service.update_online_resources_from_layer_urls(
+            str(integrity_link.metadata_id), layer_urls
+        )
+
     except Exception as e:
         logger.error(
             f"Failed to publish to GeoServer for IntegrityLink {integrity_link.id}: {e}",
