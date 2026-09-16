@@ -47,6 +47,7 @@ def _resource_by_protocol(root: Any) -> dict[str, Any]:
         result[protocol[0]] = resource
     return result
 
+
 SEARCH_FOR_TEMPLATE_RESPONSE: dict[str, Any] = {
     "hits": {
         "hits": [
@@ -741,15 +742,15 @@ class TestUpdateOnlineResourcesFromLayerUrlsEndToEnd:
             == LAYER_URLS["ogcfeatures"]
         )
         assert (
-            by_protocol["OGC:WMS"].xpath("cit:linkage/gco:CharacterString/text()", namespaces=NS_19115_3)[
-                0
-            ]
+            by_protocol["OGC:WMS"].xpath(
+                "cit:linkage/gco:CharacterString/text()", namespaces=NS_19115_3
+            )[0]
             == LAYER_URLS["wms"]["base"]
         )
         assert (
-            by_protocol["OGC:WFS"].xpath("cit:linkage/gco:CharacterString/text()", namespaces=NS_19115_3)[
-                0
-            ]
+            by_protocol["OGC:WFS"].xpath(
+                "cit:linkage/gco:CharacterString/text()", namespaces=NS_19115_3
+            )[0]
             == LAYER_URLS["wfs"]["base"]
         )
 

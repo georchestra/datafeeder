@@ -160,6 +160,7 @@ def _make_mock_geoserver() -> AsyncMock:
     geoserver.workspace_exists.return_value = True
     geoserver.datastore_exists.return_value = True
     geoserver.create_layer = AsyncMock()
+    geoserver.build_layer_urls_for_metadata = MagicMock()
     return geoserver
 
 
@@ -179,18 +180,25 @@ class TestDagSuccessCallbackRevisionDate:
         mock_table_cls.return_value.c = {}  # no geometry column
         mock_metadata_service = MagicMock()
 
+        geoserver = _make_mock_geoserver()
+        geoserver.build_layer_urls_for_metadata.return_value = ["test_handle"]
         await dag_success_callback(
             datafeeder_session=_make_mock_session(link),
-            geoserver_service=_make_mock_geoserver(),
+            geoserver_service=geoserver,
             metadata_service=mock_metadata_service,
             integrity_link_id=str(link.id),
             final_table_name="final_test",
+            target_schema="target_schema",
         )
 
         mock_metadata_service.update_revision_date.assert_called_once()
         call_args = mock_metadata_service.update_revision_date.call_args
         assert call_args[0][0] == str(link.id)
         assert isinstance(call_args[0][1], datetime)
+        mock_metadata_service.update_online_resources_from_layer_urls.assert_called_once()
+        call_args = mock_metadata_service.update_online_resources_from_layer_urls.call_args
+        assert call_args[0][0] == str(link.id)
+        assert call_args[0][1] == ["test_handle"]
 
     @patch("src.api.routes.ingestion.process.Table")
     @patch("src.api.routes.ingestion.process.create_schema")
@@ -216,6 +224,7 @@ class TestDagSuccessCallbackRevisionDate:
             metadata_service=mock_metadata_service,
             integrity_link_id=str(link.id),
             final_table_name="final_test",
+            target_schema="target_schema",
         )
 
         mock_metadata_service.update_revision_date.assert_not_called()
@@ -242,4 +251,5 @@ class TestDagSuccessCallbackRevisionDate:
             metadata_service=mock_metadata_service,
             integrity_link_id=str(link.id),
             final_table_name="final_test",
+            target_schema="target_schema",
         )

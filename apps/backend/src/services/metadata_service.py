@@ -595,10 +595,15 @@ class MetadataService:
             root: _Element = etree.fromstring(xml)
             updated = self.add_online_resources_from_layer_urls_19115_3(root, layer_urls)
             if updated:
-                self.gn_api.upload_metadata(etree.tostring(root, xml_declaration=True, encoding="UTF-8"), uuidprocessing="OVERWRITE")
+                self.gn_api.upload_metadata(
+                    etree.tostring(root, xml_declaration=True, encoding="UTF-8"),
+                    uuidprocessing="OVERWRITE",
+                )
                 logger.info("Updated online resources for metadata record %s", metadata_uuid)
         except Exception as e:
-            logger.warning("Failed to update online resources for metadata record %s: %s", metadata_uuid,
+            logger.warning(
+                "Failed to update online resources for metadata record %s: %s",
+                metadata_uuid,
                 e,
                 exc_info=True,
             )
