@@ -118,8 +118,8 @@ _public_access_expr = case(
     summary="List integrity links",
     description="List integrity links with role-based filtering. "
     "Normal users see only their own links, administrators see all links. "
-    "Supports filtering by title search, public access level, and recurrence preset "
-    "(AND across filters, OR within a filter's multiple values).",
+    "Supports filtering by title search, organization, owner, public access level, "
+    "and recurrence preset (AND across filters, OR within a filter's multiple values).",
 )
 def list_integrity_links(
     session: DatafeederSessionDep,
@@ -128,6 +128,12 @@ def list_integrity_links(
     group_ids: GroupIdsDep,
     offset: int = Query(0, ge=0, description="Number of items to skip (for lazy loading)"),
     search: str | None = Query(None, description="Filter by integrity title (case-insensitive)"),
+    organization: Annotated[
+        list[str] | None, Query(description="Filter by organization (exact match, OR'd together)")
+    ] = None,
+    owner: Annotated[
+        list[str] | None, Query(description="Filter by owner username (exact match, OR'd together)")
+    ] = None,
     access: Annotated[
         list[PublicAccess] | None, Query(description="Filter by public access level")
     ] = None,
@@ -148,6 +154,8 @@ def list_integrity_links(
         geo_ctx: geOrchestra security context with username and roles
         offset: Number of items to skip for pagination (lazy loading)
         search: Case-insensitive substring match on integrity_title
+        organization: Organizations to include (OR'd together)
+        owner: Owner usernames to include (OR'd together)
         access: Public access levels to include (OR'd together)
         recurrence: Recurrence presets to include (OR'd together)
 
@@ -172,6 +180,10 @@ def list_integrity_links(
     # Apply search filter if provided
     if search:
         query = query.where(IntegrityLink.integrity_title.ilike(f"%{search}%"))  # type: ignore[union-attr]
+    if organization:
+        query = query.where(IntegrityLink.integrity_organization.in_(organization))  # type: ignore[union-attr]
+    if owner:
+        query = query.where(IntegrityLink.integrity_owner.in_(owner))  # type: ignore[union-attr]
     if access:
         query = query.where(_public_access_expr.in_([level.value for level in access]))
     if recurrence:
