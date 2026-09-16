@@ -1,0 +1,65 @@
+<div class="flex items-center relative">
+  <gn-ui-button
+    type="outline"
+    [style.--gn-ui-button-padding]="'8px 8px 8px 16px'"
+    extraClass="bg-background flex flex-row"
+    [title]="label() | translate"
+    (buttonClick)="openOverlay()"
+    cdkOverlayOrigin
+    #overlayOrigin="cdkOverlayOrigin"
+    (keydown)="handleTriggerKeydown($event)"
+  >
+    <span class="mr-2 flex items-center gap-1.5 text-left">
+      {{ label() | translate }}
+      @if (selected().length > 0) {
+      <span
+        data-indicator-dot
+        class="inline-block h-2 w-2 shrink-0 rounded-full bg-[#E30513]"
+      ></span>
+      }
+    </span>
+    <ng-icon
+      [name]="overlayOpen ? 'matExpandLess' : 'matExpandMore'"
+      class="shrink-0 opacity-40"
+    ></ng-icon>
+  </gn-ui-button>
+</div>
+
+<ng-template
+  cdkConnectedOverlay
+  [cdkConnectedOverlayOrigin]="overlayOrigin"
+  [cdkConnectedOverlayOpen]="overlayOpen"
+  [cdkConnectedOverlayPositions]="overlayPositions"
+  [cdkConnectedOverlayFlexibleDimensions]="true"
+  (overlayOutsideClick)="closeOverlay()"
+  (detach)="closeOverlay()"
+>
+  <div
+    class="bg-white border border-gray-300 rounded shadow-lg py-2 overflow-x-hidden overflow-y-auto"
+    [style.max-height]="overlayMaxHeight"
+    [style.min-width]="overlayWidth"
+    role="listbox"
+    tabindex="-1"
+    [attr.aria-multiselectable]="true"
+    [attr.aria-label]="label() | translate"
+    (keydown)="handleOverlayKeydown($event)"
+  >
+    @for (choice of choices(); track choice.id) {
+    <label
+      #choiceInputs
+      tabindex="0"
+      class="flex cursor-pointer items-center gap-2 px-5 py-1 w-full text-start transition-colors hover:bg-gray-50 hover:text-primary-darkest focus-within:bg-gray-50 focus-within:text-primary-darkest"
+      [class.bg-gray-50]="isSelected(choice)"
+      (keydown)="toggleIfEnter($event, choice)"
+    >
+      <input
+        type="checkbox"
+        tabindex="-1"
+        [checked]="isSelected(choice)"
+        (change)="toggleChoice(choice)"
+      />
+      <span class="text-[14px]">{{ choice.label | translate }}</span>
+    </label>
+    }
+  </div>
+</ng-template>
