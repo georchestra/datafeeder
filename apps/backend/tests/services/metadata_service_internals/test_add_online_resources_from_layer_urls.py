@@ -10,7 +10,9 @@ if TYPE_CHECKING:
 from src.services.metadata_service import NS_19115_3, MetadataService
 from tests.services.metadata_service_internals.samples import (
     SAMPLE_19115_3_EMPTY_TRANSFER_OPTIONS,
+    SAMPLE_19115_3_NO_DIGITAL_TRANSFER_OPTIONS,
     SAMPLE_19115_3_NO_REVISION,
+    SAMPLE_19115_3_NO_TRANSFER_OPTIONS,
     SAMPLE_19115_3_PARTIAL_ONLINE_RESOURCES,
     SAMPLE_19115_3_WITH_ONLINE_RESOURCES,
 )
@@ -130,6 +132,40 @@ class TestAddOnlineResourcesFromLayerUrls:
             )[0]
             == "http://existing/geoserver/psc/wfs"
         )
+
+    def test_creates_digital_transfer_options_when_missing(self) -> None:
+        root: _Element = etree.fromstring(SAMPLE_19115_3_NO_DIGITAL_TRANSFER_OPTIONS)
+
+        updated: bool = MetadataService.add_online_resources_from_layer_urls_19115_3(
+            root, LAYER_URLS
+        )
+
+        assert updated is True
+        digital_transfer_options = root.xpath(
+            "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions"
+            "/mrd:MD_DigitalTransferOptions",
+            namespaces=NS_19115_3,
+        )
+        assert len(digital_transfer_options) == 1
+        by_protocol = _resource_by_protocol(root)
+        assert set(by_protocol) == {"OGC API Features", "OGC:WMS", "OGC:WFS"}
+
+    def test_creates_transfer_options_when_missing(self) -> None:
+        root: _Element = etree.fromstring(SAMPLE_19115_3_NO_TRANSFER_OPTIONS)
+
+        updated: bool = MetadataService.add_online_resources_from_layer_urls_19115_3(
+            root, LAYER_URLS
+        )
+
+        assert updated is True
+        digital_transfer_options = root.xpath(
+            "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions"
+            "/mrd:MD_DigitalTransferOptions",
+            namespaces=NS_19115_3,
+        )
+        assert len(digital_transfer_options) == 1
+        by_protocol = _resource_by_protocol(root)
+        assert set(by_protocol) == {"OGC API Features", "OGC:WMS", "OGC:WFS"}
 
     def test_is_noop_when_no_transfer_options(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_NO_REVISION)
