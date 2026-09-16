@@ -43,6 +43,17 @@ NS_19139 = {
 _CODELIST_URL = (
     "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_DateTypeCode"
 )
+_ONLINE_FUNCTION_CODELIST_URL = (
+    "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_OnLineFunctionCode"
+)
+
+# Maps a layer_urls key (from GeoserverService.build_layer_urls_for_metadata) to the
+# ISO CI_OnlineResource protocol name it should be published under.
+_LAYER_URL_PROTOCOLS = (
+    ("ogcfeatures", "OGC API Features"),
+    ("wms", "OGC:WMS"),
+    ("wfs", "OGC:WFS"),
+)
 
 RESOURCE_TITLE_XPATH_19115_3 = "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions/mrd:MD_DigitalTransferOptions/mrd:onLine/cit:CI_OnlineResource/cit:description/gco:CharacterString"
 RESOURCE_TITLE_XPATH_19139 = "gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource/gmd:description/gco:CharacterString"
@@ -755,3 +766,66 @@ class MetadataService:
         for online in root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139):
             online.text = title
         return root
+
+    @staticmethod
+    def add_online_resources_from_layer_urls_19115_3(
+        root: _Element, layer_urls: dict[str, Any]
+    ) -> bool:
+        resource_added: bool = False
+        ns = NS_19115_3
+
+        transfer_options_nodes = root.xpath(
+            "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions"
+            "/mrd:MD_DigitalTransferOptions",
+            namespaces=NS_19115_3,
+        )
+        if not transfer_options_nodes:
+            return resource_added
+        transfer_options = transfer_options_nodes[0]
+
+        existing_protocols = set(
+            transfer_options.xpath(
+                "mrd:onLine/cit:CI_OnlineResource/cit:protocol/gco:CharacterString/text()",
+                namespaces=ns,
+            )
+        )
+
+        layer_name = layer_urls.get("layer_qualified_name", "")
+        title_nodes = root.xpath(
+            "mdb:identificationInfo/mri:MD_DataIdentification/mri:citation"
+            "/cit:CI_Citation/cit:title/gco:CharacterString",
+            namespaces=ns,
+        )
+        description = title_nodes[0].text if title_nodes and title_nodes[0].text else layer_name
+
+        for key, protocol in _LAYER_URL_PROTOCOLS:
+            if protocol in existing_protocols:
+                continue
+            resource_urls = layer_urls.get(key)
+            if not resource_urls:
+                continue
+            linkage = resource_urls["base"] if isinstance(resource_urls, dict) else resource_urls
+
+            online: _Element = etree.SubElement(transfer_options, f"{{{ns['mrd']}}}onLine")
+            resource: _Element = etree.SubElement(online, f"{{{ns['cit']}}}CI_OnlineResource")
+
+            linkage_el: _Element = etree.SubElement(resource, f"{{{ns['cit']}}}linkage")
+            etree.SubElement(linkage_el, f"{{{ns['gco']}}}CharacterString").text = linkage
+
+            protocol_el: _Element = etree.SubElement(resource, f"{{{ns['cit']}}}protocol")
+            etree.SubElement(protocol_el, f"{{{ns['gco']}}}CharacterString").text = protocol
+
+            name_el: _Element = etree.SubElement(resource, f"{{{ns['cit']}}}name")
+            etree.SubElement(name_el, f"{{{ns['gco']}}}CharacterString").text = layer_name
+
+            description_el: _Element = etree.SubElement(resource, f"{{{ns['cit']}}}description")
+            etree.SubElement(description_el, f"{{{ns['gco']}}}CharacterString").text = description
+
+            function_el: _Element = etree.SubElement(resource, f"{{{ns['cit']}}}function")
+            etree.SubElement(
+                function_el,
+                f"{{{ns['cit']}}}CI_OnLineFunctionCode",
+                attrib={"codeList": _ONLINE_FUNCTION_CODELIST_URL, "codeListValue": "download"},
+            ).text = "download"
+            resource_added = True
+        return resource_added
