@@ -18,9 +18,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
 from data_manipulation.ingestion import (
+    _apply_jq_filter,  # type: ignore[reportPrivateUsage]
     _build_pg_connection_string,  # type: ignore[reportPrivateUsage]
     _detect_shapefile_encoding,  # type: ignore[reportPrivateUsage]
+    _json_to_csv,  # type: ignore[reportPrivateUsage]
     _normalize_oapif_url,  # type: ignore[reportPrivateUsage]
+    _reject_geojson_without_geometry,  # type: ignore[reportPrivateUsage]
     _resolve_zip_source,  # type: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
     ingest_data_from_ftp_into_postgis,
@@ -90,9 +93,14 @@ class TestNormalizeOapifUrl:
 class TestNoCredentialLogging:
     """The ogr2ogr argv embeds PG passwords and GDAL_HTTP_USERPWD: never log it."""
 
+    @patch("data_manipulation.ingestion._reject_geojson_without_geometry")
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_file_ingest_does_not_log_password(
-        self, mock_run: MagicMock, engine: Engine, caplog: pytest.LogCaptureFixture
+        self,
+        mock_run: MagicMock,
+        _mock_reject: MagicMock,
+        engine: Engine,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         mock_run.return_value = _completed()
         with caplog.at_level(logging.DEBUG, logger="data_manipulation.ingestion"):
@@ -314,8 +322,11 @@ class TestUrlDownloadIsStreamed:
 
 
 class TestIngestFileWithOgr2ogr:
+    @patch("data_manipulation.ingestion._reject_geojson_without_geometry")
     @patch("data_manipulation.ingestion.subprocess.run")
-    def test_builds_expected_command(self, mock_run: MagicMock, engine: Engine) -> None:
+    def test_builds_expected_command(
+        self, mock_run: MagicMock, _mock_reject: MagicMock, engine: Engine
+    ) -> None:
         mock_run.return_value = _completed()
         ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine, schema="staging")
 
@@ -578,17 +589,163 @@ class TestOgrErrorDetection:
         with pytest.raises(Exception, match="Non UTF-8 content"):
             ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine)
 
+    @patch("data_manipulation.ingestion._reject_geojson_without_geometry")
     @patch("data_manipulation.ingestion.subprocess.run")
-    def test_warnings_do_not_raise(self, mock_run: MagicMock, engine: Engine) -> None:
+    def test_warnings_do_not_raise(
+        self, mock_run: MagicMock, _mock_reject: MagicMock, engine: Engine
+    ) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=["ogr2ogr"], returncode=0, stdout="", stderr="Warning 6: Normalized/laundered\n"
         )
         ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine)
 
+    @patch("data_manipulation.ingestion._reject_geojson_without_geometry")
     @patch("data_manipulation.ingestion.subprocess.run")
-    def test_error_word_in_a_path_does_not_raise(self, mock_run: MagicMock, engine: Engine) -> None:
+    def test_error_word_in_a_path_does_not_raise(
+        self, mock_run: MagicMock, _mock_reject: MagicMock, engine: Engine
+    ) -> None:
         # Anchored regex: only real "ERROR <n>:" lines count.
         mock_run.return_value = subprocess.CompletedProcess(
             args=["ogr2ogr"], returncode=0, stdout="", stderr="reading /data/error_log/x.shp\n"
         )
         ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine)
+
+
+class TestApplyJqFilter:
+    """_apply_jq_filter runs the (currently fixed) default jq filter."""
+
+    def test_identity_filter_returns_list_unchanged(self) -> None:
+        result = _apply_jq_filter('[{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}]')
+
+        assert result == [{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}]
+
+    def test_identity_filter_returns_object_unchanged(self) -> None:
+        result = _apply_jq_filter('{"id": 1, "name": "foo"}')
+
+        assert result == {"id": 1, "name": "foo"}
+
+
+class TestJsonToCsv:
+    """_json_to_csv turns plain tabular JSON into a CSV ogr2ogr can ingest."""
+
+    def test_array_of_records(self, tmp_path: Path) -> None:
+        src = tmp_path / "data.json"
+        src.write_text('[{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}]')
+        dest = tmp_path / "data.csv"
+
+        _json_to_csv(str(src), str(dest))
+
+        assert dest.read_text().splitlines() == ["id,name", "1,foo", "2,bar"]
+
+    def test_single_object_becomes_one_row(self, tmp_path: Path) -> None:
+        src = tmp_path / "data.json"
+        src.write_text('{"id": 1, "name": "foo"}')
+        dest = tmp_path / "data.csv"
+
+        _json_to_csv(str(src), str(dest))
+
+        assert dest.read_text().splitlines() == ["id,name", "1,foo"]
+
+    def test_records_with_sparse_keys_union_columns(self, tmp_path: Path) -> None:
+        src = tmp_path / "data.json"
+        src.write_text('[{"id": 1, "name": "foo"}, {"id": 2, "price": 9.99}]')
+        dest = tmp_path / "data.csv"
+
+        _json_to_csv(str(src), str(dest))
+
+        assert dest.read_text().splitlines() == ["id,name,price", "1,foo,", "2,,9.99"]
+
+    def test_unsupported_top_level_scalar_raises(self, tmp_path: Path) -> None:
+        src = tmp_path / "data.json"
+        src.write_text("42")
+        dest = tmp_path / "data.csv"
+
+        with pytest.raises(ValueError, match="Unsupported JSON structure"):
+            _json_to_csv(str(src), str(dest))
+
+
+class TestIngestFileWithOgr2ogrJson:
+    """Plain tabular .json has no OGR driver, so it's converted to CSV first."""
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_json_source_is_converted_to_csv(
+        self, mock_run: MagicMock, engine: Engine, tmp_path: Path
+    ) -> None:
+        src = tmp_path / "data.json"
+        src.write_text('[{"id": 1, "name": "foo"}]')
+        captured: dict[str, str] = {}
+
+        def _capture(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            csv_arg = next(c for c in command if c.endswith(".csv"))
+            captured["content"] = Path(csv_arg).read_text()
+            return _completed()
+
+        mock_run.side_effect = _capture
+
+        ingest_file_with_ogr2ogr(str(src), "places", engine, schema="staging")
+
+        assert captured["content"].splitlines() == ["id,name", "1,foo"]
+
+
+class TestRejectGeojsonWithoutGeometryWiring:
+    """Only a .geojson source triggers the post-ingestion null-geometry check."""
+
+    @patch("data_manipulation.ingestion._reject_geojson_without_geometry")
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_geojson_triggers_the_check(
+        self, mock_run: MagicMock, mock_reject: MagicMock, engine: Engine
+    ) -> None:
+        mock_run.return_value = _completed()
+        ingest_file_with_ogr2ogr("/tmp/data.geojson", "places", engine, schema="staging")
+        mock_reject.assert_called_once_with("places", engine, "staging")
+
+    @patch("data_manipulation.ingestion._reject_geojson_without_geometry")
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_non_geojson_does_not_trigger_the_check(
+        self, mock_run: MagicMock, mock_reject: MagicMock, engine: Engine
+    ) -> None:
+        mock_run.return_value = _completed()
+        ingest_file_with_ogr2ogr("/tmp/data.gpkg", "places", engine, schema="staging")
+        mock_reject.assert_not_called()
+
+
+class TestRejectGeojsonWithoutGeometry:
+    """.geojson sources whose geometry is null on every row must raise, not
+    silently pass through as a plain table."""
+
+    @patch("data_manipulation.ingestion.inspect")
+    def test_no_geometry_column_is_a_noop(self, mock_inspect: MagicMock, engine: Engine) -> None:
+        mock_inspect.return_value.get_columns.return_value = [{"name": "id"}]
+
+        _reject_geojson_without_geometry("places", engine, "staging")  # must not raise
+
+    @patch("data_manipulation.ingestion.inspect")
+    def test_all_null_geometry_raises(self, mock_inspect: MagicMock) -> None:
+        mock_inspect.return_value.get_columns.return_value = [{"name": "geom"}]
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.one.return_value = (2, 0)
+        mock_engine = MagicMock()
+        mock_engine.connect.return_value.__enter__.return_value = mock_conn
+
+        with pytest.raises(ValueError, match="no valid geometries"):
+            _reject_geojson_without_geometry("places", mock_engine, "staging")
+
+    @patch("data_manipulation.ingestion.inspect")
+    def test_some_non_null_geometry_does_not_raise(self, mock_inspect: MagicMock) -> None:
+        mock_inspect.return_value.get_columns.return_value = [{"name": "geom"}]
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.one.return_value = (2, 1)
+        mock_engine = MagicMock()
+        mock_engine.connect.return_value.__enter__.return_value = mock_conn
+
+        _reject_geojson_without_geometry("places", mock_engine, "staging")  # must not raise
+
+    @patch("data_manipulation.ingestion.inspect")
+    def test_empty_table_does_not_raise(self, mock_inspect: MagicMock) -> None:
+        mock_inspect.return_value.get_columns.return_value = [{"name": "geom"}]
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.one.return_value = (0, 0)
+        mock_engine = MagicMock()
+        mock_engine.connect.return_value.__enter__.return_value = mock_conn
+
+        _reject_geojson_without_geometry("places", mock_engine, "staging")  # must not raise
