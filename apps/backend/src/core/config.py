@@ -186,14 +186,14 @@ class Settings(BaseSettings):
 
     ### Validators and computed fields
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def all_cors_origins(self) -> list[str]:
         return [str(origin).rstrip("/") for origin in self.BACKEND_CORS_ORIGINS] + [
             self.FRONTEND_HOST
         ]
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def POSTGRES_DATAFEEDER_URI(self) -> PostgresDsn:
         return PostgresDsn.build(
@@ -205,7 +205,7 @@ class Settings(BaseSettings):
             path=self.POSTGRES_DATAFEEDER_DB,
         )
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def POSTGRES_DATA_URI(self) -> PostgresDsn:
         return PostgresDsn.build(
@@ -217,7 +217,7 @@ class Settings(BaseSettings):
             path=self.POSTGRES_DATA_DB,
         )
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def GEONETWORK_XML_RECORD_URL(self) -> str:
         return f"{self.METADATA_PUBLIC_URL}/srv/api/records/{{metadata_id}}/formatters/xml"

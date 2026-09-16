@@ -11,7 +11,7 @@ from data_manipulation.geoserver import (
 from data_manipulation.geoserver import (
     update_layer_bbox as dm_update_layer_bbox,
 )
-from geoservercloud import GeoServerCloud  # type: ignore[import-untyped]
+from geoservercloud import GeoServerCloud
 from geoservercloud.models.common import MetadataLink
 from pydantic import BaseModel
 
@@ -521,7 +521,7 @@ class GeoServerService:
             List of roles if the rule exists, None otherwise.
         """
         rule_key = f"{layer_name}.{access_type}"
-        rest_client = self.geoserver.rest_service.rest_client  # type: ignore[attr-defined]
+        rest_client = self.geoserver.rest_service.rest_client
         response = rest_client.get("/rest/security/acl/layers", headers=_ACL_HEADERS)
         if response.status_code >= 400:
             raise GeoServerAclError(response.status_code, response.text)
@@ -539,7 +539,7 @@ class GeoServerService:
         Raises:
             GeoServerAclError: on any non-2xx HTTP response (except 409 on POST).
         """
-        rest_client = self.geoserver.rest_service.rest_client  # type: ignore[attr-defined]
+        rest_client = self.geoserver.rest_service.rest_client
         if method == "POST":
             response = rest_client.post(
                 "/rest/security/acl/layers", json=body, headers=_ACL_HEADERS, params=params
@@ -589,7 +589,7 @@ class GeoServerService:
             access_type: The access type to delete (READ or WRITE).
         """
         rule_key = f"{layer_name}.{access_type}"
-        rest_client = self.geoserver.rest_service.rest_client  # type: ignore[attr-defined]
+        rest_client = self.geoserver.rest_service.rest_client
         response = rest_client.delete(f"/rest/security/acl/layers/{rule_key}", headers=_ACL_HEADERS)
         if response.status_code >= 400:
             raise GeoServerAclError(response.status_code, response.text)

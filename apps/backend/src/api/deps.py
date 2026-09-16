@@ -152,7 +152,7 @@ GeoServerServiceDep = Annotated[GeoServerService, Depends(get_geoserver_service)
 
 def get_current_user(session: DatafeederSessionDep, token: TokenDep) -> User:
     try:
-        payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=[security.ALGORITHM])  # type: ignore[arg-type]
+        payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=[security.ALGORITHM])
         token_data = TokenPayload(**payload)
     except (InvalidTokenError, ValidationError):
         raise HTTPException(

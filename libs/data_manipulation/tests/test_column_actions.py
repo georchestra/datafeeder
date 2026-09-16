@@ -52,7 +52,7 @@ class TestBuildFilterClause:
             col, ColumnFilter(operator=FilterOperator.CONTAINS, value="par")
         )
         # The bound value should be %par% — inspect the bound parameters
-        params = clause.compile(dialect=postgresql.dialect()).params  # type: ignore[attr-defined]
+        params = clause.compile(dialect=postgresql.dialect()).params
         assert any(v == "%par%" for v in params.values())
 
     def test_starts_with_appends_percent(self) -> None:
@@ -60,7 +60,7 @@ class TestBuildFilterClause:
         clause = build_filter_clause(
             col, ColumnFilter(operator=FilterOperator.STARTS_WITH, value="par")
         )
-        params = clause.compile(dialect=postgresql.dialect()).params  # type: ignore[attr-defined]
+        params = clause.compile(dialect=postgresql.dialect()).params
         assert any(v == "par%" for v in params.values())
 
     def test_value_is_escaped_in_bound_param(self) -> None:
@@ -68,7 +68,7 @@ class TestBuildFilterClause:
         clause = build_filter_clause(
             col, ColumnFilter(operator=FilterOperator.CONTAINS, value="50%")
         )
-        params = clause.compile(dialect=postgresql.dialect()).params  # type: ignore[attr-defined]
+        params = clause.compile(dialect=postgresql.dialect()).params
         assert any("50\\%" in str(v) for v in params.values())
 
 

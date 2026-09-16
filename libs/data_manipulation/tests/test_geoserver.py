@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from geoservercloud.models.featuretype import FeatureType
 
-from data_manipulation.geoserver import (  # type: ignore[reportUnknownVariableType]
+from data_manipulation.geoserver import (
     create_layer,
     create_workspace,
 )
