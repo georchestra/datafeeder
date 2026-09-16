@@ -1,9 +1,9 @@
 from collections.abc import Sequence
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import Column, MetaData, String, Table
+from sqlalchemy import Column, MetaData, String, Table, and_, case, exists, or_
 from sqlalchemy import select as sa_select
 from sqlmodel import Session, col
 
@@ -27,6 +27,7 @@ from src.models.data_import import (
     IntegrityLinkListResponse,
     JoinableColumn,
     JoinableTable,
+    PublicAccess,
 )
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule
@@ -55,7 +56,7 @@ _info_columns = Table(
 
 
 def _check_staging_existence(rows: Sequence[Any], data_session: Session) -> set[str]:
-    staging_candidates = {lnk.staging_table_name for lnk, _ in rows if lnk.staging_table_name}
+    staging_candidates = {lnk.staging_table_name for lnk, *_ in rows if lnk.staging_table_name}
     if not staging_candidates:
         return set()
     return set(
@@ -74,7 +75,7 @@ def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tu
     # Group final candidates by their target schema (org-specific or shared "data").
     # A single query per distinct schema avoids cross-schema false positives.
     final_candidates_by_schema: dict[str, set[str]] = {}
-    for lnk, _ in rows:
+    for lnk, *_ in rows:
         if lnk.final_table_name:
             schema = get_data_schema(lnk.integrity_organization)
             final_candidates_by_schema.setdefault(schema, set()).add(lnk.final_table_name)
@@ -95,12 +96,29 @@ def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tu
     return existing
 
 
+# Any IntegrityLinkRule row counts, unlike build_access_expr's caller-scoped subquery.
+_rule_exists = exists(
+    sa_select(col(IntegrityLinkRule.id)).where(
+        col(IntegrityLinkRule.integrity_link_id) == IntegrityLink.id
+    )
+)
+_gn = col(IntegrityLink.gn_is_published)
+_gs = col(IntegrityLink.gs_is_published)
+_public_access_expr = case(
+    (and_(_gn, _gs), PublicAccess.OPEN.value),
+    (or_(_gn, _gs, _rule_exists), PublicAccess.RESTRICTED.value),
+    else_=PublicAccess.UNCONFIGURED.value,
+)
+
+
 @router.get(
     "/",
     response_model=IntegrityLinkListResponse,
     summary="List integrity links",
     description="List integrity links with role-based filtering. "
-    "Normal users see only their own links, administrators see all links.",
+    "Normal users see only their own links, administrators see all links. "
+    "Supports filtering by title search, public access level, and recurrence preset "
+    "(AND across filters, OR within a filter's multiple values).",
 )
 def list_integrity_links(
     session: DatafeederSessionDep,
@@ -109,6 +127,12 @@ def list_integrity_links(
     group_ids: GroupIdsDep,
     offset: int = Query(0, ge=0, description="Number of items to skip (for lazy loading)"),
     search: str | None = Query(None, description="Filter by integrity title (case-insensitive)"),
+    access: Annotated[
+        list[PublicAccess] | None, Query(description="Filter by public access level")
+    ] = None,
+    recurrence: Annotated[
+        list[RecurrencePreset] | None, Query(description="Filter by recurrence preset")
+    ] = None,
 ) -> IntegrityLinkListResponse:
     """
     List integrity links with role-based access control.
@@ -122,6 +146,9 @@ def list_integrity_links(
         data_session: Data engine session for table existence checks (injected)
         geo_ctx: geOrchestra security context with username and roles
         offset: Number of items to skip for pagination (lazy loading)
+        search: Case-insensitive substring match on integrity_title
+        access: Public access levels to include (OR'd together)
+        recurrence: Recurrence presets to include (OR'd together)
 
     Returns:
         IntegrityLinkListResponse with items, has_more flag, and current offset
@@ -129,7 +156,11 @@ def list_integrity_links(
     is_admin = geo_ctx.is_administrator()
 
     access_expr = build_access_expr(geo_ctx.username, group_ids, is_admin)
-    query = sa_select(IntegrityLink, access_expr.label("access_level"))
+    query = sa_select(
+        IntegrityLink,
+        access_expr.label("access_level"),
+        _public_access_expr.label("public_access"),
+    )
 
     if not is_admin:
         # Non-admins see: own datasets + datasets with METADATA rules matching any
@@ -139,6 +170,10 @@ def list_integrity_links(
     # Apply search filter if provided
     if search:
         query = query.where(IntegrityLink.integrity_title.ilike(f"%{search}%"))  # type: ignore[union-attr]
+    if access:
+        query = query.where(_public_access_expr.in_([level.value for level in access]))
+    if recurrence:
+        query = query.where(col(IntegrityLink.schedule).in_([preset.cron for preset in recurrence]))
 
     base_query = query.order_by(IntegrityLink.created_at.desc())  # type: ignore[union-attr]
 
@@ -151,7 +186,7 @@ def list_integrity_links(
     # have orphaned tables (staging/final dropped), many chunks may be scanned before accumulating
     # BATCH_SIZE items. On large instances this can become expensive. A future improvement would
     # be to increase the chunk size beyond BATCH_SIZE+1 or hard-cap the total rows scanned.
-    accumulated: list[tuple[IntegrityLink, Any, bool, int]] = []
+    accumulated: list[tuple[Any, bool, int]] = []
     fetch_offset = offset
     last_chunk_len = 0
 
@@ -177,13 +212,14 @@ def list_integrity_links(
                 lnk.final_table_name,
             ) in existing_final
 
-        for i, (link, access_level) in enumerate(rows):
+        for i, row in enumerate(rows):
+            link = row[0]
             if (
                 link.source_import_type in (ImportType.EMPTY, ImportType.PREFILLED)
                 or (link.staging_table_name and link.staging_table_name in staging_tables)
                 or _final_exists(link)
             ):
-                accumulated.append((link, access_level, _final_exists(link), fetch_offset + i))
+                accumulated.append((row, _final_exists(link), fetch_offset + i))
 
         if last_chunk_len < BATCH_SIZE + 1:
             break  # DB exhausted
@@ -202,7 +238,7 @@ def list_integrity_links(
 
     has_more = len(accumulated) > BATCH_SIZE
     items_rows = accumulated[:BATCH_SIZE]
-    next_offset = accumulated[BATCH_SIZE][3] if has_more else fetch_offset + last_chunk_len
+    next_offset = accumulated[BATCH_SIZE][2] if has_more else fetch_offset + last_chunk_len
 
     logger.info(
         f"Listed {len(items_rows)} integrity links for user '{geo_ctx.username}' "
@@ -210,25 +246,13 @@ def list_integrity_links(
     )
 
     items: list[IntegrityLinkListItem] = []
-    for link, access_level, has_final, _ in items_rows:
+    for (link, access_level, public_access), has_final, _ in items_rows:
         item = IntegrityLinkListItem.model_validate(link)
         item.access_level = access_level
         item.has_final_table = bool(has_final)
         item.preset_id = RecurrencePreset.from_cron(link.schedule) if link.schedule else None
+        item.public_access = PublicAccess(public_access)
         items.append(item)
-
-    link_uuids = [UUID(item.id) for item in items]
-    rules_with_links: set[UUID] = set(
-        session.execute(  # type: ignore[reportDeprecated]
-            sa_select(IntegrityLinkRule.integrity_link_id)  # type: ignore[reportArgumentType]
-            .where(IntegrityLinkRule.integrity_link_id.in_(link_uuids))  # type: ignore[union-attr]
-            .distinct()
-        )
-        .scalars()
-        .all()
-    )
-    for item in items:
-        item.has_integrity_rules = UUID(item.id) in rules_with_links
 
     usernames = list({item.integrity_owner for item in items})
     display_names = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).fetch_users_by_usernames(
