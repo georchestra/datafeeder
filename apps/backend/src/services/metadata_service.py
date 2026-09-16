@@ -795,14 +795,31 @@ class MetadataService:
         resource_added: bool = False
         ns = NS_19115_3
 
-        transfer_options_nodes = root.xpath(
-            "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions"
-            "/mrd:MD_DigitalTransferOptions",
-            namespaces=NS_19115_3,
+        distributions = root.xpath(
+            "mdb:distributionInfo/mrd:MD_Distribution",
+            namespaces=ns,
         )
-        if not transfer_options_nodes:
+        if not distributions:
             return resource_added
-        transfer_options = transfer_options_nodes[0]
+        distribution = distributions[0]
+
+        transfer_options_parents = distribution.xpath("mrd:transferOptions", namespaces=ns)
+        if transfer_options_parents:
+            transfer_options_parent = transfer_options_parents[0]
+        else:
+            transfer_options_parent = etree.SubElement(
+                distribution, f"{{{ns['mrd']}}}transferOptions"
+            )
+
+        digital_transfer_options_nodes = transfer_options_parent.xpath(
+            "mrd:MD_DigitalTransferOptions", namespaces=ns
+        )
+        if digital_transfer_options_nodes:
+            transfer_options = digital_transfer_options_nodes[0]
+        else:
+            transfer_options = etree.SubElement(
+                transfer_options_parent, f"{{{ns['mrd']}}}MD_DigitalTransferOptions"
+            )
 
         existing_protocols = set(
             transfer_options.xpath(

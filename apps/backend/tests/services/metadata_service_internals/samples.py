@@ -278,6 +278,56 @@ SAMPLE_19115_3_EMPTY_TRANSFER_OPTIONS = b"""\
 </mdb:MD_Metadata>
 """
 
+SAMPLE_19115_3_NO_TRANSFER_OPTIONS = b"""\
+<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
+                 xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
+                 xmlns:mrd="http://standards.iso.org/iso/19115/-3/mrd/1.0"
+                 xmlns:mri="http://standards.iso.org/iso/19115/-3/mri/1.0"
+                 xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0">
+    <mdb:identificationInfo>
+        <mri:MD_DataIdentification>
+            <mri:citation>
+                <cit:CI_Citation>
+                    <cit:title>
+                        <gco:CharacterString>My Dataset</gco:CharacterString>
+                    </cit:title>
+                </cit:CI_Citation>
+            </mri:citation>
+        </mri:MD_DataIdentification>
+    </mdb:identificationInfo>
+    <mdb:distributionInfo>
+        <mrd:MD_Distribution>
+        </mrd:MD_Distribution>
+    </mdb:distributionInfo>
+</mdb:MD_Metadata>
+"""
+
+SAMPLE_19115_3_NO_DIGITAL_TRANSFER_OPTIONS = b"""\
+<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
+                 xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
+                 xmlns:mrd="http://standards.iso.org/iso/19115/-3/mrd/1.0"
+                 xmlns:mri="http://standards.iso.org/iso/19115/-3/mri/1.0"
+                 xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0">
+    <mdb:identificationInfo>
+        <mri:MD_DataIdentification>
+            <mri:citation>
+                <cit:CI_Citation>
+                    <cit:title>
+                        <gco:CharacterString>My Dataset</gco:CharacterString>
+                    </cit:title>
+                </cit:CI_Citation>
+            </mri:citation>
+        </mri:MD_DataIdentification>
+    </mdb:identificationInfo>
+    <mdb:distributionInfo>
+        <mrd:MD_Distribution>
+            <mrd:transferOptions>
+            </mrd:transferOptions>
+        </mrd:MD_Distribution>
+    </mdb:distributionInfo>
+</mdb:MD_Metadata>
+"""
+
 SAMPLE_19115_3_PARTIAL_ONLINE_RESOURCES = b"""\
 <mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
                  xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
