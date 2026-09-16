@@ -16,10 +16,36 @@ from src.services.metadata_service import (
     NS_19115_3,
     MetadataService,
 )
-from tests.services.metadata_service_internals.samples import SAMPLE_19115_3_NO_REVISION
+from tests.services.metadata_service_internals.samples import (
+    SAMPLE_19115_3_EMPTY_TRANSFER_OPTIONS,
+    SAMPLE_19115_3_NO_REVISION,
+    SAMPLE_19115_3_WITH_ONLINE_RESOURCES,
+    SAMPLE_19139_NO_REVISION,
+)
 from tests.services.metadata_service_internals.test_update_revision_date_19115 import (
     CITATION_REVISION_XPATH_191153,
 )
+
+ONLINE_RESOURCE_XPATH = (
+    "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions"
+    "/mrd:MD_DigitalTransferOptions/mrd:onLine/cit:CI_OnlineResource"
+)
+
+LAYER_URLS: dict[str, Any] = {
+    "layer_qualified_name": "psc:proj_3948",
+    "ogcfeatures": "http://localhost:8080/geoserver/ogc/features/v1/collections/psc:proj_3948?f=json",
+    "wfs": {"base": "http://localhost:8080/geoserver/psc/wfs"},
+    "wms": {"base": "http://localhost:8080/geoserver/psc/wms"},
+}
+
+
+def _resource_by_protocol(root: Any) -> dict[str, Any]:
+    resources = root.xpath(ONLINE_RESOURCE_XPATH, namespaces=NS_19115_3)
+    result: dict[str, Any] = {}
+    for resource in resources:
+        protocol = resource.xpath("cit:protocol/gco:CharacterString/text()", namespaces=NS_19115_3)
+        result[protocol[0]] = resource
+    return result
 
 SEARCH_FOR_TEMPLATE_RESPONSE: dict[str, Any] = {
     "hits": {
@@ -684,6 +710,82 @@ class TestUpdateRevisionDateEndToEnd:
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
         service.update_revision_date("uuid-999", datetime.now(timezone.utc))
+
+        mock_api.upload_metadata.assert_not_called()
+
+
+class TestUpdateOnlineResourcesFromLayerUrlsEndToEnd:
+    """Test update_online_resources_from_layer_urls() with mocked GeoNetwork calls."""
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_fetch_update_save_19115_3(self, mock_gn_api: MagicMock) -> None:
+        mock_api = MagicMock()
+        mock_api.api_url = "http://test/api"
+        mock_api.get_metadataxml.return_value = SAMPLE_19115_3_EMPTY_TRANSFER_OPTIONS
+        mock_gn_api.return_value = mock_api
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
+        service.update_online_resources_from_layer_urls("uuid-123", LAYER_URLS)
+
+        mock_api.get_metadataxml.assert_called_once_with("uuid-123")
+        mock_api.upload_metadata.assert_called_once()
+
+        saved_xml = mock_api.upload_metadata.call_args[0][0]
+        root = etree.fromstring(saved_xml)
+        by_protocol = _resource_by_protocol(root)
+        assert set(by_protocol) == {"OGC API Features", "OGC:WMS", "OGC:WFS"}
+        assert (
+            by_protocol["OGC API Features"].xpath(
+                "cit:linkage/gco:CharacterString/text()", namespaces=NS_19115_3
+            )[0]
+            == LAYER_URLS["ogcfeatures"]
+        )
+        assert (
+            by_protocol["OGC:WMS"].xpath("cit:linkage/gco:CharacterString/text()", namespaces=NS_19115_3)[
+                0
+            ]
+            == LAYER_URLS["wms"]["base"]
+        )
+        assert (
+            by_protocol["OGC:WFS"].xpath("cit:linkage/gco:CharacterString/text()", namespaces=NS_19115_3)[
+                0
+            ]
+            == LAYER_URLS["wfs"]["base"]
+        )
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_does_not_touch_existing_resources(self, mock_gn_api: MagicMock) -> None:
+        mock_api = MagicMock()
+        mock_api.api_url = "http://test/api"
+        mock_api.get_metadataxml.return_value = SAMPLE_19115_3_WITH_ONLINE_RESOURCES
+        mock_gn_api.return_value = mock_api
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
+        service.update_online_resources_from_layer_urls("uuid-123", LAYER_URLS)
+
+        mock_api.upload_metadata.assert_not_called()
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_unsupported_schema_skips(self, mock_gn_api: MagicMock) -> None:
+        mock_api = MagicMock()
+        mock_api.api_url = "http://test/api"
+        mock_api.get_metadataxml.return_value = b"<unknown/>"
+        mock_gn_api.return_value = mock_api
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
+        service.update_online_resources_from_layer_urls("uuid-999", LAYER_URLS)
+
+        mock_api.upload_metadata.assert_not_called()
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_19139_schema_skips(self, mock_gn_api: MagicMock) -> None:
+        mock_api = MagicMock()
+        mock_api.api_url = "http://test/api"
+        mock_api.get_metadataxml.return_value = SAMPLE_19139_NO_REVISION
+        mock_gn_api.return_value = mock_api
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
+        service.update_online_resources_from_layer_urls("uuid-999", LAYER_URLS)
 
         mock_api.upload_metadata.assert_not_called()
 

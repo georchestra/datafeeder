@@ -587,6 +587,22 @@ class MetadataService:
         self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
         logger.info("Updated revision date for metadata record %s", metadata_uuid)
 
+    def update_online_resources_from_layer_urls(
+        self, metadata_uuid: str, layer_urls: dict[str, Any]
+    ) -> None:
+        try:
+            xml: bytes = self.gn_api.get_metadataxml(metadata_uuid)
+            root: _Element = etree.fromstring(xml)
+            updated = self.add_online_resources_from_layer_urls_19115_3(root, layer_urls)
+            if updated:
+                self.gn_api.upload_metadata(etree.tostring(root, xml_declaration=True, encoding="UTF-8"), uuidprocessing="OVERWRITE")
+                logger.info("Updated online resources for metadata record %s", metadata_uuid)
+        except Exception as e:
+            logger.warning("Failed to update online resources for metadata record %s: %s", metadata_uuid,
+                e,
+                exc_info=True,
+            )
+
     def update_online_resources_when_title_changed(self, xml_bytes: bytes, title: str) -> bytes:
         root: _Element = etree.fromstring(xml_bytes)
         schema = self._detect_schema(root)
