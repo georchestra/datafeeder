@@ -1280,6 +1280,128 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         assert " AND " in where_clause
 
 
+class TestListIntegrityLinksOrganizationOwnerFilters:
+    """Test the organization and owner query params on list_integrity_links."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_data_session(self) -> MagicMock:
+        return MagicMock()
+
+    def _geo_ctx(self, username: str) -> GeorchestraContext:
+        return GeorchestraContext(
+            username=username,
+            roles=set(),
+            email="",
+            firstname="",
+            lastname="",
+            organization="",
+        )
+
+    def _empty_result(self, mock_session: MagicMock) -> None:
+        mock_main = MagicMock()
+        mock_main.all.return_value = []
+        mock_session.execute.return_value = mock_main
+
+    def _where_clause(self, mock_session: MagicMock) -> str:
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        return str(executed_query.whereclause.compile(compile_kwargs={"literal_binds": True}))
+
+    def test_organization_filter_added_to_query(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            organization=["c2c"],
+        )
+
+        where_clause = self._where_clause(mock_session)
+        assert "integrity_organization IN" in where_clause
+        assert "c2c" in where_clause
+
+    def test_owner_filter_added_to_query(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            owner=["jdoe"],
+        )
+
+        where_clause = self._where_clause(mock_session)
+        assert "integrity_owner IN" in where_clause
+        assert "jdoe" in where_clause
+
+    def test_no_filter_params_omits_organization_owner_clauses(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+        )
+
+        where_clause = self._where_clause(mock_session)
+        assert "integrity_organization IN" not in where_clause
+        assert "integrity_owner IN" not in where_clause
+
+    def test_organization_filter_with_multiple_values_ors_them(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            organization=["c2c", "geo"],
+        )
+
+        where_clause = self._where_clause(mock_session)
+        assert "c2c" in where_clause
+        assert "geo" in where_clause
+
+    def test_organization_and_owner_filters_combine_with_and(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            organization=["c2c"],
+            owner=["jdoe"],
+        )
+
+        where_clause = self._where_clause(mock_session)
+        assert "integrity_organization IN" in where_clause
+        assert "integrity_owner IN" in where_clause
+        assert " AND " in where_clause
+
+
 class TestListIntegrityLinkOrganizations:
     """Test the list_integrity_link_organizations endpoint."""
 
