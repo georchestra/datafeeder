@@ -3,6 +3,7 @@
 
 import { FileType } from '../models/file-type'
 import { ImportType } from '../models/import-type'
+import { PublicAccess } from '../models/public-access'
 import { RecurrencePreset } from '../models/recurrence-preset'
 
 /**
@@ -19,7 +20,6 @@ export interface IntegrityLinkListItem {
   gn_is_published?: boolean
   gs_is_published?: boolean
   has_final_table?: boolean
-  has_integrity_rules?: boolean
   id: string
   integrity_organization: string
   integrity_owner: string
@@ -28,6 +28,7 @@ export interface IntegrityLinkListItem {
   metadata_id: string | null
   owner_display_name?: string | null
   preset_id?: RecurrencePreset | null
+  public_access?: PublicAccess
   schedule: string | null
   schedule_enabled: boolean
   source_file_name: string | null
