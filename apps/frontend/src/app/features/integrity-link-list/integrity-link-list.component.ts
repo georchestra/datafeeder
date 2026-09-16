@@ -18,6 +18,8 @@ import { ConfirmationDialogComponent } from 'geonetwork-ui'
 import { Api } from '../../core/api/api'
 import {
   deleteIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdDelete,
+  listIntegrityLinkOrganizationsIngestionIntegrityLinksOrganizationsGet,
+  listIntegrityLinkOwnersIngestionIntegrityLinksOwnersGet,
   listIntegrityLinksIngestionIntegrityLinksGet
 } from '../../core/api/functions'
 import {
@@ -93,6 +95,8 @@ export class IntegrityLinkListComponent {
   hasMore = signal<boolean>(false)
   loadingMore = signal<boolean>(false)
   searchQuery = signal('')
+  selectedOrganization = signal<string[]>([])
+  selectedOwner = signal<string[]>([])
   selectedAccess = signal<string[]>([])
   selectedRecurrence = signal<string[]>([])
   // Statut/Référence have no backend support yet — placeholder dropdowns
@@ -101,6 +105,8 @@ export class IntegrityLinkListComponent {
   selectedReference = signal<string[]>([])
   readonly statusChoices: MultiSelectChoice[] = []
   readonly referenceChoices: MultiSelectChoice[] = []
+  organizationChoices = signal<MultiSelectChoice[]>([])
+  ownerChoices = signal<MultiSelectChoice[]>([])
   deleting = signal<string | null>(null)
   private nextOffset = signal(0)
 
@@ -115,12 +121,16 @@ export class IntegrityLinkListComponent {
   hasActiveFilters = computed(
     () =>
       this.searchQuery().length > 0 ||
+      this.selectedOrganization().length > 0 ||
+      this.selectedOwner().length > 0 ||
       this.selectedAccess().length > 0 ||
       this.selectedRecurrence().length > 0
   )
 
   private filters = computed(() => ({
     search: this.searchQuery(),
+    organization: this.selectedOrganization(),
+    owner: this.selectedOwner(),
     access: this.selectedAccess(),
     recurrence: this.selectedRecurrence()
   }))
@@ -148,6 +158,30 @@ export class IntegrityLinkListComponent {
         this.loadIntegrityLinks()
       })
     this.loadIntegrityLinks()
+    this.loadOrganizationAndOwnerChoices()
+  }
+
+  private async loadOrganizationAndOwnerChoices(): Promise<void> {
+    try {
+      const [organizations, owners] = await Promise.all([
+        this.api.invoke(
+          listIntegrityLinkOrganizationsIngestionIntegrityLinksOrganizationsGet,
+          {}
+        ),
+        this.api.invoke(
+          listIntegrityLinkOwnersIngestionIntegrityLinksOwnersGet,
+          {}
+        )
+      ])
+      this.organizationChoices.set(
+        organizations.map((org) => ({ id: org.id, label: org.label }))
+      )
+      this.ownerChoices.set(
+        owners.map((owner) => ({ id: owner.id, label: owner.label }))
+      )
+    } catch (error) {
+      console.error('Failed to load organization/owner filter choices:', error)
+    }
   }
 
   private async loadIntegrityLinks(append = false): Promise<void> {
@@ -159,6 +193,12 @@ export class IntegrityLinkListComponent {
     try {
       const offset = append ? this.nextOffset() : 0
       const search = this.searchQuery() || undefined
+      const organization = this.selectedOrganization().length
+        ? this.selectedOrganization()
+        : undefined
+      const owner = this.selectedOwner().length
+        ? this.selectedOwner()
+        : undefined
       const access = this.selectedAccess().length
         ? (this.selectedAccess() as PublicAccess[])
         : undefined
@@ -167,7 +207,7 @@ export class IntegrityLinkListComponent {
         : undefined
       const response = await this.api.invoke(
         listIntegrityLinksIngestionIntegrityLinksGet,
-        { offset, search, access, recurrence }
+        { offset, search, organization, owner, access, recurrence }
       )
       if (requestId !== this.requestId) return
       if (append) {

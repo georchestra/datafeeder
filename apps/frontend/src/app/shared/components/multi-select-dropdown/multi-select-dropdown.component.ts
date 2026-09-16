@@ -44,6 +44,9 @@ export class MultiSelectDropdownComponent {
   label = input.required<string>()
   choices = input.required<MultiSelectChoice[]>()
   selected = model<string[]>([])
+  // Access/Recurrence/Status/Reference choices carry translation keys; Organization/Owner
+  // choices carry display names fetched from the backend, which must not go through translate.
+  translateChoices = input(true)
 
   @Input() maxRows: number = DEFAULT_ROW_NUMBERS
 

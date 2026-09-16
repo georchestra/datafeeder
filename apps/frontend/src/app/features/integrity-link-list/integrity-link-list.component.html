@@ -28,6 +28,18 @@
         />
         <div class="flex items-center gap-3">
           <app-multi-select-dropdown
+            label="integrityLinks.filters.organization"
+            [choices]="organizationChoices()"
+            [translateChoices]="false"
+            [(selected)]="selectedOrganization"
+          />
+          <app-multi-select-dropdown
+            label="integrityLinks.filters.owner"
+            [choices]="ownerChoices()"
+            [translateChoices]="false"
+            [(selected)]="selectedOwner"
+          />
+          <app-multi-select-dropdown
             label="integrityLinks.visibility"
             [choices]="accessChoices"
             [(selected)]="selectedAccess"

@@ -58,7 +58,9 @@
         [checked]="isSelected(choice)"
         (change)="toggleChoice(choice)"
       />
-      <span class="text-[14px]">{{ choice.label | translate }}</span>
+      <span class="text-[14px]">{{
+        translateChoices() ? (choice.label | translate) : choice.label
+      }}</span>
     </label>
     }
   </div>

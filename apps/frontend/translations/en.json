@@ -281,6 +281,8 @@
   "integrityLinks.edit": "Edit dataset",
   "integrityLinks.dashboard": "My datasets",
   "integrityLinks.emptyList": "No dataset found",
+  "integrityLinks.filters.organization": "Organization",
+  "integrityLinks.filters.owner": "Owner",
   "integrityLinks.filters.reference": "Reference",
   "integrityLinks.filters.status": "Status",
   "integrityLinks.filters.title": "Filter your data",

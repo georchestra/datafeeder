@@ -6,7 +6,11 @@ import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-comp
 const translations = {
   'filters.access': 'Access',
   'integrityLinks.visibility.open': 'Open',
-  'integrityLinks.visibility.restricted': 'Restricted'
+  'integrityLinks.visibility.restricted': 'Restricted',
+  // Deliberately registered so the raw-label test would fail if translateChoices
+  // were ignored and the pipe applied anyway (a missing key would render as-is,
+  // masking the bug).
+  Camptocamp: 'Should not be translated'
 }
 
 const choices = [
@@ -134,6 +138,22 @@ describe('MultiSelectDropdownComponent', () => {
       'input[type=checkbox]'
     ) as HTMLInputElement
     expect(checkbox.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('should render the raw choice label when translateChoices is false', async () => {
+    const fixture = TestBed.createComponent(MultiSelectDropdownComponent)
+    fixture.componentRef.setInput('label', 'filters.access')
+    fixture.componentRef.setInput('choices', [
+      { id: 'c2c', label: 'Camptocamp' }
+    ])
+    fixture.componentRef.setInput('translateChoices', false)
+    fixture.detectChanges()
+
+    await openPanel(fixture)
+
+    expect(document.querySelector('label span')?.textContent?.trim()).toBe(
+      'Camptocamp'
+    )
   })
 
   it('should resolve keyboard opening when there are no choices', async () => {
