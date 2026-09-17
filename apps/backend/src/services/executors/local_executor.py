@@ -15,6 +15,7 @@ Run state lives in memory only and is lost on backend restart.
 import os
 import tempfile
 import traceback
+from concurrent.futures import Executor, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -68,6 +69,7 @@ class LocalTaskExecutor(BaseTaskExecutor):
     def __init__(self) -> None:
         self._install_ogr2ogr_docker_wrapper()
         self._registry: dict[tuple[str, str], _RunRecord] = {}
+        self._pool: Executor = ThreadPoolExecutor(thread_name_prefix="local-task-callback")
 
     def _install_ogr2ogr_docker_wrapper(self) -> None:
         """Make the `ogr2ogr` calls in data_manipulation.ingestion reach the
@@ -105,10 +107,26 @@ class LocalTaskExecutor(BaseTaskExecutor):
         try:
             response = requests.post(full_url, timeout=10)
             response.raise_for_status()
-        except requests.RequestException as e:
+        except Exception as e:
+            # Broad on purpose: this now runs detached in a thread pool worker
+            # (see _call_callback_async) whose exceptions are otherwise dropped
+            # silently since nothing calls Future.result() on it.
             logger.error(
                 f"{callback_type.capitalize()} callback failed | url={full_url} | error={e}"
             )
+
+    def _call_callback_async(self, url: str | None, callback_type: str, reason: str = "") -> None:
+        """Call the callback from a worker thread instead of blocking the caller.
+
+        trigger_staging_task/trigger_process_task run synchronously inside the
+        request handling the ingestion, on the only uvicorn worker used locally.
+        Calling the callback (which targets this same backend) synchronously here
+        would deadlock: the event loop can't accept that self-connection until it
+        finishes handling the current request, which is waiting on the callback.
+        Submitting it to the pool lets the current request return first, freeing
+        the event loop so the callback can actually go through.
+        """
+        self._pool.submit(self._call_callback, url, callback_type, reason)
 
     # -- staging -----------------------------------------------------------------
 
@@ -238,12 +256,12 @@ class LocalTaskExecutor(BaseTaskExecutor):
                 source_protocol,
             )
             self._set_status(_STAGING_DAG_ID, run_id, TaskStatus.SUCCESS)
-            self._call_callback(success_callback_url, "success")
+            self._call_callback_async(success_callback_url, "success")
         except Exception as e:
             logger.exception(f"Local staging run {run_id} failed")
             logs = f"{e}\n\n{traceback.format_exc()}"
             self._set_status(_STAGING_DAG_ID, run_id, TaskStatus.FAILED, logs=logs)
-            self._call_callback(failure_callback_url, "failure")
+            self._call_callback_async(failure_callback_url, "failure")
 
     # -- process -------------------------------------------------------------
 
@@ -348,12 +366,12 @@ class LocalTaskExecutor(BaseTaskExecutor):
                 target_schema,
             )
             self._set_status(_PROCESS_DAG_ID, run_id, TaskStatus.SUCCESS)
-            self._call_callback(success_callback_url, "success")
+            self._call_callback_async(success_callback_url, "success")
         except Exception as e:
             logger.exception(f"Local process run {run_id} failed")
             logs = f"{e}\n\n{traceback.format_exc()}"
             self._set_status(_PROCESS_DAG_ID, run_id, TaskStatus.FAILED, logs=logs)
-            self._call_callback(failure_callback_url, "failure")
+            self._call_callback_async(failure_callback_url, "failure")
 
     # -- status/logs/note -----------------------------------------------------
 
