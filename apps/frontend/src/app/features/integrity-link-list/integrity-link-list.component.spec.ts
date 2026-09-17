@@ -57,7 +57,11 @@ describe('IntegrityLinkListComponent', () => {
     const pendingRequests = httpMock.match(() => true)
     pendingRequests.forEach((req) => {
       if (req.cancelled) return
-      req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+      if (/\/(organizations|owners)$/.test(req.request.url)) {
+        req.flush([])
+      } else {
+        req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+      }
     })
   }
 
@@ -1045,6 +1049,94 @@ describe('IntegrityLinkListComponent', () => {
       expect(component.integrityLinks().map((l) => l.id)).toEqual(['2'])
       expect(component.hasMore()).toBe(false)
       expect(component.loadingMore()).toBe(false)
+    })
+  })
+
+  describe('organization and owner filters', () => {
+    it('should populate organizationChoices and ownerChoices from the backend', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/?offset=0')
+        .flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+
+      httpMock
+        .expectOne(
+          'http://localhost:8000/ingestion/integrity-links/organizations'
+        )
+        .flush([{ id: 'c2c', label: 'Camptocamp' }])
+
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/owners')
+        .flush([{ id: 'jdoe', label: 'John Doe' }])
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(component.organizationChoices()).toEqual([
+        { value: 'c2c', label: 'Camptocamp' }
+      ])
+      expect(component.ownerChoices()).toEqual([
+        { value: 'jdoe', label: 'John Doe' }
+      ])
+    })
+
+    it('should trigger a reload with the organization param when selectedOrganization changes', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      const initialReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      initialReq.flush({
+        items: [],
+        has_more: false,
+        offset: 0,
+        next_offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.selectedOrganization.set(['c2c'])
+      fixture.detectChanges()
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const req = httpMock.expectOne(
+        (r) =>
+          r.url === 'http://localhost:8000/ingestion/integrity-links/' &&
+          r.params.getAll('organization')?.join(',') === 'c2c'
+      )
+      expect(req.request.method).toBe('GET')
+      req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+    })
+
+    it('should trigger a reload with the owner param when selectedOwner changes', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      const initialReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      initialReq.flush({
+        items: [],
+        has_more: false,
+        offset: 0,
+        next_offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.selectedOwner.set(['jdoe'])
+      fixture.detectChanges()
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const req = httpMock.expectOne(
+        (r) =>
+          r.url === 'http://localhost:8000/ingestion/integrity-links/' &&
+          r.params.getAll('owner')?.join(',') === 'jdoe'
+      )
+      expect(req.request.method).toBe('GET')
+      req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
     })
   })
 })
