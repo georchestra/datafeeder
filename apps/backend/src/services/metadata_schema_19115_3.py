@@ -82,10 +82,13 @@ class Iso19115_3Schema(MetadataSchema):
         return nodes[0].text if nodes and nodes[0].text else None
 
     @staticmethod
-    def update_online_resources_when_title_changed(root: _Element, title: str) -> _Element:
+    def update_online_resources_when_title_changed(root: _Element, title: str) -> bool:
+        changed = False
         for online in root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3):
-            online.text = title
-        return root
+            if online.text != title:
+                online.text = title
+                changed = True
+        return changed
 
     @staticmethod
     def add_online_resources_from_layer_urls_19115_3(

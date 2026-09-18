@@ -21,8 +21,8 @@ class MetadataSchema:
         return None
 
     @staticmethod
-    def update_online_resources_when_title_changed(root: _Element, title: str) -> _Element:
-        return root
+    def update_online_resources_when_title_changed(root: _Element, title: str) -> bool:
+        return False
 
     @staticmethod
     def add_online_resources_from_layer_urls_19115_3(
