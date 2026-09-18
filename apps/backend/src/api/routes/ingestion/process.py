@@ -327,6 +327,7 @@ async def dag_success_callback(
 
     workspace_name = integrity_link.integrity_organization.lower()
     datastore_name = f"{workspace_name}_ds"
+    is_geographic = False
 
     # Create PostgreSQL schema (idempotent) — uses target_schema, not always workspace_name
     try:
@@ -405,15 +406,6 @@ async def dag_success_callback(
             f"{integrity_link.data_id}, geographic={is_geographic}, bbox={bbox}"
         )
 
-        layer_urls = geoserver_service.build_layer_urls_for_metadata(
-            workspace_name=workspace_name,
-            table_name=final_table_name,
-            is_geographic=is_geographic,
-        )
-        metadata_service.update_online_resources_from_layer_urls(
-            str(integrity_link.metadata_id), layer_urls
-        )
-
     except Exception as e:
         logger.error(
             f"Failed to publish to GeoServer for IntegrityLink {integrity_link.id}: {e}",
@@ -430,9 +422,14 @@ async def dag_success_callback(
     # Update revision date in GeoNetwork metadata (soft failure)
     if integrity_link.metadata_id is not None:
         try:
-            metadata_service.update_revision_date(
-                str(integrity_link.metadata_id), datetime.now(timezone.utc)
+            layer_urls = geoserver_service.build_layer_urls_for_metadata(
+                workspace_name=workspace_name,
+                table_name=final_table_name,
+                is_geographic=is_geographic,
             )
+            metadata_service.detect_schema(str(integrity_link.metadata_id)).update_revision_date(
+                datetime.now(timezone.utc)
+            ).add_online_resources_from_layer_urls_19115_3(layer_urls).upload_to_gn()
         except Exception as e:
             logger.warning(
                 "Failed to update revision date for IntegrityLink %s: %s",
