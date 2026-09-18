@@ -398,9 +398,15 @@ class MetadataService:
         Returns:
             A schema instance wrapping the parsed record, ready to be
             processed by ``get_title``, the update methods, or
-            ``add_online_resources_from_layer_urls_19115_3``.
+            ``add_online_resources_from_layer_urls_19115_3``. A ``NoopSchema``
+            is returned if the record cannot be fetched.
         """
-        xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
+        try:
+            xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
+        except Exception as e:
+            logger.warning("Could not fetch metadata XML for %s: %s", metadata_uuid, e)
+            return NoopSchema(etree.Element("unknown"))
+
         return self.detect_schema_from_xml(xml_bytes)
 
     @staticmethod
@@ -432,12 +438,7 @@ class MetadataService:
         Returns:
             Title string, or None if the record or title cannot be read.
         """
-        try:
-            schema = self.detect_schema(metadata_uuid)
-        except Exception as e:
-            logger.warning("Could not fetch metadata XML for %s: %s", metadata_uuid, e)
-            return None
-
+        schema = self.detect_schema(metadata_uuid)
         return schema.get_title()
 
     def update_revision_date(self, metadata_uuid: str, revision_date: datetime) -> None:
