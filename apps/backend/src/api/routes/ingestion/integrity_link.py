@@ -8,6 +8,7 @@ from src.api.deps import (
     GeorchestraContextDep,
     GeoServerServiceDep,
     GroupIdsDep,
+    MetadataServiceDep,
 )
 from src.core.config import get_settings
 from src.core.logging import get_logger
@@ -50,6 +51,7 @@ def _sync_metadata_sharing(
     session: DatafeederSessionDep,
     integrity_link_id: str,
     integrity_link: IntegrityLink,
+    metadata_service: MetadataService,
 ) -> None:
     """Sync METADATA rules to GeoNetwork sharing privileges.
 
@@ -104,13 +106,6 @@ def _sync_metadata_sharing(
             raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
         resolved.append((gn_group_name, rule.rule_value))
 
-    metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
-        datadir_path=settings.DATADIR_PATH,
-        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-        gn_sync_mode=settings.GN_SYNC_MODE,
-        verify_tls=False,
-    )
     try:
         metadata_service.sync_record_sharing(integrity_link.metadata_id, resolved)
     except Exception:
@@ -269,19 +264,12 @@ def update_metadata_gn(
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
     group_ids: GroupIdsDep,
+    metadata_service: MetadataServiceDep,
     body: UpdateMetadataGnRequest,
 ) -> IntegrityLinkResponse:
     """Upload serialized metadata XML to GeoNetwork, then sync title to GeoServer and DB."""
     integrity_link, _ = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.METADATA_WRITE, geo_ctx, session, group_ids
-    )
-
-    settings = get_settings()
-    metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
-        datadir_path=settings.DATADIR_PATH,
-        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-        verify_tls=False,
     )
 
     try:
@@ -348,6 +336,7 @@ def upsert_integrity_link_rule(
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
     group_ids: GroupIdsDep,
+    metadata_service: MetadataServiceDep,
     body: UpsertRuleRequest,
 ) -> IntegrityLinkRule:
     """Create or update a rule for a given IntegrityLink."""
@@ -379,7 +368,7 @@ def upsert_integrity_link_rule(
                 session.rollback()
                 raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
         session.commit()
-        _sync_metadata_sharing(session, integrity_link_id, integrity_link)
+        _sync_metadata_sharing(session, integrity_link_id, integrity_link, metadata_service)
         return existing_rule
 
     new_rule = IntegrityLinkRule(
@@ -403,7 +392,7 @@ def upsert_integrity_link_rule(
             session.rollback()
             raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
     session.commit()
-    _sync_metadata_sharing(session, integrity_link_id, integrity_link)
+    _sync_metadata_sharing(session, integrity_link_id, integrity_link, metadata_service)
     return new_rule
 
 
@@ -417,6 +406,7 @@ def delete_integrity_link_rule(
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
     group_ids: GroupIdsDep,
+    metadata_service: MetadataServiceDep,
     rule_id: int,
 ) -> Response:
     """Delete a rule from a given IntegrityLink."""
@@ -443,7 +433,7 @@ def delete_integrity_link_rule(
             session.rollback()
             raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
     session.commit()
-    _sync_metadata_sharing(session, integrity_link_id, integrity_link)
+    _sync_metadata_sharing(session, integrity_link_id, integrity_link, metadata_service)
     return Response(status_code=204)
 
 
@@ -457,6 +447,7 @@ def toggle_publish_gn_integrity_link(
     session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
     integrity_link_id: str,
+    metadata_service: MetadataServiceDep,
     publish: bool = Query(description="Set to true to publish, false to unpublish"),
 ) -> IntegrityLinkResponse:
     """Publish or unpublish an IntegrityLink metadata in GeoNetwork."""
@@ -470,15 +461,6 @@ def toggle_publish_gn_integrity_link(
             status_code=400,
             detail="IntegrityLink has no associated metadata to publish/unpublish",
         )
-
-    # Create MetadataService instance
-    settings = get_settings()
-    metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
-        datadir_path=settings.DATADIR_PATH,
-        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-        verify_tls=False,
-    )
 
     # Publish or unpublish the metadata record
     try:
@@ -548,6 +530,7 @@ def delete_integrity_link(
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
     group_ids: GroupIdsDep,
+    metadata_service: MetadataServiceDep,
 ) -> Response:
     """Delete a dataset and all associated resources."""
     integrity_link, _ = load_authorized_integrity_link(
@@ -560,13 +543,6 @@ def delete_integrity_link(
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
         public_url=settings.DATA_PUBLIC_URL,
-    )
-    metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
-        datadir_path=settings.DATADIR_PATH,
-        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-        gn_sync_mode=settings.GN_SYNC_MODE,
-        verify_tls=False,
     )
     deletion_service = DatasetDeletionService(
         geoserver_service=geoserver_service,
