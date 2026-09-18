@@ -390,17 +390,6 @@ class MetadataService:
         return self._resolve_group_by_org_name(self.metadata_default_group_name)
 
     def detect_schema(self, metadata_uuid: str) -> MetadataSchema:
-        """Fetch a GeoNetwork metadata record and return its schema instance.
-
-        Args:
-            metadata_uuid: UUID of the metadata record in GeoNetwork.
-
-        Returns:
-            A schema instance wrapping the parsed record, ready to be
-            processed by ``get_title``, the update methods, or
-            ``add_online_resources_from_layer_urls_19115_3``. A ``NoopSchema``
-            is returned if the record cannot be fetched.
-        """
         try:
             xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
         except Exception as e:
@@ -411,16 +400,6 @@ class MetadataService:
 
     @staticmethod
     def detect_schema_from_xml(xml_bytes: bytes) -> MetadataSchema:
-        """Parse raw metadata XML and return its schema instance.
-
-        Args:
-            xml_bytes: Raw UTF-8 encoded XML of the metadata record.
-
-        Returns:
-            A schema instance wrapping the parsed record, ready to be
-            processed by ``get_title``, the update methods, or
-            ``add_online_resources_from_layer_urls_19115_3``.
-        """
         root: _Element = etree.fromstring(xml_bytes)
         tag = str(root.tag)
         if "http://standards.iso.org/iso/19115/-3/mdb/2.0" in tag:
