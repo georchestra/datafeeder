@@ -23,6 +23,16 @@ export interface ListIntegrityLinksIngestionIntegrityLinksGet$Params {
   search?: string | null
 
   /**
+   * Filter by organization (exact match, OR'd together)
+   */
+  organization?: Array<string> | null
+
+  /**
+   * Filter by owner username (exact match, OR'd together)
+   */
+  owner?: Array<string> | null
+
+  /**
    * Filter by public access level
    */
   access?: Array<PublicAccess> | null
@@ -47,6 +57,8 @@ export function listIntegrityLinksIngestionIntegrityLinksGet(
   if (params) {
     rb.query('offset', params.offset, {})
     rb.query('search', params.search, {})
+    rb.query('organization', params.organization, {})
+    rb.query('owner', params.owner, {})
     rb.query('access', params.access, {})
     rb.query('recurrence', params.recurrence, {})
   }

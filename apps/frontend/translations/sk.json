@@ -281,6 +281,8 @@
   "integrityLinks.dashboard": "",
   "integrityLinks.edit": "",
   "integrityLinks.emptyList": "",
+  "integrityLinks.filters.organization": "",
+  "integrityLinks.filters.owner": "",
   "integrityLinks.filters.reference": "",
   "integrityLinks.filters.status": "",
   "integrityLinks.filters.title": "",
