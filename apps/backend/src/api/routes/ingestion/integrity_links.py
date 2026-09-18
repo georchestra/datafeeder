@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any
 from uuid import UUID
 
@@ -13,6 +13,7 @@ from src.api.deps import (
     GeorchestraContextDep,
     GroupIdsDep,
 )
+from src.api.routes.groups_common import GroupItem
 from src.core.config import get_data_schema, get_settings, get_staging_schema
 from src.core.logging import get_logger
 from src.core.security import (
@@ -32,6 +33,7 @@ from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule
 from src.models.recurrence import RecurrencePreset
 from src.services.console_service import ConsoleService
+from src.services.georchestra import GeorchestraContext
 
 router = APIRouter(prefix="/ingestion/integrity-links", tags=["Ingestion"])
 logger = get_logger()
@@ -68,6 +70,48 @@ def _check_staging_existence(rows: Sequence[Any], data_session: Session) -> set[
         .scalars()
         .all()
     )
+
+
+def _final_exists(link: IntegrityLink, existing_final: set[tuple[str, str]]) -> bool:
+    if not link.final_table_name:
+        return False
+    return (get_data_schema(link.integrity_organization), link.final_table_name) in existing_final
+
+
+def _link_has_existing_table(
+    link: IntegrityLink, staging_tables: set[str], final_exists: bool
+) -> bool:
+    return (
+        link.source_import_type in (ImportType.EMPTY, ImportType.PREFILLED)
+        or bool(link.staging_table_name and link.staging_table_name in staging_tables)
+        or final_exists
+    )
+
+
+def _visible_existing_values(
+    session: Session,
+    data_session: Session,
+    geo_ctx: GeorchestraContext,
+    group_ids: list[str],
+    attr: Callable[[IntegrityLink], str],
+) -> set[str]:
+    """Distinct `attr` values across links the caller can see and that still have an
+    existing staging/final table (same rule as list_integrity_links)."""
+    query = sa_select(IntegrityLink)
+    if not geo_ctx.is_administrator():
+        query = query.where(visibility_condition(geo_ctx.username, group_ids))
+
+    links = session.execute(query).scalars().all()  # type: ignore[reportDeprecated]
+    if not links:
+        return set()
+
+    staging_tables = _check_staging_existence([(lnk, None) for lnk in links], data_session)
+    existing_final = _check_final_existence([(lnk, None) for lnk in links], data_session)
+    return {
+        attr(lnk)
+        for lnk in links
+        if _link_has_existing_table(lnk, staging_tables, _final_exists(lnk, existing_final))
+    }
 
 
 def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tuple[str, str]]:
@@ -169,21 +213,10 @@ def list_integrity_links(
         staging_tables = _check_staging_existence(rows, data_session)
         existing_final = _check_final_existence(rows, data_session)
 
-        def _final_exists(lnk: IntegrityLink) -> bool:
-            if not lnk.final_table_name:
-                return False
-            return (
-                get_data_schema(lnk.integrity_organization),
-                lnk.final_table_name,
-            ) in existing_final
-
         for i, (link, access_level) in enumerate(rows):
-            if (
-                link.source_import_type in (ImportType.EMPTY, ImportType.PREFILLED)
-                or (link.staging_table_name and link.staging_table_name in staging_tables)
-                or _final_exists(link)
-            ):
-                accumulated.append((link, access_level, _final_exists(link), fetch_offset + i))
+            final_exists = _final_exists(link, existing_final)
+            if _link_has_existing_table(link, staging_tables, final_exists):
+                accumulated.append((link, access_level, final_exists, fetch_offset + i))
 
         if last_chunk_len < BATCH_SIZE + 1:
             break  # DB exhausted
@@ -243,6 +276,72 @@ def list_integrity_links(
         offset=offset,
         next_offset=next_offset,
     )
+
+
+@router.get(
+    "/organizations",
+    response_model=list[GroupItem],
+    summary="List distinct organizations across accessible integrity links",
+    description="Distinct integrity_organization values across integrity links the caller "
+    "can see and that have an existing staging/final table, paired with their console long "
+    "name for display in a filter dropdown.",
+)
+def list_integrity_link_organizations(
+    session: DatafeederSessionDep,
+    data_session: DataSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    group_ids: GroupIdsDep,
+) -> list[GroupItem]:
+    short_names = _visible_existing_values(
+        session, data_session, geo_ctx, group_ids, lambda lnk: lnk.integrity_organization
+    )
+    if not short_names:
+        return []
+
+    try:
+        organizations = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).get_all_organizations()
+        long_names = {
+            org["shortName"]: org["name"]
+            for org in organizations
+            if org.get("shortName") and org.get("name")
+        }
+    except Exception as e:
+        logger.warning(f"Failed to fetch organizations from console: {e}", exc_info=True)
+        long_names = {}
+
+    return [
+        GroupItem(id=short_name, label=long_names.get(short_name, short_name))
+        for short_name in sorted(short_names)
+    ]
+
+
+@router.get(
+    "/owners",
+    response_model=list[GroupItem],
+    summary="List distinct owners across accessible integrity links",
+    description="Distinct integrity_owner values across integrity links the caller can see "
+    "and that have an existing staging/final table, paired with their console display name "
+    "for display in a filter dropdown.",
+)
+def list_integrity_link_owners(
+    session: DatafeederSessionDep,
+    data_session: DataSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    group_ids: GroupIdsDep,
+) -> list[GroupItem]:
+    usernames = _visible_existing_values(
+        session, data_session, geo_ctx, group_ids, lambda lnk: lnk.integrity_owner
+    )
+    if not usernames:
+        return []
+
+    display_names = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).fetch_users_by_usernames(
+        list(usernames)
+    )
+    return [
+        GroupItem(id=username, label=display_names.get(username) or username)
+        for username in sorted(usernames)
+    ]
 
 
 @router.get(

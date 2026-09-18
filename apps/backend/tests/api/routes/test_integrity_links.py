@@ -7,9 +7,12 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 
+from src.api.routes.groups_common import GroupItem
 from src.api.routes.ingestion.integrity_links import (
     BATCH_SIZE,
     get_joinable_columns,
+    list_integrity_link_organizations,
+    list_integrity_link_owners,
     list_integrity_links,
     list_joinable_tables,
 )
@@ -1058,6 +1061,254 @@ class TestListIntegrityLinksVisibility:
         query_str = str(executed_query)
         # Should have OR condition (owner = username OR EXISTS subquery)
         assert "OR" in query_str.upper() or "or" in query_str.lower()
+
+
+class TestListIntegrityLinkOrganizations:
+    """Test the list_integrity_link_organizations endpoint."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_data_session(self) -> MagicMock:
+        return MagicMock()
+
+    def _geo_ctx(self, username: str, roles: set[str] | None = None) -> GeorchestraContext:
+        return GeorchestraContext(
+            username=username,
+            roles=roles or set(),
+            email="",
+            firstname="",
+            lastname="",
+            organization="",
+        )
+
+    def _make_link(self, org: str, staging: str | None = "staging_test") -> IntegrityLink:
+        return IntegrityLink(
+            id=uuid4(),
+            integrity_title="Test Link",
+            integrity_owner="user0",
+            integrity_organization=org,
+            source_import_type=ImportType.URL,
+            source_url="http://example.com",
+            staging_table_name=staging,
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+
+    def _setup_data_session(self, mock_data_session: MagicMock, staging_names: list[str]) -> None:
+        mock_staging = MagicMock()
+        mock_staging.scalars.return_value.all.return_value = staging_names
+        mock_final = MagicMock()
+        mock_final.scalars.return_value.all.return_value = []
+        mock_data_session.execute.side_effect = [mock_staging, mock_final]
+
+    def test_returns_distinct_existing_organizations_with_console_long_name(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        # "orphaned-org"'s only link has a dropped staging table, so it must be excluded.
+        mock_session.execute.return_value.scalars.return_value.all.return_value = [
+            self._make_link("c2c", staging="staging_c2c"),
+            self._make_link("geo", staging="staging_geo"),
+            self._make_link("orphaned-org", staging="staging_dropped"),
+        ]
+        self._setup_data_session(mock_data_session, ["staging_c2c", "staging_geo"])
+        mock_console_service.return_value.get_all_organizations.return_value = [
+            {"id": "org-uuid-1", "shortName": "c2c", "name": "Camptocamp"},
+        ]
+
+        response = list_integrity_link_organizations(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+        )
+
+        assert response == [
+            GroupItem(id="c2c", label="Camptocamp"),
+            GroupItem(id="geo", label="geo"),
+        ]
+
+    def test_falls_back_to_short_name_when_console_lookup_fails(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        mock_session.execute.return_value.scalars.return_value.all.return_value = [
+            self._make_link("c2c"),
+        ]
+        self._setup_data_session(mock_data_session, ["staging_test"])
+        mock_console_service.return_value.get_all_organizations.side_effect = Exception(
+            "console error"
+        )
+
+        response = list_integrity_link_organizations(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+        )
+
+        assert response == [GroupItem(id="c2c", label="c2c")]
+
+    def test_empty_when_no_accessible_links(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+
+        response = list_integrity_link_organizations(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+        )
+
+        assert response == []
+        mock_console_service.return_value.get_all_organizations.assert_not_called()
+
+    def test_query_restricted_to_owner_or_rule_for_non_admin(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+
+        list_integrity_link_organizations(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user1"),
+            group_ids=[],
+        )
+
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        assert "user1" in str(executed_query.compile(compile_kwargs={"literal_binds": True}))
+
+    def test_admin_query_is_not_restricted_to_owner(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+
+        list_integrity_link_organizations(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("admin", {"ADMINISTRATOR"}),
+            group_ids=[],
+        )
+
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        query_str = str(executed_query.compile(compile_kwargs={"literal_binds": True}))
+        assert "integrity_owner =" not in query_str
+
+
+class TestListIntegrityLinkOwners:
+    """Test the list_integrity_link_owners endpoint."""
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_data_session(self) -> MagicMock:
+        return MagicMock()
+
+    def _geo_ctx(self, username: str, roles: set[str] | None = None) -> GeorchestraContext:
+        return GeorchestraContext(
+            username=username,
+            roles=roles or set(),
+            email="",
+            firstname="",
+            lastname="",
+            organization="",
+        )
+
+    def _make_link(self, owner: str, staging: str | None = "staging_test") -> IntegrityLink:
+        return IntegrityLink(
+            id=uuid4(),
+            integrity_title="Test Link",
+            integrity_owner=owner,
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            source_url="http://example.com",
+            staging_table_name=staging,
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+
+    def _setup_data_session(self, mock_data_session: MagicMock, staging_names: list[str]) -> None:
+        mock_staging = MagicMock()
+        mock_staging.scalars.return_value.all.return_value = staging_names
+        mock_final = MagicMock()
+        mock_final.scalars.return_value.all.return_value = []
+        mock_data_session.execute.side_effect = [mock_staging, mock_final]
+
+    def test_returns_distinct_existing_owners_with_console_display_name(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        # "orphaned-user"'s only link has a dropped staging table, so it must be excluded.
+        mock_session.execute.return_value.scalars.return_value.all.return_value = [
+            self._make_link("jdoe", staging="staging_jdoe"),
+            self._make_link("asmith", staging="staging_asmith"),
+            self._make_link("orphaned-user", staging="staging_dropped"),
+        ]
+        self._setup_data_session(mock_data_session, ["staging_jdoe", "staging_asmith"])
+        mock_console_service.return_value.fetch_users_by_usernames.return_value = {
+            "jdoe": "John Doe"
+        }
+
+        response = list_integrity_link_owners(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+        )
+
+        assert response == [
+            GroupItem(id="asmith", label="asmith"),
+            GroupItem(id="jdoe", label="John Doe"),
+        ]
+
+    def test_empty_when_no_accessible_links(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+
+        response = list_integrity_link_owners(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+        )
+
+        assert response == []
+        mock_console_service.return_value.fetch_users_by_usernames.assert_not_called()
+
+    def test_query_restricted_to_owner_or_rule_for_non_admin(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+
+        list_integrity_link_owners(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user1"),
+            group_ids=[],
+        )
+
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        assert "user1" in str(executed_query.compile(compile_kwargs={"literal_binds": True}))
+
+    def test_admin_query_is_not_restricted_to_owner(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+
+        list_integrity_link_owners(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("admin", {"ADMINISTRATOR"}),
+            group_ids=[],
+        )
+
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        query_str = str(executed_query.compile(compile_kwargs={"literal_binds": True}))
+        assert "integrity_owner =" not in query_str
 
 
 class TestListJoinableTables:
