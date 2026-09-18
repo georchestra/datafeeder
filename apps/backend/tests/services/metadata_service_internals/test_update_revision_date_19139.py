@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
+from unittest.mock import MagicMock
 
 from lxml import etree
 
-from src.services.metadata_service import NS_19139, MetadataService
+from src.services.metadata_schema_19139 import NS_19139, Iso19139Schema
 from tests.services.metadata_service_internals.samples import (
     SAMPLE_19139_NO_REVISION,
     SAMPLE_19139_WITH_REVISION,
@@ -18,12 +19,15 @@ CITATION_REVISION_XPATH_19139 = (
 
 
 class TestUpdateRevisionDate19139:
-    """Tests for _update_revision_date_19139."""
+    """Tests for Iso19139Schema.update_revision_date."""
 
     def test_insert_when_absent(self) -> None:
         root = etree.fromstring(SAMPLE_19139_NO_REVISION)
         rev_date = datetime(2025, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19139(root, rev_date)  # pyright: ignore[reportPrivateUsage]
+        schema = Iso19139Schema(root, MagicMock())
+        schema.update_revision_date(rev_date)
+
+        assert schema.updated is True
 
         dt_nodes = root.xpath(CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
         assert len(dt_nodes) == 1
@@ -33,7 +37,7 @@ class TestUpdateRevisionDate19139:
         """Existing gco:Date revision is replaced with gco:DateTime."""
         root = etree.fromstring(SAMPLE_19139_WITH_REVISION)
         rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19139(root, rev_date)  # pyright: ignore[reportPrivateUsage]
+        Iso19139Schema(root, MagicMock()).update_revision_date(rev_date)
 
         dt_nodes = root.xpath(CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
         assert len(dt_nodes) == 1
@@ -43,7 +47,7 @@ class TestUpdateRevisionDate19139:
         """Existing gco:DateTime revision is updated in place."""
         root = etree.fromstring(SAMPLE_19139_WITH_REVISION_DATETIME)
         rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19139(root, rev_date)  # pyright: ignore[reportPrivateUsage]
+        Iso19139Schema(root, MagicMock()).update_revision_date(rev_date)
 
         dt_nodes = root.xpath(CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
         assert len(dt_nodes) == 1

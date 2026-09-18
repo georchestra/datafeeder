@@ -189,7 +189,7 @@ SAMPLE_19115_3_WITH_ONLINE_RESOURCES = b"""\
                     <mrd:onLine>
                         <cit:CI_OnlineResource>
                             <cit:linkage>
-                                <gco:CharacterString>http://localhost:8080/geoserver/ogc/features/v1/collections/psc:proj_3948?f=json</gco:CharacterString>
+                                <gco:CharacterString>http://existing/geoserver/ogc/features/v1/collections/psc:proj_3948?f=json</gco:CharacterString>
                             </cit:linkage>
                             <cit:protocol>
                                 <gco:CharacterString>OGC API Features</gco:CharacterString>
@@ -208,7 +208,7 @@ SAMPLE_19115_3_WITH_ONLINE_RESOURCES = b"""\
                     <mrd:onLine>
                         <cit:CI_OnlineResource>
                             <cit:linkage>
-                                <gco:CharacterString>http://localhost:8080/geoserver/psc/wms</gco:CharacterString>
+                                <gco:CharacterString>http://existing/geoserver/psc/wms</gco:CharacterString>
                             </cit:linkage>
                             <cit:protocol>
                                 <gco:CharacterString>OGC:WMS</gco:CharacterString>
@@ -227,7 +227,7 @@ SAMPLE_19115_3_WITH_ONLINE_RESOURCES = b"""\
                     <mrd:onLine>
                         <cit:CI_OnlineResource>
                             <cit:linkage>
-                                <gco:CharacterString>http://localhost:8080/geoserver/psc/wfs</gco:CharacterString>
+                                <gco:CharacterString>http://existing/geoserver/psc/wfs</gco:CharacterString>
                             </cit:linkage>
                             <cit:protocol>
                                 <gco:CharacterString>OGC:WFS</gco:CharacterString>
@@ -241,6 +241,128 @@ SAMPLE_19115_3_WITH_ONLINE_RESOURCES = b"""\
                             <cit:function>
                                 <cit:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_OnLineFunctionCode" codeListValue="download" />
                             </cit:function>
+                        </cit:CI_OnlineResource>
+                    </mrd:onLine>
+                </mrd:MD_DigitalTransferOptions>
+            </mrd:transferOptions>
+        </mrd:MD_Distribution>
+    </mdb:distributionInfo>
+</mdb:MD_Metadata>
+"""
+
+SAMPLE_19115_3_EMPTY_TRANSFER_OPTIONS = b"""\
+<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
+                 xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
+                 xmlns:mrd="http://standards.iso.org/iso/19115/-3/mrd/1.0"
+                 xmlns:mri="http://standards.iso.org/iso/19115/-3/mri/1.0"
+                 xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0">
+    <mdb:identificationInfo>
+        <mri:MD_DataIdentification>
+            <mri:citation>
+                <cit:CI_Citation>
+                    <cit:title>
+                        <gco:CharacterString>My Dataset</gco:CharacterString>
+                    </cit:title>
+                </cit:CI_Citation>
+            </mri:citation>
+        </mri:MD_DataIdentification>
+    </mdb:identificationInfo>
+    <mdb:distributionInfo>
+        <mrd:MD_Distribution>
+            <mrd:transferOptions>
+                <mrd:MD_DigitalTransferOptions>
+                </mrd:MD_DigitalTransferOptions>
+            </mrd:transferOptions>
+        </mrd:MD_Distribution>
+    </mdb:distributionInfo>
+</mdb:MD_Metadata>
+"""
+
+SAMPLE_19115_3_NO_TRANSFER_OPTIONS = b"""\
+<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
+                 xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
+                 xmlns:mrd="http://standards.iso.org/iso/19115/-3/mrd/1.0"
+                 xmlns:mri="http://standards.iso.org/iso/19115/-3/mri/1.0"
+                 xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0">
+    <mdb:identificationInfo>
+        <mri:MD_DataIdentification>
+            <mri:citation>
+                <cit:CI_Citation>
+                    <cit:title>
+                        <gco:CharacterString>My Dataset</gco:CharacterString>
+                    </cit:title>
+                </cit:CI_Citation>
+            </mri:citation>
+        </mri:MD_DataIdentification>
+    </mdb:identificationInfo>
+    <mdb:distributionInfo>
+        <mrd:MD_Distribution>
+        </mrd:MD_Distribution>
+    </mdb:distributionInfo>
+</mdb:MD_Metadata>
+"""
+
+SAMPLE_19115_3_NO_DIGITAL_TRANSFER_OPTIONS = b"""\
+<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
+                 xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
+                 xmlns:mrd="http://standards.iso.org/iso/19115/-3/mrd/1.0"
+                 xmlns:mri="http://standards.iso.org/iso/19115/-3/mri/1.0"
+                 xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0">
+    <mdb:identificationInfo>
+        <mri:MD_DataIdentification>
+            <mri:citation>
+                <cit:CI_Citation>
+                    <cit:title>
+                        <gco:CharacterString>My Dataset</gco:CharacterString>
+                    </cit:title>
+                </cit:CI_Citation>
+            </mri:citation>
+        </mri:MD_DataIdentification>
+    </mdb:identificationInfo>
+    <mdb:distributionInfo>
+        <mrd:MD_Distribution>
+            <mrd:transferOptions>
+            </mrd:transferOptions>
+        </mrd:MD_Distribution>
+    </mdb:distributionInfo>
+</mdb:MD_Metadata>
+"""
+
+SAMPLE_19115_3_PARTIAL_ONLINE_RESOURCES = b"""\
+<mdb:MD_Metadata xmlns:mdb="http://standards.iso.org/iso/19115/-3/mdb/2.0"
+                 xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/2.0"
+                 xmlns:mrd="http://standards.iso.org/iso/19115/-3/mrd/1.0"
+                 xmlns:mri="http://standards.iso.org/iso/19115/-3/mri/1.0"
+                 xmlns:gco="http://standards.iso.org/iso/19115/-3/gco/1.0">
+    <mdb:identificationInfo>
+        <mri:MD_DataIdentification>
+            <mri:citation>
+                <cit:CI_Citation>
+                    <cit:title>
+                        <gco:CharacterString>My Dataset</gco:CharacterString>
+                    </cit:title>
+                </cit:CI_Citation>
+            </mri:citation>
+        </mri:MD_DataIdentification>
+    </mdb:identificationInfo>
+    <mdb:distributionInfo>
+        <mrd:MD_Distribution>
+            <mrd:transferOptions>
+                <mrd:MD_DigitalTransferOptions>
+                    <mrd:onLine>
+                        <cit:CI_OnlineResource>
+                            <cit:linkage>
+                                <gco:CharacterString>http://existing/geoserver/psc/wms</gco:CharacterString>
+                            </cit:linkage>
+                            <cit:protocol>
+                                <gco:CharacterString>OGC:WMS</gco:CharacterString>
+                            </cit:protocol>
+                            <cit:name>
+                                <gco:CharacterString>psc:proj_3948</gco:CharacterString>
+                            </cit:name>
+                            <cit:description>
+                                <gco:CharacterString>My Dataset</gco:CharacterString>
+                            </cit:description>
                         </cit:CI_OnlineResource>
                     </mrd:onLine>
                 </mrd:MD_DigitalTransferOptions>

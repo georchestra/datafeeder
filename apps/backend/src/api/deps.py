@@ -17,6 +17,7 @@ from src.models import TokenPayload, User
 from src.services.console_service import ConsoleService, ConsoleServiceError
 from src.services.georchestra import GeorchestraContext, get_georchestra_context
 from src.services.geoserver import GeoServerService
+from src.services.metadata_service import MetadataService
 
 logger = get_logger()
 
@@ -148,6 +149,22 @@ def get_geoserver_service() -> GeoServerService:
 
 
 GeoServerServiceDep = Annotated[GeoServerService, Depends(get_geoserver_service)]
+
+
+def get_metadata_service() -> MetadataService:
+    settings = get_settings()
+    return MetadataService(
+        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
+        datadir_path=settings.DATADIR_PATH,
+        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        gn_sync_mode=settings.GN_SYNC_MODE,
+        metadata_default_group_name=settings.METADATA_DEFAULT_GROUP_NAME,
+        metadata_admin_default_group_name=settings.METADATA_ADMIN_DEFAULT_GROUP_NAME,
+        verify_tls=False,
+    )
+
+
+MetadataServiceDep = Annotated[MetadataService, Depends(get_metadata_service)]
 
 
 def get_current_user(session: DatafeederSessionDep, token: TokenDep) -> User:

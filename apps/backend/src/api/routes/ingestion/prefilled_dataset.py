@@ -1,12 +1,10 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from src.api.deps import DatafeederSessionDep, GeorchestraContextDep
-from src.core.config import get_settings
+from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, MetadataServiceDep
 from src.core.logging import get_logger
 from src.models.data_import import ImportType, IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
-from src.services.metadata_service import MetadataService
 
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
 logger = get_logger()
@@ -33,17 +31,11 @@ def create_prefilled_dataset(
     request: CreatePrefilledDatasetRequest,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
+    metadata_service: MetadataServiceDep,
 ) -> IntegrityLinkResponse:
-    settings = get_settings()
-
-    metadata_service = MetadataService(
-        gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
-        datadir_path=settings.DATADIR_PATH,
-        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-        gn_sync_mode=settings.GN_SYNC_MODE,
-        verify_tls=False,
+    title = (
+        metadata_service.read_schema_from_gn(request.metadata_id).read_title() or "Untitled Dataset"
     )
-    title = metadata_service.get_title(request.metadata_id) or "Untitled Dataset"
 
     integrity_link = IntegrityLink(
         integrity_owner=geo_ctx.username,

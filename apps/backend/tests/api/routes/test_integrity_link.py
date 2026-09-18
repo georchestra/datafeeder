@@ -32,6 +32,10 @@ from src.models.recurrence import RecurrencePreset
 from src.services.console_service import ConsoleServiceError
 from src.services.georchestra import GeorchestraContext
 from src.services.geoserver import GeoServerAclError
+from src.services.metadata_service import MetadataService
+from tests.services.metadata_service_internals.samples import (
+    SAMPLE_19115_3_WITH_ONLINE_RESOURCES,
+)
 
 
 def _geo_ctx() -> GeorchestraContext:
@@ -85,6 +89,7 @@ class TestUpsertIntegrityLinkRule:
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
             group_ids=[],
+            metadata_service=MagicMock(),
             body=body,
         )
 
@@ -132,6 +137,7 @@ class TestUpsertIntegrityLinkRule:
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
             group_ids=[],
+            metadata_service=MagicMock(),
             body=body,
         )
 
@@ -154,6 +160,7 @@ class TestUpsertIntegrityLinkRule:
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=str(uuid4()),
                 group_ids=[],
+                metadata_service=MagicMock(),
                 body=body,
             )
 
@@ -211,6 +218,7 @@ class TestUpsertIntegrityLinkRule:
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
                     group_ids=[],
+                    metadata_service=MagicMock(),
                     body=body,
                 )
 
@@ -255,6 +263,7 @@ class TestDeleteIntegrityLinkRule:
             georchestra_context=_geo_ctx(),
             integrity_link_id=integrity_link_id,
             group_ids=[],
+            metadata_service=MagicMock(),
             rule_id=7,
         )
 
@@ -271,6 +280,7 @@ class TestDeleteIntegrityLinkRule:
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=str(uuid4()),
                 group_ids=[],
+                metadata_service=MagicMock(),
                 rule_id=1,
             )
 
@@ -296,6 +306,7 @@ class TestDeleteIntegrityLinkRule:
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=MagicMock(),
                 rule_id=999,
             )
 
@@ -330,6 +341,7 @@ class TestDeleteIntegrityLinkRule:
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=MagicMock(),
                 rule_id=7,
             )
 
@@ -387,6 +399,7 @@ class TestDeleteIntegrityLinkRule:
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
                     group_ids=[],
+                    metadata_service=MagicMock(),
                     rule_id=7,
                 )
 
@@ -451,13 +464,14 @@ class TestSyncAfterUpsertRule:
             rule_value=RuleValue.READ,
         )
 
+        mock_ms = MagicMock()
+
         with (
             patch(
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
             patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -465,14 +479,12 @@ class TestSyncAfterUpsertRule:
                 {"id": "org-uuid-1", "shortName": "C2C"}  # lowercase id
             ]
 
-            mock_ms = MagicMock()
-            mock_ms_cls.return_value = mock_ms
-
             upsert_integrity_link_rule(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=mock_ms,
                 body=body,
             )
 
@@ -513,26 +525,25 @@ class TestSyncAfterUpsertRule:
             rule_value=RuleValue.WRITE,
         )
 
+        mock_ms = MagicMock()
+
         with (
             patch(
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ROLE"),
             ),
             patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "ROLE_ADMIN"}]
-
-            mock_ms = MagicMock()
-            mock_ms_cls.return_value = mock_ms
 
             upsert_integrity_link_rule(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=mock_ms,
                 body=body,
             )
 
@@ -566,17 +577,16 @@ class TestSyncAfterUpsertRule:
             rule_value=RuleValue.READ,
         )
 
-        with patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls:
-            mock_ms = MagicMock()
-            mock_ms_cls.return_value = mock_ms
+        mock_ms = MagicMock()
 
-            upsert_integrity_link_rule(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                integrity_link_id=integrity_link_id,
-                group_ids=[],
-                body=body,
-            )
+        upsert_integrity_link_rule(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            group_ids=[],
+            metadata_service=mock_ms,
+            body=body,
+        )
 
         mock_ms.sync_record_sharing.assert_not_called()
 
@@ -615,26 +625,25 @@ class TestSyncAfterUpsertRule:
             rule_value=RuleValue.READ,
         )
 
+        mock_ms = MagicMock()
+
         with (
             patch(
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
             patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = []
-
-            mock_ms = MagicMock()
-            mock_ms_cls.return_value = mock_ms
 
             upsert_integrity_link_rule(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=mock_ms,
                 body=body,
             )
 
@@ -682,7 +691,6 @@ class TestSyncAfterUpsertRule:
                 return_value=self._mock_settings("ORG"),
             ),
             patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-            patch("src.api.routes.ingestion.integrity_link.MetadataService"),
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -697,6 +705,7 @@ class TestSyncAfterUpsertRule:
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
                     group_ids=[],
+                    metadata_service=MagicMock(),
                     body=body,
                 )
 
@@ -744,7 +753,6 @@ class TestSyncAfterUpsertRule:
                 return_value=self._mock_settings("ORG"),
             ),
             patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-            patch("src.api.routes.ingestion.integrity_link.MetadataService"),
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -756,6 +764,7 @@ class TestSyncAfterUpsertRule:
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
                     group_ids=[],
+                    metadata_service=MagicMock(),
                     body=body,
                 )
 
@@ -797,13 +806,15 @@ class TestSyncAfterUpsertRule:
             rule_value=RuleValue.READ,
         )
 
+        mock_ms = MagicMock()
+        mock_ms.sync_record_sharing.side_effect = Exception("GeoNetwork down")
+
         with (
             patch(
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
             patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -811,16 +822,13 @@ class TestSyncAfterUpsertRule:
                 {"id": "org-uuid-1", "shortName": "C2C"}
             ]
 
-            mock_ms = MagicMock()
-            mock_ms_cls.return_value = mock_ms
-            mock_ms.sync_record_sharing.side_effect = Exception("GeoNetwork down")
-
             with pytest.raises(HTTPException) as exc_info:
                 upsert_integrity_link_rule(
                     session=mock_session,
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
                     group_ids=[],
+                    metadata_service=mock_ms,
                     body=body,
                 )
 
@@ -870,26 +878,25 @@ class TestSyncAfterDeleteRule:
         mock_settings = MagicMock()
         mock_settings.GN_SYNC_MODE = "ORG"
 
+        mock_ms = MagicMock()
+
         with (
             patch(
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=mock_settings,
             ),
             patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = []
-
-            mock_ms = MagicMock()
-            mock_ms_cls.return_value = mock_ms
 
             delete_integrity_link_rule(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=mock_ms,
                 rule_id=7,
             )
 
@@ -919,17 +926,16 @@ class TestSyncAfterDeleteRule:
         ]
         mock_session.exec.return_value.first.return_value = "OWNER"
 
-        with patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls:
-            mock_ms = MagicMock()
-            mock_ms_cls.return_value = mock_ms
+        mock_ms = MagicMock()
 
-            delete_integrity_link_rule(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                integrity_link_id=integrity_link_id,
-                group_ids=[],
-                rule_id=7,
-            )
+        delete_integrity_link_rule(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            group_ids=[],
+            metadata_service=mock_ms,
+            rule_id=7,
+        )
 
         mock_ms.sync_record_sharing.assert_not_called()
 
@@ -997,6 +1003,7 @@ class TestSyncDataSharingAfterUpsert:
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=MagicMock(),
                 body=body,
             )
 
@@ -1038,6 +1045,7 @@ class TestSyncDataSharingAfterUpsert:
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=MagicMock(),
                 body=body,
             )
 
@@ -1102,6 +1110,7 @@ class TestSyncDataSharingAfterUpsert:
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=MagicMock(),
                 body=body,
             )
 
@@ -1155,6 +1164,7 @@ class TestSyncDataSharingAfterUpsert:
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
                     group_ids=[],
+                    metadata_service=MagicMock(),
                     body=body,
                 )
 
@@ -1206,6 +1216,7 @@ class TestSyncDataSharingAfterUpsert:
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=MagicMock(),
                 rule_id=7,
             )
 
@@ -1263,6 +1274,7 @@ class TestSyncDataSharingAfterUpsert:
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=MagicMock(),
                 body=body,
             )
 
@@ -1318,6 +1330,7 @@ class TestSyncDataSharingAfterUpsert:
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
                     group_ids=[],
+                    metadata_service=MagicMock(),
                     body=body,
                 )
 
@@ -1375,6 +1388,7 @@ class TestSyncDataSharingAfterUpsert:
                     georchestra_context=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
                     group_ids=[],
+                    metadata_service=MagicMock(),
                     body=body,
                 )
 
@@ -1406,19 +1420,15 @@ class TestTogglePublishGnIntegrityLink:
         )
         mock_session.get.return_value = integrity_link
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
-        ):
-            mock_ms = MagicMock()
-            mock_ms_cls.return_value = mock_ms
+        mock_ms = MagicMock()
 
-            toggle_publish_gn_integrity_link(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                integrity_link_id=integrity_link_id,
-                publish=True,
-            )
+        toggle_publish_gn_integrity_link(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            metadata_service=mock_ms,
+            publish=True,
+        )
 
         mock_ms.toggle_publish_metadata_record.assert_called_once_with("some-metadata-uuid", True)
         assert integrity_link.gn_is_published is True
@@ -1439,19 +1449,15 @@ class TestTogglePublishGnIntegrityLink:
         )
         mock_session.get.return_value = integrity_link
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
-        ):
-            mock_ms = MagicMock()
-            mock_ms_cls.return_value = mock_ms
+        mock_ms = MagicMock()
 
-            toggle_publish_gn_integrity_link(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                integrity_link_id=integrity_link_id,
-                publish=False,
-            )
+        toggle_publish_gn_integrity_link(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            metadata_service=mock_ms,
+            publish=False,
+        )
 
         mock_ms.toggle_publish_metadata_record.assert_called_once_with("some-metadata-uuid", False)
         assert integrity_link.gn_is_published is False
@@ -1467,6 +1473,7 @@ class TestTogglePublishGnIntegrityLink:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=str(uuid4()),
+                metadata_service=MagicMock(),
                 publish=True,
             )
 
@@ -1488,6 +1495,7 @@ class TestTogglePublishGnIntegrityLink:
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
+                metadata_service=MagicMock(),
                 publish=True,
             )
 
@@ -1508,21 +1516,17 @@ class TestTogglePublishGnIntegrityLink:
             metadata_id="some-metadata-uuid",
         )
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
-        ):
-            mock_ms = MagicMock()
-            mock_ms_cls.return_value = mock_ms
-            mock_ms.toggle_publish_metadata_record.side_effect = Exception("GeoNetwork error")
+        mock_ms = MagicMock()
+        mock_ms.toggle_publish_metadata_record.side_effect = Exception("GeoNetwork error")
 
-            with pytest.raises(HTTPException) as exc_info:
-                toggle_publish_gn_integrity_link(
-                    session=mock_session,
-                    georchestra_context=_geo_ctx(),
-                    integrity_link_id=integrity_link_id,
-                    publish=True,
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            toggle_publish_gn_integrity_link(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                metadata_service=mock_ms,
+                publish=True,
+            )
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "i18nerror.publish.geonetwork"
@@ -1915,19 +1919,24 @@ class TestUpdateMetadataGn:
             integrity_title="Old Title",
         )
 
-    def _body(self, title: str = "New Title") -> UpdateMetadataGnRequest:
+    def _body(
+        self, title: str = "New Title", serialized_xml: str = "<xml>metadata</xml>"
+    ) -> UpdateMetadataGnRequest:
         return UpdateMetadataGnRequest(
-            serialized_xml="<xml>metadata</xml>",
+            serialized_xml=serialized_xml,
             title=title,
         )
 
-    def _mock_settings(self) -> MagicMock:
-        s = MagicMock()
-        s.GEONETWORK_INTERNAL_URL = "http://geonetwork"
-        s.DATADIR_PATH = "/datadir"
-        s.GEONETWORK_USERNAME = "admin"
-        s.GEONETWORK_PASSWORD = "password"
-        return s
+    def _mock_metadata_service(self) -> MagicMock:
+        """A MagicMock MetadataService whose schema chain mimics returning ``self``.
+
+        ``update_online_resources_when_title_changed`` returns the same schema
+        mock, as the real schema classes do, so the route's chained call works.
+        """
+        mock_ms = MagicMock()
+        mock_schema = mock_ms.read_schema_from_xml.return_value
+        mock_schema.update_online_resources_when_title_changed.return_value = mock_schema
+        return mock_ms
 
     def test_uploads_xml_and_commits_title(
         self, mock_session: MagicMock, integrity_link_id: str
@@ -1936,31 +1945,21 @@ class TestUpdateMetadataGn:
         mock_session.get.return_value = self._link(integrity_link_id)
         mock_session.exec.return_value.first.return_value = "OWNER"
 
-        with (
-            patch(
-                "src.api.routes.ingestion.integrity_link.get_settings",
-                return_value=self._mock_settings(),
-            ),
-            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
-        ):
-            mock_ms = MagicMock()
-            mock_ms_cls.return_value = mock_ms
-            mock_ms.update_online_resources_when_title_changed.return_value = (
-                b"<xml>metadata updated</xml>"
-            )
+        mock_ms = self._mock_metadata_service()
+        mock_schema = mock_ms.read_schema_from_xml.return_value
 
-            update_metadata_gn(
-                session=mock_session,
-                geo_ctx=_geo_ctx(),
-                integrity_link_id=integrity_link_id,
-                group_ids=[],
-                body=self._body("New Title"),
-            )
-
-        mock_ms.update_online_resources_when_title_changed.assert_called_once_with(
-            b"<xml>metadata</xml>", "New Title"
+        update_metadata_gn(
+            session=mock_session,
+            geo_ctx=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            group_ids=[],
+            metadata_service=mock_ms,
+            body=self._body("New Title"),
         )
-        mock_ms.upload_metadata_xml.assert_called_once_with(b"<xml>metadata updated</xml>")
+
+        mock_ms.read_schema_from_xml.assert_called_once_with(b"<xml>metadata</xml>")
+        mock_schema.update_online_resources_when_title_changed.assert_called_once_with("New Title")
+        mock_schema.upload_to_gn.assert_called_once()
         # integrity_title updated before commit
         link = mock_session.add.call_args[0][0]
         assert link.integrity_title == "New Title"
@@ -1975,20 +1974,14 @@ class TestUpdateMetadataGn:
         mock_session.get.return_value = link
         mock_session.exec.return_value.first.return_value = "OWNER"
 
-        with (
-            patch(
-                "src.api.routes.ingestion.integrity_link.get_settings",
-                return_value=self._mock_settings(),
-            ),
-            patch("src.api.routes.ingestion.integrity_link.MetadataService"),
-        ):
-            result = update_metadata_gn(
-                session=mock_session,
-                geo_ctx=_geo_ctx(),
-                integrity_link_id=integrity_link_id,
-                group_ids=[],
-                body=self._body("New Title"),
-            )
+        result = update_metadata_gn(
+            session=mock_session,
+            geo_ctx=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            group_ids=[],
+            metadata_service=self._mock_metadata_service(),
+            body=self._body("New Title"),
+        )
 
         assert result.id == UUID(integrity_link_id)
         assert result.integrity_title == "New Title"
@@ -2000,14 +1993,11 @@ class TestUpdateMetadataGn:
         mock_session.get.return_value = self._link(integrity_link_id)
         mock_session.exec.return_value.first.return_value = "OWNER"
 
-        with (
-            patch(
-                "src.api.routes.ingestion.integrity_link.get_settings",
-                return_value=self._mock_settings(),
-            ),
-            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
-        ):
-            mock_ms_cls.return_value.upload_metadata_xml.side_effect = Exception("GN down")
+        with patch("src.services.metadata_service.GnApi") as mock_gn_api:
+            mock_api = MagicMock()
+            mock_api.upload_metadata.side_effect = Exception("GN down")
+            mock_gn_api.return_value = mock_api
+            service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
 
             with pytest.raises(HTTPException) as exc_info:
                 update_metadata_gn(
@@ -2015,7 +2005,10 @@ class TestUpdateMetadataGn:
                     geo_ctx=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
                     group_ids=[],
-                    body=self._body(),
+                    metadata_service=service,
+                    body=self._body(
+                        serialized_xml=SAMPLE_19115_3_WITH_ONLINE_RESOURCES.decode("utf-8")
+                    ),
                 )
 
         assert exc_info.value.status_code == 502
@@ -2030,14 +2023,11 @@ class TestUpdateMetadataGn:
         mock_session.get.return_value = link
         mock_session.exec.return_value.first.return_value = "OWNER"
 
-        with (
-            patch(
-                "src.api.routes.ingestion.integrity_link.get_settings",
-                return_value=self._mock_settings(),
-            ),
-            patch("src.api.routes.ingestion.integrity_link.MetadataService") as mock_ms_cls,
-        ):
-            mock_ms_cls.return_value.upload_metadata_xml.side_effect = Exception("GN down")
+        with patch("src.services.metadata_service.GnApi") as mock_gn_api:
+            mock_api = MagicMock()
+            mock_api.upload_metadata.side_effect = Exception("GN down")
+            mock_gn_api.return_value = mock_api
+            service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
 
             with pytest.raises(HTTPException):
                 update_metadata_gn(
@@ -2045,7 +2035,11 @@ class TestUpdateMetadataGn:
                     geo_ctx=_geo_ctx(),
                     integrity_link_id=integrity_link_id,
                     group_ids=[],
-                    body=self._body("New Title"),
+                    metadata_service=service,
+                    body=self._body(
+                        "New Title",
+                        serialized_xml=SAMPLE_19115_3_WITH_ONLINE_RESOURCES.decode("utf-8"),
+                    ),
                 )
 
         mock_session.commit.assert_not_called()
@@ -2059,22 +2053,16 @@ class TestUpdateMetadataGn:
         mock_session.get.return_value = self._link(integrity_link_id)
         mock_session.exec.return_value.first.return_value = "OWNER"
 
-        with (
-            patch(
-                "src.api.routes.ingestion.integrity_link.get_settings",
-                return_value=self._mock_settings(),
-            ),
-            patch("src.api.routes.ingestion.integrity_link.MetadataService"),
-            patch(
-                "src.api.routes.ingestion.integrity_link._sync_title_geoserver",
-                side_effect=Exception("GeoServer down"),
-            ),
+        with patch(
+            "src.api.routes.ingestion.integrity_link._sync_title_geoserver",
+            side_effect=Exception("GeoServer down"),
         ):
             update_metadata_gn(
                 session=mock_session,
                 geo_ctx=_geo_ctx(),
                 integrity_link_id=integrity_link_id,
                 group_ids=[],
+                metadata_service=self._mock_metadata_service(),
                 body=self._body("New Title"),
             )
 
@@ -2093,6 +2081,7 @@ class TestUpdateMetadataGn:
                 geo_ctx=_geo_ctx(),
                 integrity_link_id=str(uuid4()),
                 group_ids=[],
+                metadata_service=MagicMock(),
                 body=self._body(),
             )
 
