@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 from lxml import etree
 
@@ -19,7 +19,7 @@ RESOURCE_TITLE_XPATH_19139 = "gmd:distributionInfo/gmd:MD_Distribution/gmd:trans
 
 
 class Iso19139Schema(MetadataSchema):
-    def update_revision_date(self, revision_date: datetime) -> None:
+    def update_revision_date(self, revision_date: datetime) -> Self:
         date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         ns = NS_19139
         codelist_19139 = (
@@ -52,6 +52,7 @@ class Iso19139Schema(MetadataSchema):
                     attrib={"codeList": codelist_19139, "codeListValue": "revision"},
                 ).text = "revision"
             self.updated = True
+        return self
 
     def get_title(self) -> str | None:
         nodes = self.root.xpath(
@@ -61,8 +62,9 @@ class Iso19139Schema(MetadataSchema):
         )
         return nodes[0].text if nodes and nodes[0].text else None
 
-    def update_online_resources_when_title_changed(self, title: str) -> None:
+    def update_online_resources_when_title_changed(self, title: str) -> Self:
         for online in self.root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139):
             if online.text != title:
                 online.text = title
                 self.updated = True
+        return self
