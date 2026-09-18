@@ -10,7 +10,9 @@ if TYPE_CHECKING:
     )
 
 
-from src.services.metadata_service import NS_19115_3, NS_19139, MetadataService
+from src.services.metadata_schema_19115_3 import NS_19115_3, Iso19115_3Schema
+from src.services.metadata_schema_19139 import NS_19139, Iso19139Schema
+from src.services.metadata_service import MetadataService
 from tests.services.metadata_service_internals.samples import (
     SAMPLE_19115_3_WITH_ONLINE_RESOURCES,
     SAMPLE_19139_WITH_ONLINE_RESOURCES,
@@ -25,9 +27,7 @@ class TestUpdateTitle:
     def test_update_title_19115_3(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_WITH_ONLINE_RESOURCES)
 
-        updated = MetadataService._update_online_resources_when_title_changed_19115_3(  # pyright: ignore[reportPrivateUsage]
-            root, "New Title"
-        )
+        updated = Iso19115_3Schema.update_online_resources_when_title_changed(root, "New Title")
 
         nodes = updated.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3)
         assert len(nodes) == 3
@@ -38,9 +38,7 @@ class TestUpdateTitle:
     def test_update_title_19139(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19139_WITH_ONLINE_RESOURCES)
 
-        updated = MetadataService._update_online_resources_when_title_changed_19139(  # pyright: ignore[reportPrivateUsage]
-            root, "New Title"
-        )
+        updated = Iso19139Schema.update_online_resources_when_title_changed(root, "New Title")
 
         nodes = updated.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139)
         assert len(nodes) == 3

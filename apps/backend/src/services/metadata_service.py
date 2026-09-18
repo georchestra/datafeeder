@@ -19,44 +19,20 @@ from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleValue
+from src.services.metadata_schema import NOOP_SCHEMA, MetadataSchema
+from src.services.metadata_schema_19115_3 import ISO_19115_3_SCHEMA
+from src.services.metadata_schema_19139 import ISO_19139_SCHEMA
 
 logger = get_logger()
 
-# ISO schema identifiers used for metadata record detection
-_SCHEMA_19115_3 = "19115-3"
-_SCHEMA_19139 = "19139"
 
-NS_19115_3 = {
-    "mdb": "http://standards.iso.org/iso/19115/-3/mdb/2.0",
-    "mri": "http://standards.iso.org/iso/19115/-3/mri/1.0",
-    "cit": "http://standards.iso.org/iso/19115/-3/cit/2.0",
-    "gco": "http://standards.iso.org/iso/19115/-3/gco/1.0",
-    "lan": "http://standards.iso.org/iso/19115/-3/lan/1.0",
-    "mrd": "http://standards.iso.org/iso/19115/-3/mrd/1.0",
-}
-
-NS_19139 = {
-    "gmd": "http://www.isotc211.org/2005/gmd",
-    "gco": "http://www.isotc211.org/2005/gco",
-}
-
-_CODELIST_URL = (
-    "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_DateTypeCode"
-)
-_ONLINE_FUNCTION_CODELIST_URL = (
-    "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_OnLineFunctionCode"
-)
-
-# Maps a layer_urls key (from GeoserverService.build_layer_urls_for_metadata) to the
-# ISO CI_OnlineResource protocol name it should be published under.
-_LAYER_URL_PROTOCOLS = (
-    ("ogcfeatures", "OGC API Features"),
-    ("wms", "OGC:WMS"),
-    ("wfs", "OGC:WFS"),
-)
-
-RESOURCE_TITLE_XPATH_19115_3 = "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions/mrd:MD_DigitalTransferOptions/mrd:onLine/cit:CI_OnlineResource/cit:description/gco:CharacterString"
-RESOURCE_TITLE_XPATH_19139 = "gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource/gmd:description/gco:CharacterString"
+def detect_schema(root: _Element) -> MetadataSchema:
+    tag = str(root.tag)
+    if "http://standards.iso.org/iso/19115/-3/mdb/2.0" in tag:
+        return ISO_19115_3_SCHEMA
+    if "http://www.isotc211.org/2005/gmd" in tag:
+        return ISO_19139_SCHEMA
+    return NOOP_SCHEMA
 
 
 class MetadataService:
@@ -422,98 +398,6 @@ class MetadataService:
         )
         return self._resolve_group_by_org_name(self.metadata_default_group_name)
 
-    @staticmethod
-    def _detect_schema(root: _Element) -> str | None:
-        """Detect the ISO metadata schema from the root element's namespace tag.
-
-        Returns:
-            Schema identifier string, or None if unsupported.
-        """
-        tag = str(root.tag)
-        if "http://standards.iso.org/iso/19115/-3/mdb/2.0" in tag:
-            return _SCHEMA_19115_3
-        if "http://www.isotc211.org/2005/gmd" in tag:
-            return _SCHEMA_19139
-        return None
-
-    @staticmethod
-    def _update_revision_date_19115_3(root: _Element, revision_date: datetime) -> None:
-        """Insert or replace the data revision date in an ISO 19115-3 record.
-
-        Only updates the citation-level ``mri:citation/cit:CI_Citation/cit:date``
-        element (data revision date). The metadata-level ``mdb:dateInfo`` is not
-        modified. Always writes a ``gco:DateTime``; replaces an existing
-        ``gco:Date`` or ``gco:DateTime`` if present.
-        """
-        date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-        ns = NS_19115_3
-
-        citations = root.xpath(
-            "mdb:identificationInfo/mri:MD_DataIdentification/mri:citation/cit:CI_Citation",
-            namespaces=ns,
-        )
-        for citation in citations:
-            existing = citation.xpath(
-                "cit:date/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
-                "/@codeListValue='revision']/cit:date/*[self::gco:DateTime or self::gco:Date]",
-                namespaces=ns,
-            )
-            if existing:
-                date_node = existing[0]
-                date_node.tag = f"{{{ns['gco']}}}DateTime"
-                date_node.text = date_str
-            else:
-                cit_date_wrapper: _Element = etree.SubElement(citation, f"{{{ns['cit']}}}date")
-                ci_date_el: _Element = etree.SubElement(cit_date_wrapper, f"{{{ns['cit']}}}CI_Date")
-                cit_d: _Element = etree.SubElement(ci_date_el, f"{{{ns['cit']}}}date")
-                etree.SubElement(cit_d, f"{{{ns['gco']}}}DateTime").text = date_str
-                cit_dt: _Element = etree.SubElement(ci_date_el, f"{{{ns['cit']}}}dateType")
-                etree.SubElement(
-                    cit_dt,
-                    f"{{{ns['cit']}}}CI_DateTypeCode",
-                    attrib={"codeList": _CODELIST_URL, "codeListValue": "revision"},
-                ).text = "revision"
-
-    @staticmethod
-    def _update_revision_date_19139(root: _Element, revision_date: datetime) -> None:
-        """Insert or replace the data revision date in an ISO 19139 record.
-
-        Always writes a ``gco:DateTime``; replaces an existing ``gco:Date`` or
-        ``gco:DateTime`` if present. The metadata-level ``gmd:dateStamp`` is not
-        modified.
-        """
-        date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-        ns = NS_19139
-        codelist_19139 = (
-            "http://standards.iso.org/iso/19139/resources/codelist/gmxCodelists.xml#CI_DateTypeCode"
-        )
-
-        citations = root.xpath(
-            "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation",
-            namespaces=ns,
-        )
-        for citation in citations:
-            existing = citation.xpath(
-                "gmd:date/gmd:CI_Date[gmd:dateType/gmd:CI_DateTypeCode"
-                "/@codeListValue='revision']/gmd:date/*[self::gco:DateTime or self::gco:Date]",
-                namespaces=ns,
-            )
-            if existing:
-                date_node = existing[0]
-                date_node.tag = f"{{{ns['gco']}}}DateTime"
-                date_node.text = date_str
-            else:
-                date_wrapper: _Element = etree.SubElement(citation, f"{{{ns['gmd']}}}date")
-                ci_date_el: _Element = etree.SubElement(date_wrapper, f"{{{ns['gmd']}}}CI_Date")
-                d_el: _Element = etree.SubElement(ci_date_el, f"{{{ns['gmd']}}}date")
-                etree.SubElement(d_el, f"{{{ns['gco']}}}DateTime").text = date_str
-                dt_el: _Element = etree.SubElement(ci_date_el, f"{{{ns['gmd']}}}dateType")
-                etree.SubElement(
-                    dt_el,
-                    f"{{{ns['gmd']}}}CI_DateTypeCode",
-                    attrib={"codeList": codelist_19139, "codeListValue": "revision"},
-                ).text = "revision"
-
     def get_title(self, metadata_uuid: str) -> str | None:
         """Fetch the title from an existing GeoNetwork metadata record.
 
@@ -530,25 +414,9 @@ class MetadataService:
             return None
 
         root: _Element = etree.fromstring(xml_bytes)
-        schema = self._detect_schema(root)
+        schema = detect_schema(root)
 
-        if schema == _SCHEMA_19115_3:
-            nodes = root.xpath(
-                "mdb:identificationInfo/mri:MD_DataIdentification"
-                "/mri:citation/cit:CI_Citation/cit:title/gco:CharacterString",
-                namespaces=NS_19115_3,
-            )
-        elif schema == _SCHEMA_19139:
-            nodes = root.xpath(
-                "gmd:identificationInfo/gmd:MD_DataIdentification"
-                "/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString",
-                namespaces=NS_19139,
-            )
-        else:
-            logger.warning("Unsupported schema for title extraction on record %s", metadata_uuid)
-            return None
-
-        return nodes[0].text if nodes and nodes[0].text else None
+        return schema.get_title(root)
 
     def update_revision_date(self, metadata_uuid: str, revision_date: datetime) -> None:
         """Fetch a GeoNetwork record, set its revision date, and save.
@@ -564,20 +432,10 @@ class MetadataService:
         xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
         root: _Element = etree.fromstring(xml_bytes)
 
-        schema = self._detect_schema(root)
-        if schema is None:
-            logger.warning(
-                "Unsupported metadata schema for record %s (root tag: %s), "
-                "skipping revision date update",
-                metadata_uuid,
-                root.tag,
-            )
+        schema = detect_schema(root)
+        updated = schema.update_revision_date(root, revision_date)
+        if not updated:
             return
-
-        if schema == _SCHEMA_19115_3:
-            self._update_revision_date_19115_3(root, revision_date)
-        else:
-            self._update_revision_date_19139(root, revision_date)
 
         updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
 
@@ -593,7 +451,8 @@ class MetadataService:
         try:
             xml: bytes = self.gn_api.get_metadataxml(metadata_uuid)
             root: _Element = etree.fromstring(xml)
-            updated = self.add_online_resources_from_layer_urls_19115_3(root, layer_urls)
+            schema = detect_schema(root)
+            updated = schema.add_online_resources_from_layer_urls_19115_3(root, layer_urls)
             if updated:
                 self.gn_api.upload_metadata(
                     etree.tostring(root, xml_declaration=True, encoding="UTF-8"),
@@ -610,11 +469,8 @@ class MetadataService:
 
     def update_online_resources_when_title_changed(self, xml_bytes: bytes, title: str) -> bytes:
         root: _Element = etree.fromstring(xml_bytes)
-        schema = self._detect_schema(root)
-        if schema == _SCHEMA_19115_3:
-            self._update_online_resources_when_title_changed_19115_3(root, title)
-        else:
-            self._update_online_resources_when_title_changed_19139(root, title)
+        schema = detect_schema(root)
+        schema.update_online_resources_when_title_changed(root, title)
 
         return etree.tostring(root, xml_declaration=True, encoding="UTF-8")
 
@@ -775,95 +631,3 @@ class MetadataService:
         group_owner = sorted(templates_by_group_owner.keys(), key=int)[0]
         template = sorted(templates_by_group_owner[group_owner], key=str)[0]
         return int(group_owner), template
-
-    @staticmethod
-    def _update_online_resources_when_title_changed_19115_3(root: _Element, title: str) -> _Element:
-        for online in root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3):
-            online.text = title
-        return root
-
-    @staticmethod
-    def _update_online_resources_when_title_changed_19139(root: _Element, title: str) -> _Element:
-        for online in root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139):
-            online.text = title
-        return root
-
-    @staticmethod
-    def add_online_resources_from_layer_urls_19115_3(
-        root: _Element, layer_urls: dict[str, Any]
-    ) -> bool:
-        resource_added: bool = False
-        ns = NS_19115_3
-
-        distributions = root.xpath(
-            "mdb:distributionInfo/mrd:MD_Distribution",
-            namespaces=ns,
-        )
-        if not distributions:
-            return resource_added
-        distribution = distributions[0]
-
-        transfer_options_parents = distribution.xpath("mrd:transferOptions", namespaces=ns)
-        if transfer_options_parents:
-            transfer_options_parent = transfer_options_parents[0]
-        else:
-            transfer_options_parent = etree.SubElement(
-                distribution, f"{{{ns['mrd']}}}transferOptions"
-            )
-
-        digital_transfer_options_nodes = transfer_options_parent.xpath(
-            "mrd:MD_DigitalTransferOptions", namespaces=ns
-        )
-        if digital_transfer_options_nodes:
-            transfer_options = digital_transfer_options_nodes[0]
-        else:
-            transfer_options = etree.SubElement(
-                transfer_options_parent, f"{{{ns['mrd']}}}MD_DigitalTransferOptions"
-            )
-
-        existing_protocols = set(
-            transfer_options.xpath(
-                "mrd:onLine/cit:CI_OnlineResource/cit:protocol/gco:CharacterString/text()",
-                namespaces=ns,
-            )
-        )
-
-        layer_name = layer_urls.get("layer_qualified_name", "")
-        title_nodes = root.xpath(
-            "mdb:identificationInfo/mri:MD_DataIdentification/mri:citation"
-            "/cit:CI_Citation/cit:title/gco:CharacterString",
-            namespaces=ns,
-        )
-        description = title_nodes[0].text if title_nodes and title_nodes[0].text else layer_name
-
-        for key, protocol in _LAYER_URL_PROTOCOLS:
-            if protocol in existing_protocols:
-                continue
-            resource_urls = layer_urls.get(key)
-            if not resource_urls:
-                continue
-            linkage = resource_urls["base"] if isinstance(resource_urls, dict) else resource_urls
-
-            online: _Element = etree.SubElement(transfer_options, f"{{{ns['mrd']}}}onLine")
-            resource: _Element = etree.SubElement(online, f"{{{ns['cit']}}}CI_OnlineResource")
-
-            linkage_el: _Element = etree.SubElement(resource, f"{{{ns['cit']}}}linkage")
-            etree.SubElement(linkage_el, f"{{{ns['gco']}}}CharacterString").text = linkage
-
-            protocol_el: _Element = etree.SubElement(resource, f"{{{ns['cit']}}}protocol")
-            etree.SubElement(protocol_el, f"{{{ns['gco']}}}CharacterString").text = protocol
-
-            name_el: _Element = etree.SubElement(resource, f"{{{ns['cit']}}}name")
-            etree.SubElement(name_el, f"{{{ns['gco']}}}CharacterString").text = layer_name
-
-            description_el: _Element = etree.SubElement(resource, f"{{{ns['cit']}}}description")
-            etree.SubElement(description_el, f"{{{ns['gco']}}}CharacterString").text = description
-
-            function_el: _Element = etree.SubElement(resource, f"{{{ns['cit']}}}function")
-            etree.SubElement(
-                function_el,
-                f"{{{ns['cit']}}}CI_OnLineFunctionCode",
-                attrib={"codeList": _ONLINE_FUNCTION_CODELIST_URL, "codeListValue": "download"},
-            ).text = "download"
-            resource_added = True
-        return resource_added

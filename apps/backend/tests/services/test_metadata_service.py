@@ -12,10 +12,8 @@ from lxml import etree
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleValue
-from src.services.metadata_service import (
-    NS_19115_3,
-    MetadataService,
-)
+from src.services.metadata_schema_19115_3 import NS_19115_3
+from src.services.metadata_service import MetadataService
 from tests.services.metadata_service_internals.samples import (
     SAMPLE_19115_3_EMPTY_TRANSFER_OPTIONS,
     SAMPLE_19115_3_NO_REVISION,
