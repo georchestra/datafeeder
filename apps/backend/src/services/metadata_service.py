@@ -419,36 +419,6 @@ class MetadataService:
         schema = self.detect_schema(metadata_uuid)
         return schema.get_title()
 
-    def update_revision_date(self, metadata_uuid: str, revision_date: datetime) -> None:
-        """Fetch a GeoNetwork record, set its revision date, and save.
-
-        Args:
-            metadata_uuid: UUID of the metadata record in GeoNetwork.
-            revision_date: The datetime to set as revision date.
-        """
-        schema = self.detect_schema(metadata_uuid)
-        schema.update_revision_date(revision_date)
-        schema.upload_to_gn()
-        if schema.updated:
-            logger.info("Updated revision date for metadata record %s", metadata_uuid)
-
-    def update_online_resources_from_layer_urls(
-        self, metadata_uuid: str, layer_urls: dict[str, Any]
-    ) -> None:
-        try:
-            schema = self.detect_schema(metadata_uuid)
-            schema.add_online_resources_from_layer_urls_19115_3(layer_urls)
-            schema.upload_to_gn()
-            if schema.updated:
-                logger.info("Updated online resources for metadata record %s", metadata_uuid)
-        except Exception as e:
-            logger.warning(
-                "Failed to update online resources for metadata record %s: %s",
-                metadata_uuid,
-                e,
-                exc_info=True,
-            )
-
     def delete_record(self, metadata_uuid: str) -> None:
         """Delete a metadata record from GeoNetwork.
 
