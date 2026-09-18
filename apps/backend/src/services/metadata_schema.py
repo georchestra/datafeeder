@@ -29,7 +29,7 @@ class MetadataSchema:
     def update_revision_date(self, revision_date: datetime) -> Self:
         return self
 
-    def get_title(self) -> str | None:
+    def read_title(self) -> str | None:
         return None
 
     def update_online_resources_when_title_changed(self, title: str) -> Self:
@@ -59,6 +59,6 @@ class NoopSchema(MetadataSchema):
         logger.warning("Unsupported schema for revision date update (root tag: %s)", self.root.tag)
         return self
 
-    def get_title(self) -> str | None:
+    def read_title(self) -> str | None:
         logger.warning("Unsupported schema for title extraction (root tag: %s)", self.root.tag)
         return None

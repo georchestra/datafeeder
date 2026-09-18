@@ -54,7 +54,7 @@ class Iso19139Schema(MetadataSchema):
             self.updated = True
         return self
 
-    def get_title(self) -> str | None:
+    def read_title(self) -> str | None:
         nodes = self.root.xpath(
             "gmd:identificationInfo/gmd:MD_DataIdentification"
             "/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString",

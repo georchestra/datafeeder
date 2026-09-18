@@ -273,7 +273,7 @@ def update_metadata_gn(
     )
 
     try:
-        metadata_service.detect_schema_from_xml(
+        metadata_service.read_schema_from_xml(
             body.serialized_xml.encode("utf-8")
         ).update_online_resources_when_title_changed(body.title).upload_to_gn()
     except Exception as e:

@@ -427,7 +427,9 @@ async def dag_success_callback(
                 table_name=final_table_name,
                 is_geographic=is_geographic,
             )
-            metadata_service.detect_schema(str(integrity_link.metadata_id)).update_revision_date(
+            metadata_service.read_schema_from_gn(
+                str(integrity_link.metadata_id)
+            ).update_revision_date(
                 datetime.now(timezone.utc)
             ).add_online_resources_from_layer_urls_19115_3(layer_urls).upload_to_gn()
         except Exception as e:

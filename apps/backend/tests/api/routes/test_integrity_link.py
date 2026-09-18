@@ -1934,7 +1934,7 @@ class TestUpdateMetadataGn:
         mock, as the real schema classes do, so the route's chained call works.
         """
         mock_ms = MagicMock()
-        mock_schema = mock_ms.detect_schema_from_xml.return_value
+        mock_schema = mock_ms.read_schema_from_xml.return_value
         mock_schema.update_online_resources_when_title_changed.return_value = mock_schema
         return mock_ms
 
@@ -1946,7 +1946,7 @@ class TestUpdateMetadataGn:
         mock_session.exec.return_value.first.return_value = "OWNER"
 
         mock_ms = self._mock_metadata_service()
-        mock_schema = mock_ms.detect_schema_from_xml.return_value
+        mock_schema = mock_ms.read_schema_from_xml.return_value
 
         update_metadata_gn(
             session=mock_session,
@@ -1957,7 +1957,7 @@ class TestUpdateMetadataGn:
             body=self._body("New Title"),
         )
 
-        mock_ms.detect_schema_from_xml.assert_called_once_with(b"<xml>metadata</xml>")
+        mock_ms.read_schema_from_xml.assert_called_once_with(b"<xml>metadata</xml>")
         mock_schema.update_online_resources_when_title_changed.assert_called_once_with("New Title")
         mock_schema.upload_to_gn.assert_called_once()
         # integrity_title updated before commit

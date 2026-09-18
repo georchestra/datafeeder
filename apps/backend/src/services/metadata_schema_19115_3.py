@@ -70,7 +70,7 @@ class Iso19115_3Schema(MetadataSchema):
             self.updated = True
         return self
 
-    def get_title(self) -> str | None:
+    def read_title(self) -> str | None:
         nodes = self.root.xpath(
             "mdb:identificationInfo/mri:MD_DataIdentification"
             "/mri:citation/cit:CI_Citation/cit:title/gco:CharacterString",
