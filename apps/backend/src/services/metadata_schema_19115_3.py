@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 from lxml import etree
 
@@ -38,7 +38,7 @@ RESOURCE_TITLE_XPATH_19115_3 = "mdb:distributionInfo/mrd:MD_Distribution/mrd:tra
 
 
 class Iso19115_3Schema(MetadataSchema):
-    def update_revision_date(self, revision_date: datetime) -> None:
+    def update_revision_date(self, revision_date: datetime) -> Self:
         date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         ns = NS_19115_3
 
@@ -68,6 +68,7 @@ class Iso19115_3Schema(MetadataSchema):
                     attrib={"codeList": _CODELIST_URL, "codeListValue": "revision"},
                 ).text = "revision"
             self.updated = True
+        return self
 
     def get_title(self) -> str | None:
         nodes = self.root.xpath(
@@ -77,13 +78,14 @@ class Iso19115_3Schema(MetadataSchema):
         )
         return nodes[0].text if nodes and nodes[0].text else None
 
-    def update_online_resources_when_title_changed(self, title: str) -> None:
+    def update_online_resources_when_title_changed(self, title: str) -> Self:
         for online in self.root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3):
             if online.text != title:
                 online.text = title
                 self.updated = True
+        return self
 
-    def add_online_resources_from_layer_urls_19115_3(self, layer_urls: dict[str, Any]) -> None:
+    def add_online_resources_from_layer_urls_19115_3(self, layer_urls: dict[str, Any]) -> Self:
         ns = NS_19115_3
         root = self.root
 
@@ -92,7 +94,7 @@ class Iso19115_3Schema(MetadataSchema):
             namespaces=ns,
         )
         if not distributions:
-            return
+            return self
         distribution = distributions[0]
 
         transfer_options_parents = distribution.xpath("mrd:transferOptions", namespaces=ns)
@@ -158,3 +160,4 @@ class Iso19115_3Schema(MetadataSchema):
                 attrib={"codeList": _ONLINE_FUNCTION_CODELIST_URL, "codeListValue": "download"},
             ).text = "download"
             self.updated = True
+        return self

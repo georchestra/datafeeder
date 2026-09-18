@@ -449,12 +449,6 @@ class MetadataService:
                 exc_info=True,
             )
 
-    def update_online_resources_when_title_changed(self, xml_bytes: bytes, title: str) -> bytes:
-        schema = self.detect_schema_from_xml(xml_bytes)
-        schema.update_online_resources_when_title_changed(title)
-
-        return etree.tostring(schema.root, xml_declaration=True, encoding="UTF-8")
-
     def upload_metadata_xml(self, xml_bytes: bytes) -> None:
         """Upload raw XML bytes to GeoNetwork via OVERWRITE.
 

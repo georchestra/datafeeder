@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 from lxml import etree
 
@@ -26,17 +26,17 @@ class MetadataSchema:
         self.gn_api = gn_api
         self.updated = False
 
-    def update_revision_date(self, revision_date: datetime) -> None:
-        pass
+    def update_revision_date(self, revision_date: datetime) -> Self:
+        return self
 
     def get_title(self) -> str | None:
         return None
 
-    def update_online_resources_when_title_changed(self, title: str) -> None:
-        pass
+    def update_online_resources_when_title_changed(self, title: str) -> Self:
+        return self
 
-    def add_online_resources_from_layer_urls_19115_3(self, layer_urls: dict[str, Any]) -> None:
-        pass
+    def add_online_resources_from_layer_urls_19115_3(self, layer_urls: dict[str, Any]) -> Self:
+        return self
 
     def upload_to_gn(self) -> None:
         """Serialize ``root`` and upload it to GeoNetwork, if it was updated.
@@ -55,8 +55,9 @@ class MetadataSchema:
 class NoopSchema(MetadataSchema):
     """Fallback handler for unrecognized/unsupported metadata schemas."""
 
-    def update_revision_date(self, revision_date: datetime) -> None:
+    def update_revision_date(self, revision_date: datetime) -> Self:
         logger.warning("Unsupported schema for revision date update (root tag: %s)", self.root.tag)
+        return self
 
     def get_title(self) -> str | None:
         logger.warning("Unsupported schema for title extraction (root tag: %s)", self.root.tag)
