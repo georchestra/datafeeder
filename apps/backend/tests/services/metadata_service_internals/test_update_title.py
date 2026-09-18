@@ -29,22 +29,40 @@ class TestUpdateTitle:
 
         updated = Iso19115_3Schema.update_online_resources_when_title_changed(root, "New Title")
 
-        nodes = updated.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3)
+        assert updated is True
+        nodes = root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3)
         assert len(nodes) == 3
         assert nodes[0].text == "New Title"
         assert nodes[1].text == "New Title"
         assert nodes[2].text == "New Title"
+
+    def test_update_title_19115_3_is_noop_when_title_unchanged(self) -> None:
+        root: _Element = etree.fromstring(SAMPLE_19115_3_WITH_ONLINE_RESOURCES)
+        current_title = root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3)[0].text
+
+        updated = Iso19115_3Schema.update_online_resources_when_title_changed(root, current_title)
+
+        assert updated is False
 
     def test_update_title_19139(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19139_WITH_ONLINE_RESOURCES)
 
         updated = Iso19139Schema.update_online_resources_when_title_changed(root, "New Title")
 
-        nodes = updated.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139)
+        assert updated is True
+        nodes = root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139)
         assert len(nodes) == 3
         assert nodes[0].text == "New Title"
         assert nodes[1].text == "New Title"
         assert nodes[2].text == "New Title"
+
+    def test_update_title_19139_is_noop_when_title_unchanged(self) -> None:
+        root: _Element = etree.fromstring(SAMPLE_19139_WITH_ONLINE_RESOURCES)
+        current_title = root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139)[0].text
+
+        updated = Iso19139Schema.update_online_resources_when_title_changed(root, current_title)
+
+        assert updated is False
 
     @patch("src.services.metadata_service.GnApi")
     def test_update_online_resources_when_title_changed_19139(self, mock_gn_api: MagicMock) -> None:

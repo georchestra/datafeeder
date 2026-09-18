@@ -66,10 +66,13 @@ class Iso19139Schema(MetadataSchema):
         return nodes[0].text if nodes and nodes[0].text else None
 
     @staticmethod
-    def update_online_resources_when_title_changed(root: _Element, title: str) -> _Element:
+    def update_online_resources_when_title_changed(root: _Element, title: str) -> bool:
+        changed = False
         for online in root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139):
-            online.text = title
-        return root
+            if online.text != title:
+                online.text = title
+                changed = True
+        return changed
 
 
 ISO_19139_SCHEMA = Iso19139Schema()
