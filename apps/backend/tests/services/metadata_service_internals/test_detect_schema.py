@@ -45,6 +45,17 @@ class TestDetectSchema:
 
         assert isinstance(schema, NoopSchema)
 
+    @patch("src.services.metadata_service.GnApi")
+    def test_returns_noop_when_fetch_fails(self, mock_gn_api: MagicMock) -> None:
+        mock_api = MagicMock()
+        mock_api.get_metadataxml.side_effect = RuntimeError("boom")
+        mock_gn_api.return_value = mock_api
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
+        schema = service.detect_schema("uuid-123")
+
+        assert isinstance(schema, NoopSchema)
+
 
 class TestDetectSchemaFromXml:
     def test_detects_19115_3(self) -> None:
