@@ -19,15 +19,14 @@ RESOURCE_TITLE_XPATH_19139 = "gmd:distributionInfo/gmd:MD_Distribution/gmd:trans
 
 
 class Iso19139Schema(MetadataSchema):
-    @staticmethod
-    def update_revision_date(root: _Element, revision_date: datetime) -> bool:
+    def update_revision_date(self, revision_date: datetime) -> bool:
         date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         ns = NS_19139
         codelist_19139 = (
             "http://standards.iso.org/iso/19139/resources/codelist/gmxCodelists.xml#CI_DateTypeCode"
         )
 
-        citations = root.xpath(
+        citations = self.root.xpath(
             "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation",
             namespaces=ns,
         )
@@ -56,23 +55,18 @@ class Iso19139Schema(MetadataSchema):
             updated = True
         return updated
 
-    @staticmethod
-    def get_title(root: _Element) -> str | None:
-        nodes = root.xpath(
+    def get_title(self) -> str | None:
+        nodes = self.root.xpath(
             "gmd:identificationInfo/gmd:MD_DataIdentification"
             "/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString",
             namespaces=NS_19139,
         )
         return nodes[0].text if nodes and nodes[0].text else None
 
-    @staticmethod
-    def update_online_resources_when_title_changed(root: _Element, title: str) -> bool:
+    def update_online_resources_when_title_changed(self, title: str) -> bool:
         changed = False
-        for online in root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139):
+        for online in self.root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139):
             if online.text != title:
                 online.text = title
                 changed = True
         return changed
-
-
-ISO_19139_SCHEMA = Iso19139Schema()
