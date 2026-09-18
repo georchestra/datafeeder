@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from lxml import etree
 
-from src.services.metadata_service import NS_19115_3, MetadataService
+from src.services.metadata_schema_19115_3 import NS_19115_3, Iso19115_3Schema
 from tests.services.metadata_service_internals.samples import (
     SAMPLE_19115_3_NO_REVISION,
     SAMPLE_19115_3_WITH_REVISION,
@@ -18,12 +18,12 @@ CITATION_REVISION_XPATH_191153 = (
 
 
 class TestUpdateRevisionDate191153:
-    """Tests for _update_revision_date_19115_3."""
+    """Tests for Iso19115_3Schema.update_revision_date."""
 
     def test_insert_when_absent(self) -> None:
         root = etree.fromstring(SAMPLE_19115_3_NO_REVISION)
         rev_date = datetime(2025, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19115_3(root, rev_date)  # pyright: ignore[reportPrivateUsage]
+        Iso19115_3Schema.update_revision_date(root, rev_date)
 
         # citation-level data revision date is inserted as gco:DateTime
         dt_nodes = root.xpath(CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
@@ -46,7 +46,7 @@ class TestUpdateRevisionDate191153:
         """Existing gco:Date revision is replaced with gco:DateTime."""
         root = etree.fromstring(SAMPLE_19115_3_WITH_REVISION)
         rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19115_3(root, rev_date)  # pyright: ignore[reportPrivateUsage]
+        Iso19115_3Schema.update_revision_date(root, rev_date)
 
         dt_nodes = root.xpath(CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
         assert len(dt_nodes) == 1
@@ -65,7 +65,7 @@ class TestUpdateRevisionDate191153:
         """Existing gco:DateTime revision is updated in place."""
         root = etree.fromstring(SAMPLE_19115_3_WITH_REVISION_DATETIME)
         rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        MetadataService._update_revision_date_19115_3(root, rev_date)  # pyright: ignore[reportPrivateUsage]
+        Iso19115_3Schema.update_revision_date(root, rev_date)
 
         dt_nodes = root.xpath(CITATION_REVISION_XPATH_191153, namespaces=NS_19115_3)
         assert len(dt_nodes) == 1

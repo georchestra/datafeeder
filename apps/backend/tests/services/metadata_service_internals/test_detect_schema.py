@@ -1,6 +1,9 @@
 from lxml import etree
 
-from src.services.metadata_service import MetadataService
+from src.services.metadata_schema import NOOP_SCHEMA
+from src.services.metadata_schema_19115_3 import ISO_19115_3_SCHEMA
+from src.services.metadata_schema_19139 import ISO_19139_SCHEMA
+from src.services.metadata_service import detect_schema
 from tests.services.metadata_service_internals.samples import (
     SAMPLE_19115_3_NO_REVISION,
     SAMPLE_19139_NO_REVISION,
@@ -10,12 +13,12 @@ from tests.services.metadata_service_internals.samples import (
 class TestDetectSchema:
     def test_detects_19115_3(self) -> None:
         root = etree.fromstring(SAMPLE_19115_3_NO_REVISION)
-        assert MetadataService._detect_schema(root) == "19115-3"  # pyright: ignore[reportPrivateUsage]
+        assert detect_schema(root) is ISO_19115_3_SCHEMA
 
     def test_detects_19139(self) -> None:
         root = etree.fromstring(SAMPLE_19139_NO_REVISION)
-        assert MetadataService._detect_schema(root) == "19139"  # pyright: ignore[reportPrivateUsage]
+        assert detect_schema(root) is ISO_19139_SCHEMA
 
-    def test_returns_none_for_unsupported(self) -> None:
+    def test_returns_noop_for_unsupported(self) -> None:
         root = etree.fromstring(b"<root/>")
-        assert MetadataService._detect_schema(root) is None  # pyright: ignore[reportPrivateUsage]
+        assert detect_schema(root) is NOOP_SCHEMA
