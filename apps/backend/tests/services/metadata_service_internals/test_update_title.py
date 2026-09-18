@@ -27,9 +27,10 @@ class TestUpdateTitle:
     def test_update_title_19115_3(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_WITH_ONLINE_RESOURCES)
 
-        updated = Iso19115_3Schema(root).update_online_resources_when_title_changed("New Title")
+        schema = Iso19115_3Schema(root, MagicMock())
+        schema.update_online_resources_when_title_changed("New Title")
 
-        assert updated is True
+        assert schema.updated is True
         nodes = root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3)
         assert len(nodes) == 3
         assert nodes[0].text == "New Title"
@@ -40,16 +41,18 @@ class TestUpdateTitle:
         root: _Element = etree.fromstring(SAMPLE_19115_3_WITH_ONLINE_RESOURCES)
         current_title = root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3)[0].text
 
-        updated = Iso19115_3Schema(root).update_online_resources_when_title_changed(current_title)
+        schema = Iso19115_3Schema(root, MagicMock())
+        schema.update_online_resources_when_title_changed(current_title)
 
-        assert updated is False
+        assert schema.updated is False
 
     def test_update_title_19139(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19139_WITH_ONLINE_RESOURCES)
 
-        updated = Iso19139Schema(root).update_online_resources_when_title_changed("New Title")
+        schema = Iso19139Schema(root, MagicMock())
+        schema.update_online_resources_when_title_changed("New Title")
 
-        assert updated is True
+        assert schema.updated is True
         nodes = root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139)
         assert len(nodes) == 3
         assert nodes[0].text == "New Title"
@@ -60,9 +63,10 @@ class TestUpdateTitle:
         root: _Element = etree.fromstring(SAMPLE_19139_WITH_ONLINE_RESOURCES)
         current_title = root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139)[0].text
 
-        updated = Iso19139Schema(root).update_online_resources_when_title_changed(current_title)
+        schema = Iso19139Schema(root, MagicMock())
+        schema.update_online_resources_when_title_changed(current_title)
 
-        assert updated is False
+        assert schema.updated is False
 
     @patch("src.services.metadata_service.GnApi")
     def test_update_online_resources_when_title_changed_19139(self, mock_gn_api: MagicMock) -> None:

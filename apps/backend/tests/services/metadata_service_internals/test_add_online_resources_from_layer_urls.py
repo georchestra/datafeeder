@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
 
 from lxml import etree
 
@@ -43,9 +44,10 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_adds_all_resources_when_none_exist(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_EMPTY_TRANSFER_OPTIONS)
 
-        updated = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(LAYER_URLS)
+        schema = Iso19115_3Schema(root, MagicMock())
+        schema.add_online_resources_from_layer_urls_19115_3(LAYER_URLS)
 
-        assert updated is True
+        assert schema.updated is True
         by_protocol = _resource_by_protocol(root)
         assert set(by_protocol) == {"OGC API Features", "OGC:WMS", "OGC:WFS"}
 
@@ -80,11 +82,10 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_does_not_touch_existing_resource_for_same_protocol(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_PARTIAL_ONLINE_RESOURCES)
 
-        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
-            LAYER_URLS
-        )
+        schema = Iso19115_3Schema(root, MagicMock())
+        schema.add_online_resources_from_layer_urls_19115_3(LAYER_URLS)
 
-        assert updated is True
+        assert schema.updated is True
         by_protocol = _resource_by_protocol(root)
         assert (
             by_protocol["OGC:WMS"].xpath(
@@ -108,11 +109,10 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_does_not_add_anything_when_all_protocols_already_exist(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_WITH_ONLINE_RESOURCES)
 
-        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
-            LAYER_URLS
-        )
+        schema = Iso19115_3Schema(root, MagicMock())
+        schema.add_online_resources_from_layer_urls_19115_3(LAYER_URLS)
 
-        assert updated is False
+        assert schema.updated is False
         by_protocol = _resource_by_protocol(root)
         assert (
             by_protocol["OGC API Features"].xpath(
@@ -136,11 +136,10 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_creates_digital_transfer_options_when_missing(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_NO_DIGITAL_TRANSFER_OPTIONS)
 
-        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
-            LAYER_URLS
-        )
+        schema = Iso19115_3Schema(root, MagicMock())
+        schema.add_online_resources_from_layer_urls_19115_3(LAYER_URLS)
 
-        assert updated is True
+        assert schema.updated is True
         digital_transfer_options = root.xpath(
             "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions"
             "/mrd:MD_DigitalTransferOptions",
@@ -153,11 +152,10 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_creates_transfer_options_when_missing(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_NO_TRANSFER_OPTIONS)
 
-        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
-            LAYER_URLS
-        )
+        schema = Iso19115_3Schema(root, MagicMock())
+        schema.add_online_resources_from_layer_urls_19115_3(LAYER_URLS)
 
-        assert updated is True
+        assert schema.updated is True
         digital_transfer_options = root.xpath(
             "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions"
             "/mrd:MD_DigitalTransferOptions",
@@ -170,20 +168,20 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_is_noop_when_no_transfer_options(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_NO_REVISION)
 
-        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
-            LAYER_URLS
-        )
+        schema = Iso19115_3Schema(root, MagicMock())
+        schema.add_online_resources_from_layer_urls_19115_3(LAYER_URLS)
 
-        assert updated is False
+        assert schema.updated is False
         assert root.xpath(ONLINE_RESOURCE_XPATH, namespaces=NS_19115_3) == []
 
     def test_ignores_missing_layer_url_keys(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_EMPTY_TRANSFER_OPTIONS)
 
-        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
+        schema = Iso19115_3Schema(root, MagicMock())
+        schema.add_online_resources_from_layer_urls_19115_3(
             {"layer_qualified_name": "psc:proj_3948", "ogcfeatures": LAYER_URLS["ogcfeatures"]},
         )
 
-        assert updated is True
+        assert schema.updated is True
         by_protocol = _resource_by_protocol(root)
         assert set(by_protocol) == {"OGC API Features"}

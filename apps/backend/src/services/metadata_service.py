@@ -394,19 +394,18 @@ class MetadataService:
             xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
         except Exception as e:
             logger.warning("Could not fetch metadata XML for %s: %s", metadata_uuid, e)
-            return NoopSchema(etree.Element("unknown"))
+            return NoopSchema(etree.Element("unknown"), self.gn_api)
 
         return self.detect_schema_from_xml(xml_bytes)
 
-    @staticmethod
-    def detect_schema_from_xml(xml_bytes: bytes) -> MetadataSchema:
+    def detect_schema_from_xml(self, xml_bytes: bytes) -> MetadataSchema:
         root: _Element = etree.fromstring(xml_bytes)
         tag = str(root.tag)
         if "http://standards.iso.org/iso/19115/-3/mdb/2.0" in tag:
-            return Iso19115_3Schema(root)
+            return Iso19115_3Schema(root, self.gn_api)
         if "http://www.isotc211.org/2005/gmd" in tag:
-            return Iso19139Schema(root)
-        return NoopSchema(root)
+            return Iso19139Schema(root, self.gn_api)
+        return NoopSchema(root, self.gn_api)
 
     def get_title(self, metadata_uuid: str) -> str | None:
         """Fetch the title from an existing GeoNetwork metadata record.
@@ -423,38 +422,24 @@ class MetadataService:
     def update_revision_date(self, metadata_uuid: str, revision_date: datetime) -> None:
         """Fetch a GeoNetwork record, set its revision date, and save.
 
-        Uses the GeoNetwork upload endpoint (POST /records with
-        ``uuidprocessing="OVERWRITE"``) via ``GnApi.upload_metadata`` to update
-        the XML while preserving the record's publication status/privileges.
-
         Args:
             metadata_uuid: UUID of the metadata record in GeoNetwork.
             revision_date: The datetime to set as revision date.
         """
         schema = self.detect_schema(metadata_uuid)
-        updated = schema.update_revision_date(revision_date)
-        if not updated:
-            return
-
-        updated_xml = etree.tostring(schema.root, xml_declaration=True, encoding="UTF-8")
-
-        # Use POST /records with OVERWRITE — GeoNetwork does not expose a raw-PUT
-        # record update endpoint. OVERWRITE on an existing record updates the XML
-        # without altering its publication privileges.
-        self.gn_api.upload_metadata(updated_xml, uuidprocessing="OVERWRITE")
-        logger.info("Updated revision date for metadata record %s", metadata_uuid)
+        schema.update_revision_date(revision_date)
+        schema.upload_to_gn()
+        if schema.updated:
+            logger.info("Updated revision date for metadata record %s", metadata_uuid)
 
     def update_online_resources_from_layer_urls(
         self, metadata_uuid: str, layer_urls: dict[str, Any]
     ) -> None:
         try:
             schema = self.detect_schema(metadata_uuid)
-            updated = schema.add_online_resources_from_layer_urls_19115_3(layer_urls)
-            if updated:
-                self.gn_api.upload_metadata(
-                    etree.tostring(schema.root, xml_declaration=True, encoding="UTF-8"),
-                    uuidprocessing="OVERWRITE",
-                )
+            schema.add_online_resources_from_layer_urls_19115_3(layer_urls)
+            schema.upload_to_gn()
+            if schema.updated:
                 logger.info("Updated online resources for metadata record %s", metadata_uuid)
         except Exception as e:
             logger.warning(

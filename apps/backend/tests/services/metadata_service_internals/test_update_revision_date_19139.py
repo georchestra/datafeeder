@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from unittest.mock import MagicMock
 
 from lxml import etree
 
@@ -23,7 +24,10 @@ class TestUpdateRevisionDate19139:
     def test_insert_when_absent(self) -> None:
         root = etree.fromstring(SAMPLE_19139_NO_REVISION)
         rev_date = datetime(2025, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
-        Iso19139Schema(root).update_revision_date(rev_date)
+        schema = Iso19139Schema(root, MagicMock())
+        schema.update_revision_date(rev_date)
+
+        assert schema.updated is True
 
         dt_nodes = root.xpath(CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
         assert len(dt_nodes) == 1
@@ -33,7 +37,7 @@ class TestUpdateRevisionDate19139:
         """Existing gco:Date revision is replaced with gco:DateTime."""
         root = etree.fromstring(SAMPLE_19139_WITH_REVISION)
         rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        Iso19139Schema(root).update_revision_date(rev_date)
+        Iso19139Schema(root, MagicMock()).update_revision_date(rev_date)
 
         dt_nodes = root.xpath(CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
         assert len(dt_nodes) == 1
@@ -43,7 +47,7 @@ class TestUpdateRevisionDate19139:
         """Existing gco:DateTime revision is updated in place."""
         root = etree.fromstring(SAMPLE_19139_WITH_REVISION_DATETIME)
         rev_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        Iso19139Schema(root).update_revision_date(rev_date)
+        Iso19139Schema(root, MagicMock()).update_revision_date(rev_date)
 
         dt_nodes = root.xpath(CITATION_REVISION_XPATH_19139, namespaces=NS_19139)
         assert len(dt_nodes) == 1

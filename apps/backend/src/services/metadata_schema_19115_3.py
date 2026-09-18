@@ -38,7 +38,7 @@ RESOURCE_TITLE_XPATH_19115_3 = "mdb:distributionInfo/mrd:MD_Distribution/mrd:tra
 
 
 class Iso19115_3Schema(MetadataSchema):
-    def update_revision_date(self, revision_date: datetime) -> bool:
+    def update_revision_date(self, revision_date: datetime) -> None:
         date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         ns = NS_19115_3
 
@@ -46,7 +46,6 @@ class Iso19115_3Schema(MetadataSchema):
             "mdb:identificationInfo/mri:MD_DataIdentification/mri:citation/cit:CI_Citation",
             namespaces=ns,
         )
-        updated = False
         for citation in citations:
             existing = citation.xpath(
                 "cit:date/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode"
@@ -68,8 +67,7 @@ class Iso19115_3Schema(MetadataSchema):
                     f"{{{ns['cit']}}}CI_DateTypeCode",
                     attrib={"codeList": _CODELIST_URL, "codeListValue": "revision"},
                 ).text = "revision"
-            updated = True
-        return updated
+            self.updated = True
 
     def get_title(self) -> str | None:
         nodes = self.root.xpath(
@@ -79,16 +77,13 @@ class Iso19115_3Schema(MetadataSchema):
         )
         return nodes[0].text if nodes and nodes[0].text else None
 
-    def update_online_resources_when_title_changed(self, title: str) -> bool:
-        changed = False
+    def update_online_resources_when_title_changed(self, title: str) -> None:
         for online in self.root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3):
             if online.text != title:
                 online.text = title
-                changed = True
-        return changed
+                self.updated = True
 
-    def add_online_resources_from_layer_urls_19115_3(self, layer_urls: dict[str, Any]) -> bool:
-        resource_added: bool = False
+    def add_online_resources_from_layer_urls_19115_3(self, layer_urls: dict[str, Any]) -> None:
         ns = NS_19115_3
         root = self.root
 
@@ -97,7 +92,7 @@ class Iso19115_3Schema(MetadataSchema):
             namespaces=ns,
         )
         if not distributions:
-            return resource_added
+            return
         distribution = distributions[0]
 
         transfer_options_parents = distribution.xpath("mrd:transferOptions", namespaces=ns)
@@ -162,5 +157,4 @@ class Iso19115_3Schema(MetadataSchema):
                 f"{{{ns['cit']}}}CI_OnLineFunctionCode",
                 attrib={"codeList": _ONLINE_FUNCTION_CODELIST_URL, "codeListValue": "download"},
             ).text = "download"
-            resource_added = True
-        return resource_added
+            self.updated = True

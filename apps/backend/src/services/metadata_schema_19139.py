@@ -19,7 +19,7 @@ RESOURCE_TITLE_XPATH_19139 = "gmd:distributionInfo/gmd:MD_Distribution/gmd:trans
 
 
 class Iso19139Schema(MetadataSchema):
-    def update_revision_date(self, revision_date: datetime) -> bool:
+    def update_revision_date(self, revision_date: datetime) -> None:
         date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         ns = NS_19139
         codelist_19139 = (
@@ -30,7 +30,6 @@ class Iso19139Schema(MetadataSchema):
             "gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation",
             namespaces=ns,
         )
-        updated = False
         for citation in citations:
             existing = citation.xpath(
                 "gmd:date/gmd:CI_Date[gmd:dateType/gmd:CI_DateTypeCode"
@@ -52,8 +51,7 @@ class Iso19139Schema(MetadataSchema):
                     f"{{{ns['gmd']}}}CI_DateTypeCode",
                     attrib={"codeList": codelist_19139, "codeListValue": "revision"},
                 ).text = "revision"
-            updated = True
-        return updated
+            self.updated = True
 
     def get_title(self) -> str | None:
         nodes = self.root.xpath(
@@ -63,10 +61,8 @@ class Iso19139Schema(MetadataSchema):
         )
         return nodes[0].text if nodes and nodes[0].text else None
 
-    def update_online_resources_when_title_changed(self, title: str) -> bool:
-        changed = False
+    def update_online_resources_when_title_changed(self, title: str) -> None:
         for online in self.root.xpath(RESOURCE_TITLE_XPATH_19139, namespaces=NS_19139):
             if online.text != title:
                 online.text = title
-                changed = True
-        return changed
+                self.updated = True
