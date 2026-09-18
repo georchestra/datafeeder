@@ -33,7 +33,9 @@ def create_prefilled_dataset(
     geo_ctx: GeorchestraContextDep,
     metadata_service: MetadataServiceDep,
 ) -> IntegrityLinkResponse:
-    title = metadata_service.get_title(request.metadata_id) or "Untitled Dataset"
+    title = (
+        metadata_service.read_schema_from_gn(request.metadata_id).read_title() or "Untitled Dataset"
+    )
 
     integrity_link = IntegrityLink(
         integrity_owner=geo_ctx.username,

@@ -10,7 +10,7 @@ from tests.services.metadata_service_internals.samples import (
 )
 
 
-class TestDetectSchema:
+class TestReadSchemaFromGn:
     @patch("src.services.metadata_service.GnApi")
     def test_detects_19115_3(self, mock_gn_api: MagicMock) -> None:
         mock_api = MagicMock()
@@ -18,7 +18,7 @@ class TestDetectSchema:
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        schema = service.detect_schema("uuid-123")
+        schema = service.read_schema_from_gn("uuid-123")
 
         assert isinstance(schema, Iso19115_3Schema)
         mock_api.get_metadataxml.assert_called_once_with("uuid-123")
@@ -30,7 +30,7 @@ class TestDetectSchema:
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        schema = service.detect_schema("uuid-123")
+        schema = service.read_schema_from_gn("uuid-123")
 
         assert isinstance(schema, Iso19139Schema)
 
@@ -41,7 +41,7 @@ class TestDetectSchema:
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        schema = service.detect_schema("uuid-123")
+        schema = service.read_schema_from_gn("uuid-123")
 
         assert isinstance(schema, NoopSchema)
 
@@ -52,29 +52,29 @@ class TestDetectSchema:
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        schema = service.detect_schema("uuid-123")
+        schema = service.read_schema_from_gn("uuid-123")
 
         assert isinstance(schema, NoopSchema)
 
 
-class TestDetectSchemaFromXml:
+class TestReadSchemaFromXml:
     @patch("src.services.metadata_service.GnApi")
     def test_detects_19115_3(self, mock_gn_api: MagicMock) -> None:
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        schema = service.detect_schema_from_xml(SAMPLE_19115_3_NO_REVISION)
+        schema = service.read_schema_from_xml(SAMPLE_19115_3_NO_REVISION)
 
         assert isinstance(schema, Iso19115_3Schema)
 
     @patch("src.services.metadata_service.GnApi")
     def test_detects_19139(self, mock_gn_api: MagicMock) -> None:
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        schema = service.detect_schema_from_xml(SAMPLE_19139_NO_REVISION)
+        schema = service.read_schema_from_xml(SAMPLE_19139_NO_REVISION)
 
         assert isinstance(schema, Iso19139Schema)
 
     @patch("src.services.metadata_service.GnApi")
     def test_returns_noop_for_unsupported(self, mock_gn_api: MagicMock) -> None:
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        schema = service.detect_schema_from_xml(b"<root/>")
+        schema = service.read_schema_from_xml(b"<root/>")
 
         assert isinstance(schema, NoopSchema)

@@ -179,7 +179,7 @@ class TestDagSuccessCallbackRevisionDate:
         link = _make_integrity_link_with_metadata()
         mock_table_cls.return_value.c = {}  # no geometry column
         mock_metadata_service = MagicMock()
-        mock_schema = mock_metadata_service.detect_schema.return_value
+        mock_schema = mock_metadata_service.read_schema_from_gn.return_value
         mock_schema.update_revision_date.return_value = mock_schema
         mock_schema.add_online_resources_from_layer_urls_19115_3.return_value = mock_schema
 
@@ -194,7 +194,7 @@ class TestDagSuccessCallbackRevisionDate:
             target_schema="target_schema",
         )
 
-        mock_metadata_service.detect_schema.assert_called_once_with(str(link.id))
+        mock_metadata_service.read_schema_from_gn.assert_called_once_with(str(link.id))
         mock_schema.update_revision_date.assert_called_once()
         call_args = mock_schema.update_revision_date.call_args
         assert isinstance(call_args[0][0], datetime)
@@ -230,7 +230,7 @@ class TestDagSuccessCallbackRevisionDate:
             target_schema="target_schema",
         )
 
-        mock_metadata_service.detect_schema.assert_not_called()
+        mock_metadata_service.read_schema_from_gn.assert_not_called()
 
     @patch("src.api.routes.ingestion.process.Table")
     @patch("src.api.routes.ingestion.process.create_schema")
@@ -243,7 +243,9 @@ class TestDagSuccessCallbackRevisionDate:
         link = _make_integrity_link_with_metadata()
         mock_table_cls.return_value.c = {}
         mock_metadata_service = MagicMock()
-        mock_metadata_service.detect_schema.side_effect = RuntimeError("GeoNetwork unavailable")
+        mock_metadata_service.read_schema_from_gn.side_effect = RuntimeError(
+            "GeoNetwork unavailable"
+        )
 
         # Should not raise
         await dag_success_callback(

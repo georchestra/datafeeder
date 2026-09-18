@@ -675,7 +675,7 @@ class TestMetadataService:
 
 
 class TestUpdateRevisionDateEndToEnd:
-    """Test the detect_schema().update_revision_date().upload_to_gn() chain, end-to-end."""
+    """Test the read_schema_from_gn().update_revision_date().upload_to_gn() chain, end-to-end."""
 
     @patch("src.services.metadata_service.GnApi")
     def test_fetch_update_save_19115_3(self, mock_gn_api: MagicMock) -> None:
@@ -686,7 +686,7 @@ class TestUpdateRevisionDateEndToEnd:
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        service.detect_schema("uuid-123").update_revision_date(
+        service.read_schema_from_gn("uuid-123").update_revision_date(
             datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
         ).upload_to_gn()
 
@@ -708,7 +708,7 @@ class TestUpdateRevisionDateEndToEnd:
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        service.detect_schema("uuid-999").update_revision_date(
+        service.read_schema_from_gn("uuid-999").update_revision_date(
             datetime.now(timezone.utc)
         ).upload_to_gn()
 
@@ -716,7 +716,7 @@ class TestUpdateRevisionDateEndToEnd:
 
 
 class TestUpdateOnlineResourcesFromLayerUrlsEndToEnd:
-    """Test the detect_schema().add_online_resources_from_layer_urls_19115_3().upload_to_gn() chain."""
+    """Test the read_schema_from_gn().add_online_resources_from_layer_urls_19115_3().upload_to_gn() chain."""
 
     @patch("src.services.metadata_service.GnApi")
     def test_fetch_update_save_19115_3(self, mock_gn_api: MagicMock) -> None:
@@ -726,7 +726,7 @@ class TestUpdateOnlineResourcesFromLayerUrlsEndToEnd:
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        service.detect_schema("uuid-123").add_online_resources_from_layer_urls_19115_3(
+        service.read_schema_from_gn("uuid-123").add_online_resources_from_layer_urls_19115_3(
             LAYER_URLS
         ).upload_to_gn()
 
@@ -764,7 +764,7 @@ class TestUpdateOnlineResourcesFromLayerUrlsEndToEnd:
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        service.detect_schema("uuid-123").add_online_resources_from_layer_urls_19115_3(
+        service.read_schema_from_gn("uuid-123").add_online_resources_from_layer_urls_19115_3(
             LAYER_URLS
         ).upload_to_gn()
 
@@ -778,7 +778,7 @@ class TestUpdateOnlineResourcesFromLayerUrlsEndToEnd:
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        service.detect_schema("uuid-999").add_online_resources_from_layer_urls_19115_3(
+        service.read_schema_from_gn("uuid-999").add_online_resources_from_layer_urls_19115_3(
             LAYER_URLS
         ).upload_to_gn()
 
@@ -792,7 +792,7 @@ class TestUpdateOnlineResourcesFromLayerUrlsEndToEnd:
         mock_gn_api.return_value = mock_api
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
-        service.detect_schema("uuid-999").add_online_resources_from_layer_urls_19115_3(
+        service.read_schema_from_gn("uuid-999").add_online_resources_from_layer_urls_19115_3(
             LAYER_URLS
         ).upload_to_gn()
 

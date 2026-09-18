@@ -389,16 +389,16 @@ class MetadataService:
         )
         return self._resolve_group_by_org_name(self.metadata_default_group_name)
 
-    def detect_schema(self, metadata_uuid: str) -> MetadataSchema:
+    def read_schema_from_gn(self, metadata_uuid: str) -> MetadataSchema:
         try:
             xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
         except Exception as e:
             logger.warning("Could not fetch metadata XML for %s: %s", metadata_uuid, e)
             return NoopSchema(etree.Element("unknown"), self.gn_api)
 
-        return self.detect_schema_from_xml(xml_bytes)
+        return self.read_schema_from_xml(xml_bytes)
 
-    def detect_schema_from_xml(self, xml_bytes: bytes) -> MetadataSchema:
+    def read_schema_from_xml(self, xml_bytes: bytes) -> MetadataSchema:
         root: _Element = etree.fromstring(xml_bytes)
         tag = str(root.tag)
         if "http://standards.iso.org/iso/19115/-3/mdb/2.0" in tag:
@@ -406,18 +406,6 @@ class MetadataService:
         if "http://www.isotc211.org/2005/gmd" in tag:
             return Iso19139Schema(root, self.gn_api)
         return NoopSchema(root, self.gn_api)
-
-    def get_title(self, metadata_uuid: str) -> str | None:
-        """Fetch the title from an existing GeoNetwork metadata record.
-
-        Args:
-            metadata_uuid: UUID of the metadata record in GeoNetwork.
-
-        Returns:
-            Title string, or None if the record or title cannot be read.
-        """
-        schema = self.detect_schema(metadata_uuid)
-        return schema.get_title()
 
     def delete_record(self, metadata_uuid: str) -> None:
         """Delete a metadata record from GeoNetwork.
