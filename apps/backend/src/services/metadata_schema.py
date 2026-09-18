@@ -12,37 +12,35 @@ logger = get_logger()
 
 
 class MetadataSchema:
-    @staticmethod
-    def update_revision_date(root: _Element, revision_date: datetime) -> bool:
+    """Base class/interface for schema-specific ISO metadata operations.
+
+    Wraps the parsed record (``root``) an instance operates on. Provides
+    no-op defaults; concrete schemas override what they support.
+    """
+
+    def __init__(self, root: _Element) -> None:
+        self.root = root
+
+    def update_revision_date(self, revision_date: datetime) -> bool:
         return False
 
-    @staticmethod
-    def get_title(root: _Element) -> str | None:
+    def get_title(self) -> str | None:
         return None
 
-    @staticmethod
-    def update_online_resources_when_title_changed(root: _Element, title: str) -> bool:
+    def update_online_resources_when_title_changed(self, title: str) -> bool:
         return False
 
-    @staticmethod
-    def add_online_resources_from_layer_urls_19115_3(
-        root: _Element, layer_urls: dict[str, Any]
-    ) -> bool:
+    def add_online_resources_from_layer_urls_19115_3(self, layer_urls: dict[str, Any]) -> bool:
         return False
 
 
 class NoopSchema(MetadataSchema):
     """Fallback handler for unrecognized/unsupported metadata schemas."""
 
-    @staticmethod
-    def update_revision_date(root: _Element, revision_date: datetime) -> bool:
-        logger.warning("Unsupported schema for revision date update (root tag: %s)", root.tag)
+    def update_revision_date(self, revision_date: datetime) -> bool:
+        logger.warning("Unsupported schema for revision date update (root tag: %s)", self.root.tag)
         return False
 
-    @staticmethod
-    def get_title(root: _Element) -> str | None:
-        logger.warning("Unsupported schema for title extraction (root tag: %s)", root.tag)
+    def get_title(self) -> str | None:
+        logger.warning("Unsupported schema for title extraction (root tag: %s)", self.root.tag)
         return None
-
-
-NOOP_SCHEMA = NoopSchema()

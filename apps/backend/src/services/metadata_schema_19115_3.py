@@ -38,12 +38,11 @@ RESOURCE_TITLE_XPATH_19115_3 = "mdb:distributionInfo/mrd:MD_Distribution/mrd:tra
 
 
 class Iso19115_3Schema(MetadataSchema):
-    @staticmethod
-    def update_revision_date(root: _Element, revision_date: datetime) -> bool:
+    def update_revision_date(self, revision_date: datetime) -> bool:
         date_str = revision_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         ns = NS_19115_3
 
-        citations = root.xpath(
+        citations = self.root.xpath(
             "mdb:identificationInfo/mri:MD_DataIdentification/mri:citation/cit:CI_Citation",
             namespaces=ns,
         )
@@ -72,30 +71,26 @@ class Iso19115_3Schema(MetadataSchema):
             updated = True
         return updated
 
-    @staticmethod
-    def get_title(root: _Element) -> str | None:
-        nodes = root.xpath(
+    def get_title(self) -> str | None:
+        nodes = self.root.xpath(
             "mdb:identificationInfo/mri:MD_DataIdentification"
             "/mri:citation/cit:CI_Citation/cit:title/gco:CharacterString",
             namespaces=NS_19115_3,
         )
         return nodes[0].text if nodes and nodes[0].text else None
 
-    @staticmethod
-    def update_online_resources_when_title_changed(root: _Element, title: str) -> bool:
+    def update_online_resources_when_title_changed(self, title: str) -> bool:
         changed = False
-        for online in root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3):
+        for online in self.root.xpath(RESOURCE_TITLE_XPATH_19115_3, namespaces=NS_19115_3):
             if online.text != title:
                 online.text = title
                 changed = True
         return changed
 
-    @staticmethod
-    def add_online_resources_from_layer_urls_19115_3(
-        root: _Element, layer_urls: dict[str, Any]
-    ) -> bool:
+    def add_online_resources_from_layer_urls_19115_3(self, layer_urls: dict[str, Any]) -> bool:
         resource_added: bool = False
         ns = NS_19115_3
+        root = self.root
 
         distributions = root.xpath(
             "mdb:distributionInfo/mrd:MD_Distribution",
@@ -169,6 +164,3 @@ class Iso19115_3Schema(MetadataSchema):
             ).text = "download"
             resource_added = True
         return resource_added
-
-
-ISO_19115_3_SCHEMA = Iso19115_3Schema()

@@ -43,7 +43,7 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_adds_all_resources_when_none_exist(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_EMPTY_TRANSFER_OPTIONS)
 
-        updated = Iso19115_3Schema.add_online_resources_from_layer_urls_19115_3(root, LAYER_URLS)
+        updated = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(LAYER_URLS)
 
         assert updated is True
         by_protocol = _resource_by_protocol(root)
@@ -80,8 +80,8 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_does_not_touch_existing_resource_for_same_protocol(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_PARTIAL_ONLINE_RESOURCES)
 
-        updated: bool = Iso19115_3Schema.add_online_resources_from_layer_urls_19115_3(
-            root, LAYER_URLS
+        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
+            LAYER_URLS
         )
 
         assert updated is True
@@ -108,8 +108,8 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_does_not_add_anything_when_all_protocols_already_exist(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_WITH_ONLINE_RESOURCES)
 
-        updated: bool = Iso19115_3Schema.add_online_resources_from_layer_urls_19115_3(
-            root, LAYER_URLS
+        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
+            LAYER_URLS
         )
 
         assert updated is False
@@ -136,8 +136,8 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_creates_digital_transfer_options_when_missing(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_NO_DIGITAL_TRANSFER_OPTIONS)
 
-        updated: bool = Iso19115_3Schema.add_online_resources_from_layer_urls_19115_3(
-            root, LAYER_URLS
+        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
+            LAYER_URLS
         )
 
         assert updated is True
@@ -153,8 +153,8 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_creates_transfer_options_when_missing(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_NO_TRANSFER_OPTIONS)
 
-        updated: bool = Iso19115_3Schema.add_online_resources_from_layer_urls_19115_3(
-            root, LAYER_URLS
+        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
+            LAYER_URLS
         )
 
         assert updated is True
@@ -170,8 +170,8 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_is_noop_when_no_transfer_options(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_NO_REVISION)
 
-        updated: bool = Iso19115_3Schema.add_online_resources_from_layer_urls_19115_3(
-            root, LAYER_URLS
+        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
+            LAYER_URLS
         )
 
         assert updated is False
@@ -180,8 +180,7 @@ class TestAddOnlineResourcesFromLayerUrls:
     def test_ignores_missing_layer_url_keys(self) -> None:
         root: _Element = etree.fromstring(SAMPLE_19115_3_EMPTY_TRANSFER_OPTIONS)
 
-        updated: bool = Iso19115_3Schema.add_online_resources_from_layer_urls_19115_3(
-            root,
+        updated: bool = Iso19115_3Schema(root).add_online_resources_from_layer_urls_19115_3(
             {"layer_qualified_name": "psc:proj_3948", "ogcfeatures": LAYER_URLS["ogcfeatures"]},
         )
 

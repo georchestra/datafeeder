@@ -19,20 +19,11 @@ from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleValue
-from src.services.metadata_schema import NOOP_SCHEMA, MetadataSchema
-from src.services.metadata_schema_19115_3 import ISO_19115_3_SCHEMA
-from src.services.metadata_schema_19139 import ISO_19139_SCHEMA
+from src.services.metadata_schema import MetadataSchema, NoopSchema
+from src.services.metadata_schema_19115_3 import Iso19115_3Schema
+from src.services.metadata_schema_19139 import Iso19139Schema
 
 logger = get_logger()
-
-
-def detect_schema(root: _Element) -> MetadataSchema:
-    tag = str(root.tag)
-    if "http://standards.iso.org/iso/19115/-3/mdb/2.0" in tag:
-        return ISO_19115_3_SCHEMA
-    if "http://www.isotc211.org/2005/gmd" in tag:
-        return ISO_19139_SCHEMA
-    return NOOP_SCHEMA
 
 
 class MetadataService:
@@ -398,6 +389,40 @@ class MetadataService:
         )
         return self._resolve_group_by_org_name(self.metadata_default_group_name)
 
+    def detect_schema(self, metadata_uuid: str) -> MetadataSchema:
+        """Fetch a GeoNetwork metadata record and return its schema instance.
+
+        Args:
+            metadata_uuid: UUID of the metadata record in GeoNetwork.
+
+        Returns:
+            A schema instance wrapping the parsed record, ready to be
+            processed by ``get_title``, the update methods, or
+            ``add_online_resources_from_layer_urls_19115_3``.
+        """
+        xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
+        return self.detect_schema_from_xml(xml_bytes)
+
+    @staticmethod
+    def detect_schema_from_xml(xml_bytes: bytes) -> MetadataSchema:
+        """Parse raw metadata XML and return its schema instance.
+
+        Args:
+            xml_bytes: Raw UTF-8 encoded XML of the metadata record.
+
+        Returns:
+            A schema instance wrapping the parsed record, ready to be
+            processed by ``get_title``, the update methods, or
+            ``add_online_resources_from_layer_urls_19115_3``.
+        """
+        root: _Element = etree.fromstring(xml_bytes)
+        tag = str(root.tag)
+        if "http://standards.iso.org/iso/19115/-3/mdb/2.0" in tag:
+            return Iso19115_3Schema(root)
+        if "http://www.isotc211.org/2005/gmd" in tag:
+            return Iso19139Schema(root)
+        return NoopSchema(root)
+
     def get_title(self, metadata_uuid: str) -> str | None:
         """Fetch the title from an existing GeoNetwork metadata record.
 
@@ -408,15 +433,12 @@ class MetadataService:
             Title string, or None if the record or title cannot be read.
         """
         try:
-            xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
+            schema = self.detect_schema(metadata_uuid)
         except Exception as e:
             logger.warning("Could not fetch metadata XML for %s: %s", metadata_uuid, e)
             return None
 
-        root: _Element = etree.fromstring(xml_bytes)
-        schema = detect_schema(root)
-
-        return schema.get_title(root)
+        return schema.get_title()
 
     def update_revision_date(self, metadata_uuid: str, revision_date: datetime) -> None:
         """Fetch a GeoNetwork record, set its revision date, and save.
@@ -429,15 +451,12 @@ class MetadataService:
             metadata_uuid: UUID of the metadata record in GeoNetwork.
             revision_date: The datetime to set as revision date.
         """
-        xml_bytes: bytes = self.gn_api.get_metadataxml(metadata_uuid)
-        root: _Element = etree.fromstring(xml_bytes)
-
-        schema = detect_schema(root)
-        updated = schema.update_revision_date(root, revision_date)
+        schema = self.detect_schema(metadata_uuid)
+        updated = schema.update_revision_date(revision_date)
         if not updated:
             return
 
-        updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")
+        updated_xml = etree.tostring(schema.root, xml_declaration=True, encoding="UTF-8")
 
         # Use POST /records with OVERWRITE — GeoNetwork does not expose a raw-PUT
         # record update endpoint. OVERWRITE on an existing record updates the XML
@@ -449,13 +468,11 @@ class MetadataService:
         self, metadata_uuid: str, layer_urls: dict[str, Any]
     ) -> None:
         try:
-            xml: bytes = self.gn_api.get_metadataxml(metadata_uuid)
-            root: _Element = etree.fromstring(xml)
-            schema = detect_schema(root)
-            updated = schema.add_online_resources_from_layer_urls_19115_3(root, layer_urls)
+            schema = self.detect_schema(metadata_uuid)
+            updated = schema.add_online_resources_from_layer_urls_19115_3(layer_urls)
             if updated:
                 self.gn_api.upload_metadata(
-                    etree.tostring(root, xml_declaration=True, encoding="UTF-8"),
+                    etree.tostring(schema.root, xml_declaration=True, encoding="UTF-8"),
                     uuidprocessing="OVERWRITE",
                 )
                 logger.info("Updated online resources for metadata record %s", metadata_uuid)
@@ -468,11 +485,10 @@ class MetadataService:
             )
 
     def update_online_resources_when_title_changed(self, xml_bytes: bytes, title: str) -> bytes:
-        root: _Element = etree.fromstring(xml_bytes)
-        schema = detect_schema(root)
-        schema.update_online_resources_when_title_changed(root, title)
+        schema = self.detect_schema_from_xml(xml_bytes)
+        schema.update_online_resources_when_title_changed(title)
 
-        return etree.tostring(root, xml_declaration=True, encoding="UTF-8")
+        return etree.tostring(schema.root, xml_declaration=True, encoding="UTF-8")
 
     def upload_metadata_xml(self, xml_bytes: bytes) -> None:
         """Upload raw XML bytes to GeoNetwork via OVERWRITE.
