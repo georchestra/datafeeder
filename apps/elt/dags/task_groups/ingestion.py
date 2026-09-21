@@ -89,9 +89,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         def do_branching(**context: dict[str, Any]) -> str | bool:
             params = context.get("params", {})
             source_type = params.get("source_type")
-
             logger.info(f"Ingestion source_type: {source_type}")
-
             match source_type:
                 case "FILE":
                     return f"{group_id}.file_ingest_step"
@@ -110,9 +108,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         def file_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
             target_table_name = _resolve_staging_table_name(context, params)
-
             engine = get_data_sql_engine()
-
             try:
                 ingest_data_from_file_into_postgis(
                     params.get("source", ""),
@@ -127,12 +123,8 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         def url_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
             target_table_name = _resolve_staging_table_name(context, params)
-
-            # Decrypt Basic Auth credentials if provided
             auth = _resolve_auth_credentials(params)
-
             engine = get_data_sql_engine()
-
             try:
                 ingest_data_from_url_into_postgis(
                     params.get("source", ""),
@@ -148,14 +140,10 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         def ftp_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
             target_table_name = _resolve_staging_table_name(context, params)
-
-            # Decrypt Ftp credentials if provided
             auth = _resolve_auth_credentials(params, label="Ftp credentials")
-
             try:
                 engine = get_data_sql_engine()
                 schema = get_staging_schema()
-
                 ingest_data_from_ftp_into_postgis(
                     params.get("source", ""), target_table_name, engine, schema, auth
                 )
@@ -166,7 +154,6 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         def database_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
             target_table_name = _resolve_staging_table_name(context, params)
-
             source = params.get("source", "")
             # Expected format: db://{db_key}/{schema}/{table}
             if not source.startswith(DB_URI_PREFIX):
@@ -209,11 +196,9 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         def api_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
             target_table_name = _resolve_staging_table_name(context, params)
-
             source = params.get("source", "")
             source_layer = params.get("source_layer", "")
             source_protocol = params.get("source_protocol", "wfs") or "wfs"
-
             if not source_layer:
                 raise AirflowException("source_layer is required for API import")
 
