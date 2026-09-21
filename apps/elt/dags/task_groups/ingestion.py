@@ -24,6 +24,25 @@ from utils import (
 logger = logging.getLogger(__name__)
 
 
+def _resolve_staging_table_name(context: dict[str, Any], params: dict[str, Any]) -> str:
+    ti = context.get("ti")
+
+    # Try to get staging_table_name from params first (staging_dag case)
+    target_table_name = params.get("staging_table_name")
+
+    # If not in params, try XCom from generate_staging_table_name (process_dag scheduled case)
+    if not target_table_name and ti:
+        target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
+        logger.info(f"Using staging_table_name from XCom: {target_table_name}")
+    else:
+        logger.info(f"Using staging_table_name from params: {target_table_name}")
+
+    if not target_table_name:
+        raise AirflowException("staging_table_name is not provided")
+
+    return target_table_name
+
+
 def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"]):
     """Factory function that creates an ingestion task group.
 
@@ -65,20 +84,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         @task(task_id="file_ingest_step")
         def file_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
-            ti = context.get("ti")
-
-            # Try to get staging_table_name from params first (staging_dag case)
-            target_table_name = params.get("staging_table_name")
-
-            # If not in params, try XCom from generate_staging_table_name (process_dag scheduled case)
-            if not target_table_name and ti:
-                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
-                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
-            else:
-                logger.info(f"Using staging_table_name from params: {target_table_name}")
-
-            if not target_table_name:
-                raise AirflowException("staging_table_name is not provided")
+            target_table_name = _resolve_staging_table_name(context, params)
 
             engine = get_data_sql_engine()
 
@@ -95,20 +101,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         @task(task_id="url_ingest_step")
         def url_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
-            ti = context.get("ti")
-
-            # Try to get staging_table_name from params first (staging_dag case)
-            target_table_name = params.get("staging_table_name")
-
-            # If not in params, try XCom from generate_staging_table_name (process_dag scheduled case)
-            if not target_table_name and ti:
-                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
-                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
-            else:
-                logger.info(f"Using staging_table_name from params: {target_table_name}")
-
-            if not target_table_name:
-                raise AirflowException("staging_table_name is not provided")
+            target_table_name = _resolve_staging_table_name(context, params)
 
             # Decrypt Basic Auth credentials if provided
             auth = None
@@ -149,20 +142,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         @task(task_id="ftp_ingest_step")
         def ftp_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
-            ti = context.get("ti")
-
-            # Try to get staging_table_name from params first (staging_dag case)
-            target_table_name = params.get("staging_table_name")
-
-            # If not in params, try XCom from generate_staging_table_name (process_dag scheduled case)
-            if not target_table_name and ti:
-                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
-                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
-            else:
-                logger.info(f"Using staging_table_name from params: {target_table_name}")
-
-            if not target_table_name:
-                raise AirflowException("staging_table_name is not provided")
+            target_table_name = _resolve_staging_table_name(context, params)
 
             # Decrypt Ftp credentials if provided
             auth = None
@@ -200,18 +180,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         @task(task_id="database_ingest_step")
         def database_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
-            ti = context.get("ti")
-
-            target_table_name = params.get("staging_table_name")
-
-            if not target_table_name and ti:
-                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
-                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
-            else:
-                logger.info(f"Using staging_table_name from params: {target_table_name}")
-
-            if not target_table_name:
-                raise AirflowException("staging_table_name is not provided")
+            target_table_name = _resolve_staging_table_name(context, params)
 
             source = params.get("source", "")
             # Expected format: db://{db_key}/{schema}/{table}
@@ -254,17 +223,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         @task(task_id="api_ingest_step")
         def api_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
-            ti = context.get("ti")
-
-            target_table_name = params.get("staging_table_name")
-            if not target_table_name and ti:
-                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
-                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
-            else:
-                logger.info(f"Using staging_table_name from params: {target_table_name}")
-
-            if not target_table_name:
-                raise AirflowException("staging_table_name is not provided")
+            target_table_name = _resolve_staging_table_name(context, params)
 
             source = params.get("source", "")
             source_layer = params.get("source_layer", "")
