@@ -43,6 +43,31 @@ def _resolve_staging_table_name(context: dict[str, Any], params: dict[str, Any])
     return target_table_name
 
 
+def _resolve_auth_credentials(
+    params: dict[str, Any], label: str = "Basic Auth credentials"
+) -> tuple[str, str] | None:
+    encrypted_credentials = params.get("encrypted_credentials")
+    if not encrypted_credentials:
+        return None
+
+    try:
+        encryption_key = Variable.get("datafeeder_encryption_key", default=None)
+        if not encryption_key:
+            raise AirflowException(
+                "Encryption key not found in Airflow Variables under 'datafeeder_encryption_key'"
+            )
+
+        engine = get_datafeeder_sql_engine()
+
+        with engine.connect() as conn:
+            username, password = decrypt_credentials(conn, encrypted_credentials, encryption_key)
+            logger.info(f"Successfully decrypted {label}")
+            return (username, password)
+    except Exception as e:
+        logger.error(f"Failed to decrypt {label}: {e}")
+        raise AirflowException(f"Failed to decrypt credentials: {e}")
+
+
 def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"]):
     """Factory function that creates an ingestion task group.
 
@@ -104,27 +129,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             target_table_name = _resolve_staging_table_name(context, params)
 
             # Decrypt Basic Auth credentials if provided
-            auth = None
-            encrypted_credentials = params.get("encrypted_credentials")
-            if encrypted_credentials:
-                try:
-                    encryption_key = Variable.get("datafeeder_encryption_key", default=None)
-                    if not encryption_key:
-                        raise AirflowException(
-                            "Encryption key not found in Airflow Variables under 'datafeeder_encryption_key'"
-                        )
-
-                    engine = get_datafeeder_sql_engine()
-
-                    with engine.connect() as conn:
-                        username, password = decrypt_credentials(
-                            conn, encrypted_credentials, encryption_key
-                        )
-                        auth = (username, password)
-                        logger.info("Successfully decrypted Basic Auth credentials")
-                except Exception as e:
-                    logger.error(f"Failed to decrypt Basic Auth credentials: {e}")
-                    raise AirflowException(f"Failed to decrypt credentials: {e}")
+            auth = _resolve_auth_credentials(params)
 
             engine = get_data_sql_engine()
 
@@ -145,27 +150,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             target_table_name = _resolve_staging_table_name(context, params)
 
             # Decrypt Ftp credentials if provided
-            auth = None
-            encrypted_credentials = params.get("encrypted_credentials")
-            if encrypted_credentials:
-                try:
-                    encryption_key = Variable.get("datafeeder_encryption_key", default=None)
-                    if not encryption_key:
-                        raise AirflowException(
-                            "Encryption key not found in Airflow Variables under 'datafeeder_encryption_key'"
-                        )
-
-                    engine = get_datafeeder_sql_engine()
-
-                    with engine.connect() as conn:
-                        username, password = decrypt_credentials(
-                            conn, encrypted_credentials, encryption_key
-                        )
-                        auth = (username, password)
-                        logger.info("Successfully decrypted Ftp credentials")
-                except Exception as e:
-                    logger.error(f"Failed to decrypt Ftp credentials: {e}")
-                    raise AirflowException(f"Failed to decrypt credentials: {e}")
+            auth = _resolve_auth_credentials(params, label="Ftp credentials")
 
             try:
                 engine = get_data_sql_engine()
@@ -233,27 +218,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                 raise AirflowException("source_layer is required for API import")
 
             # Decrypt Basic Auth credentials if provided (e.g. protected WFS/OAPIF services)
-            auth = None
-            encrypted_credentials = params.get("encrypted_credentials")
-            if encrypted_credentials:
-                try:
-                    encryption_key = Variable.get("datafeeder_encryption_key", default=None)
-                    if not encryption_key:
-                        raise AirflowException(
-                            "Encryption key not found in Airflow Variables under 'datafeeder_encryption_key'"
-                        )
-
-                    datafeeder_engine = get_datafeeder_sql_engine()
-
-                    with datafeeder_engine.connect() as conn:
-                        username, password = decrypt_credentials(
-                            conn, encrypted_credentials, encryption_key
-                        )
-                        auth = (username, password)
-                        logger.info("Successfully decrypted Basic Auth credentials")
-                except Exception as e:
-                    logger.error(f"Failed to decrypt Basic Auth credentials: {e}")
-                    raise AirflowException(f"Failed to decrypt credentials: {e}")
+            auth = _resolve_auth_credentials(params)
 
             engine = get_data_sql_engine()
             try:
