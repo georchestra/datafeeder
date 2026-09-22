@@ -14,7 +14,6 @@ Domain-specific agent instructions: [.agents/skills/](.agents/skills/)
 | [angular-datafeeder](.agents/skills/angular-datafeeder/SKILL.md)         | Build Angular 20 components and features in `apps/frontend/`                     |
 | [fastapi-expert](.agents/skills/fastapi-expert/SKILL.md)                 | Build async FastAPI endpoints with SQLAlchemy, Pydantic V2, OpenAPI              |
 | [frontend-api-sync](.agents/skills/frontend-api-sync/SKILL.md)           | Regenerate the frontend TypeScript client after backend API changes              |
-| [geopandas](.agents/skills/geopandas/SKILL.md)                           | Work with geospatial data: Shapefile, GeoJSON, spatial joins, reprojection       |
 | [implement-design](.agents/skills/implement-design/SKILL.md)             | Translate Figma designs into production-ready code (requires Figma MCP)          |
 | [tailwind-design-system](.agents/skills/tailwind-design-system/SKILL.md) | Build design systems with Tailwind CSS v4, design tokens, component libraries    |
 

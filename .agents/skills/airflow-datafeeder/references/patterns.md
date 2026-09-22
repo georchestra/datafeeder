@@ -114,19 +114,17 @@ The `call_callback()` function shows:
 ### Data Manipulation Integration
 
 **See task implementations in:**
-- [task_groups/ingestion.py](../../../apps/elt/dags/task_groups/ingestion.py) - `file_ingest_step()` and `url_ingest_step()`
-- [task_groups/transformation.py](../../../apps/elt/dags/task_groups/transformation.py) - `read_transform_write_task()`
+- [task_groups/ingestion.py](../../../apps/elt/dags/task_groups/ingestion.py) - `ingestion_group()`
+- [task_groups/transformation.py](../../../apps/elt/dags/task_groups/transformation.py) - `process_transformation_group()`
 
 Common imports and usage:
 ```python
-from data_manipulation import (
-    IntegrityTransformation,
-    apply_transformations,
-    read_data_from_postgis,
-    write_data_to_postgis,
-)
+from data_manipulation import IntegrityTransformation, transform_staging_to_final
 from data_manipulation.ingestion import (
+    ingest_data_from_database_into_postgis,
     ingest_data_from_file_into_postgis,
+    ingest_data_from_ftp_into_postgis,
+    ingest_data_from_ogc_service_into_postgis,
     ingest_data_from_url_into_postgis,
 )
 from data_manipulation.encryption import decrypt_credentials

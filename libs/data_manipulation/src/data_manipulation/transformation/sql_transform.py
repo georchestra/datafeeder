@@ -1,7 +1,6 @@
 """SQL-native transformation pipeline.
 
-This module replaces the former in-memory (geopandas/pandas) transformation
-layer.  Every transformation — column selection/exclusion, rename, type cast,
+Every transformation — column selection/exclusion, rename, type cast,
 filtering, projection and geometry construction — is expressed as
 *parameterized SQL* (SQLAlchemy Core) and executed **inside PostGIS**.  Data
 never leaves the database except for the small bounded preview.
@@ -17,11 +16,11 @@ transformation ``SELECT`` used by **both**:
 Building the query once is the architectural guarantee that preview and process
 apply identical transformations (FR-021).
 
-Projection semantics mirror the previous geopandas behaviour exactly:
+Projection semantics:
 
 * ``force_projection.type`` **relabels** the SRID without reprojecting
-  coordinates (geopandas ``set_crs``) → ``ST_SetSRID(geom, srid)``.
-* Map preview reprojects to EPSG:4326 for display (geopandas ``to_crs``) →
+  coordinates → ``ST_SetSRID(geom, srid)``.
+* Map preview reprojects to EPSG:4326 for display →
   ``ST_AsGeoJSON(ST_Transform(geom, 4326))``.
 """
 
@@ -168,9 +167,9 @@ def _cast_expr(col: ColumnElement[Any], cast_type: CastType) -> ColumnElement[An
 def _geom_ref() -> ColumnElement[Any]:
     """Reference the staging geometry column as a plain (untyped) column.
 
-    Using :func:`literal_column` instead of the reflected GeoAlchemy2 column
-    avoids the automatic ``ST_AsEWKB(...)`` read-wrapping, so the geometry stays
-    a native ``geometry`` value usable by ``CREATE TABLE AS`` and ``ST_*``.
+    SQLAlchemy does not know the ``geometry`` type, so the reflected column has
+    no usable type; a :func:`literal_column` keeps it a native ``geometry``
+    value usable by ``CREATE TABLE AS`` and ``ST_*``.
     """
     return literal_column(f'"{DEFAULT_GEOMETRY_COLUMN}"')
 
@@ -318,10 +317,10 @@ def transform_staging_to_final(
         # through, keeping every filter value a bound parameter.
         conn.exec_driver_sql(ctas, compiled.params)
 
-        # CREATE TABLE AS copies data and column types but no indexes, so the
-        # spatial index PostGIS used to create through GeoPandas' to_postgis is
-        # gone. Without it every bbox query on the published table (GeoServer
-        # WMS/WFS) degrades to a sequential scan. Match the previous index name.
+        # CREATE TABLE AS copies data and column types but no indexes. Without
+        # a spatial index every bbox query on the published table (GeoServer
+        # WMS/WFS) degrades to a sequential scan. Use the PostGIS naming
+        # convention idx_<table>_<geom_col>.
         if tq.geom_column is not None:
             conn.execute(
                 text(
@@ -404,8 +403,7 @@ def read_transformed_preview(
 
     Builds the same transformation ``SELECT`` as the process path, applies a
     ``LIMIT`` and serializes geometry **in the database**: WKT for the tabular
-    rows (``geom``) and GeoJSON reprojected to EPSG:4326 for map display. No
-    geopandas/pandas involved.
+    rows (``geom``) and GeoJSON reprojected to EPSG:4326 for map display.
 
     Args:
         staging_table: Staging table name.

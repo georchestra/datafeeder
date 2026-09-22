@@ -4,7 +4,7 @@ Shared Python library used by the Datafeeder backend and the Airflow ELT DAGs.
 
 It centralizes the logic that ingests, validates, transforms, and publishes geospatial datasets so that the same code path is exercised whether a dataset is being previewed in the API or processed by a DAG.
 
-Data is streamed **directly into PostGIS** with `ogr2ogr` (GDAL) and every transformation (rename, cast, reproject, geometry build, filter) is expressed as **parameterized SQL** executed server-side. Datasets never leave the database except for a small bounded preview — there is no in-memory geopandas/pandas layer.
+Data is streamed **directly into PostGIS** with `ogr2ogr` (GDAL) and every transformation (rename, cast, reproject, geometry build, filter) is expressed as **parameterized SQL** executed server-side. Datasets never leave the database except for a small bounded preview.
 
 ## Layout
 
