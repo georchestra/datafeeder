@@ -38,6 +38,10 @@ class MetadataSchema:
     def add_online_resources_from_layer_urls_19115_3(self, layer_urls: dict[str, Any]) -> Self:
         return self
 
+    def force_updated(self) -> Self:
+        self.updated = True
+        return self
+
     def upload_to_gn(self) -> None:
         """Serialize ``root`` and upload it to GeoNetwork, if it was updated.
 
