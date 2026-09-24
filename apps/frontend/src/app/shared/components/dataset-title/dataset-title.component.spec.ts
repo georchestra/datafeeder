@@ -60,4 +60,26 @@ describe('DatasetTitleComponent', () => {
 
     expect(fixture.componentInstance.form.controls.title.enabled).toBe(true)
   })
+
+  it('does not pre-fill the title for a fresh dataset', () => {
+    const fixture = TestBed.createComponent(DatasetTitleComponent)
+    const ref = fixture.componentRef as ComponentRef<DatasetTitleComponent>
+    ref.setInput('metadata', buildMetadata())
+    ref.setInput('isReconfiguring', false)
+    fixture.detectChanges()
+
+    expect(fixture.componentInstance.form.controls.title.value).toBe('')
+  })
+
+  it('shows the persisted title (read-only) when reconfiguring', () => {
+    const fixture = TestBed.createComponent(DatasetTitleComponent)
+    const ref = fixture.componentRef as ComponentRef<DatasetTitleComponent>
+    ref.setInput('metadata', buildMetadata())
+    ref.setInput('isReconfiguring', true)
+    fixture.detectChanges()
+
+    const titleControl = fixture.componentInstance.form.controls.title
+    expect(titleControl.value).toBe('Existing title')
+    expect(titleControl.disabled).toBe(true)
+  })
 })
