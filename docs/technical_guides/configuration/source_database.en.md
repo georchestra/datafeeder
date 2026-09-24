@@ -67,4 +67,4 @@ airflow connections add 'SOURCE_DB_1' \
 ## 3. Restart
 
 Restart the backend so it picks up the new `SOURCE_DATABASES` value, and restart/redeploy Airflow (scheduler and
-webserver) so it reloads `conn.json` (or the connection you added).
+API server) so it reloads `conn.json` (or the connection you added).
