@@ -30,6 +30,20 @@
         />
         <div class="flex items-center gap-3">
           <gn-ui-dropdown-multiselect
+            [title]="'integrityLinks.filters.organization' | translate"
+            [choices]="organizationChoices()"
+            [selected]="selectedOrganization()"
+            [allowSearch]="false"
+            (selectValues)="selectedOrganization.set($event)"
+          />
+          <gn-ui-dropdown-multiselect
+            [title]="'integrityLinks.filters.owner' | translate"
+            [choices]="ownerChoices()"
+            [selected]="selectedOwner()"
+            [allowSearch]="false"
+            (selectValues)="selectedOwner.set($event)"
+          />
+          <gn-ui-dropdown-multiselect
             [title]="'integrityLinks.visibility' | translate"
             [choices]="accessChoices()"
             [selected]="selectedAccess()"
