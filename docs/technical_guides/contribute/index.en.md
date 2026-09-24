@@ -55,4 +55,4 @@ Any change to a backend route or model must be followed by regenerating it — s
 
 This repository ships domain-specific instructions for AI coding agents under `.agents/skills/` (Airflow DAGs,
 Angular components, FastAPI endpoints, frontend/API sync, geospatial data handling, Figma-to-code, Tailwind design
-systems). `agents.md` at the repository root is the entry point.
+systems). `AGENTS.md` at the repository root is the entry point.

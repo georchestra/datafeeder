@@ -286,7 +286,6 @@ version = "0.1.0"
 source = { editable = "libs/data_manipulation" }
 dependencies = [
     { name = "chardet" },
-    { name = "geoalchemy2" },
     { name = "geoservercloud" },
     { name = "pydantic" },
     { name = "pyproj" },
@@ -304,7 +303,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "chardet", specifier = "==7.4.3" },
-    { name = "geoalchemy2", specifier = "==0.19.0" },
     { name = "geoservercloud", git = "https://github.com/camptocamp/python-geoservercloud.git" },
     { name = "pydantic", specifier = "==2.13.4" },
     { name = "pyproj", specifier = "==3.7.2" },
@@ -540,19 +538,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/af/21/747cf7181ff6028e6d57bf2deb54fda1bd09c19098dc4bb2d11f8e4443de/fastmcp-1.0.tar.gz", hash = "sha256:202f454e82cb68460a2b7372f975901e78e03b27734ce3a16c4d1d3e3cdbc519", size = 785693, upload-time = "2025-04-11T15:16:24.623Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b9/bf/0a77688242f30f81e3633d3765289966d9c7e408f9dcb4928a85852b9fde/fastmcp-1.0-py3-none-any.whl", hash = "sha256:88f0c5acc2af06f22cf46dd26c1a1c4c54f1479ef09e5f871fdfbade6defe3a6", size = 35376, upload-time = "2025-04-11T15:16:22.855Z" },
-]
-
-[[package]]
-name = "geoalchemy2"
-version = "0.19.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-    { name = "sqlalchemy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f1/3e/8b6b15cd6a68bb4472ad865e8ecc83b010f1673a22834a52fa479cabf639/geoalchemy2-0.19.0.tar.gz", hash = "sha256:c88be59cdb90af9d74278bdd33a5f58acb23859f0f1380726593eed0f343f4a8", size = 240220, upload-time = "2026-04-12T21:02:16.544Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/35/78/0d5918bea58179dc7a6b724c097b3d972f875328460503f74521c46283bc/geoalchemy2-0.19.0-py3-none-any.whl", hash = "sha256:878a5859e23ae632fe20ea35412cda40f50c94fa69c9242587574941e4d4ec32", size = 81145, upload-time = "2026-04-12T21:02:15.337Z" },
 ]
 
 [[package]]

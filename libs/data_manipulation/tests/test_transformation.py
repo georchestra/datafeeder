@@ -173,7 +173,7 @@ class TestFilters:
 
 class TestProjection:
     def test_force_projection_relabels_with_setsrid_not_transform(self) -> None:
-        """force_projection mirrors geopandas set_crs: relabel, not reproject."""
+        """force_projection relabels the SRID, it does not reproject."""
         table = _staging_table()
         config = IntegrityTransformation(
             columns=[
@@ -261,7 +261,7 @@ class TestSpatialIndex:
         assert "USING GIST" in sql
 
     def test_index_name_matches_the_postgis_convention(self) -> None:
-        # to_postgis created idx_<table>_<geom_col>; keep that name.
+        # PostGIS naming convention: idx_<table>_<geom_col>.
         sql = " ".join(_run_transform(_staging_table(with_geom=True)))
         assert "idx_final_places_geom" in sql
 

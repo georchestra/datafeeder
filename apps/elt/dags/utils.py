@@ -60,7 +60,7 @@ def normalize_nan(value: T | None, default: T) -> T:
     """Normalize NA/NaN/None values to a default.
 
     Database NULLs read through a raw cursor come back as ``None``; this helper
-    also defends against float ``NaN`` without depending on pandas.
+    also defends against float ``NaN``.
 
     Args:
         value: The value to check (can be None, NaN, or any valid value)
@@ -79,8 +79,7 @@ def normalize_nan(value: T | None, default: T) -> T:
 def get_records_as_dicts(sql: str) -> list[dict[str, Any]]:
     """Run *sql* on the Datafeeder database and return rows as dicts.
 
-    Replaces the former ``PostgresHook.get_pandas_df(...).to_dict()`` so no
-    pandas dependency is required. SQL NULLs are returned as ``None``.
+    SQL NULLs are returned as ``None``.
     """
     hook = get_datafeeder_pg_hook()
     conn = hook.get_conn()

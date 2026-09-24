@@ -79,15 +79,12 @@ Defined in [utils.py](../../../apps/elt/dags/utils.py):
 See usage in [task_groups/ingestion.py](../../../apps/elt/dags/task_groups/ingestion.py) and [task_groups/transformation.py](../../../apps/elt/dags/task_groups/transformation.py):
 
 ```python
-from data_manipulation.logging import configure_logging
-from data_manipulation import (
-    IntegrityTransformation,
-    apply_transformations,
-    read_data_from_postgis,
-    write_data_to_postgis,
-)
+from data_manipulation import IntegrityTransformation, transform_staging_to_final
 from data_manipulation.ingestion import (
+    ingest_data_from_database_into_postgis,
     ingest_data_from_file_into_postgis,
+    ingest_data_from_ftp_into_postgis,
+    ingest_data_from_ogc_service_into_postgis,
     ingest_data_from_url_into_postgis,
 )
 from data_manipulation.encryption import decrypt_credentials

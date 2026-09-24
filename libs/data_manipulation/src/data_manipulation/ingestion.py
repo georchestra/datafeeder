@@ -456,7 +456,6 @@ def ingest_data_from_url_into_postgis(
         auth: Optional tuple of (username, password) for HTTP Basic Authentication or FTP
     """
     try:
-        # Download file first (GeoPandas doesn't support Basic Auth natively + better handle file types)
         logger.info(f"Ingesting data from url {url} into table {table_name}")
 
         parsed_url = urlparse(url)
