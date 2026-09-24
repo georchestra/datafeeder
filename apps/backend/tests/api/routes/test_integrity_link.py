@@ -1947,6 +1947,7 @@ class TestUpdateMetadataGn:
 
         mock_ms = self._mock_metadata_service()
         mock_schema = mock_ms.read_schema_from_xml.return_value
+        mock_schema.force_updated.return_value = mock_schema
 
         update_metadata_gn(
             session=mock_session,
