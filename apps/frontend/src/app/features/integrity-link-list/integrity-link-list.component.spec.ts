@@ -48,16 +48,16 @@ describe('IntegrityLinkListComponent', () => {
     metadata_id: null,
     final_table_name: hasFinalTable ? `final_${id}` : null,
     has_final_table: hasFinalTable,
-    access_level: accessLevel
+    access_level: accessLevel,
+    public_access: 'unconfigured'
   })
 
   // Helper to flush pending requests
   const flushPendingRequests = () => {
     const pendingRequests = httpMock.match(() => true)
     pendingRequests.forEach((req) => {
-      if (!req.cancelled) {
-        req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
-      }
+      if (req.cancelled) return
+      req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
     })
   }
 
@@ -75,6 +75,8 @@ describe('IntegrityLinkListComponent', () => {
             'integrityLinks.title': 'Integrity Links',
             'integrityLinks.loadMore': 'Load More',
             'integrityLinks.noItems': 'No items',
+            'integrityLinks.emptyList': 'No dataset found',
+            'integrityLinks.noResults': 'No results',
             'integrityLinks.view': 'View',
             'dashboard.deleteDataset': 'Delete dataset',
             'dashboard.deleteDatasetConfirm': 'Are you sure?',
@@ -871,6 +873,178 @@ describe('IntegrityLinkListComponent', () => {
       await deletePromise
 
       expect(component.deleting()).toBeNull()
+    })
+  })
+
+  describe('access and recurrence filters', () => {
+    it('should trigger a reload with the access param when selectedAccess changes', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      const initialReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      initialReq.flush({
+        items: [],
+        has_more: false,
+        offset: 0,
+        next_offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.selectedAccess.set(['open'])
+      fixture.detectChanges()
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const req = httpMock.expectOne(
+        (r) =>
+          r.url === 'http://localhost:8000/ingestion/integrity-links/' &&
+          r.params.getAll('access')?.join(',') === 'open'
+      )
+      expect(req.request.method).toBe('GET')
+      req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+    })
+
+    it('should trigger a reload with the recurrence param when selectedRecurrence changes', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      const initialReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      initialReq.flush({
+        items: [],
+        has_more: false,
+        offset: 0,
+        next_offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.selectedRecurrence.set(['EVERY_DAY'])
+      fixture.detectChanges()
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const req = httpMock.expectOne(
+        (r) =>
+          r.url === 'http://localhost:8000/ingestion/integrity-links/' &&
+          r.params.getAll('recurrence')?.join(',') === 'EVERY_DAY'
+      )
+      expect(req.request.method).toBe('GET')
+      req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+    })
+
+    it('should show noResults, not emptyList, when only a filter is active and there are zero results', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      const initialReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      initialReq.flush({
+        items: [],
+        has_more: false,
+        offset: 0,
+        next_offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.selectedAccess.set(['open'])
+      fixture.detectChanges()
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const req = httpMock.expectOne(
+        (r) => r.url === 'http://localhost:8000/ingestion/integrity-links/'
+      )
+      req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      fixture.detectChanges()
+
+      expect(component.hasActiveFilters()).toBe(true)
+
+      const compiled = fixture.nativeElement as HTMLElement
+      expect(compiled.textContent).toContain('No results')
+      expect(compiled.textContent).not.toContain('No dataset found')
+    })
+
+    it('should not reload when a filter change is reverted within the debounce window', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      const initialReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      initialReq.flush({
+        items: [createMockItem('1')],
+        has_more: false,
+        offset: 0,
+        next_offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.selectedAccess.set(['open'])
+      fixture.detectChanges()
+      component.selectedAccess.set([])
+      fixture.detectChanges()
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      httpMock.expectNone(
+        (r) => r.url === 'http://localhost:8000/ingestion/integrity-links/'
+      )
+      expect(component.loading()).toBe(false)
+      expect(component.integrityLinks()).toHaveLength(1)
+    })
+
+    it('should discard a load-more response that arrives after a filter reload', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      const initialReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      initialReq.flush({
+        items: [createMockItem('1')],
+        has_more: true,
+        offset: 0,
+        next_offset: 1
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.loadMore()
+      const loadMoreReq = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=1'
+      )
+
+      component.selectedAccess.set(['open'])
+      fixture.detectChanges()
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const reloadReq = httpMock.expectOne(
+        (r) => r.params.getAll('access')?.join(',') === 'open'
+      )
+      reloadReq.flush({
+        items: [createMockItem('2')],
+        has_more: false,
+        offset: 0,
+        next_offset: 1
+      })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      loadMoreReq.flush({
+        items: [createMockItem('3')],
+        has_more: true,
+        offset: 1,
+        next_offset: 2
+      })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(component.integrityLinks().map((l) => l.id)).toEqual(['2'])
+      expect(component.hasMore()).toBe(false)
+      expect(component.loadingMore()).toBe(false)
     })
   })
 })
