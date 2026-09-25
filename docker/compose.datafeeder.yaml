@@ -68,5 +68,30 @@ services:
       - pg_data:/var/lib/postgresql/
       - ./data-db-init.sql:/docker-entrypoint-initdb.d/01-data-db-init.sql
 
+  # Source database for the database import type. Schema / table to type in the wizard:
+  #   geo                 stations_mesure, troncons_cours_eau, parcelles, objets_divers,
+  #                       v_parcelles_communes (view)
+  #   referentiel         communes (no geometry)
+  #   geocontrib_opendata signalements_factices, v_gusp (view),
+  #                       v_diagnostic_en_marchant_campagne_2025 (view, fails: bad date cast)
+  sourcedb:
+    image: postgis/postgis
+    restart: always
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: sourcedb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sourcedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - sourcedb_data:/var/lib/postgresql/
+      - ./sourcedb-init:/docker-entrypoint-initdb.d:ro
+
 volumes:
   pg_data:
+  sourcedb_data:
