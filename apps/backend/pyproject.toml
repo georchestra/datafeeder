@@ -28,7 +28,7 @@ dependencies = [
     "psycopg[binary]==3.3.4",
     "geoservercloud",
     "geonetwork",
-    "apache-airflow-client==3.2.2",
+    "apache-airflow-client==3.3.2",
     "geojson-pydantic==2.1.1",
     "requests==2.34.2",
     "alembic==1.18.4",
