@@ -10,8 +10,8 @@ from airflow_client.client.api.task_instance_api import TaskInstanceApi
 from airflow_client.client.api_client import ApiClient
 from airflow_client.client.configuration import Configuration
 from airflow_client.client.exceptions import ConflictException, NotFoundException
+from airflow_client.client.models.dag_run_mutable_states import DagRunMutableStates
 from airflow_client.client.models.dag_run_patch_body import DAGRunPatchBody
-from airflow_client.client.models.dag_run_patch_states import DAGRunPatchStates
 from airflow_client.client.models.dag_run_response import DAGRunResponse
 from pydantic import BaseModel
 
@@ -184,7 +184,7 @@ def _force_fail_dag_runs(
     exclude: Callable[[str], bool] | None = None,
 ) -> None:
     dag_run_api = get_dag_run_api()
-    patch_body = DAGRunPatchBody(state=DAGRunPatchStates.FAILED)
+    patch_body = DAGRunPatchBody(state=DagRunMutableStates.FAILED)
 
     def force_fail(dag_run: DAGRunResponse) -> bool:
         # Re-check the prefix: the LIKE pattern treats '_' as a wildcard
