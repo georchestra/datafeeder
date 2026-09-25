@@ -13,7 +13,7 @@ readme = "README.md"
 requires-python = "==3.13.*"
 dependencies = [
     "data_manipulation",
-    "apache-airflow==3.3.0",  # keep in sync with AIRFLOW_VERSION in docker/Dockerfile.airflow
+    "apache-airflow==3.3.2",  # keep in sync with AIRFLOW_VERSION in docker/Dockerfile.airflow
     "apache-airflow-providers-postgres",
     # Required by docker/compose.airflow.yaml, which sets CeleryExecutor and
     # FabAuthManager. The apache/airflow image preinstalls both, but
