@@ -30,6 +30,12 @@ Fix the underlying cause (see the DAG logs) and re-submit the import.
 - Verify `GEOSERVER_INTERNAL_URL` / `GEOSERVER_USER` / `GEOSERVER_PASSWORD` (resp. the `GEONETWORK_*` settings) in
   the [backend configuration](configuration/backend.md) point to a reachable instance with valid credentials.
 
+## Uploading a dataset fails with a 401, backend logs show "Login Failed for user: admin"
+
+The backend authenticates with an **Airflow** user (`AIRFLOW_USERNAME`/`AIRFLOW_PASSWORD`), not an LDAP account. On
+Helm, `backend.config.airflow.password` and `airflow.createUserJob.defaultUser.password` are not kept in sync: see
+[Kubernetes installation](installation/kubernetes.md#airflow-rest-api-an-airflow-only-account).
+
 ## Database source import fails
 
 - `SOURCE_DATABASES` must contain a valid SQLAlchemy URI for the source key selected in the wizard. A malformed or

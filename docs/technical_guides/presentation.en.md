@@ -23,6 +23,22 @@ datafeeder/
 - **Shared library** (`libs/data_manipulation/`): imported by both the backend and the ELT DAGs — source-specific
   ingestion, the transformation pipeline, GeoServer write helpers, shared models.
 
+## Component interactions
+
+![Datafeeder component interactions](../images/datafeeder-architecture.jpg)
+
+- **Frontend → Backend**: REST API only.
+- **Backend → Console**: users/roles/orgs, for ownership and authorization rules.
+- **Backend → geOrchestra DB**: `IntegrityLink` records, rules and schedules (`datafeeder` schema).
+- **Backend → Data DB**: reads staging data for preview/validation.
+- **Backend → GeoServer / GeoNetwork**: publishes layers and metadata records.
+- **Backend → Airflow**: triggers `staging_dag` / `process_dag` runs.
+- **Airflow → geOrchestra DB**: reads scheduled datasets for recurring re-runs.
+- **Airflow → Data DB**: writes dataset content (staging → final tables).
+- **GeoServer → Data DB**: serves published layers through JNDI.
+
+See [Databases](configuration/databases.md) for why the databases are kept separate.
+
 ## Dataset lifecycle
 
 A dataset (an `IntegrityLink` record) goes through the following pipeline:

@@ -5,6 +5,7 @@ how the pieces interact with each other.
 
 You will need to configure:
 
+1. The [databases](databases.md): the three PostgreSQL databases and their initialization scripts.
 1. The [backend](backend.md): PostgreSQL database, GeoServer/GeoNetwork endpoints, source databases, secrets.
 1. The [ELT](elt.md): the Airflow deployment executing the DAGs, and the `AIRFLOW_STAGING_TIMEOUT_SECONDS` setting.
 1. The [frontend](frontend.md): which backend to talk to.
