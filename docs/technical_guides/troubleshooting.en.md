@@ -32,10 +32,9 @@ Fix the underlying cause (see the DAG logs) and re-submit the import.
 
 ## Uploading a dataset fails with a 401, backend logs show "Login Failed for user: admin"
 
-The backend authenticates against **Airflow's own** REST API user (`AIRFLOW_USERNAME`/`AIRFLOW_PASSWORD`), not a
-geOrchestra/LDAP account. On a Helm deployment, this is usually a mismatch between `backend.config.airflow.password`
-and the Airflow sub-chart's `airflow.createUserJob.defaultUser.password` (used to create that Airflow user) — the chart
-doesn't keep them in sync automatically. See [Kubernetes installation](installation/kubernetes.md#2-platform-accounts).
+The backend authenticates with an **Airflow** user (`AIRFLOW_USERNAME`/`AIRFLOW_PASSWORD`), not an LDAP account. On
+Helm, `backend.config.airflow.password` and `airflow.createUserJob.defaultUser.password` are not kept in sync: see
+[Kubernetes installation](installation/kubernetes.md#airflow-rest-api-an-airflow-only-account).
 
 ## Database source import fails
 

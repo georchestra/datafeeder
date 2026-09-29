@@ -12,4 +12,4 @@ There are 3 distinct steps in getting a working instance:
 - Follow the [quick-start](quickstart.md) to bring up the stack with Docker Compose
 - Configure the backend, ELT and frontend for your platform: see [Configuration](../configuration/index.md)
 
-For a production deployment on Kubernetes instead, see [Kubernetes / Helm installation](kubernetes.md).
+For a Kubernetes deployment, see [Kubernetes / Helm installation](kubernetes.md).
