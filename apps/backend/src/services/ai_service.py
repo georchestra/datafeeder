@@ -3,8 +3,8 @@
 from pathlib import Path
 from typing import Any
 
-import requests
-from ai.metadata_generator import generate_metadata
+from geonetwork import GnApi  # type: ignore[import-untyped]
+from ai.metadata_generator import generate_metadata, _MAX_KEYWORDS_PER_THESAURUS
 from ai.metadata_generator_models import (
     GeneratedMetadata,
     LlmMetadataDataSource,
@@ -17,6 +17,7 @@ from data_manipulation import (
     build_transformation_select,
     read_transformed_preview,
 )
+from data_manipulation.extract import get_sample
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.transformation.sql_transform import ensure_cast_helpers
 from sqlalchemy import MetaData, Table, func, select
@@ -32,160 +33,237 @@ logger = get_logger()
 
 
 def _fetch_thesaurus_keywords(
-    gn_api_url: str,
-    thesaurus_ids: list[str],
-    credentials: tuple[str, str],
+    gn_api: GnApi,
+    thesaurus_id: str,
+    q: str | None = None,
+    uri_filter: str | None = None,
     max_results: int = 200,
-    verify_tls: bool = True,
-) -> list[str]:
-    """Fetch keyword labels from one or more GeoNetwork thesauruses.
+) -> list[tuple[str, str]]:
+    """Fetch keyword ids and labels from one GeoNetwork thesaurus.
 
-    Uses the GeoNetwork REST API: GET /registries/vocabularies/search?thesaurus={id}
+    Uses the GeoNetwork REST API: GET /registries/vocabularies/search
 
     Args:
-        gn_api_url: GeoNetwork API base URL (e.g. http://host/geonetwork/srv/api)
-        thesaurus_ids: List of thesaurus identifiers (e.g. "external.theme.inspire-theme")
-        credentials: (username, password) tuple for basic auth
+        gn_api: GeoNetwork API wrapper (github.com/camptocamp/python-geonetwork)
+        thesaurus_id: thesaurus identifiers (e.g. "external.theme.inspire-theme")
         max_results: Maximum number of keywords to fetch per thesaurus
 
     Returns:
-        Deduplicated list of keyword label strings.
+        Tuple (key, label) for each keyword.
     """
     keywords: list[str] = []
-    for thesaurus_id in thesaurus_ids:
-        try:
-            resp = requests.get(
-                f"{gn_api_url}/registries/vocabularies/search",
-                auth=credentials,
-                headers={"Accept": "application/json"},
-                # A single lang only: GeoNetwork fails to parse "fre,eng"
-                params={"thesaurus": thesaurus_id, "rows": max_results, "lang": "fre"},
-                timeout=10,
-                verify=verify_tls,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            # Response is a list of keyword objects with a "values" dict keyed by language
-            for item in data:
-                values: dict[str, str] = item.get("values", {})
-                label = values.get("fre") or values.get("eng") or next(iter(values.values()), None)
-                if label:
-                    keywords.append(label)
-        except Exception as err:
-            logger.warning("Could not fetch thesaurus %s from GeoNetwork: %s", thesaurus_id, err)
+    url = f"{gn_api.api_url}/registries/vocabularies/search"
+    params = {"rows": max_results, "thesaurus": thesaurus_id}
+    if q is not None:
+        params['q'] = q
+    if uri_filter is not None:
+        params["uri"] = f"*{uri_filter}*"
+    try:
+        resp = gn_api.session.get(
+            url,
+            params={"rows": max_results, "thesaurus": thesaurus_id, "uri": f"*{filter}*"},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        for item in data:
+            keywords.append((item.get("uri"), item.get("value")))
+
+    except Exception as err:
+        logger.warning("Could not fetch thesaurus %s from GeoNetwork: %s", thesaurus_id, err)
+        raise err
     # Deduplicate while preserving order
     seen: set[str] = set()
     return [k for k in keywords if not (k in seen or seen.add(k))]  # type: ignore[func-returns-value]
 
 
-def _fetch_keywords_from_geonetwork(
-    gn_api_url: str,
-    credentials: tuple[str, str],
+def _fetch_thesaurus_themes(
+    gn_api: str,
+    thesaurus_id: str,
     max_results: int = 200,
-    verify_tls: bool = True,
-) -> list[str]:
-    """Fetch keyword labels from all GeoNetwork thesauruses.
+) -> list[tuple[str, str]]:
+    """Fetch themes from one GeoNetwork thesaurus.
 
-    Auto-discovers all available thesauruses via GET /thesaurus,
-    then fetches keywords for each.
+    This method uses the convention of the GEMET thesaurus: top level themes have URIs starting with
+    http://www.eionet.europa.eu/gemet/theme/
 
     Args:
-        gn_api_url: GeoNetwork API base URL
-        credentials: (username, password) tuple for basic auth
-        max_results: Maximum keywords per thesaurus
+        gn_api: GeoNetwork API wrapper (github.com/camptocamp/python-geonetwork)
+        thesaurus_id: thesaurus identifiers (e.g. "external.theme.inspire-theme")
+        max_results: Maximum number of keywords to fetch per thesaurus
 
     Returns:
-        Deduplicated list of keyword label strings.
+        Tuple (key, label) for each keyword.
     """
-    thesaurus_ids: list[str] = []
-    try:
-        resp = requests.get(
-            f"{gn_api_url}/thesaurus",
-            auth=credentials,
-            headers={"Accept": "application/json"},
-            params={"_content_type": "json"},
-            timeout=10,
-            verify=verify_tls,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        # GeoNetwork wraps the thesaurus list in an extra array: [[{...}, ...]]
-        if data and isinstance(data[0], list):
-            data = data[0]
-        thesaurus_ids = [t["key"] for t in data if "key" in t]
-        logger.info("Found %d thesauruses in GeoNetwork", len(thesaurus_ids))
-    except Exception as err:
-        logger.warning("Could not list GeoNetwork thesauruses: %s", err)
-        return []
-
-    # Step 2: fetch keywords for each thesaurus
     return _fetch_thesaurus_keywords(
-        gn_api_url,
-        thesaurus_ids,
-        credentials,
-        max_results,
-        verify_tls=verify_tls,
+        gn_api,
+        thesaurus_id,
+        uri_filter="*http://www.eionet.europa.eu/gemet/theme/*",
+        max_results=max_results,
     )
 
 
-def _fetch_topic_categories_from_geonetwork(
-    gn_api_url: str,
-    credentials: tuple[str, str],
-    verify_tls: bool = True,
-) -> list[str]:
-    """Fetch ISO 19115 MD_TopicCategoryCode values from GeoNetwork's standards API.
+def _fetch_thesaurus_children_by_name(
+    gn_api: str,
+    thesaurus_id: str,
+    keyword_parent_name: str,
+    max_level: int = 1,
+    max_results: int = 200,
+) -> list[tuple[str, str]]:
+    keywords = _fetch_thesaurus_keywords(gn_api, thesaurus_id, q=keyword_parent_name)
+    return sum(
+        (
+            _fetch_thesaurus_children(gn_api, thesaurus_id, uri, max_level, max_results)
+            for uri, label in keywords
+            if label == keyword_parent_name
+        ),
+        []
+    )
 
-    Uses: GET /standards/iso19139/codelists/gmd:MD_TopicCategoryCode
-    Returns an empty list if the endpoint is unavailable.
+
+def _fetch_thesaurus_children(
+    gn_api: str,
+    thesaurus_id: str,
+    keyword_parent_id: str,
+    max_level: int = 1,
+    max_results: int = 200,
+) -> list[tuple[str, str]]:
+    """Fetch themes from one GeoNetwork thesaurus.
+
+    This method uses the convention of the GEMET thesaurus: top level themes have URIs starting with
+    http://www.eionet.europa.eu/gemet/theme/
 
     Args:
-        gn_api_url: GeoNetwork API base URL (e.g. http://host/geonetwork/srv/api)
-        credentials: (username, password) tuple for basic auth
+        gn_api: GeoNetwork API wrapper (github.com/camptocamp/python-geonetwork)
+        thesaurus_id: thesaurus identifiers (e.g. "external.theme.inspire-theme")
+        max_results: Maximum number of keywords to fetch per thesaurus
+
+    Returns:
+        Tuple (key, label) for each keyword.
+    """
+    return _fetch_thesaurus_keywords(
+        gn_api,
+        thesaurus_id,
+        "*http://www.eionet.europa.eu/gemet/theme/*",
+        max_results
+    )
+
+
+def _fetch_thesaurus_children(
+    gn_api: str,
+    thesaurus_id: str,
+    keyword_parent_id: str,
+    max_level: int = 1,
+    max_results: int = 200,
+) -> list[tuple[str, str]]:
+    """Fetch keyword ids and labels from one GeoNetwork thesaurus.
+
+    No entrypoint available in the GeoNetwork, therefore a regular backend entrypoint is used:
+    geonetwork/srv/{lang}/thesaurus.keyword.links
+
+    Args:
+        gn_api: GeoNetwork API wrapper (github.com/camptocamp/python-geonetwork)
+        thesaurus_id: thesaurus identifiers (e.g. "external.theme.inspire-theme")
+        keyword_parent_id: the key below which the keywords shall be searched via NARROWER
+        max_level: limit for recursive search
+        max_results: Maximum number of keywords to fetch per thesaurus
+
+    Returns:
+        Tuple (key, label) for each keyword.
+    """
+    keywords: list[str] = []
+    url = f"{gn_api.api_url.replace('api', 'eng')}/thesaurus.keyword.links"
+    try:
+        resp = gn_api.session.get(
+            url,
+            params={
+                "_content_type": "json",
+                "request": "narrower",
+                "thesaurus": thesaurus_id,
+                "id": keyword_parent_id,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        for item in data['descKeys']:
+            keywords.append((item.get("uri"), item.get("value", {}).get("#text")))
+            if max_level > 1:
+                keywords += _fetch_thesaurus_children(
+                    gn_api,
+                    thesaurus_id,
+                    item['uri'],
+                    max_level - 1,
+                    max_results
+                )
+    except Exception as err:
+        logger.warning("Could not fetch thesaurus %s from GeoNetwork: %s", thesaurus_id, err)
+    return keywords
+
+
+def _fetch_thesaurus_from_geonetwork(
+    gn_api,
+) -> list[str]:
+    """Fetch thesaurus ids from GeoNetwork.
+
+    Auto-discovers all available thesauruses via GET /thesaurus
+
+    Args:
+        gn_api: GeoNetwork API wrapper (github.com/camptocamp/python-geonetwork)
+
+    Returns:
+        List of thesaurus ids
+    """
+    thesaurus_ids: list[str] = []
+    try:
+        resp = gn_api.session.get(
+            f"{gn_api.api_url}/thesaurus?_content_type=json",
+        )
+        resp.raise_for_status()
+        thesaurus_ids = [t["key"] for t in resp.json()[0] if "key" in t]
+        logger.info("Found %d thesauruses in GeoNetwork", len(thesaurus_ids))
+    except Exception as err:
+        logger.warning("Could not list GeoNetwork thesauruses: %s", err)
+    return thesaurus_ids
+
+
+def _fetch_topic_categories_from_geonetwork(
+    gn_api,
+) -> list[str]:
+    """Fetch ISO 19115 MD_TopicCategoryCode values from GeoNetwork's registries API.
+
+    By default the categories can be found in the external thesaurus
+    "external.theme.httpinspireeceuropaeutheme-theme"
+
+    Args:
+        gn_api: GeoNetwork API wrapper (github.com/camptocamp/python-geonetwork)
 
     Returns:
         List of ISO 19115 topic category code strings.
     """
-    try:
-        resp = requests.get(
-            f"{gn_api_url}/standards/iso19139/codelists/gmd:MD_TopicCategoryCode",
-            auth=credentials,
-            headers={"Accept": "application/json"},
-            timeout=10,
-            verify=verify_tls,
-        )
-        resp.raise_for_status()
-        # Response maps each code to its label: {"farming": "Farming", ...}
-        data = resp.json()
-        categories = list(data)
-        if categories:
-            logger.info("Fetched %d topic categories from GeoNetwork", len(categories))
-            return categories
-    except Exception as err:
-        logger.warning(
-            "Could not fetch topic categories from GeoNetwork (%s), returning an empty list", err
-        )
-    return []
-
-
-def _compute_bbox(
-    table_name: str,
-    schema: str,
-    config: IntegrityTransformation | None,
-) -> str | None:
-    """Compute the extent of the transformed table geometry in the database.
-
-    Returns:
-        PostGIS ``ST_Extent`` string (``BOX(minx miny,maxx maxy)``) in the
-        table's native SRID, or None if the table has no (non-empty) geometry.
-    """
-    table = Table(table_name, MetaData(schema=schema), autoload_with=data_engine)
-    tq = build_transformation_select(table, config)
-    if tq.geom_column is None:
-        return None
-    core = tq.select.subquery()
-    with data_engine.connect() as conn:
-        ensure_cast_helpers(conn)
-        return conn.execute(select(func.ST_Extent(core.c[tq.geom_column]))).scalar()
+    # not sure where this fixed list comes from in datafeeder frontend
+    return [
+        "Biota",
+        "Boundaries",
+        "Climatology / Meteorology / Atmosphere",
+        "Economy",
+        "Elevation",
+        "Environnement",
+        "Farming",
+        "Geoscientific Information",
+        "Health",
+        "Imagery / Base Maps / Earth Cover",
+        "Inland Waters",
+        "Intelligence / Military",
+        "Location",
+        "Oceans",
+        "Planning / Cadastre",
+        "Society",
+        "Structure",
+        "Transportation",
+        "Utilities / Communication",
+    ]
+    thesaurus_id = "external.theme.httpinspireeceuropaeutheme-theme"
+    return [v for uri, v in _fetch_thesaurus_keywords(gn_api, thesaurus_id)]
 
 
 def _get_sample_from_staging(
@@ -377,40 +455,44 @@ def get_metadata_suggestions(
         logger.error("Failed to initialize LLM")
         raise
 
+    raw_sample = None
     try:
         limit = settings.AI_METADATA_SAMPLE_LIMIT
         if data_source == LlmMetadataDataSource.STAGING:
             columns, column_types, sample_rows, bbox = _get_sample_from_staging(
                 integrity_link, limit=limit
             )
+            raw_sample = get_sample(integrity_link, limit=limit)
         else:
             columns, column_types, sample_rows, bbox = _get_sample_from_final(
                 integrity_link, limit=limit
             )
+            raw_sample = get_sample(integrity_link, final=True, limit=limit)
     except Exception as e:
         logger.error(f"Failed to fetch sample from {data_source} table: {e}", exc_info=True)
         raise
 
     try:
-        # Build priority keywords: all GeoNetwork thesauruses
-        priority_kw = _fetch_keywords_from_geonetwork(
-            gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
+        # Build keywords as a tree: whitelisted theasuri and then all keywords per thesaurus
+        gn_api = GnApi(
+            api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
             credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-            verify_tls=settings.GEONETWORK_VERIFY_TLS,
+            verifytls=False
         )
-    except Exception as e:
-        logger.warning(f"Failed to fetch keywords from GeoNetwork: {e}", exc_info=True)
-        priority_kw = []
+        priority_kw = [
+            value
+            for thesaurus_id in _fetch_thesaurus_from_geonetwork(gn_api)
+            for uri, value in _fetch_thesaurus_themes(  # limit to first level in GEMET thesaurus
+                    gn_api, thesaurus_id
+            )
+        ]
+        logger.warning(f"[AI Service] Failed to fetch keywords: {e}")
+        all_kw = {}
 
     try:
-        # Build priority topic categories: GeoNetwork codelist, fallback to ISO 19115 list
-        topics = _fetch_topic_categories_from_geonetwork(
-            gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
-            credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
-            verify_tls=settings.GEONETWORK_VERIFY_TLS,
-        )
-    except Exception as e:
-        logger.warning(f"Failed to fetch topic categories from GeoNetwork: {e}", exc_info=True)
+        topics = _fetch_topic_categories_from_geonetwork(gn_api=gn_api)
+        topics = _fetch_topic_categories_from_geonetwork(gn_api=gn_api)
+    except Exception:
         topics = []
 
     try:
@@ -418,13 +500,14 @@ def get_metadata_suggestions(
             table_name=table_name_for_llm,
             column_names=columns,
             column_types=column_types,
+            raw_sample=raw_sample,
             llm=llm,
             title=integrity_link.integrity_title,
             extra_context=extra_context or None,
             sample_rows=sample_rows or None,
             bbox=bbox,
-            keywords=priority_kw or None,
-            priority_topic_categories=topics or None,
+            keywords=all_kw or None,
+            topic_categories=topics or None,
             system_prompt_path=system_prompt_path,
             human_prompt_path=human_prompt_path,
             mode=mode,

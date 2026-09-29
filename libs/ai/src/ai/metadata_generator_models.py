@@ -1,6 +1,18 @@
 from enum import Enum
 
+from typing import TypedDict
 from pydantic import BaseModel, Field, field_validator
+
+
+class Thesaurus(TypedDict):
+    title: str
+    kw: list[tuple[str, str]]
+
+
+class KwStrategy(Enum):
+    PROMPTED = 1    # convert model to system prompt
+    STRUCTURED = 2  # structured llm output with all keywords at once
+    STAGED = 3      # 2-staged keyword selection: first choose thesaurus then select contained KWs
 
 
 class LlmMetadataMode(str, Enum):
@@ -29,38 +41,27 @@ class AttributeInfo(BaseModel):
 
 
 class TemporalExtent(BaseModel):
-    """Temporal extent of the dataset, either a single instant or a period.
-
+    """Temporal extent of the dataset, either a single instant (no end) or a period.
     Note: string max_length limits are intentionally added to help control LLM token usage.
     """
 
-    type: str = Field(
-        max_length=128,
-        description=(
-            "Either 'instant' (single date/time) or 'period' (date range). "
-            "Use 'unknown' if no temporal information can be inferred."
-        ),
-    )
-    begin: str | None = Field(
+    start: str | None = Field(
         default=None,
         max_length=64,
         description=(
             "Start date/time in ISO 8601 format (e.g. '2023-01-01' or '2023-01-01T00:00:00'). "
-            "Required when type='period', optional when type='instant'."
+            "Start of period. "
+            "Single date of Validity in case of instant without duration."
         ),
     )
     end: str | None = Field(
         default=None,
         max_length=64,
         description=(
-            "End date/time in ISO 8601 format. Required when type='period'. "
-            "Use null if open-ended or unknown."
+            "End date/time in ISO 8601 format. "
+            "End of time period. "
+            "IMPORTANT: end must be null for an insant Datestamp without duration."
         ),
-    )
-    instant: str | None = Field(
-        default=None,
-        max_length=64,
-        description="Date/time in ISO 8601 format when type='instant'.",
     )
 
 

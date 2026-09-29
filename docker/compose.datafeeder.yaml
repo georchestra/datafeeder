@@ -1,11 +1,25 @@
 
 services:
+  datafeeder-frontend-builder:
+    profiles:
+      - datafeeder
+    build:
+      context: ../apps/frontend
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - built:/built/datafeeder
+
+
   datafeeder-frontend:
     profiles:
       - datafeeder
     build:
       context: ../apps/frontend
       dockerfile: Dockerfile
+    volumes:
+      - ../apps/frontend/src:/app/src
+      - built:/app/datafeeder
 #    environment:
 #        - OVERRIDE_BASE_HREF=ds
     ports:
@@ -72,3 +86,4 @@ services:
 
 volumes:
   pg_data:
+  built:
