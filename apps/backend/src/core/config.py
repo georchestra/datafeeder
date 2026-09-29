@@ -198,7 +198,7 @@ class Settings(BaseSettings):
     def POSTGRES_DATAFEEDER_URI(self) -> PostgresDsn:
         return PostgresDsn.build(
             scheme="postgresql+psycopg",
-            username=quote(self.POSTGRES_DATAFEEDER_USER, safe=""),
+            username=self.POSTGRES_DATAFEEDER_USER,
             password=quote(self.POSTGRES_DATAFEEDER_PASSWORD, safe=""),
             host=self.POSTGRES_DATAFEEDER_HOST,
             port=self.POSTGRES_DATAFEEDER_PORT,
@@ -213,7 +213,7 @@ class Settings(BaseSettings):
         assert self.POSTGRES_DATA_PASSWORD is not None
         return PostgresDsn.build(
             scheme="postgresql+psycopg",
-            username=quote(self.POSTGRES_DATA_USER, safe=""),
+            username=self.POSTGRES_DATA_USER,
             password=quote(self.POSTGRES_DATA_PASSWORD, safe=""),
             host=self.POSTGRES_DATA_HOST,
             port=self.POSTGRES_DATA_PORT,
