@@ -12,6 +12,8 @@ from lxml import etree
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import RuleValue
+from src.services.metadata.metadata_patch_service import MetadataPatchService
+from src.services.metadata_schema_19115_3 import NS_19115_3
 from src.services.metadata_service import MetadataService
 from tests.services.metadata_service_internals.samples import (
     SAMPLE_19115_3_EMPTY_TRANSFER_OPTIONS,
@@ -21,11 +23,6 @@ from tests.services.metadata_service_internals.samples import (
 )
 from tests.services.metadata_service_internals.test_update_revision_date_19115 import (
     CITATION_REVISION_XPATH_191153,
-from src.services.metadata.metadata_patch_service import MetadataPatchService
-from src.services.metadata_service import (
-    NS_19115_3,
-    NS_19139,
-    MetadataService,
 )
 
 ONLINE_RESOURCE_XPATH = (
