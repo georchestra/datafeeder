@@ -1,10 +1,10 @@
-import logging
 import os
 import secrets
 import warnings
 from functools import lru_cache
 from string import Template
 from typing import Annotated, Any, Literal
+from urllib.parse import quote
 
 from data_manipulation.logging import configure_logging
 from pydantic import (
@@ -201,7 +201,7 @@ class Settings(BaseSettings):
         return PostgresDsn.build(
             scheme="postgresql+psycopg",
             username=self.POSTGRES_DATAFEEDER_USER,
-            password=self.POSTGRES_DATAFEEDER_PASSWORD,
+            password=quote(self.POSTGRES_DATAFEEDER_PASSWORD, safe=""),
             host=self.POSTGRES_DATAFEEDER_HOST,
             port=self.POSTGRES_DATAFEEDER_PORT,
             path=self.POSTGRES_DATAFEEDER_DB,
@@ -210,10 +210,13 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def POSTGRES_DATA_URI(self) -> PostgresDsn:
+        # _set_data_db_defaults guarantees these are set by the time this is accessed.
+        assert self.POSTGRES_DATA_USER is not None
+        assert self.POSTGRES_DATA_PASSWORD is not None
         return PostgresDsn.build(
             scheme="postgresql+psycopg",
             username=self.POSTGRES_DATA_USER,
-            password=self.POSTGRES_DATA_PASSWORD,
+            password=quote(self.POSTGRES_DATA_PASSWORD, safe=""),
             host=self.POSTGRES_DATA_HOST,
             port=self.POSTGRES_DATA_PORT,
             path=self.POSTGRES_DATA_DB,
@@ -263,11 +266,10 @@ class Settings(BaseSettings):
     @field_validator("*", mode="after")
     @classmethod
     def expand_env_vars(cls, v: Any) -> Any:
+        # safe_substitute leaves invalid or unresolved placeholders (e.g. a literal
+        # "$" in a password) untouched instead of raising, unlike substitute().
         if isinstance(v, str):
-            try:
-                v = Template(v).substitute(os.environ)
-            except KeyError as e:
-                logging.error(f"Environment variable {e} not set for value: {v}")
+            v = Template(v).safe_substitute(os.environ)
         return v
 
 
