@@ -1,3 +1,4 @@
+import csv
 import logging
 import re
 import subprocess
@@ -9,7 +10,9 @@ from urllib.parse import quote, unquote, urlparse
 from urllib.request import urlretrieve
 
 import chardet
+import jq
 import requests
+from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 from data_manipulation.constants import (
@@ -378,6 +381,72 @@ def _resolve_zip_source(file_path: str) -> str:
     return source
 
 
+# Not yet user-configurable; the seam a future editable jq filter plugs into.
+DEFAULT_JQ_FILTER = "."
+
+
+def _apply_jq_filter(text: str, filter_expr: str = DEFAULT_JQ_FILTER) -> object:
+    """Run a jq filter against raw JSON text, returning the filtered Python value."""
+    return jq.compile(filter_expr).input_text(text).first()
+
+
+def _json_to_csv(file_path: str, dest_path: str, filter_expr: str = DEFAULT_JQ_FILTER) -> None:
+    """Filter a plain JSON file with jq and write the result as CSV.
+
+    Plain tabular JSON (a JSON array of objects, or a single object) has no
+    OGR driver of its own, so route it through ogr2ogr's CSV driver like any
+    other tabular source instead of teaching GDAL a bespoke JSON layout.
+    """
+    with open(file_path, encoding="utf-8") as f:
+        data = _apply_jq_filter(f.read(), filter_expr)
+
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        raise ValueError(f"Unsupported JSON structure in {file_path}: expected an array or object")
+
+    records: list[dict[str, object]] = data
+    fieldnames: list[str] = []
+    for row in records:
+        for key in row:
+            if key not in fieldnames:
+                fieldnames.append(key)
+
+    with open(dest_path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(records)
+
+
+def _reject_geojson_without_geometry(table_name: str, engine: Engine, schema: str) -> None:
+    """Raise if a .geojson source was ingested with no real geometry: the geometry
+    column exists but is null on every row (e.g. a FeatureCollection whose
+    "geometry" is null throughout).
+
+    Checked against the staging table ogr2ogr actually wrote, not the source
+    file. OGC WFS/OAPIF services are exempt — they have their own null-geometry
+    handling in ingest_data_from_ogc_service_into_postgis.
+    """
+    columns = {c["name"] for c in inspect(engine).get_columns(table_name, schema=schema)}
+    if DEFAULT_GEOMETRY_COLUMN not in columns:
+        return
+
+    with engine.connect() as conn:
+        total, non_null = conn.execute(
+            text(
+                f'SELECT count(*), count("{DEFAULT_GEOMETRY_COLUMN}") '
+                f'FROM "{schema}"."{table_name}"'
+            )
+        ).one()
+
+    if total and not non_null:
+        raise ValueError(
+            f"GeoJSON source for table {schema}.{table_name} has no valid geometries: "
+            "every feature's geometry is null. Use a .json extension if this data "
+            "is meant to be tabular."
+        )
+
+
 def ingest_file_with_ogr2ogr(
     file_path: str,
     table_name: str,
@@ -387,7 +456,8 @@ def ingest_file_with_ogr2ogr(
     """Ingest a geospatial file into a PostGIS table using ogr2ogr.
 
     ZIP archives are addressed through GDAL's ``/vsizip/`` virtual filesystem
-    (see :func:`_resolve_zip_source`).
+    (see :func:`_resolve_zip_source`). Plain tabular ``.json`` is converted to
+    CSV first (see :func:`_json_to_csv`), since GDAL has no driver for it.
 
     Args:
         file_path: Path to the local file to ingest
@@ -398,45 +468,56 @@ def ingest_file_with_ogr2ogr(
     validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
     validate_schema_name(schema)
 
-    # Detect before rewriting the path: the helper reads the archive itself.
-    shape_encoding = _detect_shapefile_encoding(file_path)
-    file_path = _resolve_zip_source(file_path)
+    original_suffix = Path(file_path).suffix.lower()
 
-    pg_connection = _build_pg_connection_string(engine)
+    with tempfile.TemporaryDirectory() as json_csv_dir:
+        if original_suffix == ".json":
+            csv_path = str(Path(json_csv_dir) / (Path(file_path).stem + ".csv"))
+            _json_to_csv(file_path, csv_path)
+            file_path = csv_path
 
-    command = [
-        "ogr2ogr",
-        "-f",
-        "PostgreSQL",
-        pg_connection,
-        file_path,
-        "-nln",
-        f"{schema}.{table_name}",
-        "-overwrite",
-        "-forceNullable",
-        # Single geometries (e.g. a shapefile of simple Polygons) are promoted to
-        # their Multi* equivalent so a later chunk/feature that happens to be a
-        # Multi* geometry doesn't clash with the column type PostGIS inferred
-        # from the first rows.
-        "-nlt",
-        "PROMOTE_TO_MULTI",
-        "-lco",
-        f"GEOMETRY_NAME={DEFAULT_GEOMETRY_COLUMN}",
-        "-lco",
-        f"SCHEMA={schema}",
-    ]
+        # Detect before rewriting the path: the helper reads the archive itself.
+        shape_encoding = _detect_shapefile_encoding(file_path)
+        file_path = _resolve_zip_source(file_path)
 
-    # Only set when the shapefile has no .cpg and is not UTF-8; otherwise GDAL's
-    # own handling (.cpg, or UTF-8 by default) is already correct.
-    if shape_encoding is not None:
-        command += ["--config", "SHAPE_ENCODING", shape_encoding]
+        pg_connection = _build_pg_connection_string(engine)
 
-    logger.info(f"Running ogr2ogr to ingest {file_path} into {schema}.{table_name}")
+        command = [
+            "ogr2ogr",
+            "-f",
+            "PostgreSQL",
+            pg_connection,
+            file_path,
+            "-nln",
+            f"{schema}.{table_name}",
+            "-overwrite",
+            "-forceNullable",
+            # Single geometries (e.g. a shapefile of simple Polygons) are promoted to
+            # their Multi* equivalent so a later chunk/feature that happens to be a
+            # Multi* geometry doesn't clash with the column type PostGIS inferred
+            # from the first rows.
+            "-nlt",
+            "PROMOTE_TO_MULTI",
+            "-lco",
+            f"GEOMETRY_NAME={DEFAULT_GEOMETRY_COLUMN}",
+            "-lco",
+            f"SCHEMA={schema}",
+        ]
 
-    # --------
-    # WARNING: don't log the command as the PG connection string contains credentials
-    # --------
-    _run_ogr2ogr(command, context=f"ingesting {file_path} into {schema}.{table_name}")
+        # Only set when the shapefile has no .cpg and is not UTF-8; otherwise GDAL's
+        # own handling (.cpg, or UTF-8 by default) is already correct.
+        if shape_encoding is not None:
+            command += ["--config", "SHAPE_ENCODING", shape_encoding]
+
+        logger.info(f"Running ogr2ogr to ingest {file_path} into {schema}.{table_name}")
+
+        # --------
+        # WARNING: don't log the command as the PG connection string contains credentials
+        # --------
+        _run_ogr2ogr(command, context=f"ingesting {file_path} into {schema}.{table_name}")
+
+    if original_suffix == ".geojson":
+        _reject_geojson_without_geometry(table_name, engine, schema)
 
 
 def ingest_data_from_url_into_postgis(
