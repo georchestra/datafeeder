@@ -4,43 +4,47 @@ This guide is intended for non-technical authors and data managers. It defines t
 
 This guide is only valid for the default XSL delivered with Datafeeder. If the XSL is overridden during deployment, the structural rules will need to be adapted.
 
----
-
-## 💡 General Concept
+## General concept
 
 The processing engine uses your XML templates as **starting blueprints**.
 During final document generation:
+
 - Most of your structural elements and attributes are preserved as-is.
 - Specific target XML tags are identified, and **their values are automatically replaced or enriched** by the system.
 
----
-
-## 📐 Structural Rules & Required Tags
+## Structural rules and required tags
 
 To ensure that business data is correctly injected, your template must strictly respect the locations and order of the elements described below.
 
-### 1. Identifier & Titles
+### Identifier and titles
+
 * **File Identifier**: Must contain a `<gco:CharacterString>` tag under `mdb:metadataIdentifier/mcc:MD_Identifier/mcc:code/`.
 * **Dataset Title**: Must be placed in a `gco:CharacterString` under `mri:citation/cit:CI_Citation/cit:title/`.
 * **Abstract / Description**: Must be placed in a `gco:CharacterString` under `mri:abstract/`.
 
-### 2. Record Dates
+### Record dates
+
 In the `cit:CI_Citation` block, **the order of the dates is critical**:
+
 * **1<sup>st</sup> date (`cit:date[1]`)**: Reserved for the dataset **creation date**.
 * **2<sup>nd</sup> date (`cit:date[2]`)**: Reserved for the metadata **publication date**.
 * **Global Timestamp Date**: Declared separately under `mdb:dateInfo/cit:CI_Date/cit:date/gco:DateTime`.
 
-### 3. Contacts & Responsible Organizations
+### Contacts and responsible organizations
+
 * **Dataset Responsible Party**: The system will add the official contact **immediately after the last `<mri:pointOfContact>` block** existing in your template.
 * **Metadata Record Responsible Party**: The system will add it **immediately after the last `<mdb:contact>` block**.
+
 > ⚠️ **Important**: Keep at least one empty or sample container block in your template to mark the location where the system should append these contacts.
 
-### 4. Geographic Extent & Resolution
+### Geographic extent and resolution
+
 * **Bounding Box (Extent)**: Include the `<gex:EX_GeographicBoundingBox>` node under `mri:extent/gex:EX_Extent/gex:geographicElement/`. The 4 coordinates (*West, East, South, North*) will be injected automatically.
 * **Resolution / Scale**: The numerical value of the scale denominator will be inserted under `mri:spatialResolution/.../mri:denominator/gco:Integer`.
 * **Coordinate Reference System**: The system code (e.g., EPSG) will be placed under `mdb:referenceSystemInfo/.../mcc:code/gco:CharacterString`.
 
-### 5. Links & Downloads
+### Links and downloads
+
 * **Online Resources**: Download links and web service endpoints will be automatically generated and inserted under the `mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions` element.
 
 ---

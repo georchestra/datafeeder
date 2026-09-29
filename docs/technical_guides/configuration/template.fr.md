@@ -4,43 +4,47 @@ Ce guide est destiné aux rédacteurs et gestionnaires de données non technicie
 
 Ce guide n'est valide que pour le XSL livré par défaut avec le Datafeeder. En cas de surcharge du XSL au déploiement, les règles de structure devront être adaptées.
 
----
-
-## 💡 Principe Général
+## Principe général
 
 Le moteur de traitement utilise vos templates XML comme **gabarits de départ**.
 Lors de la génération finale :
+
 - La plupart de vos éléments et attributs de structure sont conservés à l'identique.
 - Certaines balises cibles spécifiques sont repérées et **leurs valeurs sont automatiquement remplacées ou enrichies** par le système.
 
----
-
-## 📐 Règles de Structure & Balises Requises
+## Règles de structure et balises requises
 
 Pour que les données métier s'injectent correctement, votre template doit impérativement respecter les emplacements et l'ordre des éléments décrits ci-dessous.
 
-### 1. Identifiant & Titrage
+### Identifiant et titres
+
 * **Identifiant du fichier** : Doit contenir une balise `<gco:CharacterString>` sous `mdb:metadataIdentifier/mcc:MD_Identifier/mcc:code/`.
 * **Titre du jeu de données** : Doit être placé dans `gco:CharacterString` sous `mri:citation/cit:CI_Citation/cit:title/`.
 * **Résumé / Description** : Doit être placé dans `gco:CharacterString` sous `mri:abstract/`.
 
-### 2. Dates de la Fiche
+### Dates de la fiche
+
 Dans le bloc `cit:CI_Citation`, **l'ordre des dates est primordial** :
+
 * **1<sup>ère</sup> date (`cit:date[1]`)** : Réservée pour la **date de création** du jeu de données.
 * **2<sup>ème</sup> date (`cit:date[2]`)** : Réservée pour la **date de publication** de la métadonnée.
 * **Date d'horodatage globale** : Déclarée séparément sous `mdb:dateInfo/cit:CI_Date/cit:date/gco:DateTime`.
 
-### 3. Contacts & Organismes Responsables
+### Contacts et organismes responsables
+
 * **Responsable des données** : Le système ajoutera le contact officiel **juste après le dernier bloc `<mri:pointOfContact>`** existant dans votre template.
 * **Responsable de la fiche de métadonnées** : Le système l'ajoutera **juste après le dernier bloc `<mdb:contact>`**.
+
 > ⚠️ **Important** : Laissez au moins un bloc conteneur vide ou d'exemple dans votre template pour marquer l'emplacement où le système doit rattacher ces contacts.
 
-### 4. Couverture Géographique & Résolution
+### Couverture géographique et résolution
+
 * **Boîte englobante (Emprise)** : Inclure le nœud `<gex:EX_GeographicBoundingBox>` sous `mri:extent/gex:EX_Extent/gex:geographicElement/`. Les 4 coordonnées (*West, East, South, North*) seront injectées automatiquement.
 * **Résolution / Échelle** : La valeur numérique du dénominateur d'échelle sera insérée sous `mri:spatialResolution/.../mri:denominator/gco:Integer`.
 * **Système de coordonnées** : Le code du système (ex: EPSG) sera placé sous `mdb:referenceSystemInfo/.../mcc:code/gco:CharacterString`.
 
-### 5. Liens & Téléchargements
+### Liens et téléchargements
+
 * **Ressources en ligne** : Les liens de téléchargement et accès aux services web seront automatiquement générés et insérés sous l'élément `mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions`.
 
 ---
