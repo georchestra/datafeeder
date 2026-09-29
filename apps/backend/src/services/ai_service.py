@@ -16,6 +16,7 @@ from data_manipulation import (
     build_transformation_select,
     read_transformed_preview,
 )
+from data_manipulation.extract import get_sample
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.transformation.sql_transform import ensure_cast_helpers
 from geonetwork import GnApi  # type: ignore[import-untyped]
@@ -438,16 +439,19 @@ def get_metadata_suggestions(
         logger.error("Failed to initialize LLM")
         raise
 
+    raw_sample = None
     try:
         limit = settings.AI_METADATA_SAMPLE_LIMIT
         if data_source == LlmMetadataDataSource.STAGING:
             columns, column_types, sample_rows, bbox = _get_sample_from_staging(
                 integrity_link, limit=limit
             )
+            raw_sample = get_sample(integrity_link, limit=limit)
         else:
             columns, column_types, sample_rows, bbox = _get_sample_from_final(
                 integrity_link, limit=limit
             )
+            raw_sample = get_sample(integrity_link, final=True, limit=limit)
     except Exception as e:
         logger.error(f"Failed to fetch sample from {data_source} table: {e}", exc_info=True)
         raise
@@ -488,6 +492,7 @@ def get_metadata_suggestions(
             table_name=table_name_for_llm,
             column_names=columns,
             column_types=column_types,
+            raw_sample=raw_sample,
             llm=llm,
             title=integrity_link.integrity_title,
             extra_context=extra_context or None,

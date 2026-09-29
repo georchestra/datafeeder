@@ -52,10 +52,10 @@ spring:
           - Path=/datahub/**
 
 georchestra.gateway.services:
-#  backend.target: http://datafeeder-backend:8000/
-  backend.target: http://host.docker.internal:8000/
-#  frontend.target: http://datafeeder-frontend:8080/
-  frontend.target: http://host.docker.internal:4200/
+  backend.target: http://datafeeder-backend:8000/
+#  backend.target: http://host.docker.internal:8000/
+  frontend.target: http://datafeeder-frontend:8080/
+#  frontend.target: http://host.docker.internal:4200/
   airflow.target: http://airflow-apiserver:8081/airflow
   # airflow.target: http://localhost:8081/airflow
   console.target: http://console:8080/

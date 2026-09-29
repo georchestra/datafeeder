@@ -1,5 +1,16 @@
 
 services:
+  datafeeder-frontend-builder:
+    profiles:
+      - datafeeder
+    build:
+      context: ../apps/frontend
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - built:/built/datafeeder
+
+
   datafeeder-frontend:
     profiles:
       - datafeeder
