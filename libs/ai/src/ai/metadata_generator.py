@@ -37,8 +37,10 @@ def _stringify_prompt_value(value: Any) -> str:
     return str(value)
 
 
-def format_sample(sample_rows: list[Any] | None) -> str:
+def format_sample(sample_rows: list[Any] | None, raw_sample: str | None) -> str:
     """Format sample rows as a compact CSV-like string for the prompt (values only, no headers)."""
+    if raw_sample:
+        return raw_sample
     if not sample_rows:
         return "not available"
     headers = list(sample_rows[0].keys())
@@ -158,6 +160,7 @@ def generate_metadata(
     human_prompt_path: Path | str | None = None,
     mode: LlmMetadataMode = LlmMetadataMode.REGENERATE,
     current_values: dict[str, Any] | None = None,
+    raw_sample: str | None = None,
 ) -> GeneratedMetadata:
     """Generate dataset metadata using an LLM.
 
@@ -191,11 +194,84 @@ def generate_metadata(
 
     chain = prompt | llm | parser
 
+    vreturn = {
+        "title": "Parcelles cadastrales du canton de Genève",
+        "abstract": "Chaque parcelle cadastrale du canton de Genève est identifiée par son numéro unique, son identifiant EGRID, sa surface et sa localisation au sein d'un plan cadastral. Les données précisent également les liens vers les extraits du registre foncier et les rapports PDF du plan d'affectation des zones, ainsi que les identifiants des clusters et leur taille respective pour l'analyse spatiale.",
+        "keywords": [
+            "parcelle cadastrale",
+            "cadastre",
+            "registre foncier",
+            "EGRID",
+            "plan d'affectation des zones",
+            "RDPPF",
+            "surface parcellaire",
+            "cluster spatial",
+            "analyse spatiale",
+            "Genève"
+        ],
+        "topic_categories": [
+            "planningCadastre"
+        ],
+        "attribute_descriptions": [
+            {
+                "name": "OBJECTID",
+                "type": "integer",
+                "description": "Identifiant unique de la parcelle dans la base de données."
+            },
+            {
+                "name": "EGRID",
+                "type": "string",
+                "description": "Identifiant EGRID de la parcelle au format alphanumérique."
+            },
+            {
+                "name": "NO_PARCELLE",
+                "type": "integer",
+                "description": "Numéro de parcelle cadastrale dans le canton de Genève."
+            },
+            {
+                "name": "IDEDDP",
+                "type": "string",
+                "description": "Identifiant de la parcelle au format 'commune:numéro' (ex. 21:2980)."
+            },
+            {
+                "name": "PLAN_RF",
+                "type": "string",
+                "description": "Numéro du plan cadastral de référence pour la parcelle."
+            },
+            {
+                "name": "SURFACE",
+                "type": "integer",
+                "description": "Surface de la parcelle en mètres carrés."
+            },
+            {
+                "name": "LIEN_WWW",
+                "type": "string",
+                "description": "Lien vers l'extrait du registre foncier en ligne pour la parcelle."
+            },
+            {
+                "name": "EXTRAIT_RDPPF_PDF",
+                "type": "string",
+                "description": "Lien vers le rapport PDF du plan d'affectation des zones (RDPPF) pour la parcelle."
+            },
+            {
+                "name": "CLUSTER_ID",
+                "type": "integer",
+                "description": "Identifiant du cluster auquel la parcelle est associée pour l'analyse spatiale."
+            },
+            {
+                "name": "CLUSTER_SIZE",
+                "type": "integer",
+                "description": "Taille du cluster (nombre de parcelles associées) pour l'analyse spatiale."
+            }
+        ],
+        "temporal_extent": {'start': '2023-01-01'}  # , 'end': '2026-04-14'}
+    }
+
     result = chain.invoke(
         {
             "title": format_title_for_prompt(table_name, title, current_values),
-            "columns_with_types": format_column_headers(column_names, column_types),
-            "sample": format_sample(sample_rows),
+            "columns_with_types": "", # format_column_headers(column_names, column_types),
+            "sample": format_sample(sample_rows, raw_sample),
             "bbox": format_bbox_for_prompt(bbox),
             "current_abstract": format_current_abstract_for_prompt(current_values),
             "current_keywords": format_current_keywords_for_prompt(current_values),

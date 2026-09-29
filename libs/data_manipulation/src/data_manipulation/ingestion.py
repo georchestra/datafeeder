@@ -592,6 +592,19 @@ def ingest_data_from_ogc_service_into_postgis(
     gdal_source = f"{gdal_prefix}:{normalized_url}"
     logger.info(f"Ingesting OGC layer '{layer_name}' from {gdal_source} into {table_name}")
 
+def get_table_from_name(
+    table_name: str,
+    engine: Engine,
+    schema: str | None = None,
+) -> Table:
+    validate_table_name(table_name)
+    if schema:
+        validate_schema_name(schema)
+
+    metadata = MetaData(schema=schema)
+    return Table(table_name, metadata, autoload_with=engine)
+
+
     validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
     validate_schema_name(schema)
 
