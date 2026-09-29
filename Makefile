@@ -55,6 +55,7 @@ run-backend: install-python ## Run the backend application
 run-backend-with-local-task-executor: install-python ## Run the backend application, using datafeeder-gdal (make up-no-airflow) for ogr2ogr
 	cd apps/backend && \
 	DATAFEEDER_CONFIG="$(CURDIR)/apps/backend/datafeeder.env" BACKEND_INTERNAL_URL="http://localhost:8000" TASK_EXECUTOR=LOCAL \
+	AI_ENV_FILE="$(CURDIR)/docker/.envs-ai" \
 	DATAFEEDER_GDAL_DOCKER_EXEC_TARGET=datafeeder-gdal sh -c \
 	  'uv run alembic upgrade head && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ../../apps/backend --reload-dir ../../libs'
 
