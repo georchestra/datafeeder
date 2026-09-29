@@ -60,6 +60,7 @@ nav:
             - technical_guides/configuration/index.md
             - technical_guides/configuration/databases.md
             - technical_guides/configuration/backend.md
+            - Metadata template: technical_guides/configuration/template.md
             - technical_guides/configuration/elt.md
             - technical_guides/configuration/frontend.md
             - technical_guides/configuration/source_database.md
