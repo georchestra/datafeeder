@@ -1,53 +1,53 @@
-# Guide de Conception des Templates XML de Métadonnées (ISO 19115-3)
+# Metadata XML Template Design Guide (ISO 19115-3)
 
-Ce guide est destiné aux rédacteurs et gestionnaires de données non techniciens. Il définit les règles de structure que doivent respecter vos templates XML pour que le système puisse automatiquement y injecter les informations métier lors des transformations.
+This guide is intended for non-technical authors and data managers. It defines the structural rules that your XML templates must follow so that the system can automatically inject business information into them during XSL transformations.
 
-Ce guide n'est valide que pour le XSL livré par défaut avec le Datafeeder. En cas de surcharge du XSL au déploiement, les règles de structure devront être adaptées.
-
----
-
-## 💡 Principe Général
-
-Le moteur de traitement utilise vos templates XML comme **gabarits de départ**.
-Lors de la génération finale :
-- La plupart de vos éléments et attributs de structure sont conservés à l'identique.
-- Certaines balises cibles spécifiques sont repérées et **leurs valeurs sont automatiquement remplacées ou enrichies** par le système.
+This guide is only valid for the default XSL delivered with Datafeeder. If the XSL is overridden during deployment, the structural rules will need to be adapted.
 
 ---
 
-## 📐 Règles de Structure & Balises Requises
+## 💡 General Concept
 
-Pour que les données métier s'injectent correctement, votre template doit impérativement respecter les emplacements et l'ordre des éléments décrits ci-dessous.
-
-### 1. Identifiant & Titrage
-* **Identifiant du fichier** : Doit contenir une balise `<gco:CharacterString>` sous `mdb:metadataIdentifier/mcc:MD_Identifier/mcc:code/`.
-* **Titre du jeu de données** : Doit être placé dans `gco:CharacterString` sous `mri:citation/cit:CI_Citation/cit:title/`.
-* **Résumé / Description** : Doit être placé dans `gco:CharacterString` sous `mri:abstract/`.
-
-### 2. Dates de la Fiche
-Dans le bloc `cit:CI_Citation`, **l'ordre des dates est primordial** :
-* **1<sup>ère</sup> date (`cit:date[1]`)** : Réservée pour la **date de création** du jeu de données.
-* **2<sup>ème</sup> date (`cit:date[2]`)** : Réservée pour la **date de publication** de la métadonnée.
-* **Date d'horodatage globale** : Déclarée séparément sous `mdb:dateInfo/cit:CI_Date/cit:date/gco:DateTime`.
-
-### 3. Contacts & Organismes Responsables
-* **Responsable des données** : Le système ajoutera le contact officiel **juste après le dernier bloc `<mri:pointOfContact>`** existant dans votre template.
-* **Responsable de la fiche de métadonnées** : Le système l'ajoutera **juste après le dernier bloc `<mdb:contact>`**.
-> ⚠️ **Important** : Laissez au moins un bloc conteneur vide ou d'exemple dans votre template pour marquer l'emplacement où le système doit rattacher ces contacts.
-
-### 4. Couverture Géographique & Résolution
-* **Boîte englobante (Emprise)** : Inclure le nœud `<gex:EX_GeographicBoundingBox>` sous `mri:extent/gex:EX_Extent/gex:geographicElement/`. Les 4 coordonnées (*West, East, South, North*) seront injectées automatiquement.
-* **Résolution / Échelle** : La valeur numérique du dénominateur d'échelle sera insérée sous `mri:spatialResolution/.../mri:denominator/gco:Integer`.
-* **Système de coordonnées** : Le code du système (ex: EPSG) sera placé sous `mdb:referenceSystemInfo/.../mcc:code/gco:CharacterString`.
-
-### 5. Liens & Téléchargements
-* **Ressources en ligne** : Les liens de téléchargement et accès aux services web seront automatiquement générés et insérés sous l'élément `mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions`.
+The processing engine uses your XML templates as **starting blueprints**.
+During final document generation:
+- Most of your structural elements and attributes are preserved as-is.
+- Specific target XML tags are identified, and **their values are automatically replaced or enriched** by the system.
 
 ---
 
-## 📄 Exemple Complet de Template XML (Modèle de départ)
+## 📐 Structural Rules & Required Tags
 
-Voici un exemple minimal et valide de template XML que vous pouvez copier/coller comme base de travail :
+To ensure that business data is correctly injected, your template must strictly respect the locations and order of the elements described below.
+
+### 1. Identifier & Titles
+* **File Identifier**: Must contain a `<gco:CharacterString>` tag under `mdb:metadataIdentifier/mcc:MD_Identifier/mcc:code/`.
+* **Dataset Title**: Must be placed in a `gco:CharacterString` under `mri:citation/cit:CI_Citation/cit:title/`.
+* **Abstract / Description**: Must be placed in a `gco:CharacterString` under `mri:abstract/`.
+
+### 2. Record Dates
+In the `cit:CI_Citation` block, **the order of the dates is critical**:
+* **1<sup>st</sup> date (`cit:date[1]`)**: Reserved for the dataset **creation date**.
+* **2<sup>nd</sup> date (`cit:date[2]`)**: Reserved for the metadata **publication date**.
+* **Global Timestamp Date**: Declared separately under `mdb:dateInfo/cit:CI_Date/cit:date/gco:DateTime`.
+
+### 3. Contacts & Responsible Organizations
+* **Dataset Responsible Party**: The system will add the official contact **immediately after the last `<mri:pointOfContact>` block** existing in your template.
+* **Metadata Record Responsible Party**: The system will add it **immediately after the last `<mdb:contact>` block**.
+> ⚠️ **Important**: Keep at least one empty or sample container block in your template to mark the location where the system should append these contacts.
+
+### 4. Geographic Extent & Resolution
+* **Bounding Box (Extent)**: Include the `<gex:EX_GeographicBoundingBox>` node under `mri:extent/gex:EX_Extent/gex:geographicElement/`. The 4 coordinates (*West, East, South, North*) will be injected automatically.
+* **Resolution / Scale**: The numerical value of the scale denominator will be inserted under `mri:spatialResolution/.../mri:denominator/gco:Integer`.
+* **Coordinate Reference System**: The system code (e.g., EPSG) will be placed under `mdb:referenceSystemInfo/.../mcc:code/gco:CharacterString`.
+
+### 5. Links & Downloads
+* **Online Resources**: Download links and web service endpoints will be automatically generated and inserted under the `mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions` element.
+
+---
+
+## 📄 Complete XML Template Example (Starter Blueprint)
+
+Here is a minimal, valid XML template example that you can copy and paste as your base working file:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -62,16 +62,16 @@ Voici un exemple minimal et valide de template XML que vous pouvez copier/coller
                  xmlns:mrd="http://standards.iso.org/iso/19115/-3/mrd/1.0"
                  xmlns:mrl="http://standards.iso.org/iso/19115/-3/mrl/2.0">
 
-  <!-- 1. Identifiant de la fiche -->
+  <!-- 1. Metadata File Identifier -->
   <mdb:metadataIdentifier>
     <mcc:MD_Identifier>
       <mcc:code>
-        <gco:CharacterString>ID_TEMPORAIRE</gco:CharacterString>
+        <gco:CharacterString>TEMPORARY_ID</gco:CharacterString>
       </mcc:code>
     </mcc:MD_Identifier>
   </mdb:metadataIdentifier>
 
-  <!-- 2. Encodage des caractères -->
+  <!-- 2. Character Encoding -->
   <mdb:defaultLocale>
     <lan:PT_Locale>
       <lan:characterEncoding>
@@ -80,12 +80,12 @@ Voici un exemple minimal et valide de template XML que vous pouvez copier/coller
     </lan:PT_Locale>
   </mdb:defaultLocale>
 
-  <!-- 3. Contact de la métadonnée (Emplacement d'insertion) -->
+  <!-- 3. Metadata Contact (Insertion Point) -->
   <mdb:contact>
-    <!-- Le contact officiel de la fiche sera ajouté automatiquement à la suite -->
+    <!-- Official metadata contact will be appended automatically here -->
   </mdb:contact>
 
-  <!-- 4. Date de mise à jour de la fiche -->
+  <!-- 4. File Timestamp / Update Date -->
   <mdb:dateInfo>
     <cit:CI_Date>
       <cit:date>
@@ -94,18 +94,18 @@ Voici un exemple minimal et valide de template XML que vous pouvez copier/coller
     </cit:CI_Date>
   </mdb:dateInfo>
 
-  <!-- 5. Informations sur la donnée -->
+  <!-- 5. Identification Information -->
   <mdb:identificationInfo>
     <mri:MD_DataIdentification>
 
-      <!-- Citation : Titre et Dates -->
+      <!-- Citation: Title and Dates -->
       <mri:citation>
         <cit:CI_Citation>
           <cit:title>
-            <gco:CharacterString>Titre temporaire du jeu de données</gco:CharacterString>
+            <gco:CharacterString>Temporary Dataset Title</gco:CharacterString>
           </cit:title>
 
-          <!-- Date 1 : Création de la donnée -->
+          <!-- Date 1: Dataset Creation Date -->
           <cit:date>
             <cit:CI_Date>
               <cit:date>
@@ -114,7 +114,7 @@ Voici un exemple minimal et valide de template XML que vous pouvez copier/coller
             </cit:CI_Date>
           </cit:date>
 
-          <!-- Date 2 : Publication de la métadonnée -->
+          <!-- Date 2: Metadata Publication Date -->
           <cit:date>
             <cit:CI_Date>
               <cit:date>
@@ -125,17 +125,17 @@ Voici un exemple minimal et valide de template XML que vous pouvez copier/coller
         </cit:CI_Citation>
       </mri:citation>
 
-      <!-- Résumé -->
+      <!-- Abstract -->
       <mri:abstract>
-        <gco:CharacterString>Résumé / description de la donnée à modifier...</gco:CharacterString>
+        <gco:CharacterString>Dataset abstract / description to be replaced...</gco:CharacterString>
       </mri:abstract>
 
-      <!-- Représentation spatiale (Ex: Vectoriel, Raster) -->
+      <!-- Spatial Representation Type (e.g., vector, grid) -->
       <mri:spatialRepresentationType>
         <mcc:MD_SpatialRepresentationTypeCode codeListValue="vector"/>
       </mri:spatialRepresentationType>
 
-      <!-- Échelle / Résolution -->
+      <!-- Spatial Resolution / Scale -->
       <mri:spatialResolution>
         <mri:MD_Resolution>
           <mri:equivalentScale>
@@ -148,12 +148,12 @@ Voici un exemple minimal et valide de template XML que vous pouvez copier/coller
         </mri:MD_Resolution>
       </mri:spatialResolution>
 
-      <!-- Point de contact du jeu de données (Emplacement d'insertion) -->
+      <!-- Dataset Point of Contact (Insertion Point) -->
       <mri:pointOfContact>
-        <!-- Le contact du jeu de données sera inséré automatiquement à la suite -->
+        <!-- Dataset contact will be appended automatically here -->
       </mri:pointOfContact>
 
-      <!-- Emprise géographique -->
+      <!-- Geographic Extent -->
       <mri:extent>
         <gex:EX_Extent>
           <gex:geographicElement>
@@ -165,7 +165,7 @@ Voici un exemple minimal et valide de template XML que vous pouvez copier/coller
     </mri:MD_DataIdentification>
   </mdb:identificationInfo>
 
-  <!-- 6. Système de référence spatiale -->
+  <!-- 6. Coordinate Reference System -->
   <mdb:referenceSystemInfo>
     <mrs:MD_ReferenceSystem>
       <mrs:referenceSystemIdentifier>
@@ -178,16 +178,16 @@ Voici un exemple minimal et valide de template XML que vous pouvez copier/coller
     </mrs:MD_ReferenceSystem>
   </mdb:referenceSystemInfo>
 
-  <!-- 7. Historique / Généalogie -->
+  <!-- 7. Lineage / History -->
   <mdb:resourceLineage>
     <mrl:LI_Lineage>
       <mrl:statement>
-        <gco:CharacterString>Origine et historique de la donnée...</gco:CharacterString>
+        <gco:CharacterString>Dataset background and lineage statement...</gco:CharacterString>
       </mrl:statement>
     </mrl:LI_Lineage>
   </mdb:resourceLineage>
 
-  <!-- 8. Distribution et liens en ligne -->
+  <!-- 8. Distribution & Online Resources -->
   <mdb:distributionInfo>
     <mrd:MD_Distribution>
       <mrd:transferOptions/>
