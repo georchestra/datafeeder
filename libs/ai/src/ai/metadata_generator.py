@@ -40,8 +40,10 @@ def _stringify_prompt_value(value: Any) -> str:
     return str(value)
 
 
-def format_sample(sample_rows: list[Any] | None) -> str:
+def format_sample(sample_rows: list[Any] | None, raw_sample: str | None = None) -> str:
     """Format sample rows as a compact CSV-like string for the prompt (values only, no headers)."""
+    if raw_sample:
+        return raw_sample
     if not sample_rows:
         return "not available"
     headers = list(sample_rows[0].keys())
@@ -162,7 +164,8 @@ def generate_metadata(
     human_prompt_path: Path | str | None = None,
     mode: LlmMetadataMode = LlmMetadataMode.REGENERATE,
     current_values: dict[str, Any] | None = None,
-    keyword_strategy: KwStrategy = KwStrategy.STAGED
+    keyword_strategy: KwStrategy = KwStrategy.STAGED,
+    raw_sample: str | None = None,
 ) -> GeneratedMetadata:
     """Generate dataset metadata using an LLM.
 
@@ -205,7 +208,7 @@ def generate_metadata(
             {
                 "title": format_title_for_prompt(table_name, title, current_values),
                 "columns_with_types": format_column_headers(column_names, column_types),
-                "sample": format_sample(sample_rows),
+                "sample": format_sample(sample_rows, raw_sample),
                 "bbox": format_bbox_for_prompt(bbox),
                 "current_abstract": format_current_abstract_for_prompt(current_values),
                 "current_keywords": format_current_keywords_for_prompt(current_values),
@@ -261,7 +264,7 @@ def generate_metadata(
             {
                 "title": format_title_for_prompt(table_name, title, current_values),
                 "columns_with_types": format_column_headers(column_names, column_types),
-                "sample": format_sample(sample_rows),
+                "sample": format_sample(sample_rows, raw_sample),
                 "bbox": format_bbox_for_prompt(bbox),
                 "current_abstract": format_current_abstract_for_prompt(current_values),
                 "current_keywords": format_current_keywords_for_prompt(current_values),

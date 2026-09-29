@@ -173,7 +173,7 @@ class Settings(BaseSettings):
     GEOSERVER_PASSWORD: str = "testadmin"
 
     # Geonetwork
-    GEONETWORK_INTERNAL_URL: str = "http://localhost:8080/geonetwork"
+    GEONETWORK_INTERNAL_URL: str = "http://gateway:8080/geonetwork"
 
     GEONETWORK_USERNAME: str = "testadmin"
 
