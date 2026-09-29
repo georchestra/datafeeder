@@ -97,3 +97,58 @@ airflow:
       enabled: true
       existingClaim: <release>-airflow-logs-pvc
 ```
+
+## 7. Restricting Airflow egress (optional)
+
+The chart ships no NetworkPolicy. Airflow pods (label `release: <release>`) only need to reach:
+
+- DNS (`kube-dns`, port 53);
+- the other Airflow components (`tier: airflow`);
+- the backend on port `8000` (DAG callbacks, `BACKEND_INTERNAL_URL`);
+- the PostgreSQL databases (or their pgbouncer);
+- the public internet, for **URL** / **WFS** sources — excluding private ranges so that user-supplied URLs can't
+  reach internal services.
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: datafeeder-airflow-egress
+spec:
+  podSelector:
+    matchLabels:
+      release: <release>
+  policyTypes: [Egress]
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - {protocol: UDP, port: 53}
+    - {protocol: TCP, port: 53}
+  - to:
+    - podSelector:
+        matchLabels:
+          tier: airflow
+          release: <release>
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/instance: <release>
+          app.kubernetes.io/component: <release>-backend
+    ports:
+    - {protocol: TCP, port: 8000}
+  - to:
+    - ipBlock:
+        cidr: <db-ip>/32  # or a podSelector if PostgreSQL runs in the cluster
+    ports:
+    - {protocol: TCP, port: 5432}
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16]
+```
