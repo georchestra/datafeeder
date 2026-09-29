@@ -3,7 +3,6 @@
 from pathlib import Path
 from typing import Any
 
-import geopandas as gpd
 import requests
 from ai.metadata_generator import generate_metadata
 from ai.metadata_generator_models import (
@@ -13,8 +12,14 @@ from ai.metadata_generator_models import (
 )
 from ai.providers import get_llm
 from ai.utils import pg_type_to_iso19110  # type: ignore[import-untyped]
-from data_manipulation.ingestion import read_and_transform_data
-from data_manipulation.models import IntegrityTransformation
+from data_manipulation import (
+    IntegrityTransformation,
+    build_transformation_select,
+    read_transformed_preview,
+)
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
+from data_manipulation.transformation.sql_transform import ensure_cast_helpers
+from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy import inspect as sa_inspect
 
 from src.core.config import Settings, get_data_schema, get_staging_schema
@@ -35,7 +40,7 @@ def _fetch_thesaurus_keywords(
 ) -> list[str]:
     """Fetch keyword labels from one or more GeoNetwork thesauruses.
 
-    Uses the GeoNetwork REST API: GET /registries/vocabularies/{id}/keywords
+    Uses the GeoNetwork REST API: GET /registries/vocabularies/search?thesaurus={id}
 
     Args:
         gn_api_url: GeoNetwork API base URL (e.g. http://host/geonetwork/srv/api)
@@ -48,12 +53,13 @@ def _fetch_thesaurus_keywords(
     """
     keywords: list[str] = []
     for thesaurus_id in thesaurus_ids:
-        url = f"{gn_api_url}/registries/vocabularies/{thesaurus_id}/keywords"
         try:
             resp = requests.get(
-                url,
+                f"{gn_api_url}/registries/vocabularies/search",
                 auth=credentials,
-                params={"maxResults": max_results, "lang": "fre,eng"},
+                headers={"Accept": "application/json"},
+                # A single lang only: GeoNetwork fails to parse "fre,eng"
+                params={"thesaurus": thesaurus_id, "rows": max_results, "lang": "fre"},
                 timeout=10,
                 verify=verify_tls,
             )
@@ -80,7 +86,7 @@ def _fetch_keywords_from_geonetwork(
 ) -> list[str]:
     """Fetch keyword labels from all GeoNetwork thesauruses.
 
-    Auto-discovers all available thesauruses via GET /registries/vocabularies,
+    Auto-discovers all available thesauruses via GET /thesaurus,
     then fetches keywords for each.
 
     Args:
@@ -94,14 +100,19 @@ def _fetch_keywords_from_geonetwork(
     thesaurus_ids: list[str] = []
     try:
         resp = requests.get(
-            f"{gn_api_url}/registries/vocabularies",
+            f"{gn_api_url}/thesaurus",
             auth=credentials,
             headers={"Accept": "application/json"},
+            params={"_content_type": "json"},
             timeout=10,
             verify=verify_tls,
         )
         resp.raise_for_status()
-        thesaurus_ids = [t["key"] for t in resp.json() if "key" in t]
+        data = resp.json()
+        # GeoNetwork wraps the thesaurus list in an extra array: [[{...}, ...]]
+        if data and isinstance(data[0], list):
+            data = data[0]
+        thesaurus_ids = [t["key"] for t in data if "key" in t]
         logger.info("Found %d thesauruses in GeoNetwork", len(thesaurus_ids))
     except Exception as err:
         logger.warning("Could not list GeoNetwork thesauruses: %s", err)
@@ -122,9 +133,9 @@ def _fetch_topic_categories_from_geonetwork(
     credentials: tuple[str, str],
     verify_tls: bool = True,
 ) -> list[str]:
-    """Fetch ISO 19115 MD_TopicCategoryCode values from GeoNetwork's registries API.
+    """Fetch ISO 19115 MD_TopicCategoryCode values from GeoNetwork's standards API.
 
-    Uses: GET /registries/entries?registry={codelist_url}
+    Uses: GET /standards/iso19139/codelists/gmd:MD_TopicCategoryCode
     Returns an empty list if the endpoint is unavailable.
 
     Args:
@@ -134,22 +145,18 @@ def _fetch_topic_categories_from_geonetwork(
     Returns:
         List of ISO 19115 topic category code strings.
     """
-    registry_url = (
-        "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml"
-        "#MD_TopicCategoryCode"
-    )
     try:
         resp = requests.get(
-            f"{gn_api_url}/registries/entries",
+            f"{gn_api_url}/standards/iso19139/codelists/gmd:MD_TopicCategoryCode",
             auth=credentials,
             headers={"Accept": "application/json"},
-            params={"registry": registry_url, "lang": "fre", "rows": 50},
             timeout=10,
             verify=verify_tls,
         )
         resp.raise_for_status()
+        # Response maps each code to its label: {"farming": "Farming", ...}
         data = resp.json()
-        categories = [item["value"] for item in data if "value" in item]
+        categories = list(data)
         if categories:
             logger.info("Fetched %d topic categories from GeoNetwork", len(categories))
             return categories
@@ -158,6 +165,27 @@ def _fetch_topic_categories_from_geonetwork(
             "Could not fetch topic categories from GeoNetwork (%s), returning an empty list", err
         )
     return []
+
+
+def _compute_bbox(
+    table_name: str,
+    schema: str,
+    config: IntegrityTransformation | None,
+) -> str | None:
+    """Compute the extent of the transformed table geometry in the database.
+
+    Returns:
+        PostGIS ``ST_Extent`` string (``BOX(minx miny,maxx maxy)``) in the
+        table's native SRID, or None if the table has no (non-empty) geometry.
+    """
+    table = Table(table_name, MetaData(schema=schema), autoload_with=data_engine)
+    tq = build_transformation_select(table, config)
+    if tq.geom_column is None:
+        return None
+    core = tq.select.subquery()
+    with data_engine.connect() as conn:
+        ensure_cast_helpers(conn)
+        return conn.execute(select(func.ST_Extent(core.c[tq.geom_column]))).scalar()
 
 
 def _get_sample_from_staging(
@@ -213,19 +241,14 @@ def _get_sample_from_staging(
     sample_rows: list[dict[str, object]] = []
     bbox: str | None = None
     try:
-        data = read_and_transform_data(
-            staging_table_name, data_engine, schema=staging_schema, config=config, limit=limit
+        preview = read_transformed_preview(
+            staging_table_name, data_engine, config, schema=staging_schema, limit=limit
         )
-        if isinstance(data, gpd.GeoDataFrame) and not data.geometry.is_empty.all():
-            bounds = data.total_bounds  # [minx, miny, maxx, maxy]
-            bbox = f"BOX({bounds[0]} {bounds[1]},{bounds[2]} {bounds[3]})"
-        geom_col_name: str | None = (
-            data.geometry.name if isinstance(data, gpd.GeoDataFrame) else None
-        )  # type: ignore[assignment]
         sample_rows = [
-            {str(k): v for k, v in row.items() if str(k) != geom_col_name}
-            for row in data.to_dict(orient="records")  # type: ignore[arg-type]
+            {k: v for k, v in row.items() if k != DEFAULT_GEOMETRY_COLUMN} for row in preview.rows
         ]
+        if preview.is_geographic:
+            bbox = _compute_bbox(staging_table_name, staging_schema, config)
     except Exception as err:
         logger.warning("Could not fetch sample rows from staging %s: %s", staging_table_name, err)
 
@@ -269,23 +292,12 @@ def _get_sample_from_final(
     sample_rows: list[dict[str, object]] = []
     bbox: str | None = None
     try:
-        data = read_and_transform_data(
-            final_table_name, data_engine, schema=final_schema, config=None, limit=limit
+        preview = read_transformed_preview(
+            final_table_name, data_engine, None, schema=final_schema, limit=limit
         )
-        if isinstance(data, gpd.GeoDataFrame) and not data.geometry.is_empty.all():
-            bounds = data.total_bounds  # [minx, miny, maxx, maxy]
-            bbox = f"BOX({bounds[0]} {bounds[1]},{bounds[2]} {bounds[3]})"
-        geom_col_name: str | None = (
-            data.geometry.name if isinstance(data, gpd.GeoDataFrame) else None
-        )  # type: ignore[assignment]
-        sample_rows = [
-            {
-                str(k): v
-                for k, v in row.items()
-                if str(k) != geom_col_name and str(k) not in _EXCLUDED
-            }
-            for row in data.to_dict(orient="records")  # type: ignore[arg-type]
-        ]
+        sample_rows = [{k: v for k, v in row.items() if k not in _EXCLUDED} for row in preview.rows]
+        if preview.is_geographic:
+            bbox = _compute_bbox(final_table_name, final_schema, None)
     except Exception as err:
         logger.warning("Could not fetch sample rows from final table %s: %s", final_table_name, err)
 

@@ -12,7 +12,7 @@ name = "ai"
 version = "0.1.0"
 description = "AI/LLM utilities for Datafeeder (metadata generation, etc.)"
 readme = "README.md"
-requires-python = "==3.12.*"
+requires-python = "==3.13.*"
 dependencies = [
     "langchain-core>=0.3,<2.0",
     "langchain-openai>=0.3,<2.0",   # default provider; always installed
