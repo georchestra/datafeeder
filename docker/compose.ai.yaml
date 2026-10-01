@@ -1,0 +1,16 @@
+# Docker Compose override for AI metadata generation with Phoenix observability.
+# Used by `make up-ai`. Requires docker/.envs-ai (see docker/.envs-ai.example).
+services:
+  datafeeder-backend:
+    build:
+      target: ai
+    environment:
+      - AI_ENABLED=true
+    volumes:
+      - ../libs/ai:/app/libs/ai
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"   # UI + OTLP HTTP traces
+    restart: unless-stopped
