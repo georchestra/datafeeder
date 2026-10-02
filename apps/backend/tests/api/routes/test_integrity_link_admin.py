@@ -8,11 +8,14 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from fastapi.routing import APIRoute
 
-from src.api.routes.ingestion.integrity_link_transfer import (
+from src.api.routes.ingestion.integrity_link_admin import (
+    delete_integrity_link_admin,
     export_integrity_link,
     import_integrity_link,
     reassign_integrity_link_ownership,
+    router,
 )
 from src.core.task_executor import TaskRunInfo, TaskStatus
 from src.models.data_import import (
@@ -26,7 +29,7 @@ from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
 
-MODULE = "src.api.routes.ingestion.integrity_link_transfer"
+MODULE = "src.api.routes.ingestion.integrity_link_admin"
 LINK_ID = uuid4()
 
 
@@ -557,4 +560,46 @@ class TestReassignOwnership:
     async def test_non_admin_is_forbidden(self, reassign_mocks: dict[str, MagicMock]) -> None:
         with pytest.raises(HTTPException) as exc:
             await _reassign(_link(), ctx=_ctx(admin=False))
+        assert exc.value.status_code == 403
+
+
+class TestAdminDelete:
+    def _delete(self, ctx: GeorchestraContext | None = None, **options: bool) -> MagicMock:
+        link = _link()
+        with (
+            patch(f"{MODULE}.load_authorized_integrity_link", return_value=(link, None)),
+            patch(f"{MODULE}.DatasetDeletionService") as service_cls,
+        ):
+            response = delete_integrity_link_admin(
+                str(LINK_ID),
+                MagicMock(),
+                ctx or _ctx(),
+                [],
+                MagicMock(),
+                MagicMock(),
+                **options,
+            )
+        assert response.status_code == 204
+        return service_cls.return_value.delete_dataset
+
+    def test_keeps_layer_and_metadata_by_default(self) -> None:
+        route = next(
+            r
+            for r in router.routes
+            if isinstance(r, APIRoute)
+            and r.path.endswith("{integrity_link_id}")
+            and "DELETE" in r.methods
+        )
+        defaults = {p.name: p.default for p in route.dependant.query_params}
+
+        assert defaults == {"delete_layer": False, "delete_metadata": False}
+
+    def test_options_are_passed_through(self) -> None:
+        delete_dataset = self._delete(delete_layer=True, delete_metadata=True)
+
+        assert delete_dataset.call_args.kwargs == {"delete_layer": True, "delete_metadata": True}
+
+    def test_non_admin_is_forbidden(self) -> None:
+        with pytest.raises(HTTPException) as exc:
+            self._delete(ctx=_ctx(admin=False), delete_layer=False, delete_metadata=False)
         assert exc.value.status_code == 403

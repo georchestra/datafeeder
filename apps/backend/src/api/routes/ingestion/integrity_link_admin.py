@@ -1,10 +1,11 @@
-"""Replication of a dataset across platforms (export/import) and ownership reassignment."""
+"""Administration of datasets: replication across platforms (export/import), ownership
+reassignment and deletion keeping the published data and metadata."""
 
 from datetime import datetime, timezone
 
 from data_manipulation.database import create_schema, table_exists
 from data_manipulation.validators import validate_schema_name
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import or_, text
 from sqlmodel import col, select
 
@@ -39,6 +40,7 @@ from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
 from src.services.airflow_client import cancel_dataset_runs
 from src.services.console_service import ConsoleService
+from src.services.dataset_deletion_service import DatasetDeletionService
 from src.services.executor_factory import get_task_executor
 from src.services.georchestra import GeorchestraContext
 from src.services.geoserver import GeoServerService
@@ -471,3 +473,42 @@ async def reassign_integrity_link_ownership(
             logger.warning(f"Failed to set metadata ownership for {integrity_link.id}: {e}")
 
     return IntegrityLinkResponse.model_validate(integrity_link)
+
+
+@router.delete(
+    "/{integrity_link_id}",
+    status_code=204,
+    summary="Delete a dataset, keeping its layer and metadata record by default",
+    description=(
+        "Administrators only. Deletes the dataset row (with its permission rules), its "
+        "staging table and its Airflow DAG and run history. The published data (GeoServer "
+        "layer and final table) and the GeoNetwork record are kept unless requested."
+    ),
+)
+def delete_integrity_link_admin(
+    integrity_link_id: str,
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    group_ids: GroupIdsDep,
+    geoserver_service: GeoServerServiceDep,
+    metadata_service: MetadataServiceDep,
+    delete_layer: bool = Query(
+        False, description="Also delete the GeoServer layer and the final table"
+    ),
+    delete_metadata: bool = Query(False, description="Also delete the GeoNetwork record"),
+) -> Response:
+    _require_administrator(geo_ctx)
+    integrity_link, _ = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
+    )
+    try:
+        DatasetDeletionService(geoserver_service, metadata_service).delete_dataset(
+            integrity_link,
+            session,
+            delete_layer=delete_layer,
+            delete_metadata=delete_metadata,
+        )
+    except Exception as e:
+        logger.error(f"Failed to delete dataset {integrity_link_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete dataset: {e}")
+    return Response(status_code=204)
