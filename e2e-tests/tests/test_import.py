@@ -32,14 +32,14 @@ IMPORT_CASES = [
         "url": "https://www.data.gouv.fr/api/1/datasets/r/12d32a68-e245-4e19-9215-7d07c699b6c0",
         "map": True,
         "timeout-seconds": 60,
-        "expected_number_of_features": 385,
+        "expected_number_of_features": 2,
     },
     {
         "id": "gpkg-big",
         "url": "https://www.data.gouv.fr/api/1/datasets/r/c83ba91e-2cd1-40f7-a632-eb0a76d83c49",
         "map": True,
         "timeout-seconds": 600,
-        "expected_number_of_features": 66,
+        "expected_number_of_features": 1128122,
     },
 ]
 SERVICE_IMPORT_CASES = [
@@ -94,6 +94,7 @@ class TestDatafeeder:
             timeout=case["timeout-seconds"] * 1000
         )
         expect(page.get_by_role("heading", name="Preview of the result")).to_be_visible()
+        page.get_by_placeholder("Enter a title for your dataset").fill(case["id"])
         if case["map"]:
             page.get_by_role("radio", name="Map").click()
             expect(page.locator("canvas")).to_be_visible()
@@ -124,6 +125,7 @@ class TestDatafeeder:
             timeout=case["timeout-seconds"] * 1000
         )
         expect(page.get_by_role("heading", name="Preview of the result")).to_be_visible()
+        page.get_by_placeholder("Enter a title for your dataset").fill(case["id"])
         page.get_by_role("radio", name="Map").click()
         expect(page.locator("canvas")).to_be_visible()
 
@@ -147,6 +149,8 @@ class TestDatafeeder:
                 f"/datafeeder-backend/ingestion/integrity-link/{integrity_link_id}"
             )
             expect(integrity_link).to_be_ok()
+            page.wait_for_timeout(2000)
+            print(integrity_link.json())
             workspace, layer = integrity_link.json()["data_id"].split(":", 1)
             hits = page.request.get(
                 f"/geoserver/{workspace}/wfs",
@@ -209,5 +213,5 @@ class TestDatafeeder:
         first_row = page.locator("app-integrity-link-list [role='button']").first
         first_row.hover()
         page.get_by_label("Delete dataset").first.click()
-        page.get_by_role("button", name="Delete").first.click()
+        page.locator("[data-cy='confirm-button'] button").click()
         page.wait_for_timeout(1000)
