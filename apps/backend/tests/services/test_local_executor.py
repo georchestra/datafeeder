@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.task_executor import TaskStatus
+from src.core.task_executor import ProcessSource, TaskStatus
 from src.services.executors.local_executor import LocalTaskExecutor
 
 
@@ -289,3 +289,42 @@ class TestLocalTaskExecutorProcess:
 
             mock_post.assert_called_once_with("https://ko.example.com&reason=", timeout=10)
             assert executor.get_task_status("process_dag", "run-p3").status == TaskStatus.FAILED
+
+    def test_trigger_process_task_reingests_from_source_without_staging_table(self) -> None:
+        executor = _sync_executor()
+
+        with (
+            patch.object(executor, "_ingest") as mock_ingest,
+            patch("src.services.executors.local_executor.create_schema"),
+            patch(
+                "src.services.executors.local_executor.transform_staging_to_final",
+                return_value=3,
+            ) as mock_transform,
+            patch("src.services.executors.local_executor.Table") as mock_table_cls,
+            patch("src.services.executors.local_executor.data_engine"),
+            patch("src.services.executors.local_executor.requests.post") as mock_post,
+        ):
+            executor.trigger_process_task(
+                run_id="run-p4",
+                final_table_name="final_table",
+                success_callback_url="https://ok.example.com",
+                source=ProcessSource(
+                    source="https://example.com/wfs",
+                    source_type="API",
+                    source_layer="ns:layer",
+                    source_protocol="wfs",
+                    encrypted_credentials="secret",
+                ),
+            )
+
+            source_type, source, staging_table, credentials, layer, protocol = (
+                mock_ingest.call_args.args
+            )
+            assert (source_type, source) == ("API", "https://example.com/wfs")
+            assert staging_table.startswith("temp_")
+            assert (credentials, layer, protocol) == ("secret", "ns:layer", "wfs")
+            # The temporary staging table feeds the transform, then is dropped
+            assert mock_transform.call_args.kwargs["staging_table"] == staging_table
+            mock_table_cls.return_value.drop.assert_called_once()
+            mock_post.assert_called_once_with("https://ok.example.com", timeout=10)
+            assert executor.get_task_status("process_dag", "run-p4").status == TaskStatus.SUCCESS

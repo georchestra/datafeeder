@@ -408,6 +408,18 @@ class TestAclLayerGet:
         service.geoserver.rest_service.rest_client = client
         return client
 
+    @pytest.mark.parametrize(("status_code", "expected"), [(200, True), (404, False)])
+    def test_layer_exists(
+        self,
+        service: GeoServerService,
+        rest_client: MagicMock,
+        status_code: int,
+        expected: bool,
+    ) -> None:
+        rest_client.get.return_value.status_code = status_code
+
+        assert service.layer_exists("mel", "mel_ds", "voie_nommee") is expected
+
     def test_post_success(self, service: GeoServerService, rest_client: MagicMock) -> None:
         rest_client.post.return_value.status_code = 200
 

@@ -298,6 +298,13 @@ class GeoServerService:
             result["wms"] = {"base": all_urls["wms"]["base"]}
         return result
 
+    def layer_exists(self, workspace_name: str, datastore_name: str, layer_name: str) -> bool:
+        """Whether a feature type exists in a GeoServer datastore."""
+        url = self.geoserver.rest_service.rest_endpoints.featuretype(
+            workspace_name, datastore_name, layer_name
+        )
+        return self.geoserver.rest_service.rest_client.get(url).status_code == 200
+
     def update_layer_title(
         self,
         workspace_name: str,

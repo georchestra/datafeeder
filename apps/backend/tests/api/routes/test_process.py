@@ -168,7 +168,7 @@ def _make_mock_geoserver() -> AsyncMock:
 class TestDagSuccessCallbackRevisionDate:
     """Tests for the revision date update logic in dag_success_callback."""
 
-    @patch("src.api.routes.ingestion.process.Table")
+    @patch("src.services.layer_publication.Table")
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_calls_update_revision_date_when_metadata_id_set(
         self,
@@ -203,7 +203,7 @@ class TestDagSuccessCallbackRevisionDate:
         )
         mock_schema.upload_to_gn.assert_called_once()
 
-    @patch("src.api.routes.ingestion.process.Table")
+    @patch("src.services.layer_publication.Table")
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_skips_update_when_metadata_id_is_none(
         self,
@@ -232,7 +232,7 @@ class TestDagSuccessCallbackRevisionDate:
 
         mock_metadata_service.read_schema_from_gn.assert_not_called()
 
-    @patch("src.api.routes.ingestion.process.Table")
+    @patch("src.services.layer_publication.Table")
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_soft_failure_does_not_raise(
         self,
