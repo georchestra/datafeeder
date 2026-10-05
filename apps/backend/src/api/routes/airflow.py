@@ -117,8 +117,14 @@ def get_dag_run_logs(
 ) -> str:
     intlink_id = extract_integrity_link_id(dag_run_id)
     # Ensure the user has access to the integrity link associated with this DAG run
-    load_authorized_integrity_link(
-        intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, group_ids
-    )
+    try:
+        load_authorized_integrity_link(
+            intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, group_ids
+        )
+    except HTTPException as e:
+        # A failed initial staging run deletes its integrity link, so ownership can't be
+        # checked anymore: only administrators may still fetch those logs (debug purpose).
+        if not (e.status_code == 404 and geo_ctx.is_administrator()):
+            raise
     executor = get_task_executor()
     return executor.get_task_logs(dag_id, dag_run_id)
