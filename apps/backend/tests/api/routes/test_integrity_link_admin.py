@@ -17,6 +17,7 @@ from src.api.routes.ingestion.integrity_link_admin import (
     reassign_integrity_link_ownership,
     router,
 )
+from src.core.config import get_data_schema
 from src.core.task_executor import TaskRunInfo, TaskStatus
 from src.models.data_import import (
     ImportType,
@@ -89,6 +90,10 @@ def _schema_per_org(org: str) -> str:
 
 def _table_only_in_mel(_engine: Any, schema: str, _table: str) -> bool:
     return schema == "mel"
+
+
+def _table_only_in_data(_engine: Any, schema: str, _table: str) -> bool:
+    return schema == "data"
 
 
 def _session(conflict: IntegrityLink | None = None) -> MagicMock:
@@ -405,7 +410,7 @@ def reassign_mocks() -> Iterator[dict[str, MagicMock]]:
     with (
         patch(f"{MODULE}.ConsoleService", return_value=console),
         patch(f"{MODULE}.get_data_schema", side_effect=_schema_per_org),
-        patch(f"{MODULE}.table_exists", side_effect=_table_only_in_mel),
+        patch(f"{MODULE}.table_exists", side_effect=_table_only_in_mel) as table_exists,
         patch(f"{MODULE}.read_table_extent") as read_table_extent,
         patch(f"{MODULE}.publish_final_table", new_callable=AsyncMock) as publish,
         patch(f"{MODULE}._move_table") as move_table,
@@ -414,6 +419,7 @@ def reassign_mocks() -> Iterator[dict[str, MagicMock]]:
     ):
         yield {
             "console": console,
+            "table_exists": table_exists,
             "read_table_extent": read_table_extent,
             "publish": publish,
             "move_table": move_table,
@@ -505,6 +511,8 @@ class TestReassignOwnership:
             ("voie_nommee", "ville_roubaix", "mel"),
         ]
         assert reassign_mocks["publish"].call_args.args[3] == "mel"
+        # The restored layer gets its permission rules back
+        reassign_mocks["sync_data_sharing"].assert_called_once()
 
     async def test_existing_layer_in_target_workspace_is_rejected(
         self, reassign_mocks: dict[str, MagicMock]
@@ -523,13 +531,72 @@ class TestReassignOwnership:
     async def test_dataset_without_table_only_changes_fields(
         self, reassign_mocks: dict[str, MagicMock]
     ) -> None:
-        link = _link(integrity_organization="OTHER")  # table_exists is False outside "mel"
+        # table_exists is False outside "mel", and data_id does not point to it either
+        link = _link(integrity_organization="OTHER", data_id=None)
 
         await _reassign(link)
 
         assert link.integrity_organization == "VILLE_ROUBAIX"
         reassign_mocks["move_table"].assert_not_called()
         reassign_mocks["publish"].assert_not_called()
+
+    async def test_table_left_in_data_schema_is_moved_to_the_org_schema(
+        self, reassign_mocks: dict[str, MagicMock]
+    ) -> None:
+        """Table written before USE_ORG_SCHEMA was enabled: found in data, moved from there."""
+        reassign_mocks["table_exists"].side_effect = _table_only_in_data
+        geoserver = _geoserver()
+        link = _link(integrity_organization="PSC", data_id="psc:voie_nommee")
+
+        await _reassign(link, organization="C2C", geoserver=geoserver)
+
+        reassign_mocks["read_table_extent"].assert_called_once_with("voie_nommee", "data")
+        reassign_mocks["move_table"].assert_called_once_with("voie_nommee", "data", "c2c")
+        geoserver.delete_layer.assert_called_once_with("psc", "psc_ds", "voie_nommee")
+        assert reassign_mocks["publish"].call_args.args[2:4] == ("voie_nommee", "c2c")
+        assert link.integrity_organization == "C2C"
+
+    async def test_same_organization_repairs_a_table_left_in_data(
+        self, reassign_mocks: dict[str, MagicMock]
+    ) -> None:
+        """Reassigning to the current org puts back a dataset left in the wrong schema."""
+        reassign_mocks["table_exists"].side_effect = _table_only_in_data
+        geoserver = _geoserver()
+        link = _link(integrity_organization="C2C", data_id="psc:voie_nommee")
+
+        await _reassign(link, organization="C2C", geoserver=geoserver)
+
+        reassign_mocks["move_table"].assert_called_once_with("voie_nommee", "data", "c2c")
+        geoserver.delete_layer.assert_called_once_with("psc", "psc_ds", "voie_nommee")
+        assert reassign_mocks["publish"].call_args.args[2:4] == ("voie_nommee", "c2c")
+
+    async def test_dataset_already_in_place_is_not_moved(
+        self, reassign_mocks: dict[str, MagicMock]
+    ) -> None:
+        geoserver = _geoserver()
+
+        await _reassign(_link(), organization="MEL", geoserver=geoserver)
+
+        reassign_mocks["move_table"].assert_not_called()
+        reassign_mocks["cancel_runs"].assert_not_called()
+        geoserver.delete_layer.assert_not_called()
+
+    async def test_without_org_schemas_everything_goes_to_data(
+        self, reassign_mocks: dict[str, MagicMock]
+    ) -> None:
+        """USE_ORG_SCHEMA=false: a table left in an org schema is moved back to data."""
+        geoserver = _geoserver()
+        link = _link()  # table in "mel", written while USE_ORG_SCHEMA was true
+
+        with (
+            patch(f"{MODULE}.get_data_schema", side_effect=get_data_schema),
+            patch("src.core.config.get_settings") as mock_settings,
+        ):
+            mock_settings.return_value.USE_ORG_SCHEMA = False
+            await _reassign(link, geoserver=geoserver)
+
+        reassign_mocks["move_table"].assert_called_once_with("voie_nommee", "mel", "data")
+        assert reassign_mocks["publish"].call_args.args[2:4] == ("voie_nommee", "data")
 
     async def test_prefilled_dataset_is_never_moved(
         self, reassign_mocks: dict[str, MagicMock]

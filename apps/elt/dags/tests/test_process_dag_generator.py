@@ -141,3 +141,43 @@ class TestCreateDagCallbackUrls:
         assert (
             urlparse(conf["failure_callback_url"]).path == "/internal/ingestion/process/dag_failure"
         )
+
+
+def _config(organization: str | None = "VILLE_ROUBAIX") -> dict:
+    return {
+        "id": "abc-123",
+        "integrity_organization": organization,
+        "final_table_name": "my_table",
+        "schedule": "0 0 * * *",
+        "integrity_transformation": None,
+        "source_url": "http://example.com/data.csv",
+        "source_import_type": "url",
+        "source_layer": None,
+        "source_protocol": None,
+        "source_password_encrypted": None,
+    }
+
+
+class TestCreateDagTargetSchema:
+    """Scheduled runs must write where manual runs do: the org schema when USE_ORG_SCHEMA."""
+
+    def _generated_target_schema(self, config: dict) -> str:
+        TRIGGER_OPERATOR_CALLS.clear()
+        _module.create_dag(config)
+        return TRIGGER_OPERATOR_CALLS[0]["conf"]["target_schema"]
+
+    def test_org_schema_when_use_org_schema(self, monkeypatch):
+        monkeypatch.setenv("USE_ORG_SCHEMA", "true")
+        assert self._generated_target_schema(_config()) == "ville_roubaix"
+
+    def test_shared_data_schema_by_default(self, monkeypatch):
+        monkeypatch.delenv("USE_ORG_SCHEMA", raising=False)
+        assert self._generated_target_schema(_config()) == "data"
+
+    def test_shared_data_schema_when_disabled(self, monkeypatch):
+        monkeypatch.setenv("USE_ORG_SCHEMA", "false")
+        assert self._generated_target_schema(_config()) == "data"
+
+    def test_shared_data_schema_without_organization(self, monkeypatch):
+        monkeypatch.setenv("USE_ORG_SCHEMA", "true")
+        assert self._generated_target_schema(_config(organization=None)) == "data"

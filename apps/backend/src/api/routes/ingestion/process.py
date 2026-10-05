@@ -22,7 +22,6 @@ from src.api.deps import (
 )
 from src.core.callback import build_callback_url
 from src.core.config import get_data_schema, get_settings, get_staging_schema
-from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.core.run_ids import make_manual_process_run_id
@@ -306,8 +305,9 @@ async def dag_success_callback(
     metadata_service: MetadataServiceDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
-    target_schema: str = Query(
-        default=DEFAULT_DATA_SCHEMA, description="PostgreSQL schema of the final table"
+    target_schema: str | None = Query(
+        default=None,
+        description="PostgreSQL schema of the final table (default: the dataset org schema)",
     ),
 ) -> None:
     """
@@ -318,11 +318,13 @@ async def dag_success_callback(
         datafeeder_session: Database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         final_table_name: Final table name created by the process DAG
-        target_schema: PostgreSQL schema where the final table lives
+        target_schema: PostgreSQL schema where the final table lives (default: org schema)
     """
     integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    # Scheduled runs (process-dag-generator) do not pass it: derive it like manual runs do
+    target_schema = target_schema or get_data_schema(integrity_link.integrity_organization)
 
     workspace_name = integrity_link.integrity_organization.lower()
     is_geographic = False
@@ -391,8 +393,9 @@ async def dag_failure_callback(
     dag_id: str = Query(..., description="DAG ID"),
     dag_run_id: str = Query(..., description="DAG run ID"),
     final_table_name: str = Query(None, description="Final table name (if created)"),
-    target_schema: str = Query(
-        default=DEFAULT_DATA_SCHEMA, description="PostgreSQL schema of the final table"
+    target_schema: str | None = Query(
+        default=None,
+        description="PostgreSQL schema of the final table (default: the dataset org schema)",
     ),
     reason: str | None = Query(None, description="Failure reason from Airflow context"),
 ) -> None:
@@ -413,6 +416,8 @@ async def dag_failure_callback(
     integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    # Scheduled runs (process-dag-generator) do not pass it: derive it like manual runs do
+    target_schema = target_schema or get_data_schema(integrity_link.integrity_organization)
 
     # Drop the final table if it exists
     if final_table_name:

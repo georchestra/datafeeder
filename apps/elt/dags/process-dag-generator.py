@@ -12,6 +12,7 @@ def load_scheduled_integrity_links():
     sql = """
         SELECT
             id::text,
+            integrity_organization,
             data_id,
             metadata_id,
             integrity_title,
@@ -36,6 +37,22 @@ def _build_callback_url(route: str, integrity_link_id: str, final_table_name: st
         {"integrity_link_id": integrity_link_id, "final_table_name": final_table_name}
     )
     return f"{backend_url}{route}?{params}"
+
+
+DEFAULT_DATA_SCHEMA = "data"
+
+
+def _target_schema(organization: str | None) -> str:
+    """Schema of the final table, as the backend's get_data_schema() computes it.
+
+    USE_ORG_SCHEMA must have the same value here and in the backend configuration.
+    """
+    use_org_schema = os.environ.get("USE_ORG_SCHEMA", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    return organization.lower() if use_org_schema and organization else DEFAULT_DATA_SCHEMA
 
 
 def create_dag(config):
@@ -66,6 +83,7 @@ def create_dag(config):
                 "source_layer": normalize_nan(config.get("source_layer"), ""),
                 "source_protocol": normalize_nan(config.get("source_protocol"), ""),
                 "final_table_name": config.get("final_table_name"),
+                "target_schema": _target_schema(config.get("integrity_organization")),
                 "integrity_transformation": config.get("integrity_transformation") or {},
                 "encrypted_credentials": config.get("source_password_encrypted", None),
                 "success_callback_url": _build_callback_url(

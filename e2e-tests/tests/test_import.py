@@ -15,10 +15,10 @@ IMPORT_CASES = [
     },
     {
         "id": "geojson",
-        "url": "https://www.data.gouv.fr/api/1/datasets/r/6b54f76f-f143-4e74-aecc-0af2a032428b",
+        "url": "https://www.data.gouv.fr/api/1/datasets/r/9e20dab9-0585-4bb7-aa08-9c86e53f8033",
         "map": True,
         "timeout-seconds": 30,
-        "expected_number_of_features": 7283,
+        "expected_number_of_features": 3136,
     },
     {
         "id": "csv",

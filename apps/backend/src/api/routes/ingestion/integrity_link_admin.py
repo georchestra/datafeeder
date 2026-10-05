@@ -21,6 +21,7 @@ from src.api.routes.ingestion.integrity_link import (
 )
 from src.core.callback import build_callback_url
 from src.core.config import get_data_schema, get_settings
+from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.db import data_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
@@ -338,36 +339,73 @@ def _move_table(table_name: str, from_schema: str, to_schema: str) -> None:
     logger.info(f"Moved table {table_name} from schema {from_schema} to {to_schema}")
 
 
+def _locate_final_table(integrity_link: IntegrityLink) -> str | None:
+    """Schema the final table actually lives in, or None if it does not exist.
+
+    It is usually the schema of the dataset organization, but a table written while
+    USE_ORG_SCHEMA had another value (or by a scheduled run, which used to ignore it)
+    lives in the other one.
+    """
+    table_name = integrity_link.final_table_name
+    assert table_name
+    candidates = [get_data_schema(integrity_link.integrity_organization), DEFAULT_DATA_SCHEMA]
+    if parts := integrity_link.parse_data_id():
+        candidates.append(parts[0].lower())
+    for schema in dict.fromkeys(candidates):
+        if table_exists(data_engine, schema, table_name):
+            return schema
+    return None
+
+
+def _sync_data_sharing_safe(
+    session: DatafeederSessionDep, integrity_link: IntegrityLink, geoserver: GeoServerService
+) -> None:
+    """Apply the dataset DATA rules to its layer (ACL rules are keyed by layer name)."""
+    try:
+        _sync_data_sharing(session, str(integrity_link.id), integrity_link, geoserver)
+    except Exception as e:
+        logger.error(f"Failed to sync GeoServer ACL of {integrity_link.id}: {e}", exc_info=True)
+
+
 async def _move_dataset(
     integrity_link: IntegrityLink,
     new_organization: str,
     session: DatafeederSessionDep,
     geoserver_service: GeoServerService,
 ) -> None:
-    """Move the final table and GeoServer layer of a dataset to another organization.
+    """Put the final table and GeoServer layer of a dataset where the organization expects them.
 
-    Updates integrity_organization and data_id; the caller commits. On GeoServer failure,
-    the previous location is restored and HTTP 502 is raised.
+    Starts from where they actually are (schema found in the database, workspace from
+    data_id), so a dataset left in another schema by a USE_ORG_SCHEMA change is moved too,
+    even when the organization does not change. Updates integrity_organization and data_id;
+    the caller commits. On GeoServer failure, the previous location is restored and HTTP 502
+    is raised.
     """
     old_organization = integrity_link.integrity_organization
-    old_ws, new_ws = old_organization.lower(), new_organization.lower()
     table_name = integrity_link.final_table_name
     assert table_name
-    old_schema, new_schema = get_data_schema(old_ws), get_data_schema(new_ws)
+    parts = integrity_link.parse_data_id()
+    current_ws = parts[0].lower() if parts else old_organization.lower()
+    current_schema = _locate_final_table(integrity_link)
+    new_ws = new_organization.lower()
+    new_schema = get_data_schema(new_ws)
 
-    if not table_exists(data_engine, old_schema, table_name):
-        # Never processed, or failed: there is no data to move
+    if current_schema is None:
+        logger.warning(f"Final table {table_name} of {integrity_link.id} not found: not moved")
         integrity_link.integrity_organization = new_organization
         return
-    if old_schema != new_schema and table_exists(data_engine, new_schema, table_name):
+    if (current_schema, current_ws) == (new_schema, new_ws):
+        integrity_link.integrity_organization = new_organization
+        return
+    if current_schema != new_schema and table_exists(data_engine, new_schema, table_name):
         raise HTTPException(
             status_code=409, detail=f"Table {new_schema}.{table_name} already exists"
         )
-    if geoserver_service.layer_exists(new_ws, f"{new_ws}_ds", table_name):
+    if current_ws != new_ws and geoserver_service.layer_exists(new_ws, f"{new_ws}_ds", table_name):
         raise HTTPException(
             status_code=409, detail=f"GeoServer layer {new_ws}:{table_name} already exists"
         )
-    extent = read_table_extent(table_name, old_schema)
+    extent = read_table_extent(table_name, current_schema)
 
     # No run may keep writing to the old location while the dataset moves
     if get_settings().TASK_EXECUTOR == TaskExecutorType.AIRFLOW:
@@ -376,9 +414,10 @@ async def _move_dataset(
         except Exception as e:
             logger.warning(f"Failed to cancel DAG runs of {integrity_link.id}: {e}")
 
-    _move_table(table_name, old_schema, new_schema)
-    geoserver_service.delete_layer(old_ws, f"{old_ws}_ds", table_name)
-    geoserver_service.delete_layer_acl(old_ws, table_name)
+    _move_table(table_name, current_schema, new_schema)
+    # Recreated even in the same workspace: its datastore then follows the new schema
+    geoserver_service.delete_layer(current_ws, f"{current_ws}_ds", table_name)
+    geoserver_service.delete_layer_acl(current_ws, table_name)
     integrity_link.integrity_organization = new_organization
     try:
         await publish_final_table(geoserver_service, integrity_link, table_name, new_schema, extent)
@@ -387,28 +426,25 @@ async def _move_dataset(
         # Restore the previous location so the dataset stays usable
         integrity_link.integrity_organization = old_organization
         try:
-            _move_table(table_name, new_schema, old_schema)
+            _move_table(table_name, new_schema, current_schema)
             await publish_final_table(
-                geoserver_service, integrity_link, table_name, old_schema, extent
+                geoserver_service, integrity_link, table_name, current_schema, extent
             )
+            _sync_data_sharing_safe(session, integrity_link, geoserver_service)
         except Exception as restore_error:
             logger.error(
-                f"Failed to restore {table_name} in {old_schema} / workspace {old_ws}: "
-                f"{restore_error}",
+                f"Failed to restore {table_name} in {current_schema} / workspace "
+                f"{old_organization.lower()}: {restore_error}",
                 exc_info=True,
             )
         raise HTTPException(
             status_code=502, detail="Failed to publish the layer in the new organization"
         )
 
-    geoserver_service.delete_datastore_if_empty(old_ws, f"{old_ws}_ds")
-    geoserver_service.delete_workspace_if_empty(old_ws)
-
-    # ACL rules are keyed by layer name: apply the dataset DATA rules to the new layer
-    try:
-        _sync_data_sharing(session, str(integrity_link.id), integrity_link, geoserver_service)
-    except Exception as e:
-        logger.error(f"Failed to sync GeoServer ACL of {integrity_link.id}: {e}", exc_info=True)
+    if current_ws != new_ws:
+        geoserver_service.delete_datastore_if_empty(current_ws, f"{current_ws}_ds")
+        geoserver_service.delete_workspace_if_empty(current_ws)
+    _sync_data_sharing_safe(session, integrity_link, geoserver_service)
 
 
 @router.put(
@@ -417,10 +453,12 @@ async def _move_dataset(
     summary="Reassign a dataset to another owner and organization",
     description=(
         "Administrators only. The owner must be a console user and the organization a console "
-        "organization. When the organization changes, the final table moves to the schema of "
-        "the new organization (if schemas are per organization), the GeoServer layer is "
-        "recreated in its workspace (permission rules re-applied), running DAG runs are "
-        "cancelled. The layer URLs of the metadata record are left as is. The record "
+        "organization. The final table and the GeoServer layer are put where the organization "
+        "expects them: when their actual location (table schema, layer workspace) differs, the "
+        "table moves to the organization schema (if schemas are per organization), the layer "
+        "is recreated in its workspace (permission rules re-applied) and running DAG runs are "
+        "cancelled. This also fixes a dataset left in another schema by a USE_ORG_SCHEMA "
+        "change. The layer URLs of the metadata record are left as is. The record "
         "ownership follows the new owner and organization."
     ),
 )
@@ -446,13 +484,9 @@ async def reassign_integrity_link_ownership(
     if request.owner not in console_service.fetch_users_by_usernames([request.owner]):
         raise HTTPException(status_code=400, detail=f"Unknown user '{request.owner}'")
 
-    organization_changes = (
-        integrity_link.integrity_organization.lower() != request.organization.lower()
-    )
     # A prefilled dataset references a layer datafeeder does not manage: never moved
     if (
-        organization_changes
-        and integrity_link.final_table_name
+        integrity_link.final_table_name
         and integrity_link.source_import_type != ImportType.PREFILLED
     ):
         await _move_dataset(integrity_link, request.organization, session, geoserver_service)
