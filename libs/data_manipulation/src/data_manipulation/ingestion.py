@@ -242,10 +242,13 @@ def _detect_shapefile_encoding(file_path: str) -> str | None:
     members = _shapefile_members(file_path)
     if members is None:
         return None
-    cpg_bytes, dbf_bytes = members
+    cpg_bytes, cst_bytes, dbf_bytes = members
     # A .cpg is authoritative and GDAL already honours it.
     if cpg_bytes is not None or dbf_bytes is None:
         return None
+    # GDAL ignores .cst (the .cpg equivalent written by GeoServer), so pass it on.
+    if cst_bytes is not None:
+        return cst_bytes.decode("ascii").strip()
 
     try:
         detected = chardet.detect(_dbf_text_payload(dbf_bytes))["encoding"]
@@ -277,8 +280,8 @@ def _detect_shapefile_encoding(file_path: str) -> str | None:
     return detected
 
 
-def _shapefile_members(file_path: str) -> tuple[bytes | None, bytes | None] | None:
-    """Return ``(cpg_bytes, dbf_sample)`` for a shapefile, or ``None`` if not one.
+def _shapefile_members(file_path: str) -> tuple[bytes | None, bytes | None, bytes | None] | None:
+    """Return ``(cpg_bytes, cst_bytes, dbf_sample)`` for a shapefile, or ``None`` if not one.
 
     Handles both a plain ``.shp`` on disk and a shapefile inside a ZIP, so the
     encoding of zipped shapefiles can be detected without extracting them.
@@ -290,25 +293,29 @@ def _shapefile_members(file_path: str) -> tuple[bytes | None, bytes | None] | No
                 return None
             cpg = next((n for n in names if n.lower().endswith(".cpg")), None)
             dbf = next((n for n in names if n.lower().endswith(".dbf")), None)
+            cst = next((n for n in names if n.lower().endswith(".cst")), None)
             cpg_bytes = archive.read(cpg) if cpg else None
+            cst_bytes = archive.read(cst) if cst else None
             dbf_bytes = None
             if dbf:
                 with archive.open(dbf) as handle:
                     dbf_bytes = handle.read(_ENCODING_DETECT_BYTES)
-        return cpg_bytes, dbf_bytes
+        return cpg_bytes, cst_bytes, dbf_bytes
 
     path = Path(file_path)
     if path.suffix.lower() != ".shp":
         return None
 
     cpg_path = path.with_suffix(".cpg")
+    cst_path = path.with_suffix(".cst")
     dbf_path = path.with_suffix(".dbf")
     cpg_bytes = cpg_path.read_bytes() if cpg_path.exists() else None
+    cst_bytes = cst_path.read_bytes() if cst_path.exists() else None
     dbf_bytes = None
     if dbf_path.exists():
         with open(dbf_path, "rb") as handle:
             dbf_bytes = handle.read(_ENCODING_DETECT_BYTES)
-    return cpg_bytes, dbf_bytes
+    return cpg_bytes, cst_bytes, dbf_bytes
 
 
 def _is_archive_metadata(name: str) -> bool:

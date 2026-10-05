@@ -537,6 +537,15 @@ class TestShapefileEncodingDetection:
             zf.writestr("z.cpg", "ISO-8859-1")
         assert _detect_shapefile_encoding(str(archive)) is None
 
+    def test_zipped_shapefile_with_cst_uses_it(self, tmp_path: Path) -> None:
+        # GDAL ignores .cst (written by GeoServer exports), so its value must be passed on.
+        archive = tmp_path / "z.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("z.shp", b"\x00")
+            zf.writestr("z.dbf", _dbf(_LATIN1_RECORDS))
+            zf.writestr("z.cst", "ISO-8859-1")
+        assert _detect_shapefile_encoding(str(archive)) == "ISO-8859-1"
+
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_shape_encoding_is_passed_to_ogr2ogr(
         self, mock_run: MagicMock, engine: Engine, tmp_path: Path
