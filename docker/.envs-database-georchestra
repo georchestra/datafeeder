@@ -30,4 +30,4 @@ DATAFEEDER_PGUSER=postgres
 DATAFEEDER_PGPASSWORD=mypassword
 
 # external source databases (for database import type)
-SOURCE_DATABASES={"SOURCE_DB_1": "postgresql://postgres:mypassword@localhost:5433/postgres"}
+SOURCE_DATABASES={"SOURCE_DB_1": "postgresql://postgres:mypassword@localhost:5433/postgres", "SOURCE_DB_2": "postgresql://postgres:mypassword@localhost:5434/sourcedb"}
