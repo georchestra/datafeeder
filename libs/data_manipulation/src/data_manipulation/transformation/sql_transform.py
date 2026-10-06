@@ -198,22 +198,15 @@ def build_transformation_select(
     Returns:
         A :class:`TransformationQuery`.
     """
-    columns = config.columns if config is not None else None
-    if not columns:
-        # Passthrough: every staging column, unchanged.
-        columns = [ColumnConfig(original_name=col.name) for col in table.c]
     force = config.force_projection if config is not None else None
-
     geom_srid = _parse_srid(force.type) if force else None
     x_col = force.x_column if force and force.x_column else None
     y_col = force.y_column if force and force.y_column else None
     build_point = bool(x_col and y_col)
 
-    select_exprs: list[ColumnElement[Any]] = []
-    where_clauses: list[ColumnElement[Any]] = []
-    property_columns: list[str] = []
-    geom_out: str | None = None
-
+    columns = config.columns if config is not None else None
+    if not columns:
+        columns = [ColumnConfig(original_name=col.name) for col in table.c]
     columns = [c for c in columns if not c.excluded]
     missing = [c.original_name for c in columns if c.original_name not in table.c]
     if missing:
@@ -222,6 +215,11 @@ def build_transformation_select(
     if build_point:
         # The existing geometry is replaced by the point built from X/Y.
         columns = [c for c in columns if c.original_name != DEFAULT_GEOMETRY_COLUMN]
+
+    select_exprs: list[ColumnElement[Any]] = []
+    where_clauses: list[ColumnElement[Any]] = []
+    property_columns: list[str] = []
+    geom_out: str | None = None
 
     for col_config in columns:
         name = col_config.original_name
