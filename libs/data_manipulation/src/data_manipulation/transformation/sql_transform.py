@@ -219,26 +219,27 @@ def build_transformation_select(
     if missing:
         logger.warning("Columns %s not found in table '%s', skipping", missing, table.name)
     columns = [c for c in columns if c.original_name in table.c]
+    if build_point:
+        # The existing geometry is replaced by the point built from X/Y.
+        columns = [c for c in columns if c.original_name != DEFAULT_GEOMETRY_COLUMN]
 
     for col_config in columns:
         name = col_config.original_name
         if name == DEFAULT_GEOMETRY_COLUMN:
-            # Kept as-is (optionally relabelled); replaced by the X/Y point otherwise.
-            if not build_point:
-                geom = _geom_ref()
-                expr = func.ST_SetSRID(geom, geom_srid) if geom_srid is not None else geom
-                select_exprs.append(expr.label(DEFAULT_GEOMETRY_COLUMN))
-                geom_out = DEFAULT_GEOMETRY_COLUMN
-            continue
+            # Kept as-is, optionally relabelled with the forced SRID.
+            geom = _geom_ref()
+            expr = func.ST_SetSRID(geom, geom_srid) if geom_srid is not None else geom
+            select_exprs.append(expr.label(DEFAULT_GEOMETRY_COLUMN))
+            geom_out = DEFAULT_GEOMETRY_COLUMN
+        else:
+            col: Column[Any] = table.c[name]
+            expr = _cast_expr(col, col_config.cast_type) if col_config.cast_type else col
+            effective = col_config.new_name or col_config.original_name
+            select_exprs.append(expr.label(effective))
+            property_columns.append(effective)
 
-        col: Column[Any] = table.c[name]
-        expr = _cast_expr(col, col_config.cast_type) if col_config.cast_type else col
-        effective = col_config.new_name or col_config.original_name
-        select_exprs.append(expr.label(effective))
-        property_columns.append(effective)
-
-        if col_config.filter is not None:
-            where_clauses.append(build_filter_clause(col, col_config.filter))
+            if col_config.filter is not None:
+                where_clauses.append(build_filter_clause(col, col_config.filter))
 
     if build_point and x_col is not None and y_col is not None:
         srid = geom_srid if geom_srid is not None else DEFAULT_SRID
