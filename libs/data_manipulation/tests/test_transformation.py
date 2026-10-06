@@ -9,6 +9,7 @@ verifying its output guarantees preview/process parity (FR-021).
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from sqlalchemy import Column, Integer, MetaData, Table, Text
 from sqlalchemy.dialects import postgresql
 
@@ -19,10 +20,12 @@ from data_manipulation.models import (
     FilterOperator,
     ForceProjection,
     IntegrityTransformation,
+    JoinConfig,
 )
 from data_manipulation.transformation.sql_transform import (
     _parse_srid,  # type: ignore[reportPrivateUsage]
     build_transformation_select,
+    reflect_join_table,
     transform_staging_to_final,
 )
 
@@ -200,6 +203,157 @@ class TestProjection:
         assert tq.geom_column == "geom"
         assert "ST_MakePoint" in sql
         assert "ST_SetSRID" in sql
+
+
+def _communes_table() -> Table:
+    metadata = MetaData(schema="org_a")
+    return Table(
+        "communes",
+        metadata,
+        Column("insee", Text),
+        Column("name", Text),
+        Column("dept", Integer),
+        Column("geom", Text),
+        Column("id_datafeeder", Text),
+    )
+
+
+def _join(
+    columns: list[str] | None = None, staging_columns: list[ColumnConfig] | None = None
+) -> IntegrityTransformation:
+    join = JoinConfig(
+        table_schema="org_a",
+        table_name="communes",
+        source_column="ratio",
+        target_column="insee",
+        columns=["insee", "dept"] if columns is None else columns,
+    )
+    return IntegrityTransformation(columns=staging_columns, join=join)
+
+
+def _staging_columns(**overrides: ColumnConfig) -> list[ColumnConfig]:
+    """One ColumnConfig per staging column, replaced by *overrides* by original name."""
+    return [
+        overrides.get(col.name, ColumnConfig(original_name=col.name)) for col in _staging_table().c
+    ]
+
+
+class TestJoin:
+    def test_left_join_on_keys_compared_as_text(self) -> None:
+        tq = build_transformation_select(_staging_table(), _join(), _communes_table())
+        sql = str(tq.select.compile(dialect=postgresql.dialect()))
+        assert "LEFT OUTER JOIN org_a.communes" in sql
+        assert "CAST(staging.places.ratio AS TEXT) = CAST(org_a.communes.insee AS TEXT)" in sql
+
+    def test_adds_joined_columns_after_staging_ones(self) -> None:
+        tq = build_transformation_select(_staging_table(), _join(), _communes_table())
+        assert tq.property_columns[-2:] == ["insee", "dept"]
+        assert tq.geom_column == "geom"
+        sql = str(tq.select.compile(dialect=postgresql.dialect()))
+        assert "org_a.communes.dept AS dept" in sql
+
+    def test_empty_columns_means_no_join(self) -> None:
+        config = _join(columns=[])
+        tq = build_transformation_select(_staging_table(), config, None)
+        sql = str(tq.select.compile(dialect=postgresql.dialect()))
+        assert "JOIN" not in sql
+        assert (
+            tq.property_columns
+            == build_transformation_select(_staging_table(), None).property_columns
+        )
+
+    def test_empty_columns_does_not_reflect(self) -> None:
+        engine = MagicMock()
+        assert reflect_join_table(_join(columns=[]).join, engine) is None
+
+    def test_staging_geom_is_qualified(self) -> None:
+        tq = build_transformation_select(_staging_table(), _join(), _communes_table())
+        sql = str(tq.select.compile(dialect=postgresql.dialect()))
+        assert '"places"."geom" AS geom' in sql
+
+    def test_name_clash_raises(self) -> None:
+        with pytest.raises(ValueError, match="clash"):
+            build_transformation_select(
+                _staging_table(), _join(columns=["name"]), _communes_table()
+            )
+
+    def test_clash_uses_renamed_staging_column(self) -> None:
+        staging = _staging_columns(
+            population=ColumnConfig(original_name="population", new_name="dept")
+        )
+        with pytest.raises(ValueError, match="clash"):
+            build_transformation_select(
+                _staging_table(), _join(staging_columns=staging), _communes_table()
+            )
+
+    def test_renaming_staging_column_avoids_clash(self) -> None:
+        staging = _staging_columns(name=ColumnConfig(original_name="name", new_name="nom"))
+        config = _join(columns=["name"], staging_columns=staging)
+        tq = build_transformation_select(_staging_table(), config, _communes_table())
+        assert "nom" in tq.property_columns
+        assert tq.property_columns[-1] == "name"
+
+    def test_excluded_staging_column_does_not_clash(self) -> None:
+        staging = _staging_columns(name=ColumnConfig(original_name="name", excluded=True))
+        config = _join(columns=["name"], staging_columns=staging)
+        tq = build_transformation_select(_staging_table(), config, _communes_table())
+        assert tq.property_columns.count("name") == 1
+
+    def test_joined_id_datafeeder_clashes_with_final_primary_key(self) -> None:
+        with pytest.raises(ValueError, match="clash"):
+            build_transformation_select(
+                _staging_table(), _join(columns=["id_datafeeder"]), _communes_table()
+            )
+
+    def test_joined_geom_clashes_with_kept_staging_geom(self) -> None:
+        with pytest.raises(ValueError, match="clash"):
+            build_transformation_select(
+                _staging_table(), _join(columns=["geom"]), _communes_table()
+            )
+
+    def test_joined_geom_clashes_with_built_point(self) -> None:
+        config = _join(columns=["geom"])
+        config.force_projection = ForceProjection(type="EPSG:4326", x_column="lon", y_column="lat")
+        with pytest.raises(ValueError, match="clash"):
+            build_transformation_select(_staging_table(), config, _communes_table())
+
+    def test_joined_geom_replaces_excluded_staging_geom(self) -> None:
+        staging = _staging_columns(geom=ColumnConfig(original_name="geom", excluded=True))
+        config = _join(columns=["geom"], staging_columns=staging)
+        config.force_projection = ForceProjection(type="EPSG:2154")
+        tq = build_transformation_select(_staging_table(), config, _communes_table())
+        assert tq.geom_column == "geom"
+        assert "geom" not in tq.property_columns
+        sql = str(tq.select.compile(dialect=postgresql.dialect()))
+        assert 'ST_SetSRID("communes"."geom"' in sql
+        assert '"places"."geom"' not in sql
+
+    def test_joined_geom_without_staging_geom(self) -> None:
+        config = _join(columns=["geom"])
+        tq = build_transformation_select(_staging_table(with_geom=False), config, _communes_table())
+        assert tq.geom_column == "geom"
+
+    def test_join_requires_join_table(self) -> None:
+        with pytest.raises(ValueError, match="join_table"):
+            build_transformation_select(_staging_table(), _join(), None)
+
+    def test_unknown_column_raises(self) -> None:
+        config = _join(columns=["dept", "missing"])
+        with pytest.raises(ValueError, match="missing"):
+            build_transformation_select(_staging_table(), config, _communes_table())
+
+    def test_unknown_join_key_raises(self) -> None:
+        config = IntegrityTransformation(
+            join=JoinConfig(
+                table_schema="org_a",
+                table_name="communes",
+                source_column="nope",
+                target_column="insee",
+                columns=["dept"],
+            )
+        )
+        with pytest.raises(ValueError, match="nope"):
+            build_transformation_select(_staging_table(), config, _communes_table())
 
 
 class _RecordingConnection:
