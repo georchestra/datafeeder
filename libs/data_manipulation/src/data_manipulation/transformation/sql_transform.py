@@ -49,7 +49,7 @@ from sqlalchemy.sql import Select
 
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.logging import configure_logging
-from data_manipulation.models import CastType, IntegrityTransformation
+from data_manipulation.models import CastType, ColumnConfig, IntegrityTransformation
 from data_manipulation.transformation.filter_sql import build_filter_clause
 from data_manipulation.validators import validate_schema_name, validate_table_name
 
@@ -199,6 +199,9 @@ def build_transformation_select(
         A :class:`TransformationQuery`.
     """
     columns = config.columns if config is not None else None
+    if not columns:
+        # Passthrough: every staging column, unchanged.
+        columns = [ColumnConfig(original_name=col.name) for col in table.c]
     force = config.force_projection if config is not None else None
 
     geom_srid = _parse_srid(force.type) if force else None
@@ -211,44 +214,31 @@ def build_transformation_select(
     property_columns: list[str] = []
     geom_out: str | None = None
 
-    def _emit_existing_geom() -> None:
-        nonlocal geom_out
-        geom = _geom_ref()
-        expr = func.ST_SetSRID(geom, geom_srid) if geom_srid is not None else geom
-        select_exprs.append(expr.label(DEFAULT_GEOMETRY_COLUMN))
-        geom_out = DEFAULT_GEOMETRY_COLUMN
+    columns = [c for c in columns if not c.excluded]
+    missing = [c.original_name for c in columns if c.original_name not in table.c]
+    if missing:
+        logger.warning("Columns %s not found in table '%s', skipping", missing, table.name)
+    columns = [c for c in columns if c.original_name in table.c]
 
-    if columns:
-        for col_config in columns:
-            if col_config.excluded:
-                continue
-            name = col_config.original_name
-            if name not in table.c:
-                logger.warning("Column '%s' not found in table '%s', skipping", name, table.name)
-                continue
+    for col_config in columns:
+        name = col_config.original_name
+        if name == DEFAULT_GEOMETRY_COLUMN:
+            # Kept as-is (optionally relabelled); replaced by the X/Y point otherwise.
+            if not build_point:
+                geom = _geom_ref()
+                expr = func.ST_SetSRID(geom, geom_srid) if geom_srid is not None else geom
+                select_exprs.append(expr.label(DEFAULT_GEOMETRY_COLUMN))
+                geom_out = DEFAULT_GEOMETRY_COLUMN
+            continue
 
-            if name == DEFAULT_GEOMETRY_COLUMN:
-                # Geometry is emitted separately; skip here unless we keep it as-is.
-                if not build_point:
-                    _emit_existing_geom()
-                continue
+        col: Column[Any] = table.c[name]
+        expr = _cast_expr(col, col_config.cast_type) if col_config.cast_type else col
+        effective = col_config.new_name or col_config.original_name
+        select_exprs.append(expr.label(effective))
+        property_columns.append(effective)
 
-            col: Column[Any] = table.c[name]
-            expr = _cast_expr(col, col_config.cast_type) if col_config.cast_type else col
-            effective = col_config.new_name or col_config.original_name
-            select_exprs.append(expr.label(effective))
-            property_columns.append(effective)
-
-            if col_config.filter is not None:
-                where_clauses.append(build_filter_clause(col, col_config.filter))
-    else:
-        for col in table.c:
-            if col.name == DEFAULT_GEOMETRY_COLUMN:
-                if not build_point:
-                    _emit_existing_geom()
-                continue
-            select_exprs.append(col)
-            property_columns.append(col.name)
+        if col_config.filter is not None:
+            where_clauses.append(build_filter_clause(col, col_config.filter))
 
     if build_point and x_col is not None and y_col is not None:
         srid = geom_srid if geom_srid is not None else DEFAULT_SRID
