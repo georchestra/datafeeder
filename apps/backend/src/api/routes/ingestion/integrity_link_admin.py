@@ -1,6 +1,7 @@
 """Dataset administration: export/import across platforms, ownership change, deletion."""
 
 from datetime import datetime, timezone
+from uuid import UUID
 
 from data_manipulation.database import create_schema, table_exists
 from data_manipulation.validators import validate_schema_name
@@ -12,7 +13,6 @@ from src.api.deps import (
     DatafeederSessionDep,
     GeorchestraContextDep,
     GeoServerServiceDep,
-    GroupIdsDep,
     MetadataServiceDep,
 )
 from src.api.routes.ingestion.integrity_link import (
@@ -25,7 +25,6 @@ from src.core.db import data_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
 from src.core.run_ids import make_manual_process_run_id
-from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.core.task_executor import ProcessSource, TaskExecutorType
 from src.models.data_import import (
     ImportType,
@@ -66,6 +65,13 @@ def _require_administrator(geo_ctx: GeorchestraContext) -> None:
         raise HTTPException(status_code=403, detail="Administrator role required")
 
 
+def _get_integrity_link(session: DatafeederSessionDep, integrity_link_id: UUID) -> IntegrityLink:
+    integrity_link = session.get(IntegrityLink, integrity_link_id)
+    if integrity_link is None:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    return integrity_link
+
+
 def _require_console_owner(owner: str, organization: str) -> None:
     console_service = ConsoleService(get_settings().CONSOLE_INTERNAL_URL)
     if console_service.get_organization(organization) is None:
@@ -86,13 +92,10 @@ def _require_console_owner(owner: str, organization: str) -> None:
 def export_integrity_link(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
-    group_ids: GroupIdsDep,
-    integrity_link_id: str,
+    integrity_link_id: UUID,
 ) -> IntegrityLinkExport:
     _require_administrator(geo_ctx)
-    integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
-    )
+    integrity_link = _get_integrity_link(session, integrity_link_id)
     return IntegrityLinkExport.model_validate(integrity_link).model_copy(
         update={
             "has_source_password": integrity_link.source_password_encrypted is not None,
@@ -509,18 +512,15 @@ async def _move_dataset(
     ),
 )
 async def reassign_integrity_link_ownership(
-    integrity_link_id: str,
+    integrity_link_id: UUID,
     request: IntegrityLinkOwnershipRequest,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
-    group_ids: GroupIdsDep,
     geoserver_service: GeoServerServiceDep,
     metadata_service: MetadataServiceDep,
 ) -> IntegrityLinkResponse:
     _require_administrator(geo_ctx)
-    integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
-    )
+    integrity_link = _get_integrity_link(session, integrity_link_id)
     current = integrity_link.integrity_organization
     org_changes = bool(request.organization) and request.organization.lower() != current.lower()
     organization = request.organization if org_changes and request.organization else current
@@ -559,10 +559,9 @@ async def reassign_integrity_link_ownership(
     ),
 )
 def delete_integrity_link_admin(
-    integrity_link_id: str,
+    integrity_link_id: UUID,
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
-    group_ids: GroupIdsDep,
     geoserver_service: GeoServerServiceDep,
     metadata_service: MetadataServiceDep,
     delete_layer: bool = Query(
@@ -571,9 +570,7 @@ def delete_integrity_link_admin(
     delete_metadata: bool = Query(False, description="Also delete the GeoNetwork record"),
 ) -> Response:
     _require_administrator(geo_ctx)
-    integrity_link, _ = load_authorized_integrity_link(
-        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
-    )
+    integrity_link = _get_integrity_link(session, integrity_link_id)
     try:
         DatasetDeletionService(geoserver_service, metadata_service).delete_dataset(
             integrity_link,

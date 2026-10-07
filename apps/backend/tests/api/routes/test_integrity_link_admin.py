@@ -112,8 +112,8 @@ class TestExport:
         link = _link(
             source_password_encrypted="encrypted", schedule=RecurrencePreset.EVERY_DAY.cron
         )
-        with patch(f"{MODULE}.load_authorized_integrity_link", return_value=(link, None)):
-            result = export_integrity_link(MagicMock(), _ctx(), [], str(LINK_ID))
+        with patch(f"{MODULE}._get_integrity_link", return_value=link):
+            result = export_integrity_link(MagicMock(), _ctx(), LINK_ID)
 
         assert result.id == LINK_ID
         assert result.has_source_password is True
@@ -123,7 +123,7 @@ class TestExport:
 
     def test_non_admin_is_forbidden(self) -> None:
         with pytest.raises(HTTPException) as exc:
-            export_integrity_link(MagicMock(), _ctx(admin=False), [], str(LINK_ID))
+            export_integrity_link(MagicMock(), _ctx(admin=False), LINK_ID)
         assert exc.value.status_code == 403
 
 
@@ -478,13 +478,12 @@ async def _reassign(
     ctx: GeorchestraContext | None = None,
 ) -> Any:
     geoserver = geoserver or _geoserver()
-    with patch(f"{MODULE}.load_authorized_integrity_link", return_value=(link, None)):
+    with patch(f"{MODULE}._get_integrity_link", return_value=link):
         return await reassign_integrity_link_ownership(
-            str(link.id),
+            LINK_ID,
             IntegrityLinkOwnershipRequest(owner=owner, organization=organization),
             MagicMock(),
             ctx or _ctx(),
-            [],
             geoserver,
             metadata_service or MagicMock(),
         )
@@ -770,14 +769,13 @@ class TestAdminDelete:
     def _delete(self, ctx: GeorchestraContext | None = None, **options: bool) -> MagicMock:
         link = _link()
         with (
-            patch(f"{MODULE}.load_authorized_integrity_link", return_value=(link, None)),
+            patch(f"{MODULE}._get_integrity_link", return_value=link),
             patch(f"{MODULE}.DatasetDeletionService") as service_cls,
         ):
             response = delete_integrity_link_admin(
-                str(LINK_ID),
+                LINK_ID,
                 MagicMock(),
                 ctx or _ctx(),
-                [],
                 MagicMock(),
                 MagicMock(),
                 **options,
