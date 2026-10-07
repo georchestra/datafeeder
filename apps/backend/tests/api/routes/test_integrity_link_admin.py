@@ -529,8 +529,9 @@ class TestReassignOwnership:
         geoserver.delete_layer_acl.assert_called_once_with("mel", "voie_nommee")
         publish_args = reassign_mocks["publish"].call_args.args
         assert publish_args[2:4] == ("voie_nommee", "ville_roubaix")
-        geoserver.delete_datastore_if_empty.assert_called_once_with("mel", "mel_ds")
-        geoserver.delete_workspace_if_empty.assert_called_once_with("mel")
+        # The old workspace and datastore are kept, even if left empty
+        geoserver.delete_datastore_if_empty.assert_not_called()
+        geoserver.delete_workspace_if_empty.assert_not_called()
         reassign_mocks["sync_data_sharing"].assert_called_once()
         # The layer links of the record follow the layer
         metadata_service.read_schema_from_gn.assert_called_once_with(str(LINK_ID))
@@ -556,12 +557,30 @@ class TestReassignOwnership:
             ("voie_nommee", "mel", "ville_roubaix"),
             ("voie_nommee", "ville_roubaix", "mel"),
         ]
-        # The old layer was never removed, a datastore created for nothing is
+        # The old layer was never removed
         geoserver.delete_layer.assert_not_called()
-        geoserver.delete_datastore_if_empty.assert_called_once_with(
-            "ville_roubaix", "ville_roubaix_ds"
-        )
+        geoserver.delete_datastore_if_empty.assert_not_called()
         reassign_mocks["sync_data_sharing"].assert_not_called()
+
+    async def test_existing_table_in_target_schema_is_rejected(
+        self, reassign_mocks: dict[str, MagicMock]
+    ) -> None:
+        """Nothing is changed: neither the table, the layer, the owner nor the organization."""
+        reassign_mocks["table_exists"].side_effect = None
+        reassign_mocks["table_exists"].return_value = True
+        geoserver = _geoserver()
+        link = _link()
+
+        with pytest.raises(HTTPException) as exc:
+            await _reassign(link, geoserver=geoserver)
+
+        assert exc.value.status_code == 409
+        assert "ville_roubaix.voie_nommee" in exc.value.detail
+        assert (link.integrity_owner, link.integrity_organization) == ("owner1", "MEL")
+        reassign_mocks["cancel_runs"].assert_not_called()
+        reassign_mocks["move_table"].assert_not_called()
+        reassign_mocks["publish"].assert_not_called()
+        geoserver.delete_layer.assert_not_called()
 
     async def test_existing_layer_in_target_workspace_is_rejected(
         self, reassign_mocks: dict[str, MagicMock]

@@ -1,5 +1,4 @@
-"""Administration of datasets: replication across platforms (export/import), ownership
-reassignment and deletion keeping the published data and metadata."""
+"""Dataset administration: export/import across platforms, ownership change, deletion."""
 
 from datetime import datetime, timezone
 
@@ -52,15 +51,13 @@ from src.services.layer_publication import (
 )
 from src.services.metadata_service import MetadataService
 
-# Administration routes, mounted under /internal (gateway restricts to ADMINISTRATOR).
-# Excluded from the schema so the Angular client never generates wrappers for them.
+# Mounted under /internal; hidden from the OpenAPI schema used by the Angular client
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"], include_in_schema=False)
 logger = get_logger()
 
-# Import types process_dag can re-ingest from the target platform. FILE sources point
-# to the internal file storage of the exporting platform, out of reach from the target one.
+# FILE is excluded: its source is in the storage of the exporting platform
 REPROCESSABLE_IMPORT_TYPES = {ImportType.URL, ImportType.API, ImportType.FTP, ImportType.DATABASE}
-# Import types without a final table managed by datafeeder: only the link is registered
+# No final table managed by datafeeder
 LINK_ONLY_IMPORT_TYPES = {ImportType.EMPTY, ImportType.PREFILLED}
 
 
@@ -70,7 +67,6 @@ def _require_administrator(geo_ctx: GeorchestraContext) -> None:
 
 
 def _require_console_owner(owner: str, organization: str) -> None:
-    """Reject an owner or organization unknown to the console of this platform."""
     console_service = ConsoleService(get_settings().CONSOLE_INTERNAL_URL)
     if console_service.get_organization(organization) is None:
         raise HTTPException(status_code=400, detail=f"Unknown organization '{organization}'")
@@ -83,10 +79,8 @@ def _require_console_owner(owner: str, organization: str) -> None:
     response_model=IntegrityLinkExport,
     summary="Export a dataset definition",
     description=(
-        "Administrators only. Portable description of the dataset (source, transformation, "
-        "recurrence, metadata record UUID, final table), to replicate it on another platform "
-        "with POST /internal/ingestion/integrity-link/import. Permission rules, publication "
-        "state and the source password are not exported."
+        "Administrators only. Dataset definition to import on another platform. "
+        "Permission rules, publication state and source password are not exported."
     ),
 )
 def export_integrity_link(
@@ -116,12 +110,7 @@ def _resolve_import_mode(
     session: DatafeederSessionDep,
     metadata_service: MetadataService,
 ) -> IntegrityLinkImportMode:
-    """Check the exported dataset can be imported here and pick the import mode. Writes nothing.
-
-    ATTACH when the data is already on this platform (or the dataset has none), REPROCESS when
-    it is absent but can be re-ingested from the source. A FILE dataset without its table here
-    is rejected: its data has to be copied first (e.g. with maelstro).
-    """
+    """Validate the import (without writing) and choose ATTACH or REPROCESS."""
     exported = request.link
     import_type = exported.source_import_type
     if not exported.metadata_id:
@@ -146,7 +135,6 @@ def _resolve_import_mode(
             detail=f"The recurrence of a '{import_type.value}' dataset cannot run on this platform",
         )
     if request.copy_recurrence and exported.schedule and not exported.preset_id:
-        # As for regular datasets, only the recurrence presets are accepted
         raise HTTPException(
             status_code=400,
             detail=f"The recurrence '{exported.schedule}' is not a recurrence preset",
@@ -194,7 +182,7 @@ def _resolve_import_mode(
 
 
 async def _attach_layer(integrity_link: IntegrityLink, geoserver_service: GeoServerService) -> None:
-    """Point data_id to the layer of the copied table, publishing it if it was not copied."""
+    """Set data_id to the layer of the copied table, publishing it if missing."""
     table_name = integrity_link.final_table_name
     assert table_name
     workspace = integrity_link.integrity_organization.lower()
@@ -265,16 +253,10 @@ def _trigger_reprocess(
     status_code=201,
     summary="Import a dataset exported from another platform",
     description=(
-        "Administrators only. Registers the dataset with the exported id, owner, organization, "
-        "source and transformation; the owner and organization must exist in the console of "
-        "this platform. The metadata record must already exist in GeoNetwork with "
-        "the exported UUID. If the final table is already on this platform (copied e.g. with "
-        "maelstro), the dataset is attached to it (mode 'attach'), its GeoServer layer being "
-        "published if missing. Otherwise the dataset is re-ingested from its source by the "
-        "process DAG (mode 'reprocess'), which is not possible for a file import: its data has "
-        "to be copied first. If the re-ingestion then fails, the dataset stays registered "
-        "without data: delete it before importing again. Permission rules are not imported: "
-        "the dataset starts unpublished."
+        "Administrators only. The metadata record must already be in GeoNetwork. 'attach' "
+        "mode if the final table is already here, otherwise 'reprocess' from the source "
+        "(impossible for files). A failed reprocess leaves the dataset without data: delete "
+        "it before retrying. The dataset starts unpublished."
     ),
 )
 async def import_integrity_link(
@@ -297,7 +279,7 @@ async def import_integrity_link(
 
     schedule = None
     if request.copy_recurrence and exported.preset_id:
-        # Cron of the preset on this platform (the execution hour may differ)
+        # Local cron of the preset: the execution hour may differ
         schedule = exported.preset_id.cron
 
     integrity_link = IntegrityLink(
@@ -323,7 +305,7 @@ async def import_integrity_link(
         integrity_link.data_id = exported.data_id
         if exported.final_table_name and exported.source_import_type not in LINK_ONLY_IMPORT_TYPES:
             await _attach_layer(integrity_link, geoserver_service)
-            # A non-null timestamp marks the table as already ingested (re-runs replace it)
+            # Marks the table as already ingested
             integrity_link.last_retrieval_timestamp = exported.last_retrieval_timestamp or (
                 datetime.now(timezone.utc)
             )
@@ -336,7 +318,6 @@ async def import_integrity_link(
         f"mode {mode.value})"
     )
 
-    # Ownership of the copied record — soft failure, as for a regular process
     try:
         metadata_service.set_record_ownership(integrity_link)
     except Exception as e:
@@ -369,12 +350,7 @@ def _move_table(table_name: str, from_schema: str, to_schema: str) -> None:
 def _locate_final_table(
     integrity_link: IntegrityLink, current_ws: str, geoserver_service: GeoServerService
 ) -> str | None:
-    """Schema the final table actually lives in, or None if it does not exist.
-
-    It is usually the schema of the datastore of its layer, but a table written while
-    USE_ORG_SCHEMA had another value (or by a scheduled run, which used to ignore it)
-    lives in another one.
-    """
+    """Schema of the final table, which a USE_ORG_SCHEMA change may have left elsewhere."""
     table_name = integrity_link.final_table_name
     assert table_name
     candidates = [
@@ -392,7 +368,6 @@ def _locate_final_table(
 def _sync_data_sharing_safe(
     session: DatafeederSessionDep, integrity_link: IntegrityLink, geoserver: GeoServerService
 ) -> None:
-    """Apply the dataset DATA rules to its layer (ACL rules are keyed by layer name)."""
     try:
         _sync_data_sharing(session, str(integrity_link.id), integrity_link, geoserver)
     except Exception as e:
@@ -406,7 +381,7 @@ def _update_record_layer_links(
     geoserver_service: GeoServerService,
     metadata_service: MetadataService,
 ) -> None:
-    """Point the WMS/WFS/OGC API links of the metadata record to the moved layer (soft failure)."""
+    """Point the record layer links to the moved layer (soft failure)."""
     if not integrity_link.metadata_id:
         return
     table_name = old_layer_name.split(":", 1)[1]
@@ -429,10 +404,6 @@ def _update_record_layer_links(
 def _check_datastore_schema(
     workspace: str, schema: str, geoserver_service: GeoServerService
 ) -> None:
-    """Reject a dataset move into a workspace whose datastore reads another schema.
-
-    Its tables would then not be where runs, callbacks and deletion look for them.
-    """
     datastore_schema = geoserver_service.get_datastore_schema(workspace, f"{workspace}_ds")
     if datastore_schema is not None and datastore_schema != schema:
         raise HTTPException(
@@ -449,14 +420,9 @@ async def _move_dataset(
     geoserver_service: GeoServerService,
     metadata_service: MetadataService,
 ) -> None:
-    """Put the final table and GeoServer layer of a dataset where the new organization expects
-    them: its schema and workspace.
+    """Move the final table and layer to the schema and workspace of the new organization.
 
-    Starts from where the table actually is (looked up in the database), so a table left in
-    another schema by a USE_ORG_SCHEMA change is moved too. The datastore of the target
-    workspace is never changed: the move is rejected if it reads another schema. Updates
-    integrity_organization, data_id and the layer links of the metadata record; the caller
-    commits. On GeoServer failure, the table is moved back and HTTP 502 is raised.
+    The caller commits. On GeoServer failure, the table is moved back (502).
     """
     old_organization = integrity_link.integrity_organization
     table_name = integrity_link.final_table_name
@@ -486,7 +452,6 @@ async def _move_dataset(
         )
     extent = read_table_extent(table_name, current_schema)
 
-    # No run may keep writing to the old location while the dataset moves
     if get_settings().TASK_EXECUTOR == TaskExecutorType.AIRFLOW:
         try:
             cancel_dataset_runs(str(integrity_link.id))
@@ -500,10 +465,9 @@ async def _move_dataset(
     _move_table(table_name, current_schema, new_schema)
     integrity_link.integrity_organization = new_organization
     if current_ws == new_ws:
-        # Same layer, its table is now where the datastore reads it
         return
 
-    # Published before the old layer is removed, so a failure leaves the old one in place
+    # Before removing the old layer, which a failure leaves in place
     try:
         await publish_final_table(geoserver_service, integrity_link, table_name, new_schema, extent)
     except Exception as e:
@@ -516,17 +480,12 @@ async def _move_dataset(
                 f"Failed to move {table_name} back to {current_schema}: {restore_error}",
                 exc_info=True,
             )
-        # Created by the failed publication when the workspace was new
-        geoserver_service.delete_datastore_if_empty(new_ws, f"{new_ws}_ds")
-        geoserver_service.delete_workspace_if_empty(new_ws)
         raise HTTPException(
             status_code=502, detail="Failed to publish the layer in the new organization"
         )
 
     geoserver_service.delete_layer(current_ws, f"{current_ws}_ds", table_name)
     geoserver_service.delete_layer_acl(current_ws, table_name)
-    geoserver_service.delete_datastore_if_empty(current_ws, f"{current_ws}_ds")
-    geoserver_service.delete_workspace_if_empty(current_ws)
     _sync_data_sharing_safe(session, integrity_link, geoserver_service)
     _update_record_layer_links(
         integrity_link,
@@ -542,16 +501,10 @@ async def _move_dataset(
     response_model=IntegrityLinkResponse,
     summary="Reassign a dataset to another owner and organization",
     description=(
-        "Administrators only. The owner must be a console user and the organization a console "
-        "organization. When the organization changes, the final table moves to the "
-        "organization schema, the GeoServer layer is recreated in the organization workspace "
-        "(permission rules re-applied), the layer links of the metadata record follow it and "
-        "running DAG runs are cancelled. A table left in another schema by a USE_ORG_SCHEMA "
-        "change is moved too. The schema of an existing datastore is never changed: the move "
-        "is rejected (409) if the datastore of the target workspace reads another schema, or "
-        "if the final table is not found. The record ownership "
-        "follows the new owner and organization, except for a prefilled dataset whose record "
-        "and layer are not managed by datafeeder: only the dataset itself is reassigned."
+        "Administrators only. A new organization moves the table to its schema and the layer "
+        "to its workspace, and updates the record links. 409 if the table is missing, a "
+        "name is taken or the target datastore reads another schema. Prefilled datasets: "
+        "only the dataset is reassigned."
     ),
 )
 async def reassign_integrity_link_ownership(
@@ -569,7 +522,7 @@ async def reassign_integrity_link_ownership(
     )
     _require_console_owner(request.owner, request.organization)
 
-    # A prefilled dataset references a layer and a record datafeeder does not manage
+    # Layer and record of a prefilled dataset are not managed by datafeeder
     is_prefilled = integrity_link.source_import_type == ImportType.PREFILLED
     if integrity_link.final_table_name and not is_prefilled:
         await _move_dataset(
@@ -599,9 +552,8 @@ async def reassign_integrity_link_ownership(
     status_code=204,
     summary="Delete a dataset, keeping its layer and metadata record by default",
     description=(
-        "Administrators only. Deletes the dataset row (with its permission rules), its "
-        "staging table and its Airflow DAG and run history. The published data (GeoServer "
-        "layer and final table) and the GeoNetwork record are kept unless requested."
+        "Administrators only. The layer, final table and GeoNetwork record are kept "
+        "unless requested."
     ),
 )
 def delete_integrity_link_admin(
