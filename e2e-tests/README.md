@@ -20,6 +20,9 @@ uv run pytest -k parquet                                           # one case by
 uv run pytest --headed=false                                       # headless
 ```
 
+`tests/test_import_local_file.py` uploads the files in `files/`. The CSV lat/lon case is skipped
+unless `EPSG:2154` is in the backend `PROJECTIONS` setting.
+
 ## Generate with playwright
 
 ```bash
