@@ -472,7 +472,7 @@ def reassign_mocks() -> Iterator[dict[str, MagicMock]]:
 async def _reassign(
     link: IntegrityLink,
     owner: str = "new_owner",
-    organization: str = "VILLE_ROUBAIX",
+    organization: str | None = "VILLE_ROUBAIX",
     geoserver: MagicMock | None = None,
     metadata_service: MagicMock | None = None,
     ctx: GeorchestraContext | None = None,
@@ -642,19 +642,26 @@ class TestReassignOwnership:
         assert reassign_mocks["publish"].call_args.args[2:4] == ("voie_nommee", "c2c")
         assert link.integrity_organization == "C2C"
 
-    async def test_same_organization_repairs_a_table_left_in_data(
-        self, reassign_mocks: dict[str, MagicMock]
+    @pytest.mark.parametrize("organization", [None, "MEL", "mel"])
+    async def test_owner_only_change_never_touches_the_data(
+        self, reassign_mocks: dict[str, MagicMock], organization: str | None
     ) -> None:
-        """Reassigning to the current org puts back a dataset left in the wrong schema."""
+        """Even with a table missing or left in another schema."""
         reassign_mocks["table_exists"].side_effect = _table_only_in_data
         geoserver = _geoserver()
-        link = _link(integrity_organization="C2C", data_id="psc:voie_nommee")
+        metadata_service = MagicMock()
+        link = _link()
 
-        await _reassign(link, organization="C2C", geoserver=geoserver)
+        await _reassign(
+            link, organization=organization, geoserver=geoserver, metadata_service=metadata_service
+        )
 
-        reassign_mocks["move_table"].assert_called_once_with("voie_nommee", "data", "c2c")
-        geoserver.delete_layer.assert_called_once_with("psc", "psc_ds", "voie_nommee")
-        assert reassign_mocks["publish"].call_args.args[2:4] == ("voie_nommee", "c2c")
+        assert (link.integrity_owner, link.integrity_organization) == ("new_owner", "MEL")
+        reassign_mocks["console"].get_organization.assert_called_once_with("MEL")
+        reassign_mocks["move_table"].assert_not_called()
+        reassign_mocks["table_exists"].assert_not_called()
+        geoserver.get_datastore_schema.assert_not_called()
+        metadata_service.set_record_ownership.assert_called_once_with(link)
 
     async def test_dataset_already_in_place_is_not_moved(
         self, reassign_mocks: dict[str, MagicMock]
@@ -684,6 +691,30 @@ class TestReassignOwnership:
         reassign_mocks["move_table"].assert_called_once_with("voie_nommee", "mel", "data")
         assert reassign_mocks["publish"].call_args.args[2:4] == ("voie_nommee", "data")
 
+    async def test_without_org_schemas_only_the_layer_moves(
+        self, reassign_mocks: dict[str, MagicMock]
+    ) -> None:
+        """USE_ORG_SCHEMA=false: every datastore reads data, the table stays there."""
+        reassign_mocks["table_exists"].side_effect = _table_only_in_data
+        geoserver = _geoserver()
+        geoserver.get_datastore_schema.return_value = "data"
+        metadata_service = MagicMock()
+        link = _link()
+
+        with (
+            patch(f"{MODULE}.get_data_schema", side_effect=get_data_schema),
+            patch("src.core.config.get_settings") as mock_settings,
+        ):
+            mock_settings.return_value.USE_ORG_SCHEMA = False
+            await _reassign(link, geoserver=geoserver, metadata_service=metadata_service)
+
+        reassign_mocks["move_table"].assert_called_once_with("voie_nommee", "data", "data")
+        assert reassign_mocks["publish"].call_args.args[2:4] == ("voie_nommee", "data")
+        geoserver.delete_layer.assert_called_once_with("mel", "mel_ds", "voie_nommee")
+        replace = metadata_service.read_schema_from_gn.return_value.replace_layer_online_resources
+        assert replace.call_args.args[0] == "mel:voie_nommee"
+        assert link.integrity_organization == "VILLE_ROUBAIX"
+
     async def test_prefilled_dataset_is_never_moved(
         self, reassign_mocks: dict[str, MagicMock]
     ) -> None:
@@ -712,21 +743,6 @@ class TestReassignOwnership:
         assert "ville_roubaix_ds" in exc.value.detail
         assert link.integrity_organization == "MEL"
         reassign_mocks["move_table"].assert_not_called()
-
-    async def test_same_workspace_puts_the_table_back_in_the_datastore_schema(
-        self, reassign_mocks: dict[str, MagicMock]
-    ) -> None:
-        """The layer stays: only its table moves to where the datastore reads it."""
-        reassign_mocks["table_exists"].side_effect = _table_only_in_data
-        geoserver = _geoserver()
-        geoserver.get_datastore_schema.return_value = "mel"
-        link = _link()
-
-        await _reassign(link, organization="MEL", geoserver=geoserver)
-
-        reassign_mocks["move_table"].assert_called_once_with("voie_nommee", "data", "mel")
-        reassign_mocks["publish"].assert_not_called()
-        geoserver.delete_layer.assert_not_called()
 
     @pytest.mark.parametrize("unknown", ["organization", "owner"])
     async def test_unknown_owner_or_organization_is_rejected(

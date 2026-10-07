@@ -318,7 +318,7 @@ class IntegrityLinkImportResponse(BaseModel):
 
 
 class IntegrityLinkOwnershipRequest(BaseModel):
-    """New owner and organization of a dataset."""
+    """New owner, and new organization if it changes."""
 
     owner: str = Field(min_length=1)
-    organization: str = Field(pattern=_ORGANIZATION_PATTERN)
+    organization: str | None = Field(default=None, pattern=_ORGANIZATION_PATTERN)

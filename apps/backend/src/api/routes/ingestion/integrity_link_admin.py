@@ -501,8 +501,9 @@ async def _move_dataset(
     response_model=IntegrityLinkResponse,
     summary="Reassign a dataset to another owner and organization",
     description=(
-        "Administrators only. A new organization moves the table to its schema and the layer "
-        "to its workspace, and updates the record links. 409 if the table is missing, a "
+        "Administrators only. Without organization, only the owner changes. A new "
+        "organization moves the table to its schema and the layer to its workspace, and "
+        "updates the record links. 409 if the table is missing, a "
         "name is taken or the target datastore reads another schema. Prefilled datasets: "
         "only the dataset is reassigned."
     ),
@@ -520,23 +521,24 @@ async def reassign_integrity_link_ownership(
     integrity_link, _ = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
     )
-    _require_console_owner(request.owner, request.organization)
+    current = integrity_link.integrity_organization
+    org_changes = bool(request.organization) and request.organization.lower() != current.lower()
+    organization = request.organization if org_changes and request.organization else current
+    _require_console_owner(request.owner, organization)
 
     # Layer and record of a prefilled dataset are not managed by datafeeder
     is_prefilled = integrity_link.source_import_type == ImportType.PREFILLED
-    if integrity_link.final_table_name and not is_prefilled:
+    if org_changes and integrity_link.final_table_name and not is_prefilled:
         await _move_dataset(
-            integrity_link, request.organization, session, geoserver_service, metadata_service
+            integrity_link, organization, session, geoserver_service, metadata_service
         )
     else:
-        integrity_link.integrity_organization = request.organization
+        integrity_link.integrity_organization = organization
     integrity_link.integrity_owner = request.owner
     session.add(integrity_link)
     session.commit()
     session.refresh(integrity_link)
-    logger.info(
-        f"Reassigned IntegrityLink {integrity_link.id} to {request.owner} / {request.organization}"
-    )
+    logger.info(f"Reassigned IntegrityLink {integrity_link.id} to {request.owner} / {organization}")
 
     if integrity_link.metadata_id and not is_prefilled:
         try:
