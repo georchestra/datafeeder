@@ -1,3 +1,4 @@
+import codecs
 import logging
 import re
 import subprocess
@@ -232,8 +233,9 @@ def _detect_shapefile_encoding(file_path: str) -> str | None:
 
     GDAL reads the ``.cpg`` sidecar natively and assumes UTF-8 when it is absent.
     A shapefile shipped without a ``.cpg`` but encoded in e.g. CP1252 — common for
-    French data — then makes ogr2ogr abort with "Non UTF-8 content found". Sample
-    the ``.dbf`` and let chardet guess so the caller can pass SHAPE_ENCODING.
+    French data — then makes ogr2ogr abort with "Non UTF-8 content found". Use the
+    ``.cst`` sidecar written by GeoServer when it names a known encoding, otherwise
+    sample the ``.dbf`` and let chardet guess so the caller can pass SHAPE_ENCODING.
 
     Returns ``None`` when the source is not a shapefile, already carries a
     ``.cpg``, or when nothing could be detected — in all those cases GDAL's own
@@ -242,10 +244,17 @@ def _detect_shapefile_encoding(file_path: str) -> str | None:
     members = _shapefile_members(file_path)
     if members is None:
         return None
-    cpg_bytes, dbf_bytes = members
+    cpg_bytes, cst_bytes, dbf_bytes = members
     # A .cpg is authoritative and GDAL already honours it.
     if cpg_bytes is not None or dbf_bytes is None:
         return None
+    # GDAL ignores .cst (the .cpg equivalent written by GeoServer), so pass it on.
+    # An empty or unknown value would make GDAL skip recoding, so validate it first.
+    if cst_bytes is not None:
+        try:
+            return codecs.lookup(cst_bytes.decode("ascii", "ignore").strip()).name
+        except LookupError:
+            logger.warning("Ignoring unknown encoding in .cst: %r", cst_bytes)
 
     try:
         detected = chardet.detect(_dbf_text_payload(dbf_bytes))["encoding"]
@@ -277,8 +286,8 @@ def _detect_shapefile_encoding(file_path: str) -> str | None:
     return detected
 
 
-def _shapefile_members(file_path: str) -> tuple[bytes | None, bytes | None] | None:
-    """Return ``(cpg_bytes, dbf_sample)`` for a shapefile, or ``None`` if not one.
+def _shapefile_members(file_path: str) -> tuple[bytes | None, bytes | None, bytes | None] | None:
+    """Return ``(cpg_bytes, cst_bytes, dbf_sample)`` for a shapefile, or ``None`` if not one.
 
     Handles both a plain ``.shp`` on disk and a shapefile inside a ZIP, so the
     encoding of zipped shapefiles can be detected without extracting them.
@@ -290,25 +299,29 @@ def _shapefile_members(file_path: str) -> tuple[bytes | None, bytes | None] | No
                 return None
             cpg = next((n for n in names if n.lower().endswith(".cpg")), None)
             dbf = next((n for n in names if n.lower().endswith(".dbf")), None)
+            cst = next((n for n in names if n.lower().endswith(".cst")), None)
             cpg_bytes = archive.read(cpg) if cpg else None
+            cst_bytes = archive.read(cst) if cst else None
             dbf_bytes = None
             if dbf:
                 with archive.open(dbf) as handle:
                     dbf_bytes = handle.read(_ENCODING_DETECT_BYTES)
-        return cpg_bytes, dbf_bytes
+        return cpg_bytes, cst_bytes, dbf_bytes
 
     path = Path(file_path)
     if path.suffix.lower() != ".shp":
         return None
 
     cpg_path = path.with_suffix(".cpg")
+    cst_path = path.with_suffix(".cst")
     dbf_path = path.with_suffix(".dbf")
     cpg_bytes = cpg_path.read_bytes() if cpg_path.exists() else None
+    cst_bytes = cst_path.read_bytes() if cst_path.exists() else None
     dbf_bytes = None
     if dbf_path.exists():
         with open(dbf_path, "rb") as handle:
             dbf_bytes = handle.read(_ENCODING_DETECT_BYTES)
-    return cpg_bytes, dbf_bytes
+    return cpg_bytes, cst_bytes, dbf_bytes
 
 
 def _is_archive_metadata(name: str) -> bool:
