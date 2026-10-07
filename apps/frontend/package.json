@@ -53,7 +53,7 @@
     "@angular-devkit/core": "20.3.28",
     "@angular-devkit/schematics": "20.3.28",
     "@angular/build": "20.3.28",
-    "@angular/cli": "20.3.28",
+    "@angular/cli": "20.3.39",
     "@angular/compiler-cli": "20.3.28",
     "@angular/language-service": "20.3.28",
     "@eslint/js": "^9.8.0",
