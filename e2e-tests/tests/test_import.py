@@ -1,8 +1,7 @@
-import xml.etree.ElementTree as ET
 from typing import Any
 
 import pytest
-from common import login
+from common import login, remove_first_dataset, validate_and_assert_feature_count
 from playwright.sync_api import Page, expect
 
 IMPORT_CASES = [
@@ -91,10 +90,10 @@ class TestDatafeeder:
         if case["map"]:
             page.get_by_role("radio", name="Map").click()
             expect(page.locator("canvas")).to_be_visible()
-        self.validate_and_assert_feature_count(
+        validate_and_assert_feature_count(
             page, case.get("expected_number_of_features"), case["timeout-seconds"]
         )
-        self.remove_first_dataset(page)
+        remove_first_dataset(page)
 
     @pytest.mark.parametrize(
         "case", SERVICE_IMPORT_CASES, ids=[c["id"] for c in SERVICE_IMPORT_CASES]
@@ -122,43 +121,10 @@ class TestDatafeeder:
         page.get_by_role("radio", name="Map").click()
         expect(page.locator("canvas")).to_be_visible()
 
-        self.validate_and_assert_feature_count(
+        validate_and_assert_feature_count(
             page, case.get("expected_number_of_features"), case["timeout-seconds"]
         )
-        self.remove_first_dataset(page)
-
-    def validate_and_assert_feature_count(
-        self, page: Page, expected_number_of_features: int | None, timeout: int
-    ):
-        with page.expect_response(
-            lambda r: "/ingestion/process/" in r.url and r.request.method == "POST",
-            timeout=timeout * 1000,
-        ) as process_response_info:
-            page.get_by_role("button", name="Validate the dataset").click()
-        expect(page.locator('[data-test="recordTitleInput"]')).to_be_visible(timeout=timeout * 1000)
-        if expected_number_of_features:
-            integrity_link_id = process_response_info.value.json()["integrity_link_id"]
-            integrity_link = page.request.get(
-                f"/datafeeder-backend/ingestion/integrity-link/{integrity_link_id}"
-            )
-            expect(integrity_link).to_be_ok()
-            workspace, layer = integrity_link.json()["data_id"].split(":", 1)
-            hits = page.request.get(
-                f"/geoserver/{workspace}/wfs",
-                params={
-                    "service": "WFS",
-                    "version": "2.0.0",
-                    "request": "GetFeature",
-                    "typeNames": f"{workspace}:{layer}",
-                    "resultType": "hits",
-                },
-            )
-            expect(hits).to_be_ok()
-            number_matched = int(ET.fromstring(hits.text()).attrib["numberMatched"])
-            print(
-                f"hits: {number_matched} expected: {expected_number_of_features} for {integrity_link.json()['data_id']}"
-            )
-            assert number_matched == expected_number_of_features
+        remove_first_dataset(page)
 
     def test_import_database(self, page: Page):
         login(page)
@@ -172,7 +138,7 @@ class TestDatafeeder:
         page.get_by_role("textbox", name="Enter a title for your dataset").click()
         page.get_by_role("textbox", name="Enter a title for your dataset").press("ControlOrMeta+a")
         page.get_by_role("textbox", name="Enter a title for your dataset").fill("mon dataset")
-        self.validate_and_assert_feature_count(page, 7283, 15)
+        validate_and_assert_feature_count(page, 7283, 15)
         page.goto("/dataset/import")
         page.get_by_label("From a database").check()
         page.get_by_role("textbox").first.click()
@@ -195,14 +161,6 @@ class TestDatafeeder:
             timeout=15000
         )
         expect(page.get_by_role("heading", name="Preview of the result")).to_be_visible()
-        self.validate_and_assert_feature_count(page, 160, 15)
-        self.remove_first_dataset(page)
-        self.remove_first_dataset(page)
-
-    def remove_first_dataset(self, page: Page):
-        page.goto("/dataset/")
-        first_row = page.locator("app-integrity-link-list [role='button']").first
-        first_row.hover()
-        page.get_by_label("Delete dataset").first.click()
-        page.locator("[data-cy='confirm-button'] button").click()
-        page.wait_for_timeout(1000)
+        validate_and_assert_feature_count(page, 160, 15)
+        remove_first_dataset(page)
+        remove_first_dataset(page)
