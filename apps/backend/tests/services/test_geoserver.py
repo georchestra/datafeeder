@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from src.models.integrity_link_rule import RuleValue
 from src.services.geoserver import (
@@ -419,6 +420,51 @@ class TestAclLayerGet:
         rest_client.get.return_value.status_code = status_code
 
         assert service.layer_exists("mel", "mel_ds", "voie_nommee") is expected
+
+    def test_layer_exists_raises_on_error(
+        self, service: GeoServerService, rest_client: MagicMock
+    ) -> None:
+        rest_client.get.return_value.status_code = 500
+        rest_client.get.return_value.raise_for_status.side_effect = requests.HTTPError("500")
+
+        with pytest.raises(requests.HTTPError):
+            service.layer_exists("mel", "mel_ds", "voie_nommee")
+
+    @pytest.mark.parametrize("status_code", [200, 404, 500])
+    def test_delete_workspace_layer_is_best_effort(
+        self, service: GeoServerService, rest_client: MagicMock, status_code: int
+    ) -> None:
+        rest_client.delete.return_value.status_code = status_code
+
+        service.delete_workspace_layer("otherws", "roads")
+
+        rest_client.delete.assert_called_once()
+
+    def test_delete_workspace_layer_swallows_errors(
+        self, service: GeoServerService, rest_client: MagicMock
+    ) -> None:
+        rest_client.delete.side_effect = requests.HTTPError("500")
+
+        service.delete_workspace_layer("otherws", "roads")
+
+    def test_get_datastore_schema(self, service: GeoServerService, rest_client: MagicMock) -> None:
+        rest_client.get.return_value.status_code = 200
+        rest_client.get.return_value.json.return_value = {
+            "dataStore": {
+                "connectionParameters": {
+                    "entry": [{"@key": "dbtype", "$": "postgis"}, {"@key": "schema", "$": "data"}]
+                }
+            }
+        }
+
+        assert service.get_datastore_schema("mel", "mel_ds") == "data"
+
+    def test_get_datastore_schema_of_missing_datastore(
+        self, service: GeoServerService, rest_client: MagicMock
+    ) -> None:
+        rest_client.get.return_value.status_code = 404
+
+        assert service.get_datastore_schema("mel", "mel_ds") is None
 
     def test_post_success(self, service: GeoServerService, rest_client: MagicMock) -> None:
         rest_client.post.return_value.status_code = 200

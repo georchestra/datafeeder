@@ -1,4 +1,4 @@
-from sqlalchemy import MetaData, Table, label, text
+from sqlalchemy import MetaData, Table, text
 from sqlmodel import Session, select
 
 from src.core.config import get_data_schema, get_settings, is_shared_schema
@@ -101,22 +101,10 @@ class DatasetDeletionService:
                 workspace_name=workspace_name,
                 layer_name=integrity_link.final_table_name,
             )
+        # A prefilled dataset references a layer published outside datafeeder
         if delete_layer and integrity_link.source_import_type == ImportType.PREFILLED:
             if parts := integrity_link.parse_data_id():
-                workspace_name, layer_name = parts
-                url = self.geoserver_service.geoserver.rest_service.rest_endpoints.workspace_layer(
-                    workspace_name=workspace_name,
-                    layer_name=layer_name,
-                )
-                response = self.geoserver_service.geoserver.rest_service.rest_client.delete(url)
-                if response.status_code in (200, 204):
-                    logger.info(f"Deleted GeoServer {label}")
-                elif response.status_code != 404:
-                    logger.info(
-                        f"GeoServer {label} not deleted (status {response.status_code}) "
-                        "— likely not empty"
-                    )
-                print(url)
+                self.geoserver_service.delete_workspace_layer(*parts)
 
         # Step 3: Drop final data table (best-effort)
         if delete_layer and integrity_link.final_table_name:

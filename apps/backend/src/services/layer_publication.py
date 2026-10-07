@@ -16,6 +16,16 @@ from src.services.geoserver import GeoServerService
 logger = get_logger()
 
 
+class DatastoreSchemaMismatchError(Exception):
+    """The datastore of a workspace reads another schema than the one of the table to publish."""
+
+    def __init__(self, workspace: str, datastore_schema: str, table_schema: str) -> None:
+        super().__init__(
+            f"Datastore {workspace}_ds reads schema '{datastore_schema}', not '{table_schema}'"
+        )
+        self.datastore_schema = datastore_schema
+
+
 @dataclass
 class TableExtent:
     """Geometry information of a final table, as needed to publish it on GeoServer."""
@@ -48,24 +58,33 @@ async def publish_final_table(
     target_schema: str,
     extent: TableExtent,
 ) -> None:
-    """Create the GeoServer workspace, datastore and layer of a final table, and set data_id.
+    """Create the GeoServer layer of a final table (and its workspace and datastore if
+    missing), and set data_id.
 
-    The workspace is the dataset organization. Raises on GeoServer failure.
+    The workspace is the dataset organization. The schema of an existing datastore is never
+    changed, as all the layers of the workspace read their table from it.
+
+    Raises:
+        DatastoreSchemaMismatchError: If the datastore reads another schema than target_schema
+        Exception: On GeoServer failure
     """
     settings = get_settings()
     workspace_name = integrity_link.integrity_organization.lower()
     datastore_name = f"{workspace_name}_ds"
 
-    # create_workspace/create_datastore are upserts — always call to keep pg_schema in sync
-    await geoserver_service.create_workspace(
-        workspace_name=workspace_name,
-        datastore_name=datastore_name,
-        pg_schema=target_schema,
-    )
-    logger.info(
-        f"Ensured GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
-        f"workspace={workspace_name}, datastore={datastore_name}, schema={target_schema}"
-    )
+    datastore_schema = geoserver_service.get_datastore_schema(workspace_name, datastore_name)
+    if datastore_schema is None:
+        await geoserver_service.create_workspace(
+            workspace_name=workspace_name,
+            datastore_name=datastore_name,
+            pg_schema=target_schema,
+        )
+        logger.info(
+            f"Created GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
+            f"workspace={workspace_name}, datastore={datastore_name}, schema={target_schema}"
+        )
+    elif datastore_schema != target_schema:
+        raise DatastoreSchemaMismatchError(workspace_name, datastore_schema, target_schema)
 
     metadata_links: list[MetadataLink] | None = None
     if integrity_link.metadata_id:

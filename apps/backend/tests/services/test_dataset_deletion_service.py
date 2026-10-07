@@ -4,6 +4,7 @@ from uuid import UUID
 import pytest
 
 from src.core.task_executor import TaskExecutorType
+from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.services.dataset_deletion_service import DatasetDeletionService
 
@@ -283,6 +284,48 @@ class TestKeepLayerAndMetadata:
 
         geoserver_svc.delete_layer.assert_called_once()
         metadata_svc.delete_record.assert_not_called()
+
+
+class TestPrefilledLayer:
+    """A prefilled dataset references a layer published outside datafeeder."""
+
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_deletes_the_referenced_layer_and_cleans_up_the_dataset_org(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        deletion_service: DatasetDeletionService,
+        geoserver_svc: MagicMock,
+    ) -> None:
+        link = _make_link(final_table_name=None)
+        link.source_import_type = ImportType.PREFILLED
+        link.data_id = "otherws:roads"
+        session = MagicMock()
+        session.exec.return_value.first.return_value = None  # no dataset left for the org
+
+        deletion_service.delete_dataset(link, session, delete_layer=True)
+
+        geoserver_svc.delete_workspace_layer.assert_called_once_with("otherws", "roads")
+        # Org cleanup targets the dataset org, never the workspace of the prefilled layer
+        geoserver_svc.delete_workspace_if_empty.assert_called_once_with("testorg")
+
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_referenced_layer_is_kept_by_default(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        deletion_service: DatasetDeletionService,
+        geoserver_svc: MagicMock,
+    ) -> None:
+        link = _make_link(final_table_name=None)
+        link.source_import_type = ImportType.PREFILLED
+        link.data_id = "otherws:roads"
+
+        deletion_service.delete_dataset(link, MagicMock(), delete_layer=False)
+
+        geoserver_svc.delete_workspace_layer.assert_not_called()
 
 
 class TestCancelInFlightRuns:

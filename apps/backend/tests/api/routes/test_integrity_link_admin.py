@@ -18,7 +18,7 @@ from src.api.routes.ingestion.integrity_link_admin import (
     router,
 )
 from src.core.config import get_data_schema
-from src.core.task_executor import TaskRunInfo, TaskStatus
+from src.core.task_executor import TaskExecutorType, TaskRunInfo, TaskStatus
 from src.models.data_import import (
     ImportType,
     IntegrityLinkExport,
@@ -29,6 +29,7 @@ from src.models.data_import import (
 from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
+from src.services.layer_publication import DatastoreSchemaMismatchError
 
 MODULE = "src.api.routes.ingestion.integrity_link_admin"
 LINK_ID = uuid4()
@@ -96,6 +97,10 @@ def _table_only_in_data(_engine: Any, schema: str, _table: str) -> bool:
     return schema == "data"
 
 
+def _datastore_schema_data_in_ville_roubaix(workspace: str, _datastore: str) -> str | None:
+    return "data" if workspace == "ville_roubaix" else None
+
+
 def _session(conflict: IntegrityLink | None = None) -> MagicMock:
     session = MagicMock()
     session.exec.return_value.first.return_value = conflict
@@ -116,6 +121,11 @@ class TestExport:
         assert result.integrity_transformation == {"columns": []}
         assert "source_password_encrypted" not in result.model_dump()
 
+    def test_non_admin_is_forbidden(self) -> None:
+        with pytest.raises(HTTPException) as exc:
+            export_integrity_link(MagicMock(), _ctx(admin=False), [], str(LINK_ID))
+        assert exc.value.status_code == 403
+
 
 @pytest.fixture
 def import_mocks() -> Iterator[dict[str, MagicMock]]:
@@ -123,7 +133,11 @@ def import_mocks() -> Iterator[dict[str, MagicMock]]:
     executor.trigger_process_task.return_value = TaskRunInfo(
         task_id="process_dag", run_id="run-1", status=TaskStatus.QUEUED
     )
+    console = MagicMock()
+    console.get_organization.return_value = {"shortName": "MEL"}
+    console.fetch_users_by_usernames.return_value = {"owner1": "Owner One"}
     with (
+        patch(f"{MODULE}.ConsoleService", return_value=console),
         patch(f"{MODULE}.table_exists", return_value=False) as table_exists,
         patch(f"{MODULE}.get_data_schema", side_effect=_schema_per_org),
         patch(f"{MODULE}.get_task_executor", return_value=executor),
@@ -132,6 +146,7 @@ def import_mocks() -> Iterator[dict[str, MagicMock]]:
         patch(f"{MODULE}.publish_final_table", new_callable=AsyncMock) as publish,
     ):
         yield {
+            "console": console,
             "table_exists": table_exists,
             "executor": executor,
             "encrypt": encrypt,
@@ -213,6 +228,19 @@ class TestImportAttach:
         assert publish_args[2:4] == ("voie_nommee", "mel")
         assert session.add.call_args.args[0].last_retrieval_timestamp is not None
         import_mocks["executor"].trigger_process_task.assert_not_called()
+
+    async def test_datastore_on_another_schema_is_rejected(
+        self, import_mocks: dict[str, MagicMock]
+    ) -> None:
+        import_mocks["table_exists"].return_value = True
+        import_mocks["publish"].side_effect = DatastoreSchemaMismatchError("mel", "data", "mel")
+        session = _session()
+
+        with pytest.raises(HTTPException) as exc:
+            await _import(IntegrityLinkImportRequest(link=_export()), session)
+
+        assert exc.value.status_code == 409
+        session.add.assert_not_called()
 
     async def test_layer_publication_failure_registers_nothing(
         self, import_mocks: dict[str, MagicMock]
@@ -351,6 +379,7 @@ class TestImportRejected:
             ({"has_source_password": True, "source_username": "user"}, None, False),
             ({}, "pwd", False),  # password without username
             ({"source_import_type": ImportType.FILE}, None, True),  # recurrence of a file
+            ({"schedule": "every day", "preset_id": None}, None, True),  # not a preset
         ],
     )
     async def test_invalid_requests_are_rejected(
@@ -372,6 +401,18 @@ class TestImportRejected:
                 ),
                 session,
             )
+
+        assert exc.value.status_code == 400
+        session.add.assert_not_called()
+
+    async def test_owner_unknown_to_the_console_is_rejected(
+        self, import_mocks: dict[str, MagicMock]
+    ) -> None:
+        import_mocks["console"].fetch_users_by_usernames.return_value = {}
+        session = _session()
+
+        with pytest.raises(HTTPException) as exc:
+            await _import(IntegrityLinkImportRequest(link=_export()), session=session)
 
         assert exc.value.status_code == 400
         session.add.assert_not_called()
@@ -452,6 +493,7 @@ async def _reassign(
 def _geoserver() -> MagicMock:
     geoserver = MagicMock()
     geoserver.layer_exists.return_value = False
+    geoserver.get_datastore_schema.return_value = None
     geoserver.public_url = "https://data.example.org/geoserver"
     return geoserver
 
@@ -490,18 +532,22 @@ class TestReassignOwnership:
         geoserver.delete_datastore_if_empty.assert_called_once_with("mel", "mel_ds")
         geoserver.delete_workspace_if_empty.assert_called_once_with("mel")
         reassign_mocks["sync_data_sharing"].assert_called_once()
-        # The record URLs are left as is, only its ownership follows
-        metadata_service.read_schema_from_gn.assert_not_called()
+        # The layer links of the record follow the layer
+        metadata_service.read_schema_from_gn.assert_called_once_with(str(LINK_ID))
+        replace = metadata_service.read_schema_from_gn.return_value.replace_layer_online_resources
+        assert replace.call_args.args[0] == "mel:voie_nommee"
+        replace.return_value.upload_to_gn.assert_called_once()
         metadata_service.set_record_ownership.assert_called_once_with(link)
 
     async def test_publish_failure_restores_previous_location(
         self, reassign_mocks: dict[str, MagicMock]
     ) -> None:
-        reassign_mocks["publish"].side_effect = [RuntimeError("geoserver down"), None]
+        reassign_mocks["publish"].side_effect = RuntimeError("geoserver down")
+        geoserver = _geoserver()
         link = _link()
 
         with pytest.raises(HTTPException) as exc:
-            await _reassign(link)
+            await _reassign(link, geoserver=geoserver)
 
         assert exc.value.status_code == 502
         assert link.integrity_organization == "MEL"
@@ -510,9 +556,12 @@ class TestReassignOwnership:
             ("voie_nommee", "mel", "ville_roubaix"),
             ("voie_nommee", "ville_roubaix", "mel"),
         ]
-        assert reassign_mocks["publish"].call_args.args[3] == "mel"
-        # The restored layer gets its permission rules back
-        reassign_mocks["sync_data_sharing"].assert_called_once()
+        # The old layer was never removed, a datastore created for nothing is
+        geoserver.delete_layer.assert_not_called()
+        geoserver.delete_datastore_if_empty.assert_called_once_with(
+            "ville_roubaix", "ville_roubaix_ds"
+        )
+        reassign_mocks["sync_data_sharing"].assert_not_called()
 
     async def test_existing_layer_in_target_workspace_is_rejected(
         self, reassign_mocks: dict[str, MagicMock]
@@ -528,17 +577,35 @@ class TestReassignOwnership:
         reassign_mocks["move_table"].assert_not_called()
         assert link.integrity_organization == "MEL"
 
-    async def test_dataset_without_table_only_changes_fields(
-        self, reassign_mocks: dict[str, MagicMock]
-    ) -> None:
+    async def test_missing_table_is_rejected(self, reassign_mocks: dict[str, MagicMock]) -> None:
+        """Changing only the organization would leave the layer in the old workspace."""
         # table_exists is False outside "mel", and data_id does not point to it either
         link = _link(integrity_organization="OTHER", data_id=None)
 
-        await _reassign(link)
+        with pytest.raises(HTTPException) as exc:
+            await _reassign(link)
 
-        assert link.integrity_organization == "VILLE_ROUBAIX"
+        assert exc.value.status_code == 409
+        assert (link.integrity_owner, link.integrity_organization) == ("owner1", "OTHER")
         reassign_mocks["move_table"].assert_not_called()
-        reassign_mocks["publish"].assert_not_called()
+
+    async def test_cancel_failure_aborts_the_move(
+        self, reassign_mocks: dict[str, MagicMock]
+    ) -> None:
+        """A run still in flight would write to the old location and repoint the datastore."""
+        reassign_mocks["cancel_runs"].side_effect = RuntimeError("airflow down")
+        link = _link()
+
+        with (
+            patch(f"{MODULE}.get_settings") as mock_settings,
+            pytest.raises(HTTPException) as exc,
+        ):
+            mock_settings.return_value.TASK_EXECUTOR = TaskExecutorType.AIRFLOW
+            await _reassign(link)
+
+        assert exc.value.status_code == 502
+        assert link.integrity_organization == "MEL"
+        reassign_mocks["move_table"].assert_not_called()
 
     async def test_table_left_in_data_schema_is_moved_to_the_org_schema(
         self, reassign_mocks: dict[str, MagicMock]
@@ -602,11 +669,45 @@ class TestReassignOwnership:
         self, reassign_mocks: dict[str, MagicMock]
     ) -> None:
         link = _link(source_import_type=ImportType.PREFILLED)
+        metadata_service = MagicMock()
 
-        await _reassign(link)
+        await _reassign(link, metadata_service=metadata_service)
 
         assert link.integrity_organization == "VILLE_ROUBAIX"
         reassign_mocks["move_table"].assert_not_called()
+        # Its record is not managed by datafeeder either
+        metadata_service.set_record_ownership.assert_not_called()
+
+    async def test_target_datastore_on_another_schema_is_rejected(
+        self, reassign_mocks: dict[str, MagicMock]
+    ) -> None:
+        """The datastore schema is shared by the workspace layers: it is never changed."""
+        geoserver = _geoserver()
+        geoserver.get_datastore_schema.side_effect = _datastore_schema_data_in_ville_roubaix
+        link = _link()
+
+        with pytest.raises(HTTPException) as exc:
+            await _reassign(link, geoserver=geoserver)
+
+        assert exc.value.status_code == 409
+        assert "ville_roubaix_ds" in exc.value.detail
+        assert link.integrity_organization == "MEL"
+        reassign_mocks["move_table"].assert_not_called()
+
+    async def test_same_workspace_puts_the_table_back_in_the_datastore_schema(
+        self, reassign_mocks: dict[str, MagicMock]
+    ) -> None:
+        """The layer stays: only its table moves to where the datastore reads it."""
+        reassign_mocks["table_exists"].side_effect = _table_only_in_data
+        geoserver = _geoserver()
+        geoserver.get_datastore_schema.return_value = "mel"
+        link = _link()
+
+        await _reassign(link, organization="MEL", geoserver=geoserver)
+
+        reassign_mocks["move_table"].assert_called_once_with("voie_nommee", "data", "mel")
+        reassign_mocks["publish"].assert_not_called()
+        geoserver.delete_layer.assert_not_called()
 
     @pytest.mark.parametrize("unknown", ["organization", "owner"])
     async def test_unknown_owner_or_organization_is_rejected(

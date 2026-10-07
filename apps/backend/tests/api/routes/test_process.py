@@ -162,6 +162,7 @@ def _make_mock_geoserver() -> AsyncMock:
     geoserver.datastore_exists.return_value = True
     geoserver.create_layer = AsyncMock()
     geoserver.build_layer_urls_for_metadata = MagicMock()
+    geoserver.get_datastore_schema = MagicMock(return_value=None)
     return geoserver
 
 

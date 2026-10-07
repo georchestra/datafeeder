@@ -6,6 +6,8 @@ import types
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import pytest
+
 TRIGGER_OPERATOR_CALLS: list[dict] = []
 
 
@@ -166,8 +168,9 @@ class TestCreateDagTargetSchema:
         _module.create_dag(config)
         return TRIGGER_OPERATOR_CALLS[0]["conf"]["target_schema"]
 
-    def test_org_schema_when_use_org_schema(self, monkeypatch):
-        monkeypatch.setenv("USE_ORG_SCHEMA", "true")
+    @pytest.mark.parametrize("value", ["true", "1", "on", "t", "y", "YES"])
+    def test_org_schema_when_use_org_schema(self, monkeypatch, value):
+        monkeypatch.setenv("USE_ORG_SCHEMA", value)
         assert self._generated_target_schema(_config()) == "ville_roubaix"
 
     def test_shared_data_schema_by_default(self, monkeypatch):
