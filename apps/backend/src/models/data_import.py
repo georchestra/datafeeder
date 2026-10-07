@@ -252,18 +252,12 @@ class IntegrityLinkGsPublishResponse(IntegrityLinkResponse):
     rules: list[IntegrityLinkRule] = []
 
 
-# Organization short names come from the console (e.g. "MEL"); their lowercase form is used
-# as GeoServer workspace and PostgreSQL schema name, hence the strict pattern.
+# Lowercased, it names a GeoServer workspace and a PostgreSQL schema
 _ORGANIZATION_PATTERN = r"^[A-Za-z][A-Za-z0-9_]{0,62}$"
 
 
 class IntegrityLinkExport(BaseModel):
-    """Portable description of a dataset, to replicate it on another platform.
-
-    Carries the dataset definition, not its data. Not included: permission rules,
-    publication state, staging table, and the source password (encrypted with a
-    platform-specific key; ``has_source_password`` tells whether one must be given on import).
-    """
+    """Dataset definition, without its data, permission rules or source password."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -296,8 +290,8 @@ class IntegrityLinkExport(BaseModel):
 class IntegrityLinkImportMode(str, Enum):
     """How an imported dataset gets its data on the target platform."""
 
-    ATTACH = "attach"  # data already copied (e.g. by maelstro): the link is only registered
-    REPROCESS = "reprocess"  # data absent: re-ingested from its source by process_dag
+    ATTACH = "attach"  # data already copied (files)
+    REPROCESS = "reprocess"  # re-ingested from the source (url, apis ..)
 
 
 class IntegrityLinkImportRequest(BaseModel):
@@ -314,7 +308,7 @@ class IntegrityLinkImportRequest(BaseModel):
 
 
 class IntegrityLinkImportResponse(BaseModel):
-    """Result of a dataset import; the DAG run fields are only set in reprocess mode."""
+    """Result of a dataset import; DAG run fields are set in reprocess mode only."""
 
     integrity_link_id: str
     mode: IntegrityLinkImportMode

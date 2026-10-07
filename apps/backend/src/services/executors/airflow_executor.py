@@ -95,7 +95,7 @@ class AirflowTaskExecutor(BaseTaskExecutor):
                     "failure_callback_url": failure_callback_url,
                     "last_retrieval_timestamp": last_retrieval_timestamp,
                     "target_schema": target_schema,
-                    # Re-ingestion mode of process_dag, used when there is no staging table
+                    # Re-ingestion mode, without staging table
                     **(source.model_dump() if source else {}),
                 },
             ),

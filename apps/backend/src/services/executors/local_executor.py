@@ -361,7 +361,7 @@ class LocalTaskExecutor(BaseTaskExecutor):
         self._set_status(_PROCESS_DAG_ID, run_id, TaskStatus.RUNNING)
         try:
             if not staging_table_name and source:
-                # Re-ingestion mode: ingest into a temporary staging table, dropped by _transform
+                # Re-ingestion: temporary staging table, dropped by _transform
                 staging_table_name = f"temp_{uuid4().hex[:8]}"
                 self._ingest(
                     source.source_type,

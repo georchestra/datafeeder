@@ -43,10 +43,7 @@ DEFAULT_DATA_SCHEMA = "data"
 
 
 def _target_schema(organization: str | None) -> str:
-    """Schema of the final table, as the backend's get_data_schema() computes it.
-
-    USE_ORG_SCHEMA must have the same value here and in the backend configuration.
-    """
+    """Same as the backend get_data_schema(): USE_ORG_SCHEMA must match on both sides."""
     use_org_schema = os.environ.get("USE_ORG_SCHEMA", "false").strip().lower() in {
         "1",
         "true",

@@ -323,7 +323,7 @@ async def dag_success_callback(
     integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
-    # Scheduled runs (process-dag-generator) do not pass it: derive it like manual runs do
+    # Not passed by scheduled runs
     target_schema = target_schema or get_data_schema(integrity_link.integrity_organization)
 
     workspace_name = integrity_link.integrity_organization.lower()
@@ -416,7 +416,7 @@ async def dag_failure_callback(
     integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
-    # Scheduled runs (process-dag-generator) do not pass it: derive it like manual runs do
+    # Not passed by scheduled runs
     target_schema = target_schema or get_data_schema(integrity_link.integrity_organization)
 
     # Drop the final table if it exists

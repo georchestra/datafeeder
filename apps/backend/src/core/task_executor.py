@@ -44,7 +44,7 @@ class TaskRunInfo(BaseModel):
 
 
 class ProcessSource(BaseModel):
-    """Source a process task re-ingests from, instead of reading an existing staging table."""
+    """Source re-ingested by a process task that has no staging table."""
 
     source: str
     source_type: str  # FILE, URL, FTP, DATABASE, API

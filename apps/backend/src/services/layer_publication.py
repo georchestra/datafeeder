@@ -17,7 +17,7 @@ logger = get_logger()
 
 
 class DatastoreSchemaMismatchError(Exception):
-    """The datastore of a workspace reads another schema than the one of the table to publish."""
+    """The workspace datastore reads another schema than the table's."""
 
     def __init__(self, workspace: str, datastore_schema: str, table_schema: str) -> None:
         super().__init__(
@@ -28,7 +28,7 @@ class DatastoreSchemaMismatchError(Exception):
 
 @dataclass
 class TableExtent:
-    """Geometry information of a final table, as needed to publish it on GeoServer."""
+    """Geometry information needed to publish a final table."""
 
     is_geographic: bool = False
     epsg: int | None = None
@@ -38,7 +38,7 @@ class TableExtent:
 
 
 def read_table_extent(table_name: str, schema: str) -> TableExtent:
-    """Read the geometry SRID and extent of a final table (placeholder bbox if not geographic)."""
+    """SRID and extent of a final table (placeholder bbox if not geographic)."""
     table = Table(table_name, MetaData(schema=schema), autoload_with=data_engine)
     extent = TableExtent(is_geographic=DEFAULT_GEOMETRY_COLUMN in table.c)
     if extent.is_geographic:
@@ -58,15 +58,11 @@ async def publish_final_table(
     target_schema: str,
     extent: TableExtent,
 ) -> None:
-    """Create the GeoServer layer of a final table (and its workspace and datastore if
-    missing), and set data_id.
-
-    The workspace is the dataset organization. The schema of an existing datastore is never
-    changed, as all the layers of the workspace read their table from it.
+    """Publish a final table in the organization workspace, creating it if missing, and set
+    data_id. An existing datastore is never repointed: all the workspace layers rely on it.
 
     Raises:
         DatastoreSchemaMismatchError: If the datastore reads another schema than target_schema
-        Exception: On GeoServer failure
     """
     settings = get_settings()
     workspace_name = integrity_link.integrity_organization.lower()

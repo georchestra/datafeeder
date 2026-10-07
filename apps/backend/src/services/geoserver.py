@@ -404,14 +404,7 @@ class GeoServerService:
             logger.error(f"Failed to delete GeoServer {label}: {e}", exc_info=True)
 
     def delete_workspace_layer(self, workspace_name: str, layer_name: str) -> None:
-        """Delete a published layer of a workspace, whatever its store.
-
-        Treats 404 as success. Logs and suppresses other errors.
-
-        Args:
-            workspace_name: Name of the GeoServer workspace
-            layer_name: Name of the layer to delete
-        """
+        """Delete a workspace layer, whatever its store. Best-effort, 404 is a success."""
         label = f"layer {workspace_name}:{layer_name}"
         try:
             url = self.geoserver.rest_service.rest_endpoints.workspace_layer(

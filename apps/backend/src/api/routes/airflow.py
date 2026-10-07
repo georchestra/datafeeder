@@ -122,8 +122,7 @@ def get_dag_run_logs(
             intlink_id, AccessLevel.METADATA_READ, geo_ctx, session, group_ids
         )
     except HTTPException as e:
-        # A failed initial staging run deletes its integrity link, so ownership can't be
-        # checked anymore: only administrators may still fetch those logs (debug purpose).
+        # A failed initial staging deletes its link: only administrators get those logs
         if not (e.status_code == 404 and geo_ctx.is_administrator()):
             raise
     executor = get_task_executor()

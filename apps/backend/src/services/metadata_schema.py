@@ -12,8 +12,7 @@ if TYPE_CHECKING:
 
 logger = get_logger()
 
-# Maps a layer_urls key (from GeoserverService.build_layer_urls_for_metadata) to the
-# ISO CI_OnlineResource protocol name it should be published under.
+# layer_urls key (GeoServerService.build_layer_urls_for_metadata) -> ISO protocol name
 LAYER_URL_PROTOCOLS = (
     ("ogcfeatures", "OGC API Features"),
     ("wms", "OGC:WMS"),
@@ -49,7 +48,7 @@ class MetadataSchema:
     def replace_layer_online_resources(
         self, old_layer_name: str, layer_urls: dict[str, Any]
     ) -> Self:
-        """Point the online resources of layer ``old_layer_name`` to the layer of ``layer_urls``."""
+        """Point the online resources of ``old_layer_name`` to the layer of ``layer_urls``."""
         return self
 
     def _replace_layer_links(
@@ -60,11 +59,7 @@ class MetadataSchema:
         old_layer_name: str,
         layer_urls: dict[str, Any],
     ) -> Self:
-        """Rewrite name and linkage of the ``resources`` named ``old_layer_name``.
-
-        ``resources`` are CI_OnlineResource elements, read with ``namespaces`` (which
-        must define ``gco``); ``linkage_xpath`` selects the linkage text node of one.
-        """
+        """Rewrite name and linkage of the CI_OnlineResource ``resources`` of ``old_layer_name``."""
         new_layer_name = layer_urls.get("layer_qualified_name", "")
         linkages = {
             protocol: urls["base"] if isinstance(urls, dict) else urls
