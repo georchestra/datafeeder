@@ -544,7 +544,25 @@ class TestShapefileEncodingDetection:
             zf.writestr("z.shp", b"\x00")
             zf.writestr("z.dbf", _dbf(_LATIN1_RECORDS))
             zf.writestr("z.cst", "ISO-8859-1")
-        assert _detect_shapefile_encoding(str(archive)) == "ISO-8859-1"
+        assert _detect_shapefile_encoding(str(archive)) == "iso8859-1"
+
+    def test_cst_codepage_number_is_normalized(self, tmp_path: Path) -> None:
+        archive = tmp_path / "z.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("z.shp", b"\x00")
+            zf.writestr("z.dbf", _dbf(_LATIN1_RECORDS))
+            zf.writestr("z.cst", "1252")
+        assert _detect_shapefile_encoding(str(archive)) == "cp1252"
+
+    @pytest.mark.parametrize("cst", [b"", b"FOO-123", b"\xef\xbb\xbf"])
+    def test_invalid_cst_falls_back_to_detection(self, tmp_path: Path, cst: bytes) -> None:
+        # An empty or unknown SHAPE_ENCODING makes GDAL skip recoding altogether.
+        archive = tmp_path / "z.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("z.shp", b"\x00")
+            zf.writestr("z.dbf", _dbf(_LATIN1_RECORDS))
+            zf.writestr("z.cst", cst)
+        assert _detect_shapefile_encoding(str(archive)) == "CP1252"
 
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_shape_encoding_is_passed_to_ogr2ogr(

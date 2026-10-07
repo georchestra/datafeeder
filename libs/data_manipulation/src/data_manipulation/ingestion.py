@@ -1,3 +1,4 @@
+import codecs
 import logging
 import re
 import subprocess
@@ -232,8 +233,9 @@ def _detect_shapefile_encoding(file_path: str) -> str | None:
 
     GDAL reads the ``.cpg`` sidecar natively and assumes UTF-8 when it is absent.
     A shapefile shipped without a ``.cpg`` but encoded in e.g. CP1252 — common for
-    French data — then makes ogr2ogr abort with "Non UTF-8 content found". Sample
-    the ``.dbf`` and let chardet guess so the caller can pass SHAPE_ENCODING.
+    French data — then makes ogr2ogr abort with "Non UTF-8 content found". Use the
+    ``.cst`` sidecar written by GeoServer when it names a known encoding, otherwise
+    sample the ``.dbf`` and let chardet guess so the caller can pass SHAPE_ENCODING.
 
     Returns ``None`` when the source is not a shapefile, already carries a
     ``.cpg``, or when nothing could be detected — in all those cases GDAL's own
@@ -247,8 +249,12 @@ def _detect_shapefile_encoding(file_path: str) -> str | None:
     if cpg_bytes is not None or dbf_bytes is None:
         return None
     # GDAL ignores .cst (the .cpg equivalent written by GeoServer), so pass it on.
+    # An empty or unknown value would make GDAL skip recoding, so validate it first.
     if cst_bytes is not None:
-        return cst_bytes.decode("ascii").strip()
+        try:
+            return codecs.lookup(cst_bytes.decode("ascii", "ignore").strip()).name
+        except LookupError:
+            logger.warning("Ignoring unknown encoding in .cst: %r", cst_bytes)
 
     try:
         detected = chardet.detect(_dbf_text_payload(dbf_bytes))["encoding"]
