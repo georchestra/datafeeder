@@ -19,6 +19,7 @@ from data_manipulation.models import ForceProjection as DataManipulationForcePro
 from data_manipulation.utils import sanitize_name
 from data_manipulation.validators import validate_schema_name, validate_table_name
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
+from pydantic import ValidationError
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -807,37 +808,29 @@ def _detect_original_projection(
 
 
 def _resolve_columns(
-    saved_transformation: dict[str, Any] | None,
+    saved_columns: list[ColumnConfig] | None,
     table: Table,
-) -> tuple[list[ColumnConfig], dict[str, Any] | None]:
-    """Return (columns, force_projection_data) from saved config or live DB schema."""
-    column_sqla_types = {col.name: col.type for col in table.columns}
+) -> list[ColumnConfig]:
+    """Return the saved column configs (with live original types), or the live DB schema."""
+    if saved_columns:
+        column_sqla_types = {col.name: col.type for col in table.columns}
+        columns: list[ColumnConfig] = []
+        for col_cfg in saved_columns:
+            sqla_type = column_sqla_types.get(col_cfg.original_name)
+            if sqla_type is not None:
+                col_cfg = col_cfg.model_copy(
+                    update={"original_type": detect_column_type_from_sqla(sqla_type)}
+                )
+            columns.append(col_cfg)
+        return columns
 
-    if saved_transformation:
-        raw_columns = saved_transformation.get("columns")
-        if raw_columns:
-            try:
-                columns: list[ColumnConfig] = []
-                for raw_col in raw_columns:
-                    col_cfg = ColumnConfig.model_validate(raw_col)
-                    sqla_type = column_sqla_types.get(col_cfg.original_name)
-                    if sqla_type is not None:
-                        col_cfg = col_cfg.model_copy(
-                            update={"original_type": detect_column_type_from_sqla(sqla_type)}
-                        )
-                    columns.append(col_cfg)
-                return columns, saved_transformation.get("force_projection")
-            except Exception as e:
-                logger.warning(f"Could not deserialize saved columns config: {e}")
-
-    columns = [
+    return [
         ColumnConfig(
             original_name=col.name,
             original_type=detect_column_type_from_sqla(col.type),
         )
         for col in table.columns
     ]
-    return columns, None
 
 
 @router.get("/{integrity_link_id}/metadata")
@@ -892,11 +885,14 @@ def get_staging_metadata(
         and integrity_link.source_layer
     ):
         title = integrity_link.source_layer
-    force_projection_data = (
-        integrity_link.integrity_transformation.get("force_projection")
-        if integrity_link.integrity_transformation
-        else None
-    )
+    transformation: IntegrityTransformation | None = None
+    if integrity_link.integrity_transformation:
+        try:
+            transformation = IntegrityTransformation.model_validate(
+                integrity_link.integrity_transformation
+            )
+        except ValidationError as e:
+            logger.warning(f"Could not deserialize saved transformation config: {e}")
 
     schema = get_staging_schema()
     table = Table(
@@ -910,18 +906,17 @@ def get_staging_metadata(
         data_engine,
         schema,
     )
-    columns, force_projection_data = _resolve_columns(
-        integrity_link.integrity_transformation, table
-    )
 
     return StagingMetadataResponse(
         title=title,
         import_type=source_import_type,
         file_type=source_file_type,
-        columns=columns,
+        columns=_resolve_columns(transformation.columns if transformation else None, table),
         row_count=row_count,
-        force_projection=ForceProjection.model_validate(force_projection_data)
-        if force_projection_data
+        force_projection=ForceProjection.model_validate(
+            transformation.force_projection, from_attributes=True
+        )
+        if transformation and transformation.force_projection
         else None,
         original_projection=original_projection,
         has_final_table=integrity_link.final_table_name is not None,
