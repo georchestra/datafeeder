@@ -307,7 +307,7 @@ async def dag_success_callback(
     final_table_name: str = Query(..., description="Final table name"),
     target_schema: str | None = Query(
         default=None,
-        description="PostgreSQL schema of the final table (default: the dataset org schema)",
+        description="PostgreSQL schema of the final table (default: get_data_schema(organization))",
     ),
 ) -> None:
     """
@@ -318,7 +318,7 @@ async def dag_success_callback(
         datafeeder_session: Database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         final_table_name: Final table name created by the process DAG
-        target_schema: PostgreSQL schema where the final table lives (default: org schema)
+        target_schema: PostgreSQL schema of the final table (default: get_data_schema(organization))
     """
     integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
@@ -395,7 +395,7 @@ async def dag_failure_callback(
     final_table_name: str = Query(None, description="Final table name (if created)"),
     target_schema: str | None = Query(
         default=None,
-        description="PostgreSQL schema of the final table (default: the dataset org schema)",
+        description="PostgreSQL schema of the final table (default: get_data_schema(organization))",
     ),
     reason: str | None = Query(None, description="Failure reason from Airflow context"),
 ) -> None:
