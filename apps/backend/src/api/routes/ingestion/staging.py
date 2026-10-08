@@ -807,6 +807,15 @@ def _detect_original_projection(
     return None
 
 
+def _source_name(link: IntegrityLink) -> str | None:
+    if link.source_import_type == ImportType.DATABASE and link.source_url:
+        # source_url format: db://{db_key}/{schema}/{table} — take the last segment
+        return link.source_url.rsplit("/", 1)[-1]
+    if link.source_import_type == ImportType.API:
+        return link.source_layer
+    return None
+
+
 def _resolve_columns(
     saved_columns: list[ColumnConfig] | None,
     table: Table,
@@ -870,21 +879,9 @@ def get_staging_metadata(
     title = (
         integrity_link.integrity_title
         or strip_file_extension(integrity_link.source_file_name)
+        or _source_name(integrity_link)
         or ""
     )
-    if (
-        not title
-        and integrity_link.source_import_type == ImportType.DATABASE
-        and integrity_link.source_url
-    ):
-        # source_url format: db://{db_key}/{schema}/{table} — take the last segment
-        title = integrity_link.source_url.rsplit("/", 1)[-1]
-    if (
-        not title
-        and integrity_link.source_import_type == ImportType.API
-        and integrity_link.source_layer
-    ):
-        title = integrity_link.source_layer
     transformation: IntegrityTransformation | None = None
     if integrity_link.integrity_transformation:
         try:
