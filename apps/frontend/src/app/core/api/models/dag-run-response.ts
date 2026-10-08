@@ -7,7 +7,7 @@ import { DagRunType } from '../models/dag-run-type'
 import { DagVersionResponse } from '../models/dag-version-response'
 
 /**
- * DAG Run serializer for responses.
+ * Dag Run serializer for responses.
  */
 export interface DagRunResponse {
   bundle_version?: string | null
@@ -25,6 +25,8 @@ export interface DagRunResponse {
   last_scheduling_decision?: string | null
   logical_date?: string | null
   note?: string | null
+  partition_date?: string | null
+  partition_key?: string | null
   queued_at?: string | null
   run_after: string
   run_type: DagRunType
