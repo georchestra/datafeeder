@@ -5,6 +5,7 @@ import { ColumnConfig } from '../models/column-config'
 import { FileType } from '../models/file-type'
 import { ForceProjection } from '../models/force-projection'
 import { ImportType } from '../models/import-type'
+import { JoinConfig } from '../models/join-config'
 
 /**
  * Metadata for staging data
@@ -15,6 +16,7 @@ export interface StagingMetadataResponse {
   force_projection?: ForceProjection | null
   has_final_table: boolean
   import_type: ImportType
+  join?: JoinConfig | null
   layer_name?: string | null
   original_projection?: string | null
   row_count: number

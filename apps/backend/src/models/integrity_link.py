@@ -34,7 +34,7 @@ class IntegrityLink(SQLModel, table=True):
     integrity_transformation: dict[str, Any] | None = Field(
         default=None,
         sa_column=Column(JSON),
-        description="Full transformation config (IntegrityTransformation): columns + force_projection",
+        description="Full IntegrityTransformation config: columns, force_projection, join",
     )
     source_import_type: ImportType = Field(
         sa_column=Column(SqlEnum(ImportType, values_callable=get_enum_values), nullable=False)

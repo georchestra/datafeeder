@@ -916,6 +916,7 @@ def get_staging_metadata(
         if transformation and transformation.force_projection
         else None,
         original_projection=original_projection,
+        join=transformation.join if transformation else None,
         has_final_table=integrity_link.final_table_name is not None,
         layer_name=integrity_link.source_layer
         if integrity_link.source_import_type == ImportType.API
@@ -940,7 +941,7 @@ def edit_staging_metadata(
     with any additional configuration before finalizing the import.
 
     Validates column names (empty or duplicate new_name values are rejected).
-    Persists the full IntegrityTransformation (columns + force_projection) to the DB.
+    Persists the full IntegrityTransformation (columns + force_projection + join) to the DB.
 
     Args:
         data_session: Data database session (injected)
@@ -948,7 +949,7 @@ def edit_staging_metadata(
         geo_ctx: geOrchestra security context
         integrity_link_id: IntegrityLink UUID (required)
         config: Staging configuration with columns (ColumnConfig list), file_type,
-                force_projection, and title
+                force_projection, join, and title
 
     Returns:
         Updated staging metadata with saved column configurations
@@ -996,6 +997,7 @@ def edit_staging_metadata(
     transformation = IntegrityTransformation(
         columns=config.columns or None,
         force_projection=force_proj,
+        join=config.join,
     )
     integrity_link.integrity_transformation = transformation.model_dump(mode="json")
     flag_modified(integrity_link, "integrity_transformation")

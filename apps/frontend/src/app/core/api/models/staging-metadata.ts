@@ -4,6 +4,7 @@
 import { ColumnConfig } from '../models/column-config'
 import { FileType } from '../models/file-type'
 import { ForceProjection } from '../models/force-projection'
+import { JoinConfig } from '../models/join-config'
 
 /**
  * Metadata for staging data
@@ -12,6 +13,7 @@ export interface StagingMetadata {
   columns: Array<ColumnConfig>
   file_type: FileType | null
   force_projection?: ForceProjection | null
+  join?: JoinConfig | null
   original_projection?: string | null
   title: string
 }

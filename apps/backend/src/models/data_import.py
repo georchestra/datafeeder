@@ -7,6 +7,7 @@ from data_manipulation.models import CastType as CastType
 from data_manipulation.models import ColumnConfig as ColumnConfig
 from data_manipulation.models import ColumnFilter as ColumnFilter
 from data_manipulation.models import FilterOperator as FilterOperator
+from data_manipulation.models import JoinConfig as JoinConfig
 from geojson_pydantic import Feature, FeatureCollection
 from geojson_pydantic.geometries import Geometry
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -123,6 +124,7 @@ class StagingMetadata(BaseModel):
     file_type: FileType | None
     force_projection: ForceProjection | None = None
     original_projection: str | None = None
+    join: JoinConfig | None = None
 
 
 class StagingMetadataResponse(StagingMetadata):
