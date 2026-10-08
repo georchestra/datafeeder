@@ -203,6 +203,7 @@ class JoinableTable(BaseModel):
 
     id: UUID
     integrity_title: str | None
+    table_schema: str
     table_name: str
 
 

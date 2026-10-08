@@ -1602,8 +1602,9 @@ class TestListJoinableTables:
             organization="",
         )
 
+    @patch("src.api.routes.ingestion.integrity_links.get_data_schema", return_value="testorg")
     def test_owner_sees_own_link_with_existing_final_table(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, _: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
     ) -> None:
         link = self._link("Roads", "roads_final", owner="user0")
         mock_session.execute.return_value.scalars.return_value.all.return_value = [link]
@@ -1621,6 +1622,7 @@ class TestListJoinableTables:
         assert len(response) == 1
         assert response[0].id == link.id
         assert response[0].integrity_title == "Roads"
+        assert response[0].table_schema == "testorg"
         assert response[0].table_name == "roads_final"
 
     def test_excludes_link_whose_final_table_does_not_exist(
