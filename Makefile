@@ -38,10 +38,10 @@ up-no-airflow: build-libs ## Start all services including GeoServer and GeoNetwo
 	docker compose --profile local-executor up -d --wait --build
 
 down: ## Stop all services using Docker Compose
-	docker compose --profile airflow down
+	docker compose --profile airflow --profile local-executor down
 
 down-v: ## Stop all services and remove volumes using Docker Compose
-	docker compose --profile airflow down -v
+	docker compose --profile airflow --profile local-executor down -v
 
 run-backend: install-python ## Run the backend application
 	cd apps/backend && \
