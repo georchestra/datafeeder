@@ -4,9 +4,12 @@
 import { DagRunResponse } from '../models/dag-run-response'
 
 /**
- * DAG Run Collection serializer for responses.
+ * Dag Run collection response supporting both offset and cursor pagination.  A single flat model is used instead of a discriminated union (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``: return types degrade to ``unknown`` in JSDoc and can produce incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
  */
 export interface DagRunCollectionResponse {
   dag_runs: Array<DagRunResponse>
-  total_entries: number
+  next_cursor?: string | null
+  previous_cursor?: string | null
+  total_entries?: number | null
+  total_entries_limit?: number | null
 }
