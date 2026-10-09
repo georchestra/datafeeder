@@ -147,7 +147,7 @@ def test_patch_temporal_extent_19139_inserts_period_extent() -> None:
 
     Metadata19139Service.patch_temporal_extent(
         root,
-        TemporalExtent(type="period", begin="2024-01-01", end="2024-12-31"),
+        TemporalExtent(start="2024-01-01", end="2024-12-31"),
     )
 
     namespaces = {**NS_19139, "gml": "http://www.opengis.net/gml/3.2"}

@@ -1,6 +1,13 @@
 """Unit tests for metadata_generator module."""
 
+import json
+from typing import Any
+
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
+from langchain_core.runnables import RunnableLambda
+
 from ai.metadata_generator import (
+    _MAX_PROMPT_KEYWORDS,  # pyright: ignore[reportPrivateUsage]
     format_bbox_for_prompt,
     format_column_headers,
     format_current_abstract_for_prompt,
@@ -11,7 +18,9 @@ from ai.metadata_generator import (
     format_sample,
     format_title_for_prompt,
     format_topics_for_prompt,
+    generate_metadata,
 )
+from ai.metadata_generator_models import KwStrategy, Thesaurus
 
 
 class TestFormatSample:
@@ -70,6 +79,11 @@ class TestFormatColumnHeaders:
         assert result.count("(") == 1
 
 
+def _thesaurus(*labels: str, title: str = "Thesaurus") -> dict[str, Thesaurus]:
+    """Build a single-thesaurus keywords mapping from labels."""
+    return {title: {"title": title, "kw": [(f"uri/{i}", label) for i, label in enumerate(labels)]}}
+
+
 class TestFormatKeywordsForPrompt:
     """Tests for format_keywords_for_prompt."""
 
@@ -78,45 +92,48 @@ class TestFormatKeywordsForPrompt:
         assert format_keywords_for_prompt(None) == ""
 
     def test_empty_keywords(self) -> None:
-        """Test with empty list."""
-        assert format_keywords_for_prompt([]) == ""
+        """Test with empty mapping."""
+        assert format_keywords_for_prompt({}) == ""
 
     def test_single_keyword(self) -> None:
         """Test with single keyword."""
-        keywords = ["water"]
-        assert format_keywords_for_prompt(keywords) == "water"
+        assert format_keywords_for_prompt(_thesaurus("water")) == "water"
 
     def test_multiple_keywords(self) -> None:
         """Test with multiple keywords."""
-        keywords = ["water", "river", "flood"]
-        result = format_keywords_for_prompt(keywords)
+        result = format_keywords_for_prompt(_thesaurus("water", "river", "flood"))
         assert "water" in result
         assert "river" in result
         assert "flood" in result
 
+    def test_multiple_thesauri(self) -> None:
+        """Test that keywords of every thesaurus are included."""
+        result = format_keywords_for_prompt(
+            {**_thesaurus("water"), **_thesaurus("forest", title="Other")}
+        )
+        assert "water" in result
+        assert "forest" in result
+
     def test_deduplication(self) -> None:
         """Test deduplication of keywords."""
-        keywords = ["water", "water", "river", "river"]
-        result = format_keywords_for_prompt(keywords)
+        result = format_keywords_for_prompt(_thesaurus("water", "water", "river", "river"))
         assert result.count("water") == 1
         assert result.count("river") == 1
 
     def test_whitespace_trimming(self) -> None:
         """Test trimming of whitespace."""
-        keywords = ["  water  ", " river ", "flood"]
-        result = format_keywords_for_prompt(keywords)
+        result = format_keywords_for_prompt(_thesaurus("  water  ", " river ", "flood"))
         assert "  " not in result
         assert "water" in result
         assert "river" in result
 
     def test_max_keywords_cap(self) -> None:
         """Test that keywords are capped at _MAX_PROMPT_KEYWORDS."""
-        # Create 150 keywords to exceed the cap (100)
-        keywords = [f"keyword_{i}" for i in range(150)]
+        keywords = _thesaurus(*(f"kw{i}" for i in range(_MAX_PROMPT_KEYWORDS + 50)))
         result = format_keywords_for_prompt(keywords)
         # Count commas + 1 to get number of keywords
         keyword_count = result.count(", ") + 1 if result else 0
-        assert keyword_count <= 100
+        assert keyword_count <= _MAX_PROMPT_KEYWORDS
 
 
 class TestFormatTitleForPrompt:
@@ -231,3 +248,66 @@ class TestFormatExtraContextForPrompt:
     def test_without_context(self) -> None:
         """Test without context."""
         assert format_extra_context_for_prompt(None) == ""
+
+
+class TestGenerateMetadata:
+    """Tests for generate_metadata."""
+
+    def test_falls_back_to_prompted_without_keywords(self) -> None:
+        """Without keywords nor topic categories (e.g. GeoNetwork unavailable), the structured
+        strategies cannot build their enums: generation must fall back to the prompted strategy."""
+        llm = FakeListChatModel(
+            responses=[
+                json.dumps(
+                    {
+                        "title": "Rivers",
+                        "abstract": "Rivers of the area.",
+                        "keywords": ["water"],
+                        "topic_categories": ["inlandWaters"],
+                    }
+                )
+            ]
+        )
+        result = generate_metadata(
+            table_name="rivers",
+            column_names=["name"],
+            llm=llm,
+            keywords=None,
+            topic_categories=None,
+            keyword_strategy=KwStrategy.STAGED,
+        )
+        assert result.title == "Rivers"
+        assert result.keywords == ["water"]
+
+    def test_falls_back_to_prompted_without_structured_output(self) -> None:
+        """When the LLM answers with plain text instead of calling the output tool,
+        LangChain parses None: generation must fall back to the prompted strategy."""
+
+        class NoToolCallChatModel(FakeListChatModel):
+            def with_structured_output(self, schema: Any, **kwargs: Any) -> Any:
+                return RunnableLambda(
+                    lambda _: {"raw": "plain text", "parsed": None, "parsing_error": None}
+                )
+
+        llm = NoToolCallChatModel(
+            responses=[
+                json.dumps(
+                    {
+                        "title": "Rivers",
+                        "abstract": "Rivers of the area.",
+                        "keywords": ["water"],
+                        "topic_categories": ["inlandWaters"],
+                    }
+                )
+            ]
+        )
+        result = generate_metadata(
+            table_name="rivers",
+            column_names=["name"],
+            llm=llm,
+            keywords=_thesaurus("water"),
+            topic_categories=["inlandWaters"],
+            keyword_strategy=KwStrategy.STAGED,
+        )
+        assert result.title == "Rivers"
+        assert result.keywords == ["water"]

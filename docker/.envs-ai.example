@@ -22,5 +22,5 @@ AI_PHOENIX_ENABLED=false
 AI_PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
 AI_PHOENIX_PROJECT=datafeeder
 
-# theasurus Whitelist
+# Comma-separated ids of the GeoNetwork thesauruses the LLM may pick keywords from
 AI_ALLOWED_THESAURUS=external.theme.httpinspireeceuropaeutheme-theme

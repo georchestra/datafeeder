@@ -2,20 +2,20 @@
 
 import json
 import logging
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
-from enum import StrEnum
 
-from pydantic import create_model
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, create_model
 
-from ai.metadata_generator_models import GeneratedMetadata, LlmMetadataMode, Thesaurus, KwStrategy
+from ai.metadata_generator_models import GeneratedMetadata, KwStrategy, LlmMetadataMode, Thesaurus
 from ai.utils import load_prompt
 
 logger = logging.getLogger(__name__)
-_MAX_KEYWORDS_PER_THESAURUS = 1024
+MAX_KEYWORDS_PER_THESAURUS = 1024
 _MAX_PROMPT_KEYWORDS = 1024
 _MAX_PROMPT_TITLE_CHARS = 256
 _MAX_PROMPT_ABSTRACT_CHARS = 2048
@@ -69,14 +69,14 @@ def format_column_headers(
     )
 
 
-def format_keywords_for_prompt(keywords: list[str] | None) -> str:
+def format_keywords_for_prompt(keywords: dict[str, Thesaurus] | None) -> str:
     """Deduplicate and cap keywords before injecting them into the LLM prompt."""
     if not keywords:
         return ""
 
     # Keep order, drop empty values, and hard-cap size to avoid prompt bloat.
     seen: set[str] = set()
-    cleaned = [kw.strip() for v in keywords.values() for k, kw in v['kw'] if kw.strip()]
+    cleaned = [kw.strip() for v in keywords.values() for _, kw in v["kw"] if kw.strip()]
     deduped = [k for k in cleaned if not (k in seen or seen.add(k))]
     logger.info(f"Count KW: {len(deduped)} (of total {len(cleaned)})", exc_info=True)
     return _truncate_text(
@@ -196,109 +196,157 @@ def generate_metadata(
         [("system", system_prompt), ("human", human_prompt)]
     )
 
-    if keyword_strategy == KwStrategy.PROMPTED:
-        # convert pydantic model to system input prompt
-        parser = PydanticOutputParser(pydantic_object=GeneratedMetadata)
+    inputs: dict[str, str] = {
+        "title": format_title_for_prompt(table_name, title, current_values),
+        "columns_with_types": format_column_headers(column_names, column_types),
+        "sample": format_sample(sample_rows, raw_sample),
+        "bbox": format_bbox_for_prompt(bbox),
+        "current_abstract": format_current_abstract_for_prompt(current_values),
+        "current_keywords": format_current_keywords_for_prompt(current_values),
+        "current_topics": format_current_topics_for_prompt(current_values),
+        "extra_context": format_extra_context_for_prompt(extra_context),
+        "mode_instruction": (
+            "REWRITE — improve, rephrase and enrich the existing values if provided above. "
+            "Keep the meaning but make them clearer, more professional and more complete."
+            if mode == LlmMetadataMode.REWRITE
+            else "REGENERATE — For title only, minor rewording allowed to integrate current_abstract location if provided. Other fields: no reformulation."
+        ),
+    }
 
-        prompt = prompt_template.partial(format_instructions=parser.get_format_instructions())
-
-        chain = prompt | llm | parser
-
-        result = chain.invoke(
-            {
-                "title": format_title_for_prompt(table_name, title, current_values),
-                "columns_with_types": format_column_headers(column_names, column_types),
-                "sample": format_sample(sample_rows, raw_sample),
-                "bbox": format_bbox_for_prompt(bbox),
-                "current_abstract": format_current_abstract_for_prompt(current_values),
-                "current_keywords": format_current_keywords_for_prompt(current_values),
-                "current_topics": format_current_topics_for_prompt(current_values),
-                "keywords": format_keywords_for_prompt(keywords),
-                "kw_policy": "Choose **between 8 and 12** relevant keywords.",
-                "topics": format_topics_for_prompt(topic_categories),
-                "extra_context": format_extra_context_for_prompt(extra_context),
-                "mode_instruction": (
-                    "REWRITE — improve, rephrase and enrich the existing values if provided above. "
-                    "Keep the meaning but make them clearer, more professional and more complete."
-                    if mode == LlmMetadataMode.REWRITE
-                    else "REGENERATE — For title only, minor rewording allowed to integrate current_abstract location if provided. Other fields: no reformulation."
-                ),
-            }
-        )
-    else:
-        # using a tool for structured json output may save some tokens and is more explicit
-        # authorized topics and keywords are mapped dynamically into the model
-
-        # Fill the prompt placeholder, no structure instructions needed, these will be communicated via tool
-        prompt = prompt_template.partial(format_instructions='')
-
-        # Enum name = enum value for simplicity
-        InspireCategories = StrEnum('InspireCategories', zip(topic_categories, topic_categories))
-
-        if keyword_strategy == KwStrategy.STRUCTURED:  # oneshot KWs
-            seen: set[str] = set()
-            kw_tuples = [kwt for v in keywords.values() for kwt in v['kw'] if not (kwt[1] in seen or seen.add(kwt[1]))]
-            logger.info(f"Count KW: {len(set(v for k, v in kw_tuples))} (of total {len(kw_tuples)})", exc_info=True)
-            kw_policy = "Choose **between 5 and 12** relevant keywords."
-
-        elif keyword_strategy == KwStrategy.STAGED:
-            kw_tuples = [(k, v['title']) for k, v in keywords.items()]
-            kw_policy = "Choose 1 or 2 relevant keyword categories."
-        else:
-            raise Exception("Shall not happen")
-
-        # kw_tuples: (key, title)
-        KWCategories = StrEnum('KWCategories', kw_tuples)
-
-        # override Pydantic model to use custom categories (enums)
-        TemplatedModel = create_model(
-            'TemplatedModel',
-            __base__=GeneratedMetadata,
-            topic_categories=list[InspireCategories],
-            keywords=list[KWCategories],
-        )
-        # strict option is important, otherwise the llm may hallucinate non authorized values
-        chain = prompt | llm.with_structured_output(TemplatedModel, strict=True)
-
-        result = chain.invoke(
-            {
-                "title": format_title_for_prompt(table_name, title, current_values),
-                "columns_with_types": format_column_headers(column_names, column_types),
-                "sample": format_sample(sample_rows, raw_sample),
-                "bbox": format_bbox_for_prompt(bbox),
-                "current_abstract": format_current_abstract_for_prompt(current_values),
-                "current_keywords": format_current_keywords_for_prompt(current_values),
-                "current_topics": format_current_topics_for_prompt(current_values),
-                "keywords": "see below in tool",
-                "kw_policy": kw_policy,
-                "topics": "see below in tool",
-                "extra_context": format_extra_context_for_prompt(extra_context),
-                "mode_instruction": (
-                    "REWRITE — improve, rephrase and enrich the existing values if provided above. "
-                    "Keep the meaning but make them clearer, more professional and more complete."
-                    if mode == LlmMetadataMode.REWRITE
-                    else "REGENERATE — For title only, minor rewording allowed to integrate current_abstract location if provided. Other fields: no reformulation."
-                ),
-            }
-        )
-        if keyword_strategy == KwStrategy.STAGED:
-            # second stage where KW are actually selected from a narrower choice
-            kw = sum((keywords[k.name]['kw'] for k in result.keywords), [])
-            Keywords = StrEnum('Themes', kw)
-            KeywordModel = create_model('KeywordModel', keywords=list[Keywords])
-
-            kw_chain = llm.with_structured_output(KeywordModel, strict=True)
-            kw_list = kw_chain.invoke(
-                f"""
-                Choose **between 5 and 12** keywords corresponding to:
-                # Title:
-                {result.title}
-
-                # Abstract:
-                {result.abstract}
-                """
+    if keyword_strategy != KwStrategy.PROMPTED:
+        if keywords and topic_categories:
+            result = _generate_structured(
+                prompt_template, llm, inputs, keywords, topic_categories, keyword_strategy
             )
-            # update keywords with refined values
-            result.keywords = kw_list.keywords
+            if result is not None:
+                return result
+            logger.warning("Structured generation failed, falling back to prompted strategy")
+        else:
+            # The structured strategies need the allowed values to build their enums
+            logger.warning(
+                "No keywords or topic categories available, falling back to prompted strategy"
+            )
 
+    # convert pydantic model to system input prompt
+    parser = PydanticOutputParser(pydantic_object=GeneratedMetadata)
+    prompt = prompt_template.partial(format_instructions=parser.get_format_instructions())
+    chain = prompt | llm | parser
+    return chain.invoke(
+        {
+            **inputs,
+            "keywords": format_keywords_for_prompt(keywords),
+            "kw_policy": "Choose **between 8 and 12** relevant keywords.",
+            "topics": format_topics_for_prompt(topic_categories),
+        }
+    )
+
+
+def _invoke_structured(
+    llm: BaseChatModel, schema: type[BaseModel], prompt: Any, inputs: Any
+) -> Any | None:
+    """Invoke the LLM with a structured output, None if the model did not produce it.
+
+    Models may answer with plain text instead of calling the output tool, in which case
+    LangChain returns None for the parsed output.
+    """
+    # strict option is important, otherwise the llm may hallucinate non authorized values
+    chain = prompt | llm.with_structured_output(schema, strict=True, include_raw=True)
+    output = chain.invoke(inputs)
+    if output["parsed"] is None:
+        logger.warning(
+            "LLM returned no structured %s (parsing error: %s), raw response: %s",
+            schema.__name__,
+            output["parsing_error"],
+            output["raw"],
+        )
+    return output["parsed"]
+
+
+def _generate_structured(
+    prompt_template: ChatPromptTemplate,
+    llm: BaseChatModel,
+    inputs: dict[str, str],
+    keywords: dict[str, Thesaurus],
+    topic_categories: list[str],
+    keyword_strategy: KwStrategy,
+) -> GeneratedMetadata | None:
+    """Generate metadata with the allowed topics and keywords mapped as enums in the output tool.
+
+    Returns:
+        GeneratedMetadata, or None if the LLM did not produce a structured output
+    """
+    # using a tool for structured json output may save some tokens and is more explicit
+    # authorized topics and keywords are mapped dynamically into the model
+
+    # Fill the prompt placeholder, no structure instructions needed, these will be communicated via tool
+    prompt = prompt_template.partial(format_instructions="")
+
+    # Enum name = enum value for simplicity
+    InspireCategories = StrEnum("InspireCategories", zip(topic_categories, topic_categories))
+
+    if keyword_strategy == KwStrategy.STRUCTURED:  # oneshot KWs
+        seen: set[str] = set()
+        kw_tuples = [
+            kwt
+            for v in keywords.values()
+            for kwt in v["kw"]
+            if not (kwt[1] in seen or seen.add(kwt[1]))
+        ]
+        logger.info(f"Count KW: {len(kw_tuples)}")
+        kw_policy = "Choose **between 5 and 12** relevant keywords."
+    else:
+        kw_tuples = [(k, v["title"]) for k, v in keywords.items()]
+        kw_policy = "Choose 1 or 2 relevant keyword categories."
+
+    # kw_tuples: (key, title)
+    KWCategories = StrEnum("KWCategories", kw_tuples)
+
+    # override Pydantic model to use custom categories (enums)
+    TemplatedModel = create_model(
+        "TemplatedModel",
+        __base__=GeneratedMetadata,
+        topic_categories=list[InspireCategories],
+        keywords=list[KWCategories],
+    )
+    result = _invoke_structured(
+        llm,
+        TemplatedModel,
+        prompt,
+        {
+            **inputs,
+            "keywords": "see below in tool",
+            "kw_policy": kw_policy,
+            "topics": "see below in tool",
+        },
+    )
+    if result is None or keyword_strategy != KwStrategy.STAGED:
+        return result
+
+    # second stage where KW are actually selected from a narrower choice
+    # (uri, label) tuples of the chosen thesauri, deduplicated by uri (enum names)
+    chosen = [KWCategories(k).name for k in result.keywords]
+    kw = list(dict(kwt for t in chosen for kwt in keywords[t]["kw"]).items())
+    if not kw:
+        logger.warning("LLM chose no keyword category")
+        return None
+    Keywords = StrEnum("Themes", kw)
+    KeywordModel = create_model("KeywordModel", keywords=list[Keywords])
+
+    kw_prompt = ChatPromptTemplate.from_template(
+        """
+        Choose **between 5 and 12** keywords corresponding to:
+        # Title:
+        {title}
+
+        # Abstract:
+        {abstract}
+        """
+    )
+    kw_list = _invoke_structured(
+        llm, KeywordModel, kw_prompt, {"title": result.title, "abstract": result.abstract}
+    )
+    if kw_list is None:
+        return None
+    # update keywords with refined values
+    result.keywords = kw_list.keywords
     return result
