@@ -47,6 +47,8 @@ def create_dag(config):
         schedule=config.get("schedule"),
         tags=[config.get("id", "")],
         catchup=False,
+        # A run waits for its process_dag run; never let runs pile up on short schedules.
+        max_active_runs=1,
         on_success_callback=_dag_success_callback,
     )
 
@@ -80,6 +82,9 @@ def create_dag(config):
                 ),
             },
             wait_for_completion=True,
+            # Wait in the triggerer instead of holding a worker slot: otherwise waiting
+            # triggers can occupy every slot and starve the process_dag tasks (deadlock).
+            deferrable=True,
             poke_interval=5,
         )
 
