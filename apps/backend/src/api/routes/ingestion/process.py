@@ -6,13 +6,11 @@ from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_N
 from data_manipulation.database import create_schema, get_available_table_name
 from data_manipulation.models import IntegrityTransformation
 from data_manipulation.utils import (
-    compute_bbox_from_postgis_stextent_string,
     sanitize_name,
 )
 from data_manipulation.validators import validate_table_name
 from fastapi import APIRouter, Header, HTTPException, Query
-from geoservercloud.models.common import MetadataLink
-from sqlalchemy import MetaData, Table, func, select
+from sqlalchemy import MetaData, Table
 
 from src.api.deps import (
     DatafeederSessionDep,
@@ -24,7 +22,6 @@ from src.api.deps import (
 )
 from src.core.callback import build_callback_url
 from src.core.config import get_data_schema, get_settings, get_staging_schema
-from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.core.run_ids import make_manual_process_run_id
@@ -37,6 +34,7 @@ from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.console_service import ConsoleService
 from src.services.executor_factory import get_task_executor
+from src.services.layer_publication import publish_final_table, read_table_extent
 from src.services.schedule_service import clear_schedule
 
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
@@ -307,8 +305,9 @@ async def dag_success_callback(
     metadata_service: MetadataServiceDep,
     integrity_link_id: str = Query(..., description="IntegrityLink ID"),
     final_table_name: str = Query(..., description="Final table name"),
-    target_schema: str = Query(
-        default=DEFAULT_DATA_SCHEMA, description="PostgreSQL schema of the final table"
+    target_schema: str | None = Query(
+        default=None,
+        description="PostgreSQL schema of the final table (default: get_data_schema(organization))",
     ),
 ) -> None:
     """
@@ -319,14 +318,15 @@ async def dag_success_callback(
         datafeeder_session: Database session (injected)
         integrity_link_id: IntegrityLink UUID (required)
         final_table_name: Final table name created by the process DAG
-        target_schema: PostgreSQL schema where the final table lives
+        target_schema: PostgreSQL schema of the final table (default: get_data_schema(organization))
     """
     integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    # Not passed by scheduled runs
+    target_schema = target_schema or get_data_schema(integrity_link.integrity_organization)
 
     workspace_name = integrity_link.integrity_organization.lower()
-    datastore_name = f"{workspace_name}_ds"
     is_geographic = False
 
     # Create PostgreSQL schema (idempotent) — uses target_schema, not always workspace_name
@@ -340,72 +340,11 @@ async def dag_success_callback(
 
     # Create GeoServer workspace, datastore, and layer with actual bbox
     try:
-        # create_workspace/create_datastore are upserts — always call to keep pg_schema in sync
-        await geoserver_service.create_workspace(
-            workspace_name=workspace_name,
-            datastore_name=datastore_name,
-            pg_schema=target_schema,
+        extent = read_table_extent(final_table_name, target_schema)
+        is_geographic = extent.is_geographic
+        await publish_final_table(
+            geoserver_service, integrity_link, final_table_name, target_schema, extent
         )
-        logger.info(
-            f"Ensured GeoServer workspace and datastore for IntegrityLink {integrity_link.id}: "
-            f"workspace={workspace_name}, datastore={datastore_name}, schema={target_schema}"
-        )
-
-        # Load final table, check geometry, compute bbox
-        table_meta = MetaData(schema=target_schema)
-        table = Table(final_table_name, table_meta, autoload_with=data_engine)
-        is_geographic = DEFAULT_GEOMETRY_COLUMN in table.c
-        bbox = {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0}
-        epsg = None
-
-        if is_geographic:
-            with data_engine.connect() as conn:
-                geom = table.c[DEFAULT_GEOMETRY_COLUMN]
-                # Get SRID from PostGIS geometry column
-                srid_stmt = select(func.ST_SRID(geom)).limit(1)
-                srid_result = conn.execute(srid_stmt).scalar_one_or_none()
-                epsg = srid_result if srid_result else None
-
-                # Get bounding box
-                bbox_stmt = select(func.ST_Extent(geom))
-                bbox_result = conn.execute(bbox_stmt).scalar_one_or_none()
-                if bbox_result:
-                    bbox = compute_bbox_from_postgis_stextent_string(bbox_result)
-
-        metadata_links: list[MetadataLink] | None = None
-        if integrity_link.metadata_id:
-            metadata_links = [
-                MetadataLink(
-                    url=settings.GEONETWORK_XML_RECORD_URL.format(
-                        metadata_id=integrity_link.metadata_id
-                    ),
-                    metadata_type="ISO19115:2003",
-                    mime_type="text/xml",
-                ),
-                MetadataLink(
-                    url=settings.DATAHUB_PUBLIC_URL.format(metadata_id=integrity_link.metadata_id),
-                    metadata_type="ISO19115:2003",
-                    mime_type="text/html",
-                ),
-            ]
-
-        await geoserver_service.create_layer(
-            workspace_name=workspace_name,
-            datastore_name=datastore_name,
-            table_name=final_table_name,
-            title=integrity_link.integrity_title or final_table_name,
-            abstract=integrity_link.integrity_title or final_table_name,
-            epsg=epsg or 4326,
-            is_geographic=is_geographic,
-            bbox=bbox,
-            metadata_links=metadata_links,
-        )
-        integrity_link.data_id = workspace_name + ":" + final_table_name
-        logger.info(
-            f"Created GeoServer layer for IntegrityLink {integrity_link.id}: "
-            f"{integrity_link.data_id}, geographic={is_geographic}, bbox={bbox}"
-        )
-
     except Exception as e:
         logger.error(
             f"Failed to publish to GeoServer for IntegrityLink {integrity_link.id}: {e}",
@@ -454,8 +393,9 @@ async def dag_failure_callback(
     dag_id: str = Query(..., description="DAG ID"),
     dag_run_id: str = Query(..., description="DAG run ID"),
     final_table_name: str = Query(None, description="Final table name (if created)"),
-    target_schema: str = Query(
-        default=DEFAULT_DATA_SCHEMA, description="PostgreSQL schema of the final table"
+    target_schema: str | None = Query(
+        default=None,
+        description="PostgreSQL schema of the final table (default: get_data_schema(organization))",
     ),
     reason: str | None = Query(None, description="Failure reason from Airflow context"),
 ) -> None:
@@ -476,6 +416,8 @@ async def dag_failure_callback(
     integrity_link = datafeeder_session.get(IntegrityLink, UUID(integrity_link_id))
     if not integrity_link:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    # Not passed by scheduled runs
+    target_schema = target_schema or get_data_schema(integrity_link.integrity_organization)
 
     # Drop the final table if it exists
     if final_table_name:

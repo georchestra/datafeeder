@@ -88,7 +88,10 @@ DELETE /integrity-link/{id} → unpublishes GeoServer layer, deletes GN record, 
 ```
 
 **Empty dataset** (`POST /ingestion/empty-dataset`): creates an `IntegrityLink` and a skeleton GeoNetwork record immediately — no DAG involved.  
-**Re-staging** (`PUT /ingestion/staging/{id}`): replaces source config and re-triggers `staging_dag`.
+**Re-staging** (`PUT /ingestion/staging/{id}`): replaces source config and re-triggers `staging_dag`.  
+**Replication** (admin, `/internal`): `GET .../integrity-link/{id}/export` on the source platform, `POST .../integrity-link/import` on the target one (same id). The metadata record must be copied first (e.g. with maelstro). The dataset is attached to the copied table, or re-ingested from its source if absent (not for files). Permission rules are not copied.  
+**Reassignment** (`PUT .../integrity-link/{id}/ownership`): a new organization moves the final table and layer to its schema and workspace, and updates the record links. Datastore schemas are never changed (shared by the workspace layers) and workspaces/datastores are never deleted.  
+**Admin deletion** (`DELETE .../integrity-link/{id}`): keeps the layer, final table and record unless `delete_layer` / `delete_metadata` is set.
 
 ## Minimal Runtime
 

@@ -42,6 +42,7 @@ import {
   getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
   getDagRunNoteAirflowDagsDagIdRunsDagRunIdNoteGet,
+  getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet,
   submitStagingIngestionStagingPost,
   processStagingDataIngestionProcessPost,
   editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut,
@@ -58,6 +59,7 @@ import type {
 import type { SourceData } from '../data-source-selector/data-source-selector.component'
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
 import { SettingsService } from '../../../core/settings/settings.service'
+import { downloadTextBlob } from '../../utils/download.util'
 import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
 import type {
@@ -202,6 +204,9 @@ export class DataImportWizardComponent {
   previewErrorExtent = signal<string | null>(null)
   previewLoading = signal<boolean>(false)
   dagRunInfo = signal<{ dag_id: string; dag_run_id: string } | null>(null)
+  // ?debug query param: allows downloading Airflow logs of a failed staging run
+  debugMode = this.route.snapshot.queryParamMap.get('debug') !== null
+  failedDagRun = signal<{ dag_id: string; dag_run_id: string } | null>(null)
   processing = signal(false)
   validationError = signal<string | null>(null)
   previewTabIndex = signal(0)
@@ -414,6 +419,7 @@ export class DataImportWizardComponent {
 
   async onConfigureDataset() {
     this.importError.set(null)
+    this.failedDagRun.set(null)
     this.importing.set(true)
     this.metadata.update(() => null)
     this.preview.update(() => null)
@@ -444,6 +450,9 @@ export class DataImportWizardComponent {
       this.importError.set(
         this.translate.instant('import.dataSource.genericError')
       )
+      if (this.polling()) {
+        this.failedDagRun.set(this.dagRunInfo())
+      }
 
       if (!this.integrityLinkStore.integrityLink()?.last_retrieval_timestamp) {
         this.integrityLinkStore.clearIntegrityLink()
@@ -451,6 +460,20 @@ export class DataImportWizardComponent {
     } finally {
       this.importing.set(false)
       this.polling.set(false)
+    }
+  }
+
+  async downloadFailedDagRunLogs() {
+    const run = this.failedDagRun()
+    if (!run) return
+    try {
+      const logs = await this.api.invoke(
+        getDagRunLogsAirflowDagsDagIdRunsDagRunIdLogsGet,
+        run
+      )
+      downloadTextBlob(logs, `logs_${run.dag_id}_${run.dag_run_id}.txt`)
+    } catch (error) {
+      console.error('Failed to fetch DAG run logs:', error)
     }
   }
 

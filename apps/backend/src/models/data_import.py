@@ -7,6 +7,7 @@ from data_manipulation.models import CastType as CastType
 from data_manipulation.models import ColumnConfig as ColumnConfig
 from data_manipulation.models import ColumnFilter as ColumnFilter
 from data_manipulation.models import FilterOperator as FilterOperator
+from data_manipulation.validators import validate_table_name
 from geojson_pydantic import Feature, FeatureCollection
 from geojson_pydantic.geometries import Geometry
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -249,3 +250,75 @@ class IntegrityLinkGsPublishResponse(IntegrityLinkResponse):
 
     gs_read_roles: list[str] | None = None
     rules: list[IntegrityLinkRule] = []
+
+
+# Lowercased, it names a GeoServer workspace and a PostgreSQL schema
+_ORGANIZATION_PATTERN = r"^[A-Za-z][A-Za-z0-9_]{0,62}$"
+
+
+class IntegrityLinkExport(BaseModel):
+    """Dataset definition, without its data, permission rules or source password."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    metadata_id: str | None
+    integrity_title: str | None
+    integrity_owner: str
+    integrity_organization: str = Field(pattern=_ORGANIZATION_PATTERN)
+    integrity_transformation: dict[str, Any] | None = None
+    source_import_type: ImportType
+    source_url: str | None
+    source_layer: str | None = None
+    source_protocol: str | None = None
+    source_file_name: str | None = None
+    source_file_type: FileType | None = None
+    source_username: str | None = None
+    has_source_password: bool = False
+    final_table_name: str | None
+    data_id: str | None = None
+    last_retrieval_timestamp: datetime | None = None
+    schedule: str | None = None
+    preset_id: RecurrencePreset | None = None
+
+    @field_validator("final_table_name")
+    @classmethod
+    def validate_final_table_name(cls, v: str | None) -> str | None:
+        return None if v is None else validate_table_name(v, context="final")
+
+
+class IntegrityLinkImportMode(str, Enum):
+    """How an imported dataset gets its data on the target platform."""
+
+    ATTACH = "attach"  # data already copied (files)
+    REPROCESS = "reprocess"  # re-ingested from the source (url, apis ..)
+
+
+class IntegrityLinkImportRequest(BaseModel):
+    """Import of a dataset exported from another platform."""
+
+    link: IntegrityLinkExport
+    copy_recurrence: bool = Field(
+        default=False, description="Also set the recurrence schedule of the exported dataset"
+    )
+    source_password: str | None = Field(
+        default=None,
+        description="Source password, required when the exported dataset has one",
+    )
+
+
+class IntegrityLinkImportResponse(BaseModel):
+    """Result of a dataset import; DAG run fields are set in reprocess mode only."""
+
+    integrity_link_id: str
+    mode: IntegrityLinkImportMode
+    dag_id: str | None = None
+    dag_run_id: str | None = None
+    status: TaskStatus | None = None
+
+
+class IntegrityLinkOwnershipRequest(BaseModel):
+    """New owner, and new organization if it changes."""
+
+    owner: str = Field(min_length=1)
+    organization: str | None = Field(default=None, pattern=_ORGANIZATION_PATTERN)

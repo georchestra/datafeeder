@@ -5,7 +5,7 @@ import pytest
 from airflow_client.client.models.dag_run_state import DagRunState
 
 from src.core.constants import DEFAULT_DATA_SCHEMA
-from src.core.task_executor import TaskStatus
+from src.core.task_executor import ProcessSource, TaskStatus
 from src.services.executors.airflow_executor import (
     AirflowTaskExecutor,
     _convert_airflow_status,  # type: ignore
@@ -88,6 +88,38 @@ class TestAirflowTaskExecutor:
             assert body.conf["source_layer"] == "ns:buildings"
             assert body.conf["source_protocol"] == "wfs"
             assert result.status == TaskStatus.QUEUED
+
+    def test_trigger_process_task_with_source_uses_reingestion_mode(self) -> None:
+        executor = AirflowTaskExecutor()
+
+        with patch(
+            "src.services.executors.airflow_executor.get_dag_run_api"
+        ) as mock_get_dag_run_api:
+            mock_get_dag_run_api.return_value.trigger_dag_run.return_value = MagicMock(
+                dag_id="process_dag", dag_run_id="run-789", state=DagRunState.QUEUED
+            )
+
+            executor.trigger_process_task(
+                run_id="run-789",
+                final_table_name="final_table",
+                target_schema="mel",
+                source=ProcessSource(
+                    source="https://example.com/data.csv",
+                    source_type="URL",
+                    encrypted_credentials="secret",
+                ),
+            )
+
+            body = mock_get_dag_run_api.return_value.trigger_dag_run.call_args.kwargs[
+                "trigger_dag_run_post_body"
+            ]
+            assert body.conf["staging_table_name"] is None
+            assert body.conf["target_schema"] == "mel"
+            assert body.conf["source"] == "https://example.com/data.csv"
+            assert body.conf["source_type"] == "URL"
+            assert body.conf["source_layer"] is None
+            assert body.conf["source_protocol"] is None
+            assert body.conf["encrypted_credentials"] == "secret"
 
     def test_trigger_process_task(self) -> None:
         executor = AirflowTaskExecutor()

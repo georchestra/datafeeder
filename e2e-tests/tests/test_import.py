@@ -94,6 +94,7 @@ class TestDatafeeder:
             timeout=case["timeout-seconds"] * 1000
         )
         expect(page.get_by_role("heading", name="Preview of the result")).to_be_visible()
+        page.get_by_placeholder("Enter a title for your dataset").fill(case["id"])
         if case["map"]:
             page.get_by_role("radio", name="Map").click()
             expect(page.locator("canvas")).to_be_visible()
@@ -124,6 +125,7 @@ class TestDatafeeder:
             timeout=case["timeout-seconds"] * 1000
         )
         expect(page.get_by_role("heading", name="Preview of the result")).to_be_visible()
+        page.get_by_placeholder("Enter a title for your dataset").fill(case["id"])
         page.get_by_role("radio", name="Map").click()
         expect(page.locator("canvas")).to_be_visible()
 
@@ -209,5 +211,5 @@ class TestDatafeeder:
         first_row = page.locator("app-integrity-link-list [role='button']").first
         first_row.hover()
         page.get_by_label("Delete dataset").first.click()
-        page.get_by_role("button", name="Delete").first.click()
+        page.locator("[data-cy='confirm-button'] button").click()
         page.wait_for_timeout(1000)

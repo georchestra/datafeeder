@@ -1,4 +1,4 @@
-from sqlalchemy import MetaData, Table, label, text
+from sqlalchemy import MetaData, Table, text
 from sqlmodel import Session, select
 
 from src.core.config import get_data_schema, get_settings, is_shared_schema
@@ -29,16 +29,22 @@ class DatasetDeletionService:
         self.geoserver_service = geoserver_service
         self.metadata_service = metadata_service
 
-    def delete_dataset(self, integrity_link: IntegrityLink, session: Session) -> None:
+    def delete_dataset(
+        self,
+        integrity_link: IntegrityLink,
+        session: Session,
+        delete_layer: bool = True,
+        delete_metadata: bool = True,
+    ) -> None:
         """Delete a dataset and all associated resources.
 
         Cleanup sequence:
         0. Cancel in-flight DAG runs — best-effort
         1. Delete Airflow DAG — BLOCKING: raises on failure
-        2. Delete GeoServer layer + its ACL rules — best-effort
-        3. Drop final data table — best-effort
+        2. Delete GeoServer layer + its ACL rules — best-effort, if delete_layer
+        3. Drop final data table — best-effort, if delete_layer
         4. Drop staging table — best-effort
-        5. Delete GeoNetwork record, Airflow run history — best-effort
+        5. Delete GeoNetwork record (if delete_metadata), Airflow run history — best-effort
         6. Delete IntegrityLink from DB (cascades to IntegrityLinkRule)
         7. If last dataset of the org: delete empty GeoServer datastore/workspace
            and drop the empty org schema — best-effort
@@ -46,6 +52,8 @@ class DatasetDeletionService:
         Args:
             integrity_link: The IntegrityLink to delete
             session: Datafeeder database session for deleting the IntegrityLink row
+            delete_layer: Also delete the published data: GeoServer layer and final table
+            delete_metadata: Also delete the GeoNetwork record
 
         Raises:
             Exception: If Airflow DAG deletion fails (other cleanup is skipped)
@@ -83,7 +91,7 @@ class DatasetDeletionService:
         datastore_name = f"{workspace_name}_ds"
 
         # Step 2: Delete GeoServer layer and its ACL rules (best-effort)
-        if integrity_link.final_table_name:
+        if delete_layer and integrity_link.final_table_name:
             self.geoserver_service.delete_layer(
                 workspace_name=workspace_name,
                 datastore_name=datastore_name,
@@ -93,25 +101,13 @@ class DatasetDeletionService:
                 workspace_name=workspace_name,
                 layer_name=integrity_link.final_table_name,
             )
-        if integrity_link.source_import_type == ImportType.PREFILLED:
+        # A prefilled dataset references a layer published outside datafeeder
+        if delete_layer and integrity_link.source_import_type == ImportType.PREFILLED:
             if parts := integrity_link.parse_data_id():
-                workspace_name, layer_name = parts
-                url = self.geoserver_service.geoserver.rest_service.rest_endpoints.workspace_layer(
-                    workspace_name=workspace_name,
-                    layer_name=layer_name,
-                )
-                response = self.geoserver_service.geoserver.rest_service.rest_client.delete(url)
-                if response.status_code in (200, 204):
-                    logger.info(f"Deleted GeoServer {label}")
-                elif response.status_code != 404:
-                    logger.info(
-                        f"GeoServer {label} not deleted (status {response.status_code}) "
-                        "— likely not empty"
-                    )
-                print(url)
+                self.geoserver_service.delete_workspace_layer(*parts)
 
         # Step 3: Drop final data table (best-effort)
-        if integrity_link.final_table_name:
+        if delete_layer and integrity_link.final_table_name:
             self._drop_table_safe(get_data_schema(workspace_name), integrity_link.final_table_name)
 
         # Step 4: Drop staging table (best-effort)
@@ -119,7 +115,7 @@ class DatasetDeletionService:
             self._drop_table_safe("staging", integrity_link.staging_table_name)
 
         # Step 5: Delete GeoNetwork record (best-effort)
-        if integrity_link.metadata_id:
+        if delete_metadata and integrity_link.metadata_id:
             self.metadata_service.delete_record(integrity_link.metadata_id)
 
         # Step 5b: Purge Airflow run history (dag runs, task instances, XComs)

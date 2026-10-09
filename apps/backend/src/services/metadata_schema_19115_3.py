@@ -8,7 +8,7 @@ from lxml import etree
 if TYPE_CHECKING:
     from lxml.etree import _Element  # pyright: ignore[reportPrivateUsage]
 
-from src.services.metadata_schema import MetadataSchema
+from src.services.metadata_schema import LAYER_URL_PROTOCOLS, MetadataSchema
 
 NS_19115_3 = {
     "mdb": "http://standards.iso.org/iso/19115/-3/mdb/2.0",
@@ -24,14 +24,6 @@ _CODELIST_URL = (
 )
 _ONLINE_FUNCTION_CODELIST_URL = (
     "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_OnLineFunctionCode"
-)
-
-# Maps a layer_urls key (from GeoserverService.build_layer_urls_for_metadata) to the
-# ISO CI_OnlineResource protocol name it should be published under.
-_LAYER_URL_PROTOCOLS = (
-    ("ogcfeatures", "OGC API Features"),
-    ("wms", "OGC:WMS"),
-    ("wfs", "OGC:WFS"),
 )
 
 RESOURCE_TITLE_XPATH_19115_3 = "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions/mrd:MD_DigitalTransferOptions/mrd:onLine/cit:CI_OnlineResource/cit:description/gco:CharacterString"
@@ -85,6 +77,18 @@ class Iso19115_3Schema(MetadataSchema):
                 self.updated = True
         return self
 
+    def replace_layer_online_resources(
+        self, old_layer_name: str, layer_urls: dict[str, Any]
+    ) -> Self:
+        resources = self.root.xpath(
+            "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions"
+            "/mrd:MD_DigitalTransferOptions/mrd:onLine/cit:CI_OnlineResource",
+            namespaces=NS_19115_3,
+        )
+        return self._replace_layer_links(
+            resources, NS_19115_3, "cit:linkage/gco:CharacterString", old_layer_name, layer_urls
+        )
+
     def add_online_resources_from_layer_urls_19115_3(self, layer_urls: dict[str, Any]) -> Self:
         ns = NS_19115_3
         root = self.root
@@ -130,7 +134,7 @@ class Iso19115_3Schema(MetadataSchema):
         )
         description = title_nodes[0].text if title_nodes and title_nodes[0].text else layer_name
 
-        for key, protocol in _LAYER_URL_PROTOCOLS:
+        for key, protocol in LAYER_URL_PROTOCOLS:
             if protocol in existing_protocols:
                 continue
             resource_urls = layer_urls.get(key)
