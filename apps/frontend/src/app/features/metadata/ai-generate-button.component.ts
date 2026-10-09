@@ -23,6 +23,7 @@ import { generateMetadataForIntegrityLinkLlmGenerateMetadataIntlinkIdPost } from
 import { LlmMetadataDataSource } from '../../core/api/models/llm-metadata-data-source'
 import { IntegrityLinkStore } from '../../core/stores/integrity-link.store'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
+import { AiGenerationStore } from '../../core/stores/ai-generation.store'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 
 marker('footer.aiGeneratingMetadata')
@@ -85,8 +86,13 @@ export class AiGenerateButtonComponent {
   private matDialog = inject(MatDialog)
   private translate = inject(TranslateService)
   private operationToastStore = inject(OperationToastStore)
+  private aiGenerationStore = inject(AiGenerationStore)
 
-  isGeneratingAI = signal(false)
+  isGeneratingAI = computed(
+    () =>
+      this.aiGenerationStore.generatingIntlinkId() !== null &&
+      this.aiGenerationStore.generatingIntlinkId() === this.store.intlinkId()
+  )
   aiDropdownOpen = signal(false)
   aiDropdownView = signal<'prompt'>('prompt')
   aiCustomPrompt = signal('')
@@ -154,7 +160,7 @@ export class AiGenerateButtonComponent {
       if (!confirmed) return
     }
 
-    this.isGeneratingAI.set(true)
+    this.aiGenerationStore.start(intlinkId)
 
     try {
       const fields = this.aiFields()
@@ -251,7 +257,7 @@ export class AiGenerateButtonComponent {
       console.error('Error generating metadata with AI:', error)
       this.operationToastStore.addError('aiMetadataGeneration')
     } finally {
-      this.isGeneratingAI.set(false)
+      this.aiGenerationStore.finish(intlinkId)
     }
   }
 
