@@ -250,16 +250,8 @@ def _invoke_structured(
     LangChain returns None for the parsed output.
     """
     # strict option is important, otherwise the llm may hallucinate non authorized values
-    chain = prompt | llm.with_structured_output(schema, strict=True, include_raw=True)
-    output = chain.invoke(inputs)
-    if output["parsed"] is None:
-        logger.warning(
-            "LLM returned no structured %s (parsing error: %s), raw response: %s",
-            schema.__name__,
-            output["parsing_error"],
-            output["raw"],
-        )
-    return output["parsed"]
+    chain = prompt | llm.with_structured_output(schema, strict=True)
+    return chain.invoke(inputs)
 
 
 def _generate_structured(
@@ -296,7 +288,7 @@ def _generate_structured(
         kw_policy = "Choose **between 5 and 12** relevant keywords."
     else:
         kw_tuples = [(k, v["title"]) for k, v in keywords.items()]
-        kw_policy = "Choose 1 or 2 relevant keyword categories."
+        kw_policy = "Choose only keywords that best describe the subject of the dataset without exceeding 10 keywords."
 
     # kw_tuples: (key, title)
     KWCategories = StrEnum("KWCategories", kw_tuples)
@@ -325,6 +317,7 @@ def _generate_structured(
     # second stage where KW are actually selected from a narrower choice
     # (uri, label) tuples of the chosen thesauri, deduplicated by uri (enum names)
     chosen = [KWCategories(k).name for k in result.keywords]
+    logger.info("Thesauri chosen by the LLM: %s", ", ".join(chosen) or "none")
     kw = list(dict(kwt for t in chosen for kwt in keywords[t]["kw"]).items())
     if not kw:
         logger.warning("LLM chose no keyword category")
@@ -334,19 +327,34 @@ def _generate_structured(
 
     kw_prompt = ChatPromptTemplate.from_template(
         """
-        Choose **between 5 and 12** keywords corresponding to:
+        Choose **between 0 and 12** keywords from the thesauri "{thesauri}" describing the
+        dataset below. Only choose keywords that are really relevant to the dataset content:
+        choosing fewer keywords, or none, is better than choosing unrelated ones.
+
         # Title:
         {title}
 
         # Abstract:
         {abstract}
+
+        # Columns:
+        {columns}
         """
     )
     kw_list = _invoke_structured(
-        llm, KeywordModel, kw_prompt, {"title": result.title, "abstract": result.abstract}
+        llm,
+        KeywordModel,
+        kw_prompt,
+        {
+            "thesauri": '", "'.join(keywords[t]["title"] for t in chosen),
+            "title": result.title,
+            "abstract": result.abstract,
+            "columns": inputs["columns_with_types"],
+        },
     )
     if kw_list is None:
         return None
+    logger.info("Keywords chosen by the LLM: %s", ", ".join(kw_list.keywords) or "none")
     # update keywords with refined values
     result.keywords = kw_list.keywords
     return result

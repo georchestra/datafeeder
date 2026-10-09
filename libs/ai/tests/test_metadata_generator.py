@@ -285,9 +285,7 @@ class TestGenerateMetadata:
 
         class NoToolCallChatModel(FakeListChatModel):
             def with_structured_output(self, schema: Any, **kwargs: Any) -> Any:
-                return RunnableLambda(
-                    lambda _: {"raw": "plain text", "parsed": None, "parsing_error": None}
-                )
+                return RunnableLambda(lambda _: None)
 
         llm = NoToolCallChatModel(
             responses=[
@@ -311,3 +309,41 @@ class TestGenerateMetadata:
         )
         assert result.title == "Rivers"
         assert result.keywords == ["water"]
+
+    def test_staged_second_stage_may_choose_no_keyword(self) -> None:
+        """The second stage must not force keywords when none of the chosen thesaurus fits."""
+        prompts: list[str] = []
+
+        class StructuredChatModel(FakeListChatModel):
+            def with_structured_output(self, schema: Any, **kwargs: Any) -> Any:
+                def answer(prompt: Any) -> Any:
+                    prompts.append(prompt.to_string())
+                    if schema.__name__ == "KeywordModel":
+                        parsed = schema(keywords=[])
+                    else:
+                        parsed = schema(
+                            title="Rivers",
+                            abstract="Rivers of the area.",
+                            keywords=["Languages"],
+                            topic_categories=["inlandWaters"],
+                        )
+                    return parsed
+
+                return RunnableLambda(answer)
+
+        result = generate_metadata(
+            table_name="rivers",
+            column_names=["name"],
+            llm=StructuredChatModel(responses=[]),
+            keywords={
+                **_thesaurus("français", "russe", title="Languages"),
+                **_thesaurus("Hydrographie", title="INSPIRE themes"),
+            },
+            topic_categories=["inlandWaters"],
+            keyword_strategy=KwStrategy.STAGED,
+        )
+        assert result.title == "Rivers"
+        assert result.keywords == []
+        assert "between 0 and 12" in prompts[1]
+        assert '"Languages"' in prompts[1]
+        assert "name" in prompts[1]
