@@ -14,7 +14,6 @@ import { MatDialog } from '@angular/material/dialog'
 import {
   ConfirmationDialogComponent,
   type CatalogRecord,
-  type DatasetRecord,
   EditorFacade
 } from 'geonetwork-ui'
 import { firstValueFrom } from 'rxjs'
@@ -219,20 +218,14 @@ export class AiGenerateButtonComponent {
             'topics',
             generatedMetadata.topic_categories || []
           )
-        if (fields.dateExtents && generatedMetadata.temporal_extent)
-          this.editor.updateRecordField(
-            'temporalExtents',
-            [
-              // ...(currentRecord as DatasetRecord).temporalExtents,
-              generatedMetadata.temporal_extent.end ? 
-                {
-                  start: new Date(generatedMetadata.temporal_extent.start),
-                  end: new Date(generatedMetadata.temporal_extent.end)
-                } : {
-                  start: new Date(generatedMetadata.temporal_extent.start),
-                }
-            ]
-          )
+        // An extent without start date cannot be represented in gn-ui (start is required)
+        const { start, end } = generatedMetadata.temporal_extent ?? {}
+        if (fields.dateExtents && start)
+          this.editor.updateRecordField('temporalExtents', [
+            end
+              ? { start: new Date(start), end: new Date(end) }
+              : { start: new Date(start) }
+          ])
 
         this.operationToastStore.addAISuccess(
           'info.operation.aiMetadataGeneration'

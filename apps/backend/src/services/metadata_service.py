@@ -601,7 +601,7 @@ class MetadataService:
         patcher.patch_topic_categories(schema, id_info, topic_categories)
         if attribute_descriptions:
             patcher.patch_attribute_catalogue(schema, root, attribute_descriptions, table_name)
-        if temporal_extent and temporal_extent.type != "unknown":
+        if temporal_extent and (temporal_extent.start or temporal_extent.end):
             patcher.patch_temporal_extent(schema, root, temporal_extent)
 
         updated_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8")

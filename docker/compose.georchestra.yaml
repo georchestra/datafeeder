@@ -152,8 +152,8 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.19.13
     ulimits:
       memlock:
-        soft: 200000000
-        hard: 500000000
+        soft: -1
+        hard: -1
     deploy:
       resources:
         limits:

@@ -173,7 +173,7 @@ class Settings(BaseSettings):
     GEOSERVER_PASSWORD: str = "testadmin"
 
     # Geonetwork
-    GEONETWORK_INTERNAL_URL: str = "http://gateway:8080/geonetwork"
+    GEONETWORK_INTERNAL_URL: str = "http://localhost:8080/geonetwork"
 
     GEONETWORK_USERNAME: str = "testadmin"
 
@@ -203,6 +203,8 @@ class Settings(BaseSettings):
     AI_METADATA_HUMAN_PROMPT_FILE: str = ""
     AI_METADATA_SAMPLE_LIMIT: int = 5
     AI_METADATA_TEMPERATURE: float = 0
+    # Comma-separated ids of the GeoNetwork thesauruses the LLM may pick keywords from
+    AI_ALLOWED_THESAURUS: str = "external.theme.httpinspireeceuropaeutheme-theme"
 
     # Arize Phoenix tracing (optional)
     AI_PHOENIX_ENABLED: bool = False

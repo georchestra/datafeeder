@@ -180,19 +180,18 @@ class Metadata191153Service:
         ex_temporal: _Element = etree.SubElement(temporal_el, f"{{{ns_gex}}}EX_TemporalExtent")
         extent_inner: _Element = etree.SubElement(ex_temporal, f"{{{ns_gex}}}extent")
 
-        if temporal_extent.type == "period":
+        # An end date makes it a period, otherwise the start date is a single instant
+        if temporal_extent.end:
             time_el: _Element = etree.SubElement(extent_inner, f"{{{ns_gml}}}TimePeriod")
             time_el.set(f"{{{ns_gml}}}id", "ai-temporal-period")
             begin_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}beginPosition")
-            begin_el.text = temporal_extent.begin or ""
-            if not temporal_extent.begin:
+            begin_el.text = temporal_extent.start or ""
+            if not temporal_extent.start:
                 begin_el.set("indeterminatePosition", "unknown")
             end_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}endPosition")
-            end_el.text = temporal_extent.end or ""
-            if not temporal_extent.end:
-                end_el.set("indeterminatePosition", "unknown")
+            end_el.text = temporal_extent.end
         else:
             time_el = etree.SubElement(extent_inner, f"{{{ns_gml}}}TimeInstant")
             time_el.set(f"{{{ns_gml}}}id", "ai-temporal-instant")
             pos_el: _Element = etree.SubElement(time_el, f"{{{ns_gml}}}timePosition")
-            pos_el.text = temporal_extent.instant or temporal_extent.begin or ""
+            pos_el.text = temporal_extent.start or ""
