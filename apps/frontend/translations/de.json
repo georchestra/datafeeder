@@ -346,6 +346,8 @@
   "metadata.ai.confirmOverwrite.message": "Wenn Sie fortfahren, ersetzt das KI-Ergebnis den aktuell angezeigten Inhalt. Speichern Sie zuerst, wenn Sie Ihre Änderungen behalten möchten. Beachten Sie, dass eine erneute Generierung nicht unbedingt ein besseres Ergebnis liefert.",
   "metadata.ai.confirmOverwrite.confirm": "Fortfahren",
   "metadata.ai.confirmOverwrite.cancel": "Abbrechen",
+  "metadata.ai.confirmLeave.title": "KI-Generierung läuft",
+  "metadata.ai.confirmLeave.message": "Die KI generiert noch die Metadaten dieses Datensatzes. Wenn Sie jetzt verlassen, geht das Ergebnis verloren.",
   "metadata.ai.success": "Metadaten erfolgreich generiert! Die Felder wurden aktualisiert.",
   "metadata.ai.error": "Fehler beim Generieren der Metadaten mit KI. Bitte versuchen Sie es erneut.",
   "quickImport.modeEmpty": "",

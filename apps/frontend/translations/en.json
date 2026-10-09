@@ -359,6 +359,8 @@
   "metadata.ai.confirmOverwrite.message": "If you continue, the AI result will replace the content currently displayed. Save first if you want to keep your changes. Note that running the generation again may not produce a better result.",
   "metadata.ai.confirmOverwrite.confirm": "Continue",
   "metadata.ai.confirmOverwrite.cancel": "Cancel",
+  "metadata.ai.confirmLeave.title": "AI generation in progress",
+  "metadata.ai.confirmLeave.message": "The AI is still generating the metadata of this dataset. If you leave now, its result will be lost.",
   "metadata.ai.success": "Metadata generated successfully! The fields have been updated.",
   "metadata.ai.error": "Error generating metadata with AI. Please try again.",
   "quickImport.modeEmpty": "Create a dataset without data",

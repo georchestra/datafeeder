@@ -346,6 +346,8 @@
   "metadata.ai.confirmOverwrite.message": "Se continui, il risultato dell'IA sostituirà il contenuto attualmente visualizzato. Salva prima se desideri conservare le tue modifiche. Nota che rilanciare la generazione potrebbe non produrre un risultato migliore.",
   "metadata.ai.confirmOverwrite.confirm": "Continua",
   "metadata.ai.confirmOverwrite.cancel": "Annulla",
+  "metadata.ai.confirmLeave.title": "Generazione IA in corso",
+  "metadata.ai.confirmLeave.message": "L'IA sta ancora generando i metadati di questo dataset. Se esci ora, il risultato andrà perso.",
   "metadata.ai.success": "Metadati generati con successo! I campi sono stati aggiornati.",
   "metadata.ai.error": "Errore durante la generazione dei metadati con IA. Si prega di riprovare.",
   "quickImport.modeEmpty": "",

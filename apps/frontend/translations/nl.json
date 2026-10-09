@@ -346,6 +346,8 @@
   "metadata.ai.confirmOverwrite.message": "Als u doorgaat, vervangt het AI-resultaat de momenteel weergegeven inhoud. Sla eerst op als u uw wijzigingen wilt behouden. Let op: opnieuw genereren levert niet noodzakelijk een beter resultaat op.",
   "metadata.ai.confirmOverwrite.confirm": "Doorgaan",
   "metadata.ai.confirmOverwrite.cancel": "Annuleren",
+  "metadata.ai.confirmLeave.title": "AI-generatie bezig",
+  "metadata.ai.confirmLeave.message": "De AI genereert nog de metadata van deze dataset. Als u nu vertrekt, gaat het resultaat verloren.",
   "metadata.ai.success": "Metadata succesvol gegenereerd! De velden zijn bijgewerkt.",
   "metadata.ai.error": "Fout bij het genereren van metadata met AI. Probeer het opnieuw.",
   "quickImport.modeEmpty": "",

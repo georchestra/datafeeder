@@ -346,6 +346,8 @@
   "metadata.ai.confirmOverwrite.message": "Ak budete pokračovať, výsledok AI nahradí aktuálne zobrazený obsah. Ak chcete zachovať svoje zmeny, najprv ich uložte. Upozorňujeme, že opätovné spustenie generovania nemusí priniesť lepší výsledok.",
   "metadata.ai.confirmOverwrite.confirm": "Pokračovať",
   "metadata.ai.confirmOverwrite.cancel": "Zrušiť",
+  "metadata.ai.confirmLeave.title": "Prebieha generovanie AI",
+  "metadata.ai.confirmLeave.message": "AI stále generuje metadáta tohto súboru údajov. Ak teraz odídete, výsledok sa stratí.",
   "metadata.ai.success": "Metadáta úspešne vygenerované! Polia boli aktualizované.",
   "metadata.ai.error": "Chyba pri generovaní metadát pomocou AI. Skúste to znova.",
   "quickImport.modeEmpty": "",
