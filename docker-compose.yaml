@@ -2,3 +2,4 @@ include:
   - docker/compose.georchestra.yaml
   - docker/compose.datafeeder.yaml
   - docker/compose.airflow.yaml
+  - docker/compose.ai.yaml

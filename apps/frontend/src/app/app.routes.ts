@@ -6,6 +6,7 @@ import {
   rejectEmptyDatasetGuard,
   rejectNonRemoteDatasetGuard
 } from './core/resolvers/integrity-link.resolver'
+import { confirmLeaveDuringAiGenerationGuard } from './core/guards/ai-generation.guard'
 
 export const appRoutes: Route[] = [
   {
@@ -45,6 +46,7 @@ export const appRoutes: Route[] = [
           import('./layout/intlink-layout.component').then(
             (m) => m.IntlinkLayoutComponent
           ),
+        canDeactivate: [confirmLeaveDuringAiGenerationGuard],
         resolve: {
           integrityLink: IntegrityLinkResolver
         },

@@ -289,3 +289,25 @@ class TestLocalTaskExecutorProcess:
 
             mock_post.assert_called_once_with("https://ko.example.com&reason=", timeout=10)
             assert executor.get_task_status("process_dag", "run-p3").status == TaskStatus.FAILED
+
+    def test_trigger_process_task_accepts_generate_metadata_with_ai(self) -> None:
+        executor = _sync_executor()
+
+        with (
+            patch("src.services.executors.local_executor.create_schema"),
+            patch(
+                "src.services.executors.local_executor.transform_staging_to_final",
+                return_value=1,
+            ),
+            patch("src.services.executors.local_executor.Table"),
+            patch("src.services.executors.local_executor.data_engine"),
+            patch("src.services.executors.local_executor.requests.post"),
+        ):
+            executor.trigger_process_task(
+                run_id="run-p4",
+                staging_table_name="stg_table",
+                final_table_name="final_table",
+                generate_metadata_with_ai=True,
+            )
+
+            assert executor.get_task_status("process_dag", "run-p4").status == TaskStatus.SUCCESS

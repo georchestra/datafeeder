@@ -38,6 +38,9 @@ class SettingsService:
         if len(self._settings.SOURCE_DATABASES) > 0:
             enabled_features.append("database_source")
 
+        if self._settings.AI_ENABLED:
+            enabled_features.append("ai_metadata")
+
         settings_dict: dict[str, Any] = {
             "projections": projections,
             "enabled_features": enabled_features,

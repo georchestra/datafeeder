@@ -1,6 +1,9 @@
 # .env file
 .env
 
+# Local AI secrets (copy from docker/.envs-ai.example)
+docker/.envs-ai
+
 # JetBrains IDEs
 .idea/
 
