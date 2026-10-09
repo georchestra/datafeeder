@@ -241,6 +241,36 @@ describe('AiGenerateButtonComponent', () => {
       expect(component.isGeneratingAI()).toBe(false)
     })
 
+    it('should not fill another record opened during generation', async () => {
+      mockApi.invoke.mockImplementationOnce(async () => {
+        recordSubject.next({ ...mockRecord, uniqueIdentifier: 'other-record' })
+        return {
+          title: 'Generated Title',
+          abstract: 'Generated abstract.',
+          keywords: ['kw1'],
+          topic_categories: []
+        }
+      })
+      await component.onGenerateWithAI('regenerate')
+      expect(mockEditorFacade.updateRecordField).not.toHaveBeenCalled()
+      expect(mockToastStore.addAISuccess).not.toHaveBeenCalled()
+      expect(component.isGeneratingAI()).toBe(false)
+    })
+
+    it('should not fill the editor if the integrity link changed during generation', async () => {
+      mockApi.invoke.mockImplementationOnce(async () => {
+        mockStore.intlinkId.mockReturnValue('other-intlink-id')
+        return {
+          title: 'Generated Title',
+          abstract: 'Generated abstract.',
+          keywords: ['kw1'],
+          topic_categories: []
+        }
+      })
+      await component.onGenerateWithAI('regenerate')
+      expect(mockEditorFacade.updateRecordField).not.toHaveBeenCalled()
+    })
+
     it('should not call the API if intlinkId is missing', async () => {
       mockStore.intlinkId.mockReturnValue(null)
       await component.onGenerateWithAI('regenerate')

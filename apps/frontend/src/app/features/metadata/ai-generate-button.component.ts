@@ -194,6 +194,22 @@ export class AiGenerateButtonComponent {
         }
       )
 
+      // The user may have opened another record while the LLM was generating:
+      // do not fill it with metadata generated for the previous one
+      const recordAfterGeneration = (await firstValueFrom(
+        this.editor.record$
+      )) as CatalogRecord | null
+      if (
+        this.store.intlinkId() !== intlinkId ||
+        recordAfterGeneration?.uniqueIdentifier !==
+          currentRecord?.uniqueIdentifier
+      ) {
+        console.warn(
+          'Record changed during AI generation, discarding generated metadata'
+        )
+        return
+      }
+
       if (currentRecord) {
         if (fields.title)
           this.editor.updateRecordField(
