@@ -56,7 +56,7 @@ services:
       - /tmp/:/tmp:rw
 
   datadb:
-    image: postgis/postgis:18-master
+    image: postgis/postgis:18-3.6
     restart: always
     ports:
       - "5433:5432"
