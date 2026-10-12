@@ -43,6 +43,16 @@ class TaskRunInfo(BaseModel):
     execution_date: str | None = None
 
 
+class ProcessSource(BaseModel):
+    """Source re-ingested by a process task that has no staging table."""
+
+    source: str
+    source_type: str  # FILE, URL, FTP, DATABASE, API
+    source_layer: str | None = None
+    source_protocol: str | None = None
+    encrypted_credentials: str | None = None
+
+
 class BaseTaskExecutor(ABC):
     """Base class for task executors."""
 
@@ -87,6 +97,7 @@ class BaseTaskExecutor(ABC):
         failure_callback_url: str | None = None,
         last_retrieval_timestamp: datetime | None = None,
         target_schema: str = DEFAULT_DATA_SCHEMA,
+        source: ProcessSource | None = None,
     ) -> TaskRunInfo:
         """
         Trigger a process task.
@@ -99,6 +110,7 @@ class BaseTaskExecutor(ABC):
             success_callback_url: URL to call on success
             failure_callback_url: URL to call on failure
             target_schema: PostgreSQL schema for the final table
+            source: Source to re-ingest from, instead of an existing staging table
 
         Returns:
             TaskRunInfo with task details

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Any, Self
 
 from lxml import etree
 
@@ -68,3 +68,15 @@ class Iso19139Schema(MetadataSchema):
                 online.text = title
                 self.updated = True
         return self
+
+    def replace_layer_online_resources(
+        self, old_layer_name: str, layer_urls: dict[str, Any]
+    ) -> Self:
+        resources = self.root.xpath(
+            "gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions"
+            "/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource",
+            namespaces=NS_19139,
+        )
+        return self._replace_layer_links(
+            resources, NS_19139, "gmd:linkage/gmd:URL", old_layer_name, layer_urls
+        )

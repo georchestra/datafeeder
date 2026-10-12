@@ -270,7 +270,7 @@ class MetadataService:
                 and whose owner/organization identify the GeoNetwork user and group
         """
 
-        metadata_uuid = str(integrity_link.id)
+        metadata_uuid = integrity_link.metadata_id or str(integrity_link.id)
         username = integrity_link.integrity_owner
 
         user_id, profile = self.resolve_user_id(integrity_link)
@@ -406,6 +406,18 @@ class MetadataService:
         if "http://www.isotc211.org/2005/gmd" in tag:
             return Iso19139Schema(root, self.gn_api)
         return NoopSchema(root, self.gn_api)
+
+    def record_exists(self, metadata_uuid: str) -> bool:
+        """Whether a metadata record exists in GeoNetwork.
+
+        Raises:
+            requests.HTTPError: On any GeoNetwork answer other than 200 or 404
+        """
+        response = self.gn_api.session.get(f"{self.gn_api.api_url}/records/{metadata_uuid}")
+        if response.status_code == 404:
+            return False
+        response.raise_for_status()
+        return True
 
     def delete_record(self, metadata_uuid: str) -> None:
         """Delete a metadata record from GeoNetwork.

@@ -298,6 +298,35 @@ class GeoServerService:
             result["wms"] = {"base": all_urls["wms"]["base"]}
         return result
 
+    def layer_exists(self, workspace_name: str, datastore_name: str, layer_name: str) -> bool:
+        """Whether a feature type exists in a GeoServer datastore.
+
+        Raises:
+            requests.HTTPError: On any GeoServer answer other than 200 or 404
+        """
+        url = self.geoserver.rest_service.rest_endpoints.featuretype(
+            workspace_name, datastore_name, layer_name
+        )
+        response = self.geoserver.rest_service.rest_client.get(url)
+        if response.status_code == 404:
+            return False
+        response.raise_for_status()
+        return True
+
+    def get_datastore_schema(self, workspace_name: str, datastore_name: str) -> str | None:
+        """PostgreSQL schema a datastore reads its tables from, or None if it does not exist.
+
+        Raises:
+            requests.HTTPError: On any GeoServer answer other than 200 or 404
+        """
+        url = self.geoserver.rest_service.rest_endpoints.datastore(workspace_name, datastore_name)
+        response = self.geoserver.rest_service.rest_client.get(url)
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        entries = response.json()["dataStore"]["connectionParameters"]["entry"]
+        return next((e["$"] for e in entries if e.get("@key") == "schema"), None)
+
     def update_layer_title(
         self,
         workspace_name: str,
@@ -371,6 +400,21 @@ class GeoServerService:
                     f"GeoServer {label} not deleted (status {response.status_code}) "
                     "— likely not empty"
                 )
+        except Exception as e:
+            logger.error(f"Failed to delete GeoServer {label}: {e}", exc_info=True)
+
+    def delete_workspace_layer(self, workspace_name: str, layer_name: str) -> None:
+        """Delete a workspace layer, whatever its store. Best-effort, 404 is a success."""
+        label = f"layer {workspace_name}:{layer_name}"
+        try:
+            url = self.geoserver.rest_service.rest_endpoints.workspace_layer(
+                workspace_name=workspace_name, layer_name=layer_name
+            )
+            response = self.geoserver.rest_service.rest_client.delete(url)
+            if response.status_code in (200, 204):
+                logger.info(f"Deleted GeoServer {label}")
+            elif response.status_code != 404:
+                logger.error(f"Unexpected status {response.status_code} deleting GeoServer {label}")
         except Exception as e:
             logger.error(f"Failed to delete GeoServer {label}: {e}", exc_info=True)
 

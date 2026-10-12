@@ -12,6 +12,13 @@ if TYPE_CHECKING:
 
 logger = get_logger()
 
+# layer_urls key (GeoServerService.build_layer_urls_for_metadata) -> ISO protocol name
+LAYER_URL_PROTOCOLS = (
+    ("ogcfeatures", "OGC API Features"),
+    ("wms", "OGC:WMS"),
+    ("wfs", "OGC:WFS"),
+)
+
 
 class MetadataSchema:
     """Base class/interface for schema-specific ISO metadata operations.
@@ -36,6 +43,43 @@ class MetadataSchema:
         return self
 
     def add_online_resources_from_layer_urls_19115_3(self, layer_urls: dict[str, Any]) -> Self:
+        return self
+
+    def replace_layer_online_resources(
+        self, old_layer_name: str, layer_urls: dict[str, Any]
+    ) -> Self:
+        """Point the online resources of ``old_layer_name`` to the layer of ``layer_urls``."""
+        return self
+
+    def _replace_layer_links(
+        self,
+        resources: list[_Element],
+        namespaces: dict[str, str],
+        linkage_xpath: str,
+        old_layer_name: str,
+        layer_urls: dict[str, Any],
+    ) -> Self:
+        """Rewrite name and linkage of the CI_OnlineResource ``resources`` of ``old_layer_name``."""
+        new_layer_name = layer_urls.get("layer_qualified_name", "")
+        linkages = {
+            protocol: urls["base"] if isinstance(urls, dict) else urls
+            for key, protocol in LAYER_URL_PROTOCOLS
+            if (urls := layer_urls.get(key))
+        }
+        for resource in resources:
+            names = resource.xpath(
+                "*[local-name()='name']/gco:CharacterString", namespaces=namespaces
+            )
+            if not names or names[0].text != old_layer_name:
+                continue
+            names[0].text = new_layer_name
+            protocols = resource.xpath(
+                "*[local-name()='protocol']/gco:CharacterString/text()", namespaces=namespaces
+            )
+            linkage_nodes = resource.xpath(linkage_xpath, namespaces=namespaces)
+            if protocols and protocols[0] in linkages and linkage_nodes:
+                linkage_nodes[0].text = linkages[protocols[0]]
+            self.updated = True
         return self
 
     def force_updated(self) -> Self:

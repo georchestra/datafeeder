@@ -1248,3 +1248,27 @@ class TestResolveGroupFromLink:
 
         assert profile == "Administrator"
         assert group_id == [3]
+
+
+class TestRecordExists:
+    @pytest.mark.parametrize(("status_code", "expected"), [(200, True), (404, False)])
+    @patch("src.services.metadata_service.GnApi")
+    def test_record_exists(self, mock_gn_api: MagicMock, status_code: int, expected: bool) -> None:
+        mock_gn_api.return_value.api_url = "http://gn/srv/api"
+        mock_gn_api.return_value.session.get.return_value.status_code = status_code
+        service = MetadataService(gn_api_url="http://gn/srv/api", datadir_path="/datadir")
+
+        assert service.record_exists("uuid-1") is expected
+        mock_gn_api.return_value.session.get.assert_called_once_with(
+            "http://gn/srv/api/records/uuid-1"
+        )
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_record_exists_raises_on_other_errors(self, mock_gn_api: MagicMock) -> None:
+        response = mock_gn_api.return_value.session.get.return_value
+        response.status_code = 500
+        response.raise_for_status.side_effect = RuntimeError("500")
+        service = MetadataService(gn_api_url="http://gn/srv/api", datadir_path="/datadir")
+
+        with pytest.raises(RuntimeError):
+            service.record_exists("uuid-1")

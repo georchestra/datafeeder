@@ -1,7 +1,7 @@
 """Tests for the ingestion process route helpers."""
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -11,6 +11,7 @@ from src.api.routes.ingestion.process import (
     _has_xy_projection,  # pyright: ignore[reportPrivateUsage]
     _is_geom_excluded,  # pyright: ignore[reportPrivateUsage]
     _normalize_title,  # pyright: ignore[reportPrivateUsage]
+    dag_failure_callback,
     dag_success_callback,
 )
 from src.models.data_import import ImportType
@@ -161,6 +162,7 @@ def _make_mock_geoserver() -> AsyncMock:
     geoserver.datastore_exists.return_value = True
     geoserver.create_layer = AsyncMock()
     geoserver.build_layer_urls_for_metadata = MagicMock()
+    geoserver.get_datastore_schema = MagicMock(return_value=None)
     return geoserver
 
 
@@ -168,7 +170,7 @@ def _make_mock_geoserver() -> AsyncMock:
 class TestDagSuccessCallbackRevisionDate:
     """Tests for the revision date update logic in dag_success_callback."""
 
-    @patch("src.api.routes.ingestion.process.Table")
+    @patch("src.services.layer_publication.Table")
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_calls_update_revision_date_when_metadata_id_set(
         self,
@@ -203,7 +205,7 @@ class TestDagSuccessCallbackRevisionDate:
         )
         mock_schema.upload_to_gn.assert_called_once()
 
-    @patch("src.api.routes.ingestion.process.Table")
+    @patch("src.services.layer_publication.Table")
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_skips_update_when_metadata_id_is_none(
         self,
@@ -232,7 +234,7 @@ class TestDagSuccessCallbackRevisionDate:
 
         mock_metadata_service.read_schema_from_gn.assert_not_called()
 
-    @patch("src.api.routes.ingestion.process.Table")
+    @patch("src.services.layer_publication.Table")
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_soft_failure_does_not_raise(
         self,
@@ -256,3 +258,61 @@ class TestDagSuccessCallbackRevisionDate:
             final_table_name="final_test",
             target_schema="target_schema",
         )
+
+
+@pytest.mark.asyncio
+class TestCallbacksTargetSchema:
+    """Scheduled runs call back without target_schema: it is derived from the dataset org."""
+
+    @pytest.mark.parametrize(("use_org_schema", "expected"), [(True, "testorg"), (False, "data")])
+    @patch("src.services.layer_publication.Table")
+    @patch("src.api.routes.ingestion.process.create_schema")
+    async def test_success_callback_derives_schema(
+        self,
+        mock_create_schema: MagicMock,
+        mock_table_cls: MagicMock,
+        use_org_schema: bool,
+        expected: str,
+    ) -> None:
+        link = _make_integrity_link_with_metadata()
+        mock_table_cls.return_value.c = {}
+        geoserver = _make_mock_geoserver()
+
+        with patch("src.core.config.get_settings") as mock_settings:
+            mock_settings.return_value.USE_ORG_SCHEMA = use_org_schema
+            await dag_success_callback(
+                datafeeder_session=_make_mock_session(link),
+                geoserver_service=geoserver,
+                metadata_service=MagicMock(),
+                integrity_link_id=str(link.id),
+                final_table_name="final_test",
+                target_schema=None,
+            )
+
+        mock_create_schema.assert_called_once_with(ANY, expected)
+        assert geoserver.create_workspace.call_args.kwargs["pg_schema"] == expected
+
+    @patch("src.api.routes.ingestion.process.Table")
+    async def test_failure_callback_drops_table_in_org_schema(
+        self, mock_table_cls: MagicMock
+    ) -> None:
+        link = _make_integrity_link_with_metadata()
+
+        with (
+            patch("src.core.config.get_settings") as mock_settings,
+            patch("src.api.routes.ingestion.process.MetaData") as mock_metadata_cls,
+        ):
+            mock_settings.return_value.USE_ORG_SCHEMA = True
+            await dag_failure_callback(
+                data_session=MagicMock(),
+                datafeeder_session=_make_mock_session(link),
+                integrity_link_id=str(link.id),
+                dag_id="process_dag",
+                dag_run_id="run-1",
+                final_table_name="final_test",
+                target_schema=None,
+                reason=None,
+            )
+
+        mock_metadata_cls.assert_called_once_with(schema="testorg")
+        mock_table_cls.return_value.drop.assert_called_once()
