@@ -60,17 +60,48 @@
     </div>
     }
 
-    <div class="flex flex-wrap items-end">
-      <div class="flex-1 min-w-[400px]">
-        <app-dataset-title
-          #titleConfig
-          [metadata]="selectedTabIndex() === 1 ? metadata() : undefined"
-          [isReconfiguring]="!!integrityLinkStore.integrityLink()?.metadata_id"
-          (validated)="onValidateDataset($event)"
-          (titleChanged)="onTitleChanged($event)"
-        />
-      </div>
+    <app-dataset-title
+      #titleConfig
+      [metadata]="selectedTabIndex() === 1 ? metadata() : undefined"
+      [isReconfiguring]="!!integrityLinkStore.integrityLink()?.metadata_id"
+      (validated)="onValidateDataset($event)"
+      (titleChanged)="onTitleChanged($event)"
+    >
+      <gn-ui-button
+        data-test="join-toggle"
+        type="outline"
+        extraClass="h-14"
+        (buttonClick)="toggleJoin()"
+      >
+        {{ 'import.join.toggle' | translate }}
+        @if (join()?.columns?.length) {
+        <span
+          data-join-indicator
+          class="self-start w-2 h-2 rounded-full bg-[#E30513]"
+        ></span>
+        }
+        <ng-icon
+          [name]="joinOpen() ? 'iconoirNavArrowUp' : 'iconoirNavArrowDown'"
+          class="ml-2"
+        ></ng-icon>
+      </gn-ui-button>
+    </app-dataset-title>
+
+    @if (joinOpen()) {
+    <div class="border-t border-gray-border">
+      <app-dataset-join
+        [join]="join()"
+        [tables]="joinTables()"
+        [sourceColumns]="columnConfigs()"
+        [targetColumns]="joinTableColumns()"
+        (tableChange)="onJoinTableChange($event)"
+        (sourceColumnChange)="onJoinSourceColumnChange($event)"
+        (targetColumnChange)="onJoinTargetColumnChange($event)"
+        (columnAdd)="onJoinColumnAdd($event)"
+        (columnRemove)="onJoinColumnRemove($event)"
+      />
     </div>
+    }
   </div>
 
   <!-- Preview section -->
@@ -118,21 +149,8 @@
     />
 
     <!-- Preview content -->
-    @if (isGeographicData()) { @if (previewTabIndex() === 0) {
-    <app-dataset-preview-table
-      [metadata]="metadata()"
-      [preview]="preview()"
-      [previewError]="previewError()"
-      [previewLoading]="previewLoading()"
-      (columnActionRequested)="onColumnActionRequested($event)"
-      (columnRenameRequested)="onColumnRenameRequested($event)"
-      (columnTypeChangeRequested)="onColumnTypeChangeRequested($event)"
-      (columnFilterChangeRequested)="onColumnFilterChangeRequested($event)"
-      (columnNameValidationErrorChanged)="
-        onColumnNameValidationErrorChanged($event)
-      "
-    />
-    } @else { @if (previewErrorExtent()) {
+    @if (isGeographicData() && previewTabIndex() === 1) { @if
+    (previewErrorExtent()) {
     <div class="px-6 pb-4">
       <app-ui-alert-box
         type="warning"
@@ -146,12 +164,14 @@
       [geojson]="geojsonData()"
       [(hasExtentError)]="hasExtentError"
     />
-    } } @else {
+    } @else {
     <app-dataset-preview-table
       [metadata]="metadata()"
       [preview]="preview()"
       [previewError]="previewError()"
       [previewLoading]="previewLoading()"
+      [joinColumns]="join()?.columns ?? []"
+      [joinClashes]="joinClashes()"
       (columnActionRequested)="onColumnActionRequested($event)"
       (columnRenameRequested)="onColumnRenameRequested($event)"
       (columnTypeChangeRequested)="onColumnTypeChangeRequested($event)"
