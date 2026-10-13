@@ -200,7 +200,7 @@ class TestFetchUsersByUsernames:
         assert result == {"jdoe": "Jane Doe", "asmith": "Alice Smith"}
         mock_post.assert_called_once_with(
             "http://console.example.com/internal/users/fetch-by-usernames",
-            json={"usernames": ["jdoe", "asmith"], "fields": ["username", "firstName", "lastName"]},
+            json={"usernames": ["jdoe", "asmith"]},
             timeout=5.0,
         )
 
