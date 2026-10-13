@@ -14,6 +14,7 @@ from data_manipulation.models import (
     FilterOperator,
     ForceProjection,
     IntegrityTransformation,
+    JoinConfig,
 )
 from data_manipulation.transformation.filter_sql import build_filter_clause, build_sql_column_ops
 from data_manipulation.transformation.sql_transform import (
@@ -50,6 +51,7 @@ __all__ = [
     "FilterOperator",
     "ForceProjection",
     "IntegrityTransformation",
+    "JoinConfig",
 ]
 
 

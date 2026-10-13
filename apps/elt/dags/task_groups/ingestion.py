@@ -24,6 +24,50 @@ from utils import (
 logger = logging.getLogger(__name__)
 
 
+def _resolve_staging_table_name(context: dict[str, Any], params: dict[str, Any]) -> str:
+    ti = context.get("ti")
+
+    # Try to get staging_table_name from params first (staging_dag case)
+    target_table_name = params.get("staging_table_name")
+
+    # If not in params, try XCom from generate_staging_table_name (process_dag scheduled case)
+    if not target_table_name and ti:
+        target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
+        logger.info(f"Using staging_table_name from XCom: {target_table_name}")
+    else:
+        logger.info(f"Using staging_table_name from params: {target_table_name}")
+
+    if not target_table_name:
+        raise AirflowException("staging_table_name is not provided")
+
+    return target_table_name
+
+
+def _resolve_auth_credentials(
+    params: dict[str, Any], label: str = "Basic Auth credentials"
+) -> tuple[str, str] | None:
+    encrypted_credentials = params.get("encrypted_credentials")
+    if not encrypted_credentials:
+        return None
+
+    try:
+        encryption_key = Variable.get("datafeeder_encryption_key", default=None)
+        if not encryption_key:
+            raise AirflowException(
+                "Encryption key not found in Airflow Variables under 'datafeeder_encryption_key'"
+            )
+
+        engine = get_datafeeder_sql_engine()
+
+        with engine.connect() as conn:
+            username, password = decrypt_credentials(conn, encrypted_credentials, encryption_key)
+            logger.info(f"Successfully decrypted {label}")
+            return (username, password)
+    except Exception as e:
+        logger.error(f"Failed to decrypt {label}: {e}")
+        raise AirflowException(f"Failed to decrypt credentials: {e}")
+
+
 def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"]):
     """Factory function that creates an ingestion task group.
 
@@ -45,9 +89,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         def do_branching(**context: dict[str, Any]) -> str | bool:
             params = context.get("params", {})
             source_type = params.get("source_type")
-
             logger.info(f"Ingestion source_type: {source_type}")
-
             match source_type:
                 case "FILE":
                     return f"{group_id}.file_ingest_step"
@@ -65,23 +107,8 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         @task(task_id="file_ingest_step")
         def file_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
-            ti = context.get("ti")
-
-            # Try to get staging_table_name from params first (staging_dag case)
-            target_table_name = params.get("staging_table_name")
-
-            # If not in params, try XCom from generate_staging_table_name (process_dag scheduled case)
-            if not target_table_name and ti:
-                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
-                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
-            else:
-                logger.info(f"Using staging_table_name from params: {target_table_name}")
-
-            if not target_table_name:
-                raise AirflowException("staging_table_name is not provided")
-
+            target_table_name = _resolve_staging_table_name(context, params)
             engine = get_data_sql_engine()
-
             try:
                 ingest_data_from_file_into_postgis(
                     params.get("source", ""),
@@ -95,46 +122,9 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         @task(task_id="url_ingest_step")
         def url_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
-            ti = context.get("ti")
-
-            # Try to get staging_table_name from params first (staging_dag case)
-            target_table_name = params.get("staging_table_name")
-
-            # If not in params, try XCom from generate_staging_table_name (process_dag scheduled case)
-            if not target_table_name and ti:
-                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
-                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
-            else:
-                logger.info(f"Using staging_table_name from params: {target_table_name}")
-
-            if not target_table_name:
-                raise AirflowException("staging_table_name is not provided")
-
-            # Decrypt Basic Auth credentials if provided
-            auth = None
-            encrypted_credentials = params.get("encrypted_credentials")
-            if encrypted_credentials:
-                try:
-                    encryption_key = Variable.get("datafeeder_encryption_key", default=None)
-                    if not encryption_key:
-                        raise AirflowException(
-                            "Encryption key not found in Airflow Variables under 'datafeeder_encryption_key'"
-                        )
-
-                    engine = get_datafeeder_sql_engine()
-
-                    with engine.connect() as conn:
-                        username, password = decrypt_credentials(
-                            conn, encrypted_credentials, encryption_key
-                        )
-                        auth = (username, password)
-                        logger.info("Successfully decrypted Basic Auth credentials")
-                except Exception as e:
-                    logger.error(f"Failed to decrypt Basic Auth credentials: {e}")
-                    raise AirflowException(f"Failed to decrypt credentials: {e}")
-
+            target_table_name = _resolve_staging_table_name(context, params)
+            auth = _resolve_auth_credentials(params)
             engine = get_data_sql_engine()
-
             try:
                 ingest_data_from_url_into_postgis(
                     params.get("source", ""),
@@ -149,48 +139,11 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         @task(task_id="ftp_ingest_step")
         def ftp_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
-            ti = context.get("ti")
-
-            # Try to get staging_table_name from params first (staging_dag case)
-            target_table_name = params.get("staging_table_name")
-
-            # If not in params, try XCom from generate_staging_table_name (process_dag scheduled case)
-            if not target_table_name and ti:
-                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
-                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
-            else:
-                logger.info(f"Using staging_table_name from params: {target_table_name}")
-
-            if not target_table_name:
-                raise AirflowException("staging_table_name is not provided")
-
-            # Decrypt Ftp credentials if provided
-            auth = None
-            encrypted_credentials = params.get("encrypted_credentials")
-            if encrypted_credentials:
-                try:
-                    encryption_key = Variable.get("datafeeder_encryption_key", default=None)
-                    if not encryption_key:
-                        raise AirflowException(
-                            "Encryption key not found in Airflow Variables under 'datafeeder_encryption_key'"
-                        )
-
-                    engine = get_datafeeder_sql_engine()
-
-                    with engine.connect() as conn:
-                        username, password = decrypt_credentials(
-                            conn, encrypted_credentials, encryption_key
-                        )
-                        auth = (username, password)
-                        logger.info("Successfully decrypted Ftp credentials")
-                except Exception as e:
-                    logger.error(f"Failed to decrypt Ftp credentials: {e}")
-                    raise AirflowException(f"Failed to decrypt credentials: {e}")
-
+            target_table_name = _resolve_staging_table_name(context, params)
+            auth = _resolve_auth_credentials(params, label="Ftp credentials")
             try:
                 engine = get_data_sql_engine()
                 schema = get_staging_schema()
-
                 ingest_data_from_ftp_into_postgis(
                     params.get("source", ""), target_table_name, engine, schema, auth
                 )
@@ -200,19 +153,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         @task(task_id="database_ingest_step")
         def database_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
-            ti = context.get("ti")
-
-            target_table_name = params.get("staging_table_name")
-
-            if not target_table_name and ti:
-                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
-                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
-            else:
-                logger.info(f"Using staging_table_name from params: {target_table_name}")
-
-            if not target_table_name:
-                raise AirflowException("staging_table_name is not provided")
-
+            target_table_name = _resolve_staging_table_name(context, params)
             source = params.get("source", "")
             # Expected format: db://{db_key}/{schema}/{table}
             if not source.startswith(DB_URI_PREFIX):
@@ -254,47 +195,15 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
         @task(task_id="api_ingest_step")
         def api_ingest_step(**context: dict[str, Any]) -> None:
             params = context.get("params", {})
-            ti = context.get("ti")
-
-            target_table_name = params.get("staging_table_name")
-            if not target_table_name and ti:
-                target_table_name = ti.xcom_pull(task_ids="generate_staging_table_name")
-                logger.info(f"Using staging_table_name from XCom: {target_table_name}")
-            else:
-                logger.info(f"Using staging_table_name from params: {target_table_name}")
-
-            if not target_table_name:
-                raise AirflowException("staging_table_name is not provided")
-
+            target_table_name = _resolve_staging_table_name(context, params)
             source = params.get("source", "")
             source_layer = params.get("source_layer", "")
             source_protocol = params.get("source_protocol", "wfs") or "wfs"
-
             if not source_layer:
                 raise AirflowException("source_layer is required for API import")
 
             # Decrypt Basic Auth credentials if provided (e.g. protected WFS/OAPIF services)
-            auth = None
-            encrypted_credentials = params.get("encrypted_credentials")
-            if encrypted_credentials:
-                try:
-                    encryption_key = Variable.get("datafeeder_encryption_key", default=None)
-                    if not encryption_key:
-                        raise AirflowException(
-                            "Encryption key not found in Airflow Variables under 'datafeeder_encryption_key'"
-                        )
-
-                    datafeeder_engine = get_datafeeder_sql_engine()
-
-                    with datafeeder_engine.connect() as conn:
-                        username, password = decrypt_credentials(
-                            conn, encrypted_credentials, encryption_key
-                        )
-                        auth = (username, password)
-                        logger.info("Successfully decrypted Basic Auth credentials")
-                except Exception as e:
-                    logger.error(f"Failed to decrypt Basic Auth credentials: {e}")
-                    raise AirflowException(f"Failed to decrypt credentials: {e}")
+            auth = _resolve_auth_credentials(params)
 
             engine = get_data_sql_engine()
             try:
