@@ -90,8 +90,34 @@ services:
       retries: 10
     volumes:
       - sourcedb_data:/var/lib/postgresql/
-      - ./sourcedb-init:/docker-entrypoint-initdb.d:ro
+      # Mounted one by one, so that 05-merimee_monument.sql only goes to sourcedb_direct_access.
+      - ./sourcedb-init/01-fixtures.sql:/docker-entrypoint-initdb.d/01-fixtures.sql:ro
+      - ./sourcedb-init/02-geocontrib_feature.sql:/docker-entrypoint-initdb.d/02-geocontrib_feature.sql:ro
+      - ./sourcedb-init/03-geocontrib_opendata.sql:/docker-entrypoint-initdb.d/03-geocontrib_opendata.sql:ro
+      - ./sourcedb-init/04-geocontrib_opendata_factice.sql:/docker-entrypoint-initdb.d/04-geocontrib_opendata_factice.sql:ro
+
+  # Second source database, for direct access. Schema / table to type in the wizard:
+  #   merimee             monument (Lille historic monuments, base Mérimée, Licence Ouverte 2.0)
+  # Only 05-merimee_monument.sql is mounted here (and not in sourcedb).
+  sourcedb_direct_access:
+    image: postgis/postgis
+    restart: always
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: sourcedb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sourcedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - sourcedb_direct_access_data:/var/lib/postgresql/
+      - ./sourcedb-init/05-merimee_monument.sql:/docker-entrypoint-initdb.d/05-merimee_monument.sql:ro
 
 volumes:
   pg_data:
   sourcedb_data:
+  sourcedb_direct_access_data:
