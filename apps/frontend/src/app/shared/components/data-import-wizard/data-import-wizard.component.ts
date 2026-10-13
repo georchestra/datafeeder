@@ -16,6 +16,8 @@ import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import { ActivatedRoute, Router } from '@angular/router'
 import {
   iconoirMap,
+  iconoirNavArrowDown,
+  iconoirNavArrowUp,
   iconoirTable,
   iconoirWarningTriangle,
   iconoirXmark
@@ -46,12 +48,16 @@ import {
   submitStagingIngestionStagingPost,
   processStagingDataIngestionProcessPost,
   editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut,
-  editStagingIngestionStagingIntegrityLinkIdPut
+  editStagingIngestionStagingIntegrityLinkIdPut,
+  getJoinableColumnsIngestionIntegrityLinksIntegrityLinkIdJoinableColumnsGet,
+  listJoinableTablesIngestionIntegrityLinksJoinableTablesGet
 } from '../../../core/api/functions'
 import type {
   ColumnConfig,
   TaskStatus,
   ForceProjection,
+  JoinableTable,
+  JoinConfig,
   StagingResponse,
   StagingMetadataResponse,
   StagingPreviewResponse
@@ -68,6 +74,7 @@ import type {
 } from '../column-action-menu/column-action-menu.component'
 import type { ColumnFilter } from '../../../core/api/models/column-filter'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
+import { DatasetJoinComponent } from '../dataset-join/dataset-join.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 import { TechnicalInfoButtonComponent } from '../technical-info-button/technical-info-button.component'
@@ -115,6 +122,7 @@ export interface ImportWizardData {
     TranslatePipe,
     DatasetPreviewTableComponent,
     DatasetPreviewMapComponent,
+    DatasetJoinComponent,
     UiAlertBoxComponent,
     RecurrenceSelectorComponent,
     TechnicalInfoButtonComponent
@@ -124,6 +132,8 @@ export interface ImportWizardData {
   providers: [
     provideIcons({
       iconoirMap,
+      iconoirNavArrowDown,
+      iconoirNavArrowUp,
       iconoirTable,
       iconoirWarningTriangle,
       iconoirXmark
@@ -141,6 +151,7 @@ export class DataImportWizardComponent {
 
   readonly footerTpl = viewChild<TemplateRef<unknown>>('footerTpl')
   readonly titleConfig = viewChild<DatasetTitleComponent>('titleConfig')
+  readonly previewTable = viewChild(DatasetPreviewTableComponent)
 
   private renameSubject = new Subject<{
     originalName: string
@@ -216,8 +227,25 @@ export class DataImportWizardComponent {
   forceProjection = signal<ForceProjection | null>(null)
   configSaving = signal(false)
 
+  join = signal<JoinConfig | null>(null)
+  joinOpen = signal(false)
+  joinTables = signal<JoinableTable[]>([])
+  joinTableColumns = signal<string[]>([])
+  // Mirrors the names the backend reserves before joining: excluded columns
+  // free their name, and a point built from X/Y takes the geom column.
+  joinClashes = computed(() => {
+    const names = this.columnConfigs()
+      .filter((col) => !col.excluded)
+      .map((col) => col.new_name ?? col.original_name)
+    const projection = this.forceProjection()
+    if (projection?.x_column && projection.y_column) names.push('geom')
+    return (this.join()?.columns ?? []).filter((col) => names.includes(col))
+  })
+
   columnNameErrors = signal<Set<string>>(new Set())
-  hasColumnNameError = computed(() => this.columnNameErrors().size > 0)
+  hasColumnNameError = computed(
+    () => this.columnNameErrors().size > 0 || this.joinClashes().length > 0
+  )
 
   isGeographicData = computed(() => {
     const preview = this.preview()
@@ -272,6 +300,7 @@ export class DataImportWizardComponent {
           if (metadata) {
             this.columnConfigs.set(metadata.columns)
             this.forceProjection.set(metadata.force_projection ?? null)
+            this.join.set(metadata.join ?? null)
           }
           await this.refreshPreview(linkId, false)
         }
@@ -388,6 +417,97 @@ export class DataImportWizardComponent {
       )
     )
     this.saveConfigAndRefresh()
+  }
+
+  async toggleJoin(): Promise<void> {
+    this.joinOpen.update((open) => !open)
+    if (!this.joinOpen() || this.joinTables().length) return
+
+    try {
+      this.joinTables.set(
+        await this.api.invoke(
+          listJoinableTablesIngestionIntegrityLinksJoinableTablesGet,
+          {}
+        )
+      )
+    } catch (error) {
+      this.showJoinLoadError(error)
+      return
+    }
+    const id = this.join()?.integrity_link_id
+    if (id) await this.loadJoinTableColumns(id)
+  }
+
+  async onJoinTableChange(table: JoinableTable): Promise<void> {
+    this.updateJoin({
+      integrity_link_id: table.id,
+      source_column: this.join()?.source_column ?? '',
+      target_column: '',
+      columns: []
+    })
+    this.joinTableColumns.set([])
+    await this.loadJoinTableColumns(table.id)
+  }
+
+  onJoinSourceColumnChange(column: string): void {
+    this.updateJoin({ source_column: column })
+  }
+
+  onJoinTargetColumnChange(column: string): void {
+    this.updateJoin({ target_column: column })
+  }
+
+  onJoinColumnAdd(column: string): void {
+    this.updateJoin({ columns: [...(this.join()?.columns ?? []), column] })
+    this.previewTable()?.scrollToEnd()
+  }
+
+  onJoinColumnRemove(column: string): void {
+    this.updateJoin({
+      columns: (this.join()?.columns ?? []).filter((col) => col !== column)
+    })
+  }
+
+  // The join is only persisted once a column is added, so a change is saved
+  // when columns were or are now part of the join.
+  private updateJoin(changes: Partial<JoinConfig>): void {
+    const hadColumns = !!this.join()?.columns?.length
+    this.join.update((join) => ({ ...join!, ...changes }))
+    if (hadColumns || this.join()!.columns?.length) {
+      this.saveConfigAndRefresh()
+    }
+  }
+
+  private async loadJoinTableColumns(integrityLinkId: string): Promise<void> {
+    try {
+      const columns = await this.api.invoke(
+        getJoinableColumnsIngestionIntegrityLinksIntegrityLinkIdJoinableColumnsGet,
+        { integrity_link_id: integrityLinkId }
+      )
+      this.joinTableColumns.set(columns.map((col) => col.column_name))
+    } catch (error) {
+      this.showJoinLoadError(error)
+    }
+  }
+
+  private showJoinLoadError(error: unknown): void {
+    this.validationError.set(
+      error instanceof HttpErrorResponse && error.error?.detail
+        ? error.error.detail
+        : this.translate.instant('import.dataSource.genericError')
+    )
+  }
+
+  // Clashing columns are left out, like an invalid rename is never sent.
+  private joinPayload(): JoinConfig | null {
+    const join = this.join()
+    const clashes = this.joinClashes()
+    const columns = (join?.columns ?? []).filter(
+      (col) => !clashes.includes(col)
+    )
+    return join?.source_column && join.target_column && columns.length
+      ? { ...join, columns }
+      : null
   }
 
   onSourceChanged(data: SourceData) {
@@ -610,7 +730,8 @@ export class DataImportWizardComponent {
             columns: this.columnConfigs(),
             title: this.metadata()?.title ?? '',
             file_type: this.metadata()?.file_type ?? null,
-            force_projection: this.forceProjection()
+            force_projection: this.forceProjection(),
+            join: this.joinPayload()
           }
         }
       )
