@@ -75,7 +75,6 @@ import { DatasetJoinComponent } from '../dataset-join/dataset-join.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 import { TechnicalInfoButtonComponent } from '../technical-info-button/technical-info-button.component'
-import { RecurrenceSelectorComponent } from '../recurrence-selector/recurrence-selector.component'
 import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { FooterService } from '../../../core/layout/footer.service'
 
@@ -121,7 +120,6 @@ export interface ImportWizardData {
     DatasetPreviewMapComponent,
     DatasetJoinComponent,
     UiAlertBoxComponent,
-    RecurrenceSelectorComponent,
     TechnicalInfoButtonComponent
   ],
   templateUrl: './data-import-wizard.component.html',
