@@ -29,6 +29,11 @@
                 "glob": "**/*",
                 "input": "translations",
                 "output": "assets/i18n/"
+              },
+              {
+                "glob": "*.json",
+                "input": "node_modules/geonetwork-ui/translations",
+                "output": "assets/i18n/gn-ui/"
               }
             ],
             "styles": [
