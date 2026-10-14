@@ -4,7 +4,11 @@ import {
   computed,
   inject,
   output,
-  ChangeDetectionStrategy
+  ChangeDetectionStrategy,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  viewChild
 } from '@angular/core'
 import { MatTableModule } from '@angular/material/table'
 import type {
@@ -22,6 +26,7 @@ import type {
 import type { ColumnFilter } from '../../../core/api/models/column-filter'
 
 marker('import.datasetPreviewTable.allColumnsExcluded')
+marker('import.columnHeader.error.duplicate')
 
 @Component({
   selector: 'app-dataset-preview-table',
@@ -37,11 +42,17 @@ marker('import.datasetPreviewTable.allColumnsExcluded')
 })
 export class DatasetPreviewTableComponent {
   private readonly translate = inject(TranslateService)
+  private readonly injector = inject(Injector)
 
   metadata = input<StagingMetadataResponse | null>(null)
   preview = input<StagingPreviewResponse | null>(null)
   previewError = input<string | null>(null)
   previewLoading = input<boolean>(false)
+  joinColumns = input<string[]>([])
+  joinClashes = input<string[]>([])
+
+  private readonly scrollContainer =
+    viewChild<ElementRef<HTMLElement>>('scrollContainer')
 
   columnActionRequested = output<{
     originalName: string
@@ -63,11 +74,12 @@ export class DatasetPreviewTableComponent {
 
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
 
-  allDisplayNames = computed(() =>
-    (this.metadata()?.columns ?? []).map(
+  allDisplayNames = computed(() => [
+    ...(this.metadata()?.columns ?? []).map(
       (col) => col.new_name ?? col.original_name
-    )
-  )
+    ),
+    ...this.joinColumns()
+  ])
 
   // Material table tracks column definitions by a string ID. We use original_name
   // as that ID (not new_name) so the definition stays stable even when the user
@@ -75,7 +87,10 @@ export class DatasetPreviewTableComponent {
   // the column header component using the effective name (new_name ?? original_name).
   displayedColumns = computed(() => {
     const meta = this.metadata()
-    return (meta?.columns ?? []).map((col) => col.original_name)
+    return [
+      ...(meta?.columns ?? []).map((col) => col.original_name),
+      ...this.joinColumns().map((name) => this.joinColumnId(name))
+    ]
   })
 
   allColumnsExcluded = computed(() => {
@@ -84,6 +99,22 @@ export class DatasetPreviewTableComponent {
   })
 
   dataSource = computed(() => this.preview()?.data ?? [])
+
+  scrollToEnd(): void {
+    afterNextRender(
+      () => {
+        const el = this.scrollContainer()?.nativeElement
+        if (el) el.scrollLeft = el.scrollWidth
+      },
+      { injector: this.injector }
+    )
+  }
+
+  // Prefixed so a joined column never shares its column definition ID with a
+  // source column of the same name.
+  joinColumnId(name: string): string {
+    return `join:${name}`
+  }
 
   onColumnAction(originalName: string, action: ColumnAction): void {
     this.columnActionRequested.emit({ originalName, action })

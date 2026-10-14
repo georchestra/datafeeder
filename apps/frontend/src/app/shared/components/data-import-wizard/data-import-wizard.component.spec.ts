@@ -2139,3 +2139,267 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
     })
   })
 })
+
+describe('DataImportWizardComponent - Join', () => {
+  let httpMock: HttpTestingController
+  const ROOT = 'http://localhost:8000'
+  const TABLES_URL = `${ROOT}/ingestion/integrity-links/joinable-tables`
+  const METADATA_URL = `${ROOT}/ingestion/staging/link-abc/metadata`
+  const settle = () => new Promise((resolve) => setTimeout(resolve))
+  const columnsUrl = (id: string) =>
+    `${ROOT}/ingestion/integrity-links/${id}/joinable-columns`
+
+  const TABLES = [
+    {
+      id: 'ref-1',
+      integrity_title: 'Communes',
+      table_schema: 'org_a',
+      table_name: 'communes'
+    },
+    {
+      id: 'ref-2',
+      integrity_title: 'Regions',
+      table_schema: 'org_a',
+      table_name: 'regions'
+    }
+  ]
+  const JOIN = {
+    table_schema: 'org_a',
+    table_name: 'communes',
+    source_column: 'insee',
+    target_column: 'code_insee',
+    columns: ['nom_commune']
+  }
+  const mockMetadata = {
+    title: 'test.csv',
+    file_type: 'csv' as FileType,
+    force_projection: null,
+    has_final_table: false,
+    import_type: 'url' as ImportType,
+    row_count: 1,
+    columns: [{ original_name: 'insee' }, { original_name: 'pop' }]
+  }
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [
+        DataImportWizardComponent,
+        NoopAnimationsModule,
+        TranslateTestingModule.withTranslations({ en: {} })
+          .withDefaultLanguage('en')
+          .withCompiler(new TranslateMessageFormatCompiler())
+      ],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: ApiConfiguration, useValue: { rootUrl: ROOT } },
+        {
+          provide: IntegrityLinkStore,
+          useValue: {
+            intlinkId: signal<string | null>(null),
+            integrityLink: signal(null),
+            loadError: signal(null),
+            setAndLoadIntegrityLink: vi.fn()
+          }
+        },
+        {
+          provide: FooterService,
+          useValue: { content: signal(null), setContent: () => {} }
+        }
+      ]
+    }).compileComponents()
+
+    httpMock = TestBed.inject(HttpTestingController)
+  })
+
+  afterEach(() => {
+    httpMock
+      .match(() => true)
+      .forEach((req) => {
+        if (!req.cancelled) req.flush(null)
+      })
+    httpMock.verify()
+  })
+
+  function createOnPreviewStep() {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.integrityLinkStore.intlinkId.set('link-abc')
+    component.metadata.set(mockMetadata)
+    component.columnConfigs.set([...mockMetadata.columns])
+    return { fixture, component }
+  }
+
+  it('loads joinable tables once, and the columns of the saved join table', async () => {
+    const { component } = createOnPreviewStep()
+    component.join.set(JOIN)
+
+    component.toggleJoin()
+    httpMock.expectOne(TABLES_URL).flush(TABLES)
+    await settle()
+    httpMock
+      .expectOne(columnsUrl('ref-1'))
+      .flush([{ column_name: 'code_insee' }, { column_name: 'nom_commune' }])
+    await settle()
+    expect(component.joinTableColumns()).toEqual(['code_insee', 'nom_commune'])
+
+    component.toggleJoin()
+    component.toggleJoin()
+    httpMock.expectNone(TABLES_URL)
+  })
+
+  it('keeps the source key and resets the rest when the table changes, without saving', async () => {
+    const { component } = createOnPreviewStep()
+    component.join.set({ ...JOIN, columns: [] })
+
+    component.onJoinTableChange(TABLES[1])
+    httpMock.expectOne(columnsUrl('ref-2')).flush([])
+    await settle()
+
+    expect(component.join()).toEqual({
+      table_schema: 'org_a',
+      table_name: 'regions',
+      source_column: 'insee',
+      target_column: '',
+      columns: []
+    })
+    httpMock.expectNone(METADATA_URL)
+  })
+
+  it('saves join: null when the table changes after columns were added', async () => {
+    const { component } = createOnPreviewStep()
+    component.join.set(JOIN)
+
+    component.onJoinTableChange(TABLES[1])
+
+    const put = httpMock.expectOne(METADATA_URL)
+    expect(put.request.body.join).toBeNull()
+    put.flush(mockMetadata)
+    httpMock.expectOne(columnsUrl('ref-2')).flush([])
+    await settle()
+  })
+
+  it('only saves the join once a column is added', async () => {
+    const { component } = createOnPreviewStep()
+    component.join.set({
+      ...JOIN,
+      source_column: '',
+      target_column: '',
+      columns: []
+    })
+
+    component.onJoinSourceColumnChange('insee')
+    component.onJoinTargetColumnChange('code_insee')
+    httpMock.expectNone(METADATA_URL)
+
+    component.onJoinColumnAdd('nom_commune')
+    const put = httpMock.expectOne(METADATA_URL)
+    expect(put.request.body.join).toEqual(JOIN)
+    put.flush(mockMetadata)
+    await settle()
+  })
+
+  it('saves join: null when the last column is removed', async () => {
+    const { component } = createOnPreviewStep()
+    component.join.set(JOIN)
+
+    component.onJoinColumnRemove('nom_commune')
+
+    const put = httpMock.expectOne(METADATA_URL)
+    expect(put.request.body.join).toBeNull()
+    put.flush(mockMetadata)
+    await settle()
+  })
+
+  it('blocks validation and leaves a clashing column out of the save', async () => {
+    const { component } = createOnPreviewStep()
+    component.join.set(JOIN)
+
+    component.onJoinColumnAdd('pop')
+
+    expect(component.joinClashes()).toEqual(['pop'])
+    expect(component.hasColumnNameError()).toBe(true)
+    const put = httpMock.expectOne(METADATA_URL)
+    expect(put.request.body.join.columns).toEqual(['nom_commune'])
+    put.flush(mockMetadata)
+    await settle()
+  })
+
+  it('does not count excluded columns as clashes', () => {
+    const { component } = createOnPreviewStep()
+    component.columnConfigs.set([
+      { original_name: 'insee' },
+      { original_name: 'pop', excluded: true }
+    ])
+    component.join.set({ ...JOIN, columns: ['pop'] })
+
+    expect(component.joinClashes()).toEqual([])
+  })
+
+  it('counts geom as a clash when the point is built from X/Y', () => {
+    const { component } = createOnPreviewStep()
+    component.join.set({ ...JOIN, columns: ['geom'] })
+    expect(component.joinClashes()).toEqual([])
+
+    component.forceProjection.set({
+      type: 'EPSG:4326',
+      x_column: 'lon',
+      y_column: 'lat'
+    })
+    expect(component.joinClashes()).toEqual(['geom'])
+  })
+
+  it('shows an error when the joinable tables fail to load', async () => {
+    const { component } = createOnPreviewStep()
+
+    component.toggleJoin()
+    httpMock
+      .expectOne(TABLES_URL)
+      .flush({ detail: 'Boom' }, { status: 500, statusText: 'Error' })
+    await settle()
+
+    expect(component.validationError()).toBe('Boom')
+    expect(component.joinTables()).toEqual([])
+  })
+
+  it('shows an error when the table columns fail to load', async () => {
+    const { component } = createOnPreviewStep()
+    component.join.set(JOIN)
+
+    component.onJoinTableChange(TABLES[1])
+    httpMock.expectOne(METADATA_URL).flush(mockMetadata)
+    httpMock
+      .expectOne(columnsUrl('ref-2'))
+      .flush(null, { status: 500, statusText: 'Error' })
+    await settle()
+
+    expect(component.validationError()).toBe('import.dataSource.genericError')
+  })
+
+  it('restores the join from the saved metadata', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.integrityLinkStore.intlinkId.set('link-abc')
+    component.selectedTabIndex.set(1)
+    fixture.detectChanges()
+
+    httpMock.expectOne(METADATA_URL).flush({ ...mockMetadata, join: JOIN })
+    await settle()
+
+    expect(component.join()).toEqual(JOIN)
+  })
+
+  it('shows the indicator on the join toggle only when columns are added', () => {
+    const { fixture, component } = createOnPreviewStep()
+    component.selectedTabIndex.set(1)
+    component.join.set({ ...JOIN, columns: [] })
+    fixture.detectChanges()
+    const el = fixture.nativeElement as HTMLElement
+    expect(el.querySelector('[data-join-indicator]')).toBeNull()
+
+    component.join.set(JOIN)
+    fixture.detectChanges()
+    expect(el.querySelector('[data-join-indicator]')).not.toBeNull()
+  })
+})
