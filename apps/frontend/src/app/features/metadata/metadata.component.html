@@ -77,7 +77,7 @@
           [name]="'iconoirNumber' + (index + 1) + 'Square'"
           size="1.9em"
         ></ng-icon>
-        {{ page.labelKey | translate }}
+        {{ page.labelKey | translate : { recordKind: 'dataset' } }}
       </div>
     </gn-ui-button>
     }
