@@ -1,0 +1,62 @@
+name: build-backend-local-executor.yml
+
+# Backend image with GDAL embedded and TASK_EXECUTOR=LOCAL: staging/processing run
+# in the backend process, no Airflow deployment needed.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - apps/backend/**
+      - libs/data_manipulation/**
+      - pyproject.toml
+      - uv.lock
+      - .github/workflows/build-backend-local-executor.yml
+  push:
+    branches:
+      - main
+      - '[1-9]+.[0-9]+.x'
+    tags:
+      - '*'
+
+jobs:
+  build-backend-local-executor:
+    runs-on: ubuntu-latest
+    name: Build & push backend (local executor)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Getting image tag
+        id: version
+        run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend (local executor)
+        run: |
+          docker build -f ./apps/backend/Dockerfile -t georchestra/datafeeder-python-backend:latest-local-executor --target local-executor .
+
+      - name: Check ogr2ogr is available
+        run: |
+          docker run --rm --entrypoint ogr2ogr georchestra/datafeeder-python-backend:latest-local-executor --version
+          docker run --rm --entrypoint ogrinfo georchestra/datafeeder-python-backend:latest-local-executor --formats | grep -E 'PostgreSQL|Parquet'
+
+      - name: "Log in to docker.io"
+        if: github.event_name != 'pull_request' && github.repository == 'georchestra/datafeeder'
+        uses: docker/login-action@v3
+        with:
+          username: '${{ secrets.DOCKER_HUB_USERNAME }}'
+          password: '${{ secrets.DOCKER_HUB_PASSWORD }}'
+
+      - name: Push backend (local executor)
+        if: github.event_name != 'pull_request' && github.repository == 'georchestra/datafeeder'
+        run: docker push georchestra/datafeeder-python-backend:latest-local-executor
+
+      - name: Push release
+        if: github.event_name != 'pull_request' && github.repository == 'georchestra/datafeeder' && (endsWith(github.ref, '.x') || github.ref_type == 'tag')
+        run: |
+          docker tag georchestra/datafeeder-python-backend:latest-local-executor georchestra/datafeeder-python-backend:${{ steps.version.outputs.VERSION }}-local-executor
+          docker push georchestra/datafeeder-python-backend:${{ steps.version.outputs.VERSION }}-local-executor
