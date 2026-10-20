@@ -4,11 +4,11 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from data_manipulation.models import JoinConfig, JoinTarget
+from data_manipulation.models import IntegrityTransformation, JoinConfig, JoinTarget
 from fastapi import HTTPException
 
 from src.core.security import AccessLevel
-from src.services.join_target import resolve_join_target
+from src.services.join_target import joins_geom, resolve_join_target
 
 
 def _join(columns: list[str] | None = None) -> JoinConfig:
@@ -68,3 +68,15 @@ class TestResolveJoinTarget:
             _resolve(_join(), _loads(None))
 
         assert exc.value.status_code == 422
+
+
+class TestJoinsGeom:
+    def test_joined_geom(self) -> None:
+        assert joins_geom(IntegrityTransformation(join=_join(columns=["nom", "geom"])))
+
+    def test_joined_columns_without_geom(self) -> None:
+        assert not joins_geom(IntegrityTransformation(join=_join()))
+
+    def test_no_join(self) -> None:
+        assert not joins_geom(IntegrityTransformation())
+        assert not joins_geom(None)

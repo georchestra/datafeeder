@@ -34,7 +34,7 @@ from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.console_service import ConsoleService
 from src.services.executor_factory import get_task_executor
-from src.services.join_target import resolve_join_target
+from src.services.join_target import joins_geom, resolve_join_target
 from src.services.layer_publication import publish_final_table, read_table_extent
 from src.services.schedule_service import clear_schedule
 
@@ -183,7 +183,8 @@ def process_staging_data(
     # --- Prepare layer URLs and GeoNetwork metadata ---
     # Determine whether the data will end up geographic: either the staging table
     # already exposes a `geom` column, or the transformation config builds one
-    # from X/Y columns during the process DAG (force_projection).
+    # from X/Y columns during the process DAG (force_projection), or the join adds
+    # the geometry of the joined dataset.
     try:
         staging_meta = MetaData(schema=get_staging_schema())
         staging_tbl = Table(staging_table_name, staging_meta, autoload_with=data_engine)
@@ -200,7 +201,7 @@ def process_staging_data(
             "treating as geographic for metadata publication"
         )
 
-    is_geographic = has_staging_geom or builds_geom_from_xy
+    is_geographic = has_staging_geom or builds_geom_from_xy or joins_geom(parsed_transformation)
 
     # Create and publish metadata to GeoNetwork, only if metadata_id is not already set (first time process, not re-run)
     if integrity_link.metadata_id is None:

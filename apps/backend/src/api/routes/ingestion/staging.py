@@ -12,7 +12,7 @@ from data_manipulation import (
     detect_table_srid,
     read_transformed_preview,
 )
-from data_manipulation.constants import DB_URI_PREFIX
+from data_manipulation.constants import DB_URI_PREFIX, DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.database import schema_exists, table_exists
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import ForceProjection as DataManipulationForceProjection
@@ -48,7 +48,7 @@ from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
 from src.services.files import delete_temp_file, strip_file_extension, upload_file_to_temp
-from src.services.join_target import resolve_join_target
+from src.services.join_target import joins_geom, resolve_join_target
 
 logger = get_logger()
 configure_logging(logger)
@@ -1096,6 +1096,10 @@ def get_staging_preview(
     # infrastructure level (authentication / authorisation) rather than relying
     # on the exclusion flag alone.
 
+    # A joined geom replaces the excluded staging geom: it is the one to map, and
+    # the staging geom stays excluded even with include_excluded (they would clash).
+    joined_geom = joins_geom(config)
+
     # Track whether the geom column is explicitly excluded in the saved config.
     # Used below to suppress map data even when include_excluded=True.
     geom_excluded_in_config = (
@@ -1103,6 +1107,7 @@ def get_staging_preview(
         and config is not None
         and config.columns is not None
         and any(col.original_name == "geom" and col.excluded for col in config.columns)
+        and not joined_geom
     )
 
     # When include_excluded is requested, strip excluded=True from all columns
@@ -1120,6 +1125,7 @@ def get_staging_preview(
                         filter=None,  # filter is not supported in preview, so ignore any filter_expression in config
                     )
                     if col.excluded
+                    and not (joined_geom and col.original_name == DEFAULT_GEOMETRY_COLUMN)
                     else col
                     for col in config.columns
                 ]

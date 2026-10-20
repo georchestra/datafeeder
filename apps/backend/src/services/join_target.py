@@ -1,12 +1,23 @@
 """Resolve the dataset referenced by a JoinConfig to the table to join."""
 
-from data_manipulation.models import JoinConfig, JoinTarget
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
+from data_manipulation.models import IntegrityTransformation, JoinConfig, JoinTarget
 from fastapi import HTTPException
 from sqlmodel import Session
 
 from src.core.config import get_data_schema
 from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.services.georchestra import GeorchestraContext
+
+
+def joins_geom(transformation: IntegrityTransformation | None) -> bool:
+    """True when the join adds the geometry of the joined dataset.
+
+    It then replaces the staging geometry, which must be excluded (see
+    build_transformation_select).
+    """
+    join = transformation.join if transformation is not None else None
+    return join is not None and DEFAULT_GEOMETRY_COLUMN in join.columns
 
 
 def resolve_join_target(

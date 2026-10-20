@@ -5,9 +5,14 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from data_manipulation import PreviewResult
 from fastapi import HTTPException
 
-from src.api.routes.ingestion.staging import edit_staging_metadata, get_staging_metadata
+from src.api.routes.ingestion.staging import (
+    edit_staging_metadata,
+    get_staging_metadata,
+    get_staging_preview,
+)
 from src.models.data_import import (
     ColumnConfig,
     ImportType,
@@ -171,3 +176,79 @@ class TestEditStagingMetadataJoin:
 
         assert exc.value.status_code == 422
         assert link.integrity_transformation is None
+
+
+GEOJSON = {
+    "type": "FeatureCollection",
+    "features": [
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": [1, 2]}, "properties": {}}
+    ],
+}
+
+
+def _preview(
+    integrity_transformation: dict[str, Any], include_excluded: bool = False
+) -> tuple[Any, MagicMock]:
+    """Run get_staging_preview; return the response and the read_transformed_preview mock."""
+    read = MagicMock(
+        return_value=PreviewResult(
+            rows=[{"geom": "POINT(1 2)"}], geojson=GEOJSON, is_geographic=True
+        )
+    )
+    with (
+        patch(
+            "src.api.routes.ingestion.staging.load_authorized_integrity_link",
+            return_value=(_mock_link(integrity_transformation), MagicMock()),
+        ),
+        patch("src.api.routes.ingestion.staging.resolve_join_target"),
+        patch("src.api.routes.ingestion.staging.read_transformed_preview", read),
+    ):
+        response = get_staging_preview(
+            data_session=MagicMock(),
+            datafeeder_session=MagicMock(),
+            geo_ctx=MagicMock(),
+            integrity_link_id=str(uuid4()),
+            group_ids=[],
+            limit=10,
+            raw=False,
+            include_excluded=include_excluded,
+        )
+    return response, read
+
+
+def _excluded_geom(join_columns: list[str]) -> dict[str, Any]:
+    join = JOIN.model_copy(update={"columns": join_columns})
+    return {
+        "columns": [
+            {"original_name": "insee"},
+            {"original_name": "geom", "excluded": True},
+        ],
+        "join": join.model_dump(mode="json"),
+    }
+
+
+class TestStagingPreviewJoinedGeom:
+    def test_excluded_staging_geom_hides_the_map(self) -> None:
+        response, _ = _preview(_excluded_geom(["nom"]))
+
+        assert response.is_geographic is False
+        assert response.geojson is None
+
+    def test_joined_geom_replacing_excluded_staging_geom_is_mapped(self) -> None:
+        response, _ = _preview(_excluded_geom(["nom", "geom"]))
+
+        assert response.is_geographic is True
+        assert response.geojson is not None
+
+    def test_include_excluded_keeps_staging_geom_excluded_when_geom_is_joined(self) -> None:
+        _, read = _preview(_excluded_geom(["nom", "geom"]), include_excluded=True)
+
+        config = read.call_args.args[2]
+        excluded = {col.original_name: col.excluded for col in config.columns}
+        assert excluded == {"insee": False, "geom": True}
+
+    def test_include_excluded_includes_staging_geom_without_joined_geom(self) -> None:
+        _, read = _preview(_excluded_geom(["nom"]), include_excluded=True)
+
+        config = read.call_args.args[2]
+        assert all(not col.excluded for col in config.columns)
