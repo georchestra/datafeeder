@@ -5,6 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from data_manipulation.models import JoinTarget
 from pydantic import BaseModel
 
 from src.core.constants import DEFAULT_DATA_SCHEMA
@@ -98,6 +99,7 @@ class BaseTaskExecutor(ABC):
         last_retrieval_timestamp: datetime | None = None,
         target_schema: str = DEFAULT_DATA_SCHEMA,
         source: ProcessSource | None = None,
+        join_target: JoinTarget | None = None,
     ) -> TaskRunInfo:
         """
         Trigger a process task.
@@ -111,6 +113,7 @@ class BaseTaskExecutor(ABC):
             failure_callback_url: URL to call on failure
             target_schema: PostgreSQL schema for the final table
             source: Source to re-ingest from, instead of an existing staging table
+            join_target: Table joined by integrity_transformation.join, resolved by the caller
 
         Returns:
             TaskRunInfo with task details

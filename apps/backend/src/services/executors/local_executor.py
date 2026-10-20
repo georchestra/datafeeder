@@ -25,6 +25,7 @@ from uuid import uuid4
 import requests
 from data_manipulation import (
     IntegrityTransformation,
+    JoinTarget,
     transform_staging_to_final,
 )
 from data_manipulation.constants import DB_URI_PREFIX
@@ -277,6 +278,7 @@ class LocalTaskExecutor(BaseTaskExecutor):
         last_retrieval_timestamp: datetime | None = None,
         target_schema: str = DEFAULT_DATA_SCHEMA,
         source: ProcessSource | None = None,
+        join_target: JoinTarget | None = None,
     ) -> TaskRunInfo:
         self._run_process(
             run_id,
@@ -288,6 +290,7 @@ class LocalTaskExecutor(BaseTaskExecutor):
             last_retrieval_timestamp,
             target_schema,
             source,
+            join_target,
         )
         return TaskRunInfo(
             task_id=_PROCESS_DAG_ID,
@@ -303,6 +306,7 @@ class LocalTaskExecutor(BaseTaskExecutor):
         integrity_transformation: dict[str, Any],
         last_retrieval_timestamp: datetime | None,
         target_schema: str,
+        join_target: JoinTarget | None,
     ) -> None:
         staging_schema = get_staging_schema()
         transformation_config = IntegrityTransformation(**integrity_transformation)
@@ -334,6 +338,7 @@ class LocalTaskExecutor(BaseTaskExecutor):
             staging_schema=staging_schema,
             final_schema=target_schema,
             create_id=True,
+            join_target=join_target,
         )
 
         if row_count == 0:
@@ -357,6 +362,7 @@ class LocalTaskExecutor(BaseTaskExecutor):
         last_retrieval_timestamp: datetime | None,
         target_schema: str,
         source: ProcessSource | None = None,
+        join_target: JoinTarget | None = None,
     ) -> None:
         self._set_status(_PROCESS_DAG_ID, run_id, TaskStatus.RUNNING)
         try:
@@ -379,6 +385,7 @@ class LocalTaskExecutor(BaseTaskExecutor):
                 integrity_transformation,
                 last_retrieval_timestamp,
                 target_schema,
+                join_target,
             )
             self._set_status(_PROCESS_DAG_ID, run_id, TaskStatus.SUCCESS)
             self._call_callback_async(success_callback_url, "success")

@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from airflow_client.client.models.dag_run_state import DagRunState
+from data_manipulation.models import JoinTarget
 
 from src.core.constants import DEFAULT_DATA_SCHEMA
 from src.core.task_executor import ProcessSource, TaskStatus
@@ -158,11 +159,32 @@ class TestAirflowTaskExecutor:
                 "failure_callback_url": "https://ko.example.com",
                 "last_retrieval_timestamp": retrieval_ts,
                 "target_schema": DEFAULT_DATA_SCHEMA,
+                "join_target": None,
             }
             assert result.task_id == "process_dag"
             assert result.run_id == "run-456"
             assert result.status == TaskStatus.RUNNING
             assert result.execution_date is None
+
+    def test_trigger_process_task_passes_join_target(self) -> None:
+        executor = AirflowTaskExecutor()
+        with patch(
+            "src.services.executors.airflow_executor.get_dag_run_api"
+        ) as mock_get_dag_run_api:
+            mock_get_dag_run_api.return_value.trigger_dag_run.return_value = MagicMock(
+                dag_id="process_dag", dag_run_id="run-456", state=DagRunState.QUEUED
+            )
+
+            executor.trigger_process_task(
+                run_id="run-456",
+                final_table_name="final_table",
+                join_target=JoinTarget(table_schema="org_b", table_name="communes"),
+            )
+
+            body = mock_get_dag_run_api.return_value.trigger_dag_run.call_args.kwargs[
+                "trigger_dag_run_post_body"
+            ]
+            assert body.conf["join_target"] == {"table_schema": "org_b", "table_name": "communes"}
 
     def test_get_task_status(self) -> None:
         executor = AirflowTaskExecutor()

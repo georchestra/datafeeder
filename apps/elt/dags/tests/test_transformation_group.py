@@ -59,6 +59,7 @@ def _load_transformation_module():
 
     dm_stub = types.ModuleType("data_manipulation")
     dm_stub.IntegrityTransformation = type("IntegrityTransformation", (), {})  # type: ignore[attr-defined]
+    dm_stub.JoinTarget = lambda **kw: kw  # type: ignore[attr-defined]
     dm_stub.transform_staging_to_final = lambda *a, **kw: 0  # type: ignore[attr-defined]
 
     dm_db_stub = types.ModuleType("data_manipulation.database")
@@ -126,7 +127,7 @@ def _build_read_task(**factory_kwargs) -> _FakeTask:
 class TestReadTransformWriteTransformation:
     """The read/transform/write task delegates to transform_staging_to_final."""
 
-    def _run_task(self, monkeypatch, row_count):
+    def _run_task(self, monkeypatch, row_count, join_target=None):
         """Execute the task with transform_staging_to_final returning row_count."""
         calls: list[dict] = []
 
@@ -145,6 +146,7 @@ class TestReadTransformWriteTransformation:
                 "final_table_name": "final_t",
                 "staging_table_name": "staging_t",
                 "integrity_transformation": {},
+                "join_target": join_target,
             },
             "ti": object(),
         }
@@ -161,6 +163,13 @@ class TestReadTransformWriteTransformation:
         assert calls[0]["staging_schema"] == "staging"
         assert calls[0]["final_schema"] == "data"
         assert calls[0]["create_id"] is True
+        assert calls[0]["join_target"] is None
+
+    def test_passes_join_target(self, monkeypatch):
+        target = {"table_schema": "org_b", "table_name": "communes"}
+        calls = self._run_task(monkeypatch, row_count=5, join_target=target)
+
+        assert calls[0]["join_target"] == target
 
     def test_empty_staging_raises(self, monkeypatch):
         """A transformation yielding zero rows raises and is not swallowed."""

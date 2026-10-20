@@ -8,6 +8,7 @@ verifying its output guarantees preview/process parity (FR-021).
 """
 
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import Column, Integer, MetaData, Table, Text
@@ -21,6 +22,7 @@ from data_manipulation.models import (
     ForceProjection,
     IntegrityTransformation,
     JoinConfig,
+    JoinTarget,
 )
 from data_manipulation.transformation.sql_transform import (
     _parse_srid,  # type: ignore[reportPrivateUsage]
@@ -222,8 +224,7 @@ def _join(
     columns: list[str] | None = None, staging_columns: list[ColumnConfig] | None = None
 ) -> IntegrityTransformation:
     join = JoinConfig(
-        table_schema="org_a",
-        table_name="communes",
+        integrity_link_id=uuid4(),
         source_column="ratio",
         target_column="insee",
         columns=["insee", "dept"] if columns is None else columns,
@@ -264,7 +265,16 @@ class TestJoin:
 
     def test_empty_columns_does_not_reflect(self) -> None:
         engine = MagicMock()
-        assert reflect_join_table(_join(columns=[]).join, engine) is None
+        assert reflect_join_table(_join(columns=[]).join, None, engine) is None
+
+    def test_reflect_requires_join_target(self) -> None:
+        with pytest.raises(ValueError, match="join_target"):
+            reflect_join_table(_join().join, None, MagicMock())
+
+    def test_reflect_validates_join_target(self) -> None:
+        target = JoinTarget(table_schema="org_a", table_name='communes"; drop')
+        with pytest.raises(ValueError):
+            reflect_join_table(_join().join, target, MagicMock())
 
     def test_staging_geom_is_qualified(self) -> None:
         tq = build_transformation_select(_staging_table(), _join(), _communes_table())
@@ -345,8 +355,7 @@ class TestJoin:
     def test_unknown_join_key_raises(self) -> None:
         config = IntegrityTransformation(
             join=JoinConfig(
-                table_schema="org_a",
-                table_name="communes",
+                integrity_link_id=uuid4(),
                 source_column="nope",
                 target_column="insee",
                 columns=["dept"],

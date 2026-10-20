@@ -4,6 +4,9 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+import pytest
+from fastapi import HTTPException
+
 from src.api.routes.ingestion.staging import edit_staging_metadata, get_staging_metadata
 from src.models.data_import import (
     ColumnConfig,
@@ -14,8 +17,7 @@ from src.models.data_import import (
 )
 
 JOIN = JoinConfig(
-    table_schema="org_a",
-    table_name="communes",
+    integrity_link_id=uuid4(),
     source_column="insee",
     target_column="code_insee",
     columns=["nom", "population"],
@@ -98,11 +100,17 @@ class TestGetStagingMetadataJoin:
         assert result.join is None
 
 
-def _edit_metadata(config: StagingMetadata, link: MagicMock) -> None:
+def _edit_metadata(
+    config: StagingMetadata, link: MagicMock, resolve: MagicMock | None = None
+) -> None:
     with (
         patch(
             "src.api.routes.ingestion.staging.load_authorized_integrity_link",
             return_value=(link, MagicMock()),
+        ),
+        patch(
+            "src.api.routes.ingestion.staging.resolve_join_target",
+            resolve or MagicMock(),
         ),
         patch("src.api.routes.ingestion.staging.get_staging_metadata"),
     ):
@@ -136,3 +144,30 @@ class TestEditStagingMetadataJoin:
         _edit_metadata(config, link)
 
         assert link.integrity_transformation["join"] is None
+
+    def test_unreadable_joined_dataset_is_rejected(self) -> None:
+        link = _mock_link(None)
+        config = StagingMetadata(
+            columns=[ColumnConfig(original_name="insee")], title="t", file_type=None, join=JOIN
+        )
+        resolve = MagicMock(side_effect=HTTPException(status_code=403, detail="Forbidden"))
+
+        with pytest.raises(HTTPException) as exc:
+            _edit_metadata(config, link, resolve)
+
+        assert exc.value.status_code == 403
+        assert resolve.call_args.args[0] == JOIN
+        assert link.integrity_transformation is None
+
+    def test_join_with_itself_is_rejected(self) -> None:
+        link = _mock_link(None)
+        link.id = JOIN.integrity_link_id
+        config = StagingMetadata(
+            columns=[ColumnConfig(original_name="insee")], title="t", file_type=None, join=JOIN
+        )
+
+        with pytest.raises(HTTPException) as exc:
+            _edit_metadata(config, link)
+
+        assert exc.value.status_code == 422
+        assert link.integrity_transformation is None

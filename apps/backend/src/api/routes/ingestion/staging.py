@@ -48,6 +48,7 @@ from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
 from src.services.files import delete_temp_file, strip_file_extension, upload_file_to_temp
+from src.services.join_target import resolve_join_target
 
 logger = get_logger()
 configure_logging(logger)
@@ -994,6 +995,12 @@ def edit_staging_metadata(
         if config.force_projection
         else None
     )
+    # Its own final table is dropped before being recreated on each process.
+    if config.join and config.join.integrity_link_id == integrity_link.id:
+        raise HTTPException(status_code=422, detail="A dataset cannot be joined with itself")
+    # Rejects a joined dataset the caller cannot read: only its id is saved, and it
+    # is resolved again on each preview and process.
+    resolve_join_target(config.join, geo_ctx, datafeeder_session, group_ids)
     transformation = IntegrityTransformation(
         columns=config.columns or None,
         force_projection=force_proj,
@@ -1119,9 +1126,13 @@ def get_staging_preview(
             }
         )
 
+    join_target = resolve_join_target(
+        config.join if config else None, geo_ctx, datafeeder_session, group_ids
+    )
+
     try:
         preview = read_transformed_preview(
-            staging_table_name, engine, config, schema=schema, limit=limit
+            staging_table_name, engine, config, schema=schema, limit=limit, join_target=join_target
         )
 
         data = preview.rows

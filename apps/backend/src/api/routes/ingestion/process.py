@@ -34,6 +34,7 @@ from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.console_service import ConsoleService
 from src.services.executor_factory import get_task_executor
+from src.services.join_target import resolve_join_target
 from src.services.layer_publication import publish_final_table, read_table_extent
 from src.services.schedule_service import clear_schedule
 
@@ -119,6 +120,19 @@ def process_staging_data(
     if not staging_table_name:
         raise HTTPException(status_code=400, detail="Staging table name not found in IntegrityLink")
 
+    parsed_transformation = (
+        IntegrityTransformation.model_validate(integrity_link.integrity_transformation)
+        if integrity_link.integrity_transformation
+        else None
+    )
+    # Before any side effect: the joined dataset must still exist and be readable.
+    join_target = resolve_join_target(
+        parsed_transformation.join if parsed_transformation else None,
+        geo_ctx,
+        session,
+        group_ids,
+    )
+
     title = _normalize_title(request.title)
     dag_run_id = make_manual_process_run_id(
         str(integrity_link.id), int(datetime.now(timezone.utc).timestamp())
@@ -170,12 +184,6 @@ def process_staging_data(
     # Determine whether the data will end up geographic: either the staging table
     # already exposes a `geom` column, or the transformation config builds one
     # from X/Y columns during the process DAG (force_projection).
-    parsed_transformation = (
-        IntegrityTransformation.model_validate(integrity_link.integrity_transformation)
-        if integrity_link.integrity_transformation
-        else None
-    )
-
     try:
         staging_meta = MetaData(schema=get_staging_schema())
         staging_tbl = Table(staging_table_name, staging_meta, autoload_with=data_engine)
@@ -286,6 +294,7 @@ def process_staging_data(
             failure_callback_url=failure_callback_url,
             last_retrieval_timestamp=integrity_link.last_retrieval_timestamp,
             target_schema=target_schema,
+            join_target=join_target,
         )
 
         return ProcessResponse(

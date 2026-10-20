@@ -1,6 +1,7 @@
 """Data transformation models."""
 
 from enum import StrEnum
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -63,16 +64,26 @@ class ColumnConfig(BaseModel):
 
 
 class JoinConfig(BaseModel):
-    """LEFT JOIN of the staging table with another table of the same (data) database."""
+    """LEFT JOIN of the staging table with the final table of another dataset.
 
-    table_schema: str = Field(..., description="Schema of the table to join, e.g. an org schema")
-    table_name: str = Field(..., description="Name of the table to join")
+    The joined table is referenced by its dataset, never by schema/table name: the
+    backend resolves it, after checking that the caller can read that dataset.
+    """
+
+    integrity_link_id: UUID = Field(..., description="Dataset whose final table is joined")
     source_column: str = Field(..., description="Join key column of the staging table")
     target_column: str = Field(..., description="Join key column of the joined table")
     columns: list[str] = Field(
         default_factory=list,
         description="Columns of the joined table to add to the output. Empty = no join.",
     )
+
+
+class JoinTarget(BaseModel):
+    """Table joined by a :class:`JoinConfig`, resolved server side. Never persisted."""
+
+    table_schema: str = Field(..., description="Schema of the table to join, e.g. an org schema")
+    table_name: str = Field(..., description="Name of the table to join")
 
 
 class IntegrityTransformation(BaseModel):

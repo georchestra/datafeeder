@@ -50,7 +50,13 @@ from sqlalchemy.sql.expression import FromClause
 
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.logging import configure_logging
-from data_manipulation.models import CastType, ColumnConfig, IntegrityTransformation, JoinConfig
+from data_manipulation.models import (
+    CastType,
+    ColumnConfig,
+    IntegrityTransformation,
+    JoinConfig,
+    JoinTarget,
+)
 from data_manipulation.transformation.filter_sql import build_filter_clause
 from data_manipulation.validators import validate_schema_name, validate_table_name
 
@@ -186,14 +192,22 @@ def _geom_expr(table: Table, srid: int | None) -> ColumnElement[Any]:
     return expr.label(DEFAULT_GEOMETRY_COLUMN)
 
 
-def reflect_join_table(join: JoinConfig | None, engine: Engine) -> Table | None:
-    """Reflect the table targeted by *join*, or return ``None`` when there is no join."""
+def reflect_join_table(
+    join: JoinConfig | None, join_target: JoinTarget | None, engine: Engine
+) -> Table | None:
+    """Reflect *join_target*, the table joined by *join*, or return ``None`` when there is no join.
+
+    Raises:
+        ValueError: When *join* has columns but no *join_target* was resolved.
+    """
     if join is None or not join.columns:
         return None
-    validate_schema_name(join.table_schema)
-    validate_table_name(join.table_name)
-    metadata = MetaData(schema=join.table_schema)
-    return Table(join.table_name, metadata, autoload_with=engine)
+    if join_target is None:
+        raise ValueError("config.join is set but no join_target was provided")
+    validate_schema_name(join_target.table_schema)
+    validate_table_name(join_target.table_name)
+    metadata = MetaData(schema=join_target.table_schema)
+    return Table(join_target.table_name, metadata, autoload_with=engine)
 
 
 def _join_from_clause(
@@ -352,6 +366,7 @@ def transform_staging_to_final(
     staging_schema: str = "staging",
     final_schema: str = "data",
     create_id: bool = True,
+    join_target: JoinTarget | None = None,
 ) -> int:
     """Transform a staging table into a final table entirely in the database.
 
@@ -367,6 +382,7 @@ def transform_staging_to_final(
         staging_schema: Schema of the staging table.
         final_schema: Schema of the final table.
         create_id: When True, add an ``id_datafeeder`` UUID primary key.
+        join_target: Table joined by ``config.join``, resolved by the caller.
 
     Returns:
         Number of rows written to the final table.
@@ -379,7 +395,7 @@ def transform_staging_to_final(
     metadata = MetaData(schema=staging_schema)
     table = Table(staging_table, metadata, autoload_with=engine)
 
-    join_table = reflect_join_table(config.join if config else None, engine)
+    join_table = reflect_join_table(config.join if config else None, join_target, engine)
 
     tq = build_transformation_select(table, config, join_table)
     compiled = tq.select.compile(dialect=engine.dialect)
@@ -472,6 +488,7 @@ def read_transformed_preview(
     config: IntegrityTransformation | None = None,
     schema: str = "staging",
     limit: int | None = 10,
+    join_target: JoinTarget | None = None,
 ) -> PreviewResult:
     """Read a bounded, transformed preview of a staging table.
 
@@ -485,6 +502,7 @@ def read_transformed_preview(
         config: Transformation configuration (``None`` = passthrough).
         schema: Staging schema.
         limit: Maximum number of rows (``None`` = no limit).
+        join_target: Table joined by ``config.join``, resolved by the caller.
 
     Returns:
         A :class:`PreviewResult`.
@@ -495,7 +513,7 @@ def read_transformed_preview(
     metadata = MetaData(schema=schema)
     table = Table(staging_table, metadata, autoload_with=engine)
 
-    join_table = reflect_join_table(config.join if config else None, engine)
+    join_table = reflect_join_table(config.join if config else None, join_target, engine)
 
     tq = build_transformation_select(table, config, join_table)
     core = tq.select.subquery()
