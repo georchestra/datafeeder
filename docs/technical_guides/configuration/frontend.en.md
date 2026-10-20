@@ -16,7 +16,6 @@ The default file is [`apps/frontend/conf/default.toml`](https://github.com/georc
 
 Supported sections:
 
-- `[global]`: `geonetwork4_api_url` (mandatory), the GeoNetwork 4 API used by the metadata editor
 - `[theme]`: `primary_color`, `secondary_color`, `main_color`, `background_color` (mandatory), and optionally
   `main_font`, `title_font`, `fonts_stylesheet_url`, `favicon`
 - `[translations.xx]`: overrides of translation keys for language `xx`, for example:
@@ -28,8 +27,7 @@ Supported sections:
 
   They take precedence over both the datafeeder and the geonetwork-ui translations.
 
-The `[global]` and `[theme]` sections and their mandatory keys must always be present, otherwise the application
-does not start.
+The `[theme]` section and its mandatory colors must always be present, otherwise the application does not start.
 
 To use a different file per deployment, set the `CONFIG_DIRECTORY_OVERRIDE` environment variable of the frontend
 container to a directory containing a `default.toml`: it replaces the default one when the container starts. In the
