@@ -6,8 +6,11 @@ services:
     build:
       context: ../apps/frontend
       dockerfile: Dockerfile
-#    environment:
-#        - OVERRIDE_BASE_HREF=ds
+    environment:
+      - CONFIG_DIRECTORY_OVERRIDE=/etc/georchestra/datafeeder/frontend
+#      - OVERRIDE_BASE_HREF=ds
+    volumes:
+      - ./datadir:/etc/georchestra
     ports:
       - "8001:8080"
 
