@@ -4,13 +4,21 @@ import {
   HttpTestingController,
   provideHttpClientTesting
 } from '@angular/common/http/testing'
+import { getCustomTranslations } from 'geonetwork-ui'
+import { vi } from 'vitest'
 import { DatafeederTranslateLoader } from './translate.loader'
+
+vi.mock('geonetwork-ui', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('geonetwork-ui')>()),
+  getCustomTranslations: vi.fn()
+}))
 
 describe('DatafeederTranslateLoader', () => {
   let loader: DatafeederTranslateLoader
   let httpMock: HttpTestingController
 
   beforeEach(() => {
+    vi.mocked(getCustomTranslations).mockReturnValue({})
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -40,6 +48,30 @@ describe('DatafeederTranslateLoader', () => {
       dfOnly: 'DF',
       overridden: 'DF',
       emptyInDf: 'GN'
+    })
+  })
+
+  it('applies the translation overrides from the configuration last', () => {
+    vi.mocked(getCustomTranslations).mockReturnValue({
+      overridden: 'TOML',
+      tomlOnly: 'TOML'
+    })
+    let result: unknown
+    loader.getTranslation('fr').subscribe((t) => (result = t))
+
+    httpMock
+      .expectOne('./assets/i18n/gn-ui/fr.json')
+      .flush({ gnOnly: 'GN', overridden: 'GN' })
+    httpMock
+      .expectOne('./assets/i18n/fr.json')
+      .flush({ dfOnly: 'DF', overridden: 'DF' })
+
+    expect(getCustomTranslations).toHaveBeenCalledWith('fr')
+    expect(result).toEqual({
+      gnOnly: 'GN',
+      dfOnly: 'DF',
+      overridden: 'TOML',
+      tomlOnly: 'TOML'
     })
   })
 })
