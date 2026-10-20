@@ -8,6 +8,34 @@ backend's OpenAPI schema (`apps/frontend/src/app/core/api/`).
 - In development, the frontend expects the backend on `http://localhost:8000` (see the [quick-start](../installation/quickstart.md)).
 - Behind the gateway, requests are routed to the backend at `/datafeeder-backend/`.
 
+## Configuration file (`default.toml`)
+
+At startup the frontend loads `assets/configuration/default.toml`, using the
+[geonetwork-ui configuration system](https://geonetwork.github.io/geonetwork-ui/main/docs/guide/configure.html).
+The default file is [`apps/frontend/conf/default.toml`](https://github.com/georchestra/datafeeder/blob/main/apps/frontend/conf/default.toml).
+
+Supported sections:
+
+- `[global]`: `geonetwork4_api_url` (mandatory), the GeoNetwork 4 API used by the metadata editor
+- `[theme]`: `primary_color`, `secondary_color`, `main_color`, `background_color` (mandatory), and optionally
+  `main_font`, `title_font`, `fonts_stylesheet_url`, `favicon`
+- `[translations.xx]`: overrides of translation keys for language `xx`, for example:
+
+  ```toml
+  [translations.fr]
+  integrityLinks.dashboard = "Mes jeux de données"
+  ```
+
+  They take precedence over both the datafeeder and the geonetwork-ui translations.
+
+The `[global]` and `[theme]` sections and their mandatory keys must always be present, otherwise the application
+does not start.
+
+To use a different file per deployment, set the `CONFIG_DIRECTORY_OVERRIDE` environment variable of the frontend
+container to a directory containing a `default.toml`: it replaces the default one when the container starts. In the
+docker composition, this is `docker/datadir/datafeeder/frontend/default.toml`, mounted at
+`/etc/georchestra/datafeeder/frontend`.
+
 ## Regenerating the API client
 
 Whenever the backend's OpenAPI schema changes (new/changed routes or models), the frontend client must be
