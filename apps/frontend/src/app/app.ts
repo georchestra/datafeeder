@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { RouterModule } from '@angular/router'
-import { ThemeService } from 'geonetwork-ui'
+import { getThemeConfig, ThemeService } from 'geonetwork-ui'
 
 @Component({
   imports: [RouterModule],
@@ -10,13 +10,16 @@ import { ThemeService } from 'geonetwork-ui'
 })
 export class App {
   constructor() {
+    const theme = getThemeConfig()
     ThemeService.applyCssVariables(
-      '#E30513',
-      '#007A80',
-      '#212029',
-      'white',
-      'Lato',
-      'Lato'
+      theme.PRIMARY_COLOR,
+      theme.SECONDARY_COLOR,
+      theme.MAIN_COLOR,
+      theme.BACKGROUND_COLOR,
+      theme.MAIN_FONT || 'Lato',
+      theme.TITLE_FONT || 'Lato',
+      theme.FONTS_STYLESHEET_URL
     )
+    if (theme.FAVICON) ThemeService.setFavicon(theme.FAVICON)
   }
 }
