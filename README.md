@@ -59,13 +59,13 @@ The Datafeeder application is accessible through a gateway that handles authenti
 - **URL**: http://localhost:8080/
 - **Credentials**: `testadmin/testadmin`
 
-It redirects, by default, to the frontend at http://localhost:8080/datafeeder/.
+It redirects, by default, to the frontend at http://localhost:8080/dataset/.
 
 ### Frontend
 
 The Datafeeder frontend is built with Angular 20 and provides the user interface for managing data ingestion workflows. It features a modern, component-based architecture using Tailwind CSS for styling.
 
-- **Gateway URL**: http://localhost:8080/datafeeder/
+- **Gateway URL**: http://localhost:8080/dataset/
 - **URL**: http://localhost:8001/
 
 For detailed information about the frontend application structure, development setup, and guidelines, see the [frontend README](./apps/frontend/README.md).

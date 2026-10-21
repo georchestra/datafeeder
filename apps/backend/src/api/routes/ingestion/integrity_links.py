@@ -3,7 +3,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import Column, MetaData, String, Table, and_, case, exists, or_
+from sqlalchemy import Column, MetaData, String, Table, and_, case, exists, func, or_
 from sqlalchemy import select as sa_select
 from sqlmodel import Session, col
 
@@ -97,6 +97,37 @@ def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tu
     return existing
 
 
+def _final_table_exists(lnk: IntegrityLink, existing_final: set[tuple[str, str]]) -> bool:
+    if not lnk.final_table_name:
+        return False
+    return (get_data_schema(lnk.integrity_organization), lnk.final_table_name) in existing_final
+
+
+def _is_listed(
+    lnk: IntegrityLink, staging_tables: set[str], existing_final: set[tuple[str, str]]
+) -> bool:
+    """Links without data (empty/prefilled) are always listed; others need a staging or final table."""
+    return (
+        lnk.source_import_type in (ImportType.EMPTY, ImportType.PREFILLED)
+        or bool(lnk.staging_table_name and lnk.staging_table_name in staging_tables)
+        or _final_table_exists(lnk, existing_final)
+    )
+
+
+def _count_orphans(query: Any, session: Session, data_session: Session) -> int:
+    """Count links matching `query` that the listing drops for lack of staging/final table."""
+    candidates = session.execute(  # type: ignore[reportDeprecated]
+        query.where(
+            col(IntegrityLink.source_import_type).not_in(
+                [ImportType.EMPTY.value, ImportType.PREFILLED.value]
+            )
+        )
+    ).all()
+    staging_tables = _check_staging_existence(candidates, data_session)
+    existing_final = _check_final_existence(candidates, data_session)
+    return sum(1 for lnk, *_ in candidates if not _is_listed(lnk, staging_tables, existing_final))
+
+
 # Any IntegrityLinkRule row counts, unlike build_access_expr's caller-scoped subquery.
 _rule_exists = exists(
     sa_select(col(IntegrityLinkRule.id)).where(
@@ -160,7 +191,7 @@ def list_integrity_links(
         recurrence: Recurrence presets to include (OR'd together)
 
     Returns:
-        IntegrityLinkListResponse with items, has_more flag, and current offset
+        IntegrityLinkListResponse with items, has_more flag, current offset and total count
     """
     is_admin = geo_ctx.is_administrator()
 
@@ -217,22 +248,12 @@ def list_integrity_links(
         staging_tables = _check_staging_existence(rows, data_session)
         existing_final = _check_final_existence(rows, data_session)
 
-        def _final_exists(lnk: IntegrityLink) -> bool:
-            if not lnk.final_table_name:
-                return False
-            return (
-                get_data_schema(lnk.integrity_organization),
-                lnk.final_table_name,
-            ) in existing_final
-
         for i, row in enumerate(rows):
             link = row[0]
-            if (
-                link.source_import_type in (ImportType.EMPTY, ImportType.PREFILLED)
-                or (link.staging_table_name and link.staging_table_name in staging_tables)
-                or _final_exists(link)
-            ):
-                accumulated.append((row, _final_exists(link), fetch_offset + i))
+            if _is_listed(link, staging_tables, existing_final):
+                accumulated.append(
+                    (row, _final_table_exists(link, existing_final), fetch_offset + i)
+                )
 
         if last_chunk_len < BATCH_SIZE + 1:
             break  # DB exhausted
@@ -252,6 +273,13 @@ def list_integrity_links(
     has_more = len(accumulated) > BATCH_SIZE
     items_rows = accumulated[:BATCH_SIZE]
     next_offset = accumulated[BATCH_SIZE][2] if has_more else fetch_offset + last_chunk_len
+
+    # Total matching the filters regardless of pagination: SQL count minus the links the
+    # listing drops for lack of staging/final table (checked across all pages).
+    matching = session.execute(  # type: ignore[reportDeprecated]
+        sa_select(func.count()).select_from(query.subquery())
+    ).scalar_one()
+    total = matching - _count_orphans(query, session, data_session)
 
     logger.info(
         f"Listed {len(items_rows)} integrity links for user '{geo_ctx.username}' "
@@ -279,6 +307,7 @@ def list_integrity_links(
         has_more=has_more,
         offset=offset,
         next_offset=next_offset,
+        total=total,
     )
 
 

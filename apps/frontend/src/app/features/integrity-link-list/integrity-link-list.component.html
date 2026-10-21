@@ -18,6 +18,15 @@
     <div class="mb-4 border-t border-gray-200 pt-3">
       <span class="mb-2 block text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.filters.title' | translate }}
+        @if (total() !== null) {
+        <span class="font-normal text-gray-500">
+          -
+          {{
+            'integrityLinks.filters.resultCount'
+              | translate : { count: total() }
+          }}
+        </span>
+        }
       </span>
       <div class="flex items-center justify-between">
         <!-- Statut has no backend support yet — empty choices, not wired to any filter. -->
