@@ -9,11 +9,16 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 from fastapi.routing import APIRoute
+from starlette.routing import Match
 
 from src.api.routes.ingestion.integrity_link_admin import (
     delete_integrity_link_admin,
     export_integrity_link,
+    export_table_data,
+    get_integrity_link_by_metadata,
+    get_table_data_status,
     import_integrity_link,
+    import_table_data,
     reassign_integrity_link_ownership,
     router,
 )
@@ -30,6 +35,7 @@ from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
 from src.services.layer_publication import DatastoreSchemaMismatchError
+from src.services.table_transfer import TableTransferError
 
 MODULE = "src.api.routes.ingestion.integrity_link_admin"
 LINK_ID = uuid4()
@@ -179,7 +185,7 @@ async def _import(
 
 @pytest.mark.asyncio
 class TestImportAttach:
-    """The data is already on the platform (copied by maelstro): the link is only registered."""
+    """The table is already on the platform (copied with PUT .../data): the link is only registered."""
 
     async def test_existing_table_and_layer_attaches_without_dag(
         self, import_mocks: dict[str, MagicMock]
@@ -803,4 +809,205 @@ class TestAdminDelete:
     def test_non_admin_is_forbidden(self) -> None:
         with pytest.raises(HTTPException) as exc:
             self._delete(ctx=_ctx(admin=False), delete_layer=False, delete_metadata=False)
+        assert exc.value.status_code == 403
+
+
+def _matching_route(method: str, path: str) -> APIRoute:
+    """First route of the router serving this request, as Starlette resolves it."""
+    scope = {"type": "http", "method": method, "path": path}
+    return next(
+        r for r in router.routes if isinstance(r, APIRoute) and r.matches(scope)[0] == Match.FULL
+    )
+
+
+class TestRoutesOrder:
+    def test_by_metadata_is_not_captured_by_the_link_routes(self) -> None:
+        route = _matching_route("GET", "/ingestion/integrity-link/by-metadata/data")
+        assert route.endpoint is get_integrity_link_by_metadata
+
+    def test_table_data_import_is_not_captured_by_the_link_routes(self) -> None:
+        route = _matching_route("PUT", "/ingestion/integrity-link/data/MEL/ownership")
+        assert route.endpoint is import_table_data
+
+
+class TestByMetadata:
+    def test_returns_the_dataset_of_the_record(self) -> None:
+        session = _session(conflict=_link())
+
+        result = get_integrity_link_by_metadata(session, _ctx(), str(LINK_ID))
+
+        assert result.id == LINK_ID
+
+    def test_unknown_record_is_not_found(self) -> None:
+        with pytest.raises(HTTPException) as exc:
+            get_integrity_link_by_metadata(_session(), _ctx(), "unknown")
+        assert exc.value.status_code == 404
+
+    def test_non_admin_is_forbidden(self) -> None:
+        with pytest.raises(HTTPException) as exc:
+            get_integrity_link_by_metadata(_session(), _ctx(admin=False), str(LINK_ID))
+        assert exc.value.status_code == 403
+
+
+class TestExportTableData:
+    def _export_data(self, link: IntegrityLink, schema: str | None = "mel") -> Any:
+        with (
+            patch(f"{MODULE}._get_integrity_link", return_value=link),
+            patch(f"{MODULE}._locate_final_table", return_value=schema) as locate,
+            patch(f"{MODULE}.dump_table", return_value=iter([b"gz"])) as dump,
+        ):
+            response = export_table_data(MagicMock(), _ctx(), _geoserver(), LINK_ID)
+        return response, locate, dump
+
+    def test_streams_the_table_found_from_the_layer_workspace(self) -> None:
+        response, locate, dump = self._export_data(_link(data_id="ville_roubaix:voie_nommee"))
+
+        assert response.media_type == "application/gzip"
+        assert locate.call_args.args[1] == "ville_roubaix"
+        dump.assert_called_once_with("mel", "voie_nommee")
+
+    def test_missing_table_is_not_found(self) -> None:
+        with pytest.raises(HTTPException) as exc:
+            self._export_data(_link(), schema=None)
+        assert exc.value.status_code == 404
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            {"final_table_name": None},
+            {"source_import_type": ImportType.PREFILLED},
+            {"source_import_type": ImportType.EMPTY},
+        ],
+    )
+    def test_dataset_without_managed_table_is_not_found(self, overrides: dict[str, Any]) -> None:
+        with pytest.raises(HTTPException) as exc:
+            self._export_data(_link(**overrides))
+        assert exc.value.status_code == 404
+
+    def test_non_admin_is_forbidden(self) -> None:
+        with pytest.raises(HTTPException) as exc:
+            export_table_data(MagicMock(), _ctx(admin=False), _geoserver(), LINK_ID)
+        assert exc.value.status_code == 403
+
+
+def _body_request(*chunks: bytes) -> MagicMock:
+    async def stream() -> Any:
+        for chunk in chunks:
+            yield chunk
+
+    request = MagicMock()
+    request.stream = stream
+    return request
+
+
+@pytest.fixture
+def table_data_mocks() -> Iterator[dict[str, MagicMock]]:
+    def restore(stream: Any, _schema: str, _table: str) -> int:
+        restore.body = stream.read()  # type: ignore[attr-defined]
+        return 42
+
+    with (
+        patch(f"{MODULE}.table_exists", return_value=False) as table_exists,
+        patch(f"{MODULE}.get_data_schema", side_effect=_schema_per_org),
+        patch(f"{MODULE}.create_schema") as create_schema,
+        patch(f"{MODULE}.restore_table", side_effect=restore) as restore_table,
+    ):
+        yield {
+            "table_exists": table_exists,
+            "create_schema": create_schema,
+            "restore_table": restore_table,
+            "restore": restore,  # type: ignore[dict-item]
+        }
+
+
+@pytest.mark.asyncio
+class TestImportTableData:
+    async def _put(
+        self,
+        organization: str = "MEL",
+        table: str = "voie_nommee",
+        session: MagicMock | None = None,
+        ctx: GeorchestraContext | None = None,
+    ) -> Any:
+        return await import_table_data(
+            _body_request(b"part1-", b"part2"),
+            session if session is not None else _session(),
+            ctx or _ctx(),
+            organization,
+            table,
+        )
+
+    async def test_restores_the_body_in_the_organization_schema(
+        self, table_data_mocks: dict[str, Any]
+    ) -> None:
+        result = await self._put()
+
+        assert (result.schema_name, result.table_name, result.row_count) == (
+            "mel",
+            "voie_nommee",
+            42,
+        )
+        table_data_mocks["create_schema"].assert_called_once()
+        assert table_data_mocks["restore_table"].call_args.args[1:] == ("mel", "voie_nommee")
+        assert table_data_mocks["restore"].body == b"part1-part2"
+
+    async def test_existing_table_is_a_conflict(self, table_data_mocks: dict[str, Any]) -> None:
+        table_data_mocks["table_exists"].return_value = True
+        with pytest.raises(HTTPException) as exc:
+            await self._put()
+        assert exc.value.status_code == 409
+        table_data_mocks["restore_table"].assert_not_called()
+
+    async def test_table_name_used_by_a_dataset_is_a_conflict(
+        self, table_data_mocks: dict[str, Any]
+    ) -> None:
+        with pytest.raises(HTTPException) as exc:
+            await self._put(session=_session(conflict=_link()))
+        assert exc.value.status_code == 409
+        table_data_mocks["restore_table"].assert_not_called()
+
+    async def test_invalid_table_name_is_rejected(self, table_data_mocks: dict[str, Any]) -> None:
+        with pytest.raises(HTTPException) as exc:
+            await self._put(table='voie"; DROP TABLE x; --')
+        assert exc.value.status_code == 400
+        table_data_mocks["restore_table"].assert_not_called()
+
+    async def test_rejected_stream_is_a_bad_request(self, table_data_mocks: dict[str, Any]) -> None:
+        table_data_mocks["restore_table"].side_effect = TableTransferError("Truncated stream")
+        with pytest.raises(HTTPException) as exc:
+            await self._put()
+        assert exc.value.status_code == 400
+        assert exc.value.detail == "Truncated stream"
+
+    async def test_non_admin_is_forbidden(self, table_data_mocks: dict[str, Any]) -> None:
+        with pytest.raises(HTTPException) as exc:
+            await self._put(ctx=_ctx(admin=False))
+        assert exc.value.status_code == 403
+
+
+class TestTableDataStatus:
+    def test_reports_the_table_and_the_dataset_using_its_name(
+        self, table_data_mocks: dict[str, Any]
+    ) -> None:
+        table_data_mocks["table_exists"].return_value = True
+
+        result = get_table_data_status(_session(conflict=_link()), _ctx(), "MEL", "voie_nommee")
+
+        assert (result.schema_name, result.table_name) == ("mel", "voie_nommee")
+        assert result.exists is True
+        assert result.used_by == LINK_ID
+
+    def test_free_name(self, table_data_mocks: dict[str, Any]) -> None:
+        result = get_table_data_status(_session(), _ctx(), "MEL", "voie_nommee")
+
+        assert result.exists is False and result.used_by is None
+
+    def test_invalid_table_name_is_rejected(self, table_data_mocks: dict[str, Any]) -> None:
+        with pytest.raises(HTTPException) as exc:
+            get_table_data_status(_session(), _ctx(), "MEL", "Voie;")
+        assert exc.value.status_code == 400
+
+    def test_non_admin_is_forbidden(self) -> None:
+        with pytest.raises(HTTPException) as exc:
+            get_table_data_status(_session(), _ctx(admin=False), "MEL", "voie_nommee")
         assert exc.value.status_code == 403
