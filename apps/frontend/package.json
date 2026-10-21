@@ -19,19 +19,19 @@
   },
   "private": true,
   "dependencies": {
-    "@angular/animations": "20.3.33",
+    "@angular/animations": "20.3.34",
     "@angular/cdk": "20.2.14",
-    "@angular/common": "20.3.33",
-    "@angular/compiler": "20.3.33",
-    "@angular/core": "20.3.33",
-    "@angular/elements": "20.3.33",
-    "@angular/forms": "20.3.33",
+    "@angular/common": "20.3.34",
+    "@angular/compiler": "20.3.34",
+    "@angular/core": "20.3.34",
+    "@angular/elements": "20.3.34",
+    "@angular/forms": "20.3.34",
     "@angular/material": "20.2.14",
     "@angular/material-moment-adapter": "20.2.14",
-    "@angular/platform-browser": "20.3.33",
-    "@angular/platform-browser-dynamic": "20.3.33",
-    "@angular/platform-server": "20.3.33",
-    "@angular/router": "20.3.33",
+    "@angular/platform-browser": "20.3.34",
+    "@angular/platform-browser-dynamic": "20.3.34",
+    "@angular/platform-server": "20.3.34",
+    "@angular/router": "20.3.34",
     "@biesbjerg/ngx-translate-extract-marker": "~1.0.0",
     "@ngrx/component": "20.1.0",
     "@ngrx/effects": "20.1.0",
@@ -50,12 +50,12 @@
   "devDependencies": {
     "@analogjs/vite-plugin-angular": "^2.1.0",
     "@analogjs/vitest-angular": "^2.1.0",
-    "@angular-devkit/core": "20.3.39",
-    "@angular-devkit/schematics": "20.3.39",
-    "@angular/build": "20.3.39",
-    "@angular/cli": "20.3.39",
-    "@angular/compiler-cli": "20.3.33",
-    "@angular/language-service": "20.3.33",
+    "@angular-devkit/core": "20.3.40",
+    "@angular-devkit/schematics": "20.3.40",
+    "@angular/build": "20.3.40",
+    "@angular/cli": "20.3.40",
+    "@angular/compiler-cli": "20.3.34",
+    "@angular/language-service": "20.3.34",
     "@eslint/js": "^9.8.0",
     "@schematics/angular": "~20.3.0",
     "@swc-node/register": "~1.9.1",
@@ -84,13 +84,14 @@
     "tslib": "^2.3.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.40.0",
-    "vite": "^7.3.2",
+    "vite": "^7.3.7",
     "vitest": "^3.1.1"
   },
   "overrides": {
     "geonetwork-ui": {
       "@ngx-translate/core": "$@ngx-translate/core",
       "@ngx-translate/http-loader": "$@ngx-translate/http-loader"
-    }
+    },
+    "vite": "$vite"
   }
 }
