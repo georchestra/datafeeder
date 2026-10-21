@@ -182,3 +182,29 @@ class ConsoleService:
         except ValueError as exc:
             logger.error("Console returned invalid JSON from %s", url)
             raise ValueError(f"Console returned invalid JSON from {url}") from exc
+
+    def fetch_organization_long_names(self, short_names: list[str]) -> dict[str, str]:
+        """Resolve organization short names to long names via the console.
+
+        Args:
+            short_names: List of organization short names to resolve.
+
+        Returns:
+            Dict mapping short name -> long name. Short names with no match are omitted.
+            Returns empty dict on any error (graceful degradation).
+        """
+        if not short_names:
+            return {}
+        try:
+            organizations = self.get_all_organizations()
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch organization names from console API: {e}", exc_info=True
+            )
+            return {}
+
+        return {
+            org["shortName"]: org["name"]
+            for org in organizations
+            if org.get("shortName") in short_names and org.get("name")
+        }

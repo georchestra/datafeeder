@@ -203,6 +203,43 @@ describe('IntegrityLinkListComponent', () => {
     })
   })
 
+  describe('Organization column', () => {
+    it('should display the organization long name with a title tooltip, falling back to the short name', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+
+      const req = httpMock.expectOne(
+        'http://localhost:8000/ingestion/integrity-links/?offset=0'
+      )
+      req.flush({
+        items: [
+          {
+            ...createMockItem('1'),
+            organization_display_name: 'Organisation Longue'
+          },
+          createMockItem('2')
+        ],
+        has_more: false,
+        offset: 0
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      fixture.detectChanges()
+
+      const cells = Array.from<HTMLElement>(
+        fixture.nativeElement.querySelectorAll('.group > div:nth-child(2)')
+      )
+
+      expect(cells.map((el) => el.textContent?.trim())).toEqual([
+        'Organisation Longue',
+        'org'
+      ])
+      expect(cells.map((el) => el.title)).toEqual([
+        'Organisation Longue',
+        'org'
+      ])
+    })
+  })
+
   describe('Load More Pagination', () => {
     it('should append items when loadMore() is called', async () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)

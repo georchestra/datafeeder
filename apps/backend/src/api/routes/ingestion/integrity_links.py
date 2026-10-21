@@ -271,8 +271,13 @@ def list_integrity_links(
     display_names = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).fetch_users_by_usernames(
         usernames
     )
+    organizations = list({item.integrity_organization for item in items})
+    organization_names = ConsoleService(
+        get_settings().CONSOLE_INTERNAL_URL
+    ).fetch_organization_long_names(organizations)
     for item in items:
         item.owner_display_name = display_names.get(item.integrity_owner)
+        item.organization_display_name = organization_names.get(item.integrity_organization)
 
     return IntegrityLinkListResponse(
         items=items,

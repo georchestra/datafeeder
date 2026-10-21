@@ -26,6 +26,7 @@ export interface IntegrityLinkListItem {
   integrity_title: string | null
   last_retrieval_timestamp: string | null
   metadata_id: string | null
+  organization_display_name?: string | null
   owner_display_name?: string | null
   preset_id?: RecurrencePreset | null
   public_access?: PublicAccess

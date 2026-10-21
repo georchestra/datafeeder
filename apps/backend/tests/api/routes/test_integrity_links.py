@@ -31,6 +31,7 @@ def mock_console_service():
     """Patch ConsoleService so tests don't hit the network; returns empty display names by default."""
     with patch(_CONSOLE_PATCH) as mock_cls:
         mock_cls.return_value.fetch_users_by_usernames.return_value = {}
+        mock_cls.return_value.fetch_organization_long_names.return_value = {}
         yield mock_cls
 
 
@@ -771,6 +772,42 @@ class TestListIntegrityLinks:
         )
 
         assert response.items[0].owner_display_name is None
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_organization_display_name_populated_from_console(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
+    ) -> None:
+        """organization_display_name is the console long name of the owning organization."""
+        link = IntegrityLink(
+            id=uuid4(),
+            integrity_title="Org Link",
+            integrity_owner="jdoe",
+            integrity_organization="testorg",
+            source_import_type=ImportType.URL,
+            staging_table_name="staging_org",
+            created_at=datetime.now(timezone.utc),
+            schedule_enabled=False,
+        )
+        self._setup_session(mock_session, [link])
+        self._setup_data_session(mock_data_session, ["staging_org"], [])
+        mock_console_service.return_value.fetch_organization_long_names.return_value = {
+            "testorg": "Test Organization"
+        }
+
+        geo_ctx = self._create_geo_ctx("jdoe", {"IMPORT"})
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=geo_ctx,
+            group_ids=[],
+            offset=0,
+        )
+
+        assert response.items[0].organization_display_name == "Test Organization"
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_next_offset_present_no_more(
