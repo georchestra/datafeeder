@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.dialects import postgresql
 
 from src.api.routes.groups_common import GroupItem
 from src.api.routes.ingestion.integrity_links import (
@@ -1170,12 +1171,13 @@ class TestListIntegrityLinkOwners:
             organization="",
         )
 
-    def test_returns_distinct_owners_with_console_display_name(
+    def test_returns_owners_in_query_order_with_console_display_name(
         self, mock_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         mock_session.execute.return_value.scalars.return_value.all.return_value = [
             "jdoe",
             "asmith",
+            "bob",
         ]
         mock_console_service.return_value.fetch_users_by_usernames.return_value = {
             "jdoe": "John Doe"
@@ -1186,9 +1188,26 @@ class TestListIntegrityLinkOwners:
         )
 
         assert response == [
-            GroupItem(id="asmith", label="asmith"),
             GroupItem(id="jdoe", label="John Doe"),
+            GroupItem(id="asmith", label="asmith"),
+            GroupItem(id="bob", label="bob"),
         ]
+
+    def test_query_orders_by_count_desc_then_owner(
+        self, mock_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+
+        list_integrity_link_owners(
+            session=mock_session, geo_ctx=self._geo_ctx("admin", {"ADMINISTRATOR"}), group_ids=[]
+        )
+
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        query_str = str(executed_query.compile(dialect=postgresql.dialect()))
+        assert query_str.endswith(
+            "GROUP BY datafeeder.integrity_link.integrity_owner "
+            "ORDER BY count(*) DESC, datafeeder.integrity_link.integrity_owner"
+        )
 
     def test_empty_when_no_accessible_links(
         self, mock_session: MagicMock, mock_console_service: MagicMock
