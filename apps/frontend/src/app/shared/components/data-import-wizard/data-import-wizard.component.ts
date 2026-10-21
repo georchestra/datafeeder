@@ -16,6 +16,8 @@ import { NgIconComponent, provideIcons } from '@ng-icons/core'
 import { ActivatedRoute, Router } from '@angular/router'
 import {
   iconoirMap,
+  iconoirNavArrowDown,
+  iconoirNavArrowUp,
   iconoirTable,
   iconoirWarningTriangle,
   iconoirXmark
@@ -52,6 +54,7 @@ import type {
   ColumnConfig,
   TaskStatus,
   ForceProjection,
+  JoinConfig,
   StagingResponse,
   StagingMetadataResponse,
   StagingPreviewResponse
@@ -68,6 +71,7 @@ import type {
 } from '../column-action-menu/column-action-menu.component'
 import type { ColumnFilter } from '../../../core/api/models/column-filter'
 import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
+import { DatasetJoinComponent } from '../dataset-join/dataset-join.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 import { TechnicalInfoButtonComponent } from '../technical-info-button/technical-info-button.component'
@@ -115,6 +119,7 @@ export interface ImportWizardData {
     TranslatePipe,
     DatasetPreviewTableComponent,
     DatasetPreviewMapComponent,
+    DatasetJoinComponent,
     UiAlertBoxComponent,
     RecurrenceSelectorComponent,
     TechnicalInfoButtonComponent
@@ -124,6 +129,8 @@ export interface ImportWizardData {
   providers: [
     provideIcons({
       iconoirMap,
+      iconoirNavArrowDown,
+      iconoirNavArrowUp,
       iconoirTable,
       iconoirWarningTriangle,
       iconoirXmark
@@ -141,6 +148,7 @@ export class DataImportWizardComponent {
 
   readonly footerTpl = viewChild<TemplateRef<unknown>>('footerTpl')
   readonly titleConfig = viewChild<DatasetTitleComponent>('titleConfig')
+  readonly previewTable = viewChild(DatasetPreviewTableComponent)
 
   private renameSubject = new Subject<{
     originalName: string
@@ -216,8 +224,23 @@ export class DataImportWizardComponent {
   forceProjection = signal<ForceProjection | null>(null)
   configSaving = signal(false)
 
+  join = signal<JoinConfig | null>(null)
+  joinOpen = signal(false)
+  // Mirrors the names the backend reserves before joining: excluded columns
+  // free their name, and a point built from X/Y takes the geom column.
+  joinClashes = computed(() => {
+    const names = this.columnConfigs()
+      .filter((col) => !col.excluded)
+      .map((col) => col.new_name ?? col.original_name)
+    const projection = this.forceProjection()
+    if (projection?.x_column && projection.y_column) names.push('geom')
+    return (this.join()?.columns ?? []).filter((col) => names.includes(col))
+  })
+
   columnNameErrors = signal<Set<string>>(new Set())
-  hasColumnNameError = computed(() => this.columnNameErrors().size > 0)
+  hasColumnNameError = computed(
+    () => this.columnNameErrors().size > 0 || this.joinClashes().length > 0
+  )
 
   isGeographicData = computed(() => {
     const preview = this.preview()
@@ -272,6 +295,7 @@ export class DataImportWizardComponent {
           if (metadata) {
             this.columnConfigs.set(metadata.columns)
             this.forceProjection.set(metadata.force_projection ?? null)
+            this.join.set(metadata.join ?? null)
           }
           await this.refreshPreview(linkId, false)
         }
@@ -388,6 +412,28 @@ export class DataImportWizardComponent {
       )
     )
     this.saveConfigAndRefresh()
+  }
+
+  // The join is only persisted once a column is added, so a change is saved
+  // when columns were or are now part of the join.
+  onJoinChange(join: JoinConfig): void {
+    const before = this.join()?.columns?.length ?? 0
+    const after = join.columns?.length ?? 0
+    this.join.set(join)
+    if (before || after) this.saveConfigAndRefresh()
+    if (after > before) this.previewTable()?.scrollToEnd()
+  }
+
+  // Clashing columns are left out, like an invalid rename is never sent.
+  private joinPayload(): JoinConfig | null {
+    const join = this.join()
+    const clashes = this.joinClashes()
+    const columns = (join?.columns ?? []).filter(
+      (col) => !clashes.includes(col)
+    )
+    return join?.source_column && join.target_column && columns.length
+      ? { ...join, columns }
+      : null
   }
 
   onSourceChanged(data: SourceData) {
@@ -610,7 +656,8 @@ export class DataImportWizardComponent {
             columns: this.columnConfigs(),
             title: this.metadata()?.title ?? '',
             file_type: this.metadata()?.file_type ?? null,
-            force_projection: this.forceProjection()
+            force_projection: this.forceProjection(),
+            join: this.joinPayload()
           }
         }
       )
