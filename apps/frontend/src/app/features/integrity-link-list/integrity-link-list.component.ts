@@ -95,6 +95,7 @@ export class IntegrityLinkListComponent {
   integrityLinks = signal<IntegrityLinkListItem[]>([])
   loading = signal<boolean>(true)
   hasMore = signal<boolean>(false)
+  total = signal<number | null>(null)
   loadingMore = signal<boolean>(false)
   searchQuery = signal('')
   selectedOrganization = signal<string[]>([])
@@ -224,6 +225,7 @@ export class IntegrityLinkListComponent {
         this.integrityLinks.update((items) => [...items, ...response.items])
       } else {
         this.integrityLinks.set(response.items)
+        this.total.set(response.total ?? null)
       }
       this.hasMore.set(response.has_more)
       this.nextOffset.set(response.next_offset)
@@ -302,6 +304,7 @@ export class IntegrityLinkListComponent {
         { integrity_link_id: id }
       )
       this.integrityLinks.update((items) => items.filter((l) => l.id !== id))
+      this.total.update((total) => (total === null ? null : total - 1))
     } catch (error) {
       console.error('Failed to delete integrity link:', error)
       this.operationToastStore.addError('deletion')

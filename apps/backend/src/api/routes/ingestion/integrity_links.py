@@ -56,8 +56,8 @@ _info_columns = Table(
 )
 
 
-def _check_staging_existence(rows: Sequence[Any], data_session: Session) -> set[str]:
-    staging_candidates = {lnk.staging_table_name for lnk, *_ in rows if lnk.staging_table_name}
+def _check_staging_existence(links: Sequence[Any], data_session: Session) -> set[str]:
+    staging_candidates = {lnk.staging_table_name for lnk in links if lnk.staging_table_name}
     if not staging_candidates:
         return set()
     return set(
@@ -72,11 +72,11 @@ def _check_staging_existence(rows: Sequence[Any], data_session: Session) -> set[
     )
 
 
-def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tuple[str, str]]:
+def _check_final_existence(links: Sequence[Any], data_session: Session) -> set[tuple[str, str]]:
     # Group final candidates by their target schema (org-specific or shared "data").
     # A single query per distinct schema avoids cross-schema false positives.
     final_candidates_by_schema: dict[str, set[str]] = {}
-    for lnk, *_ in rows:
+    for lnk in links:
         if lnk.final_table_name:
             schema = get_data_schema(lnk.integrity_organization)
             final_candidates_by_schema.setdefault(schema, set()).add(lnk.final_table_name)
@@ -95,6 +95,40 @@ def _check_final_existence(rows: Sequence[Any], data_session: Session) -> set[tu
         )
         existing.update((schema, name) for name in found)
     return existing
+
+
+def _final_table_exists(lnk: Any, existing_final: set[tuple[str, str]]) -> bool:
+    if not lnk.final_table_name:
+        return False
+    return (get_data_schema(lnk.integrity_organization), lnk.final_table_name) in existing_final
+
+
+def _is_listed(lnk: Any, staging_tables: set[str], existing_final: set[tuple[str, str]]) -> bool:
+    """Links without data (empty/prefilled) are always listed; others need a staging or final table."""
+    return (
+        lnk.source_import_type in (ImportType.EMPTY, ImportType.PREFILLED)
+        or bool(lnk.staging_table_name and lnk.staging_table_name in staging_tables)
+        or _final_table_exists(lnk, existing_final)
+    )
+
+
+def _count_listed(query: Any, session: Session, data_session: Session) -> int:
+    """Count the links matching `query` that the listing keeps, across all pages.
+
+    Selects only the columns `_is_listed` reads, in one query, so the count is taken
+    from a single snapshot of the matching links.
+    """
+    links = session.execute(  # type: ignore[reportDeprecated]
+        query.with_only_columns(
+            col(IntegrityLink.source_import_type),
+            col(IntegrityLink.staging_table_name),
+            col(IntegrityLink.final_table_name),
+            col(IntegrityLink.integrity_organization),
+        )
+    ).all()
+    staging_tables = _check_staging_existence(links, data_session)
+    existing_final = _check_final_existence(links, data_session)
+    return sum(1 for lnk in links if _is_listed(lnk, staging_tables, existing_final))
 
 
 # Any IntegrityLinkRule row counts, unlike build_access_expr's caller-scoped subquery.
@@ -160,7 +194,8 @@ def list_integrity_links(
         recurrence: Recurrence presets to include (OR'd together)
 
     Returns:
-        IntegrityLinkListResponse with items, has_more flag, and current offset
+        IntegrityLinkListResponse with items, has_more flag, current offset and, on the first page,
+        total count
     """
     is_admin = geo_ctx.is_administrator()
 
@@ -214,25 +249,16 @@ def list_integrity_links(
         # Check table existence against data_engine's DB (correct DB in all modes).
         # Using data_session ensures information_schema reflects datadb, not georchestra.
         # Raw Table objects require execute(); exec() only accepts SQLModel SelectOfScalar.
-        staging_tables = _check_staging_existence(rows, data_session)
-        existing_final = _check_final_existence(rows, data_session)
-
-        def _final_exists(lnk: IntegrityLink) -> bool:
-            if not lnk.final_table_name:
-                return False
-            return (
-                get_data_schema(lnk.integrity_organization),
-                lnk.final_table_name,
-            ) in existing_final
+        links = [row[0] for row in rows]
+        staging_tables = _check_staging_existence(links, data_session)
+        existing_final = _check_final_existence(links, data_session)
 
         for i, row in enumerate(rows):
             link = row[0]
-            if (
-                link.source_import_type in (ImportType.EMPTY, ImportType.PREFILLED)
-                or (link.staging_table_name and link.staging_table_name in staging_tables)
-                or _final_exists(link)
-            ):
-                accumulated.append((row, _final_exists(link), fetch_offset + i))
+            if _is_listed(link, staging_tables, existing_final):
+                accumulated.append(
+                    (row, _final_table_exists(link, existing_final), fetch_offset + i)
+                )
 
         if last_chunk_len < BATCH_SIZE + 1:
             break  # DB exhausted
@@ -252,6 +278,9 @@ def list_integrity_links(
     has_more = len(accumulated) > BATCH_SIZE
     items_rows = accumulated[:BATCH_SIZE]
     next_offset = accumulated[BATCH_SIZE][2] if has_more else fetch_offset + last_chunk_len
+
+    # Only the first page carries the total: later pages would recount the same links.
+    total = _count_listed(query, session, data_session) if offset == 0 else None
 
     logger.info(
         f"Listed {len(items_rows)} integrity links for user '{geo_ctx.username}' "
@@ -281,6 +310,7 @@ def list_integrity_links(
         has_more=has_more,
         offset=offset,
         next_offset=next_offset,
+        total=total,
     )
 
 
@@ -372,7 +402,7 @@ def list_joinable_tables(
 
     links = session.execute(query).scalars().all()  # type: ignore[reportDeprecated]
 
-    existing_final = _check_final_existence([(lnk, None) for lnk in links], data_session)
+    existing_final = _check_final_existence(links, data_session)
 
     joinable: list[JoinableTable] = []
     for lnk in links:

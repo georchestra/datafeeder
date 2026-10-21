@@ -1,5 +1,6 @@
 """Tests for integrity_links API routes."""
 
+import itertools
 from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -33,6 +34,18 @@ def mock_console_service():
         mock_cls.return_value.fetch_users_by_usernames.return_value = {}
         mock_cls.return_value.fetch_organizations_by_short_names.return_value = {}
         yield mock_cls
+
+
+def _mock_list_rows(mock_session: MagicMock, rows: list[Any]) -> None:
+    """Return `rows` to the page queries, and their links to the total's column-only query."""
+
+    def execute(query: Any) -> MagicMock:
+        result = MagicMock()
+        is_total_query = query.selected_columns[0].name == "source_import_type"
+        result.all.return_value = [row[0] for row in rows] if is_total_query else rows
+        return result
+
+    mock_session.execute.side_effect = execute
 
 
 class TestListIntegrityLinks:
@@ -84,9 +97,7 @@ class TestListIntegrityLinks:
 
     def _setup_session(self, mock_session: MagicMock, links: list[IntegrityLink]) -> None:
         """Set up datafeeder session mock to return list rows via .all()."""
-        mock_exec = MagicMock()
-        mock_exec.all.return_value = [(link, "OWNER", "unconfigured") for link in links]
-        mock_session.execute.return_value = mock_exec
+        _mock_list_rows(mock_session, [(link, "OWNER", "unconfigured") for link in links])
 
     def _setup_data_session(
         self,
@@ -99,7 +110,8 @@ class TestListIntegrityLinks:
         mock_staging.scalars.return_value.all.return_value = staging_names
         mock_final = MagicMock()
         mock_final.scalars.return_value.all.return_value = final_names
-        mock_data_session.execute.side_effect = [mock_staging, mock_final]
+        # Table existence is checked once for the page, then again for the total.
+        mock_data_session.execute.side_effect = itertools.cycle([mock_staging, mock_final])
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_normal_user_sees_only_own_links(
@@ -198,6 +210,63 @@ class TestListIntegrityLinks:
 
         assert response.has_more is True
         assert len(response.items) == BATCH_SIZE  # Only BATCH_SIZE items returned
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_total_excludes_links_dropped_for_missing_tables(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        sample_integrity_links: list[IntegrityLink],
+    ) -> None:
+        """Links dropped post-query (no staging/final table) are not counted in total."""
+        self._setup_session(mock_session, sample_integrity_links)
+        # Only 2 of the 5 links have an existing staging table, none has a final table.
+        staging = ["staging_test_0", "staging_test_1"]
+        self._setup_data_session(mock_data_session, staging, [])
+
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._create_geo_ctx("user0", {"IMPORT"}),
+            group_ids=[],
+            offset=0,
+        )
+
+        assert len(response.items) == 2
+        assert response.total == 2
+
+        # The total reads only the columns the listing checks, not whole links.
+        total_query = mock_session.execute.call_args_list[-1][0][0]
+        assert [c.name for c in total_query.selected_columns] == [
+            "source_import_type",
+            "staging_table_name",
+            "final_table_name",
+            "integrity_organization",
+        ]
+
+    @patch("src.api.routes.ingestion.integrity_links.logger")
+    def test_total_only_on_first_page(
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        sample_integrity_links: list[IntegrityLink],
+    ) -> None:
+        """Later pages carry no total and don't run its query."""
+        self._setup_session(mock_session, sample_integrity_links)
+        self._setup_data_session(mock_data_session, ["staging_test_0"], [])
+
+        response = list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._create_geo_ctx("user0", {"IMPORT"}),
+            group_ids=[],
+            offset=BATCH_SIZE,
+        )
+
+        assert response.total is None
+        assert mock_session.execute.call_count == 1
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_pagination_has_more_false(
@@ -691,7 +760,8 @@ class TestListIntegrityLinks:
             offset=0,
         )
 
-        assert mock_data_session.execute.call_count == 2
+        # Staging and final checks, run once for the page and once for the total.
+        assert mock_data_session.execute.call_count == 4
 
         staging_query = mock_data_session.execute.call_args_list[0][0][0]
         final_query = mock_data_session.execute.call_args_list[1][0][0]
@@ -929,7 +999,8 @@ class TestListIntegrityLinksVisibility:
         mock_staging.scalars.return_value.all.return_value = staging_names
         mock_final = MagicMock()
         mock_final.scalars.return_value.all.return_value = final_names
-        mock_data_session.execute.side_effect = [mock_staging, mock_final]
+        # Table existence is checked once for the page, then again for the total.
+        mock_data_session.execute.side_effect = itertools.cycle([mock_staging, mock_final])
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_owner_sees_own_datasets_with_owner_access_level(
@@ -941,9 +1012,7 @@ class TestListIntegrityLinksVisibility:
         """Owner sees own datasets and gets OWNER access level."""
 
         link = self._make_link(owner="user1")
-        mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "OWNER", "unconfigured")]
-        mock_session.execute.return_value = mock_exec_result
+        _mock_list_rows(mock_session, [(link, "OWNER", "unconfigured")])
         staging = [link.staging_table_name] if link.staging_table_name else []
         self._setup_data_session(mock_data_session, staging)
 
@@ -969,9 +1038,7 @@ class TestListIntegrityLinksVisibility:
         """Admin sees all datasets and gets ADMIN access level."""
 
         links = [self._make_link(owner="someone"), self._make_link(owner="another")]
-        mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "ADMIN", "unconfigured") for link in links]
-        mock_session.execute.return_value = mock_exec_result
+        _mock_list_rows(mock_session, [(link, "ADMIN", "unconfigured") for link in links])
         self._setup_data_session(mock_data_session, ["staging_test"])
 
         ctx = self._geo_ctx(is_admin=True)
@@ -999,9 +1066,7 @@ class TestListIntegrityLinksVisibility:
         link = self._make_link(owner="other")
         group_id = "test-group-uuid"
 
-        mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "READ", "unconfigured")]
-        mock_session.execute.return_value = mock_exec_result
+        _mock_list_rows(mock_session, [(link, "READ", "unconfigured")])
         staging = [link.staging_table_name] if link.staging_table_name else []
         self._setup_data_session(mock_data_session, staging)
 
@@ -1029,9 +1094,7 @@ class TestListIntegrityLinksVisibility:
         link = self._make_link(owner="other")
         group_id = "test-group-uuid"
 
-        mock_exec_result = MagicMock()
-        mock_exec_result.all.return_value = [(link, "WRITE", "unconfigured")]
-        mock_session.execute.return_value = mock_exec_result
+        _mock_list_rows(mock_session, [(link, "WRITE", "unconfigured")])
         staging = [link.staging_table_name] if link.staging_table_name else []
         self._setup_data_session(mock_data_session, staging)
 
@@ -1327,9 +1390,7 @@ class TestPublicAccessComputation:
     def _list(
         self, mock_session: MagicMock, mock_data_session: MagicMock, rows: list[Any]
     ) -> IntegrityLinkListResponse:
-        mock_main = MagicMock()
-        mock_main.all.return_value = rows
-        mock_session.execute.return_value = mock_main
+        _mock_list_rows(mock_session, rows)
         return list_integrity_links(
             session=mock_session,
             data_session=mock_data_session,
