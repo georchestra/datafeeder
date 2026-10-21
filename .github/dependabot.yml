@@ -1,0 +1,36 @@
+version: 2
+
+multi-ecosystem-groups:
+  python:
+    schedule:
+      interval: weekly
+      day: monday
+
+updates:
+  - package-ecosystem: npm
+    directory: /apps/frontend
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+    groups:
+      npm:
+        patterns: ["*"]
+        update-types: [minor, patch]
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: uv
+    directories: [/, /apps/elt, /e2e-tests]
+    multi-ecosystem-group: python
+    patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+    groups:
+      uv-security:
+        applies-to: security-updates
+        patterns: ["*"]
