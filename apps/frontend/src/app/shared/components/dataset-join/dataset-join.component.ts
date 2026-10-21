@@ -1,8 +1,11 @@
+import { HttpErrorResponse } from '@angular/common/http'
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
+  OnInit,
   output,
   signal,
   viewChild
@@ -15,12 +18,17 @@ import {
   iconoirNavArrowUp,
   iconoirTrash
 } from '@ng-icons/iconoir'
-import { TranslatePipe } from '@ngx-translate/core'
+import { TranslatePipe, TranslateService } from '@ngx-translate/core'
 import {
   ButtonComponent,
   DropdownChoice,
   DropdownSelectorComponent
 } from 'geonetwork-ui'
+import { Api } from '../../../core/api/api'
+import {
+  getJoinableColumnsIngestionIntegrityLinksIntegrityLinkIdJoinableColumnsGet,
+  listJoinableTablesIngestionIntegrityLinksJoinableTablesGet
+} from '../../../core/api/functions'
 import type {
   ColumnConfig,
   JoinableTable,
@@ -51,18 +59,18 @@ const ID_COLUMN = 'id_datafeeder'
     })
   ]
 })
-export class DatasetJoinComponent {
+export class DatasetJoinComponent implements OnInit {
+  private api = inject(Api)
+  private translate = inject(TranslateService)
+
   join = input<JoinConfig | null>(null)
-  tables = input<JoinableTable[]>([])
   sourceColumns = input<ColumnConfig[]>([])
-  targetColumns = input<string[]>([])
 
-  tableChange = output<JoinableTable>()
-  sourceColumnChange = output<string>()
-  targetColumnChange = output<string>()
-  columnAdd = output<string>()
-  columnRemove = output<string>()
+  joinChange = output<JoinConfig>()
+  loadError = output<string>()
 
+  tables = signal<JoinableTable[]>([])
+  targetColumns = signal<string[]>([])
   tableListOpen = signal(false)
   private readonly addDropdown =
     viewChild<DropdownSelectorComponent>('addDropdown')
@@ -102,20 +110,74 @@ export class DatasetJoinComponent {
     ...this.availableColumns()
   ])
 
+  async ngOnInit(): Promise<void> {
+    try {
+      this.tables.set(
+        await this.api.invoke(
+          listJoinableTablesIngestionIntegrityLinksJoinableTablesGet,
+          {}
+        )
+      )
+    } catch (error) {
+      this.showLoadError(error)
+      return
+    }
+    const id = this.join()?.integrity_link_id
+    if (id) await this.loadTargetColumns(id)
+  }
+
   tableLabel(table: JoinableTable): string {
     return table.integrity_title || table.table_name
   }
 
-  selectTable(table: JoinableTable): void {
+  async selectTable(table: JoinableTable): Promise<void> {
     this.tableListOpen.set(false)
-    if (table !== this.selectedTable()) this.tableChange.emit(table)
+    if (table === this.selectedTable()) return
+    this.joinChange.emit({
+      integrity_link_id: table.id,
+      source_column: this.join()?.source_column ?? '',
+      target_column: '',
+      columns: []
+    })
+    this.targetColumns.set([])
+    await this.loadTargetColumns(table.id)
+  }
+
+  update(changes: Partial<JoinConfig>): void {
+    this.joinChange.emit({ ...this.join()!, ...changes })
   }
 
   addColumn(column: string): void {
     if (!column) return
-    this.columnAdd.emit(column)
+    this.update({ columns: [...(this.join()?.columns ?? []), column] })
     // The dropdown keeps its own selection, which would show this column again
     // once it is removed and offered back.
     this.addDropdown()!.selected = ''
+  }
+
+  removeColumn(column: string): void {
+    this.update({
+      columns: (this.join()?.columns ?? []).filter((col) => col !== column)
+    })
+  }
+
+  private async loadTargetColumns(integrityLinkId: string): Promise<void> {
+    try {
+      const columns = await this.api.invoke(
+        getJoinableColumnsIngestionIntegrityLinksIntegrityLinkIdJoinableColumnsGet,
+        { integrity_link_id: integrityLinkId }
+      )
+      this.targetColumns.set(columns.map((col) => col.column_name))
+    } catch (error) {
+      this.showLoadError(error)
+    }
+  }
+
+  private showLoadError(error: unknown): void {
+    this.loadError.emit(
+      error instanceof HttpErrorResponse && error.error?.detail
+        ? error.error.detail
+        : this.translate.instant('import.dataSource.genericError')
+    )
   }
 }

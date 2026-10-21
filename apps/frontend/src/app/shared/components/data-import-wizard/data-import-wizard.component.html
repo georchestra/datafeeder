@@ -70,8 +70,8 @@
       <gn-ui-button
         data-test="join-toggle"
         type="outline"
-        extraClass="h-14"
-        (buttonClick)="toggleJoin()"
+        [style.--gn-ui-button-height]="'3.5rem'"
+        (buttonClick)="joinOpen.set(!joinOpen())"
       >
         {{ 'import.join.toggle' | translate }}
         @if (join()?.columns?.length) {
@@ -91,14 +91,9 @@
     <div class="border-t border-gray-border">
       <app-dataset-join
         [join]="join()"
-        [tables]="joinTables()"
         [sourceColumns]="columnConfigs()"
-        [targetColumns]="joinTableColumns()"
-        (tableChange)="onJoinTableChange($event)"
-        (sourceColumnChange)="onJoinSourceColumnChange($event)"
-        (targetColumnChange)="onJoinTargetColumnChange($event)"
-        (columnAdd)="onJoinColumnAdd($event)"
-        (columnRemove)="onJoinColumnRemove($event)"
+        (joinChange)="onJoinChange($event)"
+        (loadError)="validationError.set($event)"
       />
     </div>
     }

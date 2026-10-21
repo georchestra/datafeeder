@@ -2143,26 +2143,8 @@ describe('DataImportWizardComponent - Column Name Validation', () => {
 describe('DataImportWizardComponent - Join', () => {
   let httpMock: HttpTestingController
   const ROOT = 'http://localhost:8000'
-  const TABLES_URL = `${ROOT}/ingestion/integrity-links/joinable-tables`
   const METADATA_URL = `${ROOT}/ingestion/staging/link-abc/metadata`
   const settle = () => new Promise((resolve) => setTimeout(resolve))
-  const columnsUrl = (id: string) =>
-    `${ROOT}/ingestion/integrity-links/${id}/joinable-columns`
-
-  const TABLES = [
-    {
-      id: 'ref-1',
-      integrity_title: 'Communes',
-      table_schema: 'org_a',
-      table_name: 'communes'
-    },
-    {
-      id: 'ref-2',
-      integrity_title: 'Regions',
-      table_schema: 'org_a',
-      table_name: 'regions'
-    }
-  ]
   const JOIN = {
     integrity_link_id: 'ref-1',
     source_column: 'insee',
@@ -2230,68 +2212,22 @@ describe('DataImportWizardComponent - Join', () => {
     return { fixture, component }
   }
 
-  it('loads joinable tables once, and the columns of the saved join table', async () => {
+  it('does not save a join change while no column is added', () => {
     const { component } = createOnPreviewStep()
-    component.join.set(JOIN)
+    component.join.set({ ...JOIN, target_column: '', columns: [] })
 
-    component.toggleJoin()
-    httpMock.expectOne(TABLES_URL).flush(TABLES)
-    await settle()
-    httpMock
-      .expectOne(columnsUrl('ref-1'))
-      .flush([{ column_name: 'code_insee' }, { column_name: 'nom_commune' }])
-    await settle()
-    expect(component.joinTableColumns()).toEqual(['code_insee', 'nom_commune'])
+    component.onJoinChange({ ...JOIN, columns: [] })
 
-    component.toggleJoin()
-    component.toggleJoin()
-    httpMock.expectNone(TABLES_URL)
+    expect(component.join()).toEqual({ ...JOIN, columns: [] })
+    httpMock.expectNone(METADATA_URL)
   })
 
-  it('keeps the source key and resets the rest when the table changes, without saving', async () => {
+  it('saves the join once a column is added', async () => {
     const { component } = createOnPreviewStep()
     component.join.set({ ...JOIN, columns: [] })
 
-    component.onJoinTableChange(TABLES[1])
-    httpMock.expectOne(columnsUrl('ref-2')).flush([])
-    await settle()
+    component.onJoinChange(JOIN)
 
-    expect(component.join()).toEqual({
-      integrity_link_id: 'ref-2',
-      source_column: 'insee',
-      target_column: '',
-      columns: []
-    })
-    httpMock.expectNone(METADATA_URL)
-  })
-
-  it('saves join: null when the table changes after columns were added', async () => {
-    const { component } = createOnPreviewStep()
-    component.join.set(JOIN)
-
-    component.onJoinTableChange(TABLES[1])
-
-    const put = httpMock.expectOne(METADATA_URL)
-    expect(put.request.body.join).toBeNull()
-    put.flush(mockMetadata)
-    httpMock.expectOne(columnsUrl('ref-2')).flush([])
-    await settle()
-  })
-
-  it('only saves the join once a column is added', async () => {
-    const { component } = createOnPreviewStep()
-    component.join.set({
-      ...JOIN,
-      source_column: '',
-      target_column: '',
-      columns: []
-    })
-
-    component.onJoinSourceColumnChange('insee')
-    component.onJoinTargetColumnChange('code_insee')
-    httpMock.expectNone(METADATA_URL)
-
-    component.onJoinColumnAdd('nom_commune')
     const put = httpMock.expectOne(METADATA_URL)
     expect(put.request.body.join).toEqual(JOIN)
     put.flush(mockMetadata)
@@ -2302,7 +2238,7 @@ describe('DataImportWizardComponent - Join', () => {
     const { component } = createOnPreviewStep()
     component.join.set(JOIN)
 
-    component.onJoinColumnRemove('nom_commune')
+    component.onJoinChange({ ...JOIN, columns: [] })
 
     const put = httpMock.expectOne(METADATA_URL)
     expect(put.request.body.join).toBeNull()
@@ -2314,7 +2250,7 @@ describe('DataImportWizardComponent - Join', () => {
     const { component } = createOnPreviewStep()
     component.join.set(JOIN)
 
-    component.onJoinColumnAdd('pop')
+    component.onJoinChange({ ...JOIN, columns: ['nom_commune', 'pop'] })
 
     expect(component.joinClashes()).toEqual(['pop'])
     expect(component.hasColumnNameError()).toBe(true)
@@ -2348,33 +2284,6 @@ describe('DataImportWizardComponent - Join', () => {
     expect(component.joinClashes()).toEqual(['geom'])
   })
 
-  it('shows an error when the joinable tables fail to load', async () => {
-    const { component } = createOnPreviewStep()
-
-    component.toggleJoin()
-    httpMock
-      .expectOne(TABLES_URL)
-      .flush({ detail: 'Boom' }, { status: 500, statusText: 'Error' })
-    await settle()
-
-    expect(component.validationError()).toBe('Boom')
-    expect(component.joinTables()).toEqual([])
-  })
-
-  it('shows an error when the table columns fail to load', async () => {
-    const { component } = createOnPreviewStep()
-    component.join.set(JOIN)
-
-    component.onJoinTableChange(TABLES[1])
-    httpMock.expectOne(METADATA_URL).flush(mockMetadata)
-    httpMock
-      .expectOne(columnsUrl('ref-2'))
-      .flush(null, { status: 500, statusText: 'Error' })
-    await settle()
-
-    expect(component.validationError()).toBe('import.dataSource.genericError')
-  })
-
   it('restores the join from the saved metadata', async () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
@@ -2386,6 +2295,24 @@ describe('DataImportWizardComponent - Join', () => {
     await settle()
 
     expect(component.join()).toEqual(JOIN)
+  })
+
+  it('shows the join section load errors above the step', async () => {
+    const { fixture, component } = createOnPreviewStep()
+    component.selectedTabIndex.set(1)
+    fixture.detectChanges()
+    ;(
+      fixture.nativeElement.querySelector(
+        '[data-test="join-toggle"] button'
+      ) as HTMLButtonElement
+    ).click()
+    fixture.detectChanges()
+    httpMock
+      .match(`${ROOT}/ingestion/integrity-links/joinable-tables`)[0]
+      .flush({ detail: 'Boom' }, { status: 500, statusText: 'Error' })
+    await settle()
+
+    expect(component.validationError()).toBe('Boom')
   })
 
   it('shows the indicator on the join toggle only when columns are added', () => {
