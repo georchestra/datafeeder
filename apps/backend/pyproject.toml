@@ -23,7 +23,7 @@ dependencies = [
     "sqlmodel==0.0.38",
     "pyjwt==2.15.0",
     "pydantic==2.13.4",
-    "pydantic-settings==2.14.1",
+    "pydantic-settings==2.14.2",
     "jproperties==2.1.2",
     "psycopg[binary]==3.3.4",
     "geoservercloud",
