@@ -244,7 +244,7 @@ class TestGetStagingMetadataTitleFallback:
         mock_link.integrity_transformation = None
         mock_link.final_table_name = None
         mock_load.return_value = (mock_link, MagicMock())
-        mock_resolve_cols.return_value = ([], None)
+        mock_resolve_cols.return_value = []
         mock_detect_proj.return_value = None
 
         data_session = MagicMock()
@@ -285,7 +285,7 @@ class TestGetStagingMetadataTitleFallback:
         mock_link.integrity_transformation = None
         mock_link.final_table_name = None
         mock_load.return_value = (mock_link, MagicMock())
-        mock_resolve_cols.return_value = ([], None)
+        mock_resolve_cols.return_value = []
         mock_detect_proj.return_value = None
 
         data_session = MagicMock()
@@ -326,7 +326,7 @@ class TestGetStagingMetadataTitleFallback:
         mock_link.integrity_transformation = None
         mock_link.final_table_name = None
         mock_load.return_value = (mock_link, MagicMock())
-        mock_resolve_cols.return_value = ([], None)
+        mock_resolve_cols.return_value = []
         mock_detect_proj.return_value = None
 
         data_session = MagicMock()
@@ -367,7 +367,7 @@ class TestGetStagingMetadataTitleFallback:
         mock_link.integrity_transformation = None
         mock_link.final_table_name = None
         mock_load.return_value = (mock_link, MagicMock())
-        mock_resolve_cols.return_value = ([], None)
+        mock_resolve_cols.return_value = []
         mock_detect_proj.return_value = None
 
         data_session = MagicMock()

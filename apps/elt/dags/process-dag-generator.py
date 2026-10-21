@@ -9,24 +9,30 @@ from utils import get_records_as_dicts, normalize_nan
 
 
 def load_scheduled_integrity_links():
+    # The joined dataset is only referenced by id: resolve its final table here, as
+    # the backend does for manual runs. Access was checked when the join was saved.
     sql = """
         SELECT
-            id::text,
-            integrity_organization,
-            data_id,
-            metadata_id,
-            integrity_title,
-            staging_table_name,
-            final_table_name,
-            schedule,
-            integrity_transformation,
-            source_url,
-            source_import_type,
-            source_layer,
-            source_protocol,
-            source_password_encrypted
-        FROM datafeeder.integrity_link
-        WHERE schedule NOTNULL AND schedule NOT LIKE ''
+            il.id::text,
+            il.integrity_organization,
+            il.data_id,
+            il.metadata_id,
+            il.integrity_title,
+            il.staging_table_name,
+            il.final_table_name,
+            il.schedule,
+            il.integrity_transformation,
+            il.source_url,
+            il.source_import_type,
+            il.source_layer,
+            il.source_protocol,
+            il.source_password_encrypted,
+            joined.integrity_organization AS join_organization,
+            joined.final_table_name AS join_final_table_name
+        FROM datafeeder.integrity_link il
+        LEFT JOIN datafeeder.integrity_link joined
+            ON joined.id::text = il.integrity_transformation -> 'join' ->> 'integrity_link_id'
+        WHERE il.schedule NOTNULL AND il.schedule NOT LIKE ''
     """
     return get_records_as_dicts(sql)
 
@@ -50,6 +56,16 @@ def _target_schema(organization: str | None) -> str:
         "yes",
     }
     return organization.lower() if use_org_schema and organization else DEFAULT_DATA_SCHEMA
+
+
+def _join_target(config) -> dict | None:
+    """Final table of the joined dataset, or None: the run then fails if a join is configured."""
+    if not config.get("join_final_table_name"):
+        return None
+    return {
+        "table_schema": _target_schema(config.get("join_organization")),
+        "table_name": config["join_final_table_name"],
+    }
 
 
 def create_dag(config):
@@ -84,6 +100,7 @@ def create_dag(config):
                 "final_table_name": config.get("final_table_name"),
                 "target_schema": _target_schema(config.get("integrity_organization")),
                 "integrity_transformation": config.get("integrity_transformation") or {},
+                "join_target": _join_target(config),
                 "encrypted_credentials": config.get("source_password_encrypted", None),
                 "success_callback_url": _build_callback_url(
                     "/internal/ingestion/process/dag_success",

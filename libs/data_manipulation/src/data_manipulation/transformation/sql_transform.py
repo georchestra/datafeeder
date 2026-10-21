@@ -46,10 +46,17 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.sql import Select
+from sqlalchemy.sql.expression import FromClause
 
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.logging import configure_logging
-from data_manipulation.models import CastType, IntegrityTransformation
+from data_manipulation.models import (
+    CastType,
+    ColumnConfig,
+    IntegrityTransformation,
+    JoinConfig,
+    JoinTarget,
+)
 from data_manipulation.transformation.filter_sql import build_filter_clause
 from data_manipulation.validators import validate_schema_name, validate_table_name
 
@@ -58,6 +65,7 @@ configure_logging(logger)
 
 DEFAULT_SRID = 4326
 DEFAULT_CRS = f"EPSG:{DEFAULT_SRID}"
+ID_COLUMN = "id_datafeeder"
 
 # Boolean string tokens, matched case-insensitively (mirror of the former
 # pandas-based parser so text-encoded booleans cast identically).
@@ -164,18 +172,80 @@ def _cast_expr(col: ColumnElement[Any], cast_type: CastType) -> ColumnElement[An
     return col
 
 
-def _geom_ref() -> ColumnElement[Any]:
+def _geom_ref(table: Table | None = None) -> ColumnElement[Any]:
     """Reference the staging geometry column as a plain (untyped) column.
 
     SQLAlchemy does not know the ``geometry`` type, so the reflected column has
     no usable type; a :func:`literal_column` keeps it a native ``geometry``
-    value usable by ``CREATE TABLE AS`` and ``ST_*``.
+    value usable by ``CREATE TABLE AS`` and ``ST_*``.  Qualified with *table*
+    when given, so it stays unambiguous when a joined table also has a geometry.
     """
+    if table is not None:
+        return literal_column(f'"{table.name}"."{DEFAULT_GEOMETRY_COLUMN}"')
     return literal_column(f'"{DEFAULT_GEOMETRY_COLUMN}"')
 
 
+def _geom_expr(table: Table, srid: int | None) -> ColumnElement[Any]:
+    """Geometry of *table*, relabelled with *srid* when given, as the output geometry."""
+    geom = _geom_ref(table)
+    expr = func.ST_SetSRID(geom, srid) if srid is not None else geom
+    return expr.label(DEFAULT_GEOMETRY_COLUMN)
+
+
+def reflect_join_table(
+    join: JoinConfig | None, join_target: JoinTarget | None, engine: Engine
+) -> Table | None:
+    """Reflect *join_target*, the table joined by *join*, or return ``None`` when there is no join.
+
+    Raises:
+        ValueError: When *join* has columns but no *join_target* was resolved.
+    """
+    if join is None or not join.columns:
+        return None
+    if join_target is None:
+        raise ValueError("config.join is set but no join_target was provided")
+    validate_schema_name(join_target.table_schema)
+    validate_table_name(join_target.table_name)
+    metadata = MetaData(schema=join_target.table_schema)
+    return Table(join_target.table_name, metadata, autoload_with=engine)
+
+
+def _join_from_clause(
+    table: Table, join_table: Table, join: JoinConfig, taken_names: list[str]
+) -> FromClause:
+    """Validate *join* and return ``table LEFT JOIN join_table`` on the join keys.
+
+    Keys are compared as text so that a text staging column (CSV) can match a
+    typed column of the joined table.
+
+    Raises:
+        ValueError: When a join key or a joined column does not exist, or when a
+            joined column has the same name as an output column of *table* or
+            as a reserved output column (``id_datafeeder``).
+    """
+    if join.source_column not in table.c:
+        raise ValueError(f"Join column '{join.source_column}' not found in table '{table.name}'")
+    if join.target_column not in join_table.c:
+        raise ValueError(
+            f"Join column '{join.target_column}' not found in table '{join_table.name}'"
+        )
+    unknown = [name for name in join.columns if name not in join_table.c]
+    if unknown:
+        raise ValueError(f"Columns {unknown} not found in table '{join_table.name}'")
+    clashes = [name for name in join.columns if name in taken_names]
+    if clashes:
+        raise ValueError(
+            f"Columns {clashes} of '{join_table.name}' clash with columns of '{table.name}'"
+        )
+
+    on_clause = cast(table.c[join.source_column], Text) == cast(
+        join_table.c[join.target_column], Text
+    )
+    return table.outerjoin(join_table, on_clause)
+
+
 def build_transformation_select(
-    table: Table, config: IntegrityTransformation | None
+    table: Table, config: IntegrityTransformation | None, join_table: Table | None = None
 ) -> TransformationQuery:
     """Build the canonical transformation ``SELECT`` for a staging table.
 
@@ -189,50 +259,66 @@ def build_transformation_select(
         - X/Y columns → ``ST_SetSRID(ST_MakePoint(x, y), srid)``,
         - existing geom + forced projection → ``ST_SetSRID(geom, srid)``,
         - existing geom, no forced projection → passthrough.
+    * optional ``LEFT JOIN`` with another table of the same database
+      (``config.join``), whose columns are added, unrenamed, after the staging
+      ones.  Its ``geom`` can replace an excluded staging geometry.
 
     Args:
         table: Reflected SQLAlchemy ``Table`` for the staging table.
         config: Transformation configuration. ``None`` selects all columns
             unchanged (passthrough), preserving any geometry column.
+        join_table: Reflected ``Table`` targeted by ``config.join`` (see
+            :func:`reflect_join_table`). Required when ``config.join`` has columns.
 
     Returns:
         A :class:`TransformationQuery`.
-    """
-    columns = config.columns if config is not None else None
-    force = config.force_projection if config is not None else None
 
+    Raises:
+        ValueError: When the join is invalid (see :func:`_join_from_clause`).
+    """
+    force = config.force_projection if config is not None else None
     geom_srid = _parse_srid(force.type) if force else None
     x_col = force.x_column if force and force.x_column else None
     y_col = force.y_column if force and force.y_column else None
     build_point = bool(x_col and y_col)
+
+    columns = config.columns if config is not None else None
+    if not columns:
+        columns = [ColumnConfig(original_name=col.name) for col in table.c]
+    columns = [c for c in columns if not c.excluded]
+    missing = [c.original_name for c in columns if c.original_name not in table.c]
+    if missing:
+        logger.warning("Columns %s not found in table '%s', skipping", missing, table.name)
+    columns = [c for c in columns if c.original_name in table.c]
+    if build_point:
+        # The existing geometry is replaced by the point built from X/Y.
+        columns = [c for c in columns if c.original_name != DEFAULT_GEOMETRY_COLUMN]
+
+    join = config.join if config is not None else None
+    if join is not None and not join.columns:
+        join = None
+    from_clause: FromClause = table
+    if join is not None:
+        if join_table is None:
+            raise ValueError("config.join is set but no join_table was provided")
+        # id_datafeeder is reserved for the primary key added to the final table.
+        taken_names = [c.new_name or c.original_name for c in columns] + [ID_COLUMN]
+        if build_point:
+            taken_names.append(DEFAULT_GEOMETRY_COLUMN)
+        from_clause = _join_from_clause(table, join_table, join, taken_names)
 
     select_exprs: list[ColumnElement[Any]] = []
     where_clauses: list[ColumnElement[Any]] = []
     property_columns: list[str] = []
     geom_out: str | None = None
 
-    def _emit_existing_geom() -> None:
-        nonlocal geom_out
-        geom = _geom_ref()
-        expr = func.ST_SetSRID(geom, geom_srid) if geom_srid is not None else geom
-        select_exprs.append(expr.label(DEFAULT_GEOMETRY_COLUMN))
-        geom_out = DEFAULT_GEOMETRY_COLUMN
-
-    if columns:
-        for col_config in columns:
-            if col_config.excluded:
-                continue
-            name = col_config.original_name
-            if name not in table.c:
-                logger.warning("Column '%s' not found in table '%s', skipping", name, table.name)
-                continue
-
-            if name == DEFAULT_GEOMETRY_COLUMN:
-                # Geometry is emitted separately; skip here unless we keep it as-is.
-                if not build_point:
-                    _emit_existing_geom()
-                continue
-
+    for col_config in columns:
+        name = col_config.original_name
+        if name == DEFAULT_GEOMETRY_COLUMN:
+            # Kept as-is, optionally relabelled with the forced SRID.
+            select_exprs.append(_geom_expr(table, geom_srid))
+            geom_out = DEFAULT_GEOMETRY_COLUMN
+        else:
             col: Column[Any] = table.c[name]
             expr = _cast_expr(col, col_config.cast_type) if col_config.cast_type else col
             effective = col_config.new_name or col_config.original_name
@@ -241,14 +327,16 @@ def build_transformation_select(
 
             if col_config.filter is not None:
                 where_clauses.append(build_filter_clause(col, col_config.filter))
-    else:
-        for col in table.c:
-            if col.name == DEFAULT_GEOMETRY_COLUMN:
-                if not build_point:
-                    _emit_existing_geom()
-                continue
-            select_exprs.append(col)
-            property_columns.append(col.name)
+
+    if join is not None and join_table is not None:
+        for name in join.columns:
+            if name == DEFAULT_GEOMETRY_COLUMN:
+                # Replaces the staging geometry, excluded (clashes are rejected above).
+                select_exprs.append(_geom_expr(join_table, geom_srid))
+                geom_out = DEFAULT_GEOMETRY_COLUMN
+            else:
+                select_exprs.append(join_table.c[name].label(name))
+                property_columns.append(name)
 
     if build_point and x_col is not None and y_col is not None:
         srid = geom_srid if geom_srid is not None else DEFAULT_SRID
@@ -258,7 +346,7 @@ def build_transformation_select(
         select_exprs.append(point.label(DEFAULT_GEOMETRY_COLUMN))
         geom_out = DEFAULT_GEOMETRY_COLUMN
 
-    stmt = select(*select_exprs).select_from(table)
+    stmt = select(*select_exprs).select_from(from_clause)
     if where_clauses:
         stmt = stmt.where(*where_clauses)
 
@@ -278,6 +366,7 @@ def transform_staging_to_final(
     staging_schema: str = "staging",
     final_schema: str = "data",
     create_id: bool = True,
+    join_target: JoinTarget | None = None,
 ) -> int:
     """Transform a staging table into a final table entirely in the database.
 
@@ -293,6 +382,7 @@ def transform_staging_to_final(
         staging_schema: Schema of the staging table.
         final_schema: Schema of the final table.
         create_id: When True, add an ``id_datafeeder`` UUID primary key.
+        join_target: Table joined by ``config.join``, resolved by the caller.
 
     Returns:
         Number of rows written to the final table.
@@ -305,7 +395,9 @@ def transform_staging_to_final(
     metadata = MetaData(schema=staging_schema)
     table = Table(staging_table, metadata, autoload_with=engine)
 
-    tq = build_transformation_select(table, config)
+    join_table = reflect_join_table(config.join if config else None, join_target, engine)
+
+    tq = build_transformation_select(table, config, join_table)
     compiled = tq.select.compile(dialect=engine.dialect)
     ctas = f'CREATE TABLE "{final_schema}"."{final_table}" AS {compiled.string}'
 
@@ -333,13 +425,11 @@ def transform_staging_to_final(
             conn.execute(
                 text(
                     f'ALTER TABLE "{final_schema}"."{final_table}" '
-                    f"ADD COLUMN id_datafeeder UUID DEFAULT gen_random_uuid() NOT NULL"
+                    f"ADD COLUMN {ID_COLUMN} UUID DEFAULT gen_random_uuid() NOT NULL"
                 )
             )
             conn.execute(
-                text(
-                    f'ALTER TABLE "{final_schema}"."{final_table}" ADD PRIMARY KEY (id_datafeeder)'
-                )
+                text(f'ALTER TABLE "{final_schema}"."{final_table}" ADD PRIMARY KEY ({ID_COLUMN})')
             )
 
         row_count = (
@@ -398,6 +488,7 @@ def read_transformed_preview(
     config: IntegrityTransformation | None = None,
     schema: str = "staging",
     limit: int | None = 10,
+    join_target: JoinTarget | None = None,
 ) -> PreviewResult:
     """Read a bounded, transformed preview of a staging table.
 
@@ -411,6 +502,7 @@ def read_transformed_preview(
         config: Transformation configuration (``None`` = passthrough).
         schema: Staging schema.
         limit: Maximum number of rows (``None`` = no limit).
+        join_target: Table joined by ``config.join``, resolved by the caller.
 
     Returns:
         A :class:`PreviewResult`.
@@ -421,7 +513,9 @@ def read_transformed_preview(
     metadata = MetaData(schema=schema)
     table = Table(staging_table, metadata, autoload_with=engine)
 
-    tq = build_transformation_select(table, config)
+    join_table = reflect_join_table(config.join if config else None, join_target, engine)
+
+    tq = build_transformation_select(table, config, join_table)
     core = tq.select.subquery()
 
     geojson_label = "__geojson__"

@@ -4,10 +4,11 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from data_manipulation.database import create_schema, table_exists
+from data_manipulation.models import IntegrityTransformation
 from data_manipulation.validators import validate_schema_name
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import or_, text
-from sqlmodel import col, select
+from sqlmodel import Session, col, select
 
 from src.api.deps import (
     DatafeederSessionDep,
@@ -43,6 +44,7 @@ from src.services.dataset_deletion_service import DatasetDeletionService
 from src.services.executor_factory import get_task_executor
 from src.services.georchestra import GeorchestraContext
 from src.services.geoserver import GeoServerService
+from src.services.join_target import resolve_join_target
 from src.services.layer_publication import (
     DatastoreSchemaMismatchError,
     publish_final_table,
@@ -206,10 +208,18 @@ async def _attach_layer(integrity_link: IntegrityLink, geoserver_service: GeoSer
 
 
 def _trigger_reprocess(
-    integrity_link: IntegrityLink, encrypted_password: str | None
+    integrity_link: IntegrityLink,
+    encrypted_password: str | None,
+    geo_ctx: GeorchestraContext,
+    session: Session,
 ) -> IntegrityLinkImportResponse:
     """Re-ingest the dataset from its source with process_dag."""
     assert integrity_link.source_url and integrity_link.final_table_name
+    transformation = IntegrityTransformation.model_validate(
+        integrity_link.integrity_transformation or {}
+    )
+    # Administrators only: no group-based access needed
+    join_target = resolve_join_target(transformation.join, geo_ctx, session, [])
     integrity_link_id = str(integrity_link.id)
     dag_run_id = make_manual_process_run_id(
         integrity_link_id, int(datetime.now(timezone.utc).timestamp())
@@ -240,6 +250,7 @@ def _trigger_reprocess(
             source_protocol=integrity_link.source_protocol,
             encrypted_credentials=encrypted_password,
         ),
+        join_target=join_target,
     )
     return IntegrityLinkImportResponse(
         integrity_link_id=integrity_link_id,
@@ -331,7 +342,7 @@ async def import_integrity_link(
             integrity_link_id=str(integrity_link.id), mode=IntegrityLinkImportMode.ATTACH
         )
     try:
-        return _trigger_reprocess(integrity_link, encrypted_password)
+        return _trigger_reprocess(integrity_link, encrypted_password, geo_ctx, session)
     except Exception as e:
         logger.error(f"Failed to trigger process for imported {integrity_link.id}: {e}")
         session.delete(integrity_link)

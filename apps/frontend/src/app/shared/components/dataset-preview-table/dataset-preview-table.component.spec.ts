@@ -20,7 +20,8 @@ describe('DatasetPreviewTableComponent', () => {
               'All columns are excluded. Restore at least one column.',
             'import.columnAction.menu.filter': 'Filter column',
             'import.columnAction.menu.changeType': 'Change type',
-            'import.columnAction.menu.remove': 'Remove column'
+            'import.columnAction.menu.remove': 'Remove column',
+            'import.columnHeader.error.duplicate': 'Choose a unique column name'
           }
         })
           .withDefaultLanguage('en')
@@ -228,5 +229,61 @@ describe('DatasetPreviewTableComponent', () => {
     fixture.componentInstance.onColumnNameValidationErrorChange('col1', null)
 
     expect(emitted).toEqual([{ originalName: 'col1', error: null }])
+  })
+
+  describe('join columns', () => {
+    const metadata: StagingMetadataResponse = {
+      title: 'Test Dataset',
+      columns: [{ original_name: 'insee' }, { original_name: 'nom' }]
+    }
+    const preview: StagingPreviewResponse = {
+      data: [{ insee: '59009', nom: 'source nom', population: 1000 }]
+    }
+
+    function create(joinColumns: string[], joinClashes: string[] = []) {
+      const fixture = TestBed.createComponent(DatasetPreviewTableComponent)
+      fixture.componentRef.setInput('metadata', metadata)
+      fixture.componentRef.setInput('preview', preview)
+      fixture.componentRef.setInput('joinColumns', joinColumns)
+      fixture.componentRef.setInput('joinClashes', joinClashes)
+      fixture.detectChanges()
+      return fixture
+    }
+
+    it('renders joined columns after the source columns, read-only and green', () => {
+      const fixture = create(['population'])
+      const el = fixture.nativeElement as HTMLElement
+
+      expect(fixture.componentInstance.displayedColumns()).toEqual([
+        'insee',
+        'nom',
+        'join:population'
+      ])
+      const header = el.querySelector('[data-join-header]')!
+      expect(header.textContent).toContain('population')
+      expect(header.querySelector('[data-action-button]')).toBeNull()
+      const cell = el.querySelector('[data-join-cell]')!
+      expect(cell.textContent?.trim()).toBe('1000')
+      expect(cell.classList).toContain('!bg-green-50')
+    })
+
+    it('includes joined columns in the names checked for duplicates', () => {
+      const fixture = create(['population'])
+      expect(fixture.componentInstance.allDisplayNames()).toEqual([
+        'insee',
+        'nom',
+        'population'
+      ])
+    })
+
+    it('flags a clashing joined column and hides its values', () => {
+      const fixture = create(['nom'], ['nom'])
+      const el = fixture.nativeElement as HTMLElement
+
+      expect(
+        el.querySelector('[data-join-header] [data-name-error]')?.textContent
+      ).toContain('Choose a unique column name')
+      expect(el.querySelector('[data-join-cell]')!.textContent?.trim()).toBe('')
+    })
   })
 })

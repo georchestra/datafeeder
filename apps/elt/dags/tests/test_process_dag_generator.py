@@ -184,3 +184,31 @@ class TestCreateDagTargetSchema:
     def test_shared_data_schema_without_organization(self, monkeypatch):
         monkeypatch.setenv("USE_ORG_SCHEMA", "true")
         assert self._generated_target_schema(_config(organization=None)) == "data"
+
+
+class TestCreateDagJoinTarget:
+    """Scheduled runs join the final table of the joined dataset, resolved from its id."""
+
+    def _generated_join_target(self, config: dict) -> dict | None:
+        TRIGGER_OPERATOR_CALLS.clear()
+        _module.create_dag(config)
+        return TRIGGER_OPERATOR_CALLS[0]["conf"]["join_target"]
+
+    def test_no_join_target_without_joined_table(self):
+        assert self._generated_join_target(_config()) is None
+
+    def test_join_target_in_joined_org_schema(self, monkeypatch):
+        monkeypatch.setenv("USE_ORG_SCHEMA", "true")
+        config = {**_config(), "join_organization": "ORG_B", "join_final_table_name": "communes"}
+        assert self._generated_join_target(config) == {
+            "table_schema": "org_b",
+            "table_name": "communes",
+        }
+
+    def test_join_target_in_shared_data_schema(self, monkeypatch):
+        monkeypatch.delenv("USE_ORG_SCHEMA", raising=False)
+        config = {**_config(), "join_organization": "ORG_B", "join_final_table_name": "communes"}
+        assert self._generated_join_target(config) == {
+            "table_schema": "data",
+            "table_name": "communes",
+        }

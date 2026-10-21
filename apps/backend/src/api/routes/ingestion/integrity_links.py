@@ -378,15 +378,19 @@ def list_joinable_tables(
 
     existing_final = _check_final_existence([(lnk, None) for lnk in links], data_session)
 
-    return [
-        JoinableTable(
-            id=lnk.id,
-            integrity_title=lnk.integrity_title,
-            table_name=lnk.final_table_name,
-        )
-        for lnk in links
-        if (get_data_schema(lnk.integrity_organization), lnk.final_table_name) in existing_final
-    ]
+    joinable: list[JoinableTable] = []
+    for lnk in links:
+        schema = get_data_schema(lnk.integrity_organization)
+        if (schema, lnk.final_table_name) in existing_final:
+            joinable.append(
+                JoinableTable(
+                    id=lnk.id,
+                    integrity_title=lnk.integrity_title,
+                    table_schema=schema,
+                    table_name=lnk.final_table_name,
+                )
+            )
+    return joinable
 
 
 @router.get(

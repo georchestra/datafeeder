@@ -83,6 +83,12 @@ logger = logging.getLogger(__name__)
             type=["null", "string"],
             description="Service protocol for API import: 'wfs' or 'ogcFeatures'",
         ),
+        "join_target": Param(
+            default=None,
+            type=["null", "object"],
+            description="Table joined by integrity_transformation.join: "
+            "{table_schema, table_name}, resolved by the caller (optional)",
+        ),
         "target_schema": Param(
             default="data",
             type="string",

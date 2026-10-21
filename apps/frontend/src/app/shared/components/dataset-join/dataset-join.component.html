@@ -1,0 +1,124 @@
+<div class="px-7 py-5 flex flex-col gap-4">
+  <div class="flex gap-3">
+    <div class="flex flex-col w-56">
+      <span class="text-sm font-medium text-gray-900 mb-2">
+        {{ 'import.join.referenceTable' | translate }}
+      </span>
+      <gn-ui-button
+        data-table-select
+        type="outline"
+        [style.--gn-ui-button-width]="'100%'"
+        [style.--gn-ui-button-padding]="'8px 8px 8px 16px'"
+        cdkOverlayOrigin
+        #tableOrigin="cdkOverlayOrigin"
+        (buttonClick)="tableListOpen.set(!tableListOpen())"
+      >
+        <div class="grow truncate py-1 mr-2 text-left">
+          {{ selectedTable() ? tableLabel(selectedTable()!) : '-' }}
+        </div>
+        <ng-icon
+          [name]="tableListOpen() ? 'iconoirNavArrowUp' : 'iconoirNavArrowDown'"
+          class="shrink-0 opacity-40"
+        ></ng-icon>
+      </gn-ui-button>
+    </div>
+
+    <div class="flex flex-col w-56">
+      <span class="text-sm font-medium text-gray-900 mb-2">
+        {{ 'import.join.sourceKey' | translate }}
+      </span>
+      <gn-ui-dropdown-selector
+        data-source-key
+        [title]="''"
+        [showTitle]="false"
+        [choices]="sourceChoices()"
+        [selected]="join()?.source_column ?? ''"
+        [disabled]="!join()"
+        (selectValue)="update({ source_column: $any($event) })"
+      ></gn-ui-dropdown-selector>
+    </div>
+
+    <div class="flex flex-col w-56">
+      <span class="text-sm font-medium text-gray-900 mb-2">
+        {{ 'import.join.referenceKey' | translate }}
+      </span>
+      <gn-ui-dropdown-selector
+        data-reference-key
+        [title]="''"
+        [showTitle]="false"
+        [choices]="targetChoices()"
+        [selected]="join()?.target_column ?? ''"
+        [disabled]="!join()?.source_column"
+        (selectValue)="update({ target_column: $any($event) })"
+      ></gn-ui-dropdown-selector>
+    </div>
+  </div>
+
+  @if (keysSelected()) {
+  <div data-columns-to-add class="bg-beige p-4 flex flex-col gap-2">
+    <span class="text-sm font-medium text-gray-900">
+      {{ 'import.join.columnsToAdd' | translate }}
+    </span>
+    <div class="flex flex-wrap gap-2 items-center">
+      @if (availableColumns().length) {
+      <div class="w-44">
+        <gn-ui-dropdown-selector
+          #addDropdown
+          data-column-add
+          [title]="''"
+          [showTitle]="false"
+          [choices]="addChoices()"
+          [selected]="''"
+          (selectValue)="addColumn($any($event))"
+        ></gn-ui-dropdown-selector>
+      </div>
+      } @for (col of join()?.columns ?? []; track col) {
+      <button
+        type="button"
+        data-join-column
+        class="group flex items-center gap-2 border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 hover:bg-gray-200"
+        (click)="removeColumn(col)"
+      >
+        {{ col }}
+        <span class="flex group-hover:hidden">
+          <ng-icon name="iconoirCheckCircle"></ng-icon>
+        </span>
+        <span class="hidden group-hover:flex text-primary">
+          <ng-icon name="iconoirTrash"></ng-icon>
+        </span>
+      </button>
+      }
+    </div>
+  </div>
+  }
+</div>
+
+<ng-template
+  cdkConnectedOverlay
+  cdkConnectedOverlayHasBackdrop
+  cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+  [cdkConnectedOverlayOrigin]="tableOrigin"
+  [cdkConnectedOverlayOpen]="tableListOpen()"
+  (overlayOutsideClick)="tableListOpen.set(false)"
+  (detach)="tableListOpen.set(false)"
+>
+  <div
+    role="listbox"
+    class="bg-white border border-gray-300 rounded shadow-lg py-2 min-w-56 max-h-80 overflow-y-auto"
+  >
+    @for (table of tables(); track table.id) {
+    <button
+      type="button"
+      role="option"
+      data-table-option
+      class="flex flex-col px-5 py-1 w-full text-start hover:bg-gray-50"
+      [class.bg-gray-100]="table === selectedTable()"
+      [attr.aria-selected]="table === selectedTable()"
+      (click)="selectTable(table)"
+    >
+      <span class="text-[14px] text-gray-900">{{ tableLabel(table) }}</span>
+      <span class="text-xs text-gray-500">{{ table.table_name }}</span>
+    </button>
+    }
+  </div>
+</ng-template>

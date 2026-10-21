@@ -8,6 +8,7 @@ from airflow.sdk import task, task_group
 from airflow.utils.trigger_rule import TriggerRule
 from data_manipulation import (
     IntegrityTransformation,
+    JoinTarget,
     transform_staging_to_final,
 )
 from data_manipulation.database import create_schema
@@ -38,6 +39,7 @@ def process_transformation_group(
         - final_table_name: Name of the final table to write to
         - staging_table_name: Name of staging table (if not using XCom)
         - integrity_transformation: JSON config for transformations (optional, default: {})
+        - join_target: table joined by integrity_transformation.join (optional)
     """
 
     @task_group(group_id=group_id)
@@ -56,6 +58,8 @@ def process_transformation_group(
             final_table_name = params.get("final_table_name")
             transformation_dict: dict[str, Any] = params.get("integrity_transformation", {})
             transformation_config = IntegrityTransformation(**transformation_dict)
+            join_target_dict: dict[str, Any] | None = params.get("join_target")
+            join_target = JoinTarget(**join_target_dict) if join_target_dict else None
 
             logger.info(
                 f"Final transformation with config: {transformation_dict} for {final_table_name}"
@@ -125,6 +129,7 @@ def process_transformation_group(
                     staging_schema=staging_schema,
                     final_schema=final_schema,
                     create_id=True,
+                    join_target=join_target,
                 )
 
                 if row_count == 0:
