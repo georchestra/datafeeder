@@ -1171,16 +1171,18 @@ class TestListIntegrityLinkOwners:
             organization="",
         )
 
-    def test_returns_owners_in_query_order_with_console_display_name(
+    def test_orders_by_count_desc_then_display_name(
         self, mock_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
-        mock_session.execute.return_value.scalars.return_value.all.return_value = [
-            "jdoe",
-            "asmith",
-            "bob",
+        mock_session.execute.return_value.all.return_value = [
+            ("asmith", 1),
+            ("jdoe", 3),
+            ("bob", 1),
+            ("zed", 1),
         ]
         mock_console_service.return_value.fetch_users_by_usernames.return_value = {
-            "jdoe": "John Doe"
+            "jdoe": "John Doe",
+            "zed": "Alice Zed",
         }
 
         response = list_integrity_link_owners(
@@ -1189,14 +1191,15 @@ class TestListIntegrityLinkOwners:
 
         assert response == [
             GroupItem(id="jdoe", label="John Doe"),
+            GroupItem(id="zed", label="Alice Zed"),
             GroupItem(id="asmith", label="asmith"),
             GroupItem(id="bob", label="bob"),
         ]
 
-    def test_query_orders_by_count_desc_then_owner(
+    def test_query_counts_links_per_owner(
         self, mock_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
-        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value.all.return_value = []
 
         list_integrity_link_owners(
             session=mock_session, geo_ctx=self._geo_ctx("admin", {"ADMINISTRATOR"}), group_ids=[]
@@ -1204,15 +1207,15 @@ class TestListIntegrityLinkOwners:
 
         executed_query = mock_session.execute.call_args_list[0][0][0]
         query_str = str(executed_query.compile(dialect=postgresql.dialect()))
-        assert query_str.endswith(
-            "GROUP BY datafeeder.integrity_link.integrity_owner "
-            "ORDER BY count(*) DESC, datafeeder.integrity_link.integrity_owner"
+        assert query_str.startswith(
+            "SELECT datafeeder.integrity_link.integrity_owner, count(*) AS count_1"
         )
+        assert query_str.endswith("GROUP BY datafeeder.integrity_link.integrity_owner")
 
     def test_empty_when_no_accessible_links(
         self, mock_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
-        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value.all.return_value = []
 
         response = list_integrity_link_owners(
             session=mock_session, geo_ctx=self._geo_ctx("user0"), group_ids=[]
@@ -1224,7 +1227,7 @@ class TestListIntegrityLinkOwners:
     def test_query_restricted_to_owner_or_rule_for_non_admin(
         self, mock_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
-        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value.all.return_value = []
 
         list_integrity_link_owners(
             session=mock_session, geo_ctx=self._geo_ctx("user1"), group_ids=[]
@@ -1236,7 +1239,7 @@ class TestListIntegrityLinkOwners:
     def test_admin_query_is_not_restricted_to_owner(
         self, mock_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
-        mock_session.execute.return_value.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value.all.return_value = []
 
         list_integrity_link_owners(
             session=mock_session,
