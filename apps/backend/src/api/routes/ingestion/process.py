@@ -338,6 +338,7 @@ async def dag_success_callback(
 
     workspace_name = integrity_link.integrity_organization.lower()
     is_geographic = False
+    wgs84_bbox: dict[str, float] | None = None
 
     # Create PostgreSQL schema (idempotent) — uses target_schema, not always workspace_name
     try:
@@ -352,6 +353,7 @@ async def dag_success_callback(
     try:
         extent = read_table_extent(final_table_name, target_schema)
         is_geographic = extent.is_geographic
+        wgs84_bbox = extent.wgs84_bbox
         await publish_final_table(
             geoserver_service, integrity_link, final_table_name, target_schema, extent
         )
@@ -368,7 +370,7 @@ async def dag_success_callback(
     datafeeder_session.commit()
     datafeeder_session.refresh(integrity_link)
 
-    # Update revision date in GeoNetwork metadata (soft failure)
+    # Update revision date, layer links and extent in GeoNetwork metadata (soft failure)
     if integrity_link.metadata_id is not None:
         try:
             layer_urls = geoserver_service.build_layer_urls_for_metadata(
@@ -376,14 +378,17 @@ async def dag_success_callback(
                 table_name=final_table_name,
                 is_geographic=is_geographic,
             )
-            metadata_service.read_schema_from_gn(
-                str(integrity_link.metadata_id)
-            ).update_revision_date(
-                datetime.now(timezone.utc)
-            ).add_online_resources_from_layer_urls_19115_3(layer_urls).upload_to_gn()
+            schema = (
+                metadata_service.read_schema_from_gn(str(integrity_link.metadata_id))
+                .update_revision_date(datetime.now(timezone.utc))
+                .add_online_resources_from_layer_urls_19115_3(layer_urls)
+            )
+            if wgs84_bbox is not None:
+                schema.update_geographic_extent(wgs84_bbox)
+            schema.upload_to_gn()
         except Exception as e:
             logger.warning(
-                "Failed to update revision date for IntegrityLink %s: %s",
+                "Failed to update the metadata of IntegrityLink %s: %s",
                 integrity_link.id,
                 e,
                 exc_info=True,

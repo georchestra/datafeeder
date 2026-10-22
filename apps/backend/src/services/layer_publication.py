@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.utils import compute_bbox_from_postgis_stextent_string
 from geoservercloud.models.common import MetadataLink
-from sqlalchemy import MetaData, Table, func, select
+from sqlalchemy import Connection, MetaData, Table, func, select
 
 from src.core.config import get_settings
 from src.core.db import data_engine
@@ -35,6 +35,8 @@ class TableExtent:
     bbox: dict[str, float] = field(
         default_factory=lambda: {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0}
     )
+    # bbox reprojected to EPSG:4326, None when the table has no geometry
+    wgs84_bbox: dict[str, float] | None = None
 
 
 def read_table_extent(table_name: str, schema: str) -> TableExtent:
@@ -44,11 +46,32 @@ def read_table_extent(table_name: str, schema: str) -> TableExtent:
     if extent.is_geographic:
         with data_engine.connect() as conn:
             geom = table.c[DEFAULT_GEOMETRY_COLUMN]
-            extent.epsg = conn.execute(select(func.ST_SRID(geom)).limit(1)).scalar_one_or_none()
+            extent.epsg = conn.execute(
+                select(func.ST_SRID(geom)).where(geom.is_not(None)).limit(1)
+            ).scalar_one_or_none()
             bbox_result = conn.execute(select(func.ST_Extent(geom))).scalar_one_or_none()
             if bbox_result:
                 extent.bbox = compute_bbox_from_postgis_stextent_string(bbox_result)
+                if extent.epsg:
+                    extent.wgs84_bbox = _to_wgs84(conn, extent.bbox, extent.epsg)
     return extent
+
+
+def _to_wgs84(conn: Connection, bbox: dict[str, float], epsg: int) -> dict[str, float]:
+    """Extent in EPSG:4326 of the *bbox* envelope expressed in *epsg*."""
+    envelope = func.ST_Transform(
+        func.ST_MakeEnvelope(bbox["minx"], bbox["miny"], bbox["maxx"], bbox["maxy"], epsg),
+        4326,
+    )
+    row = conn.execute(
+        select(
+            func.ST_XMin(envelope),
+            func.ST_YMin(envelope),
+            func.ST_XMax(envelope),
+            func.ST_YMax(envelope),
+        )
+    ).one()
+    return dict(zip(("minx", "miny", "maxx", "maxy"), map(float, row), strict=True))
 
 
 async def publish_final_table(

@@ -575,7 +575,7 @@ def read_transformed_preview(
 def detect_table_srid(staging_table: str, engine: Engine, schema: str | None = None) -> str | None:
     """Return the CRS (``EPSG:NNNN``) of a staging table's geometry, if any.
 
-    Reads ``ST_SRID`` from the first geometry row.  Returns ``None`` when the
+    Reads ``ST_SRID`` from the first non-NULL geometry.  Returns ``None`` when the
     table has no geometry column or no detectable SRID.
     """
     validate_table_name(staging_table)
@@ -595,7 +595,10 @@ def detect_table_srid(staging_table: str, engine: Engine, schema: str | None = N
     try:
         with engine.connect() as conn:
             srid = conn.execute(
-                select(func.ST_SRID(_geom_ref())).select_from(table).limit(1)
+                select(func.ST_SRID(_geom_ref()))
+                .select_from(table)
+                .where(_geom_ref().is_not(None))
+                .limit(1)
             ).scalar()
     except Exception as exc:
         logger.warning("Could not detect original projection: %s", exc)
