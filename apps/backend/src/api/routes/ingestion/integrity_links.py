@@ -3,7 +3,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import Column, MetaData, String, Table, and_, case, exists, or_
+from sqlalchemy import Column, MetaData, String, Table, and_, case, exists, func, or_
 from sqlalchemy import select as sa_select
 from sqlmodel import Session, col
 
@@ -325,7 +325,8 @@ def list_integrity_link_organizations(
     response_model=list[GroupItem],
     summary="List distinct owners across accessible integrity links",
     description="Distinct integrity_owner values across integrity links the caller can see, "
-    "paired with their console display name for display in a filter dropdown.",
+    "paired with their console display name for display in a filter dropdown, "
+    "ordered by number of integrity links (descending).",
 )
 def list_integrity_link_owners(
     session: DatafeederSessionDep,
@@ -333,21 +334,22 @@ def list_integrity_link_owners(
     group_ids: GroupIdsDep,
 ) -> list[GroupItem]:
     """List distinct owners, restricted to datasets the caller can see."""
-    query = sa_select(col(IntegrityLink.integrity_owner)).distinct()
+    owner = col(IntegrityLink.integrity_owner)
+    query = sa_select(owner, func.count()).group_by(owner)
     if not geo_ctx.is_administrator():
         query = query.where(visibility_condition(geo_ctx.username, group_ids))
 
-    usernames = session.execute(query).scalars().all()  # type: ignore[reportDeprecated]
-    if not usernames:
+    counts: dict[str, int] = dict(session.execute(query).all())  # type: ignore[reportDeprecated]
+    if not counts:
         return []
 
     display_names = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).fetch_users_by_usernames(
-        list(usernames)
+        list(counts)
     )
-    return [
-        GroupItem(id=username, label=display_names.get(username) or username)
-        for username in sorted(usernames)
+    items = [
+        GroupItem(id=username, label=display_names.get(username) or username) for username in counts
     ]
+    return sorted(items, key=lambda item: (-counts[item.id], item.label.casefold()))
 
 
 @router.get(

@@ -1069,7 +1069,10 @@ describe('IntegrityLinkListComponent', () => {
 
       httpMock
         .expectOne('http://localhost:8000/ingestion/integrity-links/owners')
-        .flush([{ id: 'jdoe', label: 'John Doe' }])
+        .flush([
+          { id: 'jdoe', label: 'John Doe' },
+          { id: 'asmith', label: 'Alice Smith' }
+        ])
 
       await new Promise((resolve) => setTimeout(resolve, 10))
 
@@ -1077,7 +1080,8 @@ describe('IntegrityLinkListComponent', () => {
         { value: 'c2c', label: 'Camptocamp' }
       ])
       expect(component.ownerChoices()).toEqual([
-        { value: 'jdoe', label: 'John Doe' }
+        { value: 'jdoe', label: 'John Doe' },
+        { value: 'asmith', label: 'Alice Smith' }
       ])
     })
 
