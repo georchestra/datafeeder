@@ -67,6 +67,8 @@ export class ColumnHeaderComponent implements OnDestroy {
 
   columnConfig = input.required<ColumnConfig>()
   allColumnNames = input<string[]>([])
+  // The name is taken by a joined column, which cannot be renamed.
+  joinClash = input(false)
 
   actionMenuOpened = output<ColumnAction>()
   nameChanged = output<string>()
@@ -94,6 +96,13 @@ export class ColumnHeaderComponent implements OnDestroy {
 
   isMenuOpen = signal(false)
   nameValidationError = signal<string | null>(null)
+  displayedNameError = computed(
+    () =>
+      this.nameValidationError() ??
+      (this.joinClash()
+        ? this.translate.instant('import.columnHeader.error.duplicate')
+        : null)
+  )
 
   displayName = computed(
     () => this.columnConfig().new_name ?? this.columnConfig().original_name

@@ -2,8 +2,8 @@
   <div class="flex items-stretch h-12 gap-[5px] px-[5px] py-[8px]">
     <div
       class="flex-1 min-w-0 border flex items-center px-2 overflow-hidden bg-white"
-      [class.border-red-400]="nameValidationError()"
-      [class.border-gray-300]="!nameValidationError()"
+      [class.border-red-400]="displayedNameError()"
+      [class.border-gray-300]="!displayedNameError()"
       [class.opacity-50]="isExcluded()"
     >
       <input
@@ -50,12 +50,12 @@
     </div>
   </div>
 
-  @if (nameValidationError()) {
+  @if (displayedNameError()) {
   <div
     data-name-error
     class="absolute top-full left-0 right-0 z-40 bg-red-50 border border-red-300 text-red-700 text-xs px-2 py-1 shadow-sm"
   >
-    {{ nameValidationError() }}
+    {{ displayedNameError() }}
   </div>
   }
 </div>

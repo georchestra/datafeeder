@@ -276,14 +276,24 @@ describe('DatasetPreviewTableComponent', () => {
       ])
     })
 
-    it('flags a clashing joined column and hides its values', () => {
+    it('flags the source column clashing with a joined one and hides the joined values', () => {
       const fixture = create(['nom'], ['nom'])
+      const el = fixture.nativeElement as HTMLElement
+
+      const errors = Array.from(el.querySelectorAll('[data-name-error]'))
+      expect(errors).toHaveLength(1)
+      expect(errors[0].closest('[data-join-header]')).toBeNull()
+      expect(errors[0].textContent).toContain('Choose a unique column name')
+      expect(el.querySelector('[data-join-cell]')!.textContent?.trim()).toBe('')
+    })
+
+    it('flags a joined column clashing with no source column', () => {
+      const fixture = create(['geom'], ['geom'])
       const el = fixture.nativeElement as HTMLElement
 
       expect(
         el.querySelector('[data-join-header] [data-name-error]')?.textContent
       ).toContain('Choose a unique column name')
-      expect(el.querySelector('[data-join-cell]')!.textContent?.trim()).toBe('')
     })
   })
 })
