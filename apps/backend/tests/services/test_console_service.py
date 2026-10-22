@@ -200,7 +200,7 @@ class TestFetchUsersByUsernames:
         assert result == {"jdoe": "Jane Doe", "asmith": "Alice Smith"}
         mock_post.assert_called_once_with(
             "http://console.example.com/internal/users/fetch-by-usernames",
-            json={"usernames": ["jdoe", "asmith"], "fields": ["username", "firstName", "lastName"]},
+            json=["jdoe", "asmith"],
             timeout=5.0,
         )
 
@@ -262,5 +262,78 @@ class TestFetchUsersByUsernames:
         mock_post.return_value = mock_response
 
         result = ConsoleService("http://console.example.com").fetch_users_by_usernames(["jdoe"])
+
+        assert result == {}
+
+
+class TestFetchOrganizationsByShortNames:
+    @patch("src.services.console_service.httpx.post")
+    def test_success_returns_long_name_map(self, mock_post: MagicMock) -> None:
+        """Short names are mapped to the organization long name."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = [
+            {"id": "uuid-1", "shortName": "c2c", "name": "Camptocamp"},
+            {"id": "uuid-2", "shortName": "psc", "name": "geOrchestra PSC"},
+        ]
+        mock_post.return_value = mock_response
+
+        service = ConsoleService("http://console.example.com")
+        result = service.fetch_organizations_by_short_names(["c2c", "psc"])
+
+        assert result == {"c2c": "Camptocamp", "psc": "geOrchestra PSC"}
+        mock_post.assert_called_once_with(
+            "http://console.example.com/internal/organizations/fetch-by-shortnames",
+            json=["c2c", "psc"],
+            timeout=5.0,
+        )
+
+    def test_empty_list_returns_empty_dict_without_http_call(self) -> None:
+        """No HTTP request is made when the input list is empty."""
+        with patch("src.services.console_service.httpx.post") as mock_post:
+            service = ConsoleService("http://console.example.com")
+            result = service.fetch_organizations_by_short_names([])
+
+        assert result == {}
+        mock_post.assert_not_called()
+
+    @patch("src.services.console_service.httpx.post")
+    def test_organization_without_name_omitted(self, mock_post: MagicMock) -> None:
+        """Organizations with no long name are excluded from the result."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = [
+            {"shortName": "ghost", "name": None},
+            {"shortName": "c2c", "name": "Camptocamp"},
+        ]
+        mock_post.return_value = mock_response
+
+        result = ConsoleService("http://console.example.com").fetch_organizations_by_short_names(
+            ["ghost", "c2c"]
+        )
+
+        assert result == {"c2c": "Camptocamp"}
+
+    @patch("src.services.console_service.httpx.post")
+    def test_network_error_returns_empty_dict(self, mock_post: MagicMock) -> None:
+        """Network failures degrade gracefully — empty dict, no exception propagated."""
+        mock_post.side_effect = httpx.ConnectError("Connection refused")
+
+        result = ConsoleService("http://console.example.com").fetch_organizations_by_short_names(
+            ["c2c"]
+        )
+
+        assert result == {}
+
+    @patch("src.services.console_service.httpx.post")
+    def test_http_error_returns_empty_dict(self, mock_post: MagicMock) -> None:
+        """HTTP 5xx responses degrade gracefully."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Server Error", request=MagicMock(), response=MagicMock(status_code=500)
+        )
+        mock_post.return_value = mock_response
+
+        result = ConsoleService("http://console.example.com").fetch_organizations_by_short_names(
+            ["c2c"]
+        )
 
         assert result == {}

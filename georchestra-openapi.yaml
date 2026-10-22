@@ -916,7 +916,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UserBatchRequest"
+              type: "array"
+              items:
+                type: "string"
       responses:
         "200":
           description: "OK"
@@ -1007,6 +1009,26 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/Organization"
+  /internal/organizations/fetch-by-shortnames:
+    post:
+      summary: "POST internal/organizations/fetch-by-shortnames"
+      operationId: "fetchOrganizationsByShortNames"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: "array"
+              items:
+                type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            'application/json':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Organization"
   /internal/organizations/id/{id}/logo:
     get:
       summary: "GET internal/organizations/id/{id}/logo"
@@ -1291,14 +1313,3 @@ components:
           nullable: true
           items:
             type: "string"
-    UserBatchRequest:
-        type: "object"
-        properties:
-          usernames:
-            type: "array"
-            items:
-              type: "string"
-          fields:
-            type: "array"
-            items:
-              type: "string"
