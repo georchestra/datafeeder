@@ -131,6 +131,39 @@ class ConsoleService:
                 result[username] = display
         return result
 
+    def fetch_organizations_by_short_names(self, short_names: list[str]) -> dict[str, str]:
+        """Resolve organization short names to long names via the console batch endpoint.
+
+        Args:
+            short_names: List of organization short names to resolve.
+
+        Returns:
+            Dict mapping short name -> long name. Short names with no name data are omitted.
+            Returns empty dict on any error (graceful degradation).
+        """
+        if not short_names:
+            return {}
+        try:
+            url = f"{self.console_url}/internal/organizations/fetch-by-shortnames"
+            response = httpx.post(
+                url,
+                json=short_names,
+                timeout=5.0,
+            )
+            response.raise_for_status()
+            organizations: list[dict[str, Any]] = response.json()
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch organization names from console API: {e}", exc_info=True
+            )
+            return {}
+
+        return {
+            org["shortName"]: org["name"]
+            for org in organizations
+            if org.get("shortName") and org.get("name")
+        }
+
     def get_all_organizations(self) -> list[dict[str, Any]]:
         """Fetch all organizations from geOrchestra console API.
 

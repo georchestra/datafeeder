@@ -303,17 +303,9 @@ def list_integrity_link_organizations(
     if not short_names:
         return []
 
-    try:
-        organizations = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).get_all_organizations()
-        long_names = {
-            org["shortName"]: org["name"]
-            for org in organizations
-            if org.get("shortName") and org.get("name")
-        }
-    except Exception as e:
-        logger.warning(f"Failed to fetch organizations from console: {e}", exc_info=True)
-        long_names = {}
-
+    long_names = ConsoleService(
+        get_settings().CONSOLE_INTERNAL_URL
+    ).fetch_organizations_by_short_names(list(short_names))
     return [
         GroupItem(id=short_name, label=long_names.get(short_name, short_name))
         for short_name in sorted(short_names)

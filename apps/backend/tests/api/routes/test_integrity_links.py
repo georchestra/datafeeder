@@ -1086,9 +1086,9 @@ class TestListIntegrityLinkOrganizations:
         self, mock_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         mock_session.execute.return_value.scalars.return_value.all.return_value = ["c2c", "geo"]
-        mock_console_service.return_value.get_all_organizations.return_value = [
-            {"id": "org-uuid-1", "shortName": "c2c", "name": "Camptocamp"},
-        ]
+        mock_console_service.return_value.fetch_organizations_by_short_names.return_value = {
+            "c2c": "Camptocamp"
+        }
 
         response = list_integrity_link_organizations(
             session=mock_session, geo_ctx=self._geo_ctx("user0"), group_ids=[]
@@ -1098,14 +1098,15 @@ class TestListIntegrityLinkOrganizations:
             GroupItem(id="c2c", label="Camptocamp"),
             GroupItem(id="geo", label="geo"),
         ]
+        mock_console_service.return_value.fetch_organizations_by_short_names.assert_called_once_with(
+            ["c2c", "geo"]
+        )
 
     def test_falls_back_to_short_name_when_console_lookup_fails(
         self, mock_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         mock_session.execute.return_value.scalars.return_value.all.return_value = ["c2c"]
-        mock_console_service.return_value.get_all_organizations.side_effect = Exception(
-            "console error"
-        )
+        mock_console_service.return_value.fetch_organizations_by_short_names.return_value = {}
 
         response = list_integrity_link_organizations(
             session=mock_session, geo_ctx=self._geo_ctx("user0"), group_ids=[]
@@ -1123,7 +1124,7 @@ class TestListIntegrityLinkOrganizations:
         )
 
         assert response == []
-        mock_console_service.return_value.get_all_organizations.assert_not_called()
+        mock_console_service.return_value.fetch_organizations_by_short_names.assert_not_called()
 
     def test_query_restricted_to_owner_or_rule_for_non_admin(
         self, mock_session: MagicMock, mock_console_service: MagicMock
