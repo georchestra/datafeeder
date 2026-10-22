@@ -31,7 +31,7 @@ def mock_console_service():
     """Patch ConsoleService so tests don't hit the network; returns empty display names by default."""
     with patch(_CONSOLE_PATCH) as mock_cls:
         mock_cls.return_value.fetch_users_by_usernames.return_value = {}
-        mock_cls.return_value.fetch_organization_long_names.return_value = {}
+        mock_cls.return_value.fetch_organizations_by_short_names.return_value = {}
         yield mock_cls
 
 
@@ -794,7 +794,7 @@ class TestListIntegrityLinks:
         )
         self._setup_session(mock_session, [link])
         self._setup_data_session(mock_data_session, ["staging_org"], [])
-        mock_console_service.return_value.fetch_organization_long_names.return_value = {
+        mock_console_service.return_value.fetch_organizations_by_short_names.return_value = {
             "testorg": "Test Organization"
         }
 
