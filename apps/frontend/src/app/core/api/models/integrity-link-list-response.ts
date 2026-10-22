@@ -11,4 +11,5 @@ export interface IntegrityLinkListResponse {
   items: Array<IntegrityLinkListItem>
   next_offset: number
   offset: number
+  total: number
 }
