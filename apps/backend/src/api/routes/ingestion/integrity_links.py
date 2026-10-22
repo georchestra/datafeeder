@@ -307,7 +307,7 @@ def list_integrity_link_organizations(
         get_settings().CONSOLE_INTERNAL_URL
     ).fetch_organizations_by_short_names(list(short_names))
     return [
-        GroupItem(id=short_name, label=long_names.get(short_name, short_name))
+        GroupItem(id=short_name, label=long_names.get(short_name) or short_name)
         for short_name in sorted(short_names)
     ]
 

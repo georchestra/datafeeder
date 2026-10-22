@@ -2,7 +2,8 @@
     "include": ["apps/backend", "libs/data_manipulation"],
     "exclude": [
         "apps/elt",
-        "apps/frontend", 
+        "apps/frontend",
+        "e2e-tests",
         "**/__pycache__", 
         "**/.*", 
         "**/node_modules", 
