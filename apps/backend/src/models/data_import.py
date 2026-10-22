@@ -184,6 +184,7 @@ class IntegrityLinkListItem(BaseModel):
     public_access: PublicAccess = PublicAccess.UNCONFIGURED
     has_final_table: bool = False
     owner_display_name: str | None = None
+    organization_display_name: str | None = None
 
     @field_validator("id", mode="before")
     @classmethod

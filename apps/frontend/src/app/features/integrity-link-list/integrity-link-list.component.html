@@ -82,6 +82,9 @@
         {{ 'integrityLinks.title' | translate }}
       </div>
       <div class="w-48 pr-4 text-sm font-semibold text-gray-2">
+        {{ 'integrityLinks.organization' | translate }}
+      </div>
+      <div class="w-48 pr-4 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.owner' | translate }}
       </div>
       <div class="w-32 pr-4 text-sm font-semibold text-gray-2">
@@ -126,7 +129,18 @@
           </span>
           }
         </div>
-        <div class="w-48 pr-4 text-sm text-gray-2">
+        <div
+          class="w-48 truncate pr-4 text-sm text-gray-2"
+          [title]="
+            link.organization_display_name ?? link.integrity_organization
+          "
+        >
+          {{ link.organization_display_name ?? link.integrity_organization }}
+        </div>
+        <div
+          class="w-48 truncate pr-4 text-sm text-gray-2"
+          [title]="link.owner_display_name ?? link.integrity_owner"
+        >
           {{ link.owner_display_name ?? link.integrity_owner }}
         </div>
         <div class="w-32 pr-4 text-sm text-gray-2">

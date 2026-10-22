@@ -306,6 +306,7 @@
   "integrityLinks.loadMore": "Load more",
   "integrityLinks.noFinalTable": "Ingestion to configure",
   "integrityLinks.noResults": "No results found",
+  "integrityLinks.organization": "Organization",
   "integrityLinks.owner": "Author",
   "integrityLinks.readOnly": "Read only",
   "integrityLinks.recurrence": "Recurrence",
