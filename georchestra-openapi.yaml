@@ -916,7 +916,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UserBatchRequest"
+              type: "array"
+              items:
+                type: "string"
       responses:
         "200":
           description: "OK"
@@ -1291,10 +1293,3 @@ components:
           nullable: true
           items:
             type: "string"
-    UserBatchRequest:
-        type: "object"
-        properties:
-          usernames:
-            type: "array"
-            items:
-              type: "string"

@@ -110,7 +110,7 @@ class ConsoleService:
             url = f"{self.console_url}/internal/users/fetch-by-usernames"
             response = httpx.post(
                 url,
-                json={"usernames": usernames},
+                json=usernames,
                 timeout=5.0,
             )
             response.raise_for_status()
