@@ -3,6 +3,7 @@
 
 export type { BodyEditStagingIngestionStagingIntegrityLinkIdPut } from './models/body-edit-staging-ingestion-staging-integrity-link-id-put'
 export type { BodySubmitStagingIngestionStagingPost } from './models/body-submit-staging-ingestion-staging-post'
+export type { BodyUpdateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferencePatch } from './models/body-update-is-reference-ingestion-integrity-link-integrity-link-id-is-reference-patch'
 export type { BodyUpdateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePatch } from './models/body-update-schedule-ingestion-integrity-link-integrity-link-id-schedule-patch'
 export type { CastType } from './models/cast-type'
 export type { ColumnConfig } from './models/column-config'

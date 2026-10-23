@@ -20,6 +20,7 @@ from src.api.routes.ingestion.integrity_link import (
     delete_integrity_link_rule,
     get_integrity_link,
     list_integrity_link_rules,
+    update_is_reference,
     upsert_integrity_link_rule,
 )
 from src.api.routes.ingestion.process import process_staging_data
@@ -711,5 +712,64 @@ class TestDeleteIntegrityLinkPermission:
 
         with pytest.raises(HTTPException):
             delete_integrity_link(MagicMock(), _ctx(), INTLINK_ID, [], MagicMock())
+
+        mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.OWNER_ONLY, ANY, ANY, ANY)
+
+
+# ────────────────────────────────────────────────────────
+# PATCH /ingestion/integrity-link/{id}/is_reference  (OWNER_ONLY)
+# ────────────────────────────────────────────────────────
+
+
+class TestUpdateIsReferencePermission:
+    def test_returns_403_for_unauthorized_user(self) -> None:
+        session = _mock_session(_link())
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_is_reference(session, _ctx(), INTLINK_ID, [], is_reference=True)
+
+        assert exc_info.value.status_code == 403
+        session.commit.assert_not_called()
+
+    def test_returns_403_for_write_group_user(self) -> None:
+        """WRITE group access is insufficient for OWNER_ONLY endpoint."""
+        session = _mock_session_with_rule(_link(), RuleValue.WRITE)
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_is_reference(session, _write_ctx(), INTLINK_ID, GROUP_IDS, is_reference=True)
+
+        assert exc_info.value.status_code == 403
+        session.commit.assert_not_called()
+
+    def test_succeeds_for_owner(self) -> None:
+        session = _mock_session(_link(), access_result="OWNER")
+
+        response = update_is_reference(session, _owner_ctx(), INTLINK_ID, [], is_reference=True)
+
+        assert response.is_reference_dataset is True
+
+    def test_succeeds_for_admin(self) -> None:
+        session = _mock_session(_link(), access_result="ADMIN")
+
+        response = update_is_reference(session, _admin_ctx(), INTLINK_ID, [], is_reference=True)
+
+        assert response.is_reference_dataset is True
+
+    def test_returns_404_for_unknown_id(self) -> None:
+        """Unknown integrity_link_id returns 404."""
+        session = _mock_session(None)  # no link found
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_is_reference(session, _owner_ctx(), str(uuid4()), [], is_reference=True)
+
+        assert exc_info.value.status_code == 404
+
+    @patch("src.api.routes.ingestion.integrity_link.load_authorized_integrity_link")
+    def test_requires_owner_only_access_level(self, mock_load: MagicMock) -> None:
+        """Verify endpoint passes AccessLevel.OWNER_ONLY."""
+        mock_load.side_effect = HTTPException(status_code=403)
+
+        with pytest.raises(HTTPException):
+            update_is_reference(MagicMock(), _ctx(), INTLINK_ID, [], is_reference=True)
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.OWNER_ONLY, ANY, ANY, ANY)

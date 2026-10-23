@@ -61,6 +61,7 @@ class IntegrityLink(SQLModel, table=True):
         default_factory=lambda: datetime.now(timezone.utc),
         sa_column_kwargs={"server_default": "current_timestamp"},
     )
+    is_reference_dataset: bool = Field(default=False)
 
     def parse_data_id(self) -> tuple[str, str] | None:
         """Split data_id formatted as 'workspace:layer' into its two components.
