@@ -701,3 +701,32 @@ def update_schedule(
     return IntegrityLinkResponse.model_validate(integrity_link).model_copy(
         update={"access_level": effective.value, "preset_id": resolved_preset}
     )
+
+
+@router.patch(
+    "/{integrity_link_id}/is_reference",
+    response_model=IntegrityLinkResponse,
+    summary="Update whether the dataset is a reference dataset",
+    description="Set or clear the reference dataset flag for an IntegrityLink.",
+)
+def update_is_reference(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    integrity_link_id: str,
+    group_ids: GroupIdsDep,
+    is_reference: bool = Body(embed=True),
+) -> IntegrityLinkResponse:
+    integrity_link, effective = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
+    )
+    integrity_link.is_reference_dataset = is_reference
+
+    session.commit()
+    session.refresh(integrity_link)
+
+    resolved_preset = (
+        RecurrencePreset.from_cron(integrity_link.schedule) if integrity_link.schedule else None
+    )
+    return IntegrityLinkResponse.model_validate(integrity_link).model_copy(
+        update={"access_level": effective.value, "preset_id": resolved_preset}
+    )
