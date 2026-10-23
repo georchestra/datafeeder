@@ -22,6 +22,7 @@ export interface IntegrityLinkResponse {
   integrity_transformation?: {
     [key: string]: any
   } | null
+  is_reference_dataset?: boolean
   last_retrieval_timestamp: string | null
   metadata_id: string | null
   preset_id?: RecurrencePreset | null
