@@ -34,7 +34,6 @@ services:
       - .envs-ldap
       - .envs-hosts
       - .envs-database-georchestra
-    restart: always
 
   # GDAL/ogr2ogr sidecar for the LOCAL task executor: datafeeder-backend has no GDAL
   # installed, so LocalTaskExecutor reaches ogr2ogr in this container via `docker exec`
@@ -51,13 +50,11 @@ services:
     # bridge network's `datadb` DNS alias isn't reachable from the host process.
     network_mode: host
     entrypoint: ["tail", "-f", "/dev/null"]
-    restart: unless-stopped
     volumes:
       - /tmp/:/tmp:rw
 
   datadb:
     image: postgis/postgis:18-3.6
-    restart: always
     ports:
       - "5433:5432"
     environment:
@@ -76,7 +73,6 @@ services:
   #                       v_diagnostic_en_marchant_campagne_2025 (view, fails: bad date cast)
   sourcedb:
     image: postgis/postgis
-    restart: always
     ports:
       - "5434:5432"
     environment:
