@@ -67,6 +67,8 @@ export class ColumnHeaderComponent implements OnDestroy {
 
   columnConfig = input.required<ColumnConfig>()
   allColumnNames = input<string[]>([])
+  // The name is taken by a joined column, which cannot be renamed.
+  joinClash = input(false)
 
   actionMenuOpened = output<ColumnAction>()
   nameChanged = output<string>()
@@ -94,6 +96,13 @@ export class ColumnHeaderComponent implements OnDestroy {
 
   isMenuOpen = signal(false)
   nameValidationError = signal<string | null>(null)
+  displayedNameError = computed(
+    () =>
+      this.nameValidationError() ??
+      (this.joinClash()
+        ? this.translate.instant('import.columnHeader.error.duplicate')
+        : null)
+  )
 
   displayName = computed(
     () => this.columnConfig().new_name ?? this.columnConfig().original_name
@@ -184,7 +193,18 @@ export class ColumnHeaderComponent implements OnDestroy {
 
   onMenuAction(action: ColumnAction): void {
     this.closeMenu()
+    if (action === 'remove') this.discardInvalidName()
     this.actionMenuOpened.emit(action)
+  }
+
+  // An invalid name is never saved: removing or restoring the column drops it,
+  // so its error no longer blocks the next step.
+  private discardInvalidName(): void {
+    if (!this.nameValidationError()) return
+    this.nameValidationError.set(null)
+    this.nameValidationErrorChanged.emit(null)
+    const el = this.nameInputEl()?.nativeElement
+    if (el) el.value = this.displayName()
   }
 
   onTypeSelected(type: CastType | null): void {

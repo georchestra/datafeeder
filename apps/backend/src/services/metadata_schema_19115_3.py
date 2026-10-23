@@ -17,6 +17,7 @@ NS_19115_3 = {
     "gco": "http://standards.iso.org/iso/19115/-3/gco/1.0",
     "lan": "http://standards.iso.org/iso/19115/-3/lan/1.0",
     "mrd": "http://standards.iso.org/iso/19115/-3/mrd/1.0",
+    "gex": "http://standards.iso.org/iso/19115/-3/gex/1.0",
 }
 
 _CODELIST_URL = (
@@ -24,6 +25,23 @@ _CODELIST_URL = (
 )
 _ONLINE_FUNCTION_CODELIST_URL = (
     "http://standards.iso.org/iso/19115/resources/Codelists/cat/codelists.xml#CI_OnLineFunctionCode"
+)
+
+# Elements following mri:extent in MD_DataIdentification
+_AFTER_EXTENT_19115_3 = (
+    "additionalDocumentation",
+    "processingLevel",
+    "resourceMaintenance",
+    "graphicOverview",
+    "resourceFormat",
+    "descriptiveKeywords",
+    "resourceSpecificUsage",
+    "resourceConstraints",
+    "associatedResource",
+    "defaultLocale",
+    "otherLocale",
+    "environmentDescription",
+    "supplementalInformation",
 )
 
 RESOURCE_TITLE_XPATH_19115_3 = "mdb:distributionInfo/mrd:MD_Distribution/mrd:transferOptions/mrd:MD_DigitalTransferOptions/mrd:onLine/cit:CI_OnlineResource/cit:description/gco:CharacterString"
@@ -75,6 +93,16 @@ class Iso19115_3Schema(MetadataSchema):
             if online.text != title:
                 online.text = title
                 self.updated = True
+        return self
+
+    def update_geographic_extent(self, bbox: dict[str, float]) -> Self:
+        ns = NS_19115_3
+        for identification in self.root.xpath(
+            "mdb:identificationInfo/mri:MD_DataIdentification", namespaces=ns
+        ):
+            self._set_geographic_bbox(
+                identification, ns["mri"], ns["gex"], ns["gco"], _AFTER_EXTENT_19115_3, bbox
+            )
         return self
 
     def replace_layer_online_resources(

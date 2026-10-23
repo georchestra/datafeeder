@@ -69,6 +69,16 @@ class Iso19139Schema(MetadataSchema):
                 self.updated = True
         return self
 
+    def update_geographic_extent(self, bbox: dict[str, float]) -> Self:
+        ns = NS_19139
+        for identification in self.root.xpath(
+            "gmd:identificationInfo/gmd:MD_DataIdentification", namespaces=ns
+        ):
+            self._set_geographic_bbox(
+                identification, ns["gmd"], ns["gmd"], ns["gco"], ("supplementalInformation",), bbox
+            )
+        return self
+
     def replace_layer_online_resources(
         self, old_layer_name: str, layer_urls: dict[str, Any]
     ) -> Self:

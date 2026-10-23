@@ -19,6 +19,14 @@ LAYER_URL_PROTOCOLS = (
     ("wfs", "OGC:WFS"),
 )
 
+# EX_GeographicBoundingBox element -> bbox key, in schema order
+BBOX_BOUNDS = (
+    ("westBoundLongitude", "minx"),
+    ("eastBoundLongitude", "maxx"),
+    ("southBoundLatitude", "miny"),
+    ("northBoundLatitude", "maxy"),
+)
+
 
 class MetadataSchema:
     """Base class/interface for schema-specific ISO metadata operations.
@@ -49,6 +57,49 @@ class MetadataSchema:
         self, old_layer_name: str, layer_urls: dict[str, Any]
     ) -> Self:
         """Point the online resources of ``old_layer_name`` to the layer of ``layer_urls``."""
+        return self
+
+    def update_geographic_extent(self, bbox: dict[str, float]) -> Self:
+        """Set the geographic bounding box of the resource to *bbox* (EPSG:4326)."""
+        return self
+
+    def _set_geographic_bbox(
+        self,
+        identification: _Element,
+        extent_ns: str,
+        ext_ns: str,
+        gco_ns: str,
+        next_siblings: tuple[str, ...],
+        bbox: dict[str, float],
+    ) -> Self:
+        """Overwrite the first EX_GeographicBoundingBox of ``identification`` with *bbox*, or
+        add one in a new extent, placed before the first of the ``next_siblings`` local names
+        (``extent_ns`` elements) to respect the schema order.
+        """
+        boxes = identification.findall(
+            f"{{{extent_ns}}}extent/{{{ext_ns}}}EX_Extent"
+            f"/{{{ext_ns}}}geographicElement/{{{ext_ns}}}EX_GeographicBoundingBox"
+        )
+        if boxes:
+            box = boxes[0]
+            for name, _ in BBOX_BOUNDS:
+                for bound in box.findall(f"{{{ext_ns}}}{name}"):
+                    box.remove(bound)
+        else:
+            extent = etree.Element(f"{{{extent_ns}}}extent")
+            ex_extent = etree.SubElement(extent, f"{{{ext_ns}}}EX_Extent")
+            element = etree.SubElement(ex_extent, f"{{{ext_ns}}}geographicElement")
+            box = etree.SubElement(element, f"{{{ext_ns}}}EX_GeographicBoundingBox")
+            next_tags = {f"{{{extent_ns}}}{name}" for name in next_siblings}
+            following = [child for child in identification if child.tag in next_tags]
+            if following:
+                following[0].addprevious(extent)
+            else:
+                identification.append(extent)
+        for name, key in BBOX_BOUNDS:
+            bound = etree.SubElement(box, f"{{{ext_ns}}}{name}")
+            etree.SubElement(bound, f"{{{gco_ns}}}Decimal").text = repr(bbox[key])
+        self.updated = True
         return self
 
     def _replace_layer_links(

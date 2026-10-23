@@ -24,6 +24,10 @@
           <app-column-header
             [columnConfig]="col"
             [allColumnNames]="allDisplayNames()"
+            [joinClash]="
+              !col.excluded &&
+              sourceClashes().includes(col.new_name ?? col.original_name)
+            "
             (actionMenuOpened)="onColumnAction(col.original_name, $event)"
             (nameChanged)="onColumnRename(col.original_name, $event)"
             (nameValidationErrorChanged)="
@@ -56,12 +60,12 @@
           <div class="relative h-12 px-[5px] py-[8px]">
             <div
               class="h-full border flex items-center px-2 bg-white font-bold text-[14px] text-[#646464] truncate"
-              [class.border-red-400]="joinClashes().includes(name)"
-              [class.border-gray-300]="!joinClashes().includes(name)"
+              [class.border-red-400]="joinOnlyClash(name)"
+              [class.border-gray-300]="!joinOnlyClash(name)"
             >
               {{ name }}
             </div>
-            @if (joinClashes().includes(name)) {
+            @if (joinOnlyClash(name)) {
             <div
               data-name-error
               class="absolute top-full left-0 right-0 z-40 bg-red-50 border border-red-300 text-red-700 text-xs px-2 py-1 shadow-sm"

@@ -74,6 +74,16 @@ export class DatasetPreviewTableComponent {
 
   errorTitle = computed(() => this.translate.instant('import.dataSource.error'))
 
+  // Clashing joined columns whose name is taken by a source column: the error
+  // is shown on that column, the only one that can be renamed. The others clash
+  // with the point built from X/Y and keep the error on the joined column.
+  sourceClashes = computed(() => {
+    const names = (this.metadata()?.columns ?? [])
+      .filter((col) => !col.excluded)
+      .map((col) => col.new_name ?? col.original_name)
+    return this.joinClashes().filter((name) => names.includes(name))
+  })
+
   allDisplayNames = computed(() => [
     ...(this.metadata()?.columns ?? []).map(
       (col) => col.new_name ?? col.original_name
@@ -114,6 +124,12 @@ export class DatasetPreviewTableComponent {
   // source column of the same name.
   joinColumnId(name: string): string {
     return `join:${name}`
+  }
+
+  joinOnlyClash(name: string): boolean {
+    return (
+      this.joinClashes().includes(name) && !this.sourceClashes().includes(name)
+    )
   }
 
   onColumnAction(originalName: string, action: ColumnAction): void {
