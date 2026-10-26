@@ -20,6 +20,8 @@ import { provideApiConfiguration } from './core/api/api-configuration'
 import { StoreModule } from '@ngrx/store'
 import { EffectsModule } from '@ngrx/effects'
 import { SettingsService } from './core/settings/settings.service'
+import { TranslateLoader } from '@ngx-translate/core'
+import { DatafeederTranslateLoader } from './core/i18n/translate.loader'
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -27,7 +29,10 @@ export const appConfig: ApplicationConfig = {
     provideZonelessChangeDetection(),
     provideRouter(appRoutes),
     provideHttpClient(),
-    provideI18n(TRANSLATE_DEFAULT_CONFIG),
+    provideI18n({
+      ...TRANSLATE_DEFAULT_CONFIG,
+      loader: { provide: TranslateLoader, useClass: DatafeederTranslateLoader }
+    }),
     provideRepositoryUrl(() => '/datafeeder-backend/geonetwork/srv/api'),
     provideGn4({ disableDraft: true }),
     importProvidersFrom(

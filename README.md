@@ -1,6 +1,6 @@
 # Datafeeder
 
-Data ingestion module for geOrchestra - supports CSV, GeoPackage, GeoJSON, Zipped-Shapefile, Parquet, GeoParquet files & OGC services, FTP, Database. 
+Data ingestion module for geOrchestra - supports CSV, GeoPackage, GeoJSON, Zipped-Shapefile, Parquet, GeoParquet files & OGC services, FTP, Database.
 
 ## Prerequisites
 
@@ -22,7 +22,8 @@ uv --version
 ## Docker quick-start
 
 Then, you can setup the development environment:
-```
+
+````
 Running services:
 ```bash
 # Launch all services + GeoServer + GeoNetwork
@@ -33,14 +34,15 @@ make run-backend
 
 # And in another terminal, launch the frontend:
 cd apps/frontend && npm install && npm start
-```
+````
 
 `libs/data_manipulation` is bind-mounted into the Airflow containers, so source edits are picked up live. After changing `libs/data_manipulation/pyproject.toml` dependencies, rebuild with `docker compose up -d --build`.
 
 ### Develop without Airflow
 
 When Airflow isn't needed (working on some UI, or integration with data or metadata provider), it may be faster to start the composition without it.
-Instead of above commands you can use those ones: 
+Instead of above commands you can use those ones:
+
 ```
 # Launch without airflow
 make up-no-airflow
@@ -59,13 +61,13 @@ The Datafeeder application is accessible through a gateway that handles authenti
 - **URL**: http://localhost:8080/
 - **Credentials**: `testadmin/testadmin`
 
-It redirects, by default, to the frontend at http://localhost:8080/datafeeder/.
+It redirects, by default, to the frontend at http://localhost:8080/dataset/.
 
 ### Frontend
 
 The Datafeeder frontend is built with Angular 20 and provides the user interface for managing data ingestion workflows. It features a modern, component-based architecture using Tailwind CSS for styling.
 
-- **Gateway URL**: http://localhost:8080/datafeeder/
+- **Gateway URL**: http://localhost:8080/dataset/
 - **URL**: http://localhost:8001/
 
 For detailed information about the frontend application structure, development setup, and guidelines, see the [frontend README](./apps/frontend/README.md).
@@ -87,9 +89,9 @@ The ELT application uses Apache Airflow for data orchestration and workflow mana
 - **Airflow API Documentation**: http://localhost:8081/docs
 - **Credentials**: `airflow/airflow`
 
-### Task Executors: Airflow 
+### Task Executors: Airflow
 
-The Datafeeder only supports one task execution engine: **Airflow** (default). 
+The Datafeeder only supports one task execution engine: **Airflow** (default).
 
 - **Airflow**: Full-featured workflow orchestration with web UI, suitable for complex workflows
 
