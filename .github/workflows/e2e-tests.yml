@@ -1,0 +1,115 @@
+name: Datafeeder E2E tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 24.20.0
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    name: E2E tests
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      # Same layout as local dev: georchestra + Airflow in Docker, backend and
+      # frontend on the host, reached by the gateway through host.docker.internal.
+      - name: Start Docker stack
+        run: make up
+
+      - name: Start backend
+        run: nohup make run-backend > backend.log 2>&1 &
+
+      - name: Install frontend deps
+        working-directory: ./apps/frontend
+        run: npm ci
+
+      - name: Start frontend
+        working-directory: ./apps/frontend
+        run: nohup npm start > ../../frontend.log 2>&1 &
+
+      - name: Wait for backend and frontend
+        run: |
+          timeout 300 bash -c 'until curl -sf -o /dev/null http://localhost:8080/datafeeder-backend/openapi.json; do sleep 5; done'
+          timeout 300 bash -c 'until curl -sf -o /dev/null http://localhost:8080/dataset/; do sleep 5; done'
+
+      - name: Install e2e deps
+        working-directory: ./e2e-tests
+        run: |
+          uv sync
+          uv run playwright install --with-deps chromium
+
+      # Credential tests skip themselves when a var is missing, so only write the set ones
+      - name: Write credentials
+        working-directory: ./e2e-tests
+        env:
+          FTP_HOST: ${{ secrets.E2E_FTP_HOST }}
+          FTP_USER: ${{ secrets.E2E_FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.E2E_FTP_PASSWORD }}
+          FTP_PATH: ${{ secrets.E2E_FTP_PATH }}
+          BASIC_AUTH_URL: ${{ secrets.E2E_BASIC_AUTH_URL }}
+          BASIC_AUTH_USER: ${{ secrets.E2E_BASIC_AUTH_USER }}
+          BASIC_AUTH_PASSWORD: ${{ secrets.E2E_BASIC_AUTH_PASSWORD }}
+        run: |
+          for name in FTP_HOST FTP_USER FTP_PASSWORD FTP_PATH BASIC_AUTH_URL BASIC_AUTH_USER BASIC_AUTH_PASSWORD; do
+            if [ -n "${!name}" ]; then echo "$name=${!name}" >> .env; fi
+          done
+
+      # Override addopts to drop --headed, there is no display on the runner
+      - name: Run e2e tests
+        working-directory: ./e2e-tests
+        run: >
+          uv run pytest -v
+          -o addopts="--base-url=http://localhost:8080"
+          --tracing retain-on-failure
+          --screenshot only-on-failure
+
+      - name: Dump logs
+        if: failure()
+        run: |
+          docker compose --profile airflow logs --no-color > docker-compose.log
+          mkdir -p logs
+          mv backend.log frontend.log docker-compose.log logs/
+          cp -r apps/elt/logs logs/airflow || true
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            e2e-tests/test-results
+            logs
+          retention-days: 7
+
+      - name: Stop Docker stack
+        if: always()
+        run: make down
