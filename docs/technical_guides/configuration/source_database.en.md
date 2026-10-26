@@ -13,19 +13,21 @@ for Airflow, matched by the same key:
 
 ## 1. Backend: declare the connection
 
-Add an entry to `SOURCE_DATABASES` in [`datafeeder.env`](backend.md), a JSON object mapping a key to a
-SQLAlchemy/PostgreSQL URI:
+Add a `copy` entry to `SOURCE_DATABASES` in [`datafeeder.env`](backend.md), a JSON object mapping a key to
+a SQLAlchemy/PostgreSQL URI:
 
 ```
-SOURCE_DATABASES={"SOURCE_DB_1": "postgresql://<user>:<password>@<host>:<port>/<database>"}
+SOURCE_DATABASES={"SOURCE_DB_1": {"type": "copy", "connection_string": "postgresql://<user>:<password>@<host>:<port>/<database>"}}
 ```
+
+A bare URI (`{"SOURCE_DB_1": "postgresql://..."}`) is still accepted as a `copy` entry.
 
 The key (`SOURCE_DB_1` above) is arbitrary but must be unique and must match the Airflow connection ID
 configured in the next step.
 
 !!! warning "Current limitation"
 
-    Only the first entry of `SOURCE_DATABASES` is used by the backend today (see `apps/backend/src/core/db.py`).
+    Only the first `copy` entry of `SOURCE_DATABASES` is used by the backend today (see `apps/backend/src/core/db.py`).
     The JSON format allows several keys, but only single-source-database setups are supported for now.
 
 ## 2. Airflow: declare the matching connection
