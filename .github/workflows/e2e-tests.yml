@@ -40,13 +40,14 @@ jobs:
           cache: "npm"
           cache-dependency-path: apps/frontend/package-lock.json
 
-      # Same layout as local dev: georchestra + Airflow in Docker, backend and
-      # frontend on the host, reached by the gateway through host.docker.internal.
+      # Same layout as local dev: georchestra in Docker, backend and frontend on the
+      # host, reached by the gateway through host.docker.internal. No Airflow: the
+      # backend runs ingestion itself, calling ogr2ogr in the datafeeder-gdal container.
       - name: Start Docker stack
-        run: make up
+        run: make up-no-airflow
 
       - name: Start backend
-        run: nohup make run-backend > backend.log 2>&1 &
+        run: nohup make run-backend-with-local-task-executor > backend.log 2>&1 &
 
       - name: Install frontend deps
         working-directory: ./apps/frontend
@@ -56,10 +57,20 @@ jobs:
         working-directory: ./apps/frontend
         run: nohup npm start > ../../frontend.log 2>&1 &
 
+      # Direct then through the gateway, to tell a dead service from a routing issue.
+      # The gateway only lets IMPORT users through, hence the test account.
       - name: Wait for backend and frontend
         run: |
-          timeout 300 bash -c 'until curl -sf -o /dev/null http://localhost:8080/datafeeder-backend/openapi.json; do sleep 5; done'
-          timeout 300 bash -c 'until curl -sf -o /dev/null http://localhost:8080/dataset/; do sleep 5; done'
+          wait_for() {
+            echo "Waiting for $1"
+            timeout 300 bash -c "until curl -sf -u testadmin:testadmin -o /dev/null $1; do sleep 5; done" && return
+            echo "::error::$1 not reachable"
+            curl -sv -u testadmin:testadmin -o /dev/null "$1" || true
+            tail -n 100 backend.log frontend.log
+            return 1
+          }
+          wait_for http://localhost:8080/datafeeder-backend/openapi.json
+          wait_for http://localhost:8080/dataset/
 
       - name: Install e2e deps
         working-directory: ./e2e-tests
@@ -95,10 +106,9 @@ jobs:
       - name: Dump logs
         if: failure()
         run: |
-          docker compose --profile airflow logs --no-color > docker-compose.log
+          docker compose --profile local-executor logs --no-color > docker-compose.log
           mkdir -p logs
           mv backend.log frontend.log docker-compose.log logs/
-          cp -r apps/elt/logs logs/airflow || true
 
       - name: Upload test results
         if: failure()
