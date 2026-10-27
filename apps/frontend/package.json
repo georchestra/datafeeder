@@ -44,7 +44,7 @@
     "@ngx-translate/http-loader": "^17.0.0",
     "basiclightbox": "^5.0.4",
     "cronstrue": "^3.32.0",
-    "geonetwork-ui": "2.11.0-dev.fb48cfeee",
+    "geonetwork-ui": "2.11.0-dev.05fe30eee",
     "rxjs": "~7.8.0"
   },
   "devDependencies": {
