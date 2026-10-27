@@ -1,6 +1,7 @@
 import codecs
 import logging
 import re
+import sqlite3
 import subprocess
 import tempfile
 import zipfile
@@ -42,6 +43,8 @@ _WESTERN_LATIN_FALLBACK = frozenset(
 _SHAPEFILE_SIDECAR_SUFFIXES = frozenset(
     {".shx", ".dbf", ".prj", ".cpg", ".sbn", ".sbx", ".qix", ".fbn", ".fbx", ".ain", ".aih"}
 )
+# First bytes of every SQLite database, GeoPackages included.
+_SQLITE_MAGIC = b"SQLite format 3\x00"
 
 
 def _build_pg_connection_string(engine: Engine) -> str:
@@ -391,6 +394,45 @@ def _resolve_zip_source(file_path: str) -> str:
     return source
 
 
+def _reject_multi_layer_geopackage(file_path: str) -> None:
+    """Raise when *file_path* is a GeoPackage holding more than one layer.
+
+    Same data loss as for multi-dataset archives (see :func:`_resolve_zip_source`):
+    ``-nln`` funnels every layer into one table and ``-overwrite`` keeps only the
+    last one. GeoPackage is the only supported format that can hold several
+    layers. A GeoPackage is a SQLite database listing its layers in
+    ``gpkg_contents``, so this needs no GDAL. Anything else is left to GDAL.
+    """
+    try:
+        with open(file_path, "rb") as handle:
+            if handle.read(len(_SQLITE_MAGIC)) != _SQLITE_MAGIC:
+                return
+    except OSError:
+        return
+    try:
+        connection = sqlite3.connect(f"{Path(file_path).absolute().as_uri()}?mode=ro", uri=True)
+        try:
+            layers = [
+                row[0]
+                for row in connection.execute(
+                    "SELECT table_name FROM gpkg_contents "
+                    "WHERE data_type IN ('features', 'attributes') ORDER BY table_name"
+                )
+            ]
+        finally:
+            connection.close()
+    except sqlite3.Error:
+        # Not a GeoPackage (or unreadable): GDAL reports a clearer error.
+        return
+
+    if len(layers) > 1:
+        raise Exception(
+            f"GeoPackage {Path(file_path).name} contains multiple layers "
+            f"({', '.join(layers)}). Only single-layer GeoPackages are supported: "
+            "export the layer to import and upload it on its own."
+        )
+
+
 def ingest_file_with_ogr2ogr(
     file_path: str,
     table_name: str,
@@ -413,6 +455,7 @@ def ingest_file_with_ogr2ogr(
 
     # Detect before rewriting the path: the helper reads the archive itself.
     shape_encoding = _detect_shapefile_encoding(file_path)
+    _reject_multi_layer_geopackage(file_path)
     file_path = _resolve_zip_source(file_path)
 
     pg_connection = _build_pg_connection_string(engine)

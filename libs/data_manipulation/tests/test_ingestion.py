@@ -6,6 +6,7 @@ that *would* be executed.  Full integration runs in the Docker image.
 """
 
 import logging
+import sqlite3
 import struct
 import subprocess
 import zipfile
@@ -21,6 +22,7 @@ from data_manipulation.ingestion import (
     _build_pg_connection_string,  # type: ignore[reportPrivateUsage]
     _detect_shapefile_encoding,  # type: ignore[reportPrivateUsage]
     _normalize_oapif_url,  # type: ignore[reportPrivateUsage]
+    _reject_multi_layer_geopackage,  # type: ignore[reportPrivateUsage]
     _resolve_zip_source,  # type: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
     ingest_data_from_ftp_into_postgis,
@@ -223,6 +225,67 @@ class TestResolveZipSource:
         ingest_file_with_ogr2ogr(archive, "places", engine, schema="staging")
 
         assert f"/vsizip/{archive}" in mock_run.call_args[0][0]
+
+
+def _make_geopackage(path: Path, layers: dict[str, str]) -> str:
+    """Write a minimal GeoPackage whose ``gpkg_contents`` lists *layers* (name -> data_type)."""
+    connection = sqlite3.connect(path)
+    connection.execute("CREATE TABLE gpkg_contents (table_name TEXT, data_type TEXT)")
+    connection.executemany("INSERT INTO gpkg_contents VALUES (?, ?)", layers.items())
+    connection.commit()
+    connection.close()
+    return str(path)
+
+
+class TestRejectMultiLayerGeopackage:
+    def test_single_layer_is_accepted(self, tmp_path: Path) -> None:
+        gpkg = _make_geopackage(tmp_path / "one.gpkg", {"mairies": "features"})
+        _reject_multi_layer_geopackage(gpkg)
+
+    def test_multiple_layers_raise_instead_of_losing_data(self, tmp_path: Path) -> None:
+        # ogr2ogr -nln -overwrite would keep only the last layer.
+        gpkg = _make_geopackage(
+            tmp_path / "multi.gpkg", {"zones_calmes": "features", "troncons": "features"}
+        )
+        with pytest.raises(Exception, match="multiple layers") as excinfo:
+            _reject_multi_layer_geopackage(gpkg)
+        assert "zones_calmes" in str(excinfo.value) and "troncons" in str(excinfo.value)
+
+    def test_attribute_tables_count_as_layers(self, tmp_path: Path) -> None:
+        gpkg = _make_geopackage(
+            tmp_path / "mixed.gpkg", {"mairies": "features", "codes": "attributes"}
+        )
+        with pytest.raises(Exception, match="multiple layers"):
+            _reject_multi_layer_geopackage(gpkg)
+
+    def test_tiles_are_not_vector_layers(self, tmp_path: Path) -> None:
+        gpkg = _make_geopackage(tmp_path / "tiles.gpkg", {"mairies": "features", "ortho": "tiles"})
+        _reject_multi_layer_geopackage(gpkg)
+
+    def test_non_sqlite_file_is_ignored(self, tmp_path: Path) -> None:
+        plain = tmp_path / "data.geojson"
+        plain.write_text('{"type": "FeatureCollection", "features": []}')
+        _reject_multi_layer_geopackage(str(plain))
+
+    def test_sqlite_without_gpkg_contents_is_ignored(self, tmp_path: Path) -> None:
+        db = tmp_path / "other.sqlite"
+        connection = sqlite3.connect(db)
+        connection.execute("CREATE TABLE things (id INTEGER)")
+        connection.commit()
+        connection.close()
+        _reject_multi_layer_geopackage(str(db))
+
+    def test_missing_file_is_left_to_gdal(self, tmp_path: Path) -> None:
+        _reject_multi_layer_geopackage(str(tmp_path / "missing.gpkg"))
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_ogr2ogr_is_not_run_for_a_multi_layer_geopackage(
+        self, mock_run: MagicMock, engine: Engine, tmp_path: Path
+    ) -> None:
+        gpkg = _make_geopackage(tmp_path / "multi.gpkg", {"a": "features", "b": "features"})
+        with pytest.raises(Exception, match="multiple layers"):
+            ingest_file_with_ogr2ogr(gpkg, "multi", engine, schema="staging")
+        mock_run.assert_not_called()
 
 
 def _identity_url(url: str) -> str:
