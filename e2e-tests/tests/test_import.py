@@ -109,7 +109,7 @@ class TestDatafeeder:
         )
         page.get_by_role("option", name=case["layer"]).click()
         page.get_by_role("heading", name="Add a dataset").click()
-        page.get_by_role("button", name="Link the service").click()
+        page.get_by_role("button", name="Link to the service").click()
         page.get_by_role("button", name="Configure the dataset").click()
         expect(page.get_by_role("heading", name="Configure the dataset")).to_be_visible(
             timeout=case["timeout-seconds"] * 1000
