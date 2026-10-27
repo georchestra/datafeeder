@@ -34,6 +34,11 @@
                 "glob": "*.json",
                 "input": "node_modules/geonetwork-ui/translations",
                 "output": "assets/i18n/gn-ui/"
+              },
+              {
+                "glob": "*",
+                "input": "conf",
+                "output": "assets/configuration/"
               }
             ],
             "styles": [
@@ -45,7 +50,7 @@
           "configurations": {
             "production": {
               "budgets": [
-                    {
+                {
                   "type": "initial",
                   "maximumWarning": "2mb",
                   "maximumError": "5mb"

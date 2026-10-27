@@ -33,7 +33,7 @@ export const appConfig: ApplicationConfig = {
       ...TRANSLATE_DEFAULT_CONFIG,
       loader: { provide: TranslateLoader, useClass: DatafeederTranslateLoader }
     }),
-    provideRepositoryUrl(() => '/datafeeder-backend/geonetwork/srv/api'),
+    provideRepositoryUrl('/datafeeder-backend/geonetwork/srv/api'),
     provideGn4({ disableDraft: true }),
     importProvidersFrom(
       StoreModule.forRoot(

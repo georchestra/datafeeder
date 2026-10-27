@@ -13,6 +13,7 @@ RUN npm run build && ls -la dist/
 FROM nginxinc/nginx-unprivileged:1.27-alpine
 
 ENV CUSTOM_SCRIPTS_DIRECTORY=""
+ENV CONFIG_DIRECTORY_OVERRIDE=""
 ENV ENABLE_GEORCHESTRA_HEADER="false"
 
 COPY --from=builder --chown=nginx /app/dist/@datafeeder/frontend/browser /app/datafeeder
