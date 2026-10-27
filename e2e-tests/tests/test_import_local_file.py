@@ -1,17 +1,15 @@
 import csv
-from pathlib import Path
 from typing import Any
 
 import pytest
 from common import (
+    FILES_DIR,
     get_features_geojson,
     login,
     remove_first_dataset,
     validate_and_assert_feature_count,
 )
 from playwright.sync_api import Locator, Page, expect
-
-FILES_DIR = Path(__file__).parent.parent / "files"
 
 IMPORT_CASES = [
     {

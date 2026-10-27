@@ -1,85 +1,82 @@
 from typing import Any
 
 import pytest
-from common import login, remove_first_dataset, validate_and_assert_feature_count
+from common import (
+    GEOSERVER_URL,
+    login,
+    remove_first_dataset,
+    validate_and_assert_feature_count,
+)
 from playwright.sync_api import Page, expect
 
+# Served by the files_base_url fixture: no dependency on a third-party host
 IMPORT_CASES = [
     {
         "id": "parquet",
-        "url": "https://www.data.gouv.fr/api/1/datasets/r/732e07d9-526c-4cfb-880c-f891ff33b019",
-        "map": False,
-        "timeout-seconds": 180,
-        "expected_number_of_features": 703007,
+        "file": "a-epci2025.parquet",
+        "map": True,
+        "timeout-seconds": 60,
+        "expected_number_of_features": 1269,
     },
     {
         "id": "geojson",
-        "url": "https://www.data.gouv.fr/api/1/datasets/r/9e20dab9-0585-4bb7-aa08-9c86e53f8033",
+        "file": "mel_mairie.json",
         "map": True,
         "timeout-seconds": 30,
-        "expected_number_of_features": 3136,
+        "expected_number_of_features": 127,
     },
     {
         "id": "csv",
-        "url": "https://www.data.gouv.fr/api/1/datasets/r/47ac11c2-8a00-46a7-9fa8-9b802643f975",
+        "file": "subventions_aux_associations.csv",
         "map": False,
         "timeout-seconds": 30,
-        "expected_number_of_features": 7283,
+        "expected_number_of_features": 6721,
     },
     {
-        "id": "gpkg-big",
-        "url": "https://www.data.gouv.fr/api/1/datasets/r/c83ba91e-2cd1-40f7-a632-eb0a76d83c49",
+        "id": "gpkg",
+        "file": "mel_mairie.gpkg",
         "map": True,
-        "timeout-seconds": 600,
-        "expected_number_of_features": 1128122,
+        "timeout-seconds": 30,
+        "expected_number_of_features": 127,
+    },
+    {
+        "id": "shp-zip",
+        "file": "mel_mairie.zip",
+        "map": True,
+        "timeout-seconds": 30,
+        "expected_number_of_features": 127,
     },
 ]
+# geor:public_layer ships with the geOrchestra GeoServer of the stack
 SERVICE_IMPORT_CASES = [
     {
-        "id": "wfs-mel-tram",
+        "id": "wfs",
         "type": "WFS",
-        "url": "https://data.lillemetropole.fr/geoserver/ows",
-        "layer": "Arrêts de tramway (mel_mobilite_et_transport:tramway_arrets)",
+        "url": f"{GEOSERVER_URL}/ows",
+        "layer": "public_layer (geor:public_layer)",
         "map": True,
-        "timeout-seconds": 120,
-        "expected_number_of_features": 66,
+        "timeout-seconds": 30,
+        "expected_number_of_features": 33,
     },
-    # {
-    #     "id": "wfs-dev-geo-irve",
-    #     "type": "WFS",
-    #     "url": "https://dev.geo2france.fr/geoserver/ows",
-    #     "layer": "irve_geojson",
-    #     "map": True,
-    #     "timeout-seconds": 120,
-    #     "expected_number_of_features": 18060
-    # },
-    # {
-    #     "id": "wfs-dev-geo-limites",
-    #     "type": "WFS",
-    #     "url": "https://dev.geo2france.fr/geoserver/ows",
-    #     "layer": "limites_communes_loi_littoral",
-    #     "map": True,
-    #     "timeout-seconds": 120,
-    #     "expected_number_of_features": 57
-    # },
     {
         "id": "ogc-features",
         "type": "Service & OGC API",
-        "url": "https://data.lillemetropole.fr/geoserver/ogc/features/v1/collections/mel:equipementsculturelsvilleneuvedascq/items?f=application%2Fgeo%2Bjson&limit=50",
-        "layer": "mel:equipementsculturelsvilleneuvedascq",
+        "url": f"{GEOSERVER_URL}/ogc/features/v1/collections/geor:public_layer/items?f=application%2Fgeo%2Bjson&limit=50",
+        "layer": "geor:public_layer",
         "map": True,
         "timeout-seconds": 30,
+        "expected_number_of_features": 33,
     },
 ]
 
 
 class TestDatafeeder:
     @pytest.mark.parametrize("case", IMPORT_CASES, ids=[c["id"] for c in IMPORT_CASES])
-    def test_import_url(self, page: Page, case: dict[str, Any]):
+    def test_import_url(self, page: Page, files_base_url: str, case: dict[str, Any]):
         login(page)
         page.goto("/dataset/import")
         page.get_by_placeholder("https://").click()
-        page.get_by_placeholder("https://").fill(case["url"])
+        page.get_by_placeholder("https://").fill(f"{files_base_url}/{case['file']}")
         page.locator("gn-ui-url-input").get_by_role("button").click()
         page.get_by_role("button", name="Configure the dataset").click()
         expect(page.get_by_role("heading", name="Configure the dataset")).to_be_visible(
@@ -98,6 +95,7 @@ class TestDatafeeder:
     @pytest.mark.parametrize(
         "case", SERVICE_IMPORT_CASES, ids=[c["id"] for c in SERVICE_IMPORT_CASES]
     )
+    @pytest.mark.usefixtures("advertised_public_layer")
     def test_import_service(self, page: Page, case: dict[str, Any]):
         login(page)
         page.goto("/dataset/import")
@@ -126,19 +124,19 @@ class TestDatafeeder:
         )
         remove_first_dataset(page)
 
-    def test_import_database(self, page: Page):
+    def test_import_database(self, page: Page, files_base_url: str):
         login(page)
         page.goto("/dataset/import")
         page.get_by_role("textbox", name="https://").click()
         page.get_by_role("textbox", name="https://").fill(
-            "https://www.data.gouv.fr/api/1/datasets/r/47ac11c2-8a00-46a7-9fa8-9b802643f975"
+            f"{files_base_url}/subventions_aux_associations.csv"
         )
         page.locator("gn-ui-url-input").get_by_role("button").click()
         page.get_by_role("button", name="Configure the dataset").click()
         page.get_by_role("textbox", name="Enter a title for your dataset").click()
         page.get_by_role("textbox", name="Enter a title for your dataset").press("ControlOrMeta+a")
         page.get_by_role("textbox", name="Enter a title for your dataset").fill("mon dataset")
-        validate_and_assert_feature_count(page, 7283, 15)
+        validate_and_assert_feature_count(page, 6721, 15)
         page.goto("/dataset/import")
         page.get_by_label("From a database").check()
         page.get_by_role("textbox").first.click()
@@ -149,11 +147,9 @@ class TestDatafeeder:
         page.get_by_role("textbox", name="Enter a title for your dataset").click()
         page.get_by_role("textbox", name="Enter a title for your dataset").press("ControlOrMeta+a")
         page.get_by_role("textbox", name="Enter a title for your dataset").fill("mon dataset2")
-        page.get_by_role("columnheader", name="Département principal de dé").get_by_role(
-            "button"
-        ).click()
+        page.get_by_role("columnheader", name="nomattribuant").get_by_role("button").click()
         page.get_by_role("button", name="Filter column").click()
-        page.get_by_placeholder("Values contain...").fill("Savoie")
+        page.get_by_placeholder("Values contain...").fill("Transports")
         page.locator(".absolute").click()
         page.locator("th.mat-column-id_datafeeder [data-action-button]").click()
         page.get_by_role("button", name="Remove column").click()
@@ -161,6 +157,6 @@ class TestDatafeeder:
             timeout=15000
         )
         expect(page.get_by_role("heading", name="Preview of the result")).to_be_visible()
-        validate_and_assert_feature_count(page, 160, 15)
+        validate_and_assert_feature_count(page, 49, 15)
         remove_first_dataset(page)
         remove_first_dataset(page)

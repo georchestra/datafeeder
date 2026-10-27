@@ -1,7 +1,19 @@
+import os
 import time
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 from playwright.sync_api import Page, expect
+
+FILES_DIR = Path(__file__).parent.parent / "files"
+
+# Host under which the ingestion reaches the e2e machine: the files server (see
+# conftest.files_base_url) and the stack's GeoServer. "localhost" works with the local
+# executor (host backend, host-networked GDAL container); Airflow workers need e.g.
+# "host.docker.internal".
+E2E_HOST = os.environ.get("E2E_HOST", "localhost")
+FILES_PORT = int(os.environ.get("E2E_FILES_PORT", "8765"))
+GEOSERVER_URL = f"http://{E2E_HOST}:8080/geoserver"
 
 
 def login(page: Page, username: str = "testadmin", password: str = "testadmin"):

@@ -20,6 +20,12 @@ uv run pytest -k parquet                                           # one case by
 uv run pytest --headed=false                                       # headless
 ```
 
+Tests only depend on the local stack. `tests/test_import.py` imports the files in `files/` by
+URL from a server the tests start on port `8765` (`E2E_FILES_PORT`), and WFS / OGC API Features
+from the stack's GeoServer (`geor:public_layer`). The ingestion must reach both under `localhost`,
+which holds with the local executor (`make up-no-airflow`); with Airflow, set `E2E_HOST` (e.g.
+`host.docker.internal`).
+
 `tests/test_import_local_file.py` uploads the files in `files/`. The CSV lat/lon case is skipped
 unless `EPSG:2154` is in the backend `PROJECTIONS` setting.
 
