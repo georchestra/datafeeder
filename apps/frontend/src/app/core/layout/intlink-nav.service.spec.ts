@@ -242,6 +242,8 @@ describe('IntlinkNavService', () => {
   })
 
   describe('openCatalogue', () => {
+    afterEach(() => vi.restoreAllMocks())
+
     it('should open the catalogue URL in a new tab', () => {
       const { service, mockSettings } = setup()
       mockSettings.getSetting.mockReturnValue(

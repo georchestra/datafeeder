@@ -22,14 +22,10 @@ export default defineConfig(() => ({
     // Re-check once we're back on a stable geonetwork-ui release.
     server: { deps: { inline: ['geonetwork-ui'] } },
     reporters: ['default'],
+    // The web-worker package (via geonetwork-ui) crashes on import inside worker threads.
+    pool: 'forks' as const,
     // RAM-constrained dev machines OOM with parallel workers; keep CI parallel.
-    ...(process.env.CI
-      ? {}
-      : {
-          fileParallelism: false,
-          pool: 'forks' as const,
-          poolOptions: { forks: { maxForks: 1 } }
-        }),
+    ...(process.env.CI ? {} : { fileParallelism: false }),
     coverage: {
       reportsDirectory: './coverage/frontend',
       provider: 'v8' as const
