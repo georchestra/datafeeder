@@ -63,10 +63,10 @@ export class DataSourceDbComponent {
       this.sourceDatabases().find((db) => db.key === this.selectedKey()) ?? null
   )
 
-  form = this.fb.group({
-    schema: this.fb.control<string>(''),
-    table: this.fb.control<string>(''),
-    title: this.fb.control<string>('')
+  form = this.fb.nonNullable.group({
+    schema: '',
+    table: '',
+    title: ''
   })
 
   constructor() {
@@ -93,12 +93,9 @@ export class DataSourceDbComponent {
   }
 
   private emit(): void {
-    const value = this.form.getRawValue()
     this.dbDataChanged.emit({
       key: this.selectedKey(),
-      schema: value.schema || '',
-      table: value.table || '',
-      title: value.title || ''
+      ...this.form.getRawValue()
     })
   }
 }
