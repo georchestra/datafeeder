@@ -39,17 +39,10 @@ import {
 import { UiInputPasswordComponent } from '../ui-input-password/ui-input-password.component'
 import type { SourceDatabaseSummary } from '../../../core/api/models'
 
+// Overrides for labels of the geonetwork-ui file input
 marker('input.file.selectFileLabel')
 marker('input.file.dropFileLabel')
 marker('input.file.orInputUrl')
-marker('import.dataSource.chooseType.ftp')
-marker('import.dataSource.ftp.host')
-marker('import.dataSource.ftp.port')
-marker('import.dataSource.ftp.username')
-marker('import.dataSource.ftp.password')
-marker('import.dataSource.ftp.path')
-marker('import.dataSource.chooseType.database')
-marker('import.dataSource.chooseType.api')
 
 export type SourceType = 'url' | 'file' | 'ftp' | 'database' | 'api'
 export type RadioType = 'file' | 'ftp' | 'database' | 'api'

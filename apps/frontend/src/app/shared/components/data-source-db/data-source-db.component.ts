@@ -17,11 +17,9 @@ import { TranslatePipe } from '@ngx-translate/core'
 import { TextInputComponent } from 'geonetwork-ui'
 import type { SourceDatabaseSummary } from '../../../core/api/models'
 
-marker('import.dataSource.database.schema')
-marker('import.dataSource.database.table')
+// Access type badges, translated from the database type
 marker('import.dataSource.database.copy')
 marker('import.dataSource.database.direct_access')
-marker('import.configuration.datasetTitle')
 
 export interface DbData {
   key: string
