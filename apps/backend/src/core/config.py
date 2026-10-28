@@ -10,6 +10,7 @@ from data_manipulation.logging import configure_logging
 from pydantic import (
     AliasChoices,
     AnyUrl,
+    BaseModel,
     BeforeValidator,
     Field,
     PostgresDsn,
@@ -29,7 +30,13 @@ from src.plugins.PropertiesConfigSettingsSource import PropertiesConfigSettingsS
 logger = get_logger()
 configure_logging(logger)
 
-__all__ = ["Settings", "get_settings"]
+__all__ = [
+    "CopySourceDatabase",
+    "DirectAccessSourceDatabase",
+    "Settings",
+    "SourceDatabase",
+    "get_settings",
+]
 
 
 def parse_cors(v: Any) -> list[str] | str:
@@ -38,6 +45,36 @@ def parse_cors(v: Any) -> list[str] | str:
     elif isinstance(v, list | str):
         return v
     raise ValueError(v)
+
+
+class CopySourceDatabase(BaseModel):
+    """Source database whose tables are copied into the data database ("Database" import type)."""
+
+    type: Literal["copy"]
+    # SQLAlchemy URI; for Airflow runs, the key must also match an Airflow connection ID
+    connection_string: PostgresDsn
+    # Name shown in the wizard; the key is shown when absent
+    label: str | None = None
+
+
+class DirectAccessSourceDatabase(BaseModel):
+    """Source database whose tables GeoServer publishes in place, without copy."""
+
+    type: Literal["direct_access"]
+    # Used by the backend only, to list schemas and tables (a read-only user is enough)
+    connection_string: PostgresDsn
+    # JNDI resource declared in GeoServer's jetty-env.xml, e.g. "jdbc/patrimoine"
+    jndi_reference: str = Field(min_length=1)
+    # Roles allowed to create datasets on this database (geOrchestra role names, without the
+    # ROLE_ prefix, as in GeorchestraContext.has_role); empty = all users
+    roles: list[str] = Field(default_factory=list)
+    # Name shown in the wizard; the key is shown when absent
+    label: str | None = None
+
+
+SourceDatabase = Annotated[
+    CopySourceDatabase | DirectAccessSourceDatabase, Field(discriminator="type")
+]
 
 
 class Settings(BaseSettings):
@@ -148,8 +185,9 @@ class Settings(BaseSettings):
     POSTGRES_DATA_PASSWORD: str | None = None
     POSTGRES_DATA_DB: str | None = None
 
-    # Source databases for database import type (key → SQLAlchemy URI)
-    SOURCE_DATABASES: dict[str, PostgresDsn] = Field(default_factory=dict)
+    # Source databases (key → typed entry): "copy" for the database import type, "direct_access"
+    # for tables published in place by GeoServer. The key identifies the database.
+    SOURCE_DATABASES: dict[str, SourceDatabase] = Field(default_factory=dict)
 
     # When True, final tables are written to a schema named after the org short name instead of "data"
     USE_ORG_SCHEMA: bool = False
