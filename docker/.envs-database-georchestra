@@ -36,5 +36,6 @@ PATRIMOINE_PGPORT=5432
 PATRIMOINE_PGUSER=patrimoine_reader
 PATRIMOINE_PGPASSWORD=patrimoine_reader_password
 
-# external source databases (for database import type)
-SOURCE_DATABASES={"SOURCE_DB_1": {"type": "copy", "connection_string": "postgresql://postgres:mypassword@localhost:5433/postgres"}, "SOURCE_DB_2": {"type": "copy", "connection_string": "postgresql://postgres:mypassword@localhost:5434/sourcedb"}}
+# source databases for the dockerized backend: overrides SOURCE_DATABASES of datafeeder.env
+# (env vars take priority over the dotenv file), so hosts are compose service names
+SOURCE_DATABASES={"SOURCE_DB_1": {"type": "copy", "connection_string": "postgresql://postgres:mypassword@datadb:5432/postgres"}, "SOURCE_DB_2": {"type": "copy", "connection_string": "postgresql://postgres:mypassword@sourcedb:5432/sourcedb"}, "PATRIMOINE": {"type": "direct_access", "connection_string": "postgresql://patrimoine_reader:patrimoine_reader_password@sourcedb_direct_access:5432/patrimoine", "jndi_reference": "jdbc/patrimoine", "roles": ["ADMINISTRATOR"], "label": "Patrimoine (monuments de Lille)"}}
