@@ -48,15 +48,13 @@ import {
   submitStagingIngestionStagingPost,
   processStagingDataIngestionProcessPost,
   editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut,
-  editStagingIngestionStagingIntegrityLinkIdPut,
-  listSourceDatabasesSourceDatabasesGet
+  editStagingIngestionStagingIntegrityLinkIdPut
 } from '../../../core/api/functions'
 import type {
   ColumnConfig,
   TaskStatus,
   ForceProjection,
   JoinConfig,
-  SourceDatabaseSummary,
   StagingResponse,
   StagingMetadataResponse,
   StagingPreviewResponse
@@ -78,6 +76,7 @@ import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-previ
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 import { TechnicalInfoButtonComponent } from '../technical-info-button/technical-info-button.component'
 import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
+import { SourceDatabaseStore } from '../../../core/stores/source-database.store'
 import { FooterService } from '../../../core/layout/footer.service'
 
 marker('import.dataSource.error')
@@ -156,6 +155,7 @@ export class DataImportWizardComponent {
   }>()
 
   integrityLinkStore = inject(IntegrityLinkStore)
+  sourceDatabaseStore = inject(SourceDatabaseStore)
 
   databaseSourceEnabled = computed(() => {
     const features =
@@ -167,14 +167,13 @@ export class DataImportWizardComponent {
     )
   })
 
-  sourceDatabases = signal<SourceDatabaseSummary[]>([])
-  // ponytail: first database until the database picker lands
-  selectedSourceDatabase = computed(() => this.sourceDatabases()[0] ?? null)
-  isDirectAccess = computed(
-    () =>
-      this.importData()?.source?.type === 'database' &&
-      this.selectedSourceDatabase()?.type === 'direct_access'
-  )
+  isDirectAccess = computed(() => {
+    const source = this.importData()?.source
+    return (
+      source?.type === 'database' &&
+      this.sourceDatabaseStore.find(source.dbKey)?.type === 'direct_access'
+    )
+  })
 
   initialDatabaseSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
@@ -182,12 +181,12 @@ export class DataImportWizardComponent {
       link?.source_import_type === 'database' &&
       link?.source_url?.startsWith(DB_URI_PREFIX)
     ) {
-      // format: db://{db_key}/{schema}/{table} — skip the db_key segment
+      // format: db://{db_key}/{schema}/{table}
       const parts = link.source_url
         .substring(DB_URI_PREFIX.length)
         .split('/', 3)
       if (parts.length === 3) {
-        return { schema: parts[1], table: parts[2] }
+        return { key: parts[0], schema: parts[1], table: parts[2] }
       }
     }
     return null
@@ -269,7 +268,7 @@ export class DataImportWizardComponent {
     const initialTab = stepParam === 2 ? 1 : 0
     this.selectedTabIndex.set(initialTab)
     this.handleIntegrityLinkLoadError()
-    this.loadSourceDatabases()
+    this.sourceDatabaseStore.load()
 
     this.destroyRef.onDestroy(() => this.footerService.setContent(null))
 
@@ -321,17 +320,6 @@ export class DataImportWizardComponent {
         this.previewErrorExtent.set(null)
       }
     })
-  }
-
-  // Admin-only endpoint for now: other users get an empty list
-  private async loadSourceDatabases(): Promise<void> {
-    try {
-      this.sourceDatabases.set(
-        await this.api.invoke(listSourceDatabasesSourceDatabasesGet)
-      )
-    } catch {
-      this.sourceDatabases.set([])
-    }
   }
 
   private handleIntegrityLinkLoadError(): void {

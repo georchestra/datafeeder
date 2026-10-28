@@ -224,10 +224,13 @@ describe('DataImportWizardComponent', () => {
   it('should require a title for a direct access database', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
-    component.sourceDatabases.set([{ key: 'BAN', type: 'direct_access' }])
+    component.sourceDatabaseStore.sourceDatabases.set([
+      { key: 'BAN', type: 'direct_access' }
+    ])
 
     component.onSourceChanged({
       type: 'database',
+      dbKey: 'BAN',
       dbSchema: 'geo',
       dbTable: 'rivers',
       dbTitle: ' ',
@@ -237,6 +240,7 @@ describe('DataImportWizardComponent', () => {
 
     component.onSourceChanged({
       type: 'database',
+      dbKey: 'BAN',
       dbSchema: 'geo',
       dbTable: 'rivers',
       dbTitle: 'Rivers',
@@ -248,9 +252,12 @@ describe('DataImportWizardComponent', () => {
   it('should not stage a direct access database source', async () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
-    component.sourceDatabases.set([{ key: 'BAN', type: 'direct_access' }])
+    component.sourceDatabaseStore.sourceDatabases.set([
+      { key: 'BAN', type: 'direct_access' }
+    ])
     component.onSourceChanged({
       type: 'database',
+      dbKey: 'BAN',
       dbSchema: 'geo',
       dbTable: 'rivers',
       dbTitle: 'Rivers',
@@ -274,6 +281,7 @@ describe('DataImportWizardComponent', () => {
     fixture.detectChanges()
 
     expect(component.initialDatabaseSource()).toEqual({
+      key: 'SOURCE_DB_1',
       schema: 'geo',
       table: 'rivers'
     })

@@ -1,4 +1,13 @@
-import { Component, effect, inject, input, output } from '@angular/core'
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  output
+} from '@angular/core'
+import { toObservable } from '@angular/core/rxjs-interop'
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { merge } from 'rxjs'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
@@ -15,6 +24,7 @@ marker('import.dataSource.database.direct_access')
 marker('import.configuration.datasetTitle')
 
 export interface DbData {
+  key: string
   schema: string
   table: string
   // Direct access only: the title is asked in the first step
@@ -35,9 +45,18 @@ export interface DbData {
 export class DataSourceDbComponent {
   private fb = inject(FormBuilder)
 
-  sourceDatabase = input<SourceDatabaseSummary | null>(null)
+  sourceDatabases = input<SourceDatabaseSummary[]>([])
   initialValue = input<DbData | null>(null)
   dbDataChanged = output<DbData>()
+
+  // ponytail: first database preselected until the database picker lands
+  selectedKey = linkedSignal(
+    () => this.initialValue()?.key || this.sourceDatabases()[0]?.key || ''
+  )
+  sourceDatabase = computed(
+    () =>
+      this.sourceDatabases().find((db) => db.key === this.selectedKey()) ?? null
+  )
 
   form = this.fb.group({
     schema: this.fb.control<string>(''),
@@ -61,12 +80,20 @@ export class DataSourceDbComponent {
       this.form.controls.title.setValue('', { emitEvent: false })
     )
 
-    this.form.valueChanges.subscribe((value) => {
-      this.dbDataChanged.emit({
-        schema: value.schema || '',
-        table: value.table || '',
-        title: value.title || ''
-      })
+    // The key also changes outside the form: preselected on init, or once the
+    // source databases are loaded
+    merge(toObservable(this.selectedKey), this.form.valueChanges).subscribe(
+      () => this.emit()
+    )
+  }
+
+  private emit(): void {
+    const value = this.form.getRawValue()
+    this.dbDataChanged.emit({
+      key: this.selectedKey(),
+      schema: value.schema || '',
+      table: value.table || '',
+      title: value.title || ''
     })
   }
 }
