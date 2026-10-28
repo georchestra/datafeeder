@@ -42,7 +42,7 @@ class TestSourceDatabases:
         databases = Settings(_env_file=None).SOURCE_DATABASES  # type: ignore[call-arg]
         assert databases == {
             "SOURCE_DB_1": CopySourceDatabase(
-                connection_string=PostgresDsn("postgresql://u:p@h:5432/db")
+                type="copy", connection_string=PostgresDsn("postgresql://u:p@h:5432/db")
             ),
             "PATRIMOINE": DirectAccessSourceDatabase(
                 type="direct_access",
@@ -52,21 +52,15 @@ class TestSourceDatabases:
             ),
         }
 
-    def test_bare_uri_is_a_copy_database(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("SOURCE_DATABASES", '{"SOURCE_DB_1": "postgresql://u:p@h:5432/db"}')
-        databases = Settings(_env_file=None).SOURCE_DATABASES  # type: ignore[call-arg]
-        assert databases == {
-            "SOURCE_DB_1": CopySourceDatabase(
-                connection_string=PostgresDsn("postgresql://u:p@h:5432/db")
-            )
-        }
-
-    def test_type_defaults_to_copy(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv(
-            "SOURCE_DATABASES", '{"SOURCE_DB_1": {"connection_string": "postgresql://u:p@h/db"}}'
-        )
-        databases = Settings(_env_file=None).SOURCE_DATABASES  # type: ignore[call-arg]
-        assert isinstance(databases["SOURCE_DB_1"], CopySourceDatabase)
+    @pytest.mark.parametrize(
+        "entry",
+        ['"postgresql://u:p@h:5432/db"', '{"connection_string": "postgresql://u:p@h/db"}'],
+        ids=["bare_uri", "missing_type"],
+    )
+    def test_type_is_required(self, monkeypatch: pytest.MonkeyPatch, entry: str) -> None:
+        monkeypatch.setenv("SOURCE_DATABASES", f'{{"SOURCE_DB_1": {entry}}}')
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None)  # type: ignore[call-arg]
 
     def test_direct_access_roles_default_to_empty(self) -> None:
         database = DirectAccessSourceDatabase(

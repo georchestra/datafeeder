@@ -37,4 +37,4 @@ PATRIMOINE_PGUSER=patrimoine_reader
 PATRIMOINE_PGPASSWORD=patrimoine_reader_password
 
 # external source databases (for database import type)
-SOURCE_DATABASES={"SOURCE_DB_1": "postgresql://postgres:mypassword@localhost:5433/postgres", "SOURCE_DB_2": "postgresql://postgres:mypassword@localhost:5434/sourcedb"}
+SOURCE_DATABASES={"SOURCE_DB_1": {"type": "copy", "connection_string": "postgresql://postgres:mypassword@localhost:5433/postgres"}, "SOURCE_DB_2": {"type": "copy", "connection_string": "postgresql://postgres:mypassword@localhost:5434/sourcedb"}}
