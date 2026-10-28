@@ -50,7 +50,7 @@ def parse_cors(v: Any) -> list[str] | str:
 class CopySourceDatabase(BaseModel):
     """Source database whose tables are copied into the data database ("Database" import type)."""
 
-    type: Literal["copy"] = "copy"
+    type: Literal["copy"]
     # SQLAlchemy URI; for Airflow runs, the key must also match an Airflow connection ID
     connection_string: PostgresDsn
     # Name shown in the wizard; the key is shown when absent
@@ -72,18 +72,8 @@ class DirectAccessSourceDatabase(BaseModel):
     label: str | None = None
 
 
-def parse_source_database(v: Any) -> Any:
-    # Legacy format: a bare URI is a copy source database; entries without type are copy too
-    if isinstance(v, str):
-        return {"type": "copy", "connection_string": v}
-    if isinstance(v, dict) and "type" not in v:
-        return {**v, "type": "copy"}
-    return v
-
-
 SourceDatabase = Annotated[
-    Annotated[CopySourceDatabase | DirectAccessSourceDatabase, Field(discriminator="type")],
-    BeforeValidator(parse_source_database),
+    CopySourceDatabase | DirectAccessSourceDatabase, Field(discriminator="type")
 ]
 
 
@@ -197,7 +187,6 @@ class Settings(BaseSettings):
 
     # Source databases (key → typed entry): "copy" for the database import type, "direct_access"
     # for tables published in place by GeoServer. The key identifies the database.
-    # A bare URI is accepted as a "copy" entry.
     SOURCE_DATABASES: dict[str, SourceDatabase] = Field(default_factory=dict)
 
     # When True, final tables are written to a schema named after the org short name instead of "data"

@@ -113,7 +113,7 @@ class TestSettingsService:
         mock_settings.PROJECTIONS = "[]"
         mock_settings.SOURCE_DATABASES = {
             "SOURCE_DB_1": CopySourceDatabase(
-                connection_string=PostgresDsn("postgresql://user:pass@host:5432/db")
+                type="copy", connection_string=PostgresDsn("postgresql://user:pass@host:5432/db")
             )
         }
         mock_get_settings.return_value = mock_settings
@@ -147,10 +147,10 @@ class TestSettingsService:
         mock_settings.PROJECTIONS = "[]"
         mock_settings.SOURCE_DATABASES = {
             "SOURCE_DB_1": CopySourceDatabase(
-                connection_string=PostgresDsn("postgresql://user:pass@host1:5432/db1")
+                type="copy", connection_string=PostgresDsn("postgresql://user:pass@host1:5432/db1")
             ),
             "SOURCE_DB_2": CopySourceDatabase(
-                connection_string=PostgresDsn("postgresql://user:pass@host2:5432/db2")
+                type="copy", connection_string=PostgresDsn("postgresql://user:pass@host2:5432/db2")
             ),
         }
         mock_get_settings.return_value = mock_settings
