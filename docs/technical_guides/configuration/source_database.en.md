@@ -140,7 +140,7 @@ SOURCE_DATABASES={"PATRIMOINE": {"type": "direct_access", "connection_string": "
   differ from GeoServer's (`localhost:5435` from the host vs `sourcedb_direct_access:5432` inside Docker above).
 - `jndi_reference` is the JNDI name declared in step 1.
 - `roles` lists the geOrchestra roles (without the `ROLE_` prefix) allowed to create datasets on this database;
-  when empty, only administrators can.
+  when empty, all users can.
 - `label` is the name shown in the wizard (optional, the key is shown when absent).
 
 Restart the backend so it picks up the new value.
