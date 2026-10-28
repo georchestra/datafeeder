@@ -1,0 +1,27 @@
+<div class="px-9 py-6">
+  <form [formGroup]="form">
+    <div class="flex flex-wrap gap-4">
+      <div class="flex-1 min-w-[300px] max-w-[300px]">
+        <label class="block text-base font-bold text-gray-900 mb-2">
+          {{ 'import.dataSource.database.schema' | translate }}
+        </label>
+        <gn-ui-text-input
+          [value]="form.controls.schema.value"
+          (valueChange)="form.controls.schema.setValue($event)"
+          placeholder=""
+        ></gn-ui-text-input>
+      </div>
+
+      <div class="flex-1 min-w-[300px] max-w-[300px]">
+        <label class="block text-base font-bold text-gray-900 mb-2">
+          {{ 'import.dataSource.database.table' | translate }}
+        </label>
+        <gn-ui-text-input
+          [value]="form.controls.table.value"
+          (valueChange)="form.controls.table.setValue($event)"
+          placeholder=""
+        ></gn-ui-text-input>
+      </div>
+    </div>
+  </form>
+</div>
