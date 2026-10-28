@@ -93,6 +93,7 @@
   "import.dataSource.chooseType.database": "Base de données",
   "import.dataSource.chooseType.file": "Fichier",
   "import.dataSource.chooseType.ftp": "FTP",
+  "import.dataSource.createDataset": "Créer le jeu de données",
   "import.dataSource.database.copy": "Copie",
   "import.dataSource.database.direct_access": "Accès direct",
   "import.dataSource.database.schema": "Schéma",

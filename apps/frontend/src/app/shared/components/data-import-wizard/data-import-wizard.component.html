@@ -200,6 +200,8 @@
     {{ 'import.dataSource.sending' | translate }}
     } @else if (polling()) {
     {{ 'import.dataSource.processing' | translate }}
+    } @else if (isDirectAccess()) {
+    {{ 'import.dataSource.createDataset' | translate }}
     } @else {
     {{ 'import.dataSource.next' | translate }}
     }
