@@ -15,14 +15,26 @@ logger = get_logger()
 
 router = APIRouter(prefix="/source-databases", tags=["source-databases"])
 
-# information_schema.tables only lists the tables and views the connection user has a privilege on
+# information_schema.tables only lists the tables and views the connection user has a privilege on.
+# Tables and views created by an extension (e.g. PostGIS spatial_ref_sys, geometry_columns) are left
+# out: they are internal objects, not data.
 _LIST_TABLES_QUERY = text(
     """
-    SELECT table_schema, table_name
-    FROM information_schema.tables
-    WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
-      AND table_schema NOT LIKE 'pg\\_%'
-    ORDER BY table_schema, table_name
+    SELECT t.table_schema, t.table_name
+    FROM information_schema.tables t
+    WHERE t.table_schema NOT IN ('information_schema', 'pg_catalog')
+      AND t.table_schema NOT LIKE 'pg\\_%'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_depend d
+        JOIN pg_class c ON c.oid = d.objid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE d.classid = 'pg_class'::regclass
+          AND d.deptype = 'e'
+          AND n.nspname = t.table_schema
+          AND c.relname = t.table_name
+      )
+    ORDER BY t.table_schema, t.table_name
     """
 )
 
