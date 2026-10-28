@@ -1,7 +1,7 @@
 -- Read-only user on the merimee schema, for the source database of the docker service
 -- `sourcedb_direct_access` (e.g. for a GeoServer datastore reading the tables in place).
 --
--- Executed by the postgis image entrypoint only when the volume is empty, after 05-merimee_monument.sql.
+-- Executed by the postgis image entrypoint only when the volume is empty, after 01-merimee_monument.sql.
 
 BEGIN;
 CREATE ROLE patrimoine_reader LOGIN PASSWORD 'patrimoine_reader_password';
