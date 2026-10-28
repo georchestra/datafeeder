@@ -1,11 +1,16 @@
 import { Component, effect, inject, input, output } from '@angular/core'
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
+import { NgIconComponent, provideIcons } from '@ng-icons/core'
+import { iconoirCheckCircle } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
 import { TextInputComponent } from 'geonetwork-ui'
+import type { SourceDatabaseSummary } from '../../../core/api/models'
 
 marker('import.dataSource.database.schema')
 marker('import.dataSource.database.table')
+marker('import.dataSource.database.copy')
+marker('import.dataSource.database.direct_access')
 
 export interface DbData {
   schema: string
@@ -14,12 +19,19 @@ export interface DbData {
 
 @Component({
   selector: 'app-data-source-db',
-  imports: [ReactiveFormsModule, TranslatePipe, TextInputComponent],
-  templateUrl: './data-source-db.component.html'
+  imports: [
+    ReactiveFormsModule,
+    TranslatePipe,
+    NgIconComponent,
+    TextInputComponent
+  ],
+  templateUrl: './data-source-db.component.html',
+  providers: [provideIcons({ iconoirCheckCircle })]
 })
 export class DataSourceDbComponent {
   private fb = inject(FormBuilder)
 
+  sourceDatabase = input<SourceDatabaseSummary | null>(null)
   initialValue = input<DbData | null>(null)
   dbDataChanged = output<DbData>()
 

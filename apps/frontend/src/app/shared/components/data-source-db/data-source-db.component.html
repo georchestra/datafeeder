@@ -1,4 +1,19 @@
 <div class="px-9 py-6">
+  @if (sourceDatabase(); as db) {
+  <div
+    class="inline-flex items-center gap-2 mb-6 px-3 py-2 border border-gray-300 rounded text-sm text-gray-900"
+    data-test="source-database"
+  >
+    <span>{{ db.key }}</span>
+    @if (db.label) {
+    <span>{{ db.label }}</span>
+    }
+    <span class="px-2 rounded bg-gray-200 text-xs">
+      {{ 'import.dataSource.database.' + db.type | translate }}
+    </span>
+    <ng-icon name="iconoirCheckCircle"></ng-icon>
+  </div>
+  }
   <form [formGroup]="form">
     <div class="flex flex-wrap gap-4">
       <div class="flex-1 min-w-[300px] max-w-[300px]">

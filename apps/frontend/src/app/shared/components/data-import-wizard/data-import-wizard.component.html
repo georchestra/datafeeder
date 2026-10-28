@@ -42,6 +42,7 @@
 
     <app-data-source-selector
       [databaseSourceEnabled]="databaseSourceEnabled()"
+      [sourceDatabase]="selectedSourceDatabase()"
       [initialDatabaseSource]="initialDatabaseSource()"
       [initialApiSource]="initialApiSource()"
       (sourceChanged)="onSourceChanged($event)"

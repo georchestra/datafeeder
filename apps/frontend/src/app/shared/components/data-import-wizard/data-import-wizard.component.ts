@@ -48,13 +48,15 @@ import {
   submitStagingIngestionStagingPost,
   processStagingDataIngestionProcessPost,
   editStagingMetadataIngestionStagingIntegrityLinkIdMetadataPut,
-  editStagingIngestionStagingIntegrityLinkIdPut
+  editStagingIngestionStagingIntegrityLinkIdPut,
+  listSourceDatabasesSourceDatabasesGet
 } from '../../../core/api/functions'
 import type {
   ColumnConfig,
   TaskStatus,
   ForceProjection,
   JoinConfig,
+  SourceDatabaseSummary,
   StagingResponse,
   StagingMetadataResponse,
   StagingPreviewResponse
@@ -165,6 +167,10 @@ export class DataImportWizardComponent {
     )
   })
 
+  sourceDatabases = signal<SourceDatabaseSummary[]>([])
+  // ponytail: first database until the database picker lands
+  selectedSourceDatabase = computed(() => this.sourceDatabases()[0] ?? null)
+
   initialDatabaseSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
     if (
@@ -258,6 +264,7 @@ export class DataImportWizardComponent {
     const initialTab = stepParam === 2 ? 1 : 0
     this.selectedTabIndex.set(initialTab)
     this.handleIntegrityLinkLoadError()
+    this.loadSourceDatabases()
 
     this.destroyRef.onDestroy(() => this.footerService.setContent(null))
 
@@ -309,6 +316,17 @@ export class DataImportWizardComponent {
         this.previewErrorExtent.set(null)
       }
     })
+  }
+
+  // Admin-only endpoint for now: other users get an empty list
+  private async loadSourceDatabases(): Promise<void> {
+    try {
+      this.sourceDatabases.set(
+        await this.api.invoke(listSourceDatabasesSourceDatabasesGet)
+      )
+    } catch {
+      this.sourceDatabases.set([])
+    }
   }
 
   private handleIntegrityLinkLoadError(): void {

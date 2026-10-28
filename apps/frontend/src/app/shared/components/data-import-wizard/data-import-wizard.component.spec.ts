@@ -1916,7 +1916,7 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     tick(100)
 
     // Debounce hasn't fired yet — no PUT request
-    httpMock.expectNone(() => true)
+    httpMock.expectNone((req) => req.method === 'PUT')
 
     // Advance past debounce threshold
     tick(400)
