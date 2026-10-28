@@ -11,7 +11,11 @@ import { toObservable } from '@angular/core/rxjs-interop'
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { merge } from 'rxjs'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
-import { NgIconComponent, provideIcons } from '@ng-icons/core'
+import {
+  NgIconComponent,
+  provideIcons,
+  provideNgIconsConfig
+} from '@ng-icons/core'
 import { iconoirCheckCircle } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
 import { TextInputComponent } from 'geonetwork-ui'
@@ -38,7 +42,10 @@ export interface DbData {
     TextInputComponent
   ],
   templateUrl: './data-source-db.component.html',
-  providers: [provideIcons({ iconoirCheckCircle })]
+  providers: [
+    provideIcons({ iconoirCheckCircle }),
+    provideNgIconsConfig({ size: '1rem' })
+  ]
 })
 export class DataSourceDbComponent {
   private fb = inject(FormBuilder)
