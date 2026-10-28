@@ -29,6 +29,10 @@ import {
   DataSourceApiComponent
 } from '../data-source-api/data-source-api.component'
 import {
+  DataSourceDbComponent,
+  type DbData
+} from '../data-source-db/data-source-db.component'
+import {
   DataSourceFtpComponent,
   type FTPData
 } from '../data-source-ftp/data-source-ftp.component'
@@ -44,8 +48,6 @@ marker('import.dataSource.ftp.username')
 marker('import.dataSource.ftp.password')
 marker('import.dataSource.ftp.path')
 marker('import.dataSource.chooseType.database')
-marker('import.dataSource.database.schema')
-marker('import.dataSource.database.table')
 marker('import.dataSource.chooseType.api')
 
 export type SourceType = 'url' | 'file' | 'ftp' | 'database' | 'api'
@@ -81,6 +83,7 @@ export interface SourceData {
     FileInputComponent,
     DataSourceFtpComponent,
     DataSourceApiComponent,
+    DataSourceDbComponent,
     UiInputPasswordComponent
   ],
   templateUrl: './data-source-selector.component.html',
@@ -233,6 +236,13 @@ export class DataSourceSelectorComponent {
       username: data.username,
       password: data.password,
       ftpPath: data.path
+    })
+  }
+
+  handleDbDataChange(data: DbData): void {
+    this.form.controls.source.patchValue({
+      dbSchema: data.schema,
+      dbTable: data.table
     })
   }
 
