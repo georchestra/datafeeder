@@ -170,6 +170,11 @@ export class DataImportWizardComponent {
   sourceDatabases = signal<SourceDatabaseSummary[]>([])
   // ponytail: first database until the database picker lands
   selectedSourceDatabase = computed(() => this.sourceDatabases()[0] ?? null)
+  isDirectAccess = computed(
+    () =>
+      this.importData()?.source?.type === 'database' &&
+      this.selectedSourceDatabase()?.type === 'direct_access'
+  )
 
   initialDatabaseSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
@@ -360,7 +365,8 @@ export class DataImportWizardComponent {
       (source.type === 'ftp' && this.validFtp(source)) ||
       (source.type === 'database' &&
         !!source.dbSchema?.trim() &&
-        !!source.dbTable?.trim()) ||
+        !!source.dbTable?.trim() &&
+        (!this.isDirectAccess() || !!source.dbTitle?.trim())) ||
       (source.type === 'api' &&
         !!source.serviceUrl?.trim() &&
         !!source.layerName?.trim())

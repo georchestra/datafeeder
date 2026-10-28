@@ -31,7 +31,7 @@ describe('DataSourceDbComponent', () => {
     component.dbDataChanged.subscribe((value) => (emittedValue = value))
     component.form.patchValue({ schema: 'geo', table: 'rivers' })
 
-    expect(emittedValue).toEqual({ schema: 'geo', table: 'rivers' })
+    expect(emittedValue).toEqual({ schema: 'geo', table: 'rivers', title: '' })
   })
 
   it('should fill the form from initialValue without emitting', () => {
@@ -46,7 +46,11 @@ describe('DataSourceDbComponent', () => {
     })
     fixture.detectChanges()
 
-    expect(component.form.value).toEqual({ schema: 'geo', table: 'rivers' })
+    expect(component.form.value).toEqual({
+      schema: 'geo',
+      table: 'rivers',
+      title: ''
+    })
     expect(emitted).toBe(false)
   })
 
@@ -74,5 +78,41 @@ describe('DataSourceDbComponent', () => {
     expect(
       fixture.nativeElement.querySelector('[data-test="source-database"]')
     ).toBeNull()
+  })
+
+  it('should ask for a title only for a direct access database', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    const titleInput = () =>
+      fixture.nativeElement.querySelector('[data-test="source-database-title"]')
+
+    fixture.componentRef.setInput('sourceDatabase', {
+      key: 'DB',
+      type: 'copy'
+    })
+    fixture.detectChanges()
+    expect(titleInput()).toBeNull()
+
+    fixture.componentRef.setInput('sourceDatabase', {
+      key: 'BAN',
+      type: 'direct_access'
+    })
+    fixture.detectChanges()
+    expect(titleInput()).toBeTruthy()
+  })
+
+  it('should clear the title when the table changes', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    const component = fixture.componentInstance
+    let emittedValue: any
+
+    component.dbDataChanged.subscribe((value) => (emittedValue = value))
+    component.form.patchValue({ schema: 'geo', table: 'rivers' })
+    component.form.controls.title.setValue('Rivers')
+    expect(emittedValue.title).toBe('Rivers')
+
+    component.form.controls.table.setValue('lakes')
+
+    expect(component.form.controls.title.value).toBe('')
+    expect(emittedValue).toEqual({ schema: 'geo', table: 'lakes', title: '' })
   })
 })
