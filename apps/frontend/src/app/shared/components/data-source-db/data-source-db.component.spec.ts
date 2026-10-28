@@ -31,36 +31,60 @@ describe('DataSourceDbComponent', () => {
     component.dbDataChanged.subscribe((value) => (emittedValue = value))
     component.form.patchValue({ schema: 'geo', table: 'rivers' })
 
-    expect(emittedValue).toEqual({ schema: 'geo', table: 'rivers', title: '' })
+    expect(emittedValue).toEqual({
+      key: '',
+      schema: 'geo',
+      table: 'rivers',
+      title: ''
+    })
   })
 
-  it('should fill the form from initialValue without emitting', () => {
+  it('should fill the form and the database from initialValue', () => {
     const fixture = TestBed.createComponent(DataSourceDbComponent)
     const component = fixture.componentInstance
-    let emitted = false
+    let emittedValue: any
 
-    component.dbDataChanged.subscribe(() => (emitted = true))
+    component.dbDataChanged.subscribe((value) => (emittedValue = value))
+    fixture.componentRef.setInput('sourceDatabases', [
+      { key: 'DB_1', type: 'copy' },
+      { key: 'DB_2', type: 'copy' }
+    ])
     fixture.componentRef.setInput('initialValue', {
+      key: 'DB_2',
       schema: 'geo',
       table: 'rivers'
     })
     fixture.detectChanges()
 
-    expect(component.form.value).toEqual({
+    expect(emittedValue).toEqual({
+      key: 'DB_2',
       schema: 'geo',
       table: 'rivers',
       title: ''
     })
-    expect(emitted).toBe(false)
+  })
+
+  it('should preselect the first database', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    const component = fixture.componentInstance
+    let emittedValue: any
+
+    component.dbDataChanged.subscribe((value) => (emittedValue = value))
+    fixture.componentRef.setInput('sourceDatabases', [
+      { key: 'DB_1', type: 'copy' },
+      { key: 'DB_2', type: 'direct_access' }
+    ])
+    fixture.detectChanges()
+
+    expect(component.sourceDatabase()?.key).toBe('DB_1')
+    expect(emittedValue.key).toBe('DB_1')
   })
 
   it('should show the source database with its access type', () => {
     const fixture = TestBed.createComponent(DataSourceDbComponent)
-    fixture.componentRef.setInput('sourceDatabase', {
-      key: 'BAN',
-      label: 'Base Adresse Nationale',
-      type: 'direct_access'
-    })
+    fixture.componentRef.setInput('sourceDatabases', [
+      { key: 'BAN', label: 'Base Adresse Nationale', type: 'direct_access' }
+    ])
     fixture.detectChanges()
 
     const chip = fixture.nativeElement.querySelector(
@@ -85,17 +109,15 @@ describe('DataSourceDbComponent', () => {
     const titleInput = () =>
       fixture.nativeElement.querySelector('[data-test="source-database-title"]')
 
-    fixture.componentRef.setInput('sourceDatabase', {
-      key: 'DB',
-      type: 'copy'
-    })
+    fixture.componentRef.setInput('sourceDatabases', [
+      { key: 'DB', type: 'copy' }
+    ])
     fixture.detectChanges()
     expect(titleInput()).toBeNull()
 
-    fixture.componentRef.setInput('sourceDatabase', {
-      key: 'BAN',
-      type: 'direct_access'
-    })
+    fixture.componentRef.setInput('sourceDatabases', [
+      { key: 'BAN', type: 'direct_access' }
+    ])
     fixture.detectChanges()
     expect(titleInput()).toBeTruthy()
   })
@@ -113,6 +135,11 @@ describe('DataSourceDbComponent', () => {
     component.form.controls.table.setValue('lakes')
 
     expect(component.form.controls.title.value).toBe('')
-    expect(emittedValue).toEqual({ schema: 'geo', table: 'lakes', title: '' })
+    expect(emittedValue).toEqual({
+      key: '',
+      schema: 'geo',
+      table: 'lakes',
+      title: ''
+    })
   })
 })

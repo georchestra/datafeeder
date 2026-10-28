@@ -61,6 +61,7 @@ describe('DataSourceSelectorComponent', () => {
       authEnabled: false,
       username: null,
       password: null,
+      dbKey: null,
       dbSchema: null,
       dbTable: null,
       dbTitle: null,
@@ -141,7 +142,11 @@ describe('DataSourceSelectorComponent', () => {
 
       component.sourceChanged.subscribe((value: any) => (emittedValue = value))
       component.handleRadioChange('database')
-      component.handleDbDataChange({ schema: 'geo', table: 'rivers' })
+      component.handleDbDataChange({
+        key: 'SOURCE_DB_1',
+        schema: 'geo',
+        table: 'rivers'
+      })
 
       expect(emittedValue.type).toBe('database')
       expect(emittedValue.dbSchema).toBe('geo')
@@ -367,6 +372,7 @@ describe('DataSourceSelectorComponent', () => {
         authEnabled: true,
         username: 'testuser',
         password: 'testpass',
+        dbKey: null,
         dbSchema: null,
         dbTable: null,
         dbTitle: null,

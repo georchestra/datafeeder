@@ -64,6 +64,7 @@ export interface SourceData {
   ftpHost?: string
   ftpPort?: number
   ftpPath?: string
+  dbKey?: string
   dbSchema?: string
   dbTable?: string
   dbTitle?: string
@@ -101,8 +102,8 @@ export class DataSourceSelectorComponent {
   selectedItemSection?: ElementRef<HTMLElement>
 
   databaseSourceEnabled = input<boolean>(false)
-  sourceDatabase = input<SourceDatabaseSummary | null>(null)
-  initialDatabaseSource = input<{ schema: string; table: string } | null>(null)
+  sourceDatabases = input<SourceDatabaseSummary[]>([])
+  initialDatabaseSource = input<DbData | null>(null)
   initialApiSource = input<{
     url: string
     layerName: string
@@ -133,6 +134,7 @@ export class DataSourceSelectorComponent {
       ftpHost: this.fb.control<string | null>(null),
       ftpPort: this.fb.control<number | null>(null),
       ftpPath: this.fb.control<string | null>(null),
+      dbKey: this.fb.control<string | null>(null),
       dbSchema: this.fb.control<string | null>(null),
       dbTable: this.fb.control<string | null>(null),
       dbTitle: this.fb.control<string | null>(null),
@@ -149,6 +151,7 @@ export class DataSourceSelectorComponent {
         this.form.controls.radio.setValue('database')
         this.form.controls.source.patchValue({
           type: 'database',
+          dbKey: dbSource.key,
           dbSchema: dbSource.schema,
           dbTable: dbSource.table
         })
@@ -187,6 +190,7 @@ export class DataSourceSelectorComponent {
         ftpHost: value.ftpHost,
         ftpPort: value.ftpPort,
         ftpPath: value.ftpPath,
+        dbKey: value.dbKey,
         dbSchema: value.dbSchema,
         dbTable: value.dbTable,
         dbTitle: value.dbTitle,
@@ -216,6 +220,7 @@ export class DataSourceSelectorComponent {
       ftpHost: null,
       ftpPort: null,
       ftpPath: null,
+      dbKey: null,
       dbSchema: null,
       dbTable: null,
       dbTitle: null,
@@ -247,6 +252,7 @@ export class DataSourceSelectorComponent {
 
   handleDbDataChange(data: DbData): void {
     this.form.controls.source.patchValue({
+      dbKey: data.key,
       dbSchema: data.schema,
       dbTable: data.table,
       dbTitle: data.title ?? null
