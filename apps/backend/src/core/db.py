@@ -1,3 +1,6 @@
+from functools import lru_cache
+
+from sqlalchemy import Engine
 from sqlmodel import create_engine
 
 from src.core.config import CopySourceDatabase, get_settings
@@ -27,3 +30,12 @@ source_engine = (
     if _source_db
     else None
 )
+
+
+@lru_cache
+def get_source_engine(key: str) -> Engine | None:
+    """Engine of any SOURCE_DATABASES entry (copy or direct access), None for an unknown key."""
+    db = get_settings().SOURCE_DATABASES.get(key)
+    if db is None:
+        return None
+    return create_engine(str(db.connection_string), pool_pre_ping=True, pool_recycle=1800)
