@@ -79,9 +79,7 @@ import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
 import { SourceDatabaseStore } from '../../../core/stores/source-database.store'
 import { FooterService } from '../../../core/layout/footer.service'
 
-marker('import.dataSource.error')
-marker('import.dataSource.error.extent')
-marker('import.dataSource.genericError')
+// Error keys returned by the backend
 marker('i18nerror.transformation.geometry_creation_failed')
 marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
