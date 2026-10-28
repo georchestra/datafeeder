@@ -34,8 +34,10 @@
           {{ 'import.dataSource.database.table' | translate }}
         </label>
         <gn-ui-text-input
+          data-test="source-database-table"
           [value]="form.controls.table.value"
           (valueChange)="form.controls.table.setValue($event)"
+          [disabled]="!form.controls.schema.value"
           placeholder=""
         ></gn-ui-text-input>
       </div>
@@ -49,6 +51,7 @@
       <gn-ui-text-input
         [value]="form.controls.title.value"
         (valueChange)="form.controls.title.setValue($event)"
+        [disabled]="!form.controls.schema.value || !form.controls.table.value"
         placeholder=""
         data-test="source-database-title"
       ></gn-ui-text-input>

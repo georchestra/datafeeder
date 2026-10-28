@@ -142,4 +142,30 @@ describe('DataSourceDbComponent', () => {
       title: ''
     })
   })
+
+  it('should enable the table once a schema is set, and the title once both are', async () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    const component = fixture.componentInstance
+    const input = (name: string) =>
+      fixture.nativeElement.querySelector(`[data-test="${name}"] input`)
+
+    fixture.componentRef.setInput('sourceDatabases', [
+      { key: 'BAN', type: 'direct_access' }
+    ])
+    fixture.detectChanges()
+    await fixture.whenStable()
+    expect(input('source-database-table').disabled).toBe(true)
+    expect(input('source-database-title').disabled).toBe(true)
+
+    component.form.controls.schema.setValue('geo')
+    fixture.detectChanges()
+    await fixture.whenStable()
+    expect(input('source-database-table').disabled).toBe(false)
+    expect(input('source-database-title').disabled).toBe(true)
+
+    component.form.controls.table.setValue('rivers')
+    fixture.detectChanges()
+    await fixture.whenStable()
+    expect(input('source-database-title').disabled).toBe(false)
+  })
 })
