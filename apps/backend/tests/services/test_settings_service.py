@@ -3,6 +3,9 @@
 import json
 from unittest.mock import MagicMock, patch
 
+from pydantic import PostgresDsn
+
+from src.core.config import CopySourceDatabase, DirectAccessSourceDatabase
 from src.services.settings_service import SettingsService, get_settings_service
 
 
@@ -108,7 +111,11 @@ class TestSettingsService:
         """Test that database_source is in enabled_features when SOURCE_DATABASES has entries."""
         mock_settings = MagicMock()
         mock_settings.PROJECTIONS = "[]"
-        mock_settings.SOURCE_DATABASES = {"SOURCE_DB_1": "postgresql://user:pass@host:5432/db"}
+        mock_settings.SOURCE_DATABASES = {
+            "SOURCE_DB_1": CopySourceDatabase(
+                type="copy", connection_string=PostgresDsn("postgresql://user:pass@host:5432/db")
+            )
+        }
         mock_get_settings.return_value = mock_settings
 
         service = SettingsService()
@@ -139,8 +146,12 @@ class TestSettingsService:
         mock_settings = MagicMock()
         mock_settings.PROJECTIONS = "[]"
         mock_settings.SOURCE_DATABASES = {
-            "SOURCE_DB_1": "postgresql://user:pass@host1:5432/db1",
-            "SOURCE_DB_2": "postgresql://user:pass@host2:5432/db2",
+            "SOURCE_DB_1": CopySourceDatabase(
+                type="copy", connection_string=PostgresDsn("postgresql://user:pass@host1:5432/db1")
+            ),
+            "SOURCE_DB_2": CopySourceDatabase(
+                type="copy", connection_string=PostgresDsn("postgresql://user:pass@host2:5432/db2")
+            ),
         }
         mock_get_settings.return_value = mock_settings
 
@@ -148,6 +159,27 @@ class TestSettingsService:
         result = service.get_all_settings()
 
         assert "database_source" in result["enabled_features"]
+
+    @patch("src.services.settings_service.get_settings")
+    def test_database_source_feature_flag_absent_with_only_direct_access_databases(
+        self, mock_get_settings: MagicMock
+    ) -> None:
+        """Test that direct access databases alone do not enable database_source."""
+        mock_settings = MagicMock()
+        mock_settings.PROJECTIONS = "[]"
+        mock_settings.SOURCE_DATABASES = {
+            "PATRIMOINE": DirectAccessSourceDatabase(
+                type="direct_access",
+                connection_string=PostgresDsn("postgresql://user:pass@host:5432/db"),
+                jndi_reference="jdbc/patrimoine",
+            )
+        }
+        mock_get_settings.return_value = mock_settings
+
+        service = SettingsService()
+        result = service.get_all_settings()
+
+        assert "database_source" not in result["enabled_features"]
 
     @patch("src.services.settings_service.get_settings")
     def test_projections_structure(self, mock_get_settings: MagicMock) -> None:
