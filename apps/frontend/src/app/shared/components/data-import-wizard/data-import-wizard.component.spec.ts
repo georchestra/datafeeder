@@ -245,6 +245,24 @@ describe('DataImportWizardComponent', () => {
     expect(component.validSource()).toBeTruthy()
   })
 
+  it('should not stage a direct access database source', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.sourceDatabases.set([{ key: 'BAN', type: 'direct_access' }])
+    component.onSourceChanged({
+      type: 'database',
+      dbSchema: 'geo',
+      dbTable: 'rivers',
+      dbTitle: 'Rivers',
+      authEnabled: false
+    })
+
+    await component.onConfigureDataset()
+
+    httpMock.expectNone('http://localhost:8000/ingestion/staging/')
+    expect(component.importing()).toBe(false)
+  })
+
   it('should detect database source from existing integrity link for re-edit', () => {
     mockIntegrityLinkStore.integrityLink.set({
       source_import_type: 'database',

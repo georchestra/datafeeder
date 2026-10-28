@@ -486,6 +486,10 @@ export class DataImportWizardComponent {
   }
 
   async onConfigureDataset() {
+    // Direct access skips step 2 and goes to the metadata editing, once the
+    // backend endpoint creating such a dataset exists
+    if (this.isDirectAccess()) return
+
     this.importError.set(null)
     this.failedDagRun.set(null)
     this.importing.set(true)
