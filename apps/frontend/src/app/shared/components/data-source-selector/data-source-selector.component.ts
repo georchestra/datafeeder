@@ -37,6 +37,7 @@ import {
   type FTPData
 } from '../data-source-ftp/data-source-ftp.component'
 import { UiInputPasswordComponent } from '../ui-input-password/ui-input-password.component'
+import type { SourceDatabaseSummary } from '../../../core/api/models'
 
 marker('input.file.selectFileLabel')
 marker('input.file.dropFileLabel')
@@ -99,6 +100,7 @@ export class DataSourceSelectorComponent {
   selectedItemSection?: ElementRef<HTMLElement>
 
   databaseSourceEnabled = input<boolean>(false)
+  sourceDatabase = input<SourceDatabaseSummary | null>(null)
   initialDatabaseSource = input<{ schema: string; table: string } | null>(null)
   initialApiSource = input<{
     url: string

@@ -80,6 +80,7 @@
 <app-data-source-ftp (ftpDataChanged)="handleFtpDataChange($event)" />
 } @if (form.controls.radio.value === 'database') {
 <app-data-source-db
+  [sourceDatabase]="sourceDatabase()"
   [initialValue]="initialDatabaseSource()"
   (dbDataChanged)="handleDbDataChange($event)"
 />

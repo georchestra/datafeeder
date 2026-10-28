@@ -13,7 +13,8 @@ describe('DataSourceDbComponent', () => {
         TranslateTestingModule.withTranslations({
           en: {
             'import.dataSource.database.schema': 'Schema',
-            'import.dataSource.database.table': 'Table'
+            'import.dataSource.database.table': 'Table',
+            'import.dataSource.database.direct_access': 'Direct access'
           }
         })
           .withDefaultLanguage('en')
@@ -47,5 +48,31 @@ describe('DataSourceDbComponent', () => {
 
     expect(component.form.value).toEqual({ schema: 'geo', table: 'rivers' })
     expect(emitted).toBe(false)
+  })
+
+  it('should show the source database with its access type', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    fixture.componentRef.setInput('sourceDatabase', {
+      key: 'BAN',
+      label: 'Base Adresse Nationale',
+      type: 'direct_access'
+    })
+    fixture.detectChanges()
+
+    const chip = fixture.nativeElement.querySelector(
+      '[data-test="source-database"]'
+    )
+    expect(chip.textContent).toContain('BAN')
+    expect(chip.textContent).toContain('Base Adresse Nationale')
+    expect(chip.textContent).toContain('Direct access')
+  })
+
+  it('should not show a source database when none is given', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    fixture.detectChanges()
+
+    expect(
+      fixture.nativeElement.querySelector('[data-test="source-database"]')
+    ).toBeNull()
   })
 })
