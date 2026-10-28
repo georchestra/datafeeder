@@ -63,6 +63,7 @@ describe('DataSourceSelectorComponent', () => {
       password: null,
       dbSchema: null,
       dbTable: null,
+      dbTitle: null,
       serviceUrl: null,
       layerName: null,
       serviceProtocol: null
@@ -368,6 +369,7 @@ describe('DataSourceSelectorComponent', () => {
         password: 'testpass',
         dbSchema: null,
         dbTable: null,
+        dbTitle: null,
         serviceUrl: null,
         layerName: null,
         serviceProtocol: null

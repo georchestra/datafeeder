@@ -38,5 +38,19 @@
         ></gn-ui-text-input>
       </div>
     </div>
+
+    @if (sourceDatabase()?.type === 'direct_access') {
+    <div class="mt-4">
+      <label class="block text-base font-bold text-gray-900 mb-2">
+        {{ 'import.configuration.datasetTitle' | translate }}
+      </label>
+      <gn-ui-text-input
+        [value]="form.controls.title.value"
+        (valueChange)="form.controls.title.setValue($event)"
+        placeholder=""
+        data-test="source-database-title"
+      ></gn-ui-text-input>
+    </div>
+    }
   </form>
 </div>

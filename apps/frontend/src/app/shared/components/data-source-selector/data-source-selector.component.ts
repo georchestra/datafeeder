@@ -66,6 +66,7 @@ export interface SourceData {
   ftpPath?: string
   dbSchema?: string
   dbTable?: string
+  dbTitle?: string
   serviceUrl?: string
   layerName?: string
   serviceProtocol?: string
@@ -134,6 +135,7 @@ export class DataSourceSelectorComponent {
       ftpPath: this.fb.control<string | null>(null),
       dbSchema: this.fb.control<string | null>(null),
       dbTable: this.fb.control<string | null>(null),
+      dbTitle: this.fb.control<string | null>(null),
       serviceUrl: this.fb.control<string | null>(null),
       layerName: this.fb.control<string | null>(null),
       serviceProtocol: this.fb.control<string | null>(null)
@@ -187,6 +189,7 @@ export class DataSourceSelectorComponent {
         ftpPath: value.ftpPath,
         dbSchema: value.dbSchema,
         dbTable: value.dbTable,
+        dbTitle: value.dbTitle,
         serviceUrl: value.serviceUrl,
         layerName: value.layerName,
         serviceProtocol: value.serviceProtocol
@@ -215,6 +218,7 @@ export class DataSourceSelectorComponent {
       ftpPath: null,
       dbSchema: null,
       dbTable: null,
+      dbTitle: null,
       serviceUrl: null,
       layerName: null,
       serviceProtocol: null
@@ -244,7 +248,8 @@ export class DataSourceSelectorComponent {
   handleDbDataChange(data: DbData): void {
     this.form.controls.source.patchValue({
       dbSchema: data.schema,
-      dbTable: data.table
+      dbTable: data.table,
+      dbTitle: data.title ?? null
     })
   }
 
