@@ -2,7 +2,6 @@
 --
 -- Executed by the postgis image entrypoint only when the volume is empty.
 -- To replay: docker compose rm -sf sourcedb && docker volume rm <project>_sourcedb_data
--- A real dump can be dropped next to this file (e.g. 02-dump.sql), scripts run in alphabetical order.
 
 CREATE EXTENSION IF NOT EXISTS postgis;
 

@@ -37,7 +37,7 @@ counterpart.
 | `DATADIR_PATH` | Path to the geOrchestra datadir used by the application |
 | `POSTGRES_DATAFEEDER_HOST/PORT/USER/PASSWORD/DB` | Datafeeder's own database (the `datafeeder` schema: `IntegrityLink` records, schedules, etc.) |
 | `POSTGRES_DATA_HOST/PORT/USER/PASSWORD/DB` | Database used for staging and final tables. Defaults to the same values as above if unset |
-| `SOURCE_DATABASES` | JSON map of `{name: SQLAlchemy URI}` for the **Database** source type — see [adding a source database](source_database.md) |
+| `SOURCE_DATABASES` | JSON map of `{name: {type, connection_string, ...}}`. `type` is `copy` for the **Database** source type — see [adding a source database](source_database.md) — or `direct_access` for tables published in place by GeoServer, without copy. `connection_string` is the SQLAlchemy URI the backend uses to list schemas and tables. Direct access entries also take `jndi_reference` (a JNDI resource declared in GeoServer's `jetty-env.xml`) and `roles` (geOrchestra roles without `ROLE_` allowed to create datasets on it, all users when empty). All entries take an optional `label` |
 | `USE_ORG_SCHEMA` | When `true`, final tables are written to a schema named after the org's short name instead of the shared `data` schema. Set the same value in the Airflow environment, used by scheduled runs |
 | `GEOSERVER_INTERNAL_URL` / `GEOSERVER_USER` / `GEOSERVER_PASSWORD` | GeoServer REST endpoint used for layer publication. URL MUST BE THROUGH THE GATEWAY in order to use authentication |
 | `GEONETWORK_INTERNAL_URL` / `GEONETWORK_USERNAME` / `GEONETWORK_PASSWORD` | GeoNetwork endpoint used for metadata records URL MUST BE THROUGH THE GATEWAY in order to use authentication |

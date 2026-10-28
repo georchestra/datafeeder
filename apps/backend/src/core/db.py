@@ -1,6 +1,9 @@
+from functools import lru_cache
+
+from sqlalchemy import Engine
 from sqlmodel import create_engine
 
-from src.core.config import get_settings
+from src.core.config import CopySourceDatabase, get_settings
 
 # Create database engines
 datafeeder_engine = create_engine(
@@ -11,12 +14,28 @@ data_engine = create_engine(
     str(get_settings().POSTGRES_DATA_URI), pool_pre_ping=True, pool_recycle=1800
 )
 
-# Only one source database is supported for now; take the first entry if present.
-# source_engine / source_db_key are None when SOURCE_DATABASES is empty — callers must guard
-# (staging.py returns 503 when source_engine is None).
-source_db_key, _source_db_value = next(iter(get_settings().SOURCE_DATABASES.items()), (None, None))
+# Only one copy source database is supported for now; take the first one if present.
+# source_engine / source_db_key are None when SOURCE_DATABASES has no copy entry — callers must
+# guard (staging.py returns 503 when source_engine is None).
+source_db_key, _source_db = next(
+    (
+        (key, db)
+        for key, db in get_settings().SOURCE_DATABASES.items()
+        if isinstance(db, CopySourceDatabase)
+    ),
+    (None, None),
+)
 source_engine = (
-    create_engine(str(_source_db_value), pool_pre_ping=True, pool_recycle=1800)
-    if _source_db_value
+    create_engine(str(_source_db.connection_string), pool_pre_ping=True, pool_recycle=1800)
+    if _source_db
     else None
 )
+
+
+@lru_cache
+def get_source_engine(key: str) -> Engine | None:
+    """Engine of any SOURCE_DATABASES entry (copy or direct access), None for an unknown key."""
+    db = get_settings().SOURCE_DATABASES.get(key)
+    if db is None:
+        return None
+    return create_engine(str(db.connection_string), pool_pre_ping=True, pool_recycle=1800)

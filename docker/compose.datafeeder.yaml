@@ -90,8 +90,30 @@ services:
       retries: 10
     volumes:
       - sourcedb_data:/var/lib/postgresql/
-      - ./sourcedb-init:/docker-entrypoint-initdb.d:ro
+      - ./sourcedb:/docker-entrypoint-initdb.d:ro
+
+  # Second source database, for direct access. Schema / table to type in the wizard:
+  #   merimee             monument (Lille historic monuments, base Mérimée, Licence Ouverte 2.0)
+  # patrimoine_reader / patrimoine_reader_password: read-only user on merimee.
+  sourcedb_direct_access:
+    image: postgis/postgis
+    restart: always
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: patrimoine
+      POSTGRES_PASSWORD: patrimoine_password
+      POSTGRES_DB: patrimoine
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U patrimoine -d patrimoine"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - sourcedb_direct_access_data:/var/lib/postgresql/
+      - ./sourcedb_direct_access:/docker-entrypoint-initdb.d:ro
 
 volumes:
   pg_data:
   sourcedb_data:
+  sourcedb_direct_access_data:

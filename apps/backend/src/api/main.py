@@ -1,7 +1,15 @@
 from fastapi import APIRouter
 
 from src.api import internal
-from src.api.routes import airflow, data_groups, geonetwork, metadata_groups, settings, utils
+from src.api.routes import (
+    airflow,
+    data_groups,
+    geonetwork,
+    metadata_groups,
+    settings,
+    source_databases,
+    utils,
+)
 from src.api.routes.ingestion import (
     empty_dataset,
     integrity_link,
@@ -17,6 +25,7 @@ api_router.include_router(utils.router)
 api_router.include_router(airflow.router)
 api_router.include_router(geonetwork.router)
 api_router.include_router(settings.router)
+api_router.include_router(source_databases.router)
 api_router.include_router(process.router)
 api_router.include_router(recurrence.router)
 api_router.include_router(staging.router)
