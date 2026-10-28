@@ -66,7 +66,7 @@ class DirectAccessSourceDatabase(BaseModel):
     # JNDI resource declared in GeoServer's jetty-env.xml, e.g. "jdbc/patrimoine"
     jndi_reference: str = Field(min_length=1)
     # Roles allowed to create datasets on this database (geOrchestra role names, without the
-    # ROLE_ prefix, as in GeorchestraContext.has_role); empty = administrators only
+    # ROLE_ prefix, as in GeorchestraContext.has_role); empty = all users
     roles: list[str] = Field(default_factory=list)
     # Name shown in the wizard; the key is shown when absent
     label: str | None = None
