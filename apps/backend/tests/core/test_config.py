@@ -62,6 +62,14 @@ class TestSourceDatabases:
         with pytest.raises(ValidationError):
             Settings(_env_file=None)  # type: ignore[call-arg]
 
+    def test_unknown_type_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(
+            "SOURCE_DATABASES",
+            '{"SOURCE_DB_1": {"type": "coppy", "connection_string": "postgresql://u:p@h/db"}}',
+        )
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None)  # type: ignore[call-arg]
+
     def test_direct_access_roles_default_to_empty(self) -> None:
         database = DirectAccessSourceDatabase(
             type="direct_access",
