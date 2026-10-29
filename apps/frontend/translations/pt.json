@@ -96,6 +96,7 @@
   "import.dataSource.createDataset": "",
   "import.dataSource.database.copy": "",
   "import.dataSource.database.direct_access": "",
+  "import.dataSource.database.empty": "",
   "import.dataSource.database.schema": "",
   "import.dataSource.database.select": "",
   "import.dataSource.database.table": "",
