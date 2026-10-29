@@ -76,11 +76,10 @@ import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-previ
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
 import { TechnicalInfoButtonComponent } from '../technical-info-button/technical-info-button.component'
 import { IntegrityLinkStore } from '../../../core/stores/integrity-link.store'
+import { SourceDatabaseStore } from '../../../core/stores/source-database.store'
 import { FooterService } from '../../../core/layout/footer.service'
 
-marker('import.dataSource.error')
-marker('import.dataSource.error.extent')
-marker('import.dataSource.genericError')
+// Error keys returned by the backend
 marker('i18nerror.transformation.geometry_creation_failed')
 marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
@@ -154,6 +153,7 @@ export class DataImportWizardComponent {
   }>()
 
   integrityLinkStore = inject(IntegrityLinkStore)
+  sourceDatabaseStore = inject(SourceDatabaseStore)
 
   databaseSourceEnabled = computed(() => {
     const features =
@@ -165,18 +165,26 @@ export class DataImportWizardComponent {
     )
   })
 
+  isDirectAccess = computed(() => {
+    const source = this.importData()?.source
+    return (
+      source?.type === 'database' &&
+      this.sourceDatabaseStore.find(source.dbKey)?.type === 'direct_access'
+    )
+  })
+
   initialDatabaseSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
     if (
       link?.source_import_type === 'database' &&
       link?.source_url?.startsWith(DB_URI_PREFIX)
     ) {
-      // format: db://{db_key}/{schema}/{table} — skip the db_key segment
+      // format: db://{db_key}/{schema}/{table}
       const parts = link.source_url
         .substring(DB_URI_PREFIX.length)
         .split('/', 3)
       if (parts.length === 3) {
-        return { schema: parts[1], table: parts[2] }
+        return { key: parts[0], schema: parts[1], table: parts[2] }
       }
     }
     return null
@@ -258,6 +266,7 @@ export class DataImportWizardComponent {
     const initialTab = stepParam === 2 ? 1 : 0
     this.selectedTabIndex.set(initialTab)
     this.handleIntegrityLinkLoadError()
+    this.sourceDatabaseStore.load()
 
     this.destroyRef.onDestroy(() => this.footerService.setContent(null))
 
@@ -342,7 +351,8 @@ export class DataImportWizardComponent {
       (source.type === 'ftp' && this.validFtp(source)) ||
       (source.type === 'database' &&
         !!source.dbSchema?.trim() &&
-        !!source.dbTable?.trim()) ||
+        !!source.dbTable?.trim() &&
+        (!this.isDirectAccess() || !!source.dbTitle?.trim())) ||
       (source.type === 'api' &&
         !!source.serviceUrl?.trim() &&
         !!source.layerName?.trim())
@@ -462,6 +472,10 @@ export class DataImportWizardComponent {
   }
 
   async onConfigureDataset() {
+    // Direct access skips step 2 and goes to the metadata editing, once the
+    // backend endpoint creating such a dataset exists
+    if (this.isDirectAccess()) return
+
     this.importError.set(null)
     this.failedDagRun.set(null)
     this.importing.set(true)
