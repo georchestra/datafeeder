@@ -1,8 +1,8 @@
 <div class="px-9 py-6">
   <form [formGroup]="form">
     <div class="flex flex-wrap gap-4">
-      <div class="flex-1 min-w-[300px] max-w-[300px]">
-        <label class="block text-base font-bold text-gray-900 mb-2">
+      <div class="form-field">
+        <label class="form-label">
           {{ 'import.dataSource.ftp.host' | translate
           }}<span class="required">*</span>
         </label>
@@ -13,8 +13,8 @@
         ></gn-ui-text-input>
       </div>
 
-      <div class="flex-1 min-w-[150px] max-w-[150px]">
-        <label class="block text-base font-bold text-gray-900 mb-2">
+      <div class="form-field w-[150px]">
+        <label class="form-label">
           {{ 'import.dataSource.ftp.port' | translate
           }}<span class="required">*</span>
         </label>
@@ -27,8 +27,8 @@
     </div>
 
     <div class="flex flex-wrap gap-4 mt-4">
-      <div class="flex-1 min-w-[300px] max-w-[300px]">
-        <label class="block text-base font-bold text-gray-900 mb-2">
+      <div class="form-field">
+        <label class="form-label">
           {{ 'import.dataSource.ftp.username' | translate
           }}<span class="required">*</span>
         </label>
@@ -39,8 +39,8 @@
         ></gn-ui-text-input>
       </div>
 
-      <div class="flex-1 min-w-[300px] max-w-[300px]">
-        <label class="block text-base font-bold text-gray-900 mb-2">
+      <div class="form-field">
+        <label class="form-label">
           {{ 'import.dataSource.ftp.password' | translate
           }}<span class="required">*</span>
         </label>
@@ -53,7 +53,7 @@
     </div>
 
     <div class="mt-8 pt-4 border-t border-gray-300">
-      <label class="block text-base font-bold text-gray-900 mb-2">
+      <label class="form-label">
         {{ 'import.dataSource.ftp.path' | translate
         }}<span class="required">*</span>
       </label>

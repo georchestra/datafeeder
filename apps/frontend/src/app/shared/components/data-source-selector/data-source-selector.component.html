@@ -46,8 +46,8 @@
 
     @if (form.get('source.authEnabled')!.value) {
     <div class="flex flex-wrap gap-4 mt-3">
-      <div class="flex-1 min-w-[300px] max-w-[300px]">
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+      <div class="form-field">
+        <label class="form-label">
           {{ 'import.dataSource.url.username' | translate }}
         </label>
         <gn-ui-text-input
@@ -57,8 +57,8 @@
         ></gn-ui-text-input>
       </div>
 
-      <div class="flex-1 min-w-[300px] max-w-[300px]">
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+      <div class="form-field">
+        <label class="form-label">
           {{ 'import.dataSource.url.password' | translate }}
         </label>
         <app-ui-input-password
