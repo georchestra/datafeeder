@@ -224,4 +224,18 @@ describe('DataSourceDbComponent', () => {
       .injector.get(MatTooltip)
     expect(tooltip.message).toBe('BAN Base Adresse Nationale')
   })
+
+  it('should show an empty state when no database is configured', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    fixture.detectChanges()
+
+    expect(
+      fixture.nativeElement.querySelector('[data-test="source-database-empty"]')
+    ).toBeTruthy()
+    expect(
+      fixture.nativeElement.querySelectorAll(
+        '[data-test="source-database-list"] button'
+      ).length
+    ).toBe(0)
+  })
 })

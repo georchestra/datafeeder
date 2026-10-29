@@ -96,6 +96,7 @@
   "import.dataSource.createDataset": "Create the dataset",
   "import.dataSource.database.copy": "Copy",
   "import.dataSource.database.direct_access": "Direct access",
+  "import.dataSource.database.empty": "No database configured yet",
   "import.dataSource.database.schema": "Schema",
   "import.dataSource.database.select": "Select the database",
   "import.dataSource.database.table": "Table",

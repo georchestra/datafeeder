@@ -71,7 +71,7 @@
     {{ 'import.dataSource.database.select' | translate }}
   </h2>
   <div
-    class="flex flex-col gap-1 max-h-[412px] overflow-y-auto p-3 border border-gray-border rounded-lg"
+    class="relative flex flex-col gap-1 max-h-[412px] overflow-y-auto p-3 border border-gray-border rounded-lg"
     data-test="source-database-list"
   >
     @for (db of sourceDatabases(); track db.key) {
@@ -86,6 +86,15 @@
         *ngTemplateOutlet="typeBadge; context: { $implicit: db.type }"
       />
     </button>
+    } @empty { @for (row of [1, 2, 3, 4, 5, 6]; track row) {
+    <div class="h-[34px] rounded-lg bg-beige opacity-40"></div>
+    }
+    <p
+      class="absolute inset-0 flex items-center justify-center text-2xl text-gray-2"
+      data-test="source-database-empty"
+    >
+      {{ 'import.dataSource.database.empty' | translate }}
+    </p>
     }
   </div>
   }

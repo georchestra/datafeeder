@@ -96,6 +96,7 @@
   "import.dataSource.createDataset": "Créer le jeu de données",
   "import.dataSource.database.copy": "Copie",
   "import.dataSource.database.direct_access": "Accès direct",
+  "import.dataSource.database.empty": "Pas encore de base de données renseignée",
   "import.dataSource.database.schema": "Schéma",
   "import.dataSource.database.select": "Sélection de la base de données",
   "import.dataSource.database.table": "Table",
