@@ -10,6 +10,7 @@ import {
 import { toObservable } from '@angular/core/rxjs-interop'
 import { NgTemplateOutlet } from '@angular/common'
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
+import { MatTooltipModule } from '@angular/material/tooltip'
 import { merge } from 'rxjs'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import {
@@ -39,6 +40,7 @@ export interface DbData {
   imports: [
     NgTemplateOutlet,
     ReactiveFormsModule,
+    MatTooltipModule,
     TranslatePipe,
     NgIconComponent,
     TextInputComponent
@@ -88,6 +90,10 @@ export class DataSourceDbComponent {
     merge(toObservable(this.selectedKey), this.form.valueChanges).subscribe(
       () => this.emit()
     )
+  }
+
+  displayName(db: SourceDatabaseSummary): string {
+    return db.label ? `${db.key} ${db.label}` : db.key
   }
 
   // Schema, table and title belong to the database: cleared when it changes
