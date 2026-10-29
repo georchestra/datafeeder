@@ -27,7 +27,10 @@ which holds with the local executor (`make up-no-airflow`); with Airflow, set `E
 `host.docker.internal`).
 
 `tests/test_import_local_file.py` uploads the files in `files/`. The CSV lat/lon case is skipped
-unless `EPSG:2154` is in the backend `PROJECTIONS` setting.
+unless `EPSG:2154` is in the backend `PROJECTIONS` setting (the CI sets it).
+
+The FTP and Basic Auth tests skip themselves when their credentials are missing from `.env`.
+They are not covered in CI: the secrets are not set, and are never available to fork PRs.
 
 ## Generate with playwright
 

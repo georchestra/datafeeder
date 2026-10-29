@@ -87,7 +87,7 @@ def validate_and_assert_feature_count(
     page: Page, expected_number_of_features: int | None, timeout: int
 ) -> str:
     data_id = validate_dataset(page, timeout)
-    if expected_number_of_features:
+    if expected_number_of_features is not None:
         number_matched = get_feature_count(page, data_id)
         print(f"hits: {number_matched} expected: {expected_number_of_features} for {data_id}")
         assert number_matched == expected_number_of_features

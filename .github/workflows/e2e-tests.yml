@@ -5,6 +5,17 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "apps/**"
+      - "libs/**"
+      - "e2e-tests/**"
+      - "docker/**"
+      - "docker-compose.yaml"
+      - "Makefile"
+      - ".github/workflows/e2e-tests.yml"
+
+permissions:
+  contents: read
 
 concurrency:
   group: e2e-${{ github.ref }}
@@ -46,7 +57,10 @@ jobs:
       - name: Start Docker stack
         run: make up-no-airflow
 
+      # EPSG:2154 is needed by test_import_csv_lat_lon_2154, which skips itself otherwise
       - name: Start backend
+        env:
+          PROJECTIONS: '[{"value": "EPSG:4326", "label": "WGS 84"}, {"value": "EPSG:3857", "label": "Web Mercator"}, {"value": "EPSG:2154", "label": "RGF93 / Lambert-93"}]'
         run: nohup make run-backend-with-local-task-executor > backend.log 2>&1 &
 
       - name: Install frontend deps
