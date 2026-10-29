@@ -4,7 +4,7 @@ import json
 from functools import lru_cache
 from typing import Any
 
-from src.core.config import CopySourceDatabase, get_settings
+from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.core.task_executor import TaskExecutorType
 
@@ -34,11 +34,6 @@ class SettingsService:
         if self._settings.TASK_EXECUTOR == TaskExecutorType.AIRFLOW:
             enabled_features.append("scheduling")
             enabled_features.append("events")
-
-        if any(
-            isinstance(db, CopySourceDatabase) for db in self._settings.SOURCE_DATABASES.values()
-        ):
-            enabled_features.append("database_source")
 
         settings_dict: dict[str, Any] = {
             "projections": projections,

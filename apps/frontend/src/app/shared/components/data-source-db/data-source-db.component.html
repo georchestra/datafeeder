@@ -1,21 +1,29 @@
+<ng-template #typeBadge let-type>
+  <span
+    class="shrink-0 px-3 py-px bg-gray-100 border border-gray-300 rounded text-xs font-medium text-main"
+  >
+    {{ 'import.dataSource.database.' + type | translate }}
+  </span>
+</ng-template>
+
 <div class="px-9 py-6">
   @if (sourceDatabase(); as db) {
-  <div
+  <button
+    type="button"
     class="inline-flex items-center gap-2 h-10 mb-6 pl-5 pr-4 bg-gray-50 border border-gray-300 rounded text-sm text-main"
     data-test="source-database"
+    (click)="select('')"
   >
     <span>{{ db.key }}</span>
     @if (db.label) {
     <span>{{ db.label }}</span>
     }
-    <span
-      class="px-3 py-px bg-gray-100 border border-gray-300 rounded text-xs font-medium"
-    >
-      {{ 'import.dataSource.database.' + db.type | translate }}
-    </span>
+    <ng-container
+      *ngTemplateOutlet="typeBadge; context: { $implicit: db.type }"
+    />
     <ng-icon name="iconoirCheckCircle"></ng-icon>
-  </div>
-  }
+  </button>
+
   <form [formGroup]="form">
     <div class="flex flex-wrap gap-4">
       <div class="form-field">
@@ -43,7 +51,7 @@
       </div>
     </div>
 
-    @if (sourceDatabase()?.type === 'direct_access') {
+    @if (db.type === 'direct_access') {
     <div class="mt-4">
       <label class="form-label">
         {{ 'import.configuration.datasetTitle' | translate }}
@@ -58,4 +66,36 @@
     </div>
     }
   </form>
+  } @else {
+  <h2 class="mb-4 text-xl leading-6 font-extrabold text-gray-2">
+    {{ 'import.dataSource.database.select' | translate }}
+  </h2>
+  <div
+    class="relative flex flex-col gap-1 max-h-[412px] overflow-y-auto p-3 border border-gray-border rounded-lg"
+    data-test="source-database-list"
+  >
+    @for (db of sourceDatabases(); track db.key) {
+    <button
+      type="button"
+      class="flex items-center gap-2.5 shrink-0 h-[34px] px-7 rounded-lg bg-beige text-sm text-gray-2 text-left"
+      (click)="select(db.key)"
+    >
+      @let name = displayName(db);
+      <span class="flex-1 truncate" [matTooltip]="name">{{ name }}</span>
+      <ng-container
+        *ngTemplateOutlet="typeBadge; context: { $implicit: db.type }"
+      />
+    </button>
+    } @empty { @for (row of [1, 2, 3, 4, 5, 6]; track row) {
+    <div class="h-[34px] rounded-lg bg-beige opacity-40"></div>
+    }
+    <p
+      class="absolute inset-0 flex items-center justify-center text-2xl text-gray-2"
+      data-test="source-database-empty"
+    >
+      {{ 'import.dataSource.database.empty' | translate }}
+    </p>
+    }
+  </div>
+  }
 </div>

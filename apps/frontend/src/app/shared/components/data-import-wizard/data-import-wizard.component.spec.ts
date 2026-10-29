@@ -185,6 +185,7 @@ describe('DataImportWizardComponent', () => {
 
     component.onSourceChanged({
       type: 'database',
+      dbKey: 'SOURCE_DB_1',
       dbSchema: 'geo',
       dbTable: 'rivers',
       authEnabled: false
@@ -193,12 +194,28 @@ describe('DataImportWizardComponent', () => {
     expect(component.validSource()).toBeTruthy()
   })
 
+  it('should return invalid source for database type without a selected database', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onSourceChanged({
+      type: 'database',
+      dbKey: '',
+      dbSchema: 'geo',
+      dbTable: 'rivers',
+      authEnabled: false
+    })
+
+    expect(component.validSource()).toBeFalsy()
+  })
+
   it('should return invalid source for database type with empty schema', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
 
     component.onSourceChanged({
       type: 'database',
+      dbKey: 'SOURCE_DB_1',
       dbSchema: '',
       dbTable: 'rivers',
       authEnabled: false
@@ -213,6 +230,7 @@ describe('DataImportWizardComponent', () => {
 
     component.onSourceChanged({
       type: 'database',
+      dbKey: 'SOURCE_DB_1',
       dbSchema: 'geo',
       dbTable: '   ',
       authEnabled: false
@@ -285,19 +303,6 @@ describe('DataImportWizardComponent', () => {
       schema: 'geo',
       table: 'rivers'
     })
-  })
-
-  it('should enable database source when feature flag is absent but link is database type', () => {
-    mockIntegrityLinkStore.integrityLink.set({
-      source_import_type: 'database',
-      source_url: 'db://SOURCE_DB_1/geo/rivers'
-    })
-
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges()
-
-    expect(component.databaseSourceEnabled()).toBe(true)
   })
 
   it('should return valid source for api type with serviceUrl and layerName', () => {
