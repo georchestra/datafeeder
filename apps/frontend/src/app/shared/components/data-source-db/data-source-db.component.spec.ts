@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing'
+import { MatTooltip } from '@angular/material/tooltip'
+import { By } from '@angular/platform-browser'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
 import { DataSourceDbComponent } from './data-source-db.component'
 import { TranslateTestingModule } from '../../testing/translate-testing.module'
@@ -208,5 +210,18 @@ describe('DataSourceDbComponent', () => {
     fixture.detectChanges()
     await fixture.whenStable()
     expect(input('source-database-title').disabled).toBe(false)
+  })
+
+  it('should show the full database name in a tooltip', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    fixture.componentRef.setInput('sourceDatabases', [
+      { key: 'BAN', label: 'Base Adresse Nationale', type: 'copy' }
+    ])
+    fixture.detectChanges()
+
+    const tooltip = fixture.debugElement
+      .query(By.directive(MatTooltip))
+      .injector.get(MatTooltip)
+    expect(tooltip.message).toBe('BAN Base Adresse Nationale')
   })
 })

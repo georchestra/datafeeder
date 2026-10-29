@@ -80,7 +80,8 @@
       class="flex items-center gap-2.5 shrink-0 h-[34px] px-7 rounded-lg bg-beige text-sm text-gray-2 text-left"
       (click)="select(db.key)"
     >
-      <span class="flex-1 truncate">{{ db.key }}&nbsp; {{ db.label }}</span>
+      @let name = displayName(db);
+      <span class="flex-1 truncate" [matTooltip]="name">{{ name }}</span>
       <ng-container
         *ngTemplateOutlet="typeBadge; context: { $implicit: db.type }"
       />
