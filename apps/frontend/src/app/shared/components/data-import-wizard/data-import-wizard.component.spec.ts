@@ -185,6 +185,7 @@ describe('DataImportWizardComponent', () => {
 
     component.onSourceChanged({
       type: 'database',
+      dbKey: 'SOURCE_DB_1',
       dbSchema: 'geo',
       dbTable: 'rivers',
       authEnabled: false
@@ -193,12 +194,28 @@ describe('DataImportWizardComponent', () => {
     expect(component.validSource()).toBeTruthy()
   })
 
+  it('should return invalid source for database type without a selected database', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+
+    component.onSourceChanged({
+      type: 'database',
+      dbKey: '',
+      dbSchema: 'geo',
+      dbTable: 'rivers',
+      authEnabled: false
+    })
+
+    expect(component.validSource()).toBeFalsy()
+  })
+
   it('should return invalid source for database type with empty schema', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
 
     component.onSourceChanged({
       type: 'database',
+      dbKey: 'SOURCE_DB_1',
       dbSchema: '',
       dbTable: 'rivers',
       authEnabled: false
@@ -213,6 +230,7 @@ describe('DataImportWizardComponent', () => {
 
     component.onSourceChanged({
       type: 'database',
+      dbKey: 'SOURCE_DB_1',
       dbSchema: 'geo',
       dbTable: '   ',
       authEnabled: false

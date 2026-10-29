@@ -97,6 +97,7 @@
   "import.dataSource.database.copy": "Copie",
   "import.dataSource.database.direct_access": "Accès direct",
   "import.dataSource.database.schema": "Schéma",
+  "import.dataSource.database.select": "Sélection de la base de données",
   "import.dataSource.database.table": "Table",
   "import.dataSource.error": "Erreur",
   "import.dataSource.error.extent": "Une erreur est survenue, qui empêche la prévisualisation cartographique. Avez-vous choisi la bonne projection ?",
