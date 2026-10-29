@@ -305,19 +305,6 @@ describe('DataImportWizardComponent', () => {
     })
   })
 
-  it('should enable database source when feature flag is absent but link is database type', () => {
-    mockIntegrityLinkStore.integrityLink.set({
-      source_import_type: 'database',
-      source_url: 'db://SOURCE_DB_1/geo/rivers'
-    })
-
-    const fixture = TestBed.createComponent(DataImportWizardComponent)
-    const component = fixture.componentInstance
-    fixture.detectChanges()
-
-    expect(component.databaseSourceEnabled()).toBe(true)
-  })
-
   it('should return valid source for api type with serviceUrl and layerName', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance

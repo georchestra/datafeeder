@@ -17,11 +17,9 @@
       <mat-radio-button value="ftp" class="ml-6">
         {{ 'import.dataSource.chooseType.ftp' | translate }}
       </mat-radio-button>
-      @if (databaseSourceEnabled()) {
       <mat-radio-button value="database" class="ml-6">
         {{ 'import.dataSource.chooseType.database' | translate }}
       </mat-radio-button>
-      }
     </mat-radio-group>
   </form>
 </div>
