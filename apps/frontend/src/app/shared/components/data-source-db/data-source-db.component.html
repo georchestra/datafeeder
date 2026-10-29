@@ -18,8 +18,8 @@
   }
   <form [formGroup]="form">
     <div class="flex flex-wrap gap-4">
-      <div class="flex-1 min-w-[300px] max-w-[300px]">
-        <label class="block text-base font-bold text-gray-900 mb-2">
+      <div class="form-field">
+        <label class="form-label">
           {{ 'import.dataSource.database.schema' | translate }}
         </label>
         <gn-ui-text-input
@@ -29,8 +29,8 @@
         ></gn-ui-text-input>
       </div>
 
-      <div class="flex-1 min-w-[300px] max-w-[300px]">
-        <label class="block text-base font-bold text-gray-900 mb-2">
+      <div class="form-field">
+        <label class="form-label">
           {{ 'import.dataSource.database.table' | translate }}
         </label>
         <gn-ui-text-input
@@ -45,7 +45,7 @@
 
     @if (sourceDatabase()?.type === 'direct_access') {
     <div class="mt-4">
-      <label class="block text-base font-bold text-gray-900 mb-2">
+      <label class="form-label">
         {{ 'import.configuration.datasetTitle' | translate }}
       </label>
       <gn-ui-text-input

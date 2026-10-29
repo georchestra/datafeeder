@@ -20,8 +20,7 @@ export interface FTPData {
     TextInputComponent,
     UiInputPasswordComponent
   ],
-  templateUrl: './data-source-ftp.component.html',
-  styleUrls: ['./data-source-ftp.component.scss']
+  templateUrl: './data-source-ftp.component.html'
 })
 export class DataSourceFtpComponent {
   private fb = inject(FormBuilder)
