@@ -61,7 +61,6 @@ import type {
 } from '../../../core/api/models'
 import type { SourceData } from '../data-source-selector/data-source-selector.component'
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
-import { SettingsService } from '../../../core/settings/settings.service'
 import { downloadTextBlob } from '../../utils/download.util'
 import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
@@ -139,7 +138,6 @@ export class DataImportWizardComponent {
   private translate = inject(TranslateService)
   private router = inject(Router)
   private route = inject(ActivatedRoute)
-  private settingsService = inject(SettingsService)
   private footerService = inject(FooterService)
   private destroyRef = inject(DestroyRef)
 
@@ -154,16 +152,6 @@ export class DataImportWizardComponent {
 
   integrityLinkStore = inject(IntegrityLinkStore)
   sourceDatabaseStore = inject(SourceDatabaseStore)
-
-  databaseSourceEnabled = computed(() => {
-    const features =
-      this.settingsService.getSetting<string[]>('enabled_features')
-    const link = this.integrityLinkStore.integrityLink()
-    return (
-      features?.includes('database_source') ||
-      link?.source_import_type === 'database'
-    )
-  })
 
   isDirectAccess = computed(() => {
     const source = this.importData()?.source

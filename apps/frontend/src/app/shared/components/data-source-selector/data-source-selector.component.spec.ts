@@ -109,22 +109,8 @@ describe('DataSourceSelectorComponent', () => {
   })
 
   describe('Database source', () => {
-    it('should not show database radio when databaseSourceEnabled is false', () => {
+    it('should always show the database radio button', () => {
       const fixture = TestBed.createComponent(DataSourceSelectorComponent)
-      fixture.componentRef.setInput('databaseSourceEnabled', false)
-      fixture.detectChanges()
-
-      const radioButtons =
-        fixture.nativeElement.querySelectorAll('mat-radio-button')
-      const labels = Array.from(radioButtons).map((rb: any) =>
-        rb.getAttribute('value')
-      )
-      expect(labels).not.toContain('database')
-    })
-
-    it('should show database radio when databaseSourceEnabled is true', () => {
-      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
-      fixture.componentRef.setInput('databaseSourceEnabled', true)
       fixture.detectChanges()
 
       const radioButtons =
