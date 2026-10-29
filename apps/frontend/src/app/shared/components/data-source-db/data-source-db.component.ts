@@ -8,6 +8,7 @@ import {
   output
 } from '@angular/core'
 import { toObservable } from '@angular/core/rxjs-interop'
+import { NgTemplateOutlet } from '@angular/common'
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { merge } from 'rxjs'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
@@ -36,6 +37,7 @@ export interface DbData {
 @Component({
   selector: 'app-data-source-db',
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
     TranslatePipe,
     NgIconComponent,
@@ -54,10 +56,7 @@ export class DataSourceDbComponent {
   initialValue = input<DbData | null>(null)
   dbDataChanged = output<DbData>()
 
-  // ponytail: first database preselected until the database picker lands
-  selectedKey = linkedSignal(
-    () => this.initialValue()?.key || this.sourceDatabases()[0]?.key || ''
-  )
+  selectedKey = linkedSignal(() => this.initialValue()?.key ?? '')
   sourceDatabase = computed(
     () =>
       this.sourceDatabases().find((db) => db.key === this.selectedKey()) ?? null
@@ -85,11 +84,16 @@ export class DataSourceDbComponent {
       this.form.controls.title.setValue('', { emitEvent: false })
     )
 
-    // The key also changes outside the form: preselected on init, or once the
-    // source databases are loaded
+    // The key changes outside the form: from initialValue or select()
     merge(toObservable(this.selectedKey), this.form.valueChanges).subscribe(
       () => this.emit()
     )
+  }
+
+  // Schema, table and title belong to the database: cleared when it changes
+  select(key: string): void {
+    this.form.reset(undefined, { emitEvent: false })
+    this.selectedKey.set(key)
   }
 
   private emit(): void {
