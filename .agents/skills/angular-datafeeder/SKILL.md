@@ -251,7 +251,23 @@ export class MyComponent implements OnInit {
 
 ### Form Handling
 
+Use `ReactiveFormsModule` / `FormBuilder` only when validation is leveraged (validators, `valid`/`errors` in the template). Otherwise hold the values in signals: geonetwork-ui inputs are bound by hand (`[value]` / `(valueChange)`), so a `FormGroup` would only be an RxJS store bridged back with `toSignal`.
+
+Don't go the other way and move everything into a reactive form either: inputs and derived choices are signals (`input()`, `computed`), and the app is zoneless, so an all-RxJS form needs `toObservable`, `combineLatest` and `async` pipes, adding bridges instead of removing them. Reach for reactive forms when they pay off: validation with error display, `dirty`/`touched` state, dynamic fields (`FormArray`), or inputs that bind with `formControlName`. Angular 21 signal forms would unify both once the project upgrades.
+
 ```typescript
+// No validation: signals
+formData = signal<FtpData>({ host: '', port: 21 })
+
+set<K extends keyof FtpData>(key: K, value: FtpData[K]): void {
+  this.formData.update((d) => ({ ...d, [key]: value }))
+  this.dataChanged.emit(this.formData())
+}
+// <gn-ui-text-input [value]="formData().host" (valueChange)="set('host', $event)" />
+```
+
+```typescript
+// Validation: reactive form
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms'
 
 export class MyFormComponent {
