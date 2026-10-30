@@ -7,7 +7,7 @@ import {
   linkedSignal,
   output
 } from '@angular/core'
-import { toObservable } from '@angular/core/rxjs-interop'
+import { toObservable, toSignal } from '@angular/core/rxjs-interop'
 import { NgTemplateOutlet } from '@angular/common'
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { MatTooltipModule } from '@angular/material/tooltip'
@@ -20,7 +20,11 @@ import {
 } from '@ng-icons/core'
 import { iconoirCheckCircle } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
-import { TextInputComponent } from 'geonetwork-ui'
+import {
+  type DropdownChoice,
+  DropdownSelectorComponent,
+  TextInputComponent
+} from 'geonetwork-ui'
 import type {
   SourceDatabaseSummary,
   SourceSchema
@@ -29,6 +33,8 @@ import type {
 // Access type badges, translated from the database type
 marker('import.dataSource.database.copy')
 marker('import.dataSource.database.direct_access')
+
+const NONE: DropdownChoice = { value: '', label: '-' }
 
 export interface DbData {
   key: string
@@ -46,6 +52,7 @@ export interface DbData {
     MatTooltipModule,
     TranslatePipe,
     NgIconComponent,
+    DropdownSelectorComponent,
     TextInputComponent
   ],
   templateUrl: './data-source-db.component.html',
@@ -74,11 +81,30 @@ export class DataSourceDbComponent {
     title: ''
   })
 
+  private schema = toSignal(this.form.controls.schema.valueChanges, {
+    initialValue: ''
+  })
+
+  schemaChoices = computed<DropdownChoice[]>(() => [
+    NONE,
+    ...this.sourceSchemas().map((s) => ({
+      value: s.schema_name,
+      label: s.schema_name
+    }))
+  ])
+
+  tableChoices = computed<DropdownChoice[]>(() => [
+    NONE,
+    ...(this.sourceSchemas()
+      .find((s) => s.schema_name === this.schema())
+      ?.tables.map((table) => ({ value: table, label: table })) ?? [])
+  ])
+
   constructor() {
     effect(() => {
       const init = this.initialValue()
       if (init && !this.form.dirty) {
-        this.form.patchValue(init, { emitEvent: false })
+        this.form.patchValue(init)
       }
     })
 
@@ -102,8 +128,12 @@ export class DataSourceDbComponent {
 
   // Schema, table and title belong to the database: cleared when it changes
   select(key: string): void {
-    this.form.reset(undefined, { emitEvent: false })
+    this.form.reset()
     this.selectedKey.set(key)
+  }
+
+  selectSchema(schema: string): void {
+    this.form.patchValue({ schema, table: '' })
   }
 
   private emit(): void {

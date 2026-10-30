@@ -189,7 +189,9 @@ describe('DataSourceDbComponent', () => {
     const fixture = TestBed.createComponent(DataSourceDbComponent)
     const component = fixture.componentInstance
     const input = (name: string) =>
-      fixture.nativeElement.querySelector(`[data-test="${name}"] input`)
+      fixture.nativeElement.querySelector(
+        `[data-test="${name}"] input, [data-test="${name}"] button`
+      )
 
     fixture.componentRef.setInput('sourceDatabases', [
       { key: 'BAN', type: 'direct_access' }
@@ -237,5 +239,48 @@ describe('DataSourceDbComponent', () => {
         '[data-test="source-database-list"] button'
       ).length
     ).toBe(0)
+  })
+
+  it('should offer the schemas, then the tables of the selected schema', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    const component = fixture.componentInstance
+    fixture.componentRef.setInput('sourceSchemas', [
+      { schema_name: 'geo', tables: ['rivers', 'lakes'] },
+      { schema_name: 'admin', tables: ['cities'] }
+    ])
+
+    expect(component.schemaChoices().map((c) => c.value)).toEqual([
+      '',
+      'geo',
+      'admin'
+    ])
+    expect(component.tableChoices().map((c) => c.value)).toEqual([''])
+
+    component.selectSchema('geo')
+
+    expect(component.tableChoices().map((c) => c.value)).toEqual([
+      '',
+      'rivers',
+      'lakes'
+    ])
+  })
+
+  it('should clear the table when the schema changes', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    const component = fixture.componentInstance
+    let emittedValue: any
+
+    component.dbDataChanged.subscribe((value) => (emittedValue = value))
+    component.selectSchema('geo')
+    component.form.controls.table.setValue('rivers')
+
+    component.selectSchema('admin')
+
+    expect(emittedValue).toEqual({
+      key: '',
+      schema: 'admin',
+      table: '',
+      title: ''
+    })
   })
 })
