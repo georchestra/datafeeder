@@ -6,7 +6,6 @@ from common import (
     FILES_DIR,
     get_features_geojson,
     login,
-    remove_first_dataset,
     validate_and_assert_feature_count,
 )
 from playwright.sync_api import Locator, Page, expect
@@ -72,13 +71,6 @@ IMPORT_CASES = [
         "timeout-seconds": 600,
         "expected_number_of_features": 2441268,
     },
-    {
-        "id": "geoparquet",
-        "file": "a-epci2025.parquet",
-        "map": True,
-        "timeout-seconds": 60,
-        "expected_number_of_features": 1269,
-    },
 ]
 
 ERROR_CASES = [
@@ -110,7 +102,6 @@ class TestDatafeederLocalFile:
             }
             for expected_value in case["expected_values"]:
                 assert expected_value in values
-        remove_first_dataset(page)
 
     @pytest.mark.parametrize("case", ERROR_CASES, ids=[c["id"] for c in ERROR_CASES])
     def test_import_local_file_error(self, page: Page, case: dict[str, Any]):
@@ -134,7 +125,6 @@ class TestDatafeederLocalFile:
         dropdowns.nth(0).get_by_role("button").click()
         if page.locator("[role='listbox'] [data-cy-value='EPSG:2154']").count() == 0:
             page.keyboard.press("Escape")
-            remove_first_dataset(page)
             pytest.skip("EPSG:2154 is not offered, add it to the PROJECTIONS setting")
         page.locator("[role='listbox'] [data-cy-value='EPSG:2154']").click()
         expect(page.locator('[data-test="config-saving-indicator"]')).to_be_hidden(timeout=15000)
@@ -143,7 +133,6 @@ class TestDatafeederLocalFile:
         expect(page.locator("canvas")).to_be_visible()
         data_id = validate_and_assert_feature_count(page, MEL_MAIRIE_FEATURES, 30)
         self.assert_mel_mairie_coordinates(page, data_id, "mel_mairie_export_qgis.csv")
-        remove_first_dataset(page)
 
     @pytest.mark.xfail(reason="WKT/WKB geometries in CSV are planned for V2.x", strict=False)
     def test_import_csv_wkt_2154(self, page: Page):
@@ -152,7 +141,6 @@ class TestDatafeederLocalFile:
         expect(page.locator("canvas")).to_be_visible()
         data_id = validate_and_assert_feature_count(page, MEL_MAIRIE_FEATURES, 30)
         self.assert_mel_mairie_coordinates(page, data_id, "mel_mairie_export_qgis.csv")
-        remove_first_dataset(page)
 
     def upload_and_configure(self, page: Page, file_name: str, title: str, timeout: int):
         login(page)

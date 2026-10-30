@@ -92,12 +92,3 @@ def validate_and_assert_feature_count(
         print(f"hits: {number_matched} expected: {expected_number_of_features} for {data_id}")
         assert number_matched == expected_number_of_features
     return data_id
-
-
-def remove_first_dataset(page: Page):
-    page.goto("/dataset/")
-    first_row = page.locator("app-integrity-link-list [role='button']").first
-    first_row.hover()
-    page.get_by_label("Delete dataset").first.click()
-    page.locator("[data-cy='confirm-button'] button").click()
-    page.wait_for_timeout(1000)

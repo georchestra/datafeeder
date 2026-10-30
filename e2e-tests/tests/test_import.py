@@ -4,7 +4,6 @@ import pytest
 from common import (
     GEOSERVER_URL,
     login,
-    remove_first_dataset,
     validate_and_assert_feature_count,
 )
 from playwright.sync_api import Page, expect
@@ -90,7 +89,6 @@ class TestDatafeeder:
         validate_and_assert_feature_count(
             page, case.get("expected_number_of_features"), case["timeout-seconds"]
         )
-        remove_first_dataset(page)
 
     @pytest.mark.parametrize(
         "case", SERVICE_IMPORT_CASES, ids=[c["id"] for c in SERVICE_IMPORT_CASES]
@@ -122,7 +120,6 @@ class TestDatafeeder:
         validate_and_assert_feature_count(
             page, case.get("expected_number_of_features"), case["timeout-seconds"]
         )
-        remove_first_dataset(page)
 
     def test_import_database(self, page: Page, files_base_url: str):
         login(page)
@@ -158,5 +155,3 @@ class TestDatafeeder:
         )
         expect(page.get_by_role("heading", name="Preview of the result")).to_be_visible()
         validate_and_assert_feature_count(page, 49, 15)
-        remove_first_dataset(page)
-        remove_first_dataset(page)

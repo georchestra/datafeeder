@@ -59,7 +59,6 @@ class TestDatafeederCredentials:
         expect(page.locator('[data-test="recordTitleInput"]')).to_have_value(
             expected_title, timeout=15000
         )
-        self.remove_first_dataset(page)
 
     def test_import_url_with_basic_auth(self, page: Page):
         login(page)
@@ -81,7 +80,3 @@ class TestDatafeederCredentials:
         expect(page.locator("canvas")).to_be_visible()
         page.get_by_role("button", name="Validate the dataset").click()
         expect(page.locator('[data-test="recordTitleInput"]')).to_be_visible(timeout=15000)
-        self.remove_first_dataset(page)
-
-    def remove_first_dataset(self, page: Page):
-        page.goto("/dataset/")
