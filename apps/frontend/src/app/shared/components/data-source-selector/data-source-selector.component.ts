@@ -37,7 +37,10 @@ import {
   type FTPData
 } from '../data-source-ftp/data-source-ftp.component'
 import { UiInputPasswordComponent } from '../ui-input-password/ui-input-password.component'
-import type { SourceDatabaseSummary } from '../../../core/api/models'
+import type {
+  SourceDatabaseSummary,
+  SourceSchema
+} from '../../../core/api/models'
 
 // Overrides for labels of the geonetwork-ui file input
 marker('input.file.selectFileLabel')
@@ -95,6 +98,7 @@ export class DataSourceSelectorComponent {
   selectedItemSection?: ElementRef<HTMLElement>
 
   sourceDatabases = input<SourceDatabaseSummary[]>([])
+  sourceSchemas = input<SourceSchema[]>([])
   initialDatabaseSource = input<DbData | null>(null)
   initialApiSource = input<{
     url: string

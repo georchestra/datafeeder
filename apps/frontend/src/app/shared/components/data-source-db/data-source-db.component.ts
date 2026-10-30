@@ -21,7 +21,10 @@ import {
 import { iconoirCheckCircle } from '@ng-icons/iconoir'
 import { TranslatePipe } from '@ngx-translate/core'
 import { TextInputComponent } from 'geonetwork-ui'
-import type { SourceDatabaseSummary } from '../../../core/api/models'
+import type {
+  SourceDatabaseSummary,
+  SourceSchema
+} from '../../../core/api/models'
 
 // Access type badges, translated from the database type
 marker('import.dataSource.database.copy')
@@ -55,6 +58,7 @@ export class DataSourceDbComponent {
   private fb = inject(FormBuilder)
 
   sourceDatabases = input<SourceDatabaseSummary[]>([])
+  sourceSchemas = input<SourceSchema[]>([])
   initialValue = input<DbData | null>(null)
   dbDataChanged = output<DbData>()
 
