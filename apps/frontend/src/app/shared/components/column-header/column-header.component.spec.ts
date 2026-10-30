@@ -282,6 +282,31 @@ describe('ColumnHeaderComponent', () => {
     expect(error?.textContent?.trim()).toContain('déjà utilisé')
   })
 
+  it('should drop an invalid name and its error when the column is removed', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.componentRef.setInput('allColumnNames', ['my_column', 'other_col'])
+    fixture.detectChanges()
+
+    const errors: Array<string | null> = []
+    fixture.componentInstance.nameValidationErrorChanged.subscribe((e) =>
+      errors.push(e)
+    )
+
+    const compiled = fixture.nativeElement as HTMLElement
+    const nameInput = compiled.querySelector(
+      '[data-name-input]'
+    ) as HTMLInputElement
+    nameInput.value = 'other_col'
+    nameInput.dispatchEvent(new Event('input'))
+    fixture.componentInstance.onMenuAction('remove')
+    fixture.detectChanges()
+
+    expect(errors.at(-1)).toBeNull()
+    expect(compiled.querySelector('[data-name-error]')).toBeNull()
+    expect(nameInput.value).toBe('my_column')
+  })
+
   it('should show restore button (not action button) when column is excluded', () => {
     const fixture = TestBed.createComponent(ColumnHeaderComponent)
     fixture.componentRef.setInput('columnConfig', {
