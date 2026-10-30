@@ -2,16 +2,12 @@ import {
   Component,
   computed,
   effect,
-  inject,
   input,
   linkedSignal,
   output
 } from '@angular/core'
-import { toObservable, toSignal } from '@angular/core/rxjs-interop'
 import { NgTemplateOutlet } from '@angular/common'
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { MatTooltipModule } from '@angular/material/tooltip'
-import { merge } from 'rxjs'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import {
   NgIconComponent,
@@ -44,11 +40,12 @@ export interface DbData {
   title?: string
 }
 
+const EMPTY: DbData = { key: '', schema: '', table: '', title: '' }
+
 @Component({
   selector: 'app-data-source-db',
   imports: [
     NgTemplateOutlet,
-    ReactiveFormsModule,
     MatTooltipModule,
     TranslatePipe,
     NgIconComponent,
@@ -62,28 +59,21 @@ export interface DbData {
   ]
 })
 export class DataSourceDbComponent {
-  private fb = inject(FormBuilder)
-
   sourceDatabases = input<SourceDatabaseSummary[]>([])
   sourceSchemas = input<SourceSchema[]>([])
   initialValue = input<DbData | null>(null)
   dbDataChanged = output<DbData>()
 
-  selectedKey = linkedSignal(() => this.initialValue()?.key ?? '')
+  formData = linkedSignal<DbData>(() => ({
+    ...EMPTY,
+    ...this.initialValue()
+  }))
+
   sourceDatabase = computed(
     () =>
-      this.sourceDatabases().find((db) => db.key === this.selectedKey()) ?? null
+      this.sourceDatabases().find((db) => db.key === this.formData().key) ??
+      null
   )
-
-  form = this.fb.nonNullable.group({
-    schema: '',
-    table: '',
-    title: ''
-  })
-
-  private schema = toSignal(this.form.controls.schema.valueChanges, {
-    initialValue: ''
-  })
 
   schemaChoices = computed<DropdownChoice[]>(() => [
     NONE,
@@ -96,30 +86,12 @@ export class DataSourceDbComponent {
   tableChoices = computed<DropdownChoice[]>(() => [
     NONE,
     ...(this.sourceSchemas()
-      .find((s) => s.schema_name === this.schema())
+      .find((s) => s.schema_name === this.formData().schema)
       ?.tables.map((table) => ({ value: table, label: table })) ?? [])
   ])
 
   constructor() {
-    effect(() => {
-      const init = this.initialValue()
-      if (init && !this.form.dirty) {
-        this.form.patchValue(init)
-      }
-    })
-
-    // The title belongs to the chosen table: cleared when it changes
-    merge(
-      this.form.controls.schema.valueChanges,
-      this.form.controls.table.valueChanges
-    ).subscribe(() =>
-      this.form.controls.title.setValue('', { emitEvent: false })
-    )
-
-    // The key changes outside the form: from initialValue or select()
-    merge(toObservable(this.selectedKey), this.form.valueChanges).subscribe(
-      () => this.emit()
-    )
+    effect(() => this.dbDataChanged.emit(this.formData()))
   }
 
   displayName(db: SourceDatabaseSummary): string {
@@ -128,18 +100,18 @@ export class DataSourceDbComponent {
 
   // Schema, table and title belong to the database: cleared when it changes
   select(key: string): void {
-    this.form.reset()
-    this.selectedKey.set(key)
+    this.formData.set({ ...EMPTY, key })
   }
 
   selectSchema(schema: string): void {
-    this.form.patchValue({ schema, table: '' })
+    this.formData.update((d) => ({ ...d, schema, table: '', title: '' }))
   }
 
-  private emit(): void {
-    this.dbDataChanged.emit({
-      key: this.selectedKey(),
-      ...this.form.getRawValue()
-    })
+  selectTable(table: string): void {
+    this.formData.update((d) => ({ ...d, table, title: '' }))
+  }
+
+  setTitle(title: string): void {
+    this.formData.update((d) => ({ ...d, title }))
   }
 }

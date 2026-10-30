@@ -24,54 +24,51 @@
     <ng-icon name="iconoirCheckCircle"></ng-icon>
   </button>
 
-  <form [formGroup]="form">
-    <div class="flex flex-wrap gap-4">
-      <div class="form-field">
-        <label class="form-label">
-          {{ 'import.dataSource.database.schema' | translate }}
-        </label>
-        <gn-ui-dropdown-selector
-          data-test="source-database-schema"
-          [title]="''"
-          [showTitle]="false"
-          [choices]="schemaChoices()"
-          [selected]="form.controls.schema.value"
-          (selectValue)="selectSchema($any($event))"
-        ></gn-ui-dropdown-selector>
-      </div>
-
-      <div class="form-field">
-        <label class="form-label">
-          {{ 'import.dataSource.database.table' | translate }}
-        </label>
-        <gn-ui-dropdown-selector
-          data-test="source-database-table"
-          [title]="''"
-          [showTitle]="false"
-          [choices]="tableChoices()"
-          [selected]="form.controls.table.value"
-          [disabled]="!form.controls.schema.value"
-          (selectValue)="form.controls.table.setValue($any($event))"
-        ></gn-ui-dropdown-selector>
-      </div>
-    </div>
-
-    @if (db.type === 'direct_access') {
-    <div class="mt-4">
+  <div class="flex flex-wrap gap-4">
+    <div class="form-field">
       <label class="form-label">
-        {{ 'import.configuration.datasetTitle' | translate }}
+        {{ 'import.dataSource.database.schema' | translate }}
       </label>
-      <gn-ui-text-input
-        [value]="form.controls.title.value"
-        (valueChange)="form.controls.title.setValue($event)"
-        [disabled]="!form.controls.schema.value || !form.controls.table.value"
-        placeholder=""
-        data-test="source-database-title"
-      ></gn-ui-text-input>
+      <gn-ui-dropdown-selector
+        data-test="source-database-schema"
+        [title]="''"
+        [showTitle]="false"
+        [choices]="schemaChoices()"
+        [selected]="formData().schema"
+        (selectValue)="selectSchema($any($event))"
+      ></gn-ui-dropdown-selector>
     </div>
-    }
-  </form>
-  } @else {
+
+    <div class="form-field">
+      <label class="form-label">
+        {{ 'import.dataSource.database.table' | translate }}
+      </label>
+      <gn-ui-dropdown-selector
+        data-test="source-database-table"
+        [title]="''"
+        [showTitle]="false"
+        [choices]="tableChoices()"
+        [selected]="formData().table"
+        [disabled]="!formData().schema"
+        (selectValue)="selectTable($any($event))"
+      ></gn-ui-dropdown-selector>
+    </div>
+  </div>
+
+  @if (db.type === 'direct_access') {
+  <div class="mt-4">
+    <label class="form-label">
+      {{ 'import.configuration.datasetTitle' | translate }}
+    </label>
+    <gn-ui-text-input
+      [value]="formData().title"
+      (valueChange)="setTitle($event)"
+      [disabled]="!formData().schema || !formData().table"
+      placeholder=""
+      data-test="source-database-title"
+    ></gn-ui-text-input>
+  </div>
+  } } @else {
   <h2 class="mb-4 text-xl leading-6 font-extrabold text-gray-2">
     {{ 'import.dataSource.database.select' | translate }}
   </h2>
