@@ -30,24 +30,29 @@
         <label class="form-label">
           {{ 'import.dataSource.database.schema' | translate }}
         </label>
-        <gn-ui-text-input
-          [value]="form.controls.schema.value"
-          (valueChange)="form.controls.schema.setValue($event)"
-          placeholder=""
-        ></gn-ui-text-input>
+        <gn-ui-dropdown-selector
+          data-test="source-database-schema"
+          [title]="''"
+          [showTitle]="false"
+          [choices]="schemaChoices()"
+          [selected]="form.controls.schema.value"
+          (selectValue)="selectSchema($any($event))"
+        ></gn-ui-dropdown-selector>
       </div>
 
       <div class="form-field">
         <label class="form-label">
           {{ 'import.dataSource.database.table' | translate }}
         </label>
-        <gn-ui-text-input
+        <gn-ui-dropdown-selector
           data-test="source-database-table"
-          [value]="form.controls.table.value"
-          (valueChange)="form.controls.table.setValue($event)"
+          [title]="''"
+          [showTitle]="false"
+          [choices]="tableChoices()"
+          [selected]="form.controls.table.value"
           [disabled]="!form.controls.schema.value"
-          placeholder=""
-        ></gn-ui-text-input>
+          (selectValue)="form.controls.table.setValue($any($event))"
+        ></gn-ui-dropdown-selector>
       </div>
     </div>
 
