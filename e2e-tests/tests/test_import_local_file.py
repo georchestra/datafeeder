@@ -65,11 +65,11 @@ IMPORT_CASES = [
         "expected_values": ["Armentières", "Annœullin", "Marcq-en-Barœul"],
     },
     {
-        "id": "parquet",
-        "file": "donnees-2023-reg02.parquet",
-        "map": False,
-        "timeout-seconds": 600,
-        "expected_number_of_features": 2441268,
+        "id": "geoparquet",
+        "file": "a-epci2025.parquet",
+        "map": True,
+        "timeout-seconds": 60,
+        "expected_number_of_features": 1269,
     },
 ]
 
