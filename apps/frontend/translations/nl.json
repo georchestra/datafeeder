@@ -145,6 +145,7 @@
   "integrityLinks.filters.organization": "",
   "integrityLinks.filters.owner": "",
   "integrityLinks.filters.reference": "",
+  "integrityLinks.filters.resultCount": "",
   "integrityLinks.filters.status": "",
   "integrityLinks.filters.title": "",
   "integrityLinks.loadMore": "",

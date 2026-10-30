@@ -200,6 +200,7 @@ class IntegrityLinkListResponse(BaseModel):
     has_more: bool
     offset: int
     next_offset: int  # raw DB offset to pass verbatim on the next page request
+    total: int | None = None  # links matching the filters, all pages; first page only
 
 
 class JoinableTable(BaseModel):
