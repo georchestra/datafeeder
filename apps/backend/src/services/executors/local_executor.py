@@ -57,6 +57,7 @@ _PROCESS_DAG_ID = "process_dag"
 # executor`). Empty disables the wrapper: ogr2ogr must then already be on PATH.
 _GDAL_DOCKER_EXEC_TARGET = os.getenv("DATAFEEDER_GDAL_DOCKER_EXEC_TARGET", "")
 _OGR2OGR_WRAPPER_DIR = os.path.join(tempfile.gettempdir(), "datafeeder-gdal-wrapper")
+_WRAPPED_GDAL_BINARIES = ("ogr2ogr", "ogrinfo")
 
 
 @dataclass
@@ -74,7 +75,7 @@ class LocalTaskExecutor(BaseTaskExecutor):
         self._pool: Executor = ThreadPoolExecutor(thread_name_prefix="local-task-callback")
 
     def _install_ogr2ogr_docker_wrapper(self) -> None:
-        """Make the `ogr2ogr` calls in data_manipulation.ingestion reach the
+        """Make the `ogr2ogr`/`ogrinfo` calls in data_manipulation.ingestion reach the
         `datafeeder-gdal` sidecar container via `docker exec` instead of a local binary.
 
         Written under the system temp dir (not /usr/local/bin) so it works without root/
@@ -84,10 +85,13 @@ class LocalTaskExecutor(BaseTaskExecutor):
             return
         try:
             os.makedirs(_OGR2OGR_WRAPPER_DIR, exist_ok=True)
-            wrapper_path = os.path.join(_OGR2OGR_WRAPPER_DIR, "ogr2ogr")
-            with open(wrapper_path, "w") as f:
-                f.write(f'#!/bin/sh\nexec docker exec "{_GDAL_DOCKER_EXEC_TARGET}" ogr2ogr "$@"\n')
-            os.chmod(wrapper_path, 0o755)
+            for binary in _WRAPPED_GDAL_BINARIES:
+                wrapper_path = os.path.join(_OGR2OGR_WRAPPER_DIR, binary)
+                with open(wrapper_path, "w") as f:
+                    f.write(
+                        f'#!/bin/sh\nexec docker exec "{_GDAL_DOCKER_EXEC_TARGET}" {binary} "$@"\n'
+                    )
+                os.chmod(wrapper_path, 0o755)
             os.environ["PATH"] = _OGR2OGR_WRAPPER_DIR + os.pathsep + os.environ.get("PATH", "")
         except OSError as e:
             logger.warning(f"Failed to install ogr2ogr docker-exec wrapper: {e}")
