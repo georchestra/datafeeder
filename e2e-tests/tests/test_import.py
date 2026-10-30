@@ -147,7 +147,7 @@ class TestDatafeeder:
         page.get_by_role("columnheader", name="nomattribuant").get_by_role("button").click()
         page.get_by_role("button", name="Filter column").click()
         page.get_by_placeholder("Values contain...").fill("Transports")
-        page.locator(".absolute").click()
+        page.locator("[data-submit='contains']").click()
         page.locator("th.mat-column-id_datafeeder [data-action-button]").click()
         page.get_by_role("button", name="Remove column").click()
         expect(page.get_by_role("heading", name="Configure the dataset")).to_be_visible(

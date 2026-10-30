@@ -118,11 +118,9 @@ class TestDatafeederLocalFile:
 
     def test_import_csv_lat_lon_2154(self, page: Page):
         self.upload_and_configure(page, "mel_mairie_export_qgis.csv", "csv-lat-lon-2154", 30)
-        configuration = page.locator("app-dataset-configuration")
-        dropdowns = configuration.locator("gn-ui-dropdown-selector")
-        self.select_choice(page, dropdowns.nth(1), "x")
-        self.select_choice(page, dropdowns.nth(2), "y")
-        dropdowns.nth(0).get_by_role("button").click()
+        self.select_choice(page, page.locator('[data-test="x-column-select"]'), "x")
+        self.select_choice(page, page.locator('[data-test="y-column-select"]'), "y")
+        page.locator('[data-test="projection-select"]').get_by_role("button").click()
         if page.locator("[role='listbox'] [data-cy-value='EPSG:2154']").count() == 0:
             page.keyboard.press("Escape")
             pytest.skip("EPSG:2154 is not offered, add it to the PROJECTIONS setting")
