@@ -161,6 +161,11 @@ export class DataImportWizardComponent {
     )
   })
 
+  private selectedDbKey = computed(() => {
+    const source = this.importData()?.source
+    return source?.type === 'database' ? source.dbKey ?? '' : ''
+  })
+
   initialDatabaseSource = computed(() => {
     const link = this.integrityLinkStore.integrityLink()
     if (
@@ -255,6 +260,10 @@ export class DataImportWizardComponent {
     this.selectedTabIndex.set(initialTab)
     this.handleIntegrityLinkLoadError()
     this.sourceDatabaseStore.load()
+    effect(() => {
+      const key = this.selectedDbKey()
+      untracked(() => this.sourceDatabaseStore.loadSchemas(key))
+    })
 
     this.destroyRef.onDestroy(() => this.footerService.setContent(null))
 
