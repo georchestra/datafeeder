@@ -1,5 +1,4 @@
-import { Component, inject, output } from '@angular/core'
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms'
+import { Component, output, signal } from '@angular/core'
 import { TranslatePipe } from '@ngx-translate/core'
 import { TextInputComponent } from 'geonetwork-ui'
 import { UiInputPasswordComponent } from '../ui-input-password/ui-input-password.component'
@@ -14,36 +13,25 @@ export interface FTPData {
 
 @Component({
   selector: 'app-data-source-ftp',
-  imports: [
-    ReactiveFormsModule,
-    TranslatePipe,
-    TextInputComponent,
-    UiInputPasswordComponent
-  ],
+  imports: [TranslatePipe, TextInputComponent, UiInputPasswordComponent],
   templateUrl: './data-source-ftp.component.html'
 })
 export class DataSourceFtpComponent {
-  private fb = inject(FormBuilder)
-
   ftpDataChanged = output<FTPData>()
 
-  form = this.fb.group({
-    host: this.fb.control<string>(''),
-    port: this.fb.control<number>(21),
-    username: this.fb.control<string>(''),
-    password: this.fb.control<string>(''),
-    path: this.fb.control<string>('')
+  formData = signal<FTPData>({
+    host: '',
+    port: 21,
+    username: '',
+    password: '',
+    path: ''
   })
 
-  constructor() {
-    this.form.valueChanges.subscribe((value) => {
-      this.ftpDataChanged.emit({
-        host: value.host || '',
-        port: value.port || 21,
-        username: value.username || '',
-        password: value.password || '',
-        path: value.path || ''
-      })
+  set<K extends keyof FTPData>(key: K, value: FTPData[K]): void {
+    this.formData.update((d) => ({ ...d, [key]: value }))
+    this.ftpDataChanged.emit({
+      ...this.formData(),
+      port: this.formData().port || 21
     })
   }
 }

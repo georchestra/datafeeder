@@ -1,67 +1,65 @@
 <div class="px-9 py-6">
-  <form [formGroup]="form">
-    <div class="flex flex-wrap gap-4">
-      <div class="form-field">
-        <label class="form-label">
-          {{ 'import.dataSource.ftp.host' | translate
-          }}<span class="required">*</span>
-        </label>
-        <gn-ui-text-input
-          [value]="form.controls.host.value"
-          (valueChange)="form.controls.host.setValue($event)"
-          placeholder=""
-        ></gn-ui-text-input>
-      </div>
-
-      <div class="form-field w-[150px]">
-        <label class="form-label">
-          {{ 'import.dataSource.ftp.port' | translate
-          }}<span class="required">*</span>
-        </label>
-        <gn-ui-text-input
-          [value]="form.controls.port.value.toString()"
-          (valueChange)="form.controls.port.setValue(+$event)"
-          placeholder=""
-        ></gn-ui-text-input>
-      </div>
-    </div>
-
-    <div class="flex flex-wrap gap-4 mt-4">
-      <div class="form-field">
-        <label class="form-label">
-          {{ 'import.dataSource.ftp.username' | translate
-          }}<span class="required">*</span>
-        </label>
-        <gn-ui-text-input
-          [value]="form.controls.username.value"
-          (valueChange)="form.controls.username.setValue($event)"
-          placeholder=""
-        ></gn-ui-text-input>
-      </div>
-
-      <div class="form-field">
-        <label class="form-label">
-          {{ 'import.dataSource.ftp.password' | translate
-          }}<span class="required">*</span>
-        </label>
-        <app-ui-input-password
-          [value]="form.controls.password.value"
-          (valueChange)="form.controls.password.setValue($event)"
-          placeholder=""
-        />
-      </div>
-    </div>
-
-    <div class="mt-8 pt-4 border-t border-gray-300">
+  <div class="flex flex-wrap gap-4">
+    <div class="form-field">
       <label class="form-label">
-        {{ 'import.dataSource.ftp.path' | translate
+        {{ 'import.dataSource.ftp.host' | translate
         }}<span class="required">*</span>
       </label>
       <gn-ui-text-input
-        [value]="form.controls.path.value"
-        (valueChange)="form.controls.path.setValue($event)"
-        placeholder="/path/to/dataset.example"
+        [value]="formData().host"
+        (valueChange)="set('host', $event)"
+        placeholder=""
       ></gn-ui-text-input>
     </div>
-  </form>
+
+    <div class="form-field w-[150px]">
+      <label class="form-label">
+        {{ 'import.dataSource.ftp.port' | translate
+        }}<span class="required">*</span>
+      </label>
+      <gn-ui-text-input
+        [value]="formData().port.toString()"
+        (valueChange)="set('port', +$event)"
+        placeholder=""
+      ></gn-ui-text-input>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap gap-4 mt-4">
+    <div class="form-field">
+      <label class="form-label">
+        {{ 'import.dataSource.ftp.username' | translate
+        }}<span class="required">*</span>
+      </label>
+      <gn-ui-text-input
+        [value]="formData().username"
+        (valueChange)="set('username', $event)"
+        placeholder=""
+      ></gn-ui-text-input>
+    </div>
+
+    <div class="form-field">
+      <label class="form-label">
+        {{ 'import.dataSource.ftp.password' | translate
+        }}<span class="required">*</span>
+      </label>
+      <app-ui-input-password
+        [value]="formData().password"
+        (valueChange)="set('password', $event)"
+        placeholder=""
+      />
+    </div>
+  </div>
+
+  <div class="mt-8 pt-4 border-t border-gray-300">
+    <label class="form-label">
+      {{ 'import.dataSource.ftp.path' | translate
+      }}<span class="required">*</span>
+    </label>
+    <gn-ui-text-input
+      [value]="formData().path"
+      (valueChange)="set('path', $event)"
+      placeholder="/path/to/dataset.example"
+    ></gn-ui-text-input>
+  </div>
 </div>
