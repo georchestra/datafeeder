@@ -1,13 +1,18 @@
 import { Injectable, inject, signal } from '@angular/core'
 import { Api } from '../api/api'
-import { listSourceDatabasesSourceDatabasesGet } from '../api/functions'
-import type { SourceDatabaseSummary } from '../api/models'
+import {
+  listSourceDatabasesSourceDatabasesGet,
+  listSourceDatabaseTablesSourceDatabasesKeyTablesGet
+} from '../api/functions'
+import type { SourceDatabaseSummary, SourceSchema } from '../api/models'
 
 @Injectable({ providedIn: 'root' })
 export class SourceDatabaseStore {
   sourceDatabases = signal<SourceDatabaseSummary[]>([])
+  schemas = signal<SourceSchema[]>([])
 
   private api = inject(Api)
+  private schemasKey = ''
 
   async load(): Promise<void> {
     try {
@@ -18,6 +23,17 @@ export class SourceDatabaseStore {
       // Admin-only endpoint for now: other users get an empty list
       this.sourceDatabases.set([])
     }
+  }
+
+  async loadSchemas(key: string): Promise<void> {
+    this.schemasKey = key
+    this.schemas.set([])
+    if (!key) return
+    const schemas = await this.api
+      .invoke(listSourceDatabaseTablesSourceDatabasesKeyTablesGet, { key })
+      .catch(() => [])
+    // A response for a previously selected database is dropped
+    if (key === this.schemasKey) this.schemas.set(schemas)
   }
 
   find(key: string | null | undefined): SourceDatabaseSummary | null {

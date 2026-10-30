@@ -79,6 +79,7 @@
 } @if (form.controls.radio.value === 'database') {
 <app-data-source-db
   [sourceDatabases]="sourceDatabases()"
+  [sourceSchemas]="sourceSchemas()"
   [initialValue]="initialDatabaseSource()"
   (dbDataChanged)="handleDbDataChange($event)"
 />

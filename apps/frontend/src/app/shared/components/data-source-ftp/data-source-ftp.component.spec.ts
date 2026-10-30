@@ -31,7 +31,7 @@ describe('DataSourceFtpComponent', () => {
     expect(component).toBeTruthy()
   })
 
-  it('should emit ftpDataChanged when form values change', () => {
+  it('should emit ftpDataChanged when the values change', () => {
     const fixture = TestBed.createComponent(DataSourceFtpComponent)
     const component = fixture.componentInstance
     let emittedValue: any
@@ -40,13 +40,11 @@ describe('DataSourceFtpComponent', () => {
       emittedValue = value
     })
 
-    component.form.patchValue({
-      host: 'ftp.example.com',
-      port: 2121,
-      username: 'user',
-      password: 'pass',
-      path: '/files/data.csv'
-    })
+    component.set('host', 'ftp.example.com')
+    component.set('port', 2121)
+    component.set('username', 'user')
+    component.set('password', 'pass')
+    component.set('path', '/files/data.csv')
 
     expect(emittedValue).toEqual({
       host: 'ftp.example.com',

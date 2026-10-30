@@ -25,13 +25,15 @@ describe('DataSourceDbComponent', () => {
     }).compileComponents()
   })
 
-  it('should emit dbDataChanged when form values change', () => {
+  it('should emit dbDataChanged when the values change', () => {
     const fixture = TestBed.createComponent(DataSourceDbComponent)
     const component = fixture.componentInstance
     let emittedValue: any
 
     component.dbDataChanged.subscribe((value) => (emittedValue = value))
-    component.form.patchValue({ schema: 'geo', table: 'rivers' })
+    component.selectSchema('geo')
+    component.selectTable('rivers')
+    fixture.detectChanges()
 
     expect(emittedValue).toEqual({
       key: '',
@@ -104,7 +106,8 @@ describe('DataSourceDbComponent', () => {
       { key: 'DB_1', type: 'copy' }
     ])
     component.select('DB_1')
-    component.form.patchValue({ schema: 'geo', table: 'rivers' })
+    component.selectSchema('geo')
+    component.selectTable('rivers')
     fixture.detectChanges()
 
     fixture.nativeElement.querySelector('[data-test="source-database"]').click()
@@ -170,13 +173,15 @@ describe('DataSourceDbComponent', () => {
     let emittedValue: any
 
     component.dbDataChanged.subscribe((value) => (emittedValue = value))
-    component.form.patchValue({ schema: 'geo', table: 'rivers' })
-    component.form.controls.title.setValue('Rivers')
+    component.selectSchema('geo')
+    component.selectTable('rivers')
+    component.setTitle('Rivers')
+    fixture.detectChanges()
     expect(emittedValue.title).toBe('Rivers')
 
-    component.form.controls.table.setValue('lakes')
+    component.selectTable('lakes')
+    fixture.detectChanges()
 
-    expect(component.form.controls.title.value).toBe('')
     expect(emittedValue).toEqual({
       key: '',
       schema: 'geo',
@@ -189,7 +194,9 @@ describe('DataSourceDbComponent', () => {
     const fixture = TestBed.createComponent(DataSourceDbComponent)
     const component = fixture.componentInstance
     const input = (name: string) =>
-      fixture.nativeElement.querySelector(`[data-test="${name}"] input`)
+      fixture.nativeElement.querySelector(
+        `[data-test="${name}"] input, [data-test="${name}"] button`
+      )
 
     fixture.componentRef.setInput('sourceDatabases', [
       { key: 'BAN', type: 'direct_access' }
@@ -200,13 +207,13 @@ describe('DataSourceDbComponent', () => {
     expect(input('source-database-table').disabled).toBe(true)
     expect(input('source-database-title').disabled).toBe(true)
 
-    component.form.controls.schema.setValue('geo')
+    component.selectSchema('geo')
     fixture.detectChanges()
     await fixture.whenStable()
     expect(input('source-database-table').disabled).toBe(false)
     expect(input('source-database-title').disabled).toBe(true)
 
-    component.form.controls.table.setValue('rivers')
+    component.selectTable('rivers')
     fixture.detectChanges()
     await fixture.whenStable()
     expect(input('source-database-title').disabled).toBe(false)
@@ -237,5 +244,49 @@ describe('DataSourceDbComponent', () => {
         '[data-test="source-database-list"] button'
       ).length
     ).toBe(0)
+  })
+
+  it('should offer the schemas, then the tables of the selected schema', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    const component = fixture.componentInstance
+    fixture.componentRef.setInput('sourceSchemas', [
+      { schema_name: 'geo', tables: ['rivers', 'lakes'] },
+      { schema_name: 'admin', tables: ['cities'] }
+    ])
+
+    expect(component.schemaChoices().map((c) => c.value)).toEqual([
+      '',
+      'geo',
+      'admin'
+    ])
+    expect(component.tableChoices().map((c) => c.value)).toEqual([''])
+
+    component.selectSchema('geo')
+
+    expect(component.tableChoices().map((c) => c.value)).toEqual([
+      '',
+      'rivers',
+      'lakes'
+    ])
+  })
+
+  it('should clear the table when the schema changes', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    const component = fixture.componentInstance
+    let emittedValue: any
+
+    component.dbDataChanged.subscribe((value) => (emittedValue = value))
+    component.selectSchema('geo')
+    component.selectTable('rivers')
+
+    component.selectSchema('admin')
+    fixture.detectChanges()
+
+    expect(emittedValue).toEqual({
+      key: '',
+      schema: 'admin',
+      table: '',
+      title: ''
+    })
   })
 })
