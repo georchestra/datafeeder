@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import or_, text
 from sqlmodel import Session, col, select
+from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 
 from src.api.deps import (
@@ -58,7 +59,14 @@ from src.services.layer_publication import (
     read_table_extent,
 )
 from src.services.metadata_service import MetadataService
-from src.services.table_transfer import TableTransferError, dump_table, restore_table
+from src.services.table_transfer import (
+    READ_SIZE,
+    TableExistsError,
+    TableNotFoundError,
+    TableTransferError,
+    dump_table,
+    restore_table,
+)
 
 # Mounted under /internal; hidden from the OpenAPI schema used by the Angular client
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"], include_in_schema=False)
@@ -68,7 +76,7 @@ logger = get_logger()
 REPROCESSABLE_IMPORT_TYPES = {ImportType.URL, ImportType.API, ImportType.FTP, ImportType.DATABASE}
 # No final table managed by datafeeder
 LINK_ONLY_IMPORT_TYPES = {ImportType.EMPTY, ImportType.PREFILLED}
-# Above, an uploaded table is written to TMP_UPLOAD_PATH
+# Above, an uploaded or exported table is written to TMP_UPLOAD_PATH
 SPOOL_MAX_MEMORY_SIZE = 16 * 1024 * 1024
 
 
@@ -189,6 +197,8 @@ async def import_table_data(
             row_count = await run_in_threadpool(restore_table, spool, schema, final_table_name)
         except TableTransferError as e:
             raise HTTPException(status_code=400, detail=str(e))
+        except TableExistsError as e:
+            raise HTTPException(status_code=409, detail=str(e))
     return TableDataImportResponse(
         schema_name=schema, table_name=final_table_name, row_count=row_count
     )
@@ -219,10 +229,30 @@ def export_table_data(
     schema = _locate_final_table(integrity_link, current_ws, geoserver_service)
     if schema is None:
         raise HTTPException(status_code=404, detail=f"Final table {table_name} not found")
+
+    # Dumped before the response is sent: errors get a proper status, and the table lock and
+    # the connection are released before the client reads it
+    spool = tempfile.SpooledTemporaryFile(
+        max_size=SPOOL_MAX_MEMORY_SIZE, dir=get_settings().TMP_UPLOAD_PATH
+    )
+    try:
+        dump_table(schema, table_name, spool)
+    except TableNotFoundError as e:
+        spool.close()
+        raise HTTPException(status_code=404, detail=str(e))
+    except BaseException:
+        spool.close()
+        raise
+    size = spool.tell()
+    spool.seek(0)
     return StreamingResponse(
-        dump_table(schema, table_name),
+        iter(lambda: spool.read(READ_SIZE), b""),
         media_type="application/gzip",
-        headers={"Content-Disposition": f'attachment; filename="{table_name}.copy.gz"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{table_name}.copy.gz"',
+            "Content-Length": str(size),
+        },
+        background=BackgroundTask(spool.close),
     )
 
 

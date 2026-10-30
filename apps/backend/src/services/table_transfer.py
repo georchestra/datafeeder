@@ -9,7 +9,8 @@ import zlib
 from collections.abc import Iterator
 from typing import IO, Any, LiteralString, cast
 
-from psycopg import Connection, sql
+from data_manipulation.transformation.sql_transform import ID_COLUMN
+from psycopg import Connection, errors, sql
 from pydantic import BaseModel, ValidationError
 
 from src.core.db import data_engine
@@ -20,8 +21,6 @@ logger = get_logger()
 GZIP_WBITS = 16 + zlib.MAX_WBITS
 READ_SIZE = 1024 * 1024
 MAX_DEFINITION_SIZE = 1024 * 1024
-# Column of the final tables created with an id (see transform_staging_to_final)
-DATAFEEDER_ID_COLUMN = "id_datafeeder"
 # Output of format_type(), e.g. "geometry(MultiPolygon,2154)", "timestamp(3) without time
 # zone", "character varying[]"; checked with to_regtype as well
 _TYPE_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_ .\"]*(\([A-Za-z0-9_, ]*\))?[A-Za-z ]*(\[\])*$")
@@ -29,6 +28,14 @@ _TYPE_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_ .\"]*(\([A-Za-z0-9_, ]*\))?[A
 
 class TableTransferError(Exception):
     """The stream cannot be restored (invalid definition or data)."""
+
+
+class TableNotFoundError(Exception):
+    """The table to dump does not exist (anymore)."""
+
+
+class TableExistsError(Exception):
+    """The table to restore already exists."""
 
 
 class TransferColumn(BaseModel):
@@ -81,25 +88,30 @@ def _read_definition(conn: Connection[Any], table: sql.Composable) -> TableDefin
     )
 
 
-def dump_table(schema: str, table_name: str) -> Iterator[bytes]:
-    """Gzip stream of the table, read in a single snapshot."""
+def dump_table(schema: str, table_name: str, output: IO[bytes]) -> None:
+    """Write the gzip stream of the table, read in a single snapshot, to output.
+
+    Written in full before being sent: the lock and the connection are not held for as long
+    as the client takes to read it. Raises TableNotFoundError if the table does not exist.
+    """
     table = sql.Identifier(schema, table_name)
     compressor = zlib.compressobj(wbits=GZIP_WBITS)
     with data_engine.connect() as sa_connection:
         conn = _driver_connection(sa_connection)
-        # A re-ingestion replacing the table waits for the end of the dump
-        conn.execute(sql.SQL("LOCK TABLE {} IN ACCESS SHARE MODE").format(table))
-        definition = _read_definition(conn, table)
-        yield compressor.compress(definition.model_dump_json().encode() + b"\n")
-        columns = sql.SQL(", ").join(sql.Identifier(c.name) for c in definition.columns)
-        with conn.cursor() as cursor:
-            with cursor.copy(sql.SQL("COPY {} ({}) TO STDOUT").format(table, columns)) as copy:
-                for data in copy:
-                    chunk = compressor.compress(data)
-                    if chunk:
-                        yield chunk
-        conn.rollback()
-    yield compressor.flush()
+        try:
+            # A re-ingestion replacing the table waits for the end of the dump
+            conn.execute(sql.SQL("LOCK TABLE {} IN ACCESS SHARE MODE").format(table))
+            definition = _read_definition(conn, table)
+            output.write(compressor.compress(definition.model_dump_json().encode() + b"\n"))
+            columns = sql.SQL(", ").join(sql.Identifier(c.name) for c in definition.columns)
+            with conn.cursor() as cursor:
+                with cursor.copy(sql.SQL("COPY {} ({}) TO STDOUT").format(table, columns)) as copy:
+                    for data in copy:
+                        output.write(compressor.compress(data))
+            conn.rollback()
+        except errors.UndefinedTable as e:
+            raise TableNotFoundError(f"Table {schema}.{table_name} not found") from e
+    output.write(compressor.flush())
 
 
 def _decompressed_chunks(stream: IO[bytes]) -> Iterator[bytes]:
@@ -149,7 +161,8 @@ def _check_definition(conn: Connection[Any], definition: TableDefinition) -> Non
         try:
             with conn.transaction():
                 resolved = conn.execute("SELECT to_regtype(%s)", [column.type]).fetchone()
-        except Exception as e:
+        # Syntax error in the type name, or invalid modifier (e.g. "numeric(5000)")
+        except (errors.SyntaxError, errors.DataError) as e:
             raise TableTransferError(f"Invalid type '{column.type}': {e}") from e
         if resolved is None or resolved[0] is None:
             raise TableTransferError(
@@ -167,7 +180,7 @@ def _create_table(
         parts: list[sql.Composable] = [sql.Identifier(column.name), sql.SQL(column_type)]
         if column.not_null:
             parts.append(sql.SQL("NOT NULL"))
-        if column.name == DATAFEEDER_ID_COLUMN and column.type == "uuid":
+        if column.name == ID_COLUMN and column.type == "uuid":
             parts.append(sql.SQL("DEFAULT gen_random_uuid()"))
         column_definitions.append(sql.SQL(" ").join(parts))
     conn.execute(
@@ -195,7 +208,8 @@ def _create_indexes(
 def restore_table(stream: IO[bytes], schema: str, table_name: str) -> int:
     """Create the table from a dump_table stream, in one transaction. Returns the row count.
 
-    Raises TableTransferError for an invalid stream; nothing is created then.
+    Raises TableTransferError for an invalid stream, TableExistsError if the table was created
+    meanwhile; nothing is created then. Server-side failures propagate as they are.
     """
     table = sql.Identifier(schema, table_name)
     chunks = _decompressed_chunks(stream)
@@ -204,25 +218,31 @@ def restore_table(stream: IO[bytes], schema: str, table_name: str) -> int:
         conn = _driver_connection(sa_connection)
         try:
             _check_definition(conn, definition)
-            _create_table(conn, table, definition)
+            try:
+                _create_table(conn, table, definition)
+            # UniqueViolation (on pg_type) when a concurrent restore created it first
+            except (errors.DuplicateTable, errors.UniqueViolation) as e:
+                raise TableExistsError(f"Table {schema}.{table_name} exists") from e
             columns = sql.SQL(", ").join(sql.Identifier(c.name) for c in definition.columns)
-            with conn.cursor() as cursor:
-                with cursor.copy(sql.SQL("COPY {} ({}) FROM STDIN").format(table, columns)) as copy:
-                    if first_rows:
-                        copy.write(first_rows)
-                    for chunk in chunks:
-                        copy.write(chunk)
-                row_count = cursor.rowcount
-            # After the COPY: faster than maintaining them row by row
-            _create_indexes(conn, table_name, table, definition)
+            try:
+                with conn.cursor() as cursor:
+                    copy_sql = sql.SQL("COPY {} ({}) FROM STDIN").format(table, columns)
+                    with cursor.copy(copy_sql) as copy:
+                        if first_rows:
+                            copy.write(first_rows)
+                        for chunk in chunks:
+                            copy.write(chunk)
+                    row_count = cursor.rowcount
+                # After the COPY: faster than maintaining them row by row
+                _create_indexes(conn, table_name, table, definition)
+            # Invalid value or row format, NULL in a NOT NULL column, duplicate primary key
+            except (errors.DataError, errors.IntegrityError) as e:
+                logger.warning(f"Data rejected restoring {schema}.{table_name}: {e}")
+                raise TableTransferError(f"Data rejected by PostgreSQL: {e}") from e
             conn.execute(sql.SQL("ANALYZE {}").format(table))
-        except TableTransferError:
+        except BaseException:
             conn.rollback()
             raise
-        except Exception as e:
-            conn.rollback()
-            logger.error(f"Failed to restore {schema}.{table_name}: {e}")
-            raise TableTransferError(f"Data rejected by PostgreSQL: {e}") from e
         conn.commit()
     logger.info(f"Restored {schema}.{table_name} ({row_count} rows)")
     return row_count

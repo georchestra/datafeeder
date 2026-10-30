@@ -35,7 +35,7 @@ from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
 from src.services.layer_publication import DatastoreSchemaMismatchError
-from src.services.table_transfer import TableTransferError
+from src.services.table_transfer import TableExistsError, TableNotFoundError, TableTransferError
 
 MODULE = "src.api.routes.ingestion.integrity_link_admin"
 LINK_ID = uuid4()
@@ -849,22 +849,46 @@ class TestByMetadata:
         assert exc.value.status_code == 403
 
 
+def _write_dump(_schema: str, _table: str, output: Any) -> None:
+    output.write(b"gz")
+
+
 class TestExportTableData:
-    def _export_data(self, link: IntegrityLink, schema: str | None = "mel") -> Any:
+    def _export_data(
+        self, link: IntegrityLink, schema: str | None = "mel", dump: Any = _write_dump
+    ) -> Any:
         with (
             patch(f"{MODULE}._get_integrity_link", return_value=link),
             patch(f"{MODULE}._locate_final_table", return_value=schema) as locate,
-            patch(f"{MODULE}.dump_table", return_value=iter([b"gz"])) as dump,
+            patch(f"{MODULE}.dump_table", side_effect=dump) as dump_table,
         ):
             response = export_table_data(MagicMock(), _ctx(), _geoserver(), LINK_ID)
-        return response, locate, dump
+        return response, locate, dump_table
 
-    def test_streams_the_table_found_from_the_layer_workspace(self) -> None:
+    @pytest.mark.asyncio
+    async def test_sends_the_dump_of_the_table_found_from_the_layer_workspace(self) -> None:
         response, locate, dump = self._export_data(_link(data_id="ville_roubaix:voie_nommee"))
 
         assert response.media_type == "application/gzip"
+        assert response.headers["content-length"] == "2"
+        assert [chunk async for chunk in response.body_iterator] == [b"gz"]
         assert locate.call_args.args[1] == "ville_roubaix"
-        dump.assert_called_once_with("mel", "voie_nommee")
+        assert dump.call_args.args[:2] == ("mel", "voie_nommee")
+
+    def test_table_dropped_before_the_dump_is_not_found(self) -> None:
+        def dump(*_args: Any) -> None:
+            raise TableNotFoundError("Table mel.voie_nommee not found")
+
+        with pytest.raises(HTTPException) as exc:
+            self._export_data(_link(), dump=dump)
+        assert exc.value.status_code == 404
+
+    def test_dump_failure_is_raised_before_the_response(self) -> None:
+        def dump(*_args: Any) -> None:
+            raise RuntimeError("connection lost")
+
+        with pytest.raises(RuntimeError):
+            self._export_data(_link(), dump=dump)
 
     def test_missing_table_is_not_found(self) -> None:
         with pytest.raises(HTTPException) as exc:
@@ -978,6 +1002,14 @@ class TestImportTableData:
             await self._put()
         assert exc.value.status_code == 400
         assert exc.value.detail == "Truncated stream"
+
+    async def test_table_created_meanwhile_is_a_conflict(
+        self, table_data_mocks: dict[str, Any]
+    ) -> None:
+        table_data_mocks["restore_table"].side_effect = TableExistsError("Table mel.x exists")
+        with pytest.raises(HTTPException) as exc:
+            await self._put()
+        assert exc.value.status_code == 409
 
     async def test_non_admin_is_forbidden(self, table_data_mocks: dict[str, Any]) -> None:
         with pytest.raises(HTTPException) as exc:

@@ -5,6 +5,7 @@ import io
 from unittest.mock import MagicMock
 
 import pytest
+from psycopg import errors
 
 from src.services.table_transfer import (
     TableDefinition,
@@ -94,6 +95,18 @@ class TestCheckDefinition:
         conn.execute.return_value.fetchone.return_value = (None,)
         with pytest.raises(TableTransferError, match="does not exist"):
             _check_definition(conn, _definition("nosuchtype"))
+
+    def test_type_rejected_by_postgresql_is_invalid(self) -> None:
+        conn = MagicMock()
+        conn.execute.side_effect = errors.SyntaxError("invalid type name")
+        with pytest.raises(TableTransferError, match="Invalid type"):
+            _check_definition(conn, _definition("integer integer"))
+
+    def test_server_failure_is_not_reported_as_an_invalid_type(self) -> None:
+        conn = MagicMock()
+        conn.execute.side_effect = errors.OperationalError("connection lost")
+        with pytest.raises(errors.OperationalError):
+            _check_definition(conn, _definition("integer"))
 
     def test_index_on_unknown_column_is_rejected(self) -> None:
         with pytest.raises(TableTransferError, match="Unknown columns"):
