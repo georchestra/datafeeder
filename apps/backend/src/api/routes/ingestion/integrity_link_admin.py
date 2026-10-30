@@ -1,14 +1,19 @@
 """Dataset administration: export/import across platforms, ownership change, deletion."""
 
+import tempfile
 from datetime import datetime, timezone
 from uuid import UUID
 
+from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.database import create_schema, table_exists
 from data_manipulation.models import IntegrityTransformation
-from data_manipulation.validators import validate_schema_name
-from fastapi import APIRouter, HTTPException, Query, Response
+from data_manipulation.validators import validate_schema_name, validate_table_name
+from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy import or_, text
 from sqlmodel import Session, col, select
+from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 
 from src.api.deps import (
     DatafeederSessionDep,
@@ -28,6 +33,7 @@ from src.core.logging import get_logger
 from src.core.run_ids import make_manual_process_run_id
 from src.core.task_executor import ProcessSource, TaskExecutorType
 from src.models.data_import import (
+    ORGANIZATION_PATTERN,
     ImportType,
     IntegrityLinkExport,
     IntegrityLinkImportMode,
@@ -35,6 +41,8 @@ from src.models.data_import import (
     IntegrityLinkImportResponse,
     IntegrityLinkOwnershipRequest,
     IntegrityLinkResponse,
+    TableDataImportResponse,
+    TableDataStatus,
 )
 from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
@@ -51,6 +59,14 @@ from src.services.layer_publication import (
     read_table_extent,
 )
 from src.services.metadata_service import MetadataService
+from src.services.table_transfer import (
+    READ_SIZE,
+    TableExistsError,
+    TableNotFoundError,
+    TableTransferError,
+    dump_table,
+    restore_table,
+)
 
 # Mounted under /internal; hidden from the OpenAPI schema used by the Angular client
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"], include_in_schema=False)
@@ -60,6 +76,8 @@ logger = get_logger()
 REPROCESSABLE_IMPORT_TYPES = {ImportType.URL, ImportType.API, ImportType.FTP, ImportType.DATABASE}
 # No final table managed by datafeeder
 LINK_ONLY_IMPORT_TYPES = {ImportType.EMPTY, ImportType.PREFILLED}
+# Above, an uploaded or exported table is written to TMP_UPLOAD_PATH
+SPOOL_MAX_MEMORY_SIZE = 16 * 1024 * 1024
 
 
 def _require_administrator(geo_ctx: GeorchestraContext) -> None:
@@ -80,6 +98,162 @@ def _require_console_owner(owner: str, organization: str) -> None:
         raise HTTPException(status_code=400, detail=f"Unknown organization '{organization}'")
     if owner not in console_service.fetch_users_by_usernames([owner]):
         raise HTTPException(status_code=400, detail=f"Unknown user '{owner}'")
+
+
+# Declared before the /{integrity_link_id}/... routes, which would capture its path
+@router.get(
+    "/by-metadata/{metadata_id}",
+    response_model=IntegrityLinkResponse,
+    summary="Find the dataset of a metadata record",
+    description="Administrators only.",
+)
+def get_integrity_link_by_metadata(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    metadata_id: str,
+) -> IntegrityLinkResponse:
+    _require_administrator(geo_ctx)
+    integrity_link = session.exec(
+        select(IntegrityLink).where(col(IntegrityLink.metadata_id) == metadata_id)
+    ).first()
+    if integrity_link is None:
+        raise HTTPException(status_code=404, detail="No dataset for this metadata record")
+    return IntegrityLinkResponse.model_validate(integrity_link)
+
+
+def _table_data_status(
+    session: DatafeederSessionDep, organization: str, final_table_name: str
+) -> TableDataStatus:
+    try:
+        validate_table_name(final_table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    conflict = session.exec(
+        select(IntegrityLink).where(col(IntegrityLink.final_table_name) == final_table_name)
+    ).first()
+    schema = get_data_schema(organization.lower())
+    return TableDataStatus(
+        schema_name=schema,
+        table_name=final_table_name,
+        exists=table_exists(data_engine, schema, final_table_name),
+        used_by=conflict.id if conflict else None,
+    )
+
+
+@router.get(
+    "/data/{organization}/{final_table_name}",
+    response_model=TableDataStatus,
+    summary="Check where the data exported from another platform would be created",
+    description="Administrators only. To check before sending it with PUT.",
+)
+def get_table_data_status(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    organization: str = Path(pattern=ORGANIZATION_PATTERN),
+    final_table_name: str = Path(),
+) -> TableDataStatus:
+    _require_administrator(geo_ctx)
+    return _table_data_status(session, organization, final_table_name)
+
+
+@router.put(
+    "/data/{organization}/{final_table_name}",
+    response_model=TableDataImportResponse,
+    status_code=201,
+    summary="Create a final table from the data exported from another platform",
+    description=(
+        "Administrators only. The body is the gzip stream of GET /{integrity_link_id}/data. "
+        "The table is created in the schema of the organization; then POST /import attaches "
+        "it. 409 if the table exists or a dataset uses its name (check it first with GET), "
+        "400 if the stream is rejected (nothing is created then)."
+    ),
+)
+async def import_table_data(
+    request: Request,
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    organization: str = Path(pattern=ORGANIZATION_PATTERN),
+    final_table_name: str = Path(),
+) -> TableDataImportResponse:
+    _require_administrator(geo_ctx)
+    status = _table_data_status(session, organization, final_table_name)
+    if status.used_by:
+        raise HTTPException(
+            status_code=409, detail=f"Dataset {status.used_by} already uses this table name"
+        )
+    schema = status.schema_name
+    if status.exists:
+        raise HTTPException(status_code=409, detail=f"Table {schema}.{final_table_name} exists")
+
+    # Spooled first: the COPY is synchronous and must not block the event loop
+    with tempfile.SpooledTemporaryFile(
+        max_size=SPOOL_MAX_MEMORY_SIZE, dir=get_settings().TMP_UPLOAD_PATH
+    ) as spool:
+        async for chunk in request.stream():
+            await run_in_threadpool(spool.write, chunk)
+        spool.seek(0)
+        create_schema(data_engine, schema)
+        try:
+            row_count = await run_in_threadpool(restore_table, spool, schema, final_table_name)
+        except TableTransferError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except TableExistsError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+    return TableDataImportResponse(
+        schema_name=schema, table_name=final_table_name, row_count=row_count
+    )
+
+
+@router.get(
+    "/{integrity_link_id}/data",
+    response_class=StreamingResponse,
+    summary="Export the data of a dataset",
+    description=(
+        "Administrators only. Gzip stream of the final table (definition, then rows in "
+        "COPY format), for PUT /data/{organization}/{final_table_name} on another platform."
+    ),
+)
+def export_table_data(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    geoserver_service: GeoServerServiceDep,
+    integrity_link_id: UUID,
+) -> StreamingResponse:
+    _require_administrator(geo_ctx)
+    integrity_link = _get_integrity_link(session, integrity_link_id)
+    table_name = integrity_link.final_table_name
+    if not table_name or integrity_link.source_import_type in LINK_ONLY_IMPORT_TYPES:
+        raise HTTPException(status_code=404, detail="The dataset has no table managed here")
+    parts = integrity_link.parse_data_id()
+    current_ws = parts[0].lower() if parts else integrity_link.integrity_organization.lower()
+    schema = _locate_final_table(integrity_link, current_ws, geoserver_service)
+    if schema is None:
+        raise HTTPException(status_code=404, detail=f"Final table {table_name} not found")
+
+    # Dumped before the response is sent: errors get a proper status, and the table lock and
+    # the connection are released before the client reads it
+    spool = tempfile.SpooledTemporaryFile(
+        max_size=SPOOL_MAX_MEMORY_SIZE, dir=get_settings().TMP_UPLOAD_PATH
+    )
+    try:
+        dump_table(schema, table_name, spool)
+    except TableNotFoundError as e:
+        spool.close()
+        raise HTTPException(status_code=404, detail=str(e))
+    except BaseException:
+        spool.close()
+        raise
+    size = spool.tell()
+    spool.seek(0)
+    return StreamingResponse(
+        iter(lambda: spool.read(READ_SIZE), b""),
+        media_type="application/gzip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{table_name}.copy.gz"',
+            "Content-Length": str(size),
+        },
+        background=BackgroundTask(spool.close),
+    )
 
 
 @router.get(
@@ -182,7 +356,7 @@ def _resolve_import_mode(
         status_code=400,
         detail=f"Table {target_schema}.{exported.final_table_name} not found and a "
         f"'{import_type.value}' dataset cannot be re-ingested from its source: "
-        "copy its data to this platform first (e.g. with maelstro)",
+        "copy its data to this platform first (GET .../data, then PUT .../data)",
     )
 
 

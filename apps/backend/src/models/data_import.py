@@ -257,7 +257,7 @@ class IntegrityLinkGsPublishResponse(IntegrityLinkResponse):
 
 
 # Lowercased, it names a GeoServer workspace and a PostgreSQL schema
-_ORGANIZATION_PATTERN = r"^[A-Za-z][A-Za-z0-9_]{0,62}$"
+ORGANIZATION_PATTERN = r"^[A-Za-z][A-Za-z0-9_]{0,62}$"
 
 
 class IntegrityLinkExport(BaseModel):
@@ -269,7 +269,7 @@ class IntegrityLinkExport(BaseModel):
     metadata_id: str | None
     integrity_title: str | None
     integrity_owner: str
-    integrity_organization: str = Field(pattern=_ORGANIZATION_PATTERN)
+    integrity_organization: str = Field(pattern=ORGANIZATION_PATTERN)
     integrity_transformation: dict[str, Any] | None = None
     source_import_type: ImportType
     source_url: str | None
@@ -294,7 +294,7 @@ class IntegrityLinkExport(BaseModel):
 class IntegrityLinkImportMode(str, Enum):
     """How an imported dataset gets its data on the target platform."""
 
-    ATTACH = "attach"  # data already copied (files)
+    ATTACH = "attach"  # final table already here (e.g. copied with PUT .../data)
     REPROCESS = "reprocess"  # re-ingested from the source (url, apis ..)
 
 
@@ -321,8 +321,25 @@ class IntegrityLinkImportResponse(BaseModel):
     status: TaskStatus | None = None
 
 
+class TableDataStatus(BaseModel):
+    """Where the data of a dataset exported from another platform would be created."""
+
+    schema_name: str
+    table_name: str
+    exists: bool
+    used_by: UUID | None = Field(default=None, description="Dataset using this table name")
+
+
+class TableDataImportResponse(BaseModel):
+    """Final table created from the data of a dataset exported from another platform."""
+
+    schema_name: str
+    table_name: str
+    row_count: int
+
+
 class IntegrityLinkOwnershipRequest(BaseModel):
     """New owner, and new organization if it changes."""
 
     owner: str = Field(min_length=1)
-    organization: str | None = Field(default=None, pattern=_ORGANIZATION_PATTERN)
+    organization: str | None = Field(default=None, pattern=ORGANIZATION_PATTERN)
