@@ -27,6 +27,10 @@ Supported sections:
 
   They take precedence over both the datafeeder and the geonetwork-ui translations.
 
+  Note that translation keys can be made visible adding the `?debugTranslations=true` query parameter to the URL.
+
+  Find more information about the translation system in the [geonetwork-ui documentation](https://geonetwork.github.io/geonetwork-ui/main/docs/guide/configure.html#translations).
+
 The `[theme]` section and its mandatory colors must always be present, otherwise the application does not start.
 
 To use a different file per deployment, set the `CONFIG_DIRECTORY_OVERRIDE` environment variable of the frontend
