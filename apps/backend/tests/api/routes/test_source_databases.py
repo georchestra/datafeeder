@@ -32,7 +32,9 @@ def _ctx(admin: bool = True) -> GeorchestraContext:
 def test_lists_key_type_and_label(mock_get_settings: MagicMock) -> None:
     mock_get_settings.return_value.SOURCE_DATABASES = {
         "SOURCE_DB_1": CopySourceDatabase(
-            type="copy", connection_string=PostgresDsn("postgresql://u:p@h:5432/db")
+            type="copy",
+            connection_string=PostgresDsn("postgresql://u:p@h:5432/db"),
+            schema="geo",
         ),
         "PATRIMOINE": DirectAccessSourceDatabase(
             type="direct_access",
@@ -43,7 +45,7 @@ def test_lists_key_type_and_label(mock_get_settings: MagicMock) -> None:
     }
 
     assert list_source_databases(_ctx()) == [
-        SourceDatabaseSummary(key="SOURCE_DB_1", type="copy", label=None),
+        SourceDatabaseSummary(key="SOURCE_DB_1", type="copy", label=None, schema_name="geo"),
         SourceDatabaseSummary(key="PATRIMOINE", type="direct_access", label="Patrimoine"),
     ]
 
@@ -64,10 +66,23 @@ def test_requires_administrator(mock_get_settings: MagicMock) -> None:
     mock_get_settings.assert_not_called()
 
 
+def _settings(schema: str | None = None) -> MagicMock:
+    settings = MagicMock()
+    settings.SOURCE_DATABASES = {
+        "SOURCE_DB_2": CopySourceDatabase(
+            type="copy",
+            connection_string=PostgresDsn("postgresql://u:p@h:5434/sourcedb"),
+            schema=schema,
+        )
+    }
+    return settings
+
+
+@patch("src.api.routes.source_databases.get_settings", return_value=_settings())
 @patch("src.api.routes.source_databases.list_tables_by_schema")
 @patch("src.api.routes.source_databases.get_source_engine")
 def test_tables_grouped_by_schema(
-    mock_get_source_engine: MagicMock, mock_list_tables_by_schema: MagicMock
+    mock_get_source_engine: MagicMock, mock_list_tables_by_schema: MagicMock, _: MagicMock
 ) -> None:
     mock_list_tables_by_schema.return_value = {
         "geo": ["parcelles", "stations_mesure"],
@@ -80,6 +95,22 @@ def test_tables_grouped_by_schema(
     ]
     mock_get_source_engine.assert_called_once_with("SOURCE_DB_2")
     mock_list_tables_by_schema.assert_called_once_with(mock_get_source_engine.return_value)
+
+
+@patch("src.api.routes.source_databases.get_settings", return_value=_settings("geo"))
+@patch("src.api.routes.source_databases.list_tables_by_schema")
+@patch("src.api.routes.source_databases.get_source_engine")
+def test_tables_restricted_to_configured_schema(
+    _mock_get_source_engine: MagicMock, mock_list_tables_by_schema: MagicMock, _: MagicMock
+) -> None:
+    mock_list_tables_by_schema.return_value = {
+        "geo": ["parcelles"],
+        "referentiel": ["communes"],
+    }
+
+    assert list_source_database_tables("SOURCE_DB_2", _ctx()) == [
+        SourceSchema(schema_name="geo", tables=["parcelles"]),
+    ]
 
 
 @patch("src.api.routes.source_databases.get_source_engine")

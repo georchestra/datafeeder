@@ -22,6 +22,7 @@ class SourceDatabaseSummary(BaseModel):
     key: str
     type: Literal["copy", "direct_access"]
     label: str | None = None
+    schema_name: str | None = None
 
 
 class SourceSchema(BaseModel):
@@ -40,7 +41,7 @@ class SourceSchema(BaseModel):
 def list_source_databases(geo_ctx: GeorchestraContextDep) -> list[SourceDatabaseSummary]:
     require_administrator(geo_ctx)
     return [
-        SourceDatabaseSummary(key=key, type=db.type, label=db.label)
+        SourceDatabaseSummary(key=key, type=db.type, label=db.label, schema_name=db.schema_name)
         for key, db in get_settings().SOURCE_DATABASES.items()
     ]
 
@@ -66,6 +67,9 @@ def list_source_database_tables(key: str, geo_ctx: GeorchestraContextDep) -> lis
             status_code=503, detail=f"Could not list the tables of source database '{key}'"
         ) from None
 
+    schema_name = get_settings().SOURCE_DATABASES[key].schema_name
+    if schema_name:
+        schemas = {name: tables for name, tables in schemas.items() if name == schema_name}
     return [
         SourceSchema(schema_name=schema_name, tables=tables)
         for schema_name, tables in schemas.items()

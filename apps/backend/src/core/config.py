@@ -7,7 +7,9 @@ from typing import Annotated, Any, Literal
 from urllib.parse import quote
 
 from data_manipulation.logging import configure_logging
+from data_manipulation.validators import validate_schema_name
 from pydantic import (
+    AfterValidator,
     AliasChoices,
     AnyUrl,
     BaseModel,
@@ -47,6 +49,12 @@ def parse_cors(v: Any) -> list[str] | str:
     raise ValueError(v)
 
 
+# Only this schema is offered in the wizard and accepted by staging; all schemas when absent
+SourceDatabaseSchema = Annotated[
+    str | None, AfterValidator(lambda v: v and validate_schema_name(v))
+]
+
+
 class CopySourceDatabase(BaseModel):
     """Source database whose tables are copied into the data database ("Database" import type)."""
 
@@ -55,6 +63,7 @@ class CopySourceDatabase(BaseModel):
     connection_string: PostgresDsn
     # Name shown in the wizard; the key is shown when absent
     label: str | None = None
+    schema_name: SourceDatabaseSchema = Field(default=None, alias="schema")
 
 
 class DirectAccessSourceDatabase(BaseModel):
@@ -70,6 +79,7 @@ class DirectAccessSourceDatabase(BaseModel):
     roles: list[str] = Field(default_factory=list)
     # Name shown in the wizard; the key is shown when absent
     label: str | None = None
+    schema_name: SourceDatabaseSchema = Field(default=None, alias="schema")
 
 
 SourceDatabase = Annotated[

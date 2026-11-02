@@ -112,6 +112,20 @@ class TestProcessImportSourceDatabase:
         assert "Schema 'nonexistent' not found" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
+    @patch("src.api.routes.ingestion.staging.source_db_schema", new="geo")
+    @patch("src.api.routes.ingestion.staging.source_db_key", new="SOURCE_DB_1")
+    @patch("src.api.routes.ingestion.staging.source_engine")
+    async def test_schema_other_than_configured_returns_422(self, mock_engine: MagicMock) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await _process_import_source(
+                type=ImportType.DATABASE,
+                db_schema="admin",
+                db_table="rivers",
+            )
+        assert exc_info.value.status_code == 422
+        assert "Schema 'admin' is not allowed" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
     @patch("src.api.routes.ingestion.staging.table_exists", return_value=False)
     @patch("src.api.routes.ingestion.staging.schema_exists", return_value=True)
     @patch("src.api.routes.ingestion.staging.source_db_key", new="SOURCE_DB_1")
