@@ -11,6 +11,7 @@ from src.core.config import (
     Settings,
     is_shared_schema,
 )
+from src.services.georchestra import GeorchestraContext
 
 
 class TestIsSharedSchema:
@@ -77,6 +78,38 @@ class TestSourceDatabases:
             jndi_reference="jdbc/patrimoine",
         )
         assert database.roles == []
+
+    @pytest.mark.parametrize(
+        ("roles", "user_roles", "available"),
+        [
+            ([], set[str](), True),
+            (["EDITOR"], set[str](), False),
+            (["EDITOR"], {"OTHER"}, False),
+            (["editor", "ADMIN"], {"EDITOR"}, True),
+            (["ROLE_EDITOR"], {"EDITOR"}, True),
+            (["EDITOR"], {"ADMINISTRATOR"}, True),
+        ],
+    )
+    def test_is_available_to(self, roles: list[str], user_roles: set[str], available: bool) -> None:
+        database = CopySourceDatabase(
+            type="copy", connection_string=PostgresDsn("postgresql://u:p@h/db"), roles=roles
+        )
+        geo_ctx = GeorchestraContext(
+            username="someone",
+            roles=user_roles,
+            email="",
+            firstname="",
+            lastname="",
+            organization="",
+        )
+        assert database.is_available_to(geo_ctx) is available
+
+    @pytest.mark.parametrize("role", ["", " ", "ROLE_"])
+    def test_empty_role_is_rejected(self, role: str) -> None:
+        with pytest.raises(ValidationError):
+            CopySourceDatabase(
+                type="copy", connection_string=PostgresDsn("postgresql://u:p@h/db"), roles=[role]
+            )
 
     def test_direct_access_requires_jndi_reference(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(
