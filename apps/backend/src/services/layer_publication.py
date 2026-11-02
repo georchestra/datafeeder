@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.utils import compute_bbox_from_postgis_stextent_string
 from geoservercloud.models.common import MetadataLink
-from sqlalchemy import MetaData, Table, func, select
+from sqlalchemy import Engine, MetaData, Table, func, select, text
 
 from src.core.config import get_settings
 from src.core.db import data_engine
@@ -48,6 +48,37 @@ def read_table_extent(table_name: str, schema: str) -> TableExtent:
             bbox_result = conn.execute(select(func.ST_Extent(geom))).scalar_one_or_none()
             if bbox_result:
                 extent.bbox = compute_bbox_from_postgis_stextent_string(bbox_result)
+    return extent
+
+
+_GEOMETRY_COLUMN_QUERY = text(
+    """
+    SELECT f_geometry_column, srid
+    FROM geometry_columns
+    WHERE f_table_schema = :schema AND f_table_name = :table
+    ORDER BY f_geometry_column
+    LIMIT 1
+    """
+)
+
+
+def read_source_table_extent(engine: Engine, schema: str, table_name: str) -> TableExtent:
+    """SRID and extent of a table of a source database, whatever its geometry column name
+    (the first one listed in geometry_columns; placeholder bbox if it has none)."""
+    with engine.connect() as conn:
+        row = conn.execute(_GEOMETRY_COLUMN_QUERY, {"schema": schema, "table": table_name}).first()
+        if row is None:
+            return TableExtent()
+        geom_column: str = row[0]
+        srid: int | None = row[1]
+        table = Table(table_name, MetaData(schema=schema), autoload_with=conn)
+        geom = table.c[geom_column]
+        extent = TableExtent(is_geographic=True, epsg=srid or None)
+        if extent.epsg is None:
+            extent.epsg = conn.execute(select(func.ST_SRID(geom)).limit(1)).scalar_one_or_none()
+        bbox_result = conn.execute(select(func.ST_Extent(geom))).scalar_one_or_none()
+        if bbox_result:
+            extent.bbox = compute_bbox_from_postgis_stextent_string(bbox_result)
     return extent
 
 

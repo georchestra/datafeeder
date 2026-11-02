@@ -7,6 +7,7 @@ export type { BodyUpdateScheduleIngestionIntegrityLinkIntegrityLinkIdSchedulePat
 export type { CastType } from './models/cast-type'
 export type { ColumnConfig } from './models/column-config'
 export type { ColumnFilter } from './models/column-filter'
+export type { CreateDirectAccessDatasetRequest } from './models/create-direct-access-dataset-request'
 export type { CreateEmptyDatasetRequest } from './models/create-empty-dataset-request'
 export type { CreatePrefilledDatasetRequest } from './models/create-prefilled-dataset-request'
 export type { DagRunCollectionResponse } from './models/dag-run-collection-response'
