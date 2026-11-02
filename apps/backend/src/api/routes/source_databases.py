@@ -20,21 +20,20 @@ router = APIRouter(prefix="/source-databases", tags=["source-databases"])
 # out: they are internal objects, not data.
 _LIST_TABLES_QUERY = text(
     """
-    SELECT t.table_schema, t.table_name
-    FROM information_schema.tables t
-    WHERE t.table_schema NOT IN ('information_schema', 'pg_catalog')
-      AND t.table_schema NOT LIKE 'pg\\_%'
+    SELECT n.nspname, c.relname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind IN ('r', 'v', 'm', 'p', 'f')
+      AND NOT c.relispartition
+      AND n.nspname NOT IN ('information_schema', 'pg_catalog')
+      AND n.nspname NOT LIKE 'pg\\_%'
+      AND has_schema_privilege(n.oid, 'USAGE')
+      AND has_table_privilege(c.oid, 'SELECT')
       AND NOT EXISTS (
-        SELECT 1
-        FROM pg_depend d
-        JOIN pg_class c ON c.oid = d.objid
-        JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE d.classid = 'pg_class'::regclass
-          AND d.deptype = 'e'
-          AND n.nspname = t.table_schema
-          AND c.relname = t.table_name
+        SELECT 1 FROM pg_depend d
+        WHERE d.classid = 'pg_class'::regclass AND d.objid = c.oid AND d.deptype = 'e'
       )
-    ORDER BY t.table_schema, t.table_name
+    ORDER BY 1, 2
     """
 )
 
