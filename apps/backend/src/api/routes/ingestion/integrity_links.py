@@ -104,9 +104,10 @@ def _final_table_exists(lnk: Any, existing_final: set[tuple[str, str]]) -> bool:
 
 
 def _is_listed(lnk: Any, staging_tables: set[str], existing_final: set[tuple[str, str]]) -> bool:
-    """Links without data (empty/prefilled) are always listed; others need a staging or final table."""
+    """Links without a datafeeder table (empty/prefilled/direct access) are always listed; others
+    need a staging or final table."""
     return (
-        lnk.source_import_type in (ImportType.EMPTY, ImportType.PREFILLED)
+        lnk.source_import_type in (ImportType.EMPTY, ImportType.PREFILLED, ImportType.DIRECT_ACCESS)
         or bool(lnk.staging_table_name and lnk.staging_table_name in staging_tables)
         or _final_table_exists(lnk, existing_final)
     )
