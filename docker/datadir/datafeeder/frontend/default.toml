@@ -1,0 +1,32 @@
+# Datafeeder frontend configuration
+# Note: this file's syntax is TOML (https://toml.io/)
+# The [theme] section and its mandatory colors must always be present, otherwise the application will not start.
+
+### VISUAL THEME
+
+[theme]
+# These colors are mandatory; colors are expressed as in CSS (hex, rgb(), named colors...)
+primary_color = "#E30513"
+secondary_color = "#007A80"
+main_color = "#212029" # All-purpose text color
+background_color = "white"
+
+# These fonts are optional (default: "Lato")
+# main_font = "'Lato', sans-serif"
+# title_font = "'Lato', sans-serif"
+# This optional URL should point to a CSS stylesheet that defines the fonts used above
+# fonts_stylesheet_url = "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap"
+# This optional URL (relative or absolute) should point to an image used as favicon
+# favicon = "https://my-domain.org/favicon.ico"
+
+### TRANSLATIONS
+
+# To override translations in a specific language, use a 'translations.xx' section where 'xx' is a language code.
+# Add ?debugTranslations=true to the URL to display translation keys in the UI.
+# Language codes are expressed in ISO 639-1 codes, see https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
+# Example:
+#
+# [translations.en]
+# integrityLinks.dashboard = "My datasets"
+# [translations.fr]
+# integrityLinks.dashboard = "Mes jeux de données"

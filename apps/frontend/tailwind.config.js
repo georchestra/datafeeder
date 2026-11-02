@@ -7,22 +7,17 @@ module.exports = {
   presets: [baseConfig],
   content: [
     './node_modules/geonetwork-ui/**/*.mjs',
-    join(__dirname, 'src/**/!(*.stories|*.spec).{ts,html}'),
+    join(__dirname, 'src/**/!(*.stories|*.spec).{ts,html}')
   ],
   theme: {
     extend: {
       colors: {
         beige: '#F7F5F0',
         'gray-2': '#4C4C4C',
-        'gray-border': '#CCCDD2',
-        'secondary-hover': '#A1DBDE',
-        'secondary-active': 'rgba(161, 219, 222, 0.4)',
-        'secondary-dark': '#004E52',
-      },
-    },
+        'gray-border': '#CCCDD2'
+      }
+    }
   },
-  safelist: [
-    'max-h-14', 'w-48'
-  ],
-  plugins: [],
+  safelist: ['max-h-14', 'w-48'],
+  plugins: []
 }

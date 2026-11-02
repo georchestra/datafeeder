@@ -6,7 +6,7 @@
       <!-- Dashboard — always available -->
       <a
         [routerLink]="['/']"
-        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-lightest"
       >
         <ng-icon name="iconoirHome" size="18"></ng-icon>
         {{ 'integrityLinks.dashboard' | translate }}
@@ -17,9 +17,9 @@
       <!-- Metadata Sheet — always enabled (requires at least METADATA_WRITE to reach this page) -->
       <a
         [routerLink]="['edit']"
-        routerLinkActive="bg-secondary-dark text-white"
+        routerLinkActive="bg-secondary-darker text-white"
         #rla="routerLinkActive"
-        class="flex items-start gap-2 rounded-md p-2 text-base text-secondary hover:bg-secondary-hover"
+        class="flex items-start gap-2 rounded-md p-2 text-base text-secondary hover:bg-secondary-lightest"
       >
         <ng-icon
           name="iconoirJournalPage"
@@ -32,7 +32,7 @@
           <button
             type="button"
             (click)="onSaveClick()"
-            class="mt-2 w-full flex items-center justify-center rounded-full bg-white text-secondary-dark hover:bg-white/80 disabled:bg-white/30 disabled:text-white/70 disabled:cursor-not-allowed"
+            class="mt-2 w-full flex items-center justify-center rounded-full bg-white text-secondary-darker hover:bg-white/80 disabled:bg-white/30 disabled:text-white/70 disabled:cursor-not-allowed"
             [disabled]="metadataSaveService.isSaving() || !changedSinceSave()"
           >
             <div class="my-1.5 flex items-center justify-center gap-1">
@@ -54,8 +54,8 @@
       @if (store.isRemoteDataset() && store.isOwnerOrAdmin()) {
       <a
         [routerLink]="['recurrence']"
-        routerLinkActive="bg-secondary-dark text-white"
-        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+        routerLinkActive="bg-secondary-darker text-white"
+        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-lightest"
       >
         <ng-icon
           name="iconoirCalendarRotate"
@@ -90,8 +90,8 @@
       @if (store.isOwnerOrAdmin()) {
       <a
         [routerLink]="['authorizations']"
-        routerLinkActive="bg-secondary-dark text-white"
-        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+        routerLinkActive="bg-secondary-darker text-white"
+        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-lightest"
       >
         <ng-icon name="iconoirShieldCheck" size="18" class="shrink-0"></ng-icon>
         {{ 'sidebar.accessRights' | translate }}
@@ -124,8 +124,8 @@
       } @else {
       <a
         [routerLink]="['events']"
-        routerLinkActive="bg-secondary-dark text-white"
-        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-hover"
+        routerLinkActive="bg-secondary-darker text-white"
+        class="flex items-center gap-2 rounded-md px-3 py-2 text-base text-secondary hover:bg-secondary-lightest"
       >
         <ng-icon name="iconoirListSelect" size="18" class="shrink-0"></ng-icon>
         {{ 'sidebar.eventsAndStatuses' | translate }}
