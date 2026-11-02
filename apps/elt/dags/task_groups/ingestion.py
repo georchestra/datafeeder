@@ -5,7 +5,6 @@ from typing import Any, Literal
 
 from airflow.exceptions import AirflowException
 from airflow.sdk import Variable, task, task_group
-from data_manipulation.constants import DB_URI_PREFIX
 from data_manipulation.encryption import decrypt_credentials
 from data_manipulation.ingestion import (
     ingest_data_from_database_into_postgis,
@@ -14,6 +13,7 @@ from data_manipulation.ingestion import (
     ingest_data_from_ogc_service_into_postgis,
     ingest_data_from_url_into_postgis,
 )
+from data_manipulation.utils import parse_db_uri
 from utils import (
     get_data_sql_engine,
     get_datafeeder_sql_engine,
@@ -155,25 +155,10 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
             params = context.get("params", {})
             target_table_name = _resolve_staging_table_name(context, params)
             source = params.get("source", "")
-            # Expected format: db://{db_key}/{schema}/{table}
-            if not source.startswith(DB_URI_PREFIX):
-                raise AirflowException(
-                    f"Invalid database source URL format: '{source}'. Expected db://{{db_key}}/{{schema}}/{{table}}"
-                )
-
             try:
-                db_key, source_schema, source_table = source.removeprefix(DB_URI_PREFIX).split(
-                    "/", 2
-                )
-            except ValueError:
-                raise AirflowException(
-                    f"Invalid database source URL format: '{source}'. Expected db://{{db_key}}/{{schema}}/{{table}}"
-                )
-
-            if not db_key or not source_schema or not source_table:
-                raise AirflowException(
-                    f"Invalid database source URL: db_key, schema, and table must all be non-empty (got '{source}')"
-                )
+                db_key, source_schema, source_table = parse_db_uri(source)
+            except ValueError as e:
+                raise AirflowException(str(e))
 
             try:
                 source_engine = get_source_sql_engine(db_key)

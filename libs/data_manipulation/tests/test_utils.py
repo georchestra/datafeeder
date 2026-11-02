@@ -2,8 +2,10 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
-from data_manipulation.utils import resolve_url, sanitize_name
+from data_manipulation.utils import build_db_uri, parse_db_uri, resolve_url, sanitize_name
 
 
 class TestSanitizeName:
@@ -158,3 +160,26 @@ class TestResolveUrl:
         mock_head.return_value = self._mock_response(301, None)
         url = "https://example.com/data.geojson"
         assert resolve_url(url) == url
+
+
+class TestDbUri:
+    """Test cases for build_db_uri and parse_db_uri."""
+
+    def test_build(self):
+        assert build_db_uri("main", "geo", "rivers") == "db://main/geo/rivers"
+
+    def test_parse(self):
+        assert parse_db_uri("db://main/geo/rivers") == ("main", "geo", "rivers")
+
+    def test_round_trip(self):
+        assert parse_db_uri(build_db_uri("main", "geo", "rivers")) == ("main", "geo", "rivers")
+
+    @pytest.mark.parametrize("uri", ["not-a-db-uri", "db://main/geo", "http://main/geo/rivers"])
+    def test_parse_invalid_format(self, uri: str) -> None:
+        with pytest.raises(ValueError, match="Invalid database source URL format"):
+            parse_db_uri(uri)
+
+    @pytest.mark.parametrize("uri", ["db:///geo/rivers", "db://main//rivers", "db://main/geo/"])
+    def test_parse_empty_part(self, uri: str) -> None:
+        with pytest.raises(ValueError, match="must all be non-empty"):
+            parse_db_uri(uri)
