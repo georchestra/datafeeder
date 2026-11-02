@@ -13,5 +13,6 @@ export const IMPORT_TYPE: ImportType[] = [
   'api',
   'ftp',
   'empty',
-  'prefilled'
+  'prefilled',
+  'direct_access'
 ]
