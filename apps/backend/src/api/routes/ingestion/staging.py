@@ -256,6 +256,11 @@ async def _process_import_source(
                 status_code=422, detail="PREFILLED datasets do not use staging import"
             )
 
+        case ImportType.DIRECT_ACCESS:
+            raise HTTPException(
+                status_code=422, detail="DIRECT_ACCESS datasets do not use staging import"
+            )
+
     return _ImportSourceResult(
         source=source,
         url=url,

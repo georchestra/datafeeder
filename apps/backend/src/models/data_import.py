@@ -28,6 +28,7 @@ class ImportType(str, Enum):
     FTP = "ftp"
     EMPTY = "empty"
     PREFILLED = "prefilled"
+    DIRECT_ACCESS = "direct_access"
 
 
 # Distinct from EffectiveAccess (security.py, the caller's access level).

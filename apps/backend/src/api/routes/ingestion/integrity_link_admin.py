@@ -76,7 +76,7 @@ logger = get_logger()
 # FILE is excluded: its source is in the storage of the exporting platform
 REPROCESSABLE_IMPORT_TYPES = {ImportType.URL, ImportType.API, ImportType.FTP, ImportType.DATABASE}
 # No final table managed by datafeeder
-LINK_ONLY_IMPORT_TYPES = {ImportType.EMPTY, ImportType.PREFILLED}
+LINK_ONLY_IMPORT_TYPES = {ImportType.EMPTY, ImportType.PREFILLED, ImportType.DIRECT_ACCESS}
 # Above, an uploaded or exported table is written to TMP_UPLOAD_PATH
 SPOOL_MAX_MEMORY_SIZE = 16 * 1024 * 1024
 

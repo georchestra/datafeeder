@@ -12,3 +12,4 @@ export type ImportType =
   | 'ftp'
   | 'empty'
   | 'prefilled'
+  | 'direct_access'
