@@ -76,9 +76,6 @@ def settings() -> Iterator[MagicMock]:
                 type="copy", connection_string=PostgresDsn("postgresql://u:p@h:5432/db")
             ),
         }
-        s.CONSOLE_INTERNAL_URL = "http://console"
-        s.GEONETWORK_XML_RECORD_URL = "http://gn/{metadata_id}.xml"
-        s.DATAHUB_PUBLIC_URL = "http://datahub/{metadata_id}"
         yield s
 
 
@@ -97,7 +94,7 @@ def source_db() -> Iterator[MagicMock]:
                 bbox={"minx": 1.0, "miny": 2.0, "maxx": 3.0, "maxy": 4.0},
             ),
         ),
-        patch(f"{MODULE}.ConsoleService") as console,
+        patch("src.services.metadata_publication.ConsoleService") as console,
     ):
         console.return_value.get_organization.return_value = None
         yield get_engine

@@ -68,10 +68,10 @@ class TestCreateEmptyDataset:
         # Patch model_validate to avoid needing a fully wired SQLModel
         with (
             patch(
-                "src.api.routes.ingestion.empty_dataset.get_settings",
+                "src.services.metadata_publication.get_settings",
                 return_value=_mock_settings(),
             ),
-            patch("src.api.routes.ingestion.empty_dataset.ConsoleService") as mock_console_cls,
+            patch("src.services.metadata_publication.ConsoleService") as mock_console_cls,
             patch(
                 "src.api.routes.ingestion.empty_dataset.IntegrityLinkResponse.model_validate",
                 return_value=MagicMock(
@@ -108,10 +108,10 @@ class TestCreateEmptyDataset:
 
         with (
             patch(
-                "src.api.routes.ingestion.empty_dataset.get_settings",
+                "src.services.metadata_publication.get_settings",
                 return_value=_mock_settings(),
             ),
-            patch("src.api.routes.ingestion.empty_dataset.ConsoleService") as mock_console_cls,
+            patch("src.services.metadata_publication.ConsoleService") as mock_console_cls,
             patch(
                 "src.api.routes.ingestion.empty_dataset.IntegrityLinkResponse.model_validate",
                 return_value=MagicMock(
@@ -143,10 +143,10 @@ class TestCreateEmptyDataset:
 
         with (
             patch(
-                "src.api.routes.ingestion.empty_dataset.get_settings",
+                "src.services.metadata_publication.get_settings",
                 return_value=_mock_settings(),
             ),
-            patch("src.api.routes.ingestion.empty_dataset.ConsoleService") as mock_console_cls,
+            patch("src.services.metadata_publication.ConsoleService") as mock_console_cls,
         ):
             mock_console_cls.return_value.get_organization.return_value = None
             mock_ms = MagicMock()
