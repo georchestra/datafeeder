@@ -27,6 +27,12 @@ def create_access_token(subject: str | Any, expires_delta: timedelta) -> str:
     return encoded_jwt
 
 
+def require_user(geo_ctx: GeorchestraContext) -> None:
+    """Raise 401 unless the request comes from a logged-in user."""
+    if not geo_ctx.username:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+
 def require_administrator(geo_ctx: GeorchestraContext) -> None:
     """Raise 403 unless the user has the ADMINISTRATOR role."""
     if not geo_ctx.is_administrator():

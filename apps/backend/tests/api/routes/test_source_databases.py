@@ -1,5 +1,6 @@
 """Tests for the source databases listing endpoint."""
 
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,19 +14,35 @@ from src.api.routes.source_databases import (
     list_source_database_tables,
     list_source_databases,
 )
-from src.core.config import CopySourceDatabase, DirectAccessSourceDatabase
+from src.core.config import CopySourceDatabase, DirectAccessSourceDatabase, SourceDatabase
 from src.services.georchestra import GeorchestraContext
 
 
-def _ctx(admin: bool = True) -> GeorchestraContext:
+def _ctx(*roles: str, username: str = "someone") -> GeorchestraContext:
     return GeorchestraContext(
-        username="admin" if admin else "someone",
-        roles={"ADMINISTRATOR"} if admin else {"IMPORT"},
+        username=username,
+        roles=set(roles),
         email="",
         firstname="",
         lastname="",
         organization="MEL",
     )
+
+
+_DSN = PostgresDsn("postgresql://u:p@h:5432/db")
+
+
+def _copy(*roles: str, schema: str | None = None) -> CopySourceDatabase:
+    return CopySourceDatabase(type="copy", connection_string=_DSN, roles=list(roles), schema=schema)
+
+
+@pytest.fixture
+def source_databases() -> Iterator[dict[str, SourceDatabase]]:
+    """SOURCE_DATABASES as the routes see it, empty until a test declares entries."""
+    databases: dict[str, SourceDatabase] = {}
+    with patch("src.api.routes.source_databases.get_settings") as mock_get_settings:
+        mock_get_settings.return_value.SOURCE_DATABASES = databases
+        yield databases
 
 
 @patch("src.api.routes.source_databases.get_settings")
@@ -57,33 +74,33 @@ def test_empty_when_none_declared(mock_get_settings: MagicMock) -> None:
     assert list_source_databases(_ctx()) == []
 
 
-@patch("src.api.routes.source_databases.get_settings")
-def test_requires_administrator(mock_get_settings: MagicMock) -> None:
-    with pytest.raises(HTTPException) as exc_info:
-        list_source_databases(_ctx(admin=False))
+@pytest.mark.parametrize(
+    ("user_roles", "expected"),
+    [
+        (set[str](), ["OPEN"]),
+        ({"EDITOR"}, ["OPEN", "RESTRICTED"]),
+        ({"EDITOR", "OTHER"}, ["OPEN", "RESTRICTED"]),
+        ({"OTHER"}, ["OPEN"]),
+        ({"ADMINISTRATOR"}, ["OPEN", "RESTRICTED"]),
+    ],
+)
+def test_lists_only_databases_available_to_user_roles(
+    source_databases: dict[str, SourceDatabase], user_roles: set[str], expected: list[str]
+) -> None:
+    source_databases["OPEN"] = _copy()
+    source_databases["RESTRICTED"] = _copy("editor")
 
-    assert exc_info.value.status_code == 403
-    mock_get_settings.assert_not_called()
-
-
-def _settings(schema: str | None = None) -> MagicMock:
-    settings = MagicMock()
-    settings.SOURCE_DATABASES = {
-        "SOURCE_DB_2": CopySourceDatabase(
-            type="copy",
-            connection_string=PostgresDsn("postgresql://u:p@h:5434/sourcedb"),
-            schema=schema,
-        )
-    }
-    return settings
+    assert [db.key for db in list_source_databases(_ctx(*user_roles))] == expected
 
 
-@patch("src.api.routes.source_databases.get_settings", return_value=_settings())
 @patch("src.api.routes.source_databases.list_tables_by_schema")
 @patch("src.api.routes.source_databases.get_source_engine")
 def test_tables_grouped_by_schema(
-    mock_get_source_engine: MagicMock, mock_list_tables_by_schema: MagicMock, _: MagicMock
+    mock_get_source_engine: MagicMock,
+    mock_list_tables_by_schema: MagicMock,
+    source_databases: dict[str, SourceDatabase],
 ) -> None:
+    source_databases["SOURCE_DB_2"] = _copy()
     mock_list_tables_by_schema.return_value = {
         "geo": ["parcelles", "stations_mesure"],
         "referentiel": ["communes"],
@@ -97,12 +114,14 @@ def test_tables_grouped_by_schema(
     mock_list_tables_by_schema.assert_called_once_with(mock_get_source_engine.return_value)
 
 
-@patch("src.api.routes.source_databases.get_settings", return_value=_settings("geo"))
 @patch("src.api.routes.source_databases.list_tables_by_schema")
 @patch("src.api.routes.source_databases.get_source_engine")
 def test_tables_restricted_to_configured_schema(
-    _mock_get_source_engine: MagicMock, mock_list_tables_by_schema: MagicMock, _: MagicMock
+    _mock_get_source_engine: MagicMock,
+    mock_list_tables_by_schema: MagicMock,
+    source_databases: dict[str, SourceDatabase],
 ) -> None:
+    source_databases["SOURCE_DB_2"] = _copy(schema="geo")
     mock_list_tables_by_schema.return_value = {
         "geo": ["parcelles"],
         "referentiel": ["communes"],
@@ -114,36 +133,62 @@ def test_tables_restricted_to_configured_schema(
 
 
 @patch("src.api.routes.source_databases.logger")
-@patch("src.api.routes.source_databases.get_settings", return_value=_settings("geo"))
 @patch("src.api.routes.source_databases.list_tables_by_schema")
 @patch("src.api.routes.source_databases.get_source_engine")
 def test_tables_warn_when_configured_schema_has_no_table(
     _mock_get_source_engine: MagicMock,
     mock_list_tables_by_schema: MagicMock,
-    _: MagicMock,
     mock_logger: MagicMock,
+    source_databases: dict[str, SourceDatabase],
 ) -> None:
+    source_databases["SOURCE_DB_2"] = _copy(schema="geo")
     mock_list_tables_by_schema.return_value = {"referentiel": ["communes"]}
 
     assert list_source_database_tables("SOURCE_DB_2", _ctx()) == []
     mock_logger.warning.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    ("key", "user_roles"),
+    [("NOPE", set[str]()), ("SOURCE_DB_2", {"OTHER"}), ("SOURCE_DB_2", set[str]())],
+    ids=["unknown", "no_matching_role", "no_role"],
+)
 @patch("src.api.routes.source_databases.get_source_engine")
-def test_tables_unknown_database(mock_get_source_engine: MagicMock) -> None:
-    mock_get_source_engine.return_value = None
+def test_tables_not_found(
+    mock_get_source_engine: MagicMock,
+    source_databases: dict[str, SourceDatabase],
+    key: str,
+    user_roles: set[str],
+) -> None:
+    source_databases["SOURCE_DB_2"] = _copy("EDITOR")
 
     with pytest.raises(HTTPException) as exc_info:
-        list_source_database_tables("NOPE", _ctx())
+        list_source_database_tables(key, _ctx(*user_roles))
 
     assert exc_info.value.status_code == 404
+    mock_get_source_engine.assert_not_called()
+
+
+def test_anonymous_user_is_rejected(source_databases: dict[str, SourceDatabase]) -> None:
+    source_databases["OPEN"] = _copy()
+
+    for call in (
+        lambda: list_source_databases(_ctx(username="")),
+        lambda: list_source_database_tables("OPEN", _ctx(username="")),
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            call()
+        assert exc_info.value.status_code == 401
 
 
 @patch("src.api.routes.source_databases.list_tables_by_schema")
 @patch("src.api.routes.source_databases.get_source_engine")
 def test_tables_unreachable_database(
-    _mock_get_source_engine: MagicMock, mock_list_tables_by_schema: MagicMock
+    _mock_get_source_engine: MagicMock,
+    mock_list_tables_by_schema: MagicMock,
+    source_databases: dict[str, SourceDatabase],
 ) -> None:
+    source_databases["SOURCE_DB_2"] = _copy()
     mock_list_tables_by_schema.side_effect = OperationalError(
         "SELECT 1", {}, Exception("connection refused")
     )
@@ -152,12 +197,3 @@ def test_tables_unreachable_database(
         list_source_database_tables("SOURCE_DB_2", _ctx())
 
     assert exc_info.value.status_code == 503
-
-
-@patch("src.api.routes.source_databases.get_source_engine")
-def test_tables_require_administrator(mock_get_source_engine: MagicMock) -> None:
-    with pytest.raises(HTTPException) as exc_info:
-        list_source_database_tables("SOURCE_DB_2", _ctx(admin=False))
-
-    assert exc_info.value.status_code == 403
-    mock_get_source_engine.assert_not_called()
