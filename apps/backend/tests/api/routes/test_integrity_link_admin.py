@@ -239,7 +239,9 @@ class TestImportAttach:
         self, import_mocks: dict[str, MagicMock]
     ) -> None:
         import_mocks["table_exists"].return_value = True
-        import_mocks["publish"].side_effect = DatastoreSchemaMismatchError("mel", "data", "mel")
+        import_mocks["publish"].side_effect = DatastoreSchemaMismatchError(
+            "mel", "mel_ds", "data", "mel"
+        )
         session = _session()
 
         with pytest.raises(HTTPException) as exc:

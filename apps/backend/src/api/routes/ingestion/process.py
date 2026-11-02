@@ -21,7 +21,7 @@ from src.api.deps import (
     MetadataServiceDep,
 )
 from src.core.callback import build_callback_url
-from src.core.config import get_data_schema, get_settings, get_staging_schema
+from src.core.config import get_data_schema, get_staging_schema
 from src.core.db import data_engine
 from src.core.logging import get_logger
 from src.core.run_ids import make_manual_process_run_id
@@ -32,10 +32,10 @@ from src.models import (
 )
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
-from src.services.console_service import ConsoleService
 from src.services.executor_factory import get_task_executor
 from src.services.join_target import joins_geom, resolve_join_target
 from src.services.layer_publication import publish_final_table, read_table_extent
+from src.services.metadata_publication import publish_new_record
 from src.services.schedule_service import clear_schedule
 
 router = APIRouter(prefix="/ingestion/process", tags=["Ingestion"])
@@ -47,7 +47,6 @@ internal_router = APIRouter(
 )
 
 logger = get_logger()
-settings = get_settings()
 
 
 def _is_geom_excluded(transformation: IntegrityTransformation | None) -> bool:
@@ -91,9 +90,6 @@ def process_staging_data(
     geoserver_service: GeoServerServiceDep,
     metadata_service: MetadataServiceDep,
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
-    sec_email: str = Header("", alias="sec-email", include_in_schema=False),
-    sec_firstname: str = Header("", alias="sec-firstname", include_in_schema=False),
-    sec_lastname: str = Header("", alias="sec-lastname", include_in_schema=False),
 ) -> ProcessResponse:
     """
     Submit staging data for processing.
@@ -212,35 +208,7 @@ def process_staging_data(
                 table_name=final_table_name,
                 is_geographic=is_geographic,
             )
-
-            console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
-            organization = console_service.get_organization(integrity_link.integrity_organization)
-
-            user_first_name = sec_firstname
-            user_last_name = sec_lastname
-            contact_email = sec_email
-            org_long_name = ""
-            if organization:
-                contact_email = organization.get("mail") or sec_email
-                org_name = organization.get("name")
-                if org_name:
-                    org_long_name = org_name
-                    user_first_name = org_name
-                    user_last_name = ""
-                    logger.info(f"Using organization name for metadata contact: {org_name}")
-            else:
-                logger.info("Organization not found, using user info for metadata contact")
-
-            metadata_id = metadata_service.create_and_publish_metadata(
-                integrity_link,
-                user_email=contact_email,
-                user_first_name=user_first_name,
-                user_last_name=user_last_name,
-                organization_name=org_long_name,
-                layer_urls=layer_urls,
-            )
-            integrity_link.metadata_id = str(integrity_link.id)
-            logger.info(f"Metadata published for IntegrityLink {integrity_link.id}: {metadata_id}")
+            publish_new_record(metadata_service, integrity_link, geo_ctx, layer_urls)
         except Exception as e:
             logger.error(
                 f"Failed to publish metadata for IntegrityLink {integrity_link.id}: {e}",
@@ -249,17 +217,6 @@ def process_staging_data(
             raise HTTPException(
                 status_code=500,
                 detail="import.metadataPublication.error",
-            )
-
-        # Ownership assignment — soft failure (non-critical)
-        try:
-            metadata_service.set_record_ownership(integrity_link)
-        except Exception as ownership_error:
-            logger.warning(
-                "Failed to set metadata ownership for IntegrityLink %s: %s",
-                integrity_link.id,
-                ownership_error,
-                exc_info=True,
             )
 
     # Persist all changes before triggering the DAG

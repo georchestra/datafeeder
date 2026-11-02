@@ -266,9 +266,6 @@ class TestProcessPermission:
                 [],
                 MagicMock(),
                 MagicMock(),
-                sec_email="x@x.com",
-                sec_firstname="X",
-                sec_lastname="X",
             )
 
         assert exc_info.value.status_code == 403
@@ -288,9 +285,6 @@ class TestProcessPermission:
                 GROUP_IDS,
                 MagicMock(),
                 MagicMock(),
-                sec_email="x@x.com",
-                sec_firstname="X",
-                sec_lastname="X",
             )
 
         assert exc_info.value.status_code == 403
