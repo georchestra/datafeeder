@@ -31,11 +31,6 @@ configured in the next step.
 An optional `schema` restricts the entry to one schema: the wizard preselects it and doesn't let the user change
 it, and staging rejects tables from other schemas, e.g. `{"type": "copy", "connection_string": "...", "schema": "geo"}`.
 
-!!! warning "Current limitation"
-
-    Only the first `copy` entry of `SOURCE_DATABASES` is used by the backend today (see `apps/backend/src/core/db.py`).
-    The JSON format allows several keys, but only single-source-database setups are supported for now.
-
 ## 2. Airflow: declare the matching connection
 
 The `staging_dag` reads the source database through an [Airflow

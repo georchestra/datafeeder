@@ -14,19 +14,6 @@ data_engine = create_engine(
     str(get_settings().POSTGRES_DATA_URI), pool_pre_ping=True, pool_recycle=1800
 )
 
-# Only one copy source database is supported for now; take the first one if present.
-# source_engine / source_db_key are None when SOURCE_DATABASES has no copy entry — callers must
-# guard (staging.py returns 503 when source_engine is None).
-source_db_key, _source_db = next(
-    (
-        (key, db)
-        for key, db in get_settings().SOURCE_DATABASES.items()
-        if isinstance(db, CopySourceDatabase)
-    ),
-    (None, None),
-)
-source_db_schema = _source_db.schema_name if _source_db else None
-
 
 @lru_cache
 def get_source_engine(key: str) -> Engine | None:
@@ -42,4 +29,7 @@ def get_source_engine(key: str) -> Engine | None:
     )
 
 
-source_engine = get_source_engine(source_db_key) if source_db_key else None
+def get_copy_source_database(key: str | None) -> CopySourceDatabase | None:
+    """Copy entry of SOURCE_DATABASES, None for an unknown key or a direct access entry."""
+    db = get_settings().SOURCE_DATABASES.get(key) if key else None
+    return db if isinstance(db, CopySourceDatabase) else None
