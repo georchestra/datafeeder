@@ -75,6 +75,8 @@ export class DataSourceDbComponent {
       null
   )
 
+  schemaLocked = computed(() => !!this.sourceDatabase()?.schema_name)
+
   schemaChoices = computed<DropdownChoice[]>(() => [
     NONE,
     ...this.sourceSchemas().map((s) => ({
@@ -100,7 +102,9 @@ export class DataSourceDbComponent {
 
   // Schema, table and title belong to the database: cleared when it changes
   select(key: string): void {
-    this.formData.set({ ...EMPTY, key })
+    const schema =
+      this.sourceDatabases().find((db) => db.key === key)?.schema_name ?? ''
+    this.formData.set({ ...EMPTY, key, schema })
   }
 
   selectSchema(schema: string): void {
