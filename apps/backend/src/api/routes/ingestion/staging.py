@@ -12,11 +12,11 @@ from data_manipulation import (
     detect_table_srid,
     read_transformed_preview,
 )
-from data_manipulation.constants import DB_URI_PREFIX, DEFAULT_GEOMETRY_COLUMN
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.database import schema_exists, table_exists
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import ForceProjection as DataManipulationForceProjection
-from data_manipulation.utils import sanitize_name
+from data_manipulation.utils import build_db_uri, sanitize_name
 from data_manipulation.validators import validate_schema_name, validate_table_name
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, UploadFile
 from pydantic import ValidationError
@@ -216,7 +216,7 @@ async def _process_import_source(
                     detail=f"Table '{db_table}' not found in schema '{db_schema}'",
                 )
 
-            source = f"{DB_URI_PREFIX}{source_db_key}/{db_schema}/{db_table}"
+            source = build_db_uri(source_db_key, db_schema, db_table)
             url = source
             auth_enabled = False
 

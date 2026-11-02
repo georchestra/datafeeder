@@ -28,7 +28,6 @@ from data_manipulation import (
     JoinTarget,
     transform_staging_to_final,
 )
-from data_manipulation.constants import DB_URI_PREFIX
 from data_manipulation.database import create_schema
 from data_manipulation.ingestion import (
     ingest_data_from_database_into_postgis,
@@ -37,6 +36,7 @@ from data_manipulation.ingestion import (
     ingest_data_from_ogc_service_into_postgis,
     ingest_data_from_url_into_postgis,
 )
+from data_manipulation.utils import parse_db_uri
 from sqlalchemy import MetaData, Table
 
 from src.core.config import get_staging_schema
@@ -169,23 +169,7 @@ class LocalTaskExecutor(BaseTaskExecutor):
             return decrypt_basic_auth(conn, encrypted_credentials)
 
     def _parse_db_uri(self, source: str) -> tuple[str, str, str]:
-        if not source.startswith(DB_URI_PREFIX):
-            raise ValueError(
-                f"Invalid database source URL format: '{source}'. "
-                f"Expected {DB_URI_PREFIX}{{db_key}}/{{schema}}/{{table}}"
-            )
-        try:
-            db_key, schema, table = source.removeprefix(DB_URI_PREFIX).split("/", 2)
-        except ValueError:
-            raise ValueError(
-                f"Invalid database source URL format: '{source}'. "
-                f"Expected {DB_URI_PREFIX}{{db_key}}/{{schema}}/{{table}}"
-            )
-        if not db_key or not schema or not table:
-            raise ValueError(
-                f"Invalid database source URL: db_key, schema, and table must all be "
-                f"non-empty (got '{source}')"
-            )
+        db_key, schema, table = parse_db_uri(source)
         if db_key != source_db_key or source_engine is None:
             raise ValueError(f"Unknown or unconfigured source database key: '{db_key}'")
         return db_key, schema, table

@@ -7,7 +7,7 @@ from urllib.parse import urljoin
 
 import requests
 
-from data_manipulation.constants import PG_IDENTIFIER_MAX_LENGTH
+from data_manipulation.constants import DB_URI_PREFIX, PG_IDENTIFIER_MAX_LENGTH
 from data_manipulation.logging import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -101,3 +101,29 @@ def compute_bbox_from_postgis_stextent_string(str_bbox: str) -> dict[str, float]
 
     minx, miny, maxx, maxy = map(float, m.groups())
     return {"minx": minx, "miny": miny, "maxx": maxx, "maxy": maxy}
+
+
+def build_db_uri(db_key: str, schema: str, table: str) -> str:
+    """Reference to a table of a SOURCE_DATABASES entry: db://{db_key}/{schema}/{table}."""
+    return f"{DB_URI_PREFIX}{db_key}/{schema}/{table}"
+
+
+def parse_db_uri(uri: str) -> tuple[str, str, str]:
+    """Split a db://{db_key}/{schema}/{table} reference into (db_key, schema, table).
+
+    Raises:
+        ValueError: if the reference is malformed or a part is empty
+    """
+    parts = uri.removeprefix(DB_URI_PREFIX).split("/", 2) if uri.startswith(DB_URI_PREFIX) else []
+    if len(parts) != 3:
+        raise ValueError(
+            f"Invalid database source URL format: '{uri}'. "
+            f"Expected {DB_URI_PREFIX}{{db_key}}/{{schema}}/{{table}}"
+        )
+    if not all(parts):
+        raise ValueError(
+            f"Invalid database source URL: db_key, schema, and table must all be "
+            f"non-empty (got '{uri}')"
+        )
+    db_key, schema, table = parts
+    return db_key, schema, table
