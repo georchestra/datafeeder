@@ -38,4 +38,9 @@ def get_source_engine(key: str) -> Engine | None:
     db = get_settings().SOURCE_DATABASES.get(key)
     if db is None:
         return None
-    return create_engine(str(db.connection_string), pool_pre_ping=True, pool_recycle=1800)
+    return create_engine(
+        str(db.connection_string),
+        pool_pre_ping=True,
+        pool_recycle=1800,
+        connect_args={"connect_timeout": 5},
+    )
