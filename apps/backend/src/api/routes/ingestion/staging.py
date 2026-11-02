@@ -1021,6 +1021,13 @@ def edit_staging_metadata(
     )
 
 
+def _output_name(col: ColumnConfig) -> str:
+    """Name of *col* in the transformed table: the staging geom is never renamed."""
+    if col.original_name == DEFAULT_GEOMETRY_COLUMN:
+        return DEFAULT_GEOMETRY_COLUMN
+    return col.new_name or col.original_name
+
+
 @router.get("/{integrity_link_id}/preview")
 def get_staging_preview(
     data_session: DataSessionDep,
@@ -1096,9 +1103,13 @@ def get_staging_preview(
     # infrastructure level (authentication / authorisation) rather than relying
     # on the exclusion flag alone.
 
-    # A joined geom replaces the excluded staging geom: it is the one to map, and
-    # the staging geom stays excluded even with include_excluded (they would clash).
+    # A joined geom replaces the excluded staging geom: it is the one to map.
     joined_geom = joins_geom(config)
+    # Excluded staging columns replaced by a joined one stay excluded even with
+    # include_excluded: they would clash with it.
+    joined_columns: set[str] = (
+        set(config.join.columns) if config is not None and config.join else set()
+    )
 
     # Track whether the geom column is explicitly excluded in the saved config.
     # Used below to suppress map data even when include_excluded=True.
@@ -1124,8 +1135,7 @@ def get_staging_preview(
                         cast_type=None,  # cast is not supported in preview, so ignore any cast_type in config
                         filter=None,  # filter is not supported in preview, so ignore any filter_expression in config
                     )
-                    if col.excluded
-                    and not (joined_geom and col.original_name == DEFAULT_GEOMETRY_COLUMN)
+                    if col.excluded and _output_name(col) not in joined_columns
                     else col
                     for col in config.columns
                 ]

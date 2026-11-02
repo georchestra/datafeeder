@@ -252,3 +252,22 @@ class TestStagingPreviewJoinedGeom:
 
         config = read.call_args.args[2]
         assert all(not col.excluded for col in config.columns)
+
+    def test_include_excluded_keeps_staging_column_excluded_when_it_is_joined(self) -> None:
+        transformation = _excluded_geom(["statut"])
+        transformation["columns"].append({"original_name": "statut", "excluded": True})
+        _, read = _preview(transformation, include_excluded=True)
+
+        config = read.call_args.args[2]
+        excluded = {col.original_name: col.excluded for col in config.columns}
+        assert excluded == {"insee": False, "geom": False, "statut": True}
+
+    def test_include_excluded_includes_renamed_staging_column_not_clashing(self) -> None:
+        transformation = _excluded_geom(["statut"])
+        transformation["columns"].append(
+            {"original_name": "statut", "new_name": "statut_old", "excluded": True}
+        )
+        _, read = _preview(transformation, include_excluded=True)
+
+        config = read.call_args.args[2]
+        assert all(not col.excluded for col in config.columns)
