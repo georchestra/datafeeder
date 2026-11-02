@@ -241,6 +241,40 @@ describe('IntegrityLinkListComponent', () => {
   })
 
   describe('Load More Pagination', () => {
+    it('should take total from the first page and keep it when loading more', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      expect(component.total()).toBeNull()
+
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/?offset=0')
+        .flush({
+          items: [createMockItem('1')],
+          has_more: true,
+          offset: 0,
+          next_offset: 1,
+          total: 1005
+        })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(component.total()).toBe(1005)
+
+      component.loadMore()
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/?offset=1')
+        .flush({
+          items: [createMockItem('2')],
+          has_more: false,
+          offset: 1,
+          next_offset: 2,
+          total: null
+        })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(component.total()).toBe(1005)
+    })
+
     it('should append items when loadMore() is called', async () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)
       const component = fixture.componentInstance
@@ -798,7 +832,7 @@ describe('IntegrityLinkListComponent', () => {
       const req = httpMock.expectOne(
         'http://localhost:8000/ingestion/integrity-links/?offset=0'
       )
-      req.flush({ items, has_more: false, offset: 0 })
+      req.flush({ items, has_more: false, offset: 0, total: items.length })
 
       await new Promise((resolve) => setTimeout(resolve, 10))
       return { fixture, component }
@@ -852,6 +886,7 @@ describe('IntegrityLinkListComponent', () => {
 
       expect(component.integrityLinks().length).toBe(1)
       expect(component.integrityLinks()[0].id).toBe('2')
+      expect(component.total()).toBe(1)
     })
 
     it('should NOT remove item from list on API failure', async () => {
