@@ -27,6 +27,12 @@ def create_access_token(subject: str | Any, expires_delta: timedelta) -> str:
     return encoded_jwt
 
 
+def require_administrator(geo_ctx: GeorchestraContext) -> None:
+    """Raise 403 unless the user has the ADMINISTRATOR role."""
+    if not geo_ctx.is_administrator():
+        raise HTTPException(status_code=403, detail="Administrator role required")
+
+
 class AccessLevel(str, Enum):
     """Required access level for permission checks.
 

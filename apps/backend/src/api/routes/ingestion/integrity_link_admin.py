@@ -26,6 +26,7 @@ from src.core.db import data_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
 from src.core.run_ids import make_manual_process_run_id
+from src.core.security import require_administrator
 from src.core.task_executor import ProcessSource, TaskExecutorType
 from src.models.data_import import (
     ImportType,
@@ -62,11 +63,6 @@ REPROCESSABLE_IMPORT_TYPES = {ImportType.URL, ImportType.API, ImportType.FTP, Im
 LINK_ONLY_IMPORT_TYPES = {ImportType.EMPTY, ImportType.PREFILLED}
 
 
-def _require_administrator(geo_ctx: GeorchestraContext) -> None:
-    if not geo_ctx.is_administrator():
-        raise HTTPException(status_code=403, detail="Administrator role required")
-
-
 def _get_integrity_link(session: DatafeederSessionDep, integrity_link_id: UUID) -> IntegrityLink:
     integrity_link = session.get(IntegrityLink, integrity_link_id)
     if integrity_link is None:
@@ -96,7 +92,7 @@ def export_integrity_link(
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: UUID,
 ) -> IntegrityLinkExport:
-    _require_administrator(geo_ctx)
+    require_administrator(geo_ctx)
     integrity_link = _get_integrity_link(session, integrity_link_id)
     return IntegrityLinkExport.model_validate(integrity_link).model_copy(
         update={
@@ -280,7 +276,7 @@ async def import_integrity_link(
     geoserver_service: GeoServerServiceDep,
     metadata_service: MetadataServiceDep,
 ) -> IntegrityLinkImportResponse:
-    _require_administrator(geo_ctx)
+    require_administrator(geo_ctx)
     _require_console_owner(request.link.integrity_owner, request.link.integrity_organization)
     mode = _resolve_import_mode(request, session, metadata_service)
     exported = request.link
@@ -530,7 +526,7 @@ async def reassign_integrity_link_ownership(
     geoserver_service: GeoServerServiceDep,
     metadata_service: MetadataServiceDep,
 ) -> IntegrityLinkResponse:
-    _require_administrator(geo_ctx)
+    require_administrator(geo_ctx)
     integrity_link = _get_integrity_link(session, integrity_link_id)
     current = integrity_link.integrity_organization
     org_changes = bool(request.organization) and request.organization.lower() != current.lower()
@@ -580,7 +576,7 @@ def delete_integrity_link_admin(
     ),
     delete_metadata: bool = Query(False, description="Also delete the GeoNetwork record"),
 ) -> Response:
-    _require_administrator(geo_ctx)
+    require_administrator(geo_ctx)
     integrity_link = _get_integrity_link(session, integrity_link_id)
     try:
         DatasetDeletionService(geoserver_service, metadata_service).delete_dataset(
