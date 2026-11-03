@@ -100,6 +100,10 @@ def _table_only_in_mel(_engine: Any, schema: str, _table: str) -> bool:
     return schema == "mel"
 
 
+def _table_only_in_mel_org_schema(_engine: Any, schema: str, _table: str) -> bool:
+    return schema == "MEL"
+
+
 def _table_only_in_data(_engine: Any, schema: str, _table: str) -> bool:
     return schema == "data"
 
@@ -570,6 +574,42 @@ class TestReassignOwnership:
         geoserver.delete_datastore_if_empty.assert_not_called()
         reassign_mocks["sync_data_sharing"].assert_not_called()
 
+    async def test_extent_read_failure_restores_previous_location(
+        self, reassign_mocks: dict[str, MagicMock]
+    ) -> None:
+        reassign_mocks["read_table_extent"].side_effect = RuntimeError("database down")
+        geoserver = _geoserver()
+        link = _link()
+
+        with pytest.raises(HTTPException) as exc:
+            await _reassign(link, geoserver=geoserver)
+
+        assert exc.value.status_code == 502
+        assert link.integrity_organization == "MEL"
+        assert [c.args for c in reassign_mocks["move_table"].call_args_list] == [
+            ("voie_nommee", "mel", "ville_roubaix"),
+            ("voie_nommee", "ville_roubaix", "mel"),
+        ]
+        reassign_mocks["publish"].assert_not_called()
+        geoserver.delete_layer.assert_not_called()
+
+    async def test_table_only_move_does_not_read_the_extent(
+        self, reassign_mocks: dict[str, MagicMock]
+    ) -> None:
+        """The layer already is in the target workspace: only the table moves."""
+        # Found in the schema of the current organization
+        reassign_mocks["table_exists"].side_effect = _table_only_in_mel_org_schema
+        geoserver = _geoserver()
+        link = _link(data_id="ville_roubaix:voie_nommee")
+
+        await _reassign(link, geoserver=geoserver)
+
+        reassign_mocks["move_table"].assert_called_once_with("voie_nommee", "MEL", "ville_roubaix")
+        reassign_mocks["read_table_extent"].assert_not_called()
+        reassign_mocks["publish"].assert_not_called()
+        geoserver.delete_layer.assert_not_called()
+        assert link.integrity_organization == "VILLE_ROUBAIX"
+
     async def test_existing_table_in_target_schema_is_rejected(
         self, reassign_mocks: dict[str, MagicMock]
     ) -> None:
@@ -644,8 +684,9 @@ class TestReassignOwnership:
 
         await _reassign(link, organization="C2C", geoserver=geoserver)
 
+        # Read once moved, from the new schema
         reassign_mocks["read_table_extent"].assert_called_once_with(
-            data_engine, "data", "voie_nommee"
+            data_engine, "c2c", "voie_nommee"
         )
         reassign_mocks["move_table"].assert_called_once_with("voie_nommee", "data", "c2c")
         geoserver.delete_layer.assert_called_once_with("psc", "psc_ds", "voie_nommee")
