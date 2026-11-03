@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
-from data_manipulation.database import create_schema, table_exists
+from data_manipulation.database import create_schema, read_table_extent, table_exists
 from data_manipulation.models import IntegrityTransformation
 from data_manipulation.validators import validate_schema_name, validate_table_name
 from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
@@ -57,7 +57,6 @@ from src.services.join_target import resolve_join_target
 from src.services.layer_publication import (
     DatastoreSchemaMismatchError,
     publish_final_table,
-    read_table_extent,
 )
 from src.services.metadata_service import MetadataService
 from src.services.table_transfer import (
@@ -372,7 +371,7 @@ async def _attach_layer(integrity_link: IntegrityLink, geoserver_service: GeoSer
         return
     target_schema = get_data_schema(workspace)
     try:
-        extent = read_table_extent(table_name, target_schema)
+        extent = read_table_extent(data_engine, target_schema, table_name)
         await publish_final_table(
             geoserver_service, integrity_link, table_name, target_schema, extent
         )
@@ -640,7 +639,7 @@ async def _move_dataset(
         raise HTTPException(
             status_code=409, detail=f"GeoServer layer {new_ws}:{table_name} already exists"
         )
-    extent = read_table_extent(table_name, current_schema)
+    extent = read_table_extent(data_engine, current_schema, table_name)
 
     if get_settings().TASK_EXECUTOR == TaskExecutorType.AIRFLOW:
         try:

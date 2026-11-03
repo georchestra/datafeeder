@@ -1,14 +1,18 @@
 """Database management utilities."""
 
 import logging
+from dataclasses import dataclass, field
+from typing import Any
 
-from sqlalchemy import MetaData, Table, inspect, text
+from sqlalchemy import MetaData, Table, column, func, inspect, select, table, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.schema import CreateSchema
+from sqlalchemy.sql.expression import ColumnClause
 
-from data_manipulation.constants import POSTGIS_TABLE_NAME_MAX_LENGTH
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_NAME_MAX_LENGTH
 from data_manipulation.logging import configure_logging
+from data_manipulation.utils import compute_bbox_from_postgis_stextent_string
 from data_manipulation.validators import validate_schema_name
 
 logger = logging.getLogger(__name__)
@@ -150,3 +154,64 @@ def list_tables_by_schema(engine: Engine) -> dict[str, list[str]]:
         for schema_name, table_name in conn.execute(_LIST_TABLES_QUERY):
             schemas.setdefault(schema_name, []).append(table_name)
     return schemas
+
+
+@dataclass
+class TableExtent:
+    """Geometry information needed to publish a table."""
+
+    is_geographic: bool = False
+    epsg: int | None = None
+    bbox: dict[str, float] = field(
+        default_factory=lambda: {"minx": -1.0, "miny": -1.0, "maxx": 0.0, "maxy": 0.0}
+    )
+
+
+# geom (the column of the final tables built by datafeeder) first, then the others by name
+_GEOMETRY_COLUMN_QUERY = text(
+    """
+    SELECT f_geometry_column, srid
+    FROM geometry_columns
+    WHERE f_table_schema = :schema AND f_table_name = :table
+    ORDER BY f_geometry_column = :default_column DESC, f_geometry_column
+    LIMIT 1
+    """
+)
+
+
+def read_table_extent(engine: Engine, schema: str, table_name: str) -> TableExtent:
+    """
+    Read the SRID and extent of a table, whatever its geometry column name.
+
+    The geometry column is geom if the table has one, else the first one listed in
+    geometry_columns.
+
+    Args:
+        engine: SQLAlchemy engine of a PostGIS database
+        schema: Schema of the table
+        table_name: Name of the table
+
+    Returns:
+        TableExtent: not geographic, with a placeholder bbox, if the table has no geometry column
+    """
+    with engine.connect() as conn:
+        row = conn.execute(
+            _GEOMETRY_COLUMN_QUERY,
+            {"schema": schema, "table": table_name, "default_column": DEFAULT_GEOMETRY_COLUMN},
+        ).first()
+        if row is None:
+            return TableExtent()
+        geom_column: str = row[0]
+        srid: int | None = row[1]
+        geom: ColumnClause[Any] = column(geom_column)
+        source = table(table_name, geom, schema=schema)
+        # srid is 0 for an untyped geometry column: read it from the data
+        extent = TableExtent(is_geographic=True, epsg=srid or None)
+        if extent.epsg is None:
+            extent.epsg = conn.execute(
+                select(func.ST_SRID(geom)).select_from(source).limit(1)
+            ).scalar_one_or_none()
+        bbox_result = conn.execute(select(func.ST_Extent(geom)).select_from(source)).scalar()
+        if bbox_result:
+            extent.bbox = compute_bbox_from_postgis_stextent_string(bbox_result)
+    return extent

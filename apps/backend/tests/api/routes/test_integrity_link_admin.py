@@ -23,6 +23,7 @@ from src.api.routes.ingestion.integrity_link_admin import (
     router,
 )
 from src.core.config import get_data_schema
+from src.core.db import data_engine
 from src.core.task_executor import TaskExecutorType, TaskRunInfo, TaskStatus
 from src.models.data_import import (
     ImportType,
@@ -228,7 +229,7 @@ class TestImportAttach:
         result = await _import(IntegrityLinkImportRequest(link=_export()), session)
 
         assert result.mode == IntegrityLinkImportMode.ATTACH
-        import_mocks["read_table_extent"].assert_called_once_with("voie_nommee", "mel")
+        import_mocks["read_table_extent"].assert_called_once_with(data_engine, "mel", "voie_nommee")
         publish_args = import_mocks["publish"].call_args.args
         assert publish_args[1] is session.add.call_args.args[0]
         assert publish_args[2:4] == ("voie_nommee", "mel")
@@ -643,7 +644,9 @@ class TestReassignOwnership:
 
         await _reassign(link, organization="C2C", geoserver=geoserver)
 
-        reassign_mocks["read_table_extent"].assert_called_once_with("voie_nommee", "data")
+        reassign_mocks["read_table_extent"].assert_called_once_with(
+            data_engine, "data", "voie_nommee"
+        )
         reassign_mocks["move_table"].assert_called_once_with("voie_nommee", "data", "c2c")
         geoserver.delete_layer.assert_called_once_with("psc", "psc_ds", "voie_nommee")
         assert reassign_mocks["publish"].call_args.args[2:4] == ("voie_nommee", "c2c")

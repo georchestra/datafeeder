@@ -3,7 +3,11 @@ from uuid import UUID
 
 from airflow_client.client.models.dag_run_patch_body import DAGRunPatchBody
 from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN, POSTGIS_TABLE_NAME_MAX_LENGTH
-from data_manipulation.database import create_schema, get_available_table_name
+from data_manipulation.database import (
+    create_schema,
+    get_available_table_name,
+    read_table_extent,
+)
 from data_manipulation.models import IntegrityTransformation
 from data_manipulation.utils import (
     sanitize_name,
@@ -34,7 +38,7 @@ from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
 from src.services.join_target import joins_geom, resolve_join_target
-from src.services.layer_publication import publish_final_table, read_table_extent
+from src.services.layer_publication import publish_final_table
 from src.services.metadata_publication import publish_new_record
 from src.services.schedule_service import clear_schedule
 
@@ -307,7 +311,7 @@ async def dag_success_callback(
 
     # Create GeoServer workspace, datastore, and layer with actual bbox
     try:
-        extent = read_table_extent(final_table_name, target_schema)
+        extent = read_table_extent(data_engine, target_schema, final_table_name)
         is_geographic = extent.is_geographic
         await publish_final_table(
             geoserver_service, integrity_link, final_table_name, target_schema, extent
