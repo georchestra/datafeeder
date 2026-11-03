@@ -86,7 +86,7 @@ def list_source_database_tables(key: str, geo_ctx: GeorchestraContextDep) -> lis
     except SQLAlchemyError:
         logger.exception("Could not list the tables of source database '%s'", key)
         raise HTTPException(
-            status_code=503, detail=f"Source database '{key}' is unreachable"
+            status_code=503, detail=f"Could not list the tables of source database '{key}'"
         ) from None
 
     schemas: dict[str, list[str]] = {}
