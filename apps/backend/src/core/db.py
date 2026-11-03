@@ -25,11 +25,6 @@ source_db_key, _source_db = next(
     ),
     (None, None),
 )
-source_engine = (
-    create_engine(str(_source_db.connection_string), pool_pre_ping=True, pool_recycle=1800)
-    if _source_db
-    else None
-)
 
 
 @lru_cache
@@ -44,3 +39,6 @@ def get_source_engine(key: str) -> Engine | None:
         pool_recycle=1800,
         connect_args={"connect_timeout": 5},
     )
+
+
+source_engine = get_source_engine(source_db_key) if source_db_key else None
