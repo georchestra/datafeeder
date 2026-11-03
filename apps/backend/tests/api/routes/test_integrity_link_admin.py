@@ -154,7 +154,7 @@ def import_mocks() -> Iterator[dict[str, MagicMock]]:
         patch(f"{MODULE}.get_task_executor", return_value=executor),
         patch(f"{MODULE}.encrypt_basic_auth", return_value="encrypted") as encrypt,
         patch(f"{MODULE}.read_table_extent") as read_table_extent,
-        patch(f"{MODULE}.publish_final_table", new_callable=AsyncMock) as publish,
+        patch(f"{MODULE}.publish_data_db_table", new_callable=AsyncMock) as publish,
     ):
         yield {
             "console": console,
@@ -466,7 +466,7 @@ def reassign_mocks() -> Iterator[dict[str, MagicMock]]:
         patch(f"{MODULE}.get_data_schema", side_effect=_schema_per_org),
         patch(f"{MODULE}.table_exists", side_effect=_table_only_in_mel) as table_exists,
         patch(f"{MODULE}.read_table_extent") as read_table_extent,
-        patch(f"{MODULE}.publish_final_table", new_callable=AsyncMock) as publish,
+        patch(f"{MODULE}.publish_data_db_table", new_callable=AsyncMock) as publish,
         patch(f"{MODULE}._move_table") as move_table,
         patch(f"{MODULE}._sync_data_sharing") as sync_data_sharing,
         patch(f"{MODULE}.cancel_dataset_runs") as cancel_runs,
