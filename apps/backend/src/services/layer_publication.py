@@ -101,7 +101,7 @@ async def publish_table(
     )
 
 
-async def publish_final_table(
+async def publish_data_db_table(
     geoserver_service: GeoServerService,
     integrity_link: IntegrityLink,
     final_table_name: str,

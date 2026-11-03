@@ -38,7 +38,7 @@ from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
 from src.services.join_target import joins_geom, resolve_join_target
-from src.services.layer_publication import publish_final_table
+from src.services.layer_publication import publish_data_db_table
 from src.services.metadata_publication import publish_new_record
 from src.services.schedule_service import clear_schedule
 
@@ -313,7 +313,7 @@ async def dag_success_callback(
     try:
         extent = read_table_extent(data_engine, target_schema, final_table_name)
         is_geographic = extent.is_geographic
-        await publish_final_table(
+        await publish_data_db_table(
             geoserver_service, integrity_link, final_table_name, target_schema, extent
         )
     except Exception as e:

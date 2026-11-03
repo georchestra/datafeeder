@@ -56,7 +56,7 @@ from src.services.geoserver import GeoServerService
 from src.services.join_target import resolve_join_target
 from src.services.layer_publication import (
     DatastoreSchemaMismatchError,
-    publish_final_table,
+    publish_data_db_table,
 )
 from src.services.metadata_service import MetadataService
 from src.services.table_transfer import (
@@ -372,7 +372,7 @@ async def _attach_layer(integrity_link: IntegrityLink, geoserver_service: GeoSer
     target_schema = get_data_schema(workspace)
     try:
         extent = read_table_extent(data_engine, target_schema, table_name)
-        await publish_final_table(
+        await publish_data_db_table(
             geoserver_service, integrity_link, table_name, target_schema, extent
         )
     except DatastoreSchemaMismatchError as e:
@@ -657,7 +657,9 @@ async def _move_dataset(
     # Before removing the old layer, which a failure leaves in place
     try:
         extent = read_table_extent(data_engine, new_schema, table_name)
-        await publish_final_table(geoserver_service, integrity_link, table_name, new_schema, extent)
+        await publish_data_db_table(
+            geoserver_service, integrity_link, table_name, new_schema, extent
+        )
     except Exception as e:
         logger.error(f"Failed to publish {table_name} in workspace {new_ws}: {e}", exc_info=True)
         integrity_link.integrity_organization = old_organization
