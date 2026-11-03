@@ -64,23 +64,22 @@ def test_requires_administrator(mock_get_settings: MagicMock) -> None:
     mock_get_settings.assert_not_called()
 
 
-def _engine(rows: list[tuple[str, str]]) -> MagicMock:
-    engine = MagicMock()
-    engine.connect.return_value.__enter__.return_value.execute.return_value.all.return_value = rows
-    return engine
-
-
+@patch("src.api.routes.source_databases.list_tables_by_schema")
 @patch("src.api.routes.source_databases.get_source_engine")
-def test_tables_grouped_by_schema(mock_get_source_engine: MagicMock) -> None:
-    mock_get_source_engine.return_value = _engine(
-        [("geo", "parcelles"), ("geo", "stations_mesure"), ("referentiel", "communes")]
-    )
+def test_tables_grouped_by_schema(
+    mock_get_source_engine: MagicMock, mock_list_tables_by_schema: MagicMock
+) -> None:
+    mock_list_tables_by_schema.return_value = {
+        "geo": ["parcelles", "stations_mesure"],
+        "referentiel": ["communes"],
+    }
 
     assert list_source_database_tables("SOURCE_DB_2", _ctx()) == [
         SourceSchema(schema_name="geo", tables=["parcelles", "stations_mesure"]),
         SourceSchema(schema_name="referentiel", tables=["communes"]),
     ]
     mock_get_source_engine.assert_called_once_with("SOURCE_DB_2")
+    mock_list_tables_by_schema.assert_called_once_with(mock_get_source_engine.return_value)
 
 
 @patch("src.api.routes.source_databases.get_source_engine")
@@ -93,9 +92,12 @@ def test_tables_unknown_database(mock_get_source_engine: MagicMock) -> None:
     assert exc_info.value.status_code == 404
 
 
+@patch("src.api.routes.source_databases.list_tables_by_schema")
 @patch("src.api.routes.source_databases.get_source_engine")
-def test_tables_unreachable_database(mock_get_source_engine: MagicMock) -> None:
-    mock_get_source_engine.return_value.connect.side_effect = OperationalError(
+def test_tables_unreachable_database(
+    _mock_get_source_engine: MagicMock, mock_list_tables_by_schema: MagicMock
+) -> None:
+    mock_list_tables_by_schema.side_effect = OperationalError(
         "SELECT 1", {}, Exception("connection refused")
     )
 
