@@ -6,7 +6,7 @@ import {
 import { signal } from '@angular/core'
 import { TestBed, fakeAsync, tick } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
-import { ActivatedRoute, provideRouter } from '@angular/router'
+import { ActivatedRoute, Router, provideRouter } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateService } from '@ngx-translate/core'
 import { TranslateTestingModule } from '../../testing/translate-testing.module'
@@ -289,7 +289,7 @@ describe('DataImportWizardComponent', () => {
     expect(component.validSource()).toBeTruthy()
   })
 
-  it('should not stage a direct access database source', async () => {
+  function directAccessWizard() {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     component.sourceDatabaseStore.sourceDatabases.set([
@@ -300,13 +300,56 @@ describe('DataImportWizardComponent', () => {
       dbKey: 'BAN',
       dbSchema: 'geo',
       dbTable: 'rivers',
-      dbTitle: 'Rivers',
+      dbTitle: ' Rivers ',
       authEnabled: false
     })
+    return component
+  }
 
-    await component.onSubmitDataset()
+  it('should create a direct access dataset and open its metadata editing', async () => {
+    const component = directAccessWizard()
+    const navigateSpy = vi
+      .spyOn(TestBed.inject(Router), 'navigate')
+      .mockResolvedValue(true)
+
+    const promise = component.onSubmitDataset()
+
+    const req = httpMock.expectOne(
+      'http://localhost:8000/ingestion/integrity-link/direct-access'
+    )
+    expect(req.request.method).toBe('POST')
+    expect(req.request.body).toEqual({
+      db_key: 'BAN',
+      schema_name: 'geo',
+      table_name: 'rivers',
+      title: 'Rivers'
+    })
+    req.flush({ id: 'link-1' })
+    await promise
 
     httpMock.expectNone('http://localhost:8000/ingestion/staging/')
+    expect(navigateSpy).toHaveBeenCalledWith(['link-1', 'edit'])
+    expect(component.importing()).toBe(false)
+  })
+
+  it('should show the error of a failed direct access dataset creation', async () => {
+    const component = directAccessWizard()
+    const navigateSpy = vi.spyOn(TestBed.inject(Router), 'navigate')
+
+    const promise = component.onSubmitDataset()
+
+    httpMock
+      .expectOne('http://localhost:8000/ingestion/integrity-link/direct-access')
+      .flush(
+        { detail: 'Table already published by dataset link-1' },
+        { status: 409, statusText: 'Conflict' }
+      )
+    await promise
+
+    expect(component.importError()).toBe(
+      'Table already published by dataset link-1'
+    )
+    expect(navigateSpy).not.toHaveBeenCalled()
     expect(component.importing()).toBe(false)
   })
 
