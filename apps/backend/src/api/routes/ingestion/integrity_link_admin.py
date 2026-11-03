@@ -639,8 +639,6 @@ async def _move_dataset(
         raise HTTPException(
             status_code=409, detail=f"GeoServer layer {new_ws}:{table_name} already exists"
         )
-    extent = read_table_extent(data_engine, current_schema, table_name)
-
     if get_settings().TASK_EXECUTOR == TaskExecutorType.AIRFLOW:
         try:
             cancel_dataset_runs(str(integrity_link.id))
@@ -658,6 +656,7 @@ async def _move_dataset(
 
     # Before removing the old layer, which a failure leaves in place
     try:
+        extent = read_table_extent(data_engine, new_schema, table_name)
         await publish_final_table(geoserver_service, integrity_link, table_name, new_schema, extent)
     except Exception as e:
         logger.error(f"Failed to publish {table_name} in workspace {new_ws}: {e}", exc_info=True)
