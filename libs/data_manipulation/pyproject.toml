@@ -28,6 +28,8 @@ dev = [
     "poethepoet>0",
     "pyright>0",
     "pytest>0",
+    "testcontainers>=4",
+    "psycopg[binary]==3.3.4",
 ]
 
 [tool.ruff]
@@ -39,3 +41,8 @@ extends = "../../pyrightconfig.json"
 [build-system]
 requires = ["uv_build>=0.9.11,<0.10.0"]
 build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: needs Docker, starts a PostGIS container (skipped when Docker is unavailable)",
+]

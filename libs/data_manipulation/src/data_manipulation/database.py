@@ -2,7 +2,7 @@
 
 import logging
 
-from sqlalchemy import MetaData, Table, inspect
+from sqlalchemy import MetaData, Table, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.schema import CreateSchema
@@ -107,3 +107,46 @@ def get_available_table_name(
         except NoSuchTableError:
             logger.info("Final table name available: %s", final_table_name)
             return final_table_name
+
+
+# Tables, views, materialized views, partitioned and foreign tables the connection user can SELECT,
+# in schemas it has USAGE on. System schemas and partitions are left out, as are tables and views
+# created by an extension (e.g. PostGIS spatial_ref_sys, geometry_columns): internal objects, not data.
+_LIST_TABLES_QUERY = text(
+    """
+    SELECT n.nspname, c.relname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind IN ('r', 'v', 'm', 'p', 'f')
+      AND NOT c.relispartition
+      AND n.nspname NOT IN ('information_schema', 'pg_catalog')
+      AND n.nspname NOT LIKE 'pg\\_%'
+      AND has_schema_privilege(n.oid, 'USAGE')
+      AND has_table_privilege(c.oid, 'SELECT')
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_depend d
+        WHERE d.classid = 'pg_class'::regclass AND d.objid = c.oid AND d.deptype = 'e'
+      )
+    ORDER BY 1, 2
+    """
+)
+
+
+def list_tables_by_schema(engine: Engine) -> dict[str, list[str]]:
+    """
+    List the tables and views readable by the connection user, grouped by schema.
+
+    Args:
+        engine: SQLAlchemy engine of a PostgreSQL database
+
+    Returns:
+        dict[str, list[str]]: table names by schema name, both sorted
+
+    Raises:
+        SQLAlchemyError: If the database cannot be queried
+    """
+    schemas: dict[str, list[str]] = {}
+    with engine.connect() as conn:
+        for schema_name, table_name in conn.execute(_LIST_TABLES_QUERY):
+            schemas.setdefault(schema_name, []).append(table_name)
+    return schemas
