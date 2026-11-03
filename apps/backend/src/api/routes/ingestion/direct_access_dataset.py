@@ -1,4 +1,4 @@
-from data_manipulation.database import schema_exists, table_exists
+from data_manipulation.database import read_table_extent, schema_exists, table_exists
 from data_manipulation.utils import build_db_uri, sanitize_name
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -16,7 +16,7 @@ from src.core.logging import get_logger
 from src.models.data_import import ImportType, IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
 from src.services.georchestra import GeorchestraContext
-from src.services.layer_publication import publish_table, read_source_table_extent
+from src.services.layer_publication import publish_table
 from src.services.metadata_publication import publish_new_record
 
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
@@ -98,7 +98,7 @@ async def create_direct_access_dataset(
         )
 
     try:
-        extent = read_source_table_extent(engine, schema, table)
+        extent = read_table_extent(engine, schema, table)
     except Exception as e:
         logger.error("Failed to read extent of %s: %s", source_url, e, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to read the table extent")

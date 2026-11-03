@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from data_manipulation.database import TableExtent
 from fastapi import HTTPException
 from pydantic import PostgresDsn
 
@@ -16,7 +17,6 @@ from src.core.config import CopySourceDatabase, DirectAccessSourceDatabase
 from src.models.data_import import ImportType
 from src.models.integrity_link import IntegrityLink
 from src.services.georchestra import GeorchestraContext
-from src.services.layer_publication import TableExtent
 
 MODULE = "src.api.routes.ingestion.direct_access_dataset"
 
@@ -87,7 +87,7 @@ def source_db() -> Iterator[MagicMock]:
         patch(f"{MODULE}.schema_exists", return_value=True),
         patch(f"{MODULE}.table_exists", return_value=True),
         patch(
-            f"{MODULE}.read_source_table_extent",
+            f"{MODULE}.read_table_extent",
             return_value=TableExtent(
                 is_geographic=True,
                 epsg=2154,

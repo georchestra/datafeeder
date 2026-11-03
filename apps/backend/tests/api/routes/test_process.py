@@ -5,6 +5,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from data_manipulation.database import TableExtent
 from data_manipulation.models import IntegrityTransformation
 
 from src.api.routes.ingestion.process import (
@@ -170,16 +171,15 @@ def _make_mock_geoserver() -> AsyncMock:
 class TestDagSuccessCallbackRevisionDate:
     """Tests for the revision date update logic in dag_success_callback."""
 
-    @patch("src.services.layer_publication.Table")
+    @patch("src.api.routes.ingestion.process.read_table_extent", return_value=TableExtent())
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_calls_update_revision_date_when_metadata_id_set(
         self,
         mock_create_schema: MagicMock,
-        mock_table_cls: MagicMock,
+        _mock_read_table_extent: MagicMock,
     ) -> None:
         """When metadata_id is set, update_revision_date() must be called."""
         link = _make_integrity_link_with_metadata()
-        mock_table_cls.return_value.c = {}  # no geometry column
         mock_metadata_service = MagicMock()
         mock_schema = mock_metadata_service.read_schema_from_gn.return_value
         mock_schema.update_revision_date.return_value = mock_schema
@@ -205,12 +205,12 @@ class TestDagSuccessCallbackRevisionDate:
         )
         mock_schema.upload_to_gn.assert_called_once()
 
-    @patch("src.services.layer_publication.Table")
+    @patch("src.api.routes.ingestion.process.read_table_extent", return_value=TableExtent())
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_skips_update_when_metadata_id_is_none(
         self,
         mock_create_schema: MagicMock,
-        mock_table_cls: MagicMock,
+        _mock_read_table_extent: MagicMock,
     ) -> None:
         """When metadata_id is None, update_revision_date() must not be called."""
         link = IntegrityLink(
@@ -220,7 +220,6 @@ class TestDagSuccessCallbackRevisionDate:
             source_import_type=ImportType.URL,
             staging_table_name="staging_test",
         )
-        mock_table_cls.return_value.c = {}
         mock_metadata_service = MagicMock()
 
         await dag_success_callback(
@@ -234,16 +233,15 @@ class TestDagSuccessCallbackRevisionDate:
 
         mock_metadata_service.read_schema_from_gn.assert_not_called()
 
-    @patch("src.services.layer_publication.Table")
+    @patch("src.api.routes.ingestion.process.read_table_extent", return_value=TableExtent())
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_soft_failure_does_not_raise(
         self,
         mock_create_schema: MagicMock,
-        mock_table_cls: MagicMock,
+        _mock_read_table_extent: MagicMock,
     ) -> None:
         """When GeoNetwork is unreachable, the callback must not propagate the error."""
         link = _make_integrity_link_with_metadata()
-        mock_table_cls.return_value.c = {}
         mock_metadata_service = MagicMock()
         mock_metadata_service.read_schema_from_gn.side_effect = RuntimeError(
             "GeoNetwork unavailable"
@@ -265,17 +263,16 @@ class TestCallbacksTargetSchema:
     """Scheduled runs call back without target_schema: it is derived from the dataset org."""
 
     @pytest.mark.parametrize(("use_org_schema", "expected"), [(True, "testorg"), (False, "data")])
-    @patch("src.services.layer_publication.Table")
+    @patch("src.api.routes.ingestion.process.read_table_extent", return_value=TableExtent())
     @patch("src.api.routes.ingestion.process.create_schema")
     async def test_success_callback_derives_schema(
         self,
         mock_create_schema: MagicMock,
-        mock_table_cls: MagicMock,
+        _mock_read_table_extent: MagicMock,
         use_org_schema: bool,
         expected: str,
     ) -> None:
         link = _make_integrity_link_with_metadata()
-        mock_table_cls.return_value.c = {}
         geoserver = _make_mock_geoserver()
 
         with patch("src.core.config.get_settings") as mock_settings:
