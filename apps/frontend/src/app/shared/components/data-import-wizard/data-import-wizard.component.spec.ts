@@ -304,7 +304,7 @@ describe('DataImportWizardComponent', () => {
       authEnabled: false
     })
 
-    await component.onConfigureDataset()
+    await component.onSubmitDataset()
 
     httpMock.expectNone('http://localhost:8000/ingestion/staging/')
     expect(component.importing()).toBe(false)
@@ -600,7 +600,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
 
     // Start the async operation
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     // Wait for the HTTP request
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
@@ -640,7 +640,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
 
     // Start the async operation
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     // Wait for the HTTP request
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
@@ -680,7 +680,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       }
     })
 
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
     expect(req.request.method).toBe('POST')
@@ -717,7 +717,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       }
     })
 
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
     const formData = req.request.body as FormData
@@ -750,7 +750,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         authEnabled: false
       }
     })
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
     req.flush(mockImportResponse)
@@ -782,7 +782,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         authEnabled: false
       }
     })
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -809,7 +809,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         authEnabled: false
       }
     })
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -848,7 +848,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       }
     })
 
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -883,7 +883,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
 
     try {
-      const promise = component.onConfigureDataset()
+      const promise = component.onSubmitDataset()
       httpMock
         .expectOne('http://localhost:8000/ingestion/staging/')
         .flush(mockImportResponse)
@@ -922,7 +922,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
 
     try {
-      const promise = component.onConfigureDataset()
+      const promise = component.onSubmitDataset()
       const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
       req.flush(
         { detail: 'Invalid URL format provided' },
@@ -948,7 +948,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       source: { type: 'url', url: '', authEnabled: false }
     })
     // The button should be disabled, but we call the method directly to test error handling
-    await component.onConfigureDataset()
+    await component.onSubmitDataset()
 
     expect(component.importError()).toBe(
       'The data upload or analysis failed. Please try again.'
@@ -985,7 +985,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         authEnabled: false
       }
     })
-    component.onConfigureDataset()
+    component.onSubmitDataset()
 
     expect(component.importError()).toBeNull()
   })
@@ -1005,11 +1005,11 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
     fixture.detectChanges()
 
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(component.importing()).toBe(true)
-    expect(component.cantConfigureDataset()).toBe(true)
+    expect(component.cantSubmitDataset()).toBe(true)
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -1035,7 +1035,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
     fixture.detectChanges()
 
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -1043,7 +1043,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(component.polling()).toBe(true)
-    expect(component.cantConfigureDataset()).toBe(true)
+    expect(component.cantSubmitDataset()).toBe(true)
 
     await new Promise((resolve) => setTimeout(resolve, 600))
     httpMock
@@ -1095,7 +1095,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         authEnabled: false
       }
     })
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -1118,7 +1118,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     component.importData.set({
       source: { type: 'url', url: '', authEnabled: false }
     })
-    await component.onConfigureDataset()
+    await component.onSubmitDataset()
 
     expect(component.importing()).toBe(false)
     expect(component.polling()).toBe(false)
@@ -1253,7 +1253,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
         authEnabled: false
       }
     })
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
     req.flush(mockStagingResponse)
@@ -1402,8 +1402,8 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    // importData starts with no source → cantConfigureDataset returns true
-    expect(component.cantConfigureDataset()).toBe(true)
+    // importData starts with no source → cantSubmitDataset returns true
+    expect(component.cantSubmitDataset()).toBe(true)
   })
 
   it('should enable next button when a valid file source is set', () => {
@@ -1416,7 +1416,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
       source: { type: 'file', file: new File([], 'test.csv') }
     }))
 
-    expect(component.cantConfigureDataset()).toBe(false)
+    expect(component.cantSubmitDataset()).toBe(false)
   })
 
   it('should disable next button while importing', () => {
@@ -1430,7 +1430,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     }))
     component.importing.set(true)
 
-    expect(component.cantConfigureDataset()).toBe(true)
+    expect(component.cantSubmitDataset()).toBe(true)
   })
 
   it('should disable validate button when processing', () => {

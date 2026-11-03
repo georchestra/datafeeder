@@ -458,7 +458,7 @@ export class DataImportWizardComponent {
     }))
   }
 
-  cantConfigureDataset() {
+  cantSubmitDataset() {
     return !this.validSource() || this.importing() || this.polling()
   }
 
@@ -477,11 +477,12 @@ export class DataImportWizardComponent {
     })
   }
 
-  async onConfigureDataset() {
-    // Direct access skips step 2 and goes to the metadata editing, once the
-    // backend endpoint creating such a dataset exists
+  async onSubmitDataset() {
     if (this.isDirectAccess()) return
+    await this.configureCopyDataset()
+  }
 
+  async configureCopyDataset() {
     this.importError.set(null)
     this.failedDagRun.set(null)
     this.importing.set(true)
