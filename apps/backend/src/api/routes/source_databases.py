@@ -9,7 +9,7 @@ from src.api.deps import GeorchestraContextDep
 from src.core.config import get_settings
 from src.core.db import get_source_engine
 from src.core.logging import get_logger
-from src.services.georchestra import GeorchestraContext
+from src.core.security import require_administrator
 
 logger = get_logger()
 
@@ -53,11 +53,6 @@ class SourceSchema(BaseModel):
     tables: list[str]
 
 
-def _require_administrator(geo_ctx: GeorchestraContext) -> None:
-    if not geo_ctx.is_administrator():
-        raise HTTPException(status_code=403, detail="Administrator role required")
-
-
 @router.get(
     "/",
     response_model=list[SourceDatabaseSummary],
@@ -65,7 +60,7 @@ def _require_administrator(geo_ctx: GeorchestraContext) -> None:
     description="Administrators only. Source databases declared in SOURCE_DATABASES.",
 )
 def list_source_databases(geo_ctx: GeorchestraContextDep) -> list[SourceDatabaseSummary]:
-    _require_administrator(geo_ctx)
+    require_administrator(geo_ctx)
     return [
         SourceDatabaseSummary(key=key, type=db.type, label=db.label)
         for key, db in get_settings().SOURCE_DATABASES.items()
@@ -80,7 +75,7 @@ def list_source_databases(geo_ctx: GeorchestraContextDep) -> list[SourceDatabase
     "system schemas excluded.",
 )
 def list_source_database_tables(key: str, geo_ctx: GeorchestraContextDep) -> list[SourceSchema]:
-    _require_administrator(geo_ctx)
+    require_administrator(geo_ctx)
     engine = get_source_engine(key)
     if engine is None:
         raise HTTPException(status_code=404, detail=f"Unknown source database '{key}'")
