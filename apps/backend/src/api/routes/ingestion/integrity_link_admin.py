@@ -1,6 +1,7 @@
 """Dataset administration: export/import across platforms, ownership change, deletion."""
 
 import tempfile
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -12,7 +13,6 @@ from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import or_, text
 from sqlmodel import Session, col, select
-from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 
 from src.api.deps import (
@@ -176,7 +176,7 @@ async def import_table_data(
     final_table_name: str = Path(),
 ) -> TableDataImportResponse:
     _require_administrator(geo_ctx)
-    status = _table_data_status(session, organization, final_table_name)
+    status = await run_in_threadpool(_table_data_status, session, organization, final_table_name)
     if status.used_by:
         raise HTTPException(
             status_code=409, detail=f"Dataset {status.used_by} already uses this table name"
@@ -192,7 +192,7 @@ async def import_table_data(
         async for chunk in request.stream():
             await run_in_threadpool(spool.write, chunk)
         spool.seek(0)
-        create_schema(data_engine, schema)
+        await run_in_threadpool(create_schema, data_engine, schema)
         try:
             row_count = await run_in_threadpool(restore_table, spool, schema, final_table_name)
         except TableTransferError as e:
@@ -245,14 +245,20 @@ def export_table_data(
         raise
     size = spool.tell()
     spool.seek(0)
+
+    # Closed even if the client disconnects (a background task would then be skipped)
+    def read_spool() -> Iterator[bytes]:
+        with spool:
+            while data := spool.read(READ_SIZE):
+                yield data
+
     return StreamingResponse(
-        iter(lambda: spool.read(READ_SIZE), b""),
+        read_spool(),
         media_type="application/gzip",
         headers={
             "Content-Disposition": f'attachment; filename="{table_name}.copy.gz"',
             "Content-Length": str(size),
         },
-        background=BackgroundTask(spool.close),
     )
 
 
