@@ -108,7 +108,7 @@ def get_integrity_link_by_metadata(
     geo_ctx: GeorchestraContextDep,
     metadata_id: str,
 ) -> IntegrityLinkResponse:
-    _require_administrator(geo_ctx)
+    require_administrator(geo_ctx)
     integrity_link = session.exec(
         select(IntegrityLink).where(col(IntegrityLink.metadata_id) == metadata_id)
     ).first()
@@ -148,7 +148,7 @@ def get_table_data_status(
     organization: str = Path(pattern=ORGANIZATION_PATTERN),
     final_table_name: str = Path(),
 ) -> TableDataStatus:
-    _require_administrator(geo_ctx)
+    require_administrator(geo_ctx)
     return _table_data_status(session, organization, final_table_name)
 
 
@@ -171,7 +171,7 @@ async def import_table_data(
     organization: str = Path(pattern=ORGANIZATION_PATTERN),
     final_table_name: str = Path(),
 ) -> TableDataImportResponse:
-    _require_administrator(geo_ctx)
+    require_administrator(geo_ctx)
     status = await run_in_threadpool(_table_data_status, session, organization, final_table_name)
     if status.used_by:
         raise HTTPException(
@@ -215,7 +215,7 @@ def export_table_data(
     geoserver_service: GeoServerServiceDep,
     integrity_link_id: UUID,
 ) -> StreamingResponse:
-    _require_administrator(geo_ctx)
+    require_administrator(geo_ctx)
     integrity_link = _get_integrity_link(session, integrity_link_id)
     table_name = integrity_link.final_table_name
     if not table_name or integrity_link.source_import_type in LINK_ONLY_IMPORT_TYPES:
