@@ -31,6 +31,7 @@ describe('SourceDatabaseStore', () => {
   afterEach(() => httpMock.verify())
 
   it('should load the source databases', async () => {
+    expect(store.sourceDatabases()).toBeNull()
     const loaded = store.load()
     httpMock.expectOne(URL).flush([{ key: 'BAN', type: 'direct_access' }])
     await loaded
