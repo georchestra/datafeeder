@@ -75,6 +75,12 @@ async def create_direct_access_dataset(
             "lowercase letters, digits and underscores only",
         )
 
+    if db.schema_name and schema != db.schema_name:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Schema '{schema}' is not allowed for this source database",
+        )
+
     engine = get_source_engine(request.db_key)
     if engine is None or not schema_exists(engine, schema):
         raise HTTPException(status_code=422, detail=f"Schema '{schema}' not found")
