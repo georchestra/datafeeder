@@ -51,7 +51,7 @@ def parse_cors(v: Any) -> list[str] | str:
 
 # Only this schema is offered in the wizard and accepted by staging; all schemas when absent
 SourceDatabaseSchema = Annotated[
-    str | None, AfterValidator(lambda v: v and validate_schema_name(v))
+    str | None, AfterValidator(lambda v: v if v is None else validate_schema_name(v))
 ]
 
 

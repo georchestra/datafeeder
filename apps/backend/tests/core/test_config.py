@@ -105,11 +105,12 @@ class TestSourceDatabases:
         databases = Settings(_env_file=None).SOURCE_DATABASES  # type: ignore[call-arg]
         assert databases["SOURCE_DB_1"].schema_name == "geo"
 
-    def test_invalid_schema_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.mark.parametrize("schema", ["geo; DROP TABLE", ""])
+    def test_invalid_schema_is_rejected(self, monkeypatch: pytest.MonkeyPatch, schema: str) -> None:
         monkeypatch.setenv(
             "SOURCE_DATABASES",
             '{"SOURCE_DB_1": {"type": "copy", "connection_string": "postgresql://u:p@h/db",'
-            ' "schema": "geo; DROP TABLE"}}',
+            f' "schema": "{schema}"}}}}',
         )
         with pytest.raises(ValidationError):
             Settings(_env_file=None)  # type: ignore[call-arg]
