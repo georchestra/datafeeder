@@ -74,7 +74,7 @@
     class="relative flex flex-col gap-1 max-h-[412px] overflow-y-auto p-3 border border-gray-border rounded-lg"
     data-test="source-database-list"
   >
-    @for (db of sourceDatabases(); track db.key) {
+    @for (db of sourceDatabases() ?? []; track db.key) {
     <button
       type="button"
       class="flex items-center gap-2.5 shrink-0 h-[34px] px-7 rounded-lg bg-beige text-sm text-gray-2 text-left"
@@ -88,14 +88,14 @@
     </button>
     } @empty { @for (row of [1, 2, 3, 4, 5, 6]; track row) {
     <div class="h-[34px] rounded-lg bg-beige opacity-40"></div>
-    }
+    } @if (sourceDatabases()) {
     <p
       class="absolute inset-0 flex items-center justify-center text-2xl text-gray-2"
       data-test="source-database-empty"
     >
       {{ 'import.dataSource.database.empty' | translate }}
     </p>
-    }
+    } }
   </div>
   }
 </div>

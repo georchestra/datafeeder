@@ -54,14 +54,15 @@ export interface DbData {
 export class DataSourceDbComponent {
   private fb = inject(FormBuilder)
 
-  sourceDatabases = input<SourceDatabaseSummary[]>([])
+  sourceDatabases = input<SourceDatabaseSummary[] | null>(null)
   initialValue = input<DbData | null>(null)
   dbDataChanged = output<DbData>()
 
   selectedKey = linkedSignal(() => this.initialValue()?.key ?? '')
   sourceDatabase = computed(
     () =>
-      this.sourceDatabases().find((db) => db.key === this.selectedKey()) ?? null
+      this.sourceDatabases()?.find((db) => db.key === this.selectedKey()) ??
+      null
   )
 
   form = this.fb.nonNullable.group({

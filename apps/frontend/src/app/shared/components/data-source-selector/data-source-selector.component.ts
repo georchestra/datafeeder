@@ -94,7 +94,7 @@ export class DataSourceSelectorComponent {
   @ViewChild('selectedItemSection')
   selectedItemSection?: ElementRef<HTMLElement>
 
-  sourceDatabases = input<SourceDatabaseSummary[]>([])
+  sourceDatabases = input<SourceDatabaseSummary[] | null>(null)
   initialDatabaseSource = input<DbData | null>(null)
   initialApiSource = input<{
     url: string

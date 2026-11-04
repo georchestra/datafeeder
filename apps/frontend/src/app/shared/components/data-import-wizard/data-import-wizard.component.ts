@@ -338,7 +338,7 @@ export class DataImportWizardComponent {
       (source.type === 'url' && !!source.url) ||
       (source.type === 'ftp' && this.validFtp(source)) ||
       (source.type === 'database' &&
-        !!source.dbKey &&
+        !!this.sourceDatabaseStore.find(source.dbKey) &&
         !!source.dbSchema?.trim() &&
         !!source.dbTable?.trim() &&
         (!this.isDirectAccess() || !!source.dbTitle?.trim())) ||

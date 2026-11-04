@@ -225,8 +225,18 @@ describe('DataSourceDbComponent', () => {
     expect(tooltip.message).toBe('BAN Base Adresse Nationale')
   })
 
+  it('should not show the empty state while the databases are loading', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    fixture.detectChanges()
+
+    expect(
+      fixture.nativeElement.querySelector('[data-test="source-database-empty"]')
+    ).toBeFalsy()
+  })
+
   it('should show an empty state when no database is configured', () => {
     const fixture = TestBed.createComponent(DataSourceDbComponent)
+    fixture.componentRef.setInput('sourceDatabases', [])
     fixture.detectChanges()
 
     expect(

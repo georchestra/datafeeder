@@ -182,6 +182,9 @@ describe('DataImportWizardComponent', () => {
   it('should return valid source for database type with schema and table', () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
+    component.sourceDatabaseStore.sourceDatabases.set([
+      { key: 'SOURCE_DB_1', type: 'copy' }
+    ])
 
     component.onSourceChanged({
       type: 'database',
@@ -201,6 +204,24 @@ describe('DataImportWizardComponent', () => {
     component.onSourceChanged({
       type: 'database',
       dbKey: '',
+      dbSchema: 'geo',
+      dbTable: 'rivers',
+      authEnabled: false
+    })
+
+    expect(component.validSource()).toBeFalsy()
+  })
+
+  it('should return invalid source for a database missing from the source databases', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.sourceDatabaseStore.sourceDatabases.set([
+      { key: 'SOURCE_DB_1', type: 'copy' }
+    ])
+
+    component.onSourceChanged({
+      type: 'database',
+      dbKey: 'REMOVED_DB',
       dbSchema: 'geo',
       dbTable: 'rivers',
       authEnabled: false

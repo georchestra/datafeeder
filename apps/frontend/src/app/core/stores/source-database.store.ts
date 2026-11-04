@@ -5,7 +5,7 @@ import type { SourceDatabaseSummary } from '../api/models'
 
 @Injectable({ providedIn: 'root' })
 export class SourceDatabaseStore {
-  sourceDatabases = signal<SourceDatabaseSummary[]>([])
+  sourceDatabases = signal<SourceDatabaseSummary[] | null>(null)
 
   private api = inject(Api)
 
@@ -21,6 +21,6 @@ export class SourceDatabaseStore {
   }
 
   find(key: string | null | undefined): SourceDatabaseSummary | null {
-    return this.sourceDatabases().find((db) => db.key === key) ?? null
+    return this.sourceDatabases()?.find((db) => db.key === key) ?? null
   }
 }
