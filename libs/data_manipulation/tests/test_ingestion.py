@@ -259,18 +259,21 @@ class TestListLayers:
         assert cmd[-1] == "/tmp/data.geojson"
 
     @patch("data_manipulation.ingestion.subprocess.run")
-    def test_unreadable_source_is_left_to_ogr2ogr(self, mock_run: MagicMock) -> None:
+    def test_unreadable_source_fails_with_stderr(self, mock_run: MagicMock) -> None:
+        # Skipping the check would let ogr2ogr silently keep only the last layer.
         mock_run.return_value = subprocess.CompletedProcess(
-            args=["ogrinfo"], returncode=1, stdout="", stderr="unable to open"
+            args=["ogrinfo"], returncode=1, stdout="", stderr="unable to open\n"
         )
-        assert _list_layers("/tmp/missing.gpkg") is None
+        with pytest.raises(Exception, match="missing.gpkg: unable to open"):
+            _list_layers("/tmp/missing.gpkg")
 
     @patch("data_manipulation.ingestion.subprocess.run")
-    def test_unparsable_output_is_left_to_ogr2ogr(self, mock_run: MagicMock) -> None:
+    def test_unparsable_output_fails(self, mock_run: MagicMock) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=["ogrinfo"], returncode=0, stdout="not json", stderr=""
         )
-        assert _list_layers("/tmp/data.gpkg") is None
+        with pytest.raises(Exception, match="Could not read the layers of data.gpkg"):
+            _list_layers("/tmp/data.gpkg")
 
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_missing_binary_raises_clean_error(self, mock_run: MagicMock) -> None:
@@ -291,9 +294,14 @@ class TestRejectMultiLayerSource:
             _reject_multi_layer_source("/tmp/multi.gpkg")
         assert "zones_calmes" in str(excinfo.value) and "troncons" in str(excinfo.value)
 
-    def test_unknown_layers_are_left_to_ogr2ogr(self, layers: MagicMock) -> None:
-        layers.return_value = None
-        _reject_multi_layer_source("/tmp/missing.gpkg")
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_ogr2ogr_is_not_run_when_layers_cannot_be_listed(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine
+    ) -> None:
+        layers.side_effect = Exception("Could not read the layers of broken.gpkg")
+        with pytest.raises(Exception, match="Could not read the layers"):
+            ingest_file_with_ogr2ogr("/tmp/broken.gpkg", "broken", engine, schema="staging")
+        mock_run.assert_not_called()
 
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_ogr2ogr_is_not_run_for_a_multi_layer_source(

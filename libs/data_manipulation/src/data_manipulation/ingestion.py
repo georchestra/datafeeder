@@ -402,11 +402,11 @@ def _resolve_zip_source(file_path: str) -> str:
     return source
 
 
-def _list_layers(source: str) -> list[str] | None:
+def _list_layers(source: str) -> list[str]:
     """Return the names of the vector layers GDAL finds in *source*.
 
-    Returns ``None`` when ogrinfo cannot open the source: ogr2ogr then reports
-    its own, clearer error.
+    Raises when ogrinfo cannot list them: skipping the check would let ogr2ogr
+    silently keep only the last layer (see :func:`_reject_multi_layer_source`).
     """
     # Counts and extents can require a full scan of the source: skip them, only
     # the layer names are needed.
@@ -417,12 +417,14 @@ def _list_layers(source: str) -> list[str] | None:
         logger.error("ogrinfo binary not found while listing layers of %s", source)
         raise Exception("ogrinfo (GDAL) is not installed or not on PATH") from exc
     if result.returncode != 0:
-        return None
+        stderr = result.stderr.strip()
+        logger.error("ogrinfo failed on %s: %s", source, stderr)
+        raise Exception(f"Could not read the layers of {Path(source).name}: {stderr}")
     try:
         return [layer["name"] for layer in json.loads(result.stdout)["layers"]]
     except (ValueError, KeyError, TypeError) as exc:
-        logger.warning("Could not parse ogrinfo output for %s: %s", source, exc)
-        return None
+        logger.error("Could not parse ogrinfo output for %s: %s", source, exc)
+        raise Exception(f"Could not read the layers of {Path(source).name}") from exc
 
 
 def _is_geopackage(file_path: str) -> bool:
@@ -446,7 +448,7 @@ def _reject_multi_layer_source(source: str) -> None:
     last one.
     """
     layers = _list_layers(source)
-    if layers is not None and len(layers) > 1:
+    if len(layers) > 1:
         raise Exception(
             f"{Path(source).name} contains multiple layers ({', '.join(sorted(layers))}). "
             "Only single-layer sources are supported: export the layer to import "
