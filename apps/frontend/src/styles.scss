@@ -26,6 +26,15 @@
   .pagination-btn-arrow {
     @apply scale-[2] font-extralight;
   }
+  .form-field {
+    @apply w-[300px] shrink-0;
+  }
+  .form-label {
+    @apply block text-base font-bold text-gray-900 mb-2;
+  }
+  .required {
+    @apply text-red-600 ml-0.5;
+  }
 }
 html,
 body {

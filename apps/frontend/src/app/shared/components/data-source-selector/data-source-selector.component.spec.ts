@@ -61,8 +61,10 @@ describe('DataSourceSelectorComponent', () => {
       authEnabled: false,
       username: null,
       password: null,
+      dbKey: null,
       dbSchema: null,
       dbTable: null,
+      dbTitle: null,
       serviceUrl: null,
       layerName: null,
       serviceProtocol: null
@@ -140,12 +142,27 @@ describe('DataSourceSelectorComponent', () => {
 
       component.sourceChanged.subscribe((value: any) => (emittedValue = value))
       component.handleRadioChange('database')
-      component.form.controls.source.controls.dbSchema.setValue('geo')
-      component.form.controls.source.controls.dbTable.setValue('rivers')
+      component.handleDbDataChange({
+        key: 'SOURCE_DB_1',
+        schema: 'geo',
+        table: 'rivers'
+      })
 
       expect(emittedValue.type).toBe('database')
       expect(emittedValue.dbSchema).toBe('geo')
       expect(emittedValue.dbTable).toBe('rivers')
+    })
+
+    it('should render app-data-source-db when database radio is selected', () => {
+      const fixture = TestBed.createComponent(DataSourceSelectorComponent)
+      const component = fixture.componentInstance
+
+      component.form.controls.radio.setValue('database')
+      fixture.detectChanges()
+
+      expect(
+        fixture.nativeElement.querySelector('app-data-source-db')
+      ).toBeTruthy()
     })
 
     it('should clear database fields when switching to file', () => {
@@ -355,8 +372,10 @@ describe('DataSourceSelectorComponent', () => {
         authEnabled: true,
         username: 'testuser',
         password: 'testpass',
+        dbKey: null,
         dbSchema: null,
         dbTable: null,
+        dbTitle: null,
         serviceUrl: null,
         layerName: null,
         serviceProtocol: null

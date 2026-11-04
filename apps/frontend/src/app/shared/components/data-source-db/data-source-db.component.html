@@ -1,0 +1,61 @@
+<div class="px-9 py-6">
+  @if (sourceDatabase(); as db) {
+  <div
+    class="inline-flex items-center gap-2 h-10 mb-6 pl-5 pr-4 bg-gray-50 border border-gray-300 rounded text-sm text-main"
+    data-test="source-database"
+  >
+    <span>{{ db.key }}</span>
+    @if (db.label) {
+    <span>{{ db.label }}</span>
+    }
+    <span
+      class="px-3 py-px bg-gray-100 border border-gray-300 rounded text-xs font-medium"
+    >
+      {{ 'import.dataSource.database.' + db.type | translate }}
+    </span>
+    <ng-icon name="iconoirCheckCircle"></ng-icon>
+  </div>
+  }
+  <form [formGroup]="form">
+    <div class="flex flex-wrap gap-4">
+      <div class="form-field">
+        <label class="form-label">
+          {{ 'import.dataSource.database.schema' | translate }}
+        </label>
+        <gn-ui-text-input
+          [value]="form.controls.schema.value"
+          (valueChange)="form.controls.schema.setValue($event)"
+          placeholder=""
+        ></gn-ui-text-input>
+      </div>
+
+      <div class="form-field">
+        <label class="form-label">
+          {{ 'import.dataSource.database.table' | translate }}
+        </label>
+        <gn-ui-text-input
+          data-test="source-database-table"
+          [value]="form.controls.table.value"
+          (valueChange)="form.controls.table.setValue($event)"
+          [disabled]="!form.controls.schema.value"
+          placeholder=""
+        ></gn-ui-text-input>
+      </div>
+    </div>
+
+    @if (sourceDatabase()?.type === 'direct_access') {
+    <div class="mt-4">
+      <label class="form-label">
+        {{ 'import.configuration.datasetTitle' | translate }}
+      </label>
+      <gn-ui-text-input
+        [value]="form.controls.title.value"
+        (valueChange)="form.controls.title.setValue($event)"
+        [disabled]="!form.controls.schema.value || !form.controls.table.value"
+        placeholder=""
+        data-test="source-database-title"
+      ></gn-ui-text-input>
+    </div>
+    }
+  </form>
+</div>

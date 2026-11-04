@@ -221,6 +221,55 @@ describe('DataImportWizardComponent', () => {
     expect(component.validSource()).toBeFalsy()
   })
 
+  it('should require a title for a direct access database', () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.sourceDatabaseStore.sourceDatabases.set([
+      { key: 'BAN', type: 'direct_access' }
+    ])
+
+    component.onSourceChanged({
+      type: 'database',
+      dbKey: 'BAN',
+      dbSchema: 'geo',
+      dbTable: 'rivers',
+      dbTitle: ' ',
+      authEnabled: false
+    })
+    expect(component.validSource()).toBeFalsy()
+
+    component.onSourceChanged({
+      type: 'database',
+      dbKey: 'BAN',
+      dbSchema: 'geo',
+      dbTable: 'rivers',
+      dbTitle: 'Rivers',
+      authEnabled: false
+    })
+    expect(component.validSource()).toBeTruthy()
+  })
+
+  it('should not stage a direct access database source', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.sourceDatabaseStore.sourceDatabases.set([
+      { key: 'BAN', type: 'direct_access' }
+    ])
+    component.onSourceChanged({
+      type: 'database',
+      dbKey: 'BAN',
+      dbSchema: 'geo',
+      dbTable: 'rivers',
+      dbTitle: 'Rivers',
+      authEnabled: false
+    })
+
+    await component.onConfigureDataset()
+
+    httpMock.expectNone('http://localhost:8000/ingestion/staging/')
+    expect(component.importing()).toBe(false)
+  })
+
   it('should detect database source from existing integrity link for re-edit', () => {
     mockIntegrityLinkStore.integrityLink.set({
       source_import_type: 'database',
@@ -232,6 +281,7 @@ describe('DataImportWizardComponent', () => {
     fixture.detectChanges()
 
     expect(component.initialDatabaseSource()).toEqual({
+      key: 'SOURCE_DB_1',
       schema: 'geo',
       table: 'rivers'
     })
@@ -1916,7 +1966,7 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
     tick(100)
 
     // Debounce hasn't fired yet — no PUT request
-    httpMock.expectNone(() => true)
+    httpMock.expectNone((req) => req.method === 'PUT')
 
     // Advance past debounce threshold
     tick(400)

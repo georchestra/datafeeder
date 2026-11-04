@@ -29,24 +29,20 @@ import {
   DataSourceApiComponent
 } from '../data-source-api/data-source-api.component'
 import {
+  DataSourceDbComponent,
+  type DbData
+} from '../data-source-db/data-source-db.component'
+import {
   DataSourceFtpComponent,
   type FTPData
 } from '../data-source-ftp/data-source-ftp.component'
 import { UiInputPasswordComponent } from '../ui-input-password/ui-input-password.component'
+import type { SourceDatabaseSummary } from '../../../core/api/models'
 
+// Overrides for labels of the geonetwork-ui file input
 marker('input.file.selectFileLabel')
 marker('input.file.dropFileLabel')
 marker('input.file.orInputUrl')
-marker('import.dataSource.chooseType.ftp')
-marker('import.dataSource.ftp.host')
-marker('import.dataSource.ftp.port')
-marker('import.dataSource.ftp.username')
-marker('import.dataSource.ftp.password')
-marker('import.dataSource.ftp.path')
-marker('import.dataSource.chooseType.database')
-marker('import.dataSource.database.schema')
-marker('import.dataSource.database.table')
-marker('import.dataSource.chooseType.api')
 
 export type SourceType = 'url' | 'file' | 'ftp' | 'database' | 'api'
 export type RadioType = 'file' | 'ftp' | 'database' | 'api'
@@ -61,8 +57,10 @@ export interface SourceData {
   ftpHost?: string
   ftpPort?: number
   ftpPath?: string
+  dbKey?: string
   dbSchema?: string
   dbTable?: string
+  dbTitle?: string
   serviceUrl?: string
   layerName?: string
   serviceProtocol?: string
@@ -81,6 +79,7 @@ export interface SourceData {
     FileInputComponent,
     DataSourceFtpComponent,
     DataSourceApiComponent,
+    DataSourceDbComponent,
     UiInputPasswordComponent
   ],
   templateUrl: './data-source-selector.component.html',
@@ -96,7 +95,8 @@ export class DataSourceSelectorComponent {
   selectedItemSection?: ElementRef<HTMLElement>
 
   databaseSourceEnabled = input<boolean>(false)
-  initialDatabaseSource = input<{ schema: string; table: string } | null>(null)
+  sourceDatabases = input<SourceDatabaseSummary[]>([])
+  initialDatabaseSource = input<DbData | null>(null)
   initialApiSource = input<{
     url: string
     layerName: string
@@ -127,8 +127,10 @@ export class DataSourceSelectorComponent {
       ftpHost: this.fb.control<string | null>(null),
       ftpPort: this.fb.control<number | null>(null),
       ftpPath: this.fb.control<string | null>(null),
+      dbKey: this.fb.control<string | null>(null),
       dbSchema: this.fb.control<string | null>(null),
       dbTable: this.fb.control<string | null>(null),
+      dbTitle: this.fb.control<string | null>(null),
       serviceUrl: this.fb.control<string | null>(null),
       layerName: this.fb.control<string | null>(null),
       serviceProtocol: this.fb.control<string | null>(null)
@@ -142,6 +144,7 @@ export class DataSourceSelectorComponent {
         this.form.controls.radio.setValue('database')
         this.form.controls.source.patchValue({
           type: 'database',
+          dbKey: dbSource.key,
           dbSchema: dbSource.schema,
           dbTable: dbSource.table
         })
@@ -180,8 +183,10 @@ export class DataSourceSelectorComponent {
         ftpHost: value.ftpHost,
         ftpPort: value.ftpPort,
         ftpPath: value.ftpPath,
+        dbKey: value.dbKey,
         dbSchema: value.dbSchema,
         dbTable: value.dbTable,
+        dbTitle: value.dbTitle,
         serviceUrl: value.serviceUrl,
         layerName: value.layerName,
         serviceProtocol: value.serviceProtocol
@@ -208,8 +213,10 @@ export class DataSourceSelectorComponent {
       ftpHost: null,
       ftpPort: null,
       ftpPath: null,
+      dbKey: null,
       dbSchema: null,
       dbTable: null,
+      dbTitle: null,
       serviceUrl: null,
       layerName: null,
       serviceProtocol: null
@@ -233,6 +240,15 @@ export class DataSourceSelectorComponent {
       username: data.username,
       password: data.password,
       ftpPath: data.path
+    })
+  }
+
+  handleDbDataChange(data: DbData): void {
+    this.form.controls.source.patchValue({
+      dbKey: data.key,
+      dbSchema: data.schema,
+      dbTable: data.table,
+      dbTitle: data.title ?? null
     })
   }
 
