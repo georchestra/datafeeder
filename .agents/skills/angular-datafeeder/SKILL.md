@@ -185,7 +185,7 @@ Run tests:
 npm run test:ut
 ```
 
-**See [references/testing.md](references/testing.md) for testing patterns, mocking services, and E2E testing with Cypress.**
+**See [references/testing.md](references/testing.md) for testing patterns and mocking services. E2E tests are Playwright (Python), in `e2e-tests/`.**
 
 ## API Integration
 
@@ -294,7 +294,6 @@ export class MyComponent {
 - **geonetwork-ui**: 2.9.0-dev
 - **ngx-translate**: 16.0.4
 - **Vitest**: Latest (for unit tests)
-- **Cypress**: Latest (for E2E tests)
 
 ## References
 
@@ -302,4 +301,4 @@ export class MyComponent {
 - **[state-management.md](references/state-management.md)** - NgRx configuration, signals vs NgRx, effects, selectors
 - **[styling.md](references/styling.md)** - Tailwind patterns, responsive design, Angular Material integration
 - **[i18n.md](references/i18n.md)** - Translation workflow, key structure, extraction
-- **[testing.md](references/testing.md)** - Unit tests with Vitest, E2E tests with Cypress, coverage
+- **[testing.md](references/testing.md)** - Unit tests with Vitest, coverage

@@ -73,31 +73,9 @@ describe("MyComponent", () => {
 });
 ```
 
-## E2E Testing with Cypress
+## E2E Testing
 
-E2E tests use Cypress:
-
-```json
-{
-  "scripts": {
-    "test:e2e": "ng serve --port 4201 & cypress open",
-    "test:e2e:ci": "ng serve --port 4201 & cypress run"
-  }
-}
-```
-
-Cypress tests are in `cypress/e2e/`:
-
-```typescript
-describe("Import workflow", () => {
-  it("should complete data import", () => {
-    cy.visit("/import");
-    cy.get('[data-test="source-selector"]').click();
-    cy.get('[data-test="local-file"]').click();
-    // ...
-  });
-});
-```
+E2E tests are Playwright (Python) tests in `e2e-tests/` at the repo root, not in the frontend. See `e2e-tests/README.md`.
 
 ## Test Coverage
 
