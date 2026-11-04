@@ -47,10 +47,9 @@ jobs:
         with:
           path: |
             apps/frontend/node_modules
-            ~/.cache/Cypress
-          key: ${{ runner.os }}-npm-cypress-${{ hashFiles('apps/frontend/package-lock.json') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('apps/frontend/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-npm-cypress-
+            ${{ runner.os }}-npm-
 
       - name: Install dependencies
         run: npm ci

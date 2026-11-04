@@ -1,7 +1,6 @@
 import js from '@eslint/js'
 import angular from 'angular-eslint'
 import tseslint from 'typescript-eslint'
-import cypress from 'eslint-plugin-cypress'
 
 export default tseslint.config(
   {
@@ -17,7 +16,7 @@ export default tseslint.config(
   ...angular.configs.tsRecommended,
   {
     files: ['**/*.ts'],
-    ignores: ['**/*.spec.ts', '**/test-setup.ts', 'cypress/**/*', 'e2e/**/*'],
+    ignores: ['**/*.spec.ts', '**/test-setup.ts'],
     languageOptions: {
       globals: {
         console: 'readonly',
@@ -64,42 +63,5 @@ export default tseslint.config(
   {
     files: ['**/*.html'],
     ...angular.configs.templateAccessibility[0]
-  },
-  {
-    files: [
-      'cypress/**/*.cy.ts',
-      'cypress/**/*.cy.js',
-      'cypress/**/*.ts',
-      'cypress/**/*.js'
-    ],
-    plugins: {
-      cypress
-    },
-    languageOptions: {
-      globals: {
-        cy: 'readonly',
-        Cypress: 'readonly',
-        describe: 'readonly',
-        context: 'readonly',
-        it: 'readonly',
-        beforeEach: 'readonly',
-        afterEach: 'readonly',
-        before: 'readonly',
-        after: 'readonly',
-        expect: 'readonly',
-        assert: 'readonly',
-        console: 'readonly',
-        require: 'readonly',
-        setTimeout: 'readonly',
-        localStorage: 'readonly',
-        sessionStorage: 'readonly',
-        __filename: 'readonly',
-        __dirname: 'readonly'
-      }
-    },
-    rules: {
-      'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': 'off'
-    }
   }
 )
