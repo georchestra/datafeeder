@@ -711,7 +711,7 @@ class TestDeleteIntegrityLinkPermission:
 
 
 # ────────────────────────────────────────────────────────
-# PATCH /ingestion/integrity-link/{id}/is_reference  (OWNER_ONLY)
+# PATCH /ingestion/integrity-link/{id}/is-reference  (OWNER_ONLY)
 # ────────────────────────────────────────────────────────
 
 

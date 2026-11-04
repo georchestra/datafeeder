@@ -44,4 +44,4 @@ export function updateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferenc
 }
 
 updateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferencePatch.PATH =
-  '/ingestion/integrity-link/{integrity_link_id}/is_reference'
+  '/ingestion/integrity-link/{integrity_link_id}/is-reference'

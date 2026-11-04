@@ -2355,7 +2355,7 @@ class TestDeleteSchedule:
 
 
 class TestUpdateIsReference:
-    """Test the PATCH /{integrity_link_id}/is_reference endpoint."""
+    """Test the PATCH /{integrity_link_id}/is-reference endpoint."""
 
     @pytest.fixture
     def mock_session(self) -> MagicMock:

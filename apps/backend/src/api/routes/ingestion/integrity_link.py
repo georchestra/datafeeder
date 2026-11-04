@@ -704,7 +704,7 @@ def update_schedule(
 
 
 @router.patch(
-    "/{integrity_link_id}/is_reference",
+    "/{integrity_link_id}/is-reference",
     response_model=IntegrityLinkResponse,
     summary="Update whether the dataset is a reference dataset",
     description="Set or clear the reference dataset flag for an IntegrityLink.",
