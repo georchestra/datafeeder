@@ -262,7 +262,15 @@ export class DataImportWizardComponent {
     this.sourceDatabaseStore.load()
     effect(() => {
       const key = this.selectedDbKey()
-      untracked(() => this.sourceDatabaseStore.loadSchemas(key))
+      untracked(() =>
+        this.sourceDatabaseStore.loadSchemas(key).catch(() =>
+          this.importError.set(
+            this.translate.instant('import.dataSource.database.unreachable', {
+              key
+            })
+          )
+        )
+      )
     })
 
     this.destroyRef.onDestroy(() => this.footerService.setContent(null))

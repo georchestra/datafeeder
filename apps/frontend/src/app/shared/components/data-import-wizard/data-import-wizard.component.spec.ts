@@ -8,6 +8,7 @@ import { TestBed, fakeAsync, tick } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
 import { ActivatedRoute, provideRouter } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
+import { TranslateService } from '@ngx-translate/core'
 import { TranslateTestingModule } from '../../testing/translate-testing.module'
 import { ApiConfiguration } from '../../../core/api/api-configuration'
 import { FileType, ImportType } from '../../../core/api/models'
@@ -307,6 +308,33 @@ describe('DataImportWizardComponent', () => {
 
     httpMock.expectNone('http://localhost:8000/ingestion/staging/')
     expect(component.importing()).toBe(false)
+  })
+
+  it('should show an alert when the source database is unreachable', async () => {
+    TestBed.inject(TranslateService).setTranslation(
+      'en',
+      { 'import.dataSource.database.unreachable': 'Cannot reach {key}' },
+      true
+    )
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    component.onSourceChanged({
+      type: 'database',
+      dbKey: 'BAN',
+      dbSchema: '',
+      dbTable: '',
+      dbTitle: '',
+      authEnabled: false
+    })
+    fixture.detectChanges()
+
+    httpMock
+      .expectOne('http://localhost:8000/source-databases/BAN/tables')
+      .flush(null, { status: 503, statusText: 'Service Unavailable' })
+
+    await vi.waitFor(() =>
+      expect(component.importError()).toBe('Cannot reach BAN')
+    )
   })
 
   it('should detect database source from existing integrity link for re-edit', () => {

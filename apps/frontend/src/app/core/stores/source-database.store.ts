@@ -29,11 +29,16 @@ export class SourceDatabaseStore {
     this.schemasKey = key
     this.schemas.set([])
     if (!key) return
-    const schemas = await this.api
-      .invoke(listSourceDatabaseTablesSourceDatabasesKeyTablesGet, { key })
-      .catch(() => [])
-    // A response for a previously selected database is dropped
-    if (key === this.schemasKey) this.schemas.set(schemas)
+    try {
+      const schemas = await this.api.invoke(
+        listSourceDatabaseTablesSourceDatabasesKeyTablesGet,
+        { key }
+      )
+      // A response for a previously selected database is dropped
+      if (key === this.schemasKey) this.schemas.set(schemas)
+    } catch (error) {
+      if (key === this.schemasKey) throw error
+    }
   }
 
   find(key: string | null | undefined): SourceDatabaseSummary | null {

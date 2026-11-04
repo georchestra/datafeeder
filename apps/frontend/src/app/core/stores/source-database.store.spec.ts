@@ -80,7 +80,7 @@ describe('SourceDatabaseStore', () => {
     expect(store.schemas()).toEqual([{ schema_name: 'two', tables: [] }])
   })
 
-  it('should empty the schemas without a key or after a failure', async () => {
+  it('should empty the schemas without a key and rethrow a failure', async () => {
     await store.loadSchemas('')
     httpMock.expectNone(() => true)
     expect(store.schemas()).toEqual([])
@@ -89,7 +89,21 @@ describe('SourceDatabaseStore', () => {
     httpMock
       .expectOne(`${URL}BAN/tables`)
       .flush(null, { status: 503, statusText: 'Service Unavailable' })
-    await failed
+    await expect(failed).rejects.toBeTruthy()
     expect(store.schemas()).toEqual([])
+  })
+
+  it('should drop a failure for a previously selected database', async () => {
+    const first = store.loadSchemas('DB_1')
+    const second = store.loadSchemas('DB_2')
+    httpMock
+      .expectOne(`${URL}DB_1/tables`)
+      .flush(null, { status: 503, statusText: 'Service Unavailable' })
+    httpMock
+      .expectOne(`${URL}DB_2/tables`)
+      .flush([{ schema_name: 'two', tables: [] }])
+    await Promise.all([first, second])
+
+    expect(store.schemas()).toEqual([{ schema_name: 'two', tables: [] }])
   })
 })
