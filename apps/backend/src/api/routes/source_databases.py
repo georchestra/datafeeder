@@ -67,9 +67,16 @@ def list_source_database_tables(key: str, geo_ctx: GeorchestraContextDep) -> lis
             status_code=503, detail=f"Could not list the tables of source database '{key}'"
         ) from None
 
-    schema_name = get_settings().SOURCE_DATABASES[key].schema_name
-    if schema_name:
-        schemas = {name: tables for name, tables in schemas.items() if name == schema_name}
+    allowed_schema = get_settings().SOURCE_DATABASES[key].schema_name
+    if allowed_schema:
+        schemas = {name: tables for name, tables in schemas.items() if name == allowed_schema}
+        if not schemas:
+            logger.warning(
+                "Configured schema '%s' of source database '%s' does not exist "
+                "or has no table readable by the connection user",
+                allowed_schema,
+                key,
+            )
     return [
         SourceSchema(schema_name=schema_name, tables=tables)
         for schema_name, tables in schemas.items()

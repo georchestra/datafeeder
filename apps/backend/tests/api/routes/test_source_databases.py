@@ -113,6 +113,22 @@ def test_tables_restricted_to_configured_schema(
     ]
 
 
+@patch("src.api.routes.source_databases.logger")
+@patch("src.api.routes.source_databases.get_settings", return_value=_settings("geo"))
+@patch("src.api.routes.source_databases.list_tables_by_schema")
+@patch("src.api.routes.source_databases.get_source_engine")
+def test_tables_warn_when_configured_schema_has_no_table(
+    _mock_get_source_engine: MagicMock,
+    mock_list_tables_by_schema: MagicMock,
+    _: MagicMock,
+    mock_logger: MagicMock,
+) -> None:
+    mock_list_tables_by_schema.return_value = {"referentiel": ["communes"]}
+
+    assert list_source_database_tables("SOURCE_DB_2", _ctx()) == []
+    mock_logger.warning.assert_called_once()
+
+
 @patch("src.api.routes.source_databases.get_source_engine")
 def test_tables_unknown_database(mock_get_source_engine: MagicMock) -> None:
     mock_get_source_engine.return_value = None
