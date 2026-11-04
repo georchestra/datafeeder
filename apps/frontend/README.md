@@ -70,13 +70,7 @@ npm run test:ut
 ```
 
 
-To launch end-to-end tests (Cypress):
-
-```sh
-npm run test:e2e
-# or
-npm run test:e2e:ci # headless mode specially used by the ci
-```
+End-to-end tests are Playwright (Python) tests, in [`e2e-tests/`](../../e2e-tests/README.md).
 
 ## 🐳 Docker
 

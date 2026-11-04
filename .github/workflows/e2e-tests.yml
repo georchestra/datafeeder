@@ -61,7 +61,7 @@ jobs:
       - name: Start backend
         env:
           PROJECTIONS: '[{"value": "EPSG:4326", "label": "WGS 84"}, {"value": "EPSG:3857", "label": "Web Mercator"}, {"value": "EPSG:2154", "label": "RGF93 / Lambert-93"}]'
-        run: nohup make run-backend-with-local-task-executor > backend.log 2>&1 &
+        run: nohup make run-backend-with-local-task-executor BACKEND_RELOAD= > backend.log 2>&1 &
 
       - name: Install frontend deps
         working-directory: ./apps/frontend
@@ -108,12 +108,11 @@ jobs:
             if [ -n "${!name}" ]; then echo "$name=${!name}" >> .env; fi
           done
 
-      # Override addopts to drop --headed, there is no display on the runner
       - name: Run e2e tests
         working-directory: ./e2e-tests
         run: >
           uv run pytest -v
-          -o addopts="--base-url=http://localhost:8080"
+          --durations=10
           --tracing retain-on-failure
           --screenshot only-on-failure
 

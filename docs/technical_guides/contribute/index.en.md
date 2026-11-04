@@ -33,8 +33,14 @@ Frontend tests (from `apps/frontend/`):
 
 ```bash
 npm run test:ut      # unit tests (Vitest)
-npm run test:e2e     # end-to-end tests (Cypress)
-npm run test:e2e:ci  # headless mode, used by CI
+```
+
+End-to-end tests are Playwright (Python) tests in `e2e-tests/`, run against the local stack (see
+`e2e-tests/README.md`):
+
+```bash
+cd e2e-tests && uv sync && uv run playwright install chromium
+uv run pytest
 ```
 
 ## Linting and formatting

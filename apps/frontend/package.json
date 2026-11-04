@@ -13,9 +13,7 @@
     "format": "prettier --write \"src/**/*.{ts,html,css,scss,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,html,css,scss,json}\"",
     "test:ut": "vitest",
-    "test:ut:ci": "vitest --run",
-    "test:e2e": "ng serve --port 4201 & cypress open",
-    "test:e2e:ci": "ng serve --port 4201 & cypress run"
+    "test:ut:ci": "vitest --run"
   },
   "private": true,
   "dependencies": {
@@ -69,13 +67,8 @@
     "@vitest/ui": "^4.1.12",
     "angular-eslint": "^20.3.0",
     "autoprefixer": "^10.6.2",
-    "cypress": "^15.21.1",
-    "cypress-browser-permissions": "^1.1.0",
-    "cypress-real-events": "^1.15.1",
-    "cypress-terminal-report": "^7.4.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
-    "eslint-plugin-cypress": "^3.5.0",
     "jsdom": "~28.1.0",
     "ng-openapi-gen": "^1.1.0",
     "postcss": "^8.5.32",
