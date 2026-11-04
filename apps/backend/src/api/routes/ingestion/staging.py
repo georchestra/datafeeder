@@ -22,6 +22,7 @@ from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Query, U
 from pydantic import ValidationError
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.orm.attributes import flag_modified
+from starlette.concurrency import run_in_threadpool
 
 from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, GroupIdsDep
 from src.core.callback import build_callback_url
@@ -552,7 +553,9 @@ async def submit_staging(
         f"owner={sec_username} | org={sec_org} | table={staging_table_name}"
     )
 
-    return _trigger_staging_task(
+    # Off the event loop: the local executor downloads uploaded files from this backend
+    return await run_in_threadpool(
+        _trigger_staging_task,
         integrity_link=integrity_link,
         staging_table_name=staging_table_name,
         source=import_source.source or "",
@@ -680,7 +683,9 @@ async def edit_staging(
         f"owner={integrity_link.integrity_owner} | org={integrity_link.integrity_organization} | table={staging_table_name}"
     )
 
-    return _trigger_staging_task(
+    # Off the event loop: the local executor downloads uploaded files from this backend
+    return await run_in_threadpool(
+        _trigger_staging_task,
         integrity_link=integrity_link,
         staging_table_name=staging_table_name,
         source=import_source.source or "",
