@@ -42,6 +42,7 @@
 
     <app-data-source-selector
       [sourceDatabases]="sourceDatabaseStore.sourceDatabases()"
+      [sourceSchemas]="sourceDatabaseStore.schemas()"
       [initialDatabaseSource]="initialDatabaseSource()"
       [initialApiSource]="initialApiSource()"
       (sourceChanged)="onSourceChanged($event)"

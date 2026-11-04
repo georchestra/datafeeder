@@ -100,6 +100,7 @@
   "import.dataSource.database.schema": "",
   "import.dataSource.database.select": "",
   "import.dataSource.database.table": "",
+  "import.dataSource.database.unreachable": "",
   "import.dataSource.error": "",
   "import.dataSource.error.extent": "",
   "import.dataSource.ftp.host": "",

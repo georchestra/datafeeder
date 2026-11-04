@@ -100,6 +100,7 @@
   "import.dataSource.database.schema": "Schema",
   "import.dataSource.database.select": "Select the database",
   "import.dataSource.database.table": "Table",
+  "import.dataSource.database.unreachable": "The source database {key} is unreachable",
   "import.dataSource.error": "Error",
   "import.dataSource.error.extent": "An error occurred that prevents the map preview. Did you choose the correct projection?",
   "import.dataSource.ftp.host": "Host",
