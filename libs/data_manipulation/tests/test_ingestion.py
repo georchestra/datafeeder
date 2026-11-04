@@ -24,8 +24,8 @@ from data_manipulation.ingestion import (
     _detect_shapefile_encoding,  # type: ignore[reportPrivateUsage]
     _list_layers,  # type: ignore[reportPrivateUsage]
     _normalize_oapif_url,  # type: ignore[reportPrivateUsage]
-    _reject_multi_layer_source,  # type: ignore[reportPrivateUsage]
     _resolve_zip_source,  # type: ignore[reportPrivateUsage]
+    _select_layer,  # type: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
     ingest_data_from_ftp_into_postgis,
     ingest_data_from_ogc_service_into_postgis,
@@ -37,7 +37,7 @@ from data_manipulation.ingestion import (
 @pytest.fixture(autouse=True)
 def layers() -> Iterator[MagicMock]:
     """Stand in for ogrinfo: a single-layer source unless a test says otherwise."""
-    with patch("data_manipulation.ingestion._list_layers", return_value=["layer"]) as mock:
+    with patch("data_manipulation.ingestion._list_layers", return_value={"layer": True}) as mock:
         yield mock
 
 
@@ -236,21 +236,30 @@ class TestResolveZipSource:
         assert f"/vsizip/{archive}" in mock_run.call_args[0][0]
 
 
-def _ogrinfo(layer_names: list[str]) -> subprocess.CompletedProcess[str]:
-    stdout = json.dumps({"driverShortName": "GPKG", "layers": [{"name": n} for n in layer_names]})
+def _ogrinfo(layers: dict[str, bool]) -> subprocess.CompletedProcess[str]:
+    """ogrinfo -json output listing *layers* (name -> has a geometry)."""
+    stdout = json.dumps(
+        {
+            "driverShortName": "GPKG",
+            "layers": [
+                {"name": name, "geometryFields": [{"name": "geom"}] if spatial else []}
+                for name, spatial in layers.items()
+            ],
+        }
+    )
     return subprocess.CompletedProcess(args=["ogrinfo"], returncode=0, stdout=stdout, stderr="")
 
 
 class TestListLayers:
     @patch("data_manipulation.ingestion.subprocess.run")
-    def test_returns_layer_names(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = _ogrinfo(["zones_calmes", "troncons"])
-        assert _list_layers("/tmp/multi.gpkg") == ["zones_calmes", "troncons"]
+    def test_tells_spatial_layers_apart(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _ogrinfo({"mairies": True, "layer_styles": False})
+        assert _list_layers("/tmp/qgis.gpkg") == {"mairies": True, "layer_styles": False}
 
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_skips_counts_and_extents(self, mock_run: MagicMock) -> None:
         # Either can require a full scan of a multi-GB source.
-        mock_run.return_value = _ogrinfo(["a"])
+        mock_run.return_value = _ogrinfo({"a": True})
         _list_layers("/tmp/data.geojson")
         cmd = mock_run.call_args[0][0]
         assert cmd[0] == "ogrinfo"
@@ -282,17 +291,54 @@ class TestListLayers:
             _list_layers("/tmp/data.gpkg")
 
 
-class TestRejectMultiLayerSource:
-    def test_single_layer_is_accepted(self, layers: MagicMock) -> None:
-        layers.return_value = ["mairies"]
-        _reject_multi_layer_source("/tmp/one.gpkg")
+class TestSelectLayer:
+    def test_single_layer_is_selected(self, layers: MagicMock) -> None:
+        layers.return_value = {"mairies": True}
+        assert _select_layer("/tmp/one.gpkg") == "mairies"
 
     def test_multiple_layers_raise_instead_of_losing_data(self, layers: MagicMock) -> None:
         # ogr2ogr -nln -overwrite would keep only the last layer.
-        layers.return_value = ["zones_calmes", "troncons"]
+        layers.return_value = {"zones_calmes": True, "troncons": True}
         with pytest.raises(Exception, match="multiple layers") as excinfo:
-            _reject_multi_layer_source("/tmp/multi.gpkg")
+            _select_layer("/tmp/multi.gpkg")
         assert "zones_calmes" in str(excinfo.value) and "troncons" in str(excinfo.value)
+
+    def test_qgis_layer_styles_table_is_ignored(self, layers: MagicMock) -> None:
+        # Added by QGIS when saving the style in the GeoPackage: no geometry.
+        layers.return_value = {"mairies": True, "layer_styles": False}
+        assert _select_layer("/tmp/qgis.gpkg") == "mairies"
+
+    def test_single_attribute_table_is_selected(self, layers: MagicMock) -> None:
+        layers.return_value = {"communes": False}
+        assert _select_layer("/tmp/table.gpkg") == "communes"
+
+    def test_several_attribute_tables_raise(self, layers: MagicMock) -> None:
+        layers.return_value = {"communes": False, "layer_styles": False}
+        with pytest.raises(Exception, match="multiple layers"):
+            _select_layer("/tmp/tables.gpkg")
+
+    def test_empty_source_raises(self, layers: MagicMock) -> None:
+        layers.return_value = {}
+        with pytest.raises(Exception, match="no layer"):
+            _select_layer("/tmp/empty.gpkg")
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_ogr2ogr_imports_only_the_selected_layer(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine
+    ) -> None:
+        # Without it, ogr2ogr would also copy layer_styles over the data.
+        mock_run.return_value = _completed()
+        layers.return_value = {"mairies": True, "layer_styles": False}
+        ingest_file_with_ogr2ogr("/tmp/qgis.gpkg", "mairies", engine, schema="staging")
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("/tmp/qgis.gpkg") + 1] == "mairies"
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_no_source_layer_for_other_formats(self, mock_run: MagicMock, engine: Engine) -> None:
+        mock_run.return_value = _completed()
+        ingest_file_with_ogr2ogr("/tmp/data.geojson", "data", engine, schema="staging")
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("/tmp/data.geojson") + 1] == "-nln"
 
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_ogr2ogr_is_not_run_when_layers_cannot_be_listed(
@@ -307,7 +353,7 @@ class TestRejectMultiLayerSource:
     def test_ogr2ogr_is_not_run_for_a_multi_layer_source(
         self, mock_run: MagicMock, layers: MagicMock, engine: Engine
     ) -> None:
-        layers.return_value = ["a", "b"]
+        layers.return_value = {"a": True, "b": True}
         with pytest.raises(Exception, match="multiple layers"):
             ingest_file_with_ogr2ogr("/tmp/multi.gpkg", "multi", engine, schema="staging")
         mock_run.assert_not_called()
@@ -318,7 +364,7 @@ class TestRejectMultiLayerSource:
     ) -> None:
         # Checked on the /vsizip/ path, so a multi-layer GeoPackage in a ZIP is caught.
         archive = _make_zip(tmp_path / "multi.zip", ["multi.gpkg"])
-        layers.return_value = ["a", "b"]
+        layers.return_value = {"a": True, "b": True}
         with pytest.raises(Exception, match="multiple layers"):
             ingest_file_with_ogr2ogr(archive, "multi", engine, schema="staging")
         layers.assert_called_once_with(f"/vsizip/{archive}")
@@ -338,7 +384,7 @@ class TestRejectMultiLayerSource:
     def test_geopackage_extension_is_case_insensitive(
         self, mock_run: MagicMock, layers: MagicMock, engine: Engine
     ) -> None:
-        layers.return_value = ["a", "b"]
+        layers.return_value = {"a": True, "b": True}
         with pytest.raises(Exception, match="multiple layers"):
             ingest_file_with_ogr2ogr("/tmp/MULTI.GPKG", "multi", engine, schema="staging")
 
@@ -356,7 +402,7 @@ class TestRejectMultiLayerSource:
         self, mock_run: MagicMock, layers: MagicMock, engine: Engine
     ) -> None:
         mock_run.return_value = _completed()
-        layers.return_value = ["a", "b"]
+        layers.return_value = {"a": True, "b": True}
         ingest_file_with_ogr2ogr(
             "/tmp/multi.gpkg", "multi", engine, schema="staging", reject_multi_layer=False
         )

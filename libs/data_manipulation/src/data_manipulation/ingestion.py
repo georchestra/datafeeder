@@ -402,11 +402,11 @@ def _resolve_zip_source(file_path: str) -> str:
     return source
 
 
-def _list_layers(source: str) -> list[str]:
-    """Return the names of the vector layers GDAL finds in *source*.
+def _list_layers(source: str) -> dict[str, bool]:
+    """Map each layer GDAL finds in *source* to whether it has a geometry.
 
-    Raises when ogrinfo cannot list them: skipping the check would let ogr2ogr
-    silently keep only the last layer (see :func:`_reject_multi_layer_source`).
+    Raises when ogrinfo cannot list them: going on without knowing the layer to
+    import would let ogr2ogr silently keep only the last one (see :func:`_select_layer`).
     """
     # Counts and extents can require a full scan of the source: skip them, only
     # the layer names are needed.
@@ -421,7 +421,10 @@ def _list_layers(source: str) -> list[str]:
         logger.error("ogrinfo failed on %s: %s", source, stderr)
         raise Exception(f"Could not read the layers of {Path(source).name}: {stderr}")
     try:
-        return [layer["name"] for layer in json.loads(result.stdout)["layers"]]
+        return {
+            layer["name"]: bool(layer.get("geometryFields"))
+            for layer in json.loads(result.stdout)["layers"]
+        }
     except (ValueError, KeyError, TypeError) as exc:
         logger.error("Could not parse ogrinfo output for %s: %s", source, exc)
         raise Exception(f"Could not read the layers of {Path(source).name}") from exc
@@ -440,20 +443,28 @@ def _is_geopackage(file_path: str) -> bool:
     return Path(file_path).suffix.lower() == ".gpkg"
 
 
-def _reject_multi_layer_source(source: str) -> None:
-    """Raise when the GDAL *source* holds more than one layer.
+def _select_layer(source: str) -> str:
+    """Return the only layer of the GDAL *source* to import, raise if there are several.
 
-    Same data loss as for multi-dataset archives (see :func:`_resolve_zip_source`):
-    ``-nln`` funnels every layer into one table and ``-overwrite`` keeps only the
-    last one.
+    Without a source layer, ogr2ogr copies every layer: ``-nln`` funnels them into one
+    table and ``-overwrite`` keeps only the last one, the same data loss as for
+    multi-dataset archives (see :func:`_resolve_zip_source`).
+
+    Tables without geometry are ignored when there is a spatial layer: QGIS adds a
+    ``layer_styles`` table to a GeoPackage when saving the style in the datasource,
+    which would otherwise overwrite the data.
     """
     layers = _list_layers(source)
-    if len(layers) > 1:
+    candidates = [name for name, spatial in layers.items() if spatial] or list(layers)
+    if not candidates:
+        raise Exception(f"{Path(source).name} contains no layer")
+    if len(candidates) > 1:
         raise Exception(
-            f"{Path(source).name} contains multiple layers ({', '.join(sorted(layers))}). "
+            f"{Path(source).name} contains multiple layers ({', '.join(sorted(candidates))}). "
             "Only single-layer sources are supported: export the layer to import "
             "and upload it on its own."
         )
+    return candidates[0]
 
 
 def ingest_file_with_ogr2ogr(
@@ -473,8 +484,9 @@ def ingest_file_with_ogr2ogr(
         table_name: Target table name in PostGIS
         engine: SQLAlchemy engine for the target PostGIS database
         schema: Target schema (default: public)
-        reject_multi_layer: Raise when a GeoPackage holds several layers instead of
-            letting ogr2ogr keep only the last one (see :func:`_reject_multi_layer_source`)
+        reject_multi_layer: Import only the layer of a GeoPackage, and raise when it
+            holds several, instead of letting ogr2ogr keep only the last one (see
+            :func:`_select_layer`)
     """
     validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
     validate_schema_name(schema)
@@ -484,8 +496,7 @@ def ingest_file_with_ogr2ogr(
     check_layers = reject_multi_layer and _is_geopackage(file_path)
     file_path = _resolve_zip_source(file_path)
     # After resolving the path, so a multi-layer GeoPackage inside a ZIP is caught too.
-    if check_layers:
-        _reject_multi_layer_source(file_path)
+    source_layer = _select_layer(file_path) if check_layers else None
 
     pg_connection = _build_pg_connection_string(engine)
 
@@ -495,6 +506,8 @@ def ingest_file_with_ogr2ogr(
         "PostgreSQL",
         pg_connection,
         file_path,
+        # Positional source layer: only this one is copied
+        *([source_layer] if source_layer else []),
         "-nln",
         f"{schema}.{table_name}",
         "-overwrite",
