@@ -425,13 +425,25 @@ def _list_layers(source: str) -> list[str] | None:
         return None
 
 
+def _is_geopackage(file_path: str) -> bool:
+    """Whether *file_path* is a GeoPackage, or a ZIP archive holding one.
+
+    Only GeoPackages can hold several layers among the supported formats: checking
+    the others would cost a second read of the whole file (e.g. a large GeoJSON) for
+    nothing.
+    """
+    if zipfile.is_zipfile(file_path):
+        with zipfile.ZipFile(file_path) as archive:
+            return any(Path(name).suffix.lower() == ".gpkg" for name in archive.namelist())
+    return Path(file_path).suffix.lower() == ".gpkg"
+
+
 def _reject_multi_layer_source(source: str) -> None:
     """Raise when the GDAL *source* holds more than one layer.
 
     Same data loss as for multi-dataset archives (see :func:`_resolve_zip_source`):
     ``-nln`` funnels every layer into one table and ``-overwrite`` keeps only the
-    last one. Relies on GDAL, so any format is covered (GeoPackage, a directory of
-    shapefiles, a GeoPackage inside a ZIP...).
+    last one.
     """
     layers = _list_layers(source)
     if layers is not None and len(layers) > 1:
@@ -459,17 +471,18 @@ def ingest_file_with_ogr2ogr(
         table_name: Target table name in PostGIS
         engine: SQLAlchemy engine for the target PostGIS database
         schema: Target schema (default: public)
-        reject_multi_layer: Raise when the source holds several layers instead of
+        reject_multi_layer: Raise when a GeoPackage holds several layers instead of
             letting ogr2ogr keep only the last one (see :func:`_reject_multi_layer_source`)
     """
     validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
     validate_schema_name(schema)
 
-    # Detect before rewriting the path: the helper reads the archive itself.
+    # Detect before rewriting the path: the helpers read the archive itself.
     shape_encoding = _detect_shapefile_encoding(file_path)
+    check_layers = reject_multi_layer and _is_geopackage(file_path)
     file_path = _resolve_zip_source(file_path)
     # After resolving the path, so a multi-layer GeoPackage inside a ZIP is caught too.
-    if reject_multi_layer:
+    if check_layers:
         _reject_multi_layer_source(file_path)
 
     pg_connection = _build_pg_connection_string(engine)

@@ -315,6 +315,34 @@ class TestRejectMultiLayerSource:
             ingest_file_with_ogr2ogr(archive, "multi", engine, schema="staging")
         layers.assert_called_once_with(f"/vsizip/{archive}")
 
+    @pytest.mark.parametrize("path", ["/tmp/big.geojson", "/tmp/data.csv", "/tmp/places.shp"])
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_only_geopackages_are_checked(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine, path: str
+    ) -> None:
+        # Opening a large GeoJSON means reading all of it: skip formats with one layer.
+        mock_run.return_value = _completed()
+        ingest_file_with_ogr2ogr(path, "data", engine, schema="staging")
+        layers.assert_not_called()
+        mock_run.assert_called_once()
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_geopackage_extension_is_case_insensitive(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine
+    ) -> None:
+        layers.return_value = ["a", "b"]
+        with pytest.raises(Exception, match="multiple layers"):
+            ingest_file_with_ogr2ogr("/tmp/MULTI.GPKG", "multi", engine, schema="staging")
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_zipped_shapefile_is_not_checked(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine, tmp_path: Path
+    ) -> None:
+        mock_run.return_value = _completed()
+        archive = _make_zip(tmp_path / "places.zip", _SHAPEFILE_MEMBERS)
+        ingest_file_with_ogr2ogr(archive, "places", engine, schema="staging")
+        layers.assert_not_called()
+
     @patch("data_manipulation.ingestion.subprocess.run")
     def test_check_can_be_disabled(
         self, mock_run: MagicMock, layers: MagicMock, engine: Engine
