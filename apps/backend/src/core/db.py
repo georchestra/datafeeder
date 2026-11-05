@@ -25,6 +25,7 @@ source_db_key, _source_db = next(
     ),
     (None, None),
 )
+source_db_schema = _source_db.schema_name if _source_db else None
 
 
 @lru_cache

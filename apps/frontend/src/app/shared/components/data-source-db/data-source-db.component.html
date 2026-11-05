@@ -36,6 +36,7 @@
         [showTitle]="false"
         [choices]="schemaChoices()"
         [selected]="formData().schema"
+        [disabled]="schemaLocked()"
         (selectValue)="selectSchema($any($event))"
       ></gn-ui-dropdown-selector>
     </div>

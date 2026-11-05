@@ -298,4 +298,21 @@ describe('DataSourceDbComponent', () => {
       title: ''
     })
   })
+
+  it('should preselect and lock the schema configured on the database', () => {
+    const fixture = TestBed.createComponent(DataSourceDbComponent)
+    const component = fixture.componentInstance
+    fixture.componentRef.setInput('sourceDatabases', [
+      { key: 'DB_1', type: 'copy', schema_name: 'geo' },
+      { key: 'DB_2', type: 'copy' }
+    ])
+
+    component.select('DB_1')
+    expect(component.formData().schema).toBe('geo')
+    expect(component.schemaLocked()).toBe(true)
+
+    component.select('DB_2')
+    expect(component.formData().schema).toBe('')
+    expect(component.schemaLocked()).toBe(false)
+  })
 })

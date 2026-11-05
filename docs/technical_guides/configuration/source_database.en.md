@@ -28,6 +28,9 @@ SOURCE_DATABASES={"SOURCE_DB_1": {"type": "copy", "connection_string": "postgres
 The key (`SOURCE_DB_1` above) is arbitrary but must be unique and must match the Airflow connection ID
 configured in the next step.
 
+An optional `schema` restricts the entry to one schema: the wizard preselects it and doesn't let the user change
+it, and staging rejects tables from other schemas, e.g. `{"type": "copy", "connection_string": "...", "schema": "geo"}`.
+
 !!! warning "Current limitation"
 
     Only the first `copy` entry of `SOURCE_DATABASES` is used by the backend today (see `apps/backend/src/core/db.py`).
@@ -142,6 +145,8 @@ SOURCE_DATABASES={"PATRIMOINE": {"type": "direct_access", "connection_string": "
 - `roles` lists the geOrchestra roles (without the `ROLE_` prefix) allowed to create datasets on this database;
   when empty, all users can.
 - `label` is the name shown in the wizard (optional, the key is shown when absent).
+- `schema` restricts the entry to one schema, preselected and locked in the wizard (optional, all schemas
+  when absent).
 
 Restart the backend so it picks up the new value.
 

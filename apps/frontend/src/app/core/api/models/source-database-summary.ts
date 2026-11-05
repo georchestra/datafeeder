@@ -7,5 +7,6 @@
 export interface SourceDatabaseSummary {
   key: string
   label?: string | null
+  schema_name?: string | null
   type: 'copy' | 'direct_access'
 }

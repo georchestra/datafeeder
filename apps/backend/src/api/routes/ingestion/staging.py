@@ -26,7 +26,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, GroupIdsDep
 from src.core.callback import build_callback_url
 from src.core.config import get_staging_schema
-from src.core.db import data_engine, source_db_key, source_engine
+from src.core.db import data_engine, source_db_key, source_db_schema, source_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
 from src.core.run_ids import make_initial_staging_run_id, make_staging_rerun_id
@@ -204,6 +204,12 @@ async def _process_import_source(
 
             if not source_engine or not source_db_key:
                 raise HTTPException(status_code=503, detail="No source database configured")
+
+            if source_db_schema and db_schema != source_db_schema:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Schema '{db_schema}' is not allowed for this source database",
+                )
 
             if not schema_exists(source_engine, db_schema):
                 raise HTTPException(

@@ -195,6 +195,30 @@ async def test_rejects_table_name_geoserver_would_rename() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("source_db")
+async def test_accepts_the_configured_schema(settings: MagicMock) -> None:
+    settings.SOURCE_DATABASES["PATRIMOINE"].schema_name = "geo"
+    session = _session()
+
+    await _create(session, _geoserver(), MagicMock())
+
+    session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("source_db")
+async def test_rejects_a_schema_other_than_the_configured_one(settings: MagicMock) -> None:
+    settings.SOURCE_DATABASES["PATRIMOINE"].schema_name = "geo"
+    session = _session()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _create(session, _geoserver(), MagicMock(), _request(schema_name="other"))
+
+    assert exc_info.value.status_code == 422
+    session.add.assert_not_called()
+
+
+@pytest.mark.asyncio
 @pytest.mark.usefixtures("settings", "source_db")
 async def test_rejects_missing_table() -> None:
     with patch(f"{MODULE}.table_exists", return_value=False):
