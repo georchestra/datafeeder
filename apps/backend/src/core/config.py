@@ -225,8 +225,28 @@ class Settings(BaseSettings):
 
     METADATA_ADMIN_DEFAULT_GROUP_NAME: str = "sample"
 
-    # Console
+    # GeoNetwork authentication: "basic" (GEONETWORK_USERNAME/PASSWORD) or "keycloak"
+    # (bearer token of the KEYCLOAK_CLIENT_ID service account, for GeoNetwork's jwt-headers
+    # security mode)
+    GEONETWORK_AUTH: Literal["basic", "keycloak"] = "basic"
+
+    # Directory of users / organizations / roles: "console" or "keycloak"
+    DIRECTORY_PROVIDER: Literal["console", "keycloak"] = "console"
+
+    # Console (DIRECTORY_PROVIDER=console)
     CONSOLE_INTERNAL_URL: str = "http://localhost:8085/console"
+
+    # Keycloak (DIRECTORY_PROVIDER=keycloak and/or GEONETWORK_AUTH=keycloak)
+    KEYCLOAK_INTERNAL_URL: str = "http://localhost:8180"
+    KEYCLOAK_REALM: str = "georchestra"
+    # Confidential client with service account enabled
+    KEYCLOAK_CLIENT_ID: str = "datafeeder"
+    KEYCLOAK_CLIENT_SECRET: str = ""
+    # Path of the group whose children are the organizations ("" = top-level groups)
+    KEYCLOAK_ORG_GROUP_PATH: str = ""
+    # Group attributes holding the organization long name and email
+    KEYCLOAK_ORG_NAME_ATTRIBUTE: str = "o"
+    KEYCLOAK_ORG_MAIL_ATTRIBUTE: str = "mail"
 
     # Metadata groups (for authorization UI)
     METADATA_GROUPS_LABEL_FILTER_REGEX: str = ""

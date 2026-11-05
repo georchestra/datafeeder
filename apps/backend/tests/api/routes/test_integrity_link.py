@@ -204,7 +204,9 @@ class TestUpsertIntegrityLinkRule:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console_cls.return_value.get_all_roles.side_effect = ConsoleServiceError(
@@ -385,7 +387,9 @@ class TestDeleteIntegrityLinkRule:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console_cls.return_value.get_all_roles.side_effect = ConsoleServiceError(
@@ -471,7 +475,9 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -532,7 +538,9 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ROLE"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -632,7 +640,9 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -690,7 +700,9 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -752,7 +764,9 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -814,7 +828,9 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -885,7 +901,9 @@ class TestSyncAfterDeleteRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=mock_settings,
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -988,7 +1006,9 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console = MagicMock()
@@ -1095,7 +1115,9 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console = MagicMock()
@@ -1147,7 +1169,9 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console = MagicMock()
@@ -1201,7 +1225,9 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console = MagicMock()
@@ -1259,7 +1285,9 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console = MagicMock()
@@ -1317,7 +1345,9 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService"),
         ):
             mock_console = MagicMock()
@@ -1374,7 +1404,9 @@ class TestSyncDataSharingAfterUpsert:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService"),
         ):
             # role-uuid-unknown is not in the returned list
@@ -1585,7 +1617,9 @@ class TestTogglePublishGsIntegrityLink:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console.get_all_roles.return_value = []
@@ -1646,7 +1680,9 @@ class TestTogglePublishGsIntegrityLink:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console.get_all_roles.return_value = []
@@ -1715,7 +1751,9 @@ class TestTogglePublishGsIntegrityLink:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console.get_all_roles.return_value = [{"id": "group-uuid-1", "name": "GROUP_1"}]
@@ -1809,7 +1847,9 @@ class TestTogglePublishGsIntegrityLink:
 
         with (
             patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
+            patch(
+                "src.api.routes.ingestion.integrity_link.get_directory_service"
+            ) as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console.get_all_roles.return_value = []

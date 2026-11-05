@@ -3,11 +3,12 @@ from typing import Any
 import httpx
 
 from src.core.logging import get_logger
+from src.services.directory_service import DirectoryServiceError
 
 logger = get_logger()
 
 
-class ConsoleServiceError(Exception):
+class ConsoleServiceError(DirectoryServiceError):
     """Raised when the geOrchestra Console API is unreachable or returns an error."""
 
 

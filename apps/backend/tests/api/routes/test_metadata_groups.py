@@ -24,7 +24,7 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.metadata_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -49,7 +49,7 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ROLE"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.metadata_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -74,7 +74,7 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ORG", filter_regex="^Campto"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.metadata_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -94,7 +94,7 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.metadata_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -112,7 +112,7 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.metadata_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -133,7 +133,7 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ORG", filter_regex="[invalid"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.metadata_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console

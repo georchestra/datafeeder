@@ -2,10 +2,9 @@
 
 from typing import Any
 
-from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
-from src.services.console_service import ConsoleService
+from src.services.directory import get_directory_service
 from src.services.georchestra import GeorchestraContext
 from src.services.metadata_service import MetadataService
 
@@ -21,7 +20,7 @@ def publish_new_record(
     """Create and publish the metadata record of a dataset, set its metadata_id, then give the
     record to the dataset owner (soft failure).
 
-    The record contact is the dataset organization, as found in the console, else the author.
+    The record contact is the dataset organization, as found in the directory, else the author.
 
     Args:
         layer_urls: GeoServer service URLs (GeoServerService.build_layer_urls_for_metadata),
@@ -30,9 +29,7 @@ def publish_new_record(
     Raises:
         Exception: If the record cannot be created
     """
-    organization = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).get_organization(
-        integrity_link.integrity_organization
-    )
+    organization = get_directory_service().get_organization(integrity_link.integrity_organization)
     org_name = organization.get("name") if organization else None
     contact_email = (organization.get("mail") if organization else None) or author.email
 

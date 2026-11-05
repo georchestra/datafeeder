@@ -23,7 +23,7 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.data_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -46,7 +46,7 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(filter_regex="^ROLE_ADMIN"),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.data_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -66,7 +66,7 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.data_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -84,7 +84,7 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.data_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -101,7 +101,7 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.data_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
@@ -122,7 +122,7 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(filter_regex="[invalid"),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
+            patch("src.api.routes.data_groups.get_directory_service") as mock_console_cls,
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
