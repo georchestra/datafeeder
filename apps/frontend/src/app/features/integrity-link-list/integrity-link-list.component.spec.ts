@@ -480,6 +480,19 @@ describe('IntegrityLinkListComponent', () => {
       })
     })
 
+    it('should navigate to /:id/edit for direct access link without final table', () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      const navigateSpy = vi.spyOn(router, 'navigate')
+      flushPendingRequests()
+
+      component.onRowClick(
+        createMockItem('link-da', 'OWNER', false, 'direct_access')
+      )
+
+      expect(navigateSpy).toHaveBeenCalledWith(['/', 'link-da', 'edit'])
+    })
+
     it('should navigate to /:id/edit for empty-type link even without final table', async () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)
       const component = fixture.componentInstance

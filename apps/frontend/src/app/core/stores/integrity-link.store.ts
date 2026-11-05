@@ -5,6 +5,7 @@ import { getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet } from '../api
 
 export const EMPTY_IMPORT_TYPE: ImportType = 'empty'
 export const PREFILLED_IMPORT_TYPE: ImportType = 'prefilled'
+export const DIRECT_ACCESS_IMPORT_TYPE: ImportType = 'direct_access'
 
 @Injectable({ providedIn: 'root' })
 export class IntegrityLinkStore {

@@ -48,10 +48,18 @@ import { RecurrenceLabelPipe } from '../../shared/pipes/recurrence-label.pipe'
 import { OperationToastStore } from '../../core/stores/operation-toast.store'
 import {
   EMPTY_IMPORT_TYPE,
+  DIRECT_ACCESS_IMPORT_TYPE,
   PREFILLED_IMPORT_TYPE
 } from '../../core/stores/integrity-link.store'
 import { IntlinkNavService } from '../../core/layout/intlink-nav.service'
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
+import type { ImportType } from '../../core/api/models'
+
+const NO_TABLE_IMPORT_TYPES: ImportType[] = [
+  EMPTY_IMPORT_TYPE,
+  PREFILLED_IMPORT_TYPE,
+  DIRECT_ACCESS_IMPORT_TYPE
+]
 
 marker('integrityLinks.view')
 marker('integrityLinks.visibility.open')
@@ -244,13 +252,16 @@ export class IntegrityLinkListComponent {
     this.loadIntegrityLinks(true)
   }
 
+  isDraft(link: IntegrityLinkListItem): boolean {
+    return (
+      !link.has_final_table &&
+      !NO_TABLE_IMPORT_TYPES.includes(link.source_import_type)
+    )
+  }
+
   onRowClick(link: IntegrityLinkListItem): void {
     if (this.isReadOnly(link)) return
-    if (
-      !link.has_final_table &&
-      link.source_import_type !== EMPTY_IMPORT_TYPE &&
-      link.source_import_type !== PREFILLED_IMPORT_TYPE
-    ) {
+    if (this.isDraft(link)) {
       this.router.navigate(['/', 'import', link.id], {
         queryParams: { step: 2 }
       })
