@@ -41,7 +41,12 @@ from sqlalchemy import MetaData, Table
 
 from src.core.config import get_staging_schema
 from src.core.constants import DEFAULT_DATA_SCHEMA
-from src.core.db import data_engine, datafeeder_engine, source_db_key, source_engine
+from src.core.db import (
+    data_engine,
+    datafeeder_engine,
+    get_copy_source_database,
+    get_source_engine,
+)
 from src.core.encryption import decrypt_basic_auth
 from src.core.logging import get_logger
 from src.core.task_executor import BaseTaskExecutor, ProcessSource, TaskRunInfo, TaskStatus
@@ -170,7 +175,7 @@ class LocalTaskExecutor(BaseTaskExecutor):
 
     def _parse_db_uri(self, source: str) -> tuple[str, str, str]:
         db_key, schema, table = parse_db_uri(source)
-        if db_key != source_db_key or source_engine is None:
+        if get_copy_source_database(db_key) is None:
             raise ValueError(f"Unknown or unconfigured source database key: '{db_key}'")
         return db_key, schema, table
 
@@ -196,8 +201,8 @@ class LocalTaskExecutor(BaseTaskExecutor):
                 auth = self._decrypt_auth(encrypted_credentials)
                 ingest_data_from_ftp_into_postgis(source, table_name, data_engine, schema, auth)
             case "DATABASE":
-                _, source_schema, source_table = self._parse_db_uri(source)
-                engine = source_engine
+                db_key, source_schema, source_table = self._parse_db_uri(source)
+                engine = get_source_engine(db_key)
                 assert engine is not None  # validated by _parse_db_uri
                 ingest_data_from_database_into_postgis(
                     source_schema=source_schema,

@@ -1,5 +1,6 @@
 """Tests for database source type in staging endpoints."""
 
+from collections.abc import Callable
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -8,6 +9,7 @@ import pytest
 from data_manipulation.constants import DB_URI_PREFIX
 from data_manipulation.validators import validate_schema_name, validate_table_name
 from fastapi import HTTPException
+from pydantic import PostgresDsn
 
 from src.api.routes.ingestion.staging import (
     _process_import_source,  # pyright: ignore[reportPrivateUsage]
@@ -15,7 +17,16 @@ from src.api.routes.ingestion.staging import (
     edit_staging,
     get_staging_metadata,
 )
+from src.core.config import CopySourceDatabase
 from src.models.data_import import ImportType
+
+
+def _copy_db(schema: str | None = None) -> Callable[[str | None], CopySourceDatabase | None]:
+    """get_copy_source_database stand-in knowing SOURCE_DB_1 only."""
+    db = CopySourceDatabase(
+        type="copy", connection_string=PostgresDsn("postgresql://u:p@h/db"), schema=schema
+    )
+    return lambda key: db if key == "SOURCE_DB_1" else None
 
 
 class TestDbIdentifierValidation:
@@ -74,8 +85,8 @@ class TestProcessImportSourceDatabase:
     @pytest.mark.asyncio
     @patch("src.api.routes.ingestion.staging.table_exists", return_value=True)
     @patch("src.api.routes.ingestion.staging.schema_exists", return_value=True)
-    @patch("src.api.routes.ingestion.staging.source_db_key", new="SOURCE_DB_1")
-    @patch("src.api.routes.ingestion.staging.source_engine")
+    @patch("src.api.routes.ingestion.staging.get_copy_source_database", new=_copy_db())
+    @patch("src.api.routes.ingestion.staging.get_source_engine")
     async def test_valid_database_source(
         self,
         mock_engine: MagicMock,
@@ -84,6 +95,7 @@ class TestProcessImportSourceDatabase:
     ) -> None:
         result = await _process_import_source(
             type=ImportType.DATABASE,
+            db_key="SOURCE_DB_1",
             db_schema="geo",
             db_table="rivers",
         )
@@ -95,8 +107,8 @@ class TestProcessImportSourceDatabase:
 
     @pytest.mark.asyncio
     @patch("src.api.routes.ingestion.staging.schema_exists", return_value=False)
-    @patch("src.api.routes.ingestion.staging.source_db_key", new="SOURCE_DB_1")
-    @patch("src.api.routes.ingestion.staging.source_engine")
+    @patch("src.api.routes.ingestion.staging.get_copy_source_database", new=_copy_db())
+    @patch("src.api.routes.ingestion.staging.get_source_engine")
     async def test_nonexistent_schema_returns_422(
         self,
         mock_engine: MagicMock,
@@ -105,6 +117,7 @@ class TestProcessImportSourceDatabase:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
                 type=ImportType.DATABASE,
+                db_key="SOURCE_DB_1",
                 db_schema="nonexistent",
                 db_table="rivers",
             )
@@ -112,13 +125,13 @@ class TestProcessImportSourceDatabase:
         assert "Schema 'nonexistent' not found" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
-    @patch("src.api.routes.ingestion.staging.source_db_schema", new="geo")
-    @patch("src.api.routes.ingestion.staging.source_db_key", new="SOURCE_DB_1")
-    @patch("src.api.routes.ingestion.staging.source_engine")
+    @patch("src.api.routes.ingestion.staging.get_copy_source_database", new=_copy_db("geo"))
+    @patch("src.api.routes.ingestion.staging.get_source_engine")
     async def test_schema_other_than_configured_returns_422(self, mock_engine: MagicMock) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
                 type=ImportType.DATABASE,
+                db_key="SOURCE_DB_1",
                 db_schema="admin",
                 db_table="rivers",
             )
@@ -128,8 +141,8 @@ class TestProcessImportSourceDatabase:
     @pytest.mark.asyncio
     @patch("src.api.routes.ingestion.staging.table_exists", return_value=False)
     @patch("src.api.routes.ingestion.staging.schema_exists", return_value=True)
-    @patch("src.api.routes.ingestion.staging.source_db_key", new="SOURCE_DB_1")
-    @patch("src.api.routes.ingestion.staging.source_engine")
+    @patch("src.api.routes.ingestion.staging.get_copy_source_database", new=_copy_db())
+    @patch("src.api.routes.ingestion.staging.get_source_engine")
     async def test_nonexistent_table_returns_422(
         self,
         mock_engine: MagicMock,
@@ -139,6 +152,7 @@ class TestProcessImportSourceDatabase:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
                 type=ImportType.DATABASE,
+                db_key="SOURCE_DB_1",
                 db_schema="geo",
                 db_table="nonexistent",
             )
@@ -146,10 +160,34 @@ class TestProcessImportSourceDatabase:
         assert "Table 'nonexistent' not found" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
+    async def test_missing_db_key_returns_400(self) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await _process_import_source(
+                type=ImportType.DATABASE,
+                db_schema="geo",
+                db_table="rivers",
+            )
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    @patch("src.api.routes.ingestion.staging.get_copy_source_database", new=_copy_db())
+    async def test_unknown_db_key_returns_422(self) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await _process_import_source(
+                type=ImportType.DATABASE,
+                db_key="PATRIMOINE",
+                db_schema="geo",
+                db_table="rivers",
+            )
+        assert exc_info.value.status_code == 422
+        assert "Unknown copy source database 'PATRIMOINE'" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
     async def test_missing_schema_returns_400(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
                 type=ImportType.DATABASE,
+                db_key="SOURCE_DB_1",
                 db_schema=None,
                 db_table="rivers",
             )
@@ -160,6 +198,7 @@ class TestProcessImportSourceDatabase:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
                 type=ImportType.DATABASE,
+                db_key="SOURCE_DB_1",
                 db_schema="geo",
                 db_table=None,
             )
@@ -170,6 +209,7 @@ class TestProcessImportSourceDatabase:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
                 type=ImportType.DATABASE,
+                db_key="SOURCE_DB_1",
                 db_schema="Invalid",
                 db_table="rivers",
             )
@@ -180,6 +220,7 @@ class TestProcessImportSourceDatabase:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
                 type=ImportType.DATABASE,
+                db_key="SOURCE_DB_1",
                 db_schema="geo",
                 db_table="123bad",
             )
@@ -190,6 +231,7 @@ class TestProcessImportSourceDatabase:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
                 type=ImportType.DATABASE,
+                db_key="SOURCE_DB_1",
                 db_schema="",
                 db_table="rivers",
             )
@@ -407,8 +449,8 @@ class TestEditStagingDatabase:
     @patch("src.api.routes.ingestion.staging._generate_staging_table_name", return_value="stg_test")
     @patch("src.api.routes.ingestion.staging.table_exists", return_value=True)
     @patch("src.api.routes.ingestion.staging.schema_exists", return_value=True)
-    @patch("src.api.routes.ingestion.staging.source_db_key", new="SOURCE_DB_1")
-    @patch("src.api.routes.ingestion.staging.source_engine")
+    @patch("src.api.routes.ingestion.staging.get_copy_source_database", new=_copy_db())
+    @patch("src.api.routes.ingestion.staging.get_source_engine")
     async def test_edit_staging_with_database_type(
         self,
         mock_engine: MagicMock,
@@ -440,6 +482,7 @@ class TestEditStagingDatabase:
             session=mock_session,
             integrity_link_id=str(link_id),
             type=ImportType.DATABASE,
+            db_key="SOURCE_DB_1",
             url=None,
             file=None,
             auth_enabled=False,

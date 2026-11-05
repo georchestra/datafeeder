@@ -138,10 +138,13 @@ class TestLocalTaskExecutorDatabaseSource:
         executor = _sync_executor()
 
         with (
-            patch("src.services.executors.local_executor.source_db_key", "mydb"),
             patch(
-                "src.services.executors.local_executor.source_engine", MagicMock()
-            ) as mock_source_engine,
+                "src.services.executors.local_executor.get_copy_source_database",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "src.services.executors.local_executor.get_source_engine"
+            ) as mock_get_source_engine,
             patch(
                 "src.services.executors.local_executor.ingest_data_from_database_into_postgis"
             ) as mock_ingest,
@@ -159,7 +162,8 @@ class TestLocalTaskExecutorDatabaseSource:
             assert kwargs["source_schema"] == "public"
             assert kwargs["source_table"] == "mytable"
             assert kwargs["target_table"] == "stg_table"
-            assert kwargs["source_engine"] is mock_source_engine
+            assert kwargs["source_engine"] is mock_get_source_engine.return_value
+            mock_get_source_engine.assert_called_once_with("mydb")
 
             assert executor.get_task_status("staging_dag", "run-db-1").status == TaskStatus.SUCCESS
             mock_post.assert_called_once_with("https://ok.example.com", timeout=10)
@@ -187,8 +191,10 @@ class TestLocalTaskExecutorDatabaseSource:
         executor = _sync_executor()
 
         with (
-            patch("src.services.executors.local_executor.source_db_key", "otherdb"),
-            patch("src.services.executors.local_executor.source_engine", MagicMock()),
+            patch(
+                "src.services.executors.local_executor.get_copy_source_database",
+                return_value=None,
+            ),
             patch("src.services.executors.local_executor.requests.post") as mock_post,
         ):
             executor.trigger_staging_task(

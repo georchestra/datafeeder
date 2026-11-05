@@ -702,6 +702,42 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     await promise
   })
 
+  it('should call POST /import with the source database key for database source', async () => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.importData.set({
+      source: {
+        type: 'database',
+        dbKey: 'SOURCE_DB_2',
+        dbSchema: 'geo',
+        dbTable: 'rivers',
+        authEnabled: false
+      }
+    })
+
+    const promise = component.onConfigureDataset()
+
+    const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
+    const formData = req.request.body as FormData
+    expect(formData.get('type')).toBe('database')
+    expect(formData.get('db_key')).toBe('SOURCE_DB_2')
+    expect(formData.get('db_schema')).toBe('geo')
+    expect(formData.get('db_table')).toBe('rivers')
+
+    req.flush(mockImportResponse)
+
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    httpMock
+      .expectOne((r) =>
+        r.url.includes('/airflow/dags/test-dag-123/runs/test-run-456/status')
+      )
+      .flush(mockStatusFinished)
+
+    await promise
+  })
+
   it('should store dag_id and dag_run_id from import response', async () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance

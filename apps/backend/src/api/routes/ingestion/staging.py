@@ -26,7 +26,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from src.api.deps import DatafeederSessionDep, DataSessionDep, GeorchestraContextDep, GroupIdsDep
 from src.core.callback import build_callback_url
 from src.core.config import get_staging_schema
-from src.core.db import data_engine, source_db_key, source_db_schema, source_engine
+from src.core.db import data_engine, get_copy_source_database, get_source_engine
 from src.core.encryption import encrypt_basic_auth
 from src.core.logging import get_logger
 from src.core.run_ids import make_initial_staging_run_id, make_staging_rerun_id
@@ -125,6 +125,7 @@ async def _process_import_source(
     ftp_host: Optional[str] = None,
     ftp_port: Optional[int] = None,
     ftp_path: Optional[str] = None,
+    db_key: Optional[str] = None,
     db_schema: Optional[str] = None,
     db_table: Optional[str] = None,
     service_url: Optional[str] = None,
@@ -187,10 +188,10 @@ async def _process_import_source(
             auth_enabled = True
 
         case ImportType.DATABASE:
-            if not db_schema or not db_table:
+            if not db_key or not db_schema or not db_table:
                 raise HTTPException(
                     status_code=400,
-                    detail="Schema and table are required for database import type",
+                    detail="Source database, schema and table are required for database import type",
                 )
             try:
                 validate_schema_name(db_schema)
@@ -202,10 +203,15 @@ async def _process_import_source(
             except ValueError as e:
                 raise HTTPException(status_code=422, detail=str(e))
 
-            if not source_engine or not source_db_key:
-                raise HTTPException(status_code=503, detail="No source database configured")
+            source_db = get_copy_source_database(db_key)
+            if not source_db:
+                raise HTTPException(
+                    status_code=422, detail=f"Unknown copy source database '{db_key}'"
+                )
+            source_engine = get_source_engine(db_key)
+            assert source_engine is not None
 
-            if source_db_schema and db_schema != source_db_schema:
+            if source_db.schema_name and db_schema != source_db.schema_name:
                 raise HTTPException(
                     status_code=422,
                     detail=f"Schema '{db_schema}' is not allowed for this source database",
@@ -222,7 +228,7 @@ async def _process_import_source(
                     detail=f"Table '{db_table}' not found in schema '{db_schema}'",
                 )
 
-            source = build_db_uri(source_db_key, db_schema, db_table)
+            source = build_db_uri(db_key, db_schema, db_table)
             url = source
             auth_enabled = False
 
@@ -476,6 +482,7 @@ async def submit_staging(
     ftp_host: Optional[str] = Form(None),
     ftp_port: Optional[int] = Form(None),
     ftp_path: Optional[str] = Form(None),
+    db_key: Optional[str] = Form(None),
     db_schema: Optional[str] = Form(None),
     db_table: Optional[str] = Form(None),
     service_url: Optional[str] = Form(None),
@@ -497,6 +504,7 @@ async def submit_staging(
         ftp_host: Optional FTP host if import type is FTP
         ftp_port: Optional FTP port if import type is FTP
         ftp_path: Optional FTP path if import type is FTP
+        db_key: Optional SOURCE_DATABASES key of a copy entry if import type is database
         db_schema: Optional schema name if import type is database
         db_table: Optional table name if import type is database
         service_url: Optional service URL if import type is API (WFS/OGC API Features)
@@ -522,6 +530,7 @@ async def submit_staging(
         ftp_host=ftp_host,
         ftp_port=ftp_port,
         ftp_path=ftp_path,
+        db_key=db_key.strip() if db_key else None,
         db_schema=db_schema.strip() if db_schema else None,
         db_table=db_table.strip() if db_table else None,
         service_url=service_url,
@@ -593,6 +602,7 @@ async def edit_staging(
     ftp_host: Optional[str] = Form(None),
     ftp_port: Optional[int] = Form(None),
     ftp_path: Optional[str] = Form(None),
+    db_key: Optional[str] = Form(None),
     db_schema: Optional[str] = Form(None),
     db_table: Optional[str] = Form(None),
     service_url: Optional[str] = Form(None),
@@ -615,6 +625,7 @@ async def edit_staging(
         ftp_host: Optional FTP host if import type is FTP
         ftp_port: Optional FTP port if import type is FTP
         ftp_path: Optional FTP path if import type is FTP
+        db_key: Optional SOURCE_DATABASES key of a copy entry if import type is database
         db_schema: Optional schema name if import type is database
         db_table: Optional table name if import type is database
         service_url: Optional service URL if import type is API (WFS/OGC API Features)
@@ -640,6 +651,7 @@ async def edit_staging(
         ftp_host=ftp_host,
         ftp_port=ftp_port,
         ftp_path=ftp_path,
+        db_key=db_key.strip() if db_key else None,
         db_schema=db_schema.strip() if db_schema else None,
         db_table=db_table.strip() if db_table else None,
         service_url=service_url,

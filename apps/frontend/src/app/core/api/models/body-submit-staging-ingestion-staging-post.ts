@@ -4,6 +4,7 @@
 import { ImportType } from '../models/import-type'
 export interface BodySubmitStagingIngestionStagingPost {
   auth_enabled?: boolean
+  db_key?: string | null
   db_schema?: string | null
   db_table?: string | null
   file?: string | null
