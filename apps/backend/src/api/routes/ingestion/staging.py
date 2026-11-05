@@ -204,11 +204,12 @@ async def _process_import_source(
                 raise HTTPException(status_code=422, detail=str(e))
 
             source_db = get_copy_source_database(db_key)
-            source_engine = get_source_engine(db_key) if source_db else None
-            if not source_db or not source_engine:
+            if not source_db:
                 raise HTTPException(
                     status_code=422, detail=f"Unknown copy source database '{db_key}'"
                 )
+            source_engine = get_source_engine(db_key)
+            assert source_engine is not None
 
             if source_db.schema_name and db_schema != source_db.schema_name:
                 raise HTTPException(
