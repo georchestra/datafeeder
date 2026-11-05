@@ -218,7 +218,7 @@ describe('DataSourceDbComponent', () => {
     expect(input('source-database-title').disabled).toBe(false)
   })
 
-  it('should show the full database name in a tooltip', () => {
+  it('should show the label database name in a tooltip', () => {
     const fixture = TestBed.createComponent(DataSourceDbComponent)
     fixture.componentRef.setInput('sourceDatabases', [
       { key: 'BAN', label: 'Base Adresse Nationale', type: 'copy' }
@@ -228,7 +228,7 @@ describe('DataSourceDbComponent', () => {
     const tooltip = fixture.debugElement
       .query(By.directive(MatTooltip))
       .injector.get(MatTooltip)
-    expect(tooltip.message).toBe('BAN Base Adresse Nationale')
+    expect(tooltip.message).toBe('Base Adresse Nationale')
   })
 
   it('should not show the empty state while the databases are loading', () => {
