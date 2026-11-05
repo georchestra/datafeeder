@@ -19,12 +19,30 @@ from src.api.routes.ingestion.staging import (
 )
 from src.core.config import CopySourceDatabase
 from src.models.data_import import ImportType
+from src.services.georchestra import GeorchestraContext
 
 
-def _copy_db(schema: str | None = None) -> Callable[[str | None], CopySourceDatabase | None]:
+def _user(*roles: str) -> GeorchestraContext:
+    """A logged-in user who is not an administrator, with the given roles."""
+    return GeorchestraContext(
+        username="someone",
+        roles=set(roles),
+        email="",
+        firstname="",
+        lastname="",
+        organization="",
+    )
+
+
+def _copy_db(
+    schema: str | None = None, roles: list[str] | None = None
+) -> Callable[[str | None], CopySourceDatabase | None]:
     """get_copy_source_database stand-in knowing SOURCE_DB_1 only."""
     db = CopySourceDatabase(
-        type="copy", connection_string=PostgresDsn("postgresql://u:p@h/db"), schema=schema
+        type="copy",
+        connection_string=PostgresDsn("postgresql://u:p@h/db"),
+        schema=schema,
+        roles=roles or [],
     )
     return lambda key: db if key == "SOURCE_DB_1" else None
 
@@ -94,6 +112,7 @@ class TestProcessImportSourceDatabase:
         mock_table: MagicMock,
     ) -> None:
         result = await _process_import_source(
+            geo_ctx=_user(),
             type=ImportType.DATABASE,
             db_key="SOURCE_DB_1",
             db_schema="geo",
@@ -116,6 +135,7 @@ class TestProcessImportSourceDatabase:
     ) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.DATABASE,
                 db_key="SOURCE_DB_1",
                 db_schema="nonexistent",
@@ -130,6 +150,7 @@ class TestProcessImportSourceDatabase:
     async def test_schema_other_than_configured_returns_422(self, mock_engine: MagicMock) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.DATABASE,
                 db_key="SOURCE_DB_1",
                 db_schema="admin",
@@ -151,6 +172,7 @@ class TestProcessImportSourceDatabase:
     ) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.DATABASE,
                 db_key="SOURCE_DB_1",
                 db_schema="geo",
@@ -163,6 +185,7 @@ class TestProcessImportSourceDatabase:
     async def test_missing_db_key_returns_400(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.DATABASE,
                 db_schema="geo",
                 db_table="rivers",
@@ -174,6 +197,7 @@ class TestProcessImportSourceDatabase:
     async def test_unknown_db_key_returns_422(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.DATABASE,
                 db_key="PATRIMOINE",
                 db_schema="geo",
@@ -183,9 +207,26 @@ class TestProcessImportSourceDatabase:
         assert "Unknown copy source database 'PATRIMOINE'" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
+    @patch(
+        "src.api.routes.ingestion.staging.get_copy_source_database", new=_copy_db(roles=["EDITOR"])
+    )
+    async def test_database_not_available_to_user_returns_422(self) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await _process_import_source(
+                type=ImportType.DATABASE,
+                geo_ctx=_user("OTHER"),
+                db_key="SOURCE_DB_1",
+                db_schema="geo",
+                db_table="rivers",
+            )
+        assert exc_info.value.status_code == 422
+        assert "Unknown copy source database 'SOURCE_DB_1'" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
     async def test_missing_schema_returns_400(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.DATABASE,
                 db_key="SOURCE_DB_1",
                 db_schema=None,
@@ -197,6 +238,7 @@ class TestProcessImportSourceDatabase:
     async def test_missing_table_returns_400(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.DATABASE,
                 db_key="SOURCE_DB_1",
                 db_schema="geo",
@@ -208,6 +250,7 @@ class TestProcessImportSourceDatabase:
     async def test_invalid_schema_returns_422(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.DATABASE,
                 db_key="SOURCE_DB_1",
                 db_schema="Invalid",
@@ -219,6 +262,7 @@ class TestProcessImportSourceDatabase:
     async def test_invalid_table_returns_422(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.DATABASE,
                 db_key="SOURCE_DB_1",
                 db_schema="geo",
@@ -230,6 +274,7 @@ class TestProcessImportSourceDatabase:
     async def test_empty_schema_returns_400(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.DATABASE,
                 db_key="SOURCE_DB_1",
                 db_schema="",
@@ -479,6 +524,7 @@ class TestEditStagingDatabase:
         )
 
         await edit_staging(
+            geo_ctx=_user(),
             session=mock_session,
             integrity_link_id=str(link_id),
             type=ImportType.DATABASE,
