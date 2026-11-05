@@ -14,9 +14,10 @@
     data-test="source-database"
     (click)="select('')"
   >
-    <span>{{ db.key }}</span>
     @if (db.label) {
     <span>{{ db.label }}</span>
+    } @else {
+    <span>{{ db.key }}</span>
     }
     <ng-container
       *ngTemplateOutlet="typeBadge; context: { $implicit: db.type }"

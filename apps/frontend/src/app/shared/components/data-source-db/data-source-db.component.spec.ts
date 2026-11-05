@@ -135,7 +135,6 @@ describe('DataSourceDbComponent', () => {
     const chip = fixture.nativeElement.querySelector(
       '[data-test="source-database"]'
     )
-    expect(chip.textContent).toContain('BAN')
     expect(chip.textContent).toContain('Base Adresse Nationale')
     expect(chip.textContent).toContain('Direct access')
   })
