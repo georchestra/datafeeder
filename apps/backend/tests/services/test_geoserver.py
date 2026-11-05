@@ -430,6 +430,23 @@ class TestAclLayerGet:
         with pytest.raises(requests.HTTPError):
             service.layer_exists("mel", "mel_ds", "voie_nommee")
 
+    @pytest.mark.parametrize(("status_code", "expected"), [(200, True), (404, False)])
+    def test_workspace_layer_exists(
+        self, service: GeoServerService, rest_client: MagicMock, status_code: int, expected: bool
+    ) -> None:
+        rest_client.get.return_value.status_code = status_code
+
+        assert service.workspace_layer_exists("mel", "rivers") is expected
+
+    def test_workspace_layer_exists_raises_on_error(
+        self, service: GeoServerService, rest_client: MagicMock
+    ) -> None:
+        rest_client.get.return_value.status_code = 500
+        rest_client.get.return_value.raise_for_status.side_effect = requests.HTTPError("500")
+
+        with pytest.raises(requests.HTTPError):
+            service.workspace_layer_exists("mel", "rivers")
+
     @pytest.mark.parametrize("status_code", [200, 404, 500])
     def test_delete_workspace_layer_is_best_effort(
         self, service: GeoServerService, rest_client: MagicMock, status_code: int

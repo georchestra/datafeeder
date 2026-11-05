@@ -313,6 +313,21 @@ class GeoServerService:
         response.raise_for_status()
         return True
 
+    def workspace_layer_exists(self, workspace_name: str, layer_name: str) -> bool:
+        """Whether a layer exists in a GeoServer workspace, whatever its store.
+
+        Raises:
+            requests.HTTPError: On any GeoServer answer other than 200 or 404
+        """
+        url = self.geoserver.rest_service.rest_endpoints.workspace_layer(
+            workspace_name=workspace_name, layer_name=layer_name
+        )
+        response = self.geoserver.rest_service.rest_client.get(url)
+        if response.status_code == 404:
+            return False
+        response.raise_for_status()
+        return True
+
     def get_datastore_schema(self, workspace_name: str, datastore_name: str) -> str | None:
         """PostgreSQL schema a datastore reads its tables from, or None if it does not exist.
 
