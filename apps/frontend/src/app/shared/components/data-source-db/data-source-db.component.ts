@@ -95,7 +95,7 @@ export class DataSourceDbComponent {
   }
 
   displayName(db: SourceDatabaseSummary): string {
-    return db.label ? `${db.key} ${db.label}` : db.key
+    return db.label ? db.label : db.key
   }
 
   // Schema, table and title belong to the database: cleared when it changes
