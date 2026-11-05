@@ -103,7 +103,7 @@ export class DataSourceDbComponent {
   // Schema, table and title belong to the database: cleared when it changes
   select(key: string): void {
     const schema =
-      this.sourceDatabases().find((db) => db.key === key)?.schema_name ?? ''
+      this.sourceDatabases()?.find((db) => db.key === key)?.schema_name ?? ''
     this.formData.set({ ...EMPTY, key, schema })
   }
 
