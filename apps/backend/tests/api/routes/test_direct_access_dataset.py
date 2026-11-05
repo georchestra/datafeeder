@@ -56,6 +56,7 @@ def _added_link(session: MagicMock) -> IntegrityLink:
 def _geoserver(datastore_schema: str | None = None) -> MagicMock:
     geoserver = MagicMock()
     geoserver.get_datastore_schema.return_value = datastore_schema
+    geoserver.workspace_layer_exists.return_value = False
     geoserver.create_workspace = AsyncMock()
     geoserver.create_layer = AsyncMock()
     return geoserver
@@ -210,6 +211,22 @@ async def test_rejects_table_already_published_by_the_organization() -> None:
         await _create(session, _geoserver(), MagicMock())
     assert exc_info.value.status_code == 409
     session.add.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("settings", "source_db")
+async def test_rejects_table_whose_name_is_already_a_workspace_layer() -> None:
+    session, geoserver, metadata = _session(), _geoserver(), MagicMock()
+    geoserver.workspace_layer_exists.return_value = True
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _create(session, geoserver, metadata)
+
+    assert exc_info.value.status_code == 409
+    geoserver.workspace_layer_exists.assert_called_once_with("mel", "rivers")
+    session.add.assert_not_called()
+    metadata.create_and_publish_metadata.assert_not_called()
+    geoserver.create_layer.assert_not_called()
 
 
 @pytest.mark.asyncio
