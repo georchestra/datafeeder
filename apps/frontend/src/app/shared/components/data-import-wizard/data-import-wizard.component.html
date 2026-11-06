@@ -185,9 +185,9 @@
 <ng-template #footerTpl>
   @if (selectedTabIndex() === 0) {
   <gn-ui-button
-    [type]="cantConfigureDataset() ? 'outline' : 'primary'"
-    [disabled]="cantConfigureDataset()"
-    (buttonClick)="onConfigureDataset()"
+    [type]="cantSubmitDataset() ? 'outline' : 'primary'"
+    [disabled]="cantSubmitDataset()"
+    (buttonClick)="onSubmitDataset()"
     data-test="configure-dataset"
   >
     @if (importing() || polling()) {

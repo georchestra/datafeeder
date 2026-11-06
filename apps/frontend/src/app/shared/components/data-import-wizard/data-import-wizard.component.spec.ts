@@ -6,7 +6,7 @@ import {
 import { signal } from '@angular/core'
 import { TestBed, fakeAsync, tick } from '@angular/core/testing'
 import { NoopAnimationsModule } from '@angular/platform-browser/animations'
-import { ActivatedRoute, provideRouter } from '@angular/router'
+import { ActivatedRoute, Router, provideRouter } from '@angular/router'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import { TranslateService } from '@ngx-translate/core'
 import { TranslateTestingModule } from '../../testing/translate-testing.module'
@@ -289,7 +289,7 @@ describe('DataImportWizardComponent', () => {
     expect(component.validSource()).toBeTruthy()
   })
 
-  it('should not stage a direct access database source', async () => {
+  function directAccessWizard() {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
     component.sourceDatabaseStore.sourceDatabases.set([
@@ -300,14 +300,78 @@ describe('DataImportWizardComponent', () => {
       dbKey: 'BAN',
       dbSchema: 'geo',
       dbTable: 'rivers',
-      dbTitle: 'Rivers',
+      dbTitle: ' Rivers ',
       authEnabled: false
     })
+    return component
+  }
 
-    await component.onConfigureDataset()
+  it('should create a direct access dataset and open its metadata editing', async () => {
+    const component = directAccessWizard()
+    const navigateSpy = vi
+      .spyOn(TestBed.inject(Router), 'navigate')
+      .mockResolvedValue(true)
+
+    const promise = component.onSubmitDataset()
+
+    const req = httpMock.expectOne(
+      'http://localhost:8000/ingestion/integrity-link/direct-access'
+    )
+    expect(req.request.method).toBe('POST')
+    expect(req.request.body).toEqual({
+      db_key: 'BAN',
+      schema_name: 'geo',
+      table_name: 'rivers',
+      title: 'Rivers'
+    })
+    req.flush({ id: 'link-1' })
+    await promise
 
     httpMock.expectNone('http://localhost:8000/ingestion/staging/')
+    expect(navigateSpy).toHaveBeenCalledWith(['link-1', 'edit'])
     expect(component.importing()).toBe(false)
+  })
+
+  it('should show the error of a failed direct access dataset creation', async () => {
+    const component = directAccessWizard()
+    const navigateSpy = vi.spyOn(TestBed.inject(Router), 'navigate')
+
+    const promise = component.onSubmitDataset()
+
+    httpMock
+      .expectOne('http://localhost:8000/ingestion/integrity-link/direct-access')
+      .flush(
+        { detail: 'Table already published by dataset link-1' },
+        { status: 409, statusText: 'Conflict' }
+      )
+    await promise
+
+    expect(component.importError()).toBe(
+      'Table already published by dataset link-1'
+    )
+    expect(navigateSpy).not.toHaveBeenCalled()
+    expect(component.importing()).toBe(false)
+  })
+
+  it('should translate the error key of a failed direct access dataset creation', async () => {
+    TestBed.inject(TranslateService).setTranslation(
+      'en',
+      { 'import.metadataPublication.error': 'Metadata publication failed' },
+      true
+    )
+    const component = directAccessWizard()
+
+    const promise = component.onSubmitDataset()
+
+    httpMock
+      .expectOne('http://localhost:8000/ingestion/integrity-link/direct-access')
+      .flush(
+        { detail: 'import.metadataPublication.error' },
+        { status: 500, statusText: 'Internal Server Error' }
+      )
+    await promise
+
+    expect(component.importError()).toBe('Metadata publication failed')
   })
 
   it('should show an alert when the source database is unreachable', async () => {
@@ -600,7 +664,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
 
     // Start the async operation
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     // Wait for the HTTP request
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
@@ -640,7 +704,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
 
     // Start the async operation
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     // Wait for the HTTP request
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
@@ -680,7 +744,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       }
     })
 
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
     expect(req.request.method).toBe('POST')
@@ -717,7 +781,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       }
     })
 
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
     const formData = req.request.body as FormData
@@ -750,7 +814,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         authEnabled: false
       }
     })
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
     req.flush(mockImportResponse)
@@ -782,7 +846,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         authEnabled: false
       }
     })
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -809,7 +873,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         authEnabled: false
       }
     })
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -848,7 +912,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       }
     })
 
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -883,7 +947,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
 
     try {
-      const promise = component.onConfigureDataset()
+      const promise = component.onSubmitDataset()
       httpMock
         .expectOne('http://localhost:8000/ingestion/staging/')
         .flush(mockImportResponse)
@@ -922,7 +986,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
 
     try {
-      const promise = component.onConfigureDataset()
+      const promise = component.onSubmitDataset()
       const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
       req.flush(
         { detail: 'Invalid URL format provided' },
@@ -948,7 +1012,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
       source: { type: 'url', url: '', authEnabled: false }
     })
     // The button should be disabled, but we call the method directly to test error handling
-    await component.onConfigureDataset()
+    await component.onSubmitDataset()
 
     expect(component.importError()).toBe(
       'The data upload or analysis failed. Please try again.'
@@ -985,7 +1049,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         authEnabled: false
       }
     })
-    component.onConfigureDataset()
+    component.onSubmitDataset()
 
     expect(component.importError()).toBeNull()
   })
@@ -1005,11 +1069,11 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
     fixture.detectChanges()
 
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(component.importing()).toBe(true)
-    expect(component.cantConfigureDataset()).toBe(true)
+    expect(component.cantSubmitDataset()).toBe(true)
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -1035,7 +1099,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     })
     fixture.detectChanges()
 
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -1043,7 +1107,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     expect(component.polling()).toBe(true)
-    expect(component.cantConfigureDataset()).toBe(true)
+    expect(component.cantSubmitDataset()).toBe(true)
 
     await new Promise((resolve) => setTimeout(resolve, 600))
     httpMock
@@ -1095,7 +1159,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
         authEnabled: false
       }
     })
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     httpMock
       .expectOne('http://localhost:8000/ingestion/staging/')
@@ -1118,7 +1182,7 @@ describe('DataImportWizardComponent - Import and Status Polling', () => {
     component.importData.set({
       source: { type: 'url', url: '', authEnabled: false }
     })
-    await component.onConfigureDataset()
+    await component.onSubmitDataset()
 
     expect(component.importing()).toBe(false)
     expect(component.polling()).toBe(false)
@@ -1253,7 +1317,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
         authEnabled: false
       }
     })
-    const promise = component.onConfigureDataset()
+    const promise = component.onSubmitDataset()
 
     const req = httpMock.expectOne('http://localhost:8000/ingestion/staging/')
     req.flush(mockStagingResponse)
@@ -1402,8 +1466,8 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     const component = fixture.componentInstance
     fixture.detectChanges()
 
-    // importData starts with no source → cantConfigureDataset returns true
-    expect(component.cantConfigureDataset()).toBe(true)
+    // importData starts with no source → cantSubmitDataset returns true
+    expect(component.cantSubmitDataset()).toBe(true)
   })
 
   it('should enable next button when a valid file source is set', () => {
@@ -1416,7 +1480,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
       source: { type: 'file', file: new File([], 'test.csv') }
     }))
 
-    expect(component.cantConfigureDataset()).toBe(false)
+    expect(component.cantSubmitDataset()).toBe(false)
   })
 
   it('should disable next button while importing', () => {
@@ -1430,7 +1494,7 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     }))
     component.importing.set(true)
 
-    expect(component.cantConfigureDataset()).toBe(true)
+    expect(component.cantSubmitDataset()).toBe(true)
   })
 
   it('should disable validate button when processing', () => {

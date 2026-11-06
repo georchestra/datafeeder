@@ -5,6 +5,7 @@ import { getIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdGet } from '../api
 
 export const EMPTY_IMPORT_TYPE: ImportType = 'empty'
 export const PREFILLED_IMPORT_TYPE: ImportType = 'prefilled'
+export const DIRECT_ACCESS_IMPORT_TYPE: ImportType = 'direct_access'
 
 @Injectable({ providedIn: 'root' })
 export class IntegrityLinkStore {
@@ -35,8 +36,8 @@ export class IntegrityLinkStore {
 
   /**
    * True when the dataset originates from a remote source (url, database, api,
-   * ftp) — i.e. neither a file imported from the user's machine nor an empty
-   * or prefilled dataset. Recurrence scheduling is only relevant for these.
+   * ftp) — i.e. neither a file imported from the user's machine nor an empty,
+   * prefilled or direct access dataset. Recurrence scheduling is only relevant for these.
    */
   isRemoteDataset = computed(() => {
     const type = this.integrityLink()?.source_import_type
@@ -44,7 +45,8 @@ export class IntegrityLinkStore {
       type != null &&
       type !== 'file' &&
       type !== EMPTY_IMPORT_TYPE &&
-      type !== PREFILLED_IMPORT_TYPE
+      type !== PREFILLED_IMPORT_TYPE &&
+      type !== DIRECT_ACCESS_IMPORT_TYPE
     )
   })
 

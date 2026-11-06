@@ -40,6 +40,7 @@ import {
 import { marker } from '@biesbjerg/ngx-translate-extract-marker'
 import { Api } from '../../../core/api/api'
 import {
+  createDirectAccessDatasetIngestionIntegrityLinkDirectAccessPost,
   getStagingMetadataIngestionStagingIntegrityLinkIdMetadataGet,
   getStagingPreviewIngestionStagingIntegrityLinkIdPreviewGet,
   getDagRunStatusAirflowDagsDagIdRunsDagRunIdStatusGet,
@@ -458,7 +459,7 @@ export class DataImportWizardComponent {
     }))
   }
 
-  cantConfigureDataset() {
+  cantSubmitDataset() {
     return !this.validSource() || this.importing() || this.polling()
   }
 
@@ -477,11 +478,44 @@ export class DataImportWizardComponent {
     })
   }
 
-  async onConfigureDataset() {
-    // Direct access skips step 2 and goes to the metadata editing, once the
-    // backend endpoint creating such a dataset exists
-    if (this.isDirectAccess()) return
+  async onSubmitDataset() {
+    if (this.isDirectAccess()) {
+      await this.createDirectAccessDataset()
+    } else {
+      await this.configureCopyDataset()
+    }
+  }
 
+  async createDirectAccessDataset() {
+    const source = this.importData().source
+    this.importError.set(null)
+    this.importing.set(true)
+
+    try {
+      const link = await this.api.invoke(
+        createDirectAccessDatasetIngestionIntegrityLinkDirectAccessPost,
+        {
+          body: {
+            db_key: source.dbKey!,
+            schema_name: source.dbSchema!.trim(),
+            table_name: source.dbTable!.trim(),
+            title: source.dbTitle?.trim() || null
+          }
+        }
+      )
+      this.router.navigate([link.id, 'edit'])
+    } catch (error) {
+      this.importError.set(
+        error instanceof HttpErrorResponse && error.error?.detail
+          ? this.translate.instant(error.error.detail)
+          : this.translate.instant('import.dataSource.genericError')
+      )
+    } finally {
+      this.importing.set(false)
+    }
+  }
+
+  async configureCopyDataset() {
     this.importError.set(null)
     this.failedDagRun.set(null)
     this.importing.set(true)
