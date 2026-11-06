@@ -74,6 +74,10 @@ class ConsoleService:
             )
             return None
 
+    def get_data_roles(self) -> list[dict[str, Any]]:
+        """Data rules target the console roles."""
+        return self.get_all_roles()
+
     def get_all_roles(self) -> list[dict[str, Any]]:
         """Fetch all roles from geOrchestra console API.
 

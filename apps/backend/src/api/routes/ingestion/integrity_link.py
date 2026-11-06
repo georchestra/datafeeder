@@ -163,7 +163,7 @@ def _sync_data_sharing(
         # Only call Console when at least one non-EVERYONE role needs UUID resolution.
         # This keeps EVERYONE-only configs resilient to Console outages.
         directory = get_directory_service()
-        all_roles = directory.get_all_roles()  # raises DirectoryServiceError on failure
+        all_roles = directory.get_data_roles()  # raises DirectoryServiceError on failure
         id_to_name = {
             str(r["id"]): f"ROLE_{r['name']}" for r in all_roles if r.get("id") and r.get("name")
         }

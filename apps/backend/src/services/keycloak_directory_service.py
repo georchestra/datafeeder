@@ -170,6 +170,17 @@ class KeycloakDirectoryService:
             if r.get("id") and r.get("name") and not self._is_builtin_role(r["name"])
         ]
 
+    def get_data_roles(self) -> list[dict[str, Any]]:
+        """One role per group (organization or not), ``GRP_<CODE>``: the Keycloak mapper
+        "geOrchestra group roles" gives ``ROLE_GRP_<CODE>`` to the group members, and the gateway
+        sends it to GeoServer in ``sec-roles``. Data and metadata are then shared with the same
+        groups, identified by the same Keycloak group ids."""
+        return [
+            {"id": g["id"], "name": f"GRP_{g['shortName'].upper()}", "description": g["name"]}
+            for g in self.get_all_groups()
+            if g.get("id") and g.get("shortName")
+        ]
+
     # -------------------------------------------------------------------- users
 
     def fetch_users_by_usernames(self, usernames: list[str]) -> dict[str, str]:

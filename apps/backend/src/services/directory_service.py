@@ -14,6 +14,10 @@ All implementations return console-shaped dicts:
 
 - organization: ``{"id", "shortName", "name", "mail"}``
 - role: ``{"id", "name", "description"}``
+
+Data (GeoServer layer) rules target the roles of :meth:`DirectoryService.get_data_roles`: the
+console roles, or with Keycloak one ``GRP_<CODE>`` role per group, so that data and metadata
+are shared with the same groups.
 """
 
 from typing import Any, Protocol
@@ -34,6 +38,11 @@ class DirectoryService(Protocol):
 
     def get_all_roles(self) -> list[dict[str, Any]]:
         """All roles. Raises DirectoryServiceError on error."""
+        ...
+
+    def get_data_roles(self) -> list[dict[str, Any]]:
+        """Roles data rules can target (role-shaped dicts, ``name`` without the ``ROLE_``
+        prefix GeoServer expects). Raises DirectoryServiceError on error."""
         ...
 
     def fetch_users_by_usernames(self, usernames: list[str]) -> dict[str, str]:

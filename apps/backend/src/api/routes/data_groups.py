@@ -15,14 +15,17 @@ router = APIRouter(prefix="/data/groups", tags=["Data"])
     "/",
     response_model=list[GroupItem],
     summary="List data groups",
-    description="Fetch roles from the directory (geOrchestra console or Keycloak) and return identifier + label pairs.",
+    description=(
+        "Fetch the roles data rules can target from the directory (geOrchestra console roles, "
+        "or one role per Keycloak group) and return identifier + label pairs."
+    ),
 )
 def list_groups(geo_ctx: GeorchestraContextDep) -> list[GroupItem]:
     settings = get_settings()
     directory = get_directory_service()
 
     try:
-        items = directory.get_all_roles()
+        items = directory.get_data_roles()
     except Exception as e:
         logger.error("Failed to fetch data groups from directory: %s", e)
         raise HTTPException(status_code=502, detail=f"Failed to fetch groups from directory: {e}")

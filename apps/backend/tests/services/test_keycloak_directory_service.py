@@ -224,6 +224,18 @@ class TestRoles:
         with pytest.raises(DirectoryServiceError):
             _service().get_all_roles()
 
+    @patch(f"{MODULE}.httpx.get")
+    def test_get_data_roles_is_one_role_per_group(self, mock_get: MagicMock) -> None:
+        """Given groups, then data rules target GRP_<CODE>, labelled with the group name."""
+        mock_get.return_value = _response([PSC, C2C])
+
+        result = _service().get_data_roles()
+
+        assert result == [
+            {"id": "g-psc", "name": "GRP_PSC", "description": "Project Steering Committee"},
+            {"id": "g-c2c", "name": "GRP_C2C", "description": "C2C"},
+        ]
+
 
 class TestUsers:
     @patch(f"{MODULE}.httpx.get")

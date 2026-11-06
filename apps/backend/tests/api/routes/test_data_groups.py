@@ -27,7 +27,7 @@ class TestDataGroups:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_roles.return_value = [
+            mock_console.get_data_roles.return_value = [
                 {"id": "role-uuid-1", "name": "ROLE_ADMIN", "description": ""},
                 {"id": "role-uuid-2", "name": "ROLE_USER", "description": ""},
             ]
@@ -50,7 +50,7 @@ class TestDataGroups:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_roles.return_value = [
+            mock_console.get_data_roles.return_value = [
                 {"id": "role-uuid-1", "name": "ROLE_ADMIN", "description": ""},
                 {"id": "role-uuid-2", "name": "ROLE_USER", "description": ""},
             ]
@@ -70,7 +70,7 @@ class TestDataGroups:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_roles.side_effect = Exception("connection refused")
+            mock_console.get_data_roles.side_effect = Exception("connection refused")
 
             with pytest.raises(HTTPException) as exc_info:
                 list_groups(geo_ctx=MagicMock())
@@ -88,7 +88,7 @@ class TestDataGroups:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_roles.return_value = []
+            mock_console.get_data_roles.return_value = []
 
             result = list_groups(geo_ctx=MagicMock())
 
@@ -105,7 +105,7 @@ class TestDataGroups:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_roles.return_value = [
+            mock_console.get_data_roles.return_value = [
                 {"id": "role-uuid-1", "name": "ROLE_ADMIN", "description": ""},
                 {"id": "role-uuid-2"},  # missing name
                 {"name": "ROLE_ORPHAN"},  # missing id
@@ -126,7 +126,7 @@ class TestDataGroups:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_roles.return_value = [{"id": "1", "name": "ROLE_X"}]
+            mock_console.get_data_roles.return_value = [{"id": "1", "name": "ROLE_X"}]
 
             with pytest.raises(HTTPException) as exc_info:
                 list_groups(geo_ctx=MagicMock())

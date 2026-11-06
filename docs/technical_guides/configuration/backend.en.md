@@ -85,6 +85,12 @@ console is not needed:
 In `GN_SYNC_MODE=ORG`, metadata can be shared with every group (organizations and the other
 groups), and a user gets access through its organization and all its groups.
 
+Data (GeoServer layers) is shared with the same groups: a data rule on a group writes the role
+`ROLE_GRP_<CODE>` (`<CODE>` being the group code, see `KEYCLOAK_ORG_CODE_ATTRIBUTE`) in the layer
+rules. Keycloak must give that role to the group members, in a token claim the gateway adds to
+`sec-roles` (e.g. the "geOrchestra group roles" protocol mapper of the geOrchestra Keycloak
+extension, claim `group_roles` listed in the gateway OIDC `roles.json.path`).
+
 With the geOrchestra LDAP federated in Keycloak (group mapper on `ou=orgs`, role mapper on `ou=roles`),
 the backend sees the same organizations and roles as with the console.
 

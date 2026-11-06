@@ -209,7 +209,7 @@ class TestUpsertIntegrityLinkRule:
             ) as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
-            mock_console_cls.return_value.get_all_roles.side_effect = ConsoleServiceError(
+            mock_console_cls.return_value.get_data_roles.side_effect = ConsoleServiceError(
                 "console unreachable"
             )
             mock_gs_cls.return_value = MagicMock()
@@ -392,7 +392,7 @@ class TestDeleteIntegrityLinkRule:
             ) as mock_console_cls,
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
-            mock_console_cls.return_value.get_all_roles.side_effect = ConsoleServiceError(
+            mock_console_cls.return_value.get_data_roles.side_effect = ConsoleServiceError(
                 "console unreachable"
             )
             mock_gs_cls.return_value = MagicMock()
@@ -1008,7 +1008,9 @@ class TestSyncDataSharingAfterUpsert:
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
+            mock_console.get_data_roles.return_value = [
+                {"id": "role-uuid-1", "name": "GN_REVIEWER"}
+            ]
             mock_console_cls.return_value = mock_console
 
             mock_gs = MagicMock()
@@ -1117,7 +1119,9 @@ class TestSyncDataSharingAfterUpsert:
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
+            mock_console.get_data_roles.return_value = [
+                {"id": "role-uuid-1", "name": "GN_REVIEWER"}
+            ]
             mock_console_cls.return_value = mock_console
 
             mock_gs = MagicMock()
@@ -1171,7 +1175,7 @@ class TestSyncDataSharingAfterUpsert:
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
+            mock_console.get_data_roles.return_value = []
             mock_console_cls.return_value = mock_console
 
             mock_gs = MagicMock()
@@ -1227,7 +1231,7 @@ class TestSyncDataSharingAfterUpsert:
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
+            mock_console.get_data_roles.return_value = []
             mock_console_cls.return_value = mock_console
 
             mock_gs = MagicMock()
@@ -1287,7 +1291,7 @@ class TestSyncDataSharingAfterUpsert:
             patch("src.api.routes.ingestion.integrity_link.GeoServerService") as mock_gs_cls,
         ):
             mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
+            mock_console.get_data_roles.return_value = []
             mock_console_cls.return_value = mock_console
 
             mock_gs = MagicMock()
@@ -1347,7 +1351,7 @@ class TestSyncDataSharingAfterUpsert:
             patch("src.api.routes.ingestion.integrity_link.GeoServerService"),
         ):
             mock_console = MagicMock()
-            mock_console.get_all_roles.side_effect = ConsoleServiceError("Console unreachable")
+            mock_console.get_data_roles.side_effect = ConsoleServiceError("Console unreachable")
             mock_console_cls.return_value = mock_console
 
             with pytest.raises(HTTPException) as exc_info:
@@ -1407,7 +1411,9 @@ class TestSyncDataSharingAfterUpsert:
         ):
             # role-uuid-unknown is not in the returned list
             mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
+            mock_console.get_data_roles.return_value = [
+                {"id": "role-uuid-1", "name": "GN_REVIEWER"}
+            ]
             mock_console_cls.return_value = mock_console
 
             with pytest.raises(HTTPException) as exc_info:
@@ -1618,7 +1624,7 @@ class TestTogglePublishGsIntegrityLink:
             ) as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
+            mock_console.get_data_roles.return_value = []
             mock_console_cls.return_value = mock_console
 
             # First exec: _sync_data_sharing queries all DATA rules (sees newly added EVERYONE)
@@ -1681,7 +1687,7 @@ class TestTogglePublishGsIntegrityLink:
             ) as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
+            mock_console.get_data_roles.return_value = []
             mock_console_cls.return_value = mock_console
 
             # exec 1: query EVERYONE READ rules (for DB deletion)
@@ -1752,7 +1758,7 @@ class TestTogglePublishGsIntegrityLink:
             ) as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = [{"id": "group-uuid-1", "name": "GROUP_1"}]
+            mock_console.get_data_roles.return_value = [{"id": "group-uuid-1", "name": "GROUP_1"}]
             mock_console_cls.return_value = mock_console
 
             # exec 1: query EVERYONE READ rules (for DB deletion)
@@ -1848,7 +1854,7 @@ class TestTogglePublishGsIntegrityLink:
             ) as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
+            mock_console.get_data_roles.return_value = []
             mock_console_cls.return_value = mock_console
 
             data_rules_mock = MagicMock()
