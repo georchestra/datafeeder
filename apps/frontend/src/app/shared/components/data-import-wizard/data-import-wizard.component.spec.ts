@@ -353,6 +353,27 @@ describe('DataImportWizardComponent', () => {
     expect(component.importing()).toBe(false)
   })
 
+  it('should translate the error key of a failed direct access dataset creation', async () => {
+    TestBed.inject(TranslateService).setTranslation(
+      'en',
+      { 'import.metadataPublication.error': 'Metadata publication failed' },
+      true
+    )
+    const component = directAccessWizard()
+
+    const promise = component.onSubmitDataset()
+
+    httpMock
+      .expectOne('http://localhost:8000/ingestion/integrity-link/direct-access')
+      .flush(
+        { detail: 'import.metadataPublication.error' },
+        { status: 500, statusText: 'Internal Server Error' }
+      )
+    await promise
+
+    expect(component.importError()).toBe('Metadata publication failed')
+  })
+
   it('should show an alert when the source database is unreachable', async () => {
     TestBed.inject(TranslateService).setTranslation(
       'en',

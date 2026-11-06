@@ -507,7 +507,7 @@ export class DataImportWizardComponent {
     } catch (error) {
       this.importError.set(
         error instanceof HttpErrorResponse && error.error?.detail
-          ? error.error.detail
+          ? this.translate.instant(error.error.detail)
           : this.translate.instant('import.dataSource.genericError')
       )
     } finally {
