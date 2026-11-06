@@ -137,8 +137,9 @@ SOURCE_DATABASES={"PATRIMOINE": {"type": "direct_access", "connection_string": "
   user from the JNDI pool one, and the host/port are the ones the backend reaches the database at, which can
   differ from GeoServer's (`localhost:5435` from the host vs `sourcedb_direct_access:5432` inside Docker above).
 - `jndi_reference` is the JNDI name declared in step 1.
-- `roles` lists the geOrchestra roles (without the `ROLE_` prefix) allowed to create datasets on this database;
-  when empty, all users can.
+- `roles` lists the geOrchestra roles (case-insensitive, the `ROLE_` prefix optional) allowed to use this database (also accepted
+  on `copy` entries); the database is offered to a user holding at least one of them, and to administrators.
+  When empty, all users can.
 - `label` is the name shown in the wizard (optional, the key is shown when absent).
 - `schema` restricts the entry to one schema, preselected and locked in the wizard (optional, all schemas
   when absent).

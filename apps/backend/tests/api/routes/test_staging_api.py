@@ -15,6 +15,19 @@ from src.api.routes.ingestion.staging import (
     get_staging_metadata,
 )
 from src.models.data_import import ImportType
+from src.services.georchestra import GeorchestraContext
+
+
+def _user(*roles: str) -> GeorchestraContext:
+    """A logged-in user who is not an administrator, with the given roles."""
+    return GeorchestraContext(
+        username="someone",
+        roles=set(roles),
+        email="",
+        firstname="",
+        lastname="",
+        organization="",
+    )
 
 
 class TestProcessImportSourceApi:
@@ -23,6 +36,7 @@ class TestProcessImportSourceApi:
     @pytest.mark.asyncio
     async def test_valid_wfs_source(self) -> None:
         result = await _process_import_source(
+            geo_ctx=_user(),
             type=ImportType.API,
             service_url="https://example.com/wfs",
             layer_name="ns:buildings",
@@ -39,6 +53,7 @@ class TestProcessImportSourceApi:
     @pytest.mark.asyncio
     async def test_valid_ogc_api_features_source(self) -> None:
         result = await _process_import_source(
+            geo_ctx=_user(),
             type=ImportType.API,
             service_url="https://example.com/ogcapi",
             layer_name="buildings",
@@ -50,6 +65,7 @@ class TestProcessImportSourceApi:
     @pytest.mark.asyncio
     async def test_default_protocol_is_wfs_when_not_provided(self) -> None:
         result = await _process_import_source(
+            geo_ctx=_user(),
             type=ImportType.API,
             service_url="https://example.com/wfs",
             layer_name="ns:rivers",
@@ -61,6 +77,7 @@ class TestProcessImportSourceApi:
     async def test_missing_service_url_returns_400(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.API,
                 service_url=None,
                 layer_name="ns:buildings",
@@ -71,6 +88,7 @@ class TestProcessImportSourceApi:
     async def test_missing_layer_name_returns_400(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.API,
                 service_url="https://example.com/wfs",
                 layer_name=None,
@@ -80,6 +98,7 @@ class TestProcessImportSourceApi:
     @pytest.mark.asyncio
     async def test_whitespace_is_stripped(self) -> None:
         result = await _process_import_source(
+            geo_ctx=_user(),
             type=ImportType.API,
             service_url="  https://example.com/wfs  ",
             layer_name="  ns:buildings  ",
@@ -93,6 +112,7 @@ class TestProcessImportSourceApi:
     async def test_invalid_protocol_returns_400(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _process_import_source(
+                geo_ctx=_user(),
                 type=ImportType.API,
                 service_url="https://example.com/wfs",
                 layer_name="ns:buildings",
@@ -282,6 +302,7 @@ class TestEditStagingApi:
         )
 
         await edit_staging(
+            geo_ctx=_user(),
             session=mock_session,
             integrity_link_id=str(link_id),
             type=ImportType.API,
@@ -342,6 +363,7 @@ class TestEditStagingApi:
         )
 
         await edit_staging(
+            geo_ctx=_user(),
             session=mock_session,
             integrity_link_id=str(link_id),
             type=ImportType.API,
@@ -375,6 +397,7 @@ class TestOapifUrlNormalization:
     async def test_submit_staging_oapif_collections_url_normalized(self) -> None:
         """submit_staging strips /collections/... from the service URL before storing."""
         result = await _process_import_source(
+            geo_ctx=_user(),
             type=ImportType.API,
             service_url="https://example.com/v1/collections/my_layer",
             layer_name="my_layer",
@@ -387,6 +410,7 @@ class TestOapifUrlNormalization:
     async def test_submit_staging_oapif_items_url_normalized(self) -> None:
         """submit_staging strips /collections/.../items from the service URL before storing."""
         result = await _process_import_source(
+            geo_ctx=_user(),
             type=ImportType.API,
             service_url="https://example.com/v1/collections/my_layer/items",
             layer_name="my_layer",
@@ -399,6 +423,7 @@ class TestOapifUrlNormalization:
     async def test_submit_staging_oapif_bare_collections_url_normalized(self) -> None:
         """submit_staging strips bare /collections suffix from the service URL."""
         result = await _process_import_source(
+            geo_ctx=_user(),
             type=ImportType.API,
             service_url="https://example.com/v1/collections",
             layer_name="my_layer",

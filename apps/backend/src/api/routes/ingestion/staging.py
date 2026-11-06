@@ -48,6 +48,7 @@ from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
 from src.services.files import delete_temp_file, strip_file_extension, upload_file_to_temp
+from src.services.georchestra import GeorchestraContext
 from src.services.join_target import joins_geom, resolve_join_target
 
 logger = get_logger()
@@ -117,6 +118,7 @@ class _ImportSourceResult:
 
 async def _process_import_source(
     type: "ImportType",
+    geo_ctx: GeorchestraContext,
     url: Optional[str] = None,
     file: Optional[UploadFile] = None,
     auth_enabled: bool = False,
@@ -204,7 +206,7 @@ async def _process_import_source(
                 raise HTTPException(status_code=422, detail=str(e))
 
             source_db = get_copy_source_database(db_key)
-            if not source_db:
+            if not source_db or not source_db.is_available_to(geo_ctx):
                 raise HTTPException(
                     status_code=422, detail=f"Unknown copy source database '{db_key}'"
                 )
@@ -473,6 +475,7 @@ def _extract_url_metadata(
 )
 async def submit_staging(
     session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
     type: ImportType = Form(...),
     url: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
@@ -522,6 +525,7 @@ async def submit_staging(
 
     import_source = await _process_import_source(
         type=type,
+        geo_ctx=geo_ctx,
         url=url,
         file=file,
         auth_enabled=auth_enabled,
@@ -592,6 +596,7 @@ async def submit_staging(
 )
 async def edit_staging(
     session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
     type: ImportType = Form(...),
     url: Optional[str] = Form(None),
@@ -643,6 +648,7 @@ async def edit_staging(
 
     import_source = await _process_import_source(
         type=type,
+        geo_ctx=geo_ctx,
         url=url,
         file=file,
         auth_enabled=auth_enabled,

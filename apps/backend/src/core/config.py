@@ -28,6 +28,7 @@ from src.core.logging import get_logger
 from src.core.paths import get_default_datadir
 from src.core.task_executor import TaskExecutorType
 from src.plugins.PropertiesConfigSettingsSource import PropertiesConfigSettingsSource
+from src.services.georchestra import GeorchestraContext, normalize_role
 
 logger = get_logger()
 configure_logging(logger)
@@ -55,18 +56,42 @@ SourceDatabaseSchema = Annotated[
 ]
 
 
-class CopySourceDatabase(BaseModel):
+class _SourceDatabaseBase(BaseModel):
+    # Roles allowed to use this database (geOrchestra role names, normalized like the gateway's
+    # so that "ROLE_EDITOR" and "editor" both match EDITOR); empty = all users
+    roles: list[str] = Field(default_factory=list)
+    # Name shown in the wizard; the key is shown when absent
+    label: str | None = None
+    schema_name: SourceDatabaseSchema = Field(default=None, alias="schema")
+
+    @field_validator("roles")
+    @classmethod
+    def _normalize_roles(cls, roles: list[str]) -> list[str]:
+        normalized = [normalize_role(role) for role in roles]
+        # An empty name matches no user: the database would silently be administrators-only
+        if "" in normalized:
+            raise ValueError("role names must not be empty")
+        return normalized
+
+    def is_available_to(self, geo_ctx: GeorchestraContext) -> bool:
+        """Whether the user may use this database: it has no roles, the user holds one, or the
+        user is an administrator."""
+        return (
+            not self.roles
+            or geo_ctx.is_administrator()
+            or any(geo_ctx.has_role(role) for role in self.roles)
+        )
+
+
+class CopySourceDatabase(_SourceDatabaseBase):
     """Source database whose tables are copied into the data database ("Database" import type)."""
 
     type: Literal["copy"]
     # SQLAlchemy URI; for Airflow runs, the key must also match an Airflow connection ID
     connection_string: PostgresDsn
-    # Name shown in the wizard; the key is shown when absent
-    label: str | None = None
-    schema_name: SourceDatabaseSchema = Field(default=None, alias="schema")
 
 
-class DirectAccessSourceDatabase(BaseModel):
+class DirectAccessSourceDatabase(_SourceDatabaseBase):
     """Source database whose tables GeoServer publishes in place, without copy."""
 
     type: Literal["direct_access"]
@@ -74,12 +99,6 @@ class DirectAccessSourceDatabase(BaseModel):
     connection_string: PostgresDsn
     # JNDI resource declared in GeoServer's jetty-env.xml, e.g. "jdbc/patrimoine"
     jndi_reference: str = Field(min_length=1)
-    # Roles allowed to create datasets on this database (geOrchestra role names, without the
-    # ROLE_ prefix, as in GeorchestraContext.has_role); empty = all users
-    roles: list[str] = Field(default_factory=list)
-    # Name shown in the wizard; the key is shown when absent
-    label: str | None = None
-    schema_name: SourceDatabaseSchema = Field(default=None, alias="schema")
 
 
 SourceDatabase = Annotated[
