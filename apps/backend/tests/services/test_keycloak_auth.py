@@ -118,6 +118,7 @@ class TestDirectoryServiceFactory:
             KEYCLOAK_ORG_GROUP_PATH="",
             KEYCLOAK_ORG_NAME_ATTRIBUTE="o",
             KEYCLOAK_ORG_MAIL_ATTRIBUTE="mail",
+            KEYCLOAK_ORG_CODE_ATTRIBUTE="",
         )
 
         service = get_directory_service()

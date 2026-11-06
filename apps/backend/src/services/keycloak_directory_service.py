@@ -2,8 +2,11 @@
 
 Mapping with the geOrchestra model:
 
-- organization = Keycloak group: ``shortName`` is the group name, ``name`` and ``mail`` come
-  from group attributes (``KEYCLOAK_ORG_NAME_ATTRIBUTE``, ``KEYCLOAK_ORG_MAIL_ATTRIBUTE``).
+- organization = Keycloak group: ``shortName`` (the code) comes from the
+  ``KEYCLOAK_ORG_CODE_ATTRIBUTE`` group attribute, else the group name; ``name`` from the
+  ``KEYCLOAK_ORG_NAME_ATTRIBUTE`` group attribute, else the group name; ``mail`` from
+  ``KEYCLOAK_ORG_MAIL_ATTRIBUTE``. With a code attribute, the group name is the organization
+  name, the only one people manage.
   Organizations are the top-level groups, or the children of ``KEYCLOAK_ORG_GROUP_PATH``.
 - role = Keycloak realm role (Keycloak built-in roles are ignored).
 - identifiers are the Keycloak group / role ids.
@@ -39,6 +42,7 @@ class KeycloakDirectoryService:
         token_provider: KeycloakTokenProvider,
         org_group_path: str = "",
         org_name_attribute: str = "o",
+        org_code_attribute: str = "",
         org_mail_attribute: str = "mail",
     ):
         self.admin_url = f"{base_url.rstrip('/')}/admin/realms/{realm}"
@@ -46,6 +50,7 @@ class KeycloakDirectoryService:
         self.auth = KeycloakHttpxAuth(token_provider)
         self.org_group_path = org_group_path.strip("/")
         self.org_name_attribute = org_name_attribute
+        self.org_code_attribute = org_code_attribute
         self.org_mail_attribute = org_mail_attribute
 
     @classmethod
@@ -56,6 +61,7 @@ class KeycloakDirectoryService:
             token_provider=get_token_provider(settings),
             org_group_path=settings.KEYCLOAK_ORG_GROUP_PATH,
             org_name_attribute=settings.KEYCLOAK_ORG_NAME_ATTRIBUTE,
+            org_code_attribute=settings.KEYCLOAK_ORG_CODE_ATTRIBUTE,
             org_mail_attribute=settings.KEYCLOAK_ORG_MAIL_ATTRIBUTE,
         )
 
@@ -88,7 +94,8 @@ class KeycloakDirectoryService:
 
         return {
             "id": group["id"],
-            "shortName": group["name"],
+            "shortName": (first(self.org_code_attribute) if self.org_code_attribute else None)
+            or group["name"],
             "name": first(self.org_name_attribute) or group["name"],
             "mail": first(self.org_mail_attribute),
         }

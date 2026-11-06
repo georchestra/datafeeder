@@ -71,6 +71,25 @@ class TestOrganizations:
             _service().get_all_organizations()
 
     @patch(f"{MODULE}.httpx.get")
+    def test_code_attribute_is_the_short_name(self, mock_get: MagicMock) -> None:
+        """With a code attribute, the group name is the organization name."""
+        mock_get.return_value = _response(
+            [{"id": "g1", "name": "Project Steering Committee", "attributes": {"cn": ["PSC"]}}, C2C]
+        )
+        provider = MagicMock()
+        provider.get_token.return_value = "token"
+        service = KeycloakDirectoryService(
+            "http://kc.example.com", "georchestra", provider, org_code_attribute="cn"
+        )
+
+        orgs = service.get_all_organizations()
+
+        assert orgs[0]["shortName"] == "PSC"
+        assert orgs[0]["name"] == "Project Steering Committee"
+        assert orgs[1]["shortName"] == "C2C", "no code attribute: the group name"
+        assert service.get_organization("PSC") == orgs[0]
+
+    @patch(f"{MODULE}.httpx.get")
     def test_get_organization_by_short_name(self, mock_get: MagicMock) -> None:
         mock_get.return_value = _response([PSC, C2C])
 

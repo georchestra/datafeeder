@@ -51,7 +51,8 @@ counterpart.
 | `KEYCLOAK_INTERNAL_URL` / `KEYCLOAK_REALM` | Keycloak internal URL and realm |
 | `KEYCLOAK_CLIENT_ID` / `KEYCLOAK_CLIENT_SECRET` | Confidential client whose service account calls the Keycloak admin API and GeoNetwork |
 | `KEYCLOAK_ORG_GROUP_PATH` | Path of the group whose children are the organizations (empty: top-level groups) |
-| `KEYCLOAK_ORG_NAME_ATTRIBUTE` / `KEYCLOAK_ORG_MAIL_ATTRIBUTE` | Group attributes holding the organization long name (`o`) and email (`mail`) |
+| `KEYCLOAK_ORG_NAME_ATTRIBUTE` / `KEYCLOAK_ORG_MAIL_ATTRIBUTE` | Group attributes holding the organization long name (`o`, else the group name) and email (`mail`) |
+| `KEYCLOAK_ORG_CODE_ATTRIBUTE` | Group attribute holding the organization code (short name); empty: the group name |
 | `METADATA_GROUPS_LABEL_FILTER_REGEX` | Regex used to filter metadata groups shown in the authorization UI |
 | `DATA_GROUPS_LABEL_FILTER_REGEX` | Regex used to filter data groups shown in the GeoServer authorization UI |
 | `AIRFLOW_INTERNAL_URL` / `AIRFLOW_USERNAME` / `AIRFLOW_PASSWORD` | Airflow REST API used to trigger and monitor DAG runs |
