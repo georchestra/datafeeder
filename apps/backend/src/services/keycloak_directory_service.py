@@ -112,6 +112,29 @@ class KeycloakDirectoryService:
     def get_all_organizations(self) -> list[dict[str, Any]]:
         return [self._to_organization(g) for g in self._org_groups() if self._is_flagged(g)]
 
+    def get_all_groups(self) -> list[dict[str, Any]]:
+        """Every candidate group (top-level, or child of KEYCLOAK_ORG_GROUP_PATH), organization
+        or not"""
+        return [self._to_organization(g) for g in self._org_groups()]
+
+    def _is_candidate(self, group: dict[str, Any]) -> bool:
+        parent = f"/{self.org_group_path}" if self.org_group_path else ""
+        return group.get("path") == f"{parent}/{group.get('name')}"
+
+    def get_user_groups(self, username: str) -> list[dict[str, Any]]:
+        try:
+            users = self._get(
+                "/users", {"username": username, "exact": "true", "briefRepresentation": "true"}
+            )
+            user = next((u for u in users if u.get("username") == username.lower()), None)
+            if user is None:
+                return []
+            groups = self._get(f"/users/{user['id']}/groups", {"briefRepresentation": "false"})
+        except DirectoryServiceError as exc:
+            logger.warning("Failed to fetch the groups of user '%s': %s", username, exc)
+            return []
+        return [self._to_organization(g) for g in groups if self._is_candidate(g)]
+
     def get_organization(self, org_short_name: str) -> dict[str, Any] | None:
         try:
             organizations = self.get_all_organizations()

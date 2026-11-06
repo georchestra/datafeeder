@@ -1,6 +1,6 @@
 import re
 from collections.abc import Generator
-from typing import Annotated
+from typing import Annotated, Any
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -127,14 +127,25 @@ def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
             and _matches_metadata_filter(str(role["name"]), pattern)
         ]
 
-    if not geo_ctx.organization:
-        return []
-    org = get_directory_service().get_organization(geo_ctx.organization)
-    if not org or "id" not in org:
-        return []
-    if not _matches_metadata_filter(str(org.get("name", "")), pattern):
-        return []
-    return [str(org["id"])]
+    # ORG mode: the user's organization, and its other groups when the directory knows them
+    directory = get_directory_service()
+    groups: list[dict[str, Any]] = []
+    if geo_ctx.organization:
+        org = directory.get_organization(geo_ctx.organization)
+        if org:
+            groups.append(org)
+    if geo_ctx.username:
+        groups.extend(directory.get_user_groups(geo_ctx.username))
+    ids: list[str] = []
+    for group in groups:
+        group_id = str(group.get("id") or "")
+        if (
+            group_id
+            and group_id not in ids
+            and _matches_metadata_filter(str(group.get("name", "")), pattern)
+        ):
+            ids.append(group_id)
+    return ids
 
 
 GroupIdsDep = Annotated[list[str], Depends(get_group_ids)]

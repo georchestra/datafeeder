@@ -80,7 +80,7 @@ def _sync_metadata_sharing(
     try:
         directory = get_directory_service()
         if settings.GN_SYNC_MODE == "ORG":
-            items = directory.get_all_organizations()
+            items = directory.get_all_groups()
             groups_by_id = {
                 item["id"].lower(): item["shortName"]
                 for item in items

@@ -481,7 +481,7 @@ class TestSyncAfterUpsertRule:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_organizations.return_value = [
+            mock_console.get_all_groups.return_value = [
                 {"id": "org-uuid-1", "shortName": "C2C"}  # lowercase id
             ]
 
@@ -646,7 +646,7 @@ class TestSyncAfterUpsertRule:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_organizations.return_value = []
+            mock_console.get_all_groups.return_value = []
 
             upsert_integrity_link_rule(
                 session=mock_session,
@@ -707,9 +707,7 @@ class TestSyncAfterUpsertRule:
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
             # org-uuid-unknown is not in the returned list
-            mock_console.get_all_organizations.return_value = [
-                {"id": "org-uuid-1", "shortName": "C2C"}
-            ]
+            mock_console.get_all_groups.return_value = [{"id": "org-uuid-1", "shortName": "C2C"}]
 
             with pytest.raises(HTTPException) as exc_info:
                 upsert_integrity_link_rule(
@@ -770,7 +768,7 @@ class TestSyncAfterUpsertRule:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_organizations.side_effect = Exception("console error")
+            mock_console.get_all_groups.side_effect = Exception("console error")
 
             with pytest.raises(HTTPException) as exc_info:
                 upsert_integrity_link_rule(
@@ -834,9 +832,7 @@ class TestSyncAfterUpsertRule:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_organizations.return_value = [
-                {"id": "org-uuid-1", "shortName": "C2C"}
-            ]
+            mock_console.get_all_groups.return_value = [{"id": "org-uuid-1", "shortName": "C2C"}]
 
             with pytest.raises(HTTPException) as exc_info:
                 upsert_integrity_link_rule(
@@ -907,7 +903,7 @@ class TestSyncAfterDeleteRule:
         ):
             mock_console = MagicMock()
             mock_console_cls.return_value = mock_console
-            mock_console.get_all_organizations.return_value = []
+            mock_console.get_all_groups.return_value = []
 
             delete_integrity_link_rule(
                 session=mock_session,

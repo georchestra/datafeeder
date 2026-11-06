@@ -43,3 +43,13 @@ class DirectoryService(Protocol):
     def fetch_organizations_by_short_names(self, short_names: list[str]) -> dict[str, str]:
         """short name -> long name, {} on error."""
         ...
+
+    def get_all_groups(self) -> list[dict[str, Any]]:
+        """Groups metadata can be shared with (organization-shaped dicts): the organizations,
+        and the other groups when the directory has some. Raises on error."""
+        ...
+
+    def get_user_groups(self, username: str) -> list[dict[str, Any]]:
+        """Groups of a user (organization-shaped dicts), organization included; [] when the
+        directory does not know them (the user's organization then applies) or on error."""
+        ...

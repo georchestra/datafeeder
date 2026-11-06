@@ -26,7 +26,7 @@ def list_groups(geo_ctx: GeorchestraContextDep) -> list[GroupItem]:
 
     try:
         if settings.GN_SYNC_MODE == "ORG":
-            items = directory.get_all_organizations()
+            items = directory.get_all_groups()
             group_items = [
                 GroupItem(id=item["id"], label=item["name"])
                 for item in filter_console_items(items, settings.METADATA_GROUPS_LABEL_FILTER_REGEX)

@@ -82,6 +82,9 @@ console is not needed:
 - roles are Keycloak realm roles (built-in `offline_access`, `uma_authorization` and `default-roles-<realm>`
   are ignored)
 
+In `GN_SYNC_MODE=ORG`, metadata can be shared with every group (organizations and the other
+groups), and a user gets access through its organization and all its groups.
+
 With the geOrchestra LDAP federated in Keycloak (group mapper on `ou=orgs`, role mapper on `ou=roles`),
 the backend sees the same organizations and roles as with the console.
 

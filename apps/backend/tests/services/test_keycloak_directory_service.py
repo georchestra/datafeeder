@@ -142,6 +142,56 @@ class TestOrganizations:
         assert _service().fetch_organizations_by_short_names([]) == {}
 
 
+class TestGroups:
+    PROJET = {
+        "id": "g-projet",
+        "name": "Projet Littoral",
+        "path": "/Projet Littoral",
+        "attributes": {"cn": ["PROJET_LITTORAL"], "isOrganization": ["false"]},
+    }
+
+    @patch(f"{MODULE}.httpx.get")
+    def test_get_all_groups_includes_plain_groups(self, mock_get: MagicMock) -> None:
+        flagged = {**PSC, "path": "/PSC", "attributes": {"isOrganization": ["true"]}}
+        mock_get.return_value = _response([flagged, self.PROJET])
+        provider = MagicMock()
+        provider.get_token.return_value = "token"
+        service = KeycloakDirectoryService(
+            "http://kc.example.com",
+            "georchestra",
+            provider,
+            org_code_attribute="cn",
+            org_flag_attribute="isOrganization",
+        )
+
+        assert [g["shortName"] for g in service.get_all_organizations()] == ["PSC"]
+        assert [g["shortName"] for g in service.get_all_groups()] == ["PSC", "PROJET_LITTORAL"]
+
+    @patch(f"{MODULE}.httpx.get")
+    def test_get_user_groups(self, mock_get: MagicMock) -> None:
+        """Top-level groups of the user, organization or not; subgroups are ignored."""
+        subgroup = {"id": "g-sub", "name": "editors", "path": "/Projet Littoral/editors"}
+        mock_get.side_effect = [
+            _response([{"id": "u1", "username": "testuser"}]),
+            _response([{**PSC, "path": "/PSC"}, self.PROJET, subgroup]),
+        ]
+        provider = MagicMock()
+        provider.get_token.return_value = "token"
+        service = KeycloakDirectoryService(
+            "http://kc.example.com", "georchestra", provider, org_code_attribute="cn"
+        )
+
+        groups = service.get_user_groups("testuser")
+
+        assert [g["id"] for g in groups] == ["g-psc", "g-projet"]
+        assert mock_get.call_args_list[1].args[0] == f"{ADMIN_URL}/users/u1/groups"
+
+    @patch(f"{MODULE}.httpx.get")
+    def test_get_user_groups_degrades_gracefully(self, mock_get: MagicMock) -> None:
+        mock_get.side_effect = httpx.ConnectError("down")
+        assert _service().get_user_groups("testuser") == []
+
+
 class TestRoles:
     @patch(f"{MODULE}.httpx.get")
     def test_get_all_roles_skips_keycloak_builtin_roles(self, mock_get: MagicMock) -> None:

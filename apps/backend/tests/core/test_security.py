@@ -479,6 +479,24 @@ class TestGetGroupIds:
         assert get_group_ids(ctx) == ["org-uuid"]
 
     @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.get_directory_service")
+    def test_org_mode_includes_the_user_groups(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        """Groups the user belongs to (besides its organization) grant access too."""
+        self._configure(mock_settings, mode="ORG", filter_regex="^(?!Hidden).*")
+        mock_cls.return_value.get_organization.return_value = {"id": "org-uuid", "name": "Org A"}
+        mock_cls.return_value.get_user_groups.return_value = [
+            {"id": "org-uuid", "name": "Org A"},
+            {"id": "group-uuid", "name": "Projet Littoral"},
+            {"id": "hidden-uuid", "name": "Hidden group"},
+        ]
+        ctx = _geo_ctx(organization="org_a")
+
+        assert get_group_ids(ctx) == ["org-uuid", "group-uuid"]
+        mock_cls.return_value.get_user_groups.assert_called_once_with(ctx.username)
+
+    @patch("src.api.deps.get_settings")
     def test_org_mode_returns_empty_when_no_org(self, mock_settings: MagicMock) -> None:
         self._configure(mock_settings, mode="ORG")
         ctx = _geo_ctx(organization="")

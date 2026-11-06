@@ -165,6 +165,14 @@ class ConsoleService:
             if org.get("shortName") and org.get("name")
         }
 
+    def get_all_groups(self) -> list[dict[str, Any]]:
+        """The console only has organizations."""
+        return self.get_all_organizations()
+
+    def get_user_groups(self, username: str) -> list[dict[str, Any]]:
+        """Not provided by the console: the user's organization (sec-org header) applies."""
+        return []
+
     def get_all_organizations(self) -> list[dict[str, Any]]:
         """Fetch all organizations from geOrchestra console API.
 
