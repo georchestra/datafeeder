@@ -634,7 +634,7 @@ class TestMetadataService:
 
     @patch("src.services.metadata_service.GnApi")
     def test_sync_record_sharing_raises_on_unresolvable_group(self, mock_gn_api: MagicMock) -> None:
-        """Org with no matching GN group raises ValueError."""
+        """Org with no matching GN group, which GeoNetwork refuses to create: ValueError."""
         mock_session = MagicMock()
         mock_api_instance = MagicMock()
         mock_api_instance.session = mock_session
@@ -644,11 +644,34 @@ class TestMetadataService:
         groups_response = MagicMock()
         groups_response.json.return_value = [{"id": 10, "name": "OtherOrg"}]
         mock_session.get.return_value = groups_response
+        mock_session.put.return_value.raise_for_status.side_effect = Exception("403")
 
         service = MetadataService(gn_api_url="http://test/api", datadir_path="/test/datadir")
 
         with pytest.raises(ValueError, match="No GN group found for org 'UnknownOrg'"):
             service.sync_record_sharing("some-uuid", [("UnknownOrg", RuleValue.READ)])
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_sync_record_sharing_creates_missing_group(self, mock_gn_api: MagicMock) -> None:
+        """A group not synchronized by GeoNetwork yet is created, then shared with."""
+        mock_session = MagicMock()
+        mock_api_instance = MagicMock()
+        mock_api_instance.session = mock_session
+        mock_api_instance.api_url = "http://test/api"
+        mock_gn_api.return_value = mock_api_instance
+        mock_session.get.return_value.json.return_value = [{"id": 10, "name": "OtherOrg"}]
+        mock_session.put.return_value.json.return_value = 42
+
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test/datadir")
+        service.sync_record_sharing("some-uuid", [("NEW_GROUP", RuleValue.READ)])
+
+        mock_session.put.assert_called_once_with(
+            "http://test/api/groups",
+            json={"id": -99, "name": "NEW_GROUP", "label": {}},
+            headers={"Content-Type": "application/json"},
+        )
+        sharing = mock_api_instance.put_sharing_record.call_args.args[1]
+        assert sharing["privileges"][0]["group"] == 42
 
     @patch("src.services.metadata_service.GnApi")
     def test_sync_record_sharing_gn_error_is_raised(self, mock_gn_api: MagicMock) -> None:

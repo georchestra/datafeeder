@@ -501,7 +501,10 @@ class MetadataService:
                     org_name = search.group(1)
             gn_group_id = group_id_by_name.get(org_name.lower())
             if gn_group_id is None:
-                raise ValueError(f"No GN group found for org '{org_name}'")
+                # e.g. a group just created in the directory, not synchronized by GeoNetwork yet:
+                # GeoNetwork links it to the directory group (by name) at its next synchronization
+                gn_group_id = self.create_group(org_name)
+                group_id_by_name[org_name.lower()] = gn_group_id
 
             is_write = rule_value == RuleValue.WRITE
             gn_privileges.append(
@@ -525,6 +528,27 @@ class MetadataService:
             metadata_uuid,
             len(gn_privileges),
         )
+
+    def create_group(self, name: str) -> int:
+        """Create a GeoNetwork group, returning its id.
+
+        Raises:
+            ValueError: If GeoNetwork does not create it.
+        """
+        resp = self.gn_api.session.put(
+            f"{self.gn_api.api_url}/groups",
+            json={"id": -99, "name": name, "label": {}},
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            resp.raise_for_status()
+            group_id = int(resp.json())
+        except Exception as exc:
+            raise ValueError(
+                f"No GN group found for org '{name}', and unable to create it"
+            ) from exc
+        logger.info("Created GeoNetwork group %s (id %s)", name, group_id)
+        return group_id
 
     def toggle_publish_metadata_record(self, metadata_uuid: str, publish: bool) -> None:
         """Toggle publication status of a metadata record in GeoNetwork.
