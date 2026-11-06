@@ -94,6 +94,8 @@ x-airflow-common:
     # Must match USE_ORG_SCHEMA of the backend (docker/datadir/datafeeder/datafeeder.env):
     # set it in the root .env when enabling org schemas
     USE_ORG_SCHEMA: ${USE_ORG_SCHEMA:-false}
+    # false: accept sources holding several layers (ogr2ogr then keeps only the last one)
+    REJECT_MULTI_LAYER_SOURCES: ${REJECT_MULTI_LAYER_SOURCES:-true}
   volumes:
     - ../apps/elt/dags:/opt/airflow/dags
     - ../libs/data_manipulation/src/data_manipulation:/opt/airflow/dags/data_manipulation

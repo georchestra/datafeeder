@@ -15,10 +15,10 @@ IMPORT_CASES = [
     },
     {
         "id": "geojson",
-        "url": "https://www.data.gouv.fr/api/1/datasets/r/6b54f76f-f143-4e74-aecc-0af2a032428b",
+        "url": "https://www.data.gouv.fr/api/1/datasets/r/9e20dab9-0585-4bb7-aa08-9c86e53f8033",
         "map": True,
         "timeout-seconds": 30,
-        "expected_number_of_features": 7283,
+        "expected_number_of_features": 3136,
     },
     {
         "id": "csv",
@@ -28,18 +28,11 @@ IMPORT_CASES = [
         "expected_number_of_features": 7283,
     },
     {
-        "id": "gpkg",
-        "url": "https://www.data.gouv.fr/api/1/datasets/r/12d32a68-e245-4e19-9215-7d07c699b6c0",
-        "map": True,
-        "timeout-seconds": 60,
-        "expected_number_of_features": 385,
-    },
-    {
         "id": "gpkg-big",
         "url": "https://www.data.gouv.fr/api/1/datasets/r/c83ba91e-2cd1-40f7-a632-eb0a76d83c49",
         "map": True,
         "timeout-seconds": 600,
-        "expected_number_of_features": 66,
+        "expected_number_of_features": 1128122,
     },
 ]
 SERVICE_IMPORT_CASES = [

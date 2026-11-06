@@ -1,6 +1,7 @@
 """Ingestion task group."""
 
 import logging
+import os
 from typing import Any, Literal
 
 from airflow.exceptions import AirflowException
@@ -68,6 +69,15 @@ def _resolve_auth_credentials(
         raise AirflowException(f"Failed to decrypt credentials: {e}")
 
 
+# Sources holding several layers are rejected unless REJECT_MULTI_LAYER_SOURCES=false:
+# ogr2ogr would otherwise keep only the last layer.
+_REJECT_MULTI_LAYER = os.environ.get("REJECT_MULTI_LAYER_SOURCES", "true").strip().lower() not in {
+    "0",
+    "false",
+    "no",
+}
+
+
 def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"]):
     """Factory function that creates an ingestion task group.
 
@@ -115,6 +125,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                     target_table_name,
                     engine,
                     schema=get_staging_schema(),
+                    reject_multi_layer=_REJECT_MULTI_LAYER,
                 )
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from file: {e}")
@@ -132,6 +143,7 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                     engine,
                     schema=get_staging_schema(),
                     auth=auth,
+                    reject_multi_layer=_REJECT_MULTI_LAYER,
                 )
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from URL: {e}")
@@ -145,7 +157,12 @@ def ingestion_group(group_id: Literal["initial_ingestion", "refresh_ingestion"])
                 engine = get_data_sql_engine()
                 schema = get_staging_schema()
                 ingest_data_from_ftp_into_postgis(
-                    params.get("source", ""), target_table_name, engine, schema, auth
+                    params.get("source", ""),
+                    target_table_name,
+                    engine,
+                    schema,
+                    auth,
+                    reject_multi_layer=_REJECT_MULTI_LAYER,
                 )
             except Exception as e:
                 raise AirflowException(f"Failed to ingest data from FTP: {e}")
