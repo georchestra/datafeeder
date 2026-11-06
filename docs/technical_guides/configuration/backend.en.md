@@ -45,7 +45,9 @@ counterpart.
 | `GN_SYNC_MODE` | `ORG` or `ROLE` — which geOrchestra group flavor GeoNetwork groups are synced from |
 | `METADATA_DEFAULT_GROUP_NAME` | Default GeoNetwork group name used when publishing metadata |
 | `METADATA_ADMIN_DEFAULT_GROUP_NAME`| Default GeoNetwork group name used when publishing metadata user having administrator profile |
-| `GEONETWORK_AUTH` | GeoNetwork authentication: `basic` (default, `GEONETWORK_USERNAME`/`GEONETWORK_PASSWORD`) or `keycloak` (service-account bearer token, for GeoNetwork's `jwt-headers` security mode) |
+| `GEONETWORK_AUTH` | GeoNetwork authentication: `basic` (default, `GEONETWORK_USERNAME`/`GEONETWORK_PASSWORD`), `keycloak` (service-account bearer token, for GeoNetwork's `jwt-headers` security mode) or `headers` (geOrchestra `sec-*` headers of `GEONETWORK_USERNAME`, `GEONETWORK_INTERNAL_URL` being GeoNetwork itself: deployments without LDAP, where the gateway cannot check Basic credentials) |
+| `GEOSERVER_AUTH` | GeoServer authentication: `basic` (default, `GEOSERVER_USER`/`GEOSERVER_PASSWORD`) or `headers` (geOrchestra `sec-*` headers of `GEOSERVER_USER`, `GEOSERVER_INTERNAL_URL` being GeoServer itself) |
+| `SEC_HEADERS_ROLES` | Roles sent in `sec-roles` by the `headers` authentications (default `ROLE_ADMINISTRATOR`). The backends must only be reachable from the internal network |
 | `DIRECTORY_PROVIDER` | Directory of users, organizations and roles: `console` (default) or `keycloak` — see [Keycloak directory](#keycloak-directory) |
 | `CONSOLE_INTERNAL_URL` | Internal URL of the geOrchestra console (`DIRECTORY_PROVIDER=console`) |
 | `KEYCLOAK_INTERNAL_URL` / `KEYCLOAK_REALM` | Keycloak internal URL and realm |

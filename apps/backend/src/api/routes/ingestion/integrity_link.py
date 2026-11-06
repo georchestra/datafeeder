@@ -34,6 +34,7 @@ from src.models.recurrence import RecurrencePreset
 from src.services.dataset_deletion_service import DatasetDeletionService
 from src.services.directory import get_directory_service
 from src.services.directory_service import DirectoryServiceError
+from src.services.georchestra_headers_auth import geoserver_auth
 from src.services.geoserver import (
     ACL_ROLE_EVERYONE,
     AclAccessType,
@@ -195,6 +196,7 @@ def _sync_data_sharing(
             base_url=settings.GEOSERVER_INTERNAL_URL,
             username=settings.GEOSERVER_USER,
             password=settings.GEOSERVER_PASSWORD,
+            auth=geoserver_auth(settings),
             public_url=settings.DATA_PUBLIC_URL,
         )
     geoserver_service.sync_layer_acl(workspace, final_table_name, resolved)
@@ -243,6 +245,7 @@ def _sync_title_geoserver(title: str, integrity_link: IntegrityLink) -> None:
         base_url=settings.GEOSERVER_INTERNAL_URL,
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
+        auth=geoserver_auth(settings),
         public_url=settings.DATA_PUBLIC_URL,
     )
     workspace = integrity_link.integrity_organization.lower()
@@ -542,6 +545,7 @@ def delete_integrity_link(
         base_url=settings.GEOSERVER_INTERNAL_URL,
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
+        auth=geoserver_auth(settings),
         public_url=settings.DATA_PUBLIC_URL,
     )
     deletion_service = DatasetDeletionService(

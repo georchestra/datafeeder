@@ -14,6 +14,7 @@ from data_manipulation.geoserver import (
 from geoservercloud import GeoServerCloud
 from geoservercloud.models.common import MetadataLink
 from pydantic import BaseModel
+from requests.auth import AuthBase
 
 from src.core.logging import get_logger
 from src.models.integrity_link_rule import RuleValue
@@ -89,12 +90,17 @@ class GeoServerService:
         username: str,  # e.g., "admin"
         password: str,  # e.g., "admin"
         public_url: str,
+        auth: AuthBase | None = None,
     ):
+        """``auth``: requests authentication replacing HTTP Basic (e.g. geOrchestra headers)."""
         self.geoserver = GeoServerCloud(
             url=base_url,
             user=username,
             password=password,
         )
+        if auth is not None:
+            # geoservercloud only knows (user, password): its REST client passes it to requests
+            self.geoserver.rest_service.rest_client.auth = auth  # type: ignore[assignment]
         self.public_url = public_url
         self.base_url = base_url
         self._auth = (username, password)

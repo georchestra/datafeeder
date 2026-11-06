@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
+from requests.auth import AuthBase
 from sqlmodel import Session
 
 from src.core import security
@@ -17,6 +18,7 @@ from src.models import TokenPayload, User
 from src.services.directory import get_directory_service
 from src.services.directory_service import DirectoryServiceError
 from src.services.georchestra import GeorchestraContext, get_georchestra_context
+from src.services.georchestra_headers_auth import geonetwork_headers_auth, geoserver_auth
 from src.services.geoserver import GeoServerService
 from src.services.keycloak_auth import KeycloakRequestsAuth, get_token_provider
 from src.services.metadata_service import MetadataService
@@ -158,17 +160,21 @@ def get_geoserver_service() -> GeoServerService:
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
         public_url=settings.DATA_PUBLIC_URL,
+        auth=geoserver_auth(settings),
     )
 
 
 GeoServerServiceDep = Annotated[GeoServerService, Depends(get_geoserver_service)]
 
 
-def get_geonetwork_credentials() -> KeycloakRequestsAuth | tuple[str, str]:
-    """GnApi credentials: Keycloak bearer token or Basic auth, per ``GEONETWORK_AUTH``."""
+def get_geonetwork_credentials() -> AuthBase | tuple[str, str]:
+    """GnApi credentials: Keycloak bearer token, geOrchestra headers or Basic auth, per
+    ``GEONETWORK_AUTH``."""
     settings = get_settings()
     if settings.GEONETWORK_AUTH == "keycloak":
         return KeycloakRequestsAuth(get_token_provider(settings))
+    if settings.GEONETWORK_AUTH == "headers":
+        return geonetwork_headers_auth(settings)
     return (settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD)
 
 
