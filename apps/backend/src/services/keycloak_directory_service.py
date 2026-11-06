@@ -43,6 +43,7 @@ class KeycloakDirectoryService:
         org_group_path: str = "",
         org_name_attribute: str = "o",
         org_code_attribute: str = "",
+        org_flag_attribute: str = "",
         org_mail_attribute: str = "mail",
     ):
         self.admin_url = f"{base_url.rstrip('/')}/admin/realms/{realm}"
@@ -51,6 +52,7 @@ class KeycloakDirectoryService:
         self.org_group_path = org_group_path.strip("/")
         self.org_name_attribute = org_name_attribute
         self.org_code_attribute = org_code_attribute
+        self.org_flag_attribute = org_flag_attribute
         self.org_mail_attribute = org_mail_attribute
 
     @classmethod
@@ -62,6 +64,7 @@ class KeycloakDirectoryService:
             org_group_path=settings.KEYCLOAK_ORG_GROUP_PATH,
             org_name_attribute=settings.KEYCLOAK_ORG_NAME_ATTRIBUTE,
             org_code_attribute=settings.KEYCLOAK_ORG_CODE_ATTRIBUTE,
+            org_flag_attribute=settings.KEYCLOAK_ORG_FLAG_ATTRIBUTE,
             org_mail_attribute=settings.KEYCLOAK_ORG_MAIL_ATTRIBUTE,
         )
 
@@ -100,8 +103,14 @@ class KeycloakDirectoryService:
             "mail": first(self.org_mail_attribute),
         }
 
+    def _is_flagged(self, group: dict[str, Any]) -> bool:
+        if not self.org_flag_attribute:
+            return True
+        values = (group.get("attributes") or {}).get(self.org_flag_attribute) or []
+        return bool(values) and str(values[0]).lower() == "true"
+
     def get_all_organizations(self) -> list[dict[str, Any]]:
-        return [self._to_organization(g) for g in self._org_groups()]
+        return [self._to_organization(g) for g in self._org_groups() if self._is_flagged(g)]
 
     def get_organization(self, org_short_name: str) -> dict[str, Any] | None:
         try:

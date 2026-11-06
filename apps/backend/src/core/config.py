@@ -248,6 +248,8 @@ class Settings(BaseSettings):
     KEYCLOAK_ORG_NAME_ATTRIBUTE: str = "o"
     # Group attribute holding the organization code (short name); "" = the group name
     KEYCLOAK_ORG_CODE_ATTRIBUTE: str = ""
+    # Group attribute flagging an organization (value "true"); "" = every candidate group
+    KEYCLOAK_ORG_FLAG_ATTRIBUTE: str = ""
     KEYCLOAK_ORG_MAIL_ATTRIBUTE: str = "mail"
 
     # Metadata groups (for authorization UI)

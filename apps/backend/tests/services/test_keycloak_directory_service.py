@@ -90,6 +90,18 @@ class TestOrganizations:
         assert service.get_organization("PSC") == orgs[0]
 
     @patch(f"{MODULE}.httpx.get")
+    def test_only_flagged_groups_are_organizations(self, mock_get: MagicMock) -> None:
+        flagged = {**PSC, "attributes": {**PSC["attributes"], "isOrganization": ["true"]}}
+        mock_get.return_value = _response([flagged, C2C])
+        provider = MagicMock()
+        provider.get_token.return_value = "token"
+        service = KeycloakDirectoryService(
+            "http://kc.example.com", "georchestra", provider, org_flag_attribute="isOrganization"
+        )
+
+        assert [o["shortName"] for o in service.get_all_organizations()] == ["PSC"]
+
+    @patch(f"{MODULE}.httpx.get")
     def test_get_organization_by_short_name(self, mock_get: MagicMock) -> None:
         mock_get.return_value = _response([PSC, C2C])
 
