@@ -244,6 +244,37 @@ class TestMetadataService:
             assert result_uuid == expected_uuid
 
     @patch("src.services.metadata_service.GnApi")
+    def test_publication_group_id_uses_the_dataset_group(
+        self, mock_gn_api: MagicMock, sample_integrity_link: IntegrityLink
+    ) -> None:
+        """The record is created in the group resolved for the dataset, not in a fixed group."""
+        service = MetadataService(gn_api_url="http://test/api", datadir_path="/test/datadir")
+        with (
+            patch.object(service, "resolve_user_id", return_value=(7, "Editor")),
+            patch.object(service, "resolve_group_id", return_value=[103]),
+            patch.object(service, "choose_group_and_template", return_value=(103, None)),
+        ):
+            assert service.publication_group_id(sample_integrity_link) == "103"
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_publication_group_id_falls_back_to_the_default_group(
+        self, mock_gn_api: MagicMock, sample_integrity_link: IntegrityLink
+    ) -> None:
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+            metadata_default_group_name="sample",
+        )
+        with (
+            patch.object(service, "resolve_user_id", return_value=(None, None)),
+            patch.object(service, "resolve_group_id", return_value=[]),
+            patch.object(service, "choose_group_and_template", return_value=(None, None)),
+            patch.object(service, "_resolve_group_by_org_name", return_value=[2]) as by_name,
+        ):
+            assert service.publication_group_id(sample_integrity_link) == "2"
+            by_name.assert_called_once_with("sample")
+
+    @patch("src.services.metadata_service.GnApi")
     def test_set_record_ownership_success(self, mock_gn_api: MagicMock) -> None:
         """Test successful ownership assignment."""
         mock_session = MagicMock()

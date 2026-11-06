@@ -255,7 +255,31 @@ class MetadataService:
             organization_name=organization_name,
             layer_urls=layer_urls,
         )
-        return self.publish_metadata(metadata_xml)
+        return self.publish_metadata(
+            metadata_xml, group_id=self.publication_group_id(integrity_link)
+        )
+
+    def publication_group_id(self, integrity_link: IntegrityLink) -> str:
+        """GeoNetwork group the record is created in.
+
+        The group of the dataset (resolved as for its ownership), else the default metadata
+        group. The historical "100" is only a last resort: GeoNetwork group ids are not fixed,
+        and a missing group makes the record creation fail (404).
+        """
+        user_id, profile = self.resolve_user_id(integrity_link)
+        group_id = self.choose_group_and_template(
+            self.resolve_group_id(integrity_link, user_id, profile)
+        )[0]
+        if group_id is None:
+            defaults = self._resolve_group_by_org_name(self.metadata_default_group_name)
+            group_id = defaults[0] if defaults else None
+        if group_id is None:
+            logger.warning(
+                "No GeoNetwork group found for dataset %s, creating its record in group 100",
+                integrity_link.id,
+            )
+            return "100"
+        return str(group_id)
 
     def set_record_ownership(self, integrity_link: IntegrityLink) -> None:
         """Set ownership of a GeoNetwork metadata record.

@@ -91,7 +91,14 @@ class TestOrganizations:
 
     @patch(f"{MODULE}.httpx.get")
     def test_only_flagged_groups_are_organizations(self, mock_get: MagicMock) -> None:
-        flagged = {**PSC, "attributes": {**PSC["attributes"], "isOrganization": ["true"]}}
+        flagged = {
+            **PSC,
+            "attributes": {
+                "o": ["Project Steering Committee"],
+                "mail": ["psc@example.org"],
+                "isOrganization": ["true"],
+            },
+        }
         mock_get.return_value = _response([flagged, C2C])
         provider = MagicMock()
         provider.get_token.return_value = "token"
