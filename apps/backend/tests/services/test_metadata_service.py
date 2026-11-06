@@ -1272,3 +1272,35 @@ class TestRecordExists:
 
         with pytest.raises(RuntimeError):
             service.record_exists("uuid-1")
+
+
+class TestSetReferenceDatasetFlag:
+    @patch("src.services.metadata_service.GnApi")
+    def test_sets_flag(self, mock_gn_api: MagicMock) -> None:
+        session = mock_gn_api.return_value.session
+        mock_gn_api.return_value.api_url = "http://gn/srv/api"
+        session.get.return_value.json.return_value = [
+            {"id": 1, "name": "other"},
+            {"id": 7, "name": "geonetwork-ui:IS_REFERENCE_DATASET"},
+        ]
+        service = MetadataService(gn_api_url="http://gn/srv/api", datadir_path="/datadir")
+
+        service.set_reference_dataset_flag("uuid-1", True)
+
+        session.get.assert_called_once_with("http://gn/srv/api/tags")
+        session.put.assert_called_once_with(
+            "http://gn/srv/api/records/uuid-1/tags", params={"id": 7}
+        )
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_raises_when_category_missing(self, mock_gn_api: MagicMock) -> None:
+        session = mock_gn_api.return_value.session
+        mock_gn_api.return_value.api_url = "http://gn/srv/api"
+        session.get.return_value.json.return_value = [{"id": 1, "name": "other"}]
+        service = MetadataService(gn_api_url="http://gn/srv/api", datadir_path="/datadir")
+
+        with pytest.raises(
+            ValueError, match="GeoNetwork category 'geonetwork-ui:IS_REFERENCE_DATASET' not found"
+        ):
+            service.set_reference_dataset_flag("uuid-1", True)
+        session.put.assert_not_called()

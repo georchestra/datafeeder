@@ -285,6 +285,20 @@ def update_metadata_gn(
         raise HTTPException(status_code=502, detail="i18nerror.save.geonetwork")
 
     try:
+        assert integrity_link.metadata_id is not None
+        metadata_service.set_reference_dataset_flag(
+            integrity_link.metadata_id,
+            integrity_link.is_reference_dataset,
+        )
+    except Exception as e:
+        logger.error(
+            "GeoNetwork category modification failed for IntegrityLink %s: %s",
+            integrity_link_id,
+            e,
+        )
+        raise HTTPException(status_code=502, detail="i18nerror.save.geonetwork")
+
+    try:
         _sync_title_geoserver(body.title, integrity_link)
     except Exception as e:
         logger.error(
@@ -691,6 +705,35 @@ def update_schedule(
         integrity_link.schedule_enabled = True
     else:
         clear_schedule(integrity_link)
+
+    session.commit()
+    session.refresh(integrity_link)
+
+    resolved_preset = (
+        RecurrencePreset.from_cron(integrity_link.schedule) if integrity_link.schedule else None
+    )
+    return IntegrityLinkResponse.model_validate(integrity_link).model_copy(
+        update={"access_level": effective.value, "preset_id": resolved_preset}
+    )
+
+
+@router.patch(
+    "/{integrity_link_id}/is-reference",
+    response_model=IntegrityLinkResponse,
+    summary="Update whether the dataset is a reference dataset",
+    description="Set or clear the reference dataset flag for an IntegrityLink.",
+)
+def update_is_reference(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    integrity_link_id: str,
+    group_ids: GroupIdsDep,
+    is_reference: bool = Body(embed=True),
+) -> IntegrityLinkResponse:
+    integrity_link, effective = load_authorized_integrity_link(
+        integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
+    )
+    integrity_link.is_reference_dataset = is_reference
 
     session.commit()
     session.refresh(integrity_link)

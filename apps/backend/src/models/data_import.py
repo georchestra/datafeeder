@@ -249,6 +249,7 @@ class IntegrityLinkResponse(BaseModel):
     gn_is_published: bool | None
     gs_is_published: bool | None
     access_level: str | None = None
+    is_reference_dataset: bool
 
 
 class IntegrityLinkGsPublishResponse(IntegrityLinkResponse):
