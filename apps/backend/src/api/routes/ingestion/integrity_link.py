@@ -285,6 +285,20 @@ def update_metadata_gn(
         raise HTTPException(status_code=502, detail="i18nerror.save.geonetwork")
 
     try:
+        assert integrity_link.metadata_id is not None
+        metadata_service.set_reference_dataset_flag(
+            integrity_link.metadata_id,
+            integrity_link.is_reference_dataset,
+        )
+    except Exception as e:
+        logger.error(
+            "GeoNetwork category modification failed for IntegrityLink %s: %s",
+            integrity_link_id,
+            e,
+        )
+        raise HTTPException(status_code=502, detail="i18nerror.save.geonetwork")
+
+    try:
         _sync_title_geoserver(body.title, integrity_link)
     except Exception as e:
         logger.error(

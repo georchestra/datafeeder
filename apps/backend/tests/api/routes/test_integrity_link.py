@@ -1913,6 +1913,7 @@ class TestUpdateMetadataGn:
     def _link(self, link_id: str) -> IntegrityLink:
         return IntegrityLink(
             id=UUID(link_id),
+            metadata_id="metadata-uuid",
             integrity_owner="testuser",
             integrity_organization="testorg",
             source_import_type=ImportType.URL,
@@ -1943,7 +1944,9 @@ class TestUpdateMetadataGn:
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
         """Happy path: XML uploaded to GN and integrity_title committed."""
-        mock_session.get.return_value = self._link(integrity_link_id)
+        link = self._link(integrity_link_id)
+        link.is_reference_dataset = True
+        mock_session.get.return_value = link
         mock_session.exec.return_value.first.return_value = "OWNER"
 
         mock_ms = self._mock_metadata_service()
@@ -1962,6 +1965,7 @@ class TestUpdateMetadataGn:
         mock_ms.read_schema_from_xml.assert_called_once_with(b"<xml>metadata</xml>")
         mock_schema.update_online_resources_when_title_changed.assert_called_once_with("New Title")
         mock_schema.upload_to_gn.assert_called_once()
+        mock_ms.set_reference_dataset_flag.assert_called_once_with("metadata-uuid", True)
         # integrity_title updated before commit
         link = mock_session.add.call_args[0][0]
         assert link.integrity_title == "New Title"
@@ -2025,25 +2029,59 @@ class TestUpdateMetadataGn:
         mock_session.get.return_value = link
         mock_session.exec.return_value.first.return_value = "OWNER"
 
-        with patch("src.services.metadata_service.GnApi") as mock_gn_api:
-            mock_api = MagicMock()
-            mock_api.upload_metadata.side_effect = Exception("GN down")
-            mock_gn_api.return_value = mock_api
-            service = MetadataService(gn_api_url="http://test/api", datadir_path="/test")
+        mock_ms = self._mock_metadata_service()
+        mock_schema = mock_ms.read_schema_from_xml.return_value
+        mock_schema.force_updated.return_value = mock_schema
+        mock_schema.upload_to_gn.side_effect = Exception("GN down")
 
-            with pytest.raises(HTTPException):
-                update_metadata_gn(
-                    session=mock_session,
-                    geo_ctx=_geo_ctx(),
-                    integrity_link_id=integrity_link_id,
-                    group_ids=[],
-                    metadata_service=service,
-                    body=self._body(
-                        "New Title",
-                        serialized_xml=SAMPLE_19115_3_WITH_ONLINE_RESOURCES.decode("utf-8"),
-                    ),
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            update_metadata_gn(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+                metadata_service=mock_ms,
+                body=self._body(
+                    "New Title",
+                    serialized_xml=SAMPLE_19115_3_WITH_ONLINE_RESOURCES.decode("utf-8"),
+                ),
+            )
 
+        assert exc_info.value.status_code == 502
+        # the failure must come from the upload itself, and stop the flow there
+        mock_schema.upload_to_gn.assert_called_once()
+        mock_ms.set_reference_dataset_flag.assert_not_called()
+        mock_session.commit.assert_not_called()
+        # the same object returned by session.get must not have been mutated
+        assert link.integrity_title == "Old Title"
+
+    def test_does_not_commit_when_geonetwork_category_fails(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """DB is not updated when GeoNetwork category modification fails."""
+        link = self._link(integrity_link_id)
+        mock_session.get.return_value = link
+        mock_session.exec.return_value.first.return_value = "OWNER"
+
+        mock_ms = self._mock_metadata_service()
+        mock_ms.set_reference_dataset_flag.side_effect = Exception("category not found in GN")
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_metadata_gn(
+                session=mock_session,
+                geo_ctx=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+                metadata_service=mock_ms,
+                body=self._body(
+                    "New Title",
+                    serialized_xml=SAMPLE_19115_3_WITH_ONLINE_RESOURCES.decode("utf-8"),
+                ),
+            )
+
+        assert exc_info.value.status_code == 502
+        assert exc_info.value.detail == "i18nerror.save.geonetwork"
+        mock_ms.set_reference_dataset_flag.assert_called_once_with("metadata-uuid", False)
         mock_session.commit.assert_not_called()
         # the same object returned by session.get must not have been mutated
         assert link.integrity_title == "Old Title"
