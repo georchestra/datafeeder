@@ -14,14 +14,16 @@ from src.api.routes.groups_common import GroupItem
 from src.api.routes.ingestion.integrity_links import (
     BATCH_SIZE,
     get_joinable_columns,
+    list_integrity_link_access_levels,
     list_integrity_link_organizations,
     list_integrity_link_owners,
+    list_integrity_link_recurrences,
     list_integrity_links,
     list_joinable_tables,
 )
 from src.models.data_import import ImportType, IntegrityLinkListResponse, PublicAccess
 from src.models.integrity_link import IntegrityLink
-from src.models.recurrence import RecurrencePreset
+from src.models.recurrence import RecurrenceFilter, RecurrencePreset
 from src.services.georchestra import GeorchestraContext
 
 _CONSOLE_PATCH = "src.api.routes.ingestion.integrity_links.ConsoleService"
@@ -1353,6 +1355,120 @@ class TestListIntegrityLinkOwners:
         assert "integrity_owner =" not in query_str
 
 
+def _filter_geo_ctx(username: str, roles: set[str] | None = None) -> GeorchestraContext:
+    return GeorchestraContext(
+        username=username,
+        roles=roles or set(),
+        email="",
+        firstname="",
+        lastname="",
+        organization="",
+    )
+
+
+class TestListIntegrityLinkAccessLevels:
+    """Test the list_integrity_link_access_levels endpoint."""
+
+    def test_returns_present_levels_in_enum_order(self) -> None:
+        session = MagicMock()
+        session.execute.return_value.scalars.return_value.all.return_value = [
+            "open",
+            "unconfigured",
+        ]
+
+        response = list_integrity_link_access_levels(
+            session=session, geo_ctx=_filter_geo_ctx("user0"), group_ids=[]
+        )
+
+        assert response == [PublicAccess.UNCONFIGURED, PublicAccess.OPEN]
+
+    def test_empty_when_no_accessible_links(self) -> None:
+        session = MagicMock()
+        session.execute.return_value.scalars.return_value.all.return_value = []
+
+        response = list_integrity_link_access_levels(
+            session=session, geo_ctx=_filter_geo_ctx("user0"), group_ids=[]
+        )
+
+        assert response == []
+
+    def test_query_restricted_for_non_admin(self) -> None:
+        session = MagicMock()
+        session.execute.return_value.scalars.return_value.all.return_value = []
+
+        list_integrity_link_access_levels(
+            session=session, geo_ctx=_filter_geo_ctx("user1"), group_ids=[]
+        )
+
+        executed_query = session.execute.call_args_list[0][0][0]
+        assert "user1" in str(executed_query.compile(compile_kwargs={"literal_binds": True}))
+
+    def test_admin_query_is_not_restricted(self) -> None:
+        session = MagicMock()
+        session.execute.return_value.scalars.return_value.all.return_value = []
+
+        list_integrity_link_access_levels(
+            session=session, geo_ctx=_filter_geo_ctx("admin", {"ADMINISTRATOR"}), group_ids=[]
+        )
+
+        executed_query = session.execute.call_args_list[0][0][0]
+        assert executed_query.whereclause is None
+
+
+class TestListIntegrityLinkRecurrences:
+    """Test the list_integrity_link_recurrences endpoint."""
+
+    def test_maps_schedules_to_filters_in_enum_order(self) -> None:
+        session = MagicMock()
+        session.execute.return_value.scalars.return_value.all.return_value = [
+            RecurrencePreset.EVERY_WEEK.cron,
+            None,
+            RecurrencePreset.EVERY_HOUR.cron,
+        ]
+
+        response = list_integrity_link_recurrences(
+            session=session, geo_ctx=_filter_geo_ctx("user0"), group_ids=[]
+        )
+
+        assert response == [
+            RecurrenceFilter.EVERY_HOUR,
+            RecurrenceFilter.EVERY_WEEK,
+            RecurrenceFilter.NONE,
+        ]
+
+    def test_ignores_schedules_matching_no_preset(self) -> None:
+        session = MagicMock()
+        session.execute.return_value.scalars.return_value.all.return_value = ["*/5 * * * *"]
+
+        response = list_integrity_link_recurrences(
+            session=session, geo_ctx=_filter_geo_ctx("user0"), group_ids=[]
+        )
+
+        assert response == []
+
+    def test_query_restricted_for_non_admin(self) -> None:
+        session = MagicMock()
+        session.execute.return_value.scalars.return_value.all.return_value = []
+
+        list_integrity_link_recurrences(
+            session=session, geo_ctx=_filter_geo_ctx("user1"), group_ids=[]
+        )
+
+        executed_query = session.execute.call_args_list[0][0][0]
+        assert "user1" in str(executed_query.compile(compile_kwargs={"literal_binds": True}))
+
+    def test_admin_query_is_not_restricted(self) -> None:
+        session = MagicMock()
+        session.execute.return_value.scalars.return_value.all.return_value = []
+
+        list_integrity_link_recurrences(
+            session=session, geo_ctx=_filter_geo_ctx("admin", {"ADMINISTRATOR"}), group_ids=[]
+        )
+
+        executed_query = session.execute.call_args_list[0][0][0]
+        assert executed_query.whereclause is None
+
+
 class TestPublicAccessComputation:
     """Test the public_access field computed by list_integrity_links."""
 
@@ -1467,7 +1583,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
             geo_ctx=self._geo_ctx("user0"),
             group_ids=[],
             offset=0,
-            recurrence=[RecurrencePreset.EVERY_DAY],
+            recurrence=[RecurrenceFilter.EVERY_DAY],
         )
 
         query_str = self._compiled_first_query(mock_session)
@@ -1509,6 +1625,42 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         assert "schedule IN" not in where_clause
         assert "gn_is_published" not in where_clause
 
+    def test_recurrence_none_filters_on_null_schedule(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            recurrence=[RecurrenceFilter.NONE],
+        )
+
+        where_clause = self._where_clause(mock_session)
+        assert "schedule IS NULL" in where_clause
+
+    def test_recurrence_none_ors_with_presets(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            recurrence=[RecurrenceFilter.EVERY_DAY, RecurrenceFilter.NONE],
+        )
+
+        where_clause = self._where_clause(mock_session)
+        assert "schedule IS NULL" in where_clause
+        assert RecurrencePreset.EVERY_DAY.cron in where_clause
+        assert " OR " in where_clause
+
     def test_recurrence_filter_with_multiple_values_ors_them(
         self, mock_session: MagicMock, mock_data_session: MagicMock
     ) -> None:
@@ -1520,7 +1672,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
             geo_ctx=self._geo_ctx("user0"),
             group_ids=[],
             offset=0,
-            recurrence=[RecurrencePreset.EVERY_DAY, RecurrencePreset.EVERY_WEEK],
+            recurrence=[RecurrenceFilter.EVERY_DAY, RecurrenceFilter.EVERY_WEEK],
         )
 
         query_str = self._compiled_first_query(mock_session)
@@ -1557,7 +1709,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
             group_ids=[],
             offset=0,
             access=[PublicAccess.OPEN],
-            recurrence=[RecurrencePreset.EVERY_DAY],
+            recurrence=[RecurrenceFilter.EVERY_DAY],
         )
 
         where_clause = self._where_clause(mock_session)

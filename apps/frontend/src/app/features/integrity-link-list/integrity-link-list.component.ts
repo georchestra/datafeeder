@@ -1,4 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core'
+import {
+  Component,
+  computed,
+  inject,
+  signal,
+  WritableSignal
+} from '@angular/core'
 import { DatePipe } from '@angular/common'
 import { Router } from '@angular/router'
 import { NgIconComponent, provideIcons } from '@ng-icons/core'
@@ -24,17 +30,17 @@ import {
 import { Api } from '../../core/api/api'
 import {
   deleteIntegrityLinkIngestionIntegrityLinkIntegrityLinkIdDelete,
+  listIntegrityLinkAccessLevelsIngestionIntegrityLinksAccessLevelsGet,
   listIntegrityLinkOrganizationsIngestionIntegrityLinksOrganizationsGet,
   listIntegrityLinkOwnersIngestionIntegrityLinksOwnersGet,
+  listIntegrityLinkRecurrencesIngestionIntegrityLinksRecurrencesGet,
   listIntegrityLinksIngestionIntegrityLinksGet
 } from '../../core/api/functions'
 import {
   IntegrityLinkListItem,
   PublicAccess,
-  RecurrencePreset
+  RecurrenceFilter
 } from '../../core/api/models'
-import { PUBLIC_ACCESS } from '../../core/api/models/public-access-array'
-import { RECURRENCE_PRESET } from '../../core/api/models/recurrence-preset-array'
 import {
   iconoirPlus,
   iconoirChatBubbleWarning,
@@ -118,6 +124,8 @@ export class IntegrityLinkListComponent {
   readonly referenceChoices: Choice<string>[] = []
   organizationChoices = signal<Choice<string>[]>([])
   ownerChoices = signal<Choice<string>[]>([])
+  private accessOptions = signal<PublicAccess[]>([])
+  private recurrenceOptions = signal<RecurrenceFilter[]>([])
   deleting = signal<string | null>(null)
   private nextOffset = signal(0)
 
@@ -130,16 +138,18 @@ export class IntegrityLinkListComponent {
   // depend on currentLang so labels resolve once translations are loaded.
   readonly accessChoices = computed<Choice<string>[]>(() => {
     this.currentLang()
-    return PUBLIC_ACCESS.map((value) => ({
+    return this.accessOptions().map((value) => ({
       value,
       label: this.translate.instant(`integrityLinks.visibility.${value}`)
     }))
   })
   readonly recurrenceChoices = computed<Choice<string>[]>(() => {
     this.currentLang()
-    return RECURRENCE_PRESET.map((value) => ({
+    return this.recurrenceOptions().map((value) => ({
       value,
-      label: this.translate.instant(`recurrence.preset.${value}`)
+      label: this.translate.instant(
+        value === 'NONE' ? 'recurrence.none' : `recurrence.preset.${value}`
+      )
     }))
   })
 
@@ -161,6 +171,7 @@ export class IntegrityLinkListComponent {
   }))
 
   private requestId = 0
+  private choicesRequestId = 0
 
   constructor() {
     toObservable(this.filters)
@@ -177,30 +188,62 @@ export class IntegrityLinkListComponent {
         this.loading.set(true)
         this.loadIntegrityLinks()
       })
-    this.loadOrganizationAndOwnerChoices()
+    this.loadFilterChoices()
   }
 
-  private async loadOrganizationAndOwnerChoices(): Promise<void> {
+  private async loadFilterChoices(): Promise<void> {
+    const requestId = ++this.choicesRequestId
     try {
-      const [organizations, owners] = await Promise.all([
-        this.api.invoke(
-          listIntegrityLinkOrganizationsIngestionIntegrityLinksOrganizationsGet,
-          {}
-        ),
-        this.api.invoke(
-          listIntegrityLinkOwnersIngestionIntegrityLinksOwnersGet,
-          {}
-        )
-      ])
+      const [organizations, owners, accessLevels, recurrences] =
+        await Promise.all([
+          this.api.invoke(
+            listIntegrityLinkOrganizationsIngestionIntegrityLinksOrganizationsGet,
+            {}
+          ),
+          this.api.invoke(
+            listIntegrityLinkOwnersIngestionIntegrityLinksOwnersGet,
+            {}
+          ),
+          this.api.invoke(
+            listIntegrityLinkAccessLevelsIngestionIntegrityLinksAccessLevelsGet,
+            {}
+          ),
+          this.api.invoke(
+            listIntegrityLinkRecurrencesIngestionIntegrityLinksRecurrencesGet,
+            {}
+          )
+        ])
+      if (requestId !== this.choicesRequestId) return
       this.organizationChoices.set(
         organizations.map((org) => ({ value: org.id, label: org.label }))
       )
       this.ownerChoices.set(
         owners.map((owner) => ({ value: owner.id, label: owner.label }))
       )
+      this.accessOptions.set(accessLevels)
+      this.recurrenceOptions.set(recurrences)
+      // A deletion can remove the last dataset carrying a selected value, which
+      // would leave an invisible filter that can no longer be unchecked.
+      this.keepAvailable(
+        this.selectedOrganization,
+        organizations.map((org) => org.id)
+      )
+      this.keepAvailable(
+        this.selectedOwner,
+        owners.map((owner) => owner.id)
+      )
+      this.keepAvailable(this.selectedAccess, accessLevels)
+      this.keepAvailable(this.selectedRecurrence, recurrences)
     } catch (error) {
-      console.error('Failed to load organization/owner filter choices:', error)
+      console.error('Failed to load filter choices:', error)
     }
+  }
+
+  private keepAvailable(
+    selected: WritableSignal<string[]>,
+    available: string[]
+  ): void {
+    selected.update((values) => values.filter((v) => available.includes(v)))
   }
 
   private async loadIntegrityLinks(append = false): Promise<void> {
@@ -222,7 +265,7 @@ export class IntegrityLinkListComponent {
         ? (this.selectedAccess() as PublicAccess[])
         : undefined
       const recurrence = this.selectedRecurrence().length
-        ? (this.selectedRecurrence() as RecurrencePreset[])
+        ? (this.selectedRecurrence() as RecurrenceFilter[])
         : undefined
       const response = await this.api.invoke(
         listIntegrityLinksIngestionIntegrityLinksGet,
@@ -316,6 +359,7 @@ export class IntegrityLinkListComponent {
       )
       this.integrityLinks.update((items) => items.filter((l) => l.id !== id))
       this.total.update((total) => (total === null ? null : total - 1))
+      this.loadFilterChoices()
     } catch (error) {
       console.error('Failed to delete integrity link:', error)
       this.operationToastStore.addError('deletion')
