@@ -335,43 +335,34 @@ def upsert_integrity_link_rule(
         IntegrityLinkRule.group_or_role == body.group_or_role,
         IntegrityLinkRule.rule_type == body.rule_type,
     )
-    existing_rule = session.exec(statement).first()
+    rule = session.exec(statement).first()
 
-    if existing_rule:
-        existing_rule.rule_value = body.rule_value
-        session.add(existing_rule)
-        session.flush()
-        session.refresh(existing_rule)
-        if body.rule_type == RuleType.DATA:
-            try:
-                _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
-            except (GeoServerAclError, ConsoleServiceError) as e:
-                logger.error(
-                    "GeoServer sync failed while updating rule for IntegrityLink %s: %s",
-                    integrity_link_id,
-                    e,
-                )
-                session.rollback()
-                raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
-        session.commit()
-        _sync_metadata_sharing(session, integrity_link_id, integrity_link, metadata_service)
-        return existing_rule
-
-    new_rule = IntegrityLinkRule(
-        integrity_link_id=UUID(integrity_link_id),
-        group_or_role=body.group_or_role,
-        rule_type=body.rule_type,
-        rule_value=body.rule_value,
+    logger.info(
+        "%s %s rule for %s on IntegrityLink %s",
+        "Updating" if rule else "Creating",
+        body.rule_type,
+        body.group_or_role,
+        integrity_link_id,
     )
-    session.add(new_rule)
+    if rule:
+        rule.rule_value = body.rule_value
+    else:
+        rule = IntegrityLinkRule(
+            integrity_link_id=UUID(integrity_link_id),
+            group_or_role=body.group_or_role,
+            rule_type=body.rule_type,
+            rule_value=body.rule_value,
+        )
+
+    session.add(rule)
     session.flush()
-    session.refresh(new_rule)
+    session.refresh(rule)
     if body.rule_type == RuleType.DATA:
         try:
             _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
         except (GeoServerAclError, ConsoleServiceError) as e:
             logger.error(
-                "GeoServer sync failed while creating rule for IntegrityLink %s: %s",
+                "GeoServer sync failed while upserting rule for IntegrityLink %s: %s",
                 integrity_link_id,
                 e,
             )
@@ -379,7 +370,7 @@ def upsert_integrity_link_rule(
             raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
     session.commit()
     _sync_metadata_sharing(session, integrity_link_id, integrity_link, metadata_service)
-    return new_rule
+    return rule
 
 
 @router.delete(
