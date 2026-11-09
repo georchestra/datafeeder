@@ -1276,7 +1276,7 @@ class TestRecordExists:
 
 class TestSetReferenceDatasetFlag:
     @patch("src.services.metadata_service.GnApi")
-    def test_sets_flag(self, mock_gn_api: MagicMock) -> None:
+    def test_sets_flag_true(self, mock_gn_api: MagicMock) -> None:
         session = mock_gn_api.return_value.session
         mock_gn_api.return_value.api_url = "http://gn/srv/api"
         session.get.return_value.json.return_value = [
@@ -1289,6 +1289,25 @@ class TestSetReferenceDatasetFlag:
 
         session.get.assert_called_once_with("http://gn/srv/api/tags")
         session.put.assert_called_once_with(
+            "http://gn/srv/api/records/uuid-1/tags", params={"id": 7}
+        )
+        session.delete.assert_not_called()
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_sets_flag_false(self, mock_gn_api: MagicMock) -> None:
+        session = mock_gn_api.return_value.session
+        mock_gn_api.return_value.api_url = "http://gn/srv/api"
+        session.get.return_value.json.return_value = [
+            {"id": 1, "name": "other"},
+            {"id": 7, "name": "geonetwork-ui:IS_REFERENCE_DATASET"},
+        ]
+        service = MetadataService(gn_api_url="http://gn/srv/api", datadir_path="/datadir")
+
+        service.set_reference_dataset_flag("uuid-1", False)
+
+        session.get.assert_called_once_with("http://gn/srv/api/tags")
+        session.put.assert_not_called()
+        session.delete.assert_called_once_with(
             "http://gn/srv/api/records/uuid-1/tags", params={"id": 7}
         )
 

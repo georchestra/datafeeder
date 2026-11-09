@@ -551,6 +551,7 @@ class MetadataService:
             )
             resp.raise_for_status()
             logger.info(f"Removed category '{category_name}' from record {metadata_uuid}")
+            return
 
         #  add category to record
         resp = self.gn_api.session.put(
