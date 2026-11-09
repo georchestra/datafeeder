@@ -544,7 +544,6 @@ class MetadataService:
             raise ValueError(f"GeoNetwork category '{category_name}' not found")
 
         if not value:
-            # Remove category from record
             resp = self.gn_api.session.delete(
                 f"{self.gn_api.api_url}/records/{metadata_uuid}/tags",
                 params={"id": category_id},
@@ -553,7 +552,6 @@ class MetadataService:
             logger.info(f"Removed category '{category_name}' from record {metadata_uuid}")
             return
 
-        #  add category to record
         resp = self.gn_api.session.put(
             f"{self.gn_api.api_url}/records/{metadata_uuid}/tags",
             params={"id": category_id},

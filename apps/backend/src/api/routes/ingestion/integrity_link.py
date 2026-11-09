@@ -285,20 +285,6 @@ def update_metadata_gn(
         raise HTTPException(status_code=502, detail="i18nerror.save.geonetwork")
 
     try:
-        assert integrity_link.metadata_id is not None
-        metadata_service.set_reference_dataset_flag(
-            integrity_link.metadata_id,
-            integrity_link.is_reference_dataset,
-        )
-    except Exception as e:
-        logger.error(
-            "GeoNetwork category modification failed for IntegrityLink %s: %s",
-            integrity_link_id,
-            e,
-        )
-        raise HTTPException(status_code=502, detail="i18nerror.save.geonetwork")
-
-    try:
         _sync_title_geoserver(body.title, integrity_link)
     except Exception as e:
         logger.error(
@@ -728,12 +714,29 @@ def update_is_reference(
     geo_ctx: GeorchestraContextDep,
     integrity_link_id: str,
     group_ids: GroupIdsDep,
+    metadata_service: MetadataServiceDep,
     is_reference: bool = Body(embed=True),
 ) -> IntegrityLinkResponse:
     integrity_link, effective = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
     )
     integrity_link.is_reference_dataset = is_reference
+
+    # The frontend only offers the toggle once the GeoNetwork record exists: without record,
+    # the flag is only stored.
+    if integrity_link.metadata_id:
+        try:
+            metadata_service.set_reference_dataset_flag(
+                integrity_link.metadata_id,
+                integrity_link.is_reference_dataset,
+            )
+        except Exception as e:
+            logger.error(
+                "GeoNetwork category modification failed for IntegrityLink %s: %s",
+                integrity_link_id,
+                e,
+            )
+            raise HTTPException(status_code=502, detail="i18nerror.save.geonetwork")
 
     session.commit()
     session.refresh(integrity_link)

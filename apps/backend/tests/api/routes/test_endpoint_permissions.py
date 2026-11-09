@@ -720,7 +720,7 @@ class TestUpdateIsReferencePermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            update_is_reference(session, _ctx(), INTLINK_ID, [], is_reference=True)
+            update_is_reference(session, _ctx(), INTLINK_ID, [], MagicMock(), is_reference=True)
 
         assert exc_info.value.status_code == 403
         session.commit.assert_not_called()
@@ -730,7 +730,9 @@ class TestUpdateIsReferencePermission:
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
 
         with pytest.raises(HTTPException) as exc_info:
-            update_is_reference(session, _write_ctx(), INTLINK_ID, GROUP_IDS, is_reference=True)
+            update_is_reference(
+                session, _write_ctx(), INTLINK_ID, GROUP_IDS, MagicMock(), is_reference=True
+            )
 
         assert exc_info.value.status_code == 403
         session.commit.assert_not_called()
@@ -738,14 +740,18 @@ class TestUpdateIsReferencePermission:
     def test_succeeds_for_owner(self) -> None:
         session = _mock_session(_link(), access_result="OWNER")
 
-        response = update_is_reference(session, _owner_ctx(), INTLINK_ID, [], is_reference=True)
+        response = update_is_reference(
+            session, _owner_ctx(), INTLINK_ID, [], MagicMock(), is_reference=True
+        )
 
         assert response.is_reference_dataset is True
 
     def test_succeeds_for_admin(self) -> None:
         session = _mock_session(_link(), access_result="ADMIN")
 
-        response = update_is_reference(session, _admin_ctx(), INTLINK_ID, [], is_reference=True)
+        response = update_is_reference(
+            session, _admin_ctx(), INTLINK_ID, [], MagicMock(), is_reference=True
+        )
 
         assert response.is_reference_dataset is True
 
@@ -754,7 +760,9 @@ class TestUpdateIsReferencePermission:
         session = _mock_session(None)  # no link found
 
         with pytest.raises(HTTPException) as exc_info:
-            update_is_reference(session, _owner_ctx(), str(uuid4()), [], is_reference=True)
+            update_is_reference(
+                session, _owner_ctx(), str(uuid4()), [], MagicMock(), is_reference=True
+            )
 
         assert exc_info.value.status_code == 404
 
@@ -764,6 +772,6 @@ class TestUpdateIsReferencePermission:
         mock_load.side_effect = HTTPException(status_code=403)
 
         with pytest.raises(HTTPException):
-            update_is_reference(MagicMock(), _ctx(), INTLINK_ID, [], is_reference=True)
+            update_is_reference(MagicMock(), _ctx(), INTLINK_ID, [], MagicMock(), is_reference=True)
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.OWNER_ONLY, ANY, ANY, ANY)
