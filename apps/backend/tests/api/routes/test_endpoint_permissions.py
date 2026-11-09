@@ -243,7 +243,9 @@ class TestDeleteIntegrityLinkRulePermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            delete_integrity_link_rule(session, _ctx(), INTLINK_ID, [], MagicMock(), rule_id=1)
+            delete_integrity_link_rule(
+                session, _ctx(), INTLINK_ID, [], MagicMock(), MagicMock(), rule_id=1
+            )
 
         assert exc_info.value.status_code == 403
 
@@ -254,7 +256,7 @@ class TestDeleteIntegrityLinkRulePermission:
 
         with pytest.raises(HTTPException) as exc_info:
             delete_integrity_link_rule(
-                session, _write_ctx(), INTLINK_ID, GROUP_IDS, MagicMock(), rule_id=1
+                session, _write_ctx(), INTLINK_ID, GROUP_IDS, MagicMock(), MagicMock(), rule_id=1
             )
 
         assert exc_info.value.status_code == 403
@@ -476,7 +478,9 @@ class TestUpsertIntegrityLinkRulePermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            upsert_integrity_link_rule(session, _ctx(), INTLINK_ID, [], MagicMock(), self._body())
+            upsert_integrity_link_rule(
+                session, _ctx(), INTLINK_ID, [], MagicMock(), MagicMock(), self._body()
+            )
 
         assert exc_info.value.status_code == 403
 
@@ -487,7 +491,7 @@ class TestUpsertIntegrityLinkRulePermission:
 
         with pytest.raises(HTTPException) as exc_info:
             upsert_integrity_link_rule(
-                session, _write_ctx(), INTLINK_ID, GROUP_IDS, MagicMock(), self._body()
+                session, _write_ctx(), INTLINK_ID, GROUP_IDS, MagicMock(), MagicMock(), self._body()
             )
 
         assert exc_info.value.status_code == 403
@@ -501,7 +505,7 @@ class TestUpsertIntegrityLinkRulePermission:
         session.exec.side_effect = [access_mock, no_rule_mock]
 
         result = upsert_integrity_link_rule(
-            session, _owner_ctx(), INTLINK_ID, [], MagicMock(), self._body()
+            session, _owner_ctx(), INTLINK_ID, [], MagicMock(), MagicMock(), self._body()
         )
 
         assert result is not None
@@ -631,7 +635,7 @@ class TestDeleteIntegrityLinkPermission:
         session = _mock_session(_link())
 
         with pytest.raises(HTTPException) as exc_info:
-            delete_integrity_link(session, _ctx(), INTLINK_ID, [], MagicMock())
+            delete_integrity_link(session, _ctx(), INTLINK_ID, [], MagicMock(), MagicMock())
 
         assert exc_info.value.status_code == 403
 
@@ -640,17 +644,15 @@ class TestDeleteIntegrityLinkPermission:
         session = _mock_session_with_rule(_link(), RuleValue.WRITE)
 
         with pytest.raises(HTTPException) as exc_info:
-            delete_integrity_link(session, _write_ctx(), INTLINK_ID, GROUP_IDS, MagicMock())
+            delete_integrity_link(
+                session, _write_ctx(), INTLINK_ID, GROUP_IDS, MagicMock(), MagicMock()
+            )
 
         assert exc_info.value.status_code == 403
 
     @patch("src.api.routes.ingestion.integrity_link.DatasetDeletionService")
-    @patch("src.api.routes.ingestion.integrity_link.GeoServerService")
-    @patch("src.api.routes.ingestion.integrity_link.get_settings")
     def test_returns_204_for_owner(
         self,
-        mock_settings: MagicMock,
-        mock_geoserver_svc: MagicMock,
         mock_deletion_svc_cls: MagicMock,
     ) -> None:
         """Owner can delete their own dataset."""
@@ -658,18 +660,16 @@ class TestDeleteIntegrityLinkPermission:
         mock_deletion_svc = MagicMock()
         mock_deletion_svc_cls.return_value = mock_deletion_svc
 
-        response = delete_integrity_link(session, _owner_ctx(), INTLINK_ID, [], MagicMock())
+        response = delete_integrity_link(
+            session, _owner_ctx(), INTLINK_ID, [], MagicMock(), MagicMock()
+        )
 
         assert response.status_code == 204
         mock_deletion_svc.delete_dataset.assert_called_once()
 
     @patch("src.api.routes.ingestion.integrity_link.DatasetDeletionService")
-    @patch("src.api.routes.ingestion.integrity_link.GeoServerService")
-    @patch("src.api.routes.ingestion.integrity_link.get_settings")
     def test_returns_204_for_admin(
         self,
-        mock_settings: MagicMock,
-        mock_geoserver_svc: MagicMock,
         mock_deletion_svc_cls: MagicMock,
     ) -> None:
         """Admin can delete any dataset."""
@@ -677,7 +677,9 @@ class TestDeleteIntegrityLinkPermission:
         mock_deletion_svc = MagicMock()
         mock_deletion_svc_cls.return_value = mock_deletion_svc
 
-        response = delete_integrity_link(session, _admin_ctx(), INTLINK_ID, [], MagicMock())
+        response = delete_integrity_link(
+            session, _admin_ctx(), INTLINK_ID, [], MagicMock(), MagicMock()
+        )
 
         assert response.status_code == 204
         mock_deletion_svc.delete_dataset.assert_called_once()
@@ -687,17 +689,13 @@ class TestDeleteIntegrityLinkPermission:
         session = _mock_session(None)  # no link found
 
         with pytest.raises(HTTPException) as exc_info:
-            delete_integrity_link(session, _owner_ctx(), str(uuid4()), [], MagicMock())
+            delete_integrity_link(session, _owner_ctx(), str(uuid4()), [], MagicMock(), MagicMock())
 
         assert exc_info.value.status_code == 404
 
     @patch("src.api.routes.ingestion.integrity_link.DatasetDeletionService")
-    @patch("src.api.routes.ingestion.integrity_link.GeoServerService")
-    @patch("src.api.routes.ingestion.integrity_link.get_settings")
     def test_returns_500_on_dag_deletion_failure(
         self,
-        mock_settings: MagicMock,
-        mock_geoserver_svc: MagicMock,
         mock_deletion_svc_cls: MagicMock,
     ) -> None:
         """DAG deletion failure returns HTTP 500."""
@@ -707,7 +705,7 @@ class TestDeleteIntegrityLinkPermission:
         mock_deletion_svc_cls.return_value = mock_deletion_svc
 
         with pytest.raises(HTTPException) as exc_info:
-            delete_integrity_link(session, _owner_ctx(), INTLINK_ID, [], MagicMock())
+            delete_integrity_link(session, _owner_ctx(), INTLINK_ID, [], MagicMock(), MagicMock())
 
         assert exc_info.value.status_code == 500
 
@@ -717,7 +715,7 @@ class TestDeleteIntegrityLinkPermission:
         mock_load.side_effect = HTTPException(status_code=403)
 
         with pytest.raises(HTTPException):
-            delete_integrity_link(MagicMock(), _ctx(), INTLINK_ID, [], MagicMock())
+            delete_integrity_link(MagicMock(), _ctx(), INTLINK_ID, [], MagicMock(), MagicMock())
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.OWNER_ONLY, ANY, ANY, ANY)
 
