@@ -95,9 +95,7 @@ def source_db() -> Iterator[MagicMock]:
                 bbox={"minx": 1.0, "miny": 2.0, "maxx": 3.0, "maxy": 4.0},
             ),
         ),
-        patch("src.services.metadata_publication.ConsoleService") as console,
     ):
-        console.return_value.get_organization.return_value = None
         yield get_engine
 
 
@@ -115,8 +113,16 @@ async def _create(
             _ctx(roles if roles is not None else {"PATRIMOINE_EDITOR"}),
             geoserver,
             metadata,
+            _console(),
         )
     return validate
+
+
+def _console() -> MagicMock:
+    """Console without the organization: the record contact is the author."""
+    console = MagicMock()
+    console.get_organization.return_value = None
+    return console
 
 
 @pytest.mark.asyncio
