@@ -1,6 +1,7 @@
 """GeoServer publication of a dataset's final table."""
 
 from data_manipulation.database import TableExtent
+from data_manipulation.utils import sanitize_name
 from geoservercloud.models.common import MetadataLink
 
 from src.core.config import get_settings
@@ -44,6 +45,11 @@ def build_metadata_links(integrity_link: IntegrityLink) -> list[MetadataLink] | 
             mime_type="text/html",
         ),
     ]
+
+
+def direct_access_datastore_name(db_key: str, pg_schema: str) -> str:
+    """Datastore of a direct access dataset: one per source database schema."""
+    return sanitize_name(f"{db_key}_{pg_schema}")
 
 
 async def publish_table(

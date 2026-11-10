@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from data_manipulation.utils import parse_db_uri
 from fastapi import APIRouter, Body, HTTPException, Query, Response
 from sqlmodel import select
 
@@ -40,6 +41,7 @@ from src.services.geoserver import (
     GeoServerAclError,
     GeoServerService,
 )
+from src.services.layer_publication import direct_access_datastore_name
 from src.services.metadata_service import MetadataService
 from src.services.schedule_service import clear_schedule
 
@@ -117,16 +119,16 @@ def _sync_metadata_sharing(
 def _resolve_gs_layer(integrity_link: IntegrityLink) -> tuple[str, str | None]:
     """Return the (workspace, layer) targeted on GeoServer by an IntegrityLink.
 
-    PREFILLED datasets reference an external layer through data_id ('workspace:layer');
-    the others use their organization and final_table_name.
+    PREFILLED and DIRECT_ACCESS datasets reference their layer through data_id
+    ('workspace:layer'); the others use their organization and final_table_name.
 
     Returns:
-        (workspace, layer) with a lowercased workspace (and layer, for PREFILLED);
+        (workspace, layer) with a lowercased workspace (and layer, from data_id);
         layer is None when no layer can be targeted.
     """
     workspace = integrity_link.integrity_organization.lower()
     layer_name = integrity_link.final_table_name
-    if integrity_link.source_import_type == ImportType.PREFILLED:
+    if integrity_link.source_import_type in (ImportType.PREFILLED, ImportType.DIRECT_ACCESS):
         if parts := integrity_link.parse_data_id():
             workspace, layer_name = parts[0].lower(), parts[1].lower()
     return workspace, layer_name
@@ -218,14 +220,21 @@ def get_integrity_link(
 def _sync_title_geoserver(
     title: str, integrity_link: IntegrityLink, geoserver_service: GeoServerService
 ) -> None:
-    """Sync the metadata title to the corresponding GeoServer feature type layer."""
-    if not integrity_link.final_table_name:
+    """Sync the metadata title to the corresponding GeoServer feature type layer.
+
+    Skipped for PREFILLED datasets, whose layer is not managed by datafeeder.
+    """
+    if integrity_link.source_import_type == ImportType.PREFILLED:
         return
-    workspace = integrity_link.integrity_organization.lower()
-    datastore = f"{workspace}_ds"
-    geoserver_service.update_layer_title(
-        workspace, datastore, integrity_link.final_table_name, title
-    )
+    workspace, layer_name = _resolve_gs_layer(integrity_link)
+    if not layer_name:
+        return
+    if integrity_link.source_import_type == ImportType.DIRECT_ACCESS:
+        db_key, pg_schema, _ = parse_db_uri(str(integrity_link.source_url))
+        datastore = direct_access_datastore_name(db_key, pg_schema)
+    else:
+        datastore = f"{workspace}_ds"
+    geoserver_service.update_layer_title(workspace, datastore, layer_name, title)
 
 
 @router.put(

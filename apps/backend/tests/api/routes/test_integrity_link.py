@@ -1106,6 +1106,59 @@ class TestSyncDataSharingAfterUpsert:
             "otherws", "other_layer", [(ACL_ROLE_EVERYONE, RuleValue.READ)]
         )
 
+    def test_gs_sync_direct_access_targets_layer_from_data_id(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """For DIRECT_ACCESS datasets, sync_layer_acl targets the layer of data_id."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="MyOrg",
+            source_import_type=ImportType.DIRECT_ACCESS,
+            staging_table_name="staging_test",
+            final_table_name=None,
+            data_id="myorg:rivers",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        data_rules_mock = MagicMock()
+        data_rules_mock.all.return_value = [
+            IntegrityLinkRule(
+                id=1,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role=GROUP_OR_ROLE_EVERYONE,
+                rule_type=RuleType.DATA,
+                rule_value=RuleValue.READ,
+            )
+        ]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, data_rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role=GROUP_OR_ROLE_EVERYONE,
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+
+        mock_gs = MagicMock()
+
+        upsert_integrity_link_rule(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            group_ids=[],
+            metadata_service=MagicMock(),
+            geoserver_service=mock_gs,
+            body=body,
+            console_service=MagicMock(),
+        )
+
+        mock_gs.sync_layer_acl.assert_called_once_with(
+            "myorg", "rivers", [(ACL_ROLE_EVERYONE, RuleValue.READ)]
+        )
+
     def test_gs_sync_prefilled_without_layer_skips_rules_and_console(
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
@@ -2192,6 +2245,30 @@ class TestSyncTitleGeoserver:
 
         with pytest.raises(GeoServerAclError):
             _sync_title_geoserver("New Title", self._link(), mock_gs)
+
+    def test_direct_access_targets_data_id_layer_in_source_schema_datastore(self) -> None:
+        """A direct access layer is read through the datastore of its source database schema."""
+        link = self._link(final_table_name=None)
+        link.source_import_type = ImportType.DIRECT_ACCESS
+        link.source_url = "db://patrimoine/geo/rivers"
+        link.data_id = "testorg:rivers"
+        mock_gs = MagicMock()
+
+        _sync_title_geoserver("New Title", link, mock_gs)
+
+        mock_gs.update_layer_title.assert_called_once_with(
+            "testorg", "patrimoine_geo", "rivers", "New Title"
+        )
+
+    def test_skips_prefilled_layer_not_managed_by_datafeeder(self) -> None:
+        link = self._link(final_table_name=None)
+        link.source_import_type = ImportType.PREFILLED
+        link.data_id = "otherws:other_layer"
+        mock_gs = MagicMock()
+
+        _sync_title_geoserver("New Title", link, mock_gs)
+
+        mock_gs.update_layer_title.assert_not_called()
 
 
 class TestUpdateSchedule:
