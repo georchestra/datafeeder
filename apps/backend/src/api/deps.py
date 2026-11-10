@@ -167,6 +167,13 @@ def get_metadata_service() -> MetadataService:
 MetadataServiceDep = Annotated[MetadataService, Depends(get_metadata_service)]
 
 
+def get_console_service() -> ConsoleService:
+    return ConsoleService(get_settings().CONSOLE_INTERNAL_URL)
+
+
+ConsoleServiceDep = Annotated[ConsoleService, Depends(get_console_service)]
+
+
 def get_current_user(session: DatafeederSessionDep, token: TokenDep) -> User:
     try:
         payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=[security.ALGORITHM])

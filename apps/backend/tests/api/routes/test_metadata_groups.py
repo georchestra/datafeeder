@@ -24,16 +24,14 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = [
                 {"id": "uuid-1", "name": "Camptocamp"},
                 {"id": "uuid-2", "name": "GeoOrg"},
             ]
 
-            result = list_groups(geo_ctx=MagicMock())
+            result = list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert result == [
             GroupItem(id="uuid-1", label="Camptocamp"),
@@ -49,16 +47,14 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ROLE"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = [
                 {"id": "role-uuid-1", "name": "ROLE_ADMIN", "description": ""},
                 {"id": "role-uuid-2", "name": "ROLE_USER", "description": ""},
             ]
 
-            result = list_groups(geo_ctx=MagicMock())
+            result = list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert result == [
             GroupItem(id="role-uuid-1", label="ROLE_ADMIN"),
@@ -74,16 +70,14 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ORG", filter_regex="^Campto"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = [
                 {"id": "uuid-1", "name": "Camptocamp", "description": ""},
                 {"id": "uuid-2", "name": "GeoOrg", "description": ""},
             ]
 
-            result = list_groups(geo_ctx=MagicMock())
+            result = list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert result == [GroupItem(id="uuid-1", label="Camptocamp")]
 
@@ -94,14 +88,12 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.side_effect = Exception("connection refused")
 
             with pytest.raises(HTTPException) as exc_info:
-                list_groups(geo_ctx=MagicMock())
+                list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert exc_info.value.status_code == 502
 
@@ -112,17 +104,15 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = [
                 {"id": "uuid-1", "name": "Camptocamp"},
                 {"id": "uuid-2"},  # missing name
                 {"name": "Orphan"},  # missing id
             ]
 
-            result = list_groups(geo_ctx=MagicMock())
+            result = list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert result == [GroupItem(id="uuid-1", label="Camptocamp")]
 
@@ -133,13 +123,11 @@ class TestMetadataGroups:
                 "src.api.routes.metadata_groups.get_settings",
                 return_value=self._mock_settings("ORG", filter_regex="[invalid"),
             ),
-            patch("src.api.routes.metadata_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = [{"id": "1", "name": "Org X"}]
 
             with pytest.raises(HTTPException) as exc_info:
-                list_groups(geo_ctx=MagicMock())
+                list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert exc_info.value.status_code == 502

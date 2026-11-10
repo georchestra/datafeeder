@@ -23,16 +23,14 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = [
                 {"id": "role-uuid-1", "name": "ROLE_ADMIN", "description": ""},
                 {"id": "role-uuid-2", "name": "ROLE_USER", "description": ""},
             ]
 
-            result = list_groups(geo_ctx=MagicMock())
+            result = list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert result == [
             GroupItem(id="role-uuid-1", label="ROLE_ADMIN"),
@@ -46,16 +44,14 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(filter_regex="^ROLE_ADMIN"),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = [
                 {"id": "role-uuid-1", "name": "ROLE_ADMIN", "description": ""},
                 {"id": "role-uuid-2", "name": "ROLE_USER", "description": ""},
             ]
 
-            result = list_groups(geo_ctx=MagicMock())
+            result = list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert result == [GroupItem(id="role-uuid-1", label="ROLE_ADMIN")]
 
@@ -66,14 +62,12 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.side_effect = Exception("connection refused")
 
             with pytest.raises(HTTPException) as exc_info:
-                list_groups(geo_ctx=MagicMock())
+                list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert exc_info.value.status_code == 502
 
@@ -84,13 +78,11 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = []
 
-            result = list_groups(geo_ctx=MagicMock())
+            result = list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert result == []
 
@@ -101,17 +93,15 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = [
                 {"id": "role-uuid-1", "name": "ROLE_ADMIN", "description": ""},
                 {"id": "role-uuid-2"},  # missing name
                 {"name": "ROLE_ORPHAN"},  # missing id
             ]
 
-            result = list_groups(geo_ctx=MagicMock())
+            result = list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert result == [GroupItem(id="role-uuid-1", label="ROLE_ADMIN")]
 
@@ -122,13 +112,11 @@ class TestDataGroups:
                 "src.api.routes.data_groups.get_settings",
                 return_value=self._mock_settings(filter_regex="[invalid"),
             ),
-            patch("src.api.routes.data_groups.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = [{"id": "1", "name": "ROLE_X"}]
 
             with pytest.raises(HTTPException) as exc_info:
-                list_groups(geo_ctx=MagicMock())
+                list_groups(geo_ctx=MagicMock(), console_service=mock_console)
 
         assert exc_info.value.status_code == 400

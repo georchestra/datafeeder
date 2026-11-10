@@ -105,6 +105,7 @@ class TestUpsertIntegrityLinkRule:
             metadata_service=MagicMock(),
             geoserver_service=MagicMock(),
             body=body,
+            console_service=MagicMock(),
         )
 
         mock_session.add.assert_called_once()
@@ -154,6 +155,7 @@ class TestUpsertIntegrityLinkRule:
             metadata_service=MagicMock(),
             geoserver_service=MagicMock(),
             body=body,
+            console_service=MagicMock(),
         )
 
         assert result.rule_value == RuleValue.WRITE
@@ -178,6 +180,7 @@ class TestUpsertIntegrityLinkRule:
                 metadata_service=MagicMock(),
                 geoserver_service=MagicMock(),
                 body=body,
+                console_service=MagicMock(),
             )
 
         assert exc_info.value.status_code == 404
@@ -187,6 +190,7 @@ class TestUpsertIntegrityLinkRule:
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
         """If GeoServer sync fails, the DB transaction is rolled back and HTTP 500 is returned."""
+        mock_console = MagicMock()
         mock_session.get.return_value = IntegrityLink(
             id=UUID(integrity_link_id),
             integrity_owner="testuser",
@@ -218,24 +222,19 @@ class TestUpsertIntegrityLinkRule:
             rule_value=RuleValue.READ,
         )
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console_cls.return_value.get_all_roles.side_effect = ConsoleServiceError(
-                "console unreachable"
-            )
+        mock_console.get_all_roles.side_effect = ConsoleServiceError("console unreachable")
 
-            with pytest.raises(HTTPException) as exc_info:
-                upsert_integrity_link_rule(
-                    session=mock_session,
-                    georchestra_context=_geo_ctx(),
-                    integrity_link_id=integrity_link_id,
-                    group_ids=[],
-                    metadata_service=MagicMock(),
-                    geoserver_service=MagicMock(),
-                    body=body,
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+                metadata_service=MagicMock(),
+                geoserver_service=MagicMock(),
+                body=body,
+                console_service=mock_console,
+            )
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "i18nerror.sync.geoserver"
@@ -281,6 +280,7 @@ class TestDeleteIntegrityLinkRule:
             metadata_service=MagicMock(),
             geoserver_service=MagicMock(),
             rule_id=7,
+            console_service=MagicMock(),
         )
 
         assert response.status_code == 204
@@ -299,6 +299,7 @@ class TestDeleteIntegrityLinkRule:
                 metadata_service=MagicMock(),
                 geoserver_service=MagicMock(),
                 rule_id=1,
+                console_service=MagicMock(),
             )
 
         assert exc_info.value.status_code == 404
@@ -326,6 +327,7 @@ class TestDeleteIntegrityLinkRule:
                 metadata_service=MagicMock(),
                 geoserver_service=MagicMock(),
                 rule_id=999,
+                console_service=MagicMock(),
             )
 
         assert exc_info.value.status_code == 404
@@ -362,6 +364,7 @@ class TestDeleteIntegrityLinkRule:
                 metadata_service=MagicMock(),
                 geoserver_service=MagicMock(),
                 rule_id=7,
+                console_service=MagicMock(),
             )
 
         assert exc_info.value.status_code == 404
@@ -371,6 +374,7 @@ class TestDeleteIntegrityLinkRule:
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
         """If GeoServer sync fails during delete, the DB transaction is rolled back."""
+        mock_console = MagicMock()
         link = IntegrityLink(
             id=UUID(integrity_link_id),
             integrity_owner="testuser",
@@ -402,24 +406,19 @@ class TestDeleteIntegrityLinkRule:
         ]
         mock_session.exec.side_effect = [access_mock, data_rules_mock]
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console_cls.return_value.get_all_roles.side_effect = ConsoleServiceError(
-                "console unreachable"
-            )
+        mock_console.get_all_roles.side_effect = ConsoleServiceError("console unreachable")
 
-            with pytest.raises(HTTPException) as exc_info:
-                delete_integrity_link_rule(
-                    session=mock_session,
-                    georchestra_context=_geo_ctx(),
-                    integrity_link_id=integrity_link_id,
-                    group_ids=[],
-                    metadata_service=MagicMock(),
-                    geoserver_service=MagicMock(),
-                    rule_id=7,
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            delete_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+                metadata_service=MagicMock(),
+                geoserver_service=MagicMock(),
+                rule_id=7,
+                console_service=mock_console,
+            )
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "i18nerror.sync.geoserver"
@@ -489,10 +488,8 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = [
                 {"id": "org-uuid-1", "shortName": "C2C"}  # lowercase id
             ]
@@ -505,6 +502,7 @@ class TestSyncAfterUpsertRule:
                 metadata_service=mock_ms,
                 geoserver_service=MagicMock(),
                 body=body,
+                console_service=mock_console,
             )
 
         mock_ms.sync_record_sharing.assert_called_once_with("meta-uuid", [("C2C", RuleValue.READ)])
@@ -551,10 +549,8 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ROLE"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "ROLE_ADMIN"}]
 
             upsert_integrity_link_rule(
@@ -565,6 +561,7 @@ class TestSyncAfterUpsertRule:
                 metadata_service=mock_ms,
                 geoserver_service=MagicMock(),
                 body=body,
+                console_service=mock_console,
             )
 
         mock_console.get_all_roles.assert_called_once()
@@ -607,6 +604,7 @@ class TestSyncAfterUpsertRule:
             metadata_service=mock_ms,
             geoserver_service=MagicMock(),
             body=body,
+            console_service=MagicMock(),
         )
 
         mock_ms.sync_record_sharing.assert_not_called()
@@ -653,10 +651,8 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = []
 
             upsert_integrity_link_rule(
@@ -667,6 +663,7 @@ class TestSyncAfterUpsertRule:
                 metadata_service=mock_ms,
                 geoserver_service=MagicMock(),
                 body=body,
+                console_service=mock_console,
             )
 
         # sync called with empty resolved list (DATA rule filtered out)
@@ -712,10 +709,8 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             # org-uuid-unknown is not in the returned list
             mock_console.get_all_organizations.return_value = [
                 {"id": "org-uuid-1", "shortName": "C2C"}
@@ -730,6 +725,7 @@ class TestSyncAfterUpsertRule:
                     metadata_service=MagicMock(),
                     geoserver_service=MagicMock(),
                     body=body,
+                    console_service=mock_console,
                 )
 
         assert exc_info.value.status_code == 500
@@ -775,10 +771,8 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.side_effect = Exception("console error")
 
             with pytest.raises(HTTPException) as exc_info:
@@ -790,6 +784,7 @@ class TestSyncAfterUpsertRule:
                     metadata_service=MagicMock(),
                     geoserver_service=MagicMock(),
                     body=body,
+                    console_service=mock_console,
                 )
 
         assert exc_info.value.status_code == 500
@@ -838,10 +833,8 @@ class TestSyncAfterUpsertRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=self._mock_settings("ORG"),
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = [
                 {"id": "org-uuid-1", "shortName": "C2C"}
             ]
@@ -855,6 +848,7 @@ class TestSyncAfterUpsertRule:
                     metadata_service=mock_ms,
                     geoserver_service=MagicMock(),
                     body=body,
+                    console_service=mock_console,
                 )
 
         assert exc_info.value.status_code == 500
@@ -910,10 +904,8 @@ class TestSyncAfterDeleteRule:
                 "src.api.routes.ingestion.integrity_link.get_settings",
                 return_value=mock_settings,
             ),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
         ):
             mock_console = MagicMock()
-            mock_console_cls.return_value = mock_console
             mock_console.get_all_organizations.return_value = []
 
             delete_integrity_link_rule(
@@ -924,6 +916,7 @@ class TestSyncAfterDeleteRule:
                 metadata_service=mock_ms,
                 geoserver_service=MagicMock(),
                 rule_id=7,
+                console_service=mock_console,
             )
 
         # Sync called with empty list — clears all privileges
@@ -962,6 +955,7 @@ class TestSyncAfterDeleteRule:
             metadata_service=mock_ms,
             geoserver_service=MagicMock(),
             rule_id=7,
+            console_service=MagicMock(),
         )
 
         mock_ms.sync_record_sharing.assert_not_called()
@@ -1013,25 +1007,21 @@ class TestSyncDataSharingAfterUpsert:
             rule_value=RuleValue.READ,
         )
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
-            mock_console_cls.return_value = mock_console
+        mock_console = MagicMock()
+        mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
 
-            mock_gs = MagicMock()
+        mock_gs = MagicMock()
 
-            upsert_integrity_link_rule(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                integrity_link_id=integrity_link_id,
-                group_ids=[],
-                metadata_service=MagicMock(),
-                geoserver_service=mock_gs,
-                body=body,
-            )
+        upsert_integrity_link_rule(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            group_ids=[],
+            metadata_service=MagicMock(),
+            geoserver_service=mock_gs,
+            body=body,
+            console_service=mock_console,
+        )
 
         mock_gs.sync_layer_acl.assert_called_once_with(
             "myorg", "my_layer", [("ROLE_GN_REVIEWER", RuleValue.READ)]
@@ -1072,6 +1062,7 @@ class TestSyncDataSharingAfterUpsert:
             metadata_service=MagicMock(),
             geoserver_service=mock_gs,
             body=body,
+            console_service=MagicMock(),
         )
 
         mock_gs.sync_layer_acl.assert_not_called()
@@ -1122,6 +1113,7 @@ class TestSyncDataSharingAfterUpsert:
             metadata_service=MagicMock(),
             geoserver_service=mock_gs,
             body=body,
+            console_service=MagicMock(),
         )
 
         mock_gs.sync_layer_acl.assert_called_once_with(
@@ -1158,18 +1150,20 @@ class TestSyncDataSharingAfterUpsert:
 
         mock_gs = MagicMock()
 
-        with patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls:
-            upsert_integrity_link_rule(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                integrity_link_id=integrity_link_id,
-                group_ids=[],
-                metadata_service=MagicMock(),
-                geoserver_service=mock_gs,
-                body=body,
-            )
+        mock_console = MagicMock()
 
-        mock_console_cls.assert_not_called()
+        upsert_integrity_link_rule(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            group_ids=[],
+            metadata_service=MagicMock(),
+            geoserver_service=mock_gs,
+            body=body,
+            console_service=mock_console,
+        )
+
+        assert mock_console.method_calls == []
         mock_gs.sync_layer_acl.assert_not_called()
 
     def test_gs_sync_filters_metadata_rules(
@@ -1214,25 +1208,21 @@ class TestSyncDataSharingAfterUpsert:
             rule_value=RuleValue.READ,
         )
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
-            mock_console_cls.return_value = mock_console
+        mock_console = MagicMock()
+        mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
 
-            mock_gs = MagicMock()
+        mock_gs = MagicMock()
 
-            upsert_integrity_link_rule(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                integrity_link_id=integrity_link_id,
-                group_ids=[],
-                metadata_service=MagicMock(),
-                geoserver_service=mock_gs,
-                body=body,
-            )
+        upsert_integrity_link_rule(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            group_ids=[],
+            metadata_service=MagicMock(),
+            geoserver_service=mock_gs,
+            body=body,
+            console_service=mock_console,
+        )
 
         mock_gs.sync_layer_acl.assert_called_once_with(
             "myorg", "my_layer", [("ROLE_GN_REVIEWER", RuleValue.READ)]
@@ -1265,27 +1255,23 @@ class TestSyncDataSharingAfterUpsert:
             rule_value=RuleValue.READ,
         )
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
-            mock_console_cls.return_value = mock_console
+        mock_console = MagicMock()
+        mock_console.get_all_roles.return_value = []
 
-            mock_gs = MagicMock()
-            mock_gs.sync_layer_acl.side_effect = GeoServerAclError(500, "GeoServer down")
+        mock_gs = MagicMock()
+        mock_gs.sync_layer_acl.side_effect = GeoServerAclError(500, "GeoServer down")
 
-            with pytest.raises(HTTPException) as exc_info:
-                upsert_integrity_link_rule(
-                    session=mock_session,
-                    georchestra_context=_geo_ctx(),
-                    integrity_link_id=integrity_link_id,
-                    group_ids=[],
-                    metadata_service=MagicMock(),
-                    geoserver_service=mock_gs,
-                    body=body,
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+                metadata_service=MagicMock(),
+                geoserver_service=mock_gs,
+                body=body,
+                console_service=mock_console,
+            )
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "i18nerror.sync.geoserver"
@@ -1318,25 +1304,21 @@ class TestSyncDataSharingAfterUpsert:
         data_rules_mock.all.return_value = []  # all rules removed after delete
         mock_session.exec.side_effect = [access_mock, data_rules_mock]
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
-            mock_console_cls.return_value = mock_console
+        mock_console = MagicMock()
+        mock_console.get_all_roles.return_value = []
 
-            mock_gs = MagicMock()
+        mock_gs = MagicMock()
 
-            delete_integrity_link_rule(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                integrity_link_id=integrity_link_id,
-                group_ids=[],
-                metadata_service=MagicMock(),
-                geoserver_service=mock_gs,
-                rule_id=7,
-            )
+        delete_integrity_link_rule(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            group_ids=[],
+            metadata_service=MagicMock(),
+            geoserver_service=mock_gs,
+            rule_id=7,
+            console_service=mock_console,
+        )
 
         mock_gs.sync_layer_acl.assert_called_once_with("myorg", "my_layer", [])
 
@@ -1375,25 +1357,21 @@ class TestSyncDataSharingAfterUpsert:
             rule_value=RuleValue.READ,
         )
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
-            mock_console_cls.return_value = mock_console
+        mock_console = MagicMock()
+        mock_console.get_all_roles.return_value = []
 
-            mock_gs = MagicMock()
+        mock_gs = MagicMock()
 
-            upsert_integrity_link_rule(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                integrity_link_id=integrity_link_id,
-                group_ids=[],
-                metadata_service=MagicMock(),
-                geoserver_service=mock_gs,
-                body=body,
-            )
+        upsert_integrity_link_rule(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            group_ids=[],
+            metadata_service=MagicMock(),
+            geoserver_service=mock_gs,
+            body=body,
+            console_service=mock_console,
+        )
 
         mock_gs.sync_layer_acl.assert_called_once_with("myorg", "my_layer", [("*", RuleValue.READ)])
 
@@ -1432,24 +1410,20 @@ class TestSyncDataSharingAfterUpsert:
             rule_value=RuleValue.READ,
         )
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console = MagicMock()
-            mock_console.get_all_roles.side_effect = ConsoleServiceError("Console unreachable")
-            mock_console_cls.return_value = mock_console
+        mock_console = MagicMock()
+        mock_console.get_all_roles.side_effect = ConsoleServiceError("Console unreachable")
 
-            with pytest.raises(HTTPException) as exc_info:
-                upsert_integrity_link_rule(
-                    session=mock_session,
-                    georchestra_context=_geo_ctx(),
-                    integrity_link_id=integrity_link_id,
-                    group_ids=[],
-                    metadata_service=MagicMock(),
-                    geoserver_service=MagicMock(),
-                    body=body,
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+                metadata_service=MagicMock(),
+                geoserver_service=MagicMock(),
+                body=body,
+                console_service=mock_console,
+            )
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "i18nerror.sync.geoserver"
@@ -1489,25 +1463,20 @@ class TestSyncDataSharingAfterUpsert:
             rule_value=RuleValue.READ,
         )
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            # role-uuid-unknown is not in the returned list
-            mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
-            mock_console_cls.return_value = mock_console
+        mock_console = MagicMock()
+        mock_console.get_all_roles.return_value = [{"id": "role-uuid-1", "name": "GN_REVIEWER"}]
 
-            with pytest.raises(HTTPException) as exc_info:
-                upsert_integrity_link_rule(
-                    session=mock_session,
-                    georchestra_context=_geo_ctx(),
-                    integrity_link_id=integrity_link_id,
-                    group_ids=[],
-                    metadata_service=MagicMock(),
-                    geoserver_service=MagicMock(),
-                    body=body,
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+                metadata_service=MagicMock(),
+                geoserver_service=MagicMock(),
+                body=body,
+                console_service=mock_console,
+            )
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "i18nerror.sync.geoserver"
@@ -1707,30 +1676,26 @@ class TestTogglePublishGsIntegrityLink:
         mock_gs.sync_layer_acl = MagicMock()
         mock_gs.acl_layer_get = MagicMock(return_value=["*"])
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
-            mock_console_cls.return_value = mock_console
+        mock_console = MagicMock()
+        mock_console.get_all_roles.return_value = []
 
-            # First exec: _sync_data_sharing queries all DATA rules (sees newly added EVERYONE)
-            # Second exec: response rules query after commit
-            data_rules_mock = MagicMock()
-            data_rules_mock.all.return_value = [everyone_rule]
-            final_rules_mock = MagicMock()
-            final_rules_mock.all.return_value = [everyone_rule]
-            mock_session.exec.side_effect = [data_rules_mock, final_rules_mock]
+        # First exec: _sync_data_sharing queries all DATA rules (sees newly added EVERYONE)
+        # Second exec: response rules query after commit
+        data_rules_mock = MagicMock()
+        data_rules_mock.all.return_value = [everyone_rule]
+        final_rules_mock = MagicMock()
+        final_rules_mock.all.return_value = [everyone_rule]
+        mock_session.exec.side_effect = [data_rules_mock, final_rules_mock]
 
-            toggle_publish_gs_integrity_link(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                group_ids=[],
-                geoserver_service=mock_gs,
-                integrity_link_id=integrity_link_id,
-                publish=True,
-            )
+        toggle_publish_gs_integrity_link(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            group_ids=[],
+            geoserver_service=mock_gs,
+            integrity_link_id=integrity_link_id,
+            publish=True,
+            console_service=mock_console,
+        )
 
         mock_gs.sync_layer_acl.assert_called_once_with(
             "testorg", "final_test", [("*", RuleValue.READ)]
@@ -1768,33 +1733,29 @@ class TestTogglePublishGsIntegrityLink:
         mock_gs.sync_layer_acl = MagicMock()
         mock_gs.acl_layer_get = MagicMock(return_value=None)
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
-            mock_console_cls.return_value = mock_console
+        mock_console = MagicMock()
+        mock_console.get_all_roles.return_value = []
 
-            # exec 1: query EVERYONE READ rules (for DB deletion)
-            # exec 2: _sync_data_sharing queries all rules → no remaining DATA rules
-            # exec 3: final rules for response
-            everyone_rules_mock = MagicMock()
-            everyone_rules_mock.all.return_value = [everyone_rule]
-            data_rules_mock = MagicMock()
-            data_rules_mock.all.return_value = []
-            final_rules_mock = MagicMock()
-            final_rules_mock.all.return_value = []
-            mock_session.exec.side_effect = [everyone_rules_mock, data_rules_mock, final_rules_mock]
+        # exec 1: query EVERYONE READ rules (for DB deletion)
+        # exec 2: _sync_data_sharing queries all rules → no remaining DATA rules
+        # exec 3: final rules for response
+        everyone_rules_mock = MagicMock()
+        everyone_rules_mock.all.return_value = [everyone_rule]
+        data_rules_mock = MagicMock()
+        data_rules_mock.all.return_value = []
+        final_rules_mock = MagicMock()
+        final_rules_mock.all.return_value = []
+        mock_session.exec.side_effect = [everyone_rules_mock, data_rules_mock, final_rules_mock]
 
-            toggle_publish_gs_integrity_link(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                group_ids=[],
-                geoserver_service=mock_gs,
-                integrity_link_id=integrity_link_id,
-                publish=False,
-            )
+        toggle_publish_gs_integrity_link(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            group_ids=[],
+            geoserver_service=mock_gs,
+            integrity_link_id=integrity_link_id,
+            publish=False,
+            console_service=mock_console,
+        )
 
         mock_gs.acl_layer_remove_rule.assert_not_called()
         mock_gs.sync_layer_acl.assert_called_once_with("testorg", "final_test", [])
@@ -1837,33 +1798,29 @@ class TestTogglePublishGsIntegrityLink:
         mock_gs.sync_layer_acl = MagicMock()
         mock_gs.acl_layer_get = MagicMock(return_value=["ROLE_GROUP_1"])
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = [{"id": "group-uuid-1", "name": "GROUP_1"}]
-            mock_console_cls.return_value = mock_console
+        mock_console = MagicMock()
+        mock_console.get_all_roles.return_value = [{"id": "group-uuid-1", "name": "GROUP_1"}]
 
-            # exec 1: query EVERYONE READ rules (for DB deletion)
-            # exec 2: _sync_data_sharing queries all rules → only group_rule remains
-            # exec 3: final rules for response
-            everyone_rules_mock = MagicMock()
-            everyone_rules_mock.all.return_value = [everyone_rule]
-            data_rules_mock = MagicMock()
-            data_rules_mock.all.return_value = [group_rule]
-            final_rules_mock = MagicMock()
-            final_rules_mock.all.return_value = [group_rule]
-            mock_session.exec.side_effect = [everyone_rules_mock, data_rules_mock, final_rules_mock]
+        # exec 1: query EVERYONE READ rules (for DB deletion)
+        # exec 2: _sync_data_sharing queries all rules → only group_rule remains
+        # exec 3: final rules for response
+        everyone_rules_mock = MagicMock()
+        everyone_rules_mock.all.return_value = [everyone_rule]
+        data_rules_mock = MagicMock()
+        data_rules_mock.all.return_value = [group_rule]
+        final_rules_mock = MagicMock()
+        final_rules_mock.all.return_value = [group_rule]
+        mock_session.exec.side_effect = [everyone_rules_mock, data_rules_mock, final_rules_mock]
 
-            toggle_publish_gs_integrity_link(
-                session=mock_session,
-                georchestra_context=_geo_ctx(),
-                group_ids=[],
-                geoserver_service=mock_gs,
-                integrity_link_id=integrity_link_id,
-                publish=False,
-            )
+        toggle_publish_gs_integrity_link(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            group_ids=[],
+            geoserver_service=mock_gs,
+            integrity_link_id=integrity_link_id,
+            publish=False,
+            console_service=mock_console,
+        )
 
         mock_gs.acl_layer_remove_rule.assert_not_called()
         # GeoServer is re-synced with individual roles only (EVERYONE excluded)
@@ -1888,6 +1845,7 @@ class TestTogglePublishGsIntegrityLink:
                 geoserver_service=MagicMock(),
                 integrity_link_id=str(uuid4()),
                 publish=True,
+                console_service=MagicMock(),
             )
 
         assert exc_info.value.status_code == 404
@@ -1911,6 +1869,7 @@ class TestTogglePublishGsIntegrityLink:
                 geoserver_service=MagicMock(),
                 integrity_link_id=integrity_link_id,
                 publish=True,
+                console_service=MagicMock(),
             )
 
         assert exc_info.value.status_code == 400
@@ -1931,27 +1890,23 @@ class TestTogglePublishGsIntegrityLink:
         mock_gs = MagicMock()
         mock_gs.sync_layer_acl = MagicMock(side_effect=GeoServerAclError(500, "GeoServer error"))
 
-        with (
-            patch("src.api.routes.ingestion.integrity_link.get_settings"),
-            patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls,
-        ):
-            mock_console = MagicMock()
-            mock_console.get_all_roles.return_value = []
-            mock_console_cls.return_value = mock_console
+        mock_console = MagicMock()
+        mock_console.get_all_roles.return_value = []
 
-            data_rules_mock = MagicMock()
-            data_rules_mock.all.return_value = []
-            mock_session.exec.side_effect = [data_rules_mock]
+        data_rules_mock = MagicMock()
+        data_rules_mock.all.return_value = []
+        mock_session.exec.side_effect = [data_rules_mock]
 
-            with pytest.raises(HTTPException) as exc_info:
-                toggle_publish_gs_integrity_link(
-                    session=mock_session,
-                    georchestra_context=_geo_ctx(),
-                    group_ids=[],
-                    geoserver_service=mock_gs,
-                    integrity_link_id=integrity_link_id,
-                    publish=True,
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            toggle_publish_gs_integrity_link(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                group_ids=[],
+                geoserver_service=mock_gs,
+                integrity_link_id=integrity_link_id,
+                publish=True,
+                console_service=mock_console,
+            )
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "i18nerror.publish.geoserver"
