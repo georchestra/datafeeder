@@ -50,7 +50,6 @@ router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
 
 def _sync_metadata_sharing(
     session: DatafeederSessionDep,
-    integrity_link_id: str,
     integrity_link: IntegrityLink,
     metadata_service: MetadataService,
     console_service: ConsoleService,
@@ -73,7 +72,7 @@ def _sync_metadata_sharing(
     all_rules = list(
         session.exec(
             select(IntegrityLinkRule).where(
-                IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
+                IntegrityLinkRule.integrity_link_id == integrity_link.id
             )
         ).all()
     )
@@ -112,7 +111,7 @@ def _sync_metadata_sharing(
     except Exception:
         logger.error(
             "Failed to sync GN sharing for integrity_link %s",
-            integrity_link_id,
+            integrity_link.id,
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
@@ -138,7 +137,6 @@ def _resolve_gs_layer(integrity_link: IntegrityLink) -> tuple[str, str | None]:
 
 def _sync_data_sharing(
     session: DatafeederSessionDep,
-    integrity_link_id: str,
     integrity_link: IntegrityLink,
     geoserver_service: GeoServerService,
     console_service: ConsoleService,
@@ -158,7 +156,7 @@ def _sync_data_sharing(
     all_rules = list(
         session.exec(
             select(IntegrityLinkRule).where(
-                IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
+                IntegrityLinkRule.integrity_link_id == integrity_link.id
             )
         ).all()
     )
@@ -362,9 +360,7 @@ def upsert_integrity_link_rule(
     session.refresh(rule)
     if body.rule_type == RuleType.DATA:
         try:
-            _sync_data_sharing(
-                session, integrity_link_id, integrity_link, geoserver_service, console_service
-            )
+            _sync_data_sharing(session, integrity_link, geoserver_service, console_service)
         except (GeoServerAclError, ConsoleServiceError) as e:
             logger.error(
                 "GeoServer sync failed while upserting rule for IntegrityLink %s: %s",
@@ -374,9 +370,7 @@ def upsert_integrity_link_rule(
             session.rollback()
             raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
     session.commit()
-    _sync_metadata_sharing(
-        session, integrity_link_id, integrity_link, metadata_service, console_service
-    )
+    _sync_metadata_sharing(session, integrity_link, metadata_service, console_service)
     return rule
 
 
@@ -409,9 +403,7 @@ def delete_integrity_link_rule(
     session.flush()
     if rule_type == RuleType.DATA:
         try:
-            _sync_data_sharing(
-                session, integrity_link_id, integrity_link, geoserver_service, console_service
-            )
+            _sync_data_sharing(session, integrity_link, geoserver_service, console_service)
         except (GeoServerAclError, ConsoleServiceError) as e:
             logger.error(
                 "GeoServer sync failed while deleting rule for IntegrityLink %s: %s",
@@ -421,9 +413,7 @@ def delete_integrity_link_rule(
             session.rollback()
             raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
     session.commit()
-    _sync_metadata_sharing(
-        session, integrity_link_id, integrity_link, metadata_service, console_service
-    )
+    _sync_metadata_sharing(session, integrity_link, metadata_service, console_service)
     return Response(status_code=204)
 
 
@@ -596,9 +586,7 @@ def toggle_publish_gs_integrity_link(
                     group_or_role=GROUP_OR_ROLE_EVERYONE,
                 )
             )
-            _sync_data_sharing(
-                session, integrity_link_id, integrity_link, geoserver_service, console_service
-            )
+            _sync_data_sharing(session, integrity_link, geoserver_service, console_service)
         else:
             everyone_rules = session.exec(
                 select(IntegrityLinkRule).where(
@@ -611,9 +599,7 @@ def toggle_publish_gs_integrity_link(
             for rule in everyone_rules:
                 session.delete(rule)
             session.flush()  # make deletions visible before the sync query
-            _sync_data_sharing(
-                session, integrity_link_id, integrity_link, geoserver_service, console_service
-            )
+            _sync_data_sharing(session, integrity_link, geoserver_service, console_service)
 
         gs_read_roles = geoserver_service.acl_layer_get(
             layer_name=acl_layer_name,

@@ -564,9 +564,7 @@ def _sync_data_sharing_safe(
     console_service: ConsoleService,
 ) -> None:
     try:
-        _sync_data_sharing(
-            session, str(integrity_link.id), integrity_link, geoserver, console_service
-        )
+        _sync_data_sharing(session, integrity_link, geoserver, console_service)
     except Exception as e:
         logger.error(f"Failed to sync GeoServer ACL of {integrity_link.id}: {e}", exc_info=True)
 
