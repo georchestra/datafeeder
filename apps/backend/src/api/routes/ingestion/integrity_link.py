@@ -144,8 +144,7 @@ def _sync_data_sharing(
     """Sync DATA rules to GeoServer layer ACL.
 
     Resolves role UUIDs to ROLE_xxx names via the Console API before syncing.
-    Skipped when no layer can be targeted: neither a final_table_name nor, for PREFILLED
-    datasets, a data_id formatted as 'workspace:layer'.
+    Skipped when no layer can be targeted.
 
     Raises:
         HTTPException(500): If role resolution or GeoServer ACL sync fails.
