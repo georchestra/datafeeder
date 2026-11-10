@@ -117,6 +117,24 @@ def _sync_metadata_sharing(
         raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
 
 
+def _resolve_gs_layer(integrity_link: IntegrityLink) -> tuple[str, str | None]:
+    """Return the (workspace, layer) targeted on GeoServer by an IntegrityLink.
+
+    PREFILLED datasets reference an external layer through data_id ('workspace:layer');
+    the others use their organization and final_table_name.
+
+    Returns:
+        (workspace, layer) with a lowercased workspace (and layer, for PREFILLED);
+        layer is None when no layer can be targeted.
+    """
+    workspace = integrity_link.integrity_organization.lower()
+    layer_name = integrity_link.final_table_name
+    if integrity_link.source_import_type == ImportType.PREFILLED:
+        if parts := integrity_link.parse_data_id():
+            workspace, layer_name = parts[0].lower(), parts[1].lower()
+    return workspace, layer_name
+
+
 def _sync_data_sharing(
     session: DatafeederSessionDep,
     integrity_link_id: str,
@@ -132,12 +150,7 @@ def _sync_data_sharing(
     Raises:
         HTTPException(500): If role resolution or GeoServer ACL sync fails.
     """
-    workspace = integrity_link.integrity_organization.lower()
-    layer_name = integrity_link.final_table_name
-    if integrity_link.source_import_type == ImportType.PREFILLED:
-        if parts := integrity_link.parse_data_id():
-            workspace, layer_name = parts[0].lower(), parts[1].lower()
-
+    workspace, layer_name = _resolve_gs_layer(integrity_link)
     if not layer_name:
         return
 
@@ -551,12 +564,7 @@ def toggle_publish_gs_integrity_link(
         session,
         group_ids,
     )
-    workspace = integrity_link.integrity_organization.lower()
-    final_table_name = integrity_link.final_table_name
-    if integrity_link.source_import_type == ImportType.PREFILLED:
-        if parts := integrity_link.parse_data_id():
-            workspace, final_table_name = parts[0].lower(), parts[1].lower()
-
+    workspace, final_table_name = _resolve_gs_layer(integrity_link)
     if not final_table_name:
         raise HTTPException(
             status_code=400,
