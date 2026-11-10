@@ -50,6 +50,17 @@ def _geo_ctx() -> GeorchestraContext:
     )
 
 
+def _admin_ctx() -> GeorchestraContext:
+    return GeorchestraContext(
+        username="admin1",
+        roles={"ADMINISTRATOR", "IMPORT"},
+        email="",
+        firstname="",
+        lastname="",
+        organization="other_org",
+    )
+
+
 class TestUpsertIntegrityLinkRule:
     """Test the upsert_integrity_link_rule endpoint."""
 
@@ -2377,7 +2388,7 @@ class TestUpdateIsReference:
             il = mock_session.get.return_value
             if il is None:
                 raise HTTPException(status_code=404, detail="IntegrityLink not found")
-            return il, EffectiveAccess.OWNER
+            return il, EffectiveAccess.ADMIN
 
         with patch(
             "src.api.routes.ingestion.integrity_link.load_authorized_integrity_link",
@@ -2406,9 +2417,8 @@ class TestUpdateIsReference:
 
         result = update_is_reference(
             session=mock_session,
-            geo_ctx=_geo_ctx(),
+            geo_ctx=_admin_ctx(),
             integrity_link_id=integrity_link_id,
-            group_ids=[],
             metadata_service=mock_ms,
             is_reference=True,
         )
@@ -2418,7 +2428,7 @@ class TestUpdateIsReference:
         mock_session.commit.assert_called_once()
         mock_session.refresh.assert_called_once_with(integrity_link)
         assert result.is_reference_dataset is True
-        assert result.access_level == EffectiveAccess.OWNER.value
+        assert result.access_level == EffectiveAccess.ADMIN.value
 
     def test_clear_flag(self, mock_session: MagicMock, integrity_link_id: str) -> None:
         mock_ms = MagicMock()
@@ -2428,9 +2438,8 @@ class TestUpdateIsReference:
 
         result = update_is_reference(
             session=mock_session,
-            geo_ctx=_geo_ctx(),
+            geo_ctx=_admin_ctx(),
             integrity_link_id=integrity_link_id,
-            group_ids=[],
             metadata_service=mock_ms,
             is_reference=False,
         )
@@ -2447,9 +2456,8 @@ class TestUpdateIsReference:
         with pytest.raises(HTTPException) as exc_info:
             update_is_reference(
                 session=mock_session,
-                geo_ctx=_geo_ctx(),
+                geo_ctx=_admin_ctx(),
                 integrity_link_id=integrity_link_id,
-                group_ids=[],
                 metadata_service=mock_ms,
                 is_reference=True,
             )
@@ -2469,9 +2477,8 @@ class TestUpdateIsReference:
         with pytest.raises(HTTPException) as exc_info:
             update_is_reference(
                 session=mock_session,
-                geo_ctx=_geo_ctx(),
+                geo_ctx=_admin_ctx(),
                 integrity_link_id=integrity_link_id,
-                group_ids=[],
                 metadata_service=mock_ms,
                 is_reference=True,
             )
@@ -2492,9 +2499,8 @@ class TestUpdateIsReference:
 
         result = update_is_reference(
             session=mock_session,
-            geo_ctx=_geo_ctx(),
+            geo_ctx=_admin_ctx(),
             integrity_link_id=integrity_link_id,
-            group_ids=[],
             metadata_service=mock_ms,
             is_reference=True,
         )
