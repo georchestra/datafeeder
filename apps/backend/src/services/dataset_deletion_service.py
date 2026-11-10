@@ -163,11 +163,7 @@ class DatasetDeletionService:
         self, integrity_link: IntegrityLink, workspace_name: str
     ) -> None:
         """Delete the source schema datastore of a direct access dataset once unused."""
-        try:
-            db_key, pg_schema, _ = parse_db_uri(str(integrity_link.source_url))
-        except ValueError as e:
-            logger.warning(f"No datastore to clean up for IntegrityLink {integrity_link.id}: {e}")
-            return
+        db_key, pg_schema, _ = parse_db_uri(str(integrity_link.source_url))
         self.geoserver_service.delete_datastore_if_empty(
             workspace_name, direct_access_datastore_name(db_key, pg_schema)
         )
