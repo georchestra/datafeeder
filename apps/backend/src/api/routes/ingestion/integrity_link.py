@@ -427,14 +427,19 @@ def delete_integrity_link_rule(
 def toggle_publish_gn_integrity_link(
     session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
-    integrity_link_id: str,
+    group_ids: GroupIdsDep,
     metadata_service: MetadataServiceDep,
+    integrity_link_id: str,
     publish: bool = Query(description="Set to true to publish, false to unpublish"),
 ) -> IntegrityLinkResponse:
     """Publish or unpublish an IntegrityLink metadata in GeoNetwork."""
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    integrity_link, _ = load_authorized_integrity_link(
+        integrity_link_id,
+        AccessLevel.OWNER_ONLY,
+        georchestra_context,
+        session,
+        group_ids,
+    )
 
     # Verify that the IntegrityLink has metadata
     if not integrity_link.metadata_id:
