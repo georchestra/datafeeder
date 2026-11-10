@@ -4,6 +4,7 @@ from fastapi import APIRouter, Body, HTTPException, Query, Response
 from sqlmodel import select
 
 from src.api.deps import (
+    ConsoleServiceDep,
     DatafeederSessionDep,
     GeorchestraContextDep,
     GeoServerServiceDep,
@@ -52,6 +53,7 @@ def _sync_metadata_sharing(
     integrity_link_id: str,
     integrity_link: IntegrityLink,
     metadata_service: MetadataService,
+    console_service: ConsoleService,
 ) -> None:
     """Sync METADATA rules to GeoNetwork sharing privileges.
 
@@ -77,7 +79,6 @@ def _sync_metadata_sharing(
     )
 
     try:
-        console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
         if settings.GN_SYNC_MODE == "ORG":
             items = console_service.get_all_organizations()
             groups_by_id = {
@@ -140,6 +141,7 @@ def _sync_data_sharing(
     integrity_link_id: str,
     integrity_link: IntegrityLink,
     geoserver_service: GeoServerService,
+    console_service: ConsoleService,
 ) -> None:
     """Sync DATA rules to GeoServer layer ACL.
 
@@ -161,8 +163,6 @@ def _sync_data_sharing(
         ).all()
     )
 
-    settings = get_settings()
-
     data_rules = [rule for rule in all_rules if rule.rule_type == RuleType.DATA]
     uuids_to_resolve = {
         rule.group_or_role for rule in data_rules if rule.group_or_role != GROUP_OR_ROLE_EVERYONE
@@ -172,7 +172,6 @@ def _sync_data_sharing(
     if uuids_to_resolve:
         # Only call Console when at least one non-EVERYONE role needs UUID resolution.
         # This keeps EVERYONE-only configs resilient to Console outages.
-        console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
         all_roles = console_service.get_all_roles()  # raises ConsoleServiceError on failure
         id_to_name |= {
             str(r["id"]): f"ROLE_{r['name']}" for r in all_roles if r.get("id") and r.get("name")
@@ -326,6 +325,7 @@ def upsert_integrity_link_rule(
     group_ids: GroupIdsDep,
     metadata_service: MetadataServiceDep,
     geoserver_service: GeoServerServiceDep,
+    console_service: ConsoleServiceDep,
     body: UpsertRuleRequest,
 ) -> IntegrityLinkRule:
     """Create or update a rule for a given IntegrityLink."""
@@ -362,7 +362,9 @@ def upsert_integrity_link_rule(
     session.refresh(rule)
     if body.rule_type == RuleType.DATA:
         try:
-            _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
+            _sync_data_sharing(
+                session, integrity_link_id, integrity_link, geoserver_service, console_service
+            )
         except (GeoServerAclError, ConsoleServiceError) as e:
             logger.error(
                 "GeoServer sync failed while upserting rule for IntegrityLink %s: %s",
@@ -372,7 +374,9 @@ def upsert_integrity_link_rule(
             session.rollback()
             raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
     session.commit()
-    _sync_metadata_sharing(session, integrity_link_id, integrity_link, metadata_service)
+    _sync_metadata_sharing(
+        session, integrity_link_id, integrity_link, metadata_service, console_service
+    )
     return rule
 
 
@@ -388,6 +392,7 @@ def delete_integrity_link_rule(
     group_ids: GroupIdsDep,
     metadata_service: MetadataServiceDep,
     geoserver_service: GeoServerServiceDep,
+    console_service: ConsoleServiceDep,
     rule_id: int,
 ) -> Response:
     """Delete a rule from a given IntegrityLink."""
@@ -404,7 +409,9 @@ def delete_integrity_link_rule(
     session.flush()
     if rule_type == RuleType.DATA:
         try:
-            _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
+            _sync_data_sharing(
+                session, integrity_link_id, integrity_link, geoserver_service, console_service
+            )
         except (GeoServerAclError, ConsoleServiceError) as e:
             logger.error(
                 "GeoServer sync failed while deleting rule for IntegrityLink %s: %s",
@@ -414,7 +421,9 @@ def delete_integrity_link_rule(
             session.rollback()
             raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
     session.commit()
-    _sync_metadata_sharing(session, integrity_link_id, integrity_link, metadata_service)
+    _sync_metadata_sharing(
+        session, integrity_link_id, integrity_link, metadata_service, console_service
+    )
     return Response(status_code=204)
 
 
@@ -557,6 +566,7 @@ def toggle_publish_gs_integrity_link(
     georchestra_context: GeorchestraContextDep,
     group_ids: GroupIdsDep,
     geoserver_service: GeoServerServiceDep,
+    console_service: ConsoleServiceDep,
     integrity_link_id: str,
     publish: bool = Query(description="Set to true to publish, false to unpublish"),
 ) -> IntegrityLinkGsPublishResponse:
@@ -586,7 +596,9 @@ def toggle_publish_gs_integrity_link(
                     group_or_role=GROUP_OR_ROLE_EVERYONE,
                 )
             )
-            _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
+            _sync_data_sharing(
+                session, integrity_link_id, integrity_link, geoserver_service, console_service
+            )
         else:
             everyone_rules = session.exec(
                 select(IntegrityLinkRule).where(
@@ -599,7 +611,9 @@ def toggle_publish_gs_integrity_link(
             for rule in everyone_rules:
                 session.delete(rule)
             session.flush()  # make deletions visible before the sync query
-            _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
+            _sync_data_sharing(
+                session, integrity_link_id, integrity_link, geoserver_service, console_service
+            )
 
         gs_read_roles = geoserver_service.acl_layer_get(
             layer_name=acl_layer_name,

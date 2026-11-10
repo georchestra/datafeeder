@@ -232,7 +232,7 @@ class TestDeleteIntegrityLinkRulePermission:
 
         with pytest.raises(HTTPException) as exc_info:
             delete_integrity_link_rule(
-                session, _ctx(), INTLINK_ID, [], MagicMock(), MagicMock(), rule_id=1
+                session, _ctx(), INTLINK_ID, [], MagicMock(), MagicMock(), MagicMock(), rule_id=1
             )
 
         assert exc_info.value.status_code == 403
@@ -244,7 +244,14 @@ class TestDeleteIntegrityLinkRulePermission:
 
         with pytest.raises(HTTPException) as exc_info:
             delete_integrity_link_rule(
-                session, _write_ctx(), INTLINK_ID, GROUP_IDS, MagicMock(), MagicMock(), rule_id=1
+                session,
+                _write_ctx(),
+                INTLINK_ID,
+                GROUP_IDS,
+                MagicMock(),
+                MagicMock(),
+                MagicMock(),
+                rule_id=1,
             )
 
         assert exc_info.value.status_code == 403
@@ -467,7 +474,7 @@ class TestUpsertIntegrityLinkRulePermission:
 
         with pytest.raises(HTTPException) as exc_info:
             upsert_integrity_link_rule(
-                session, _ctx(), INTLINK_ID, [], MagicMock(), MagicMock(), self._body()
+                session, _ctx(), INTLINK_ID, [], MagicMock(), MagicMock(), MagicMock(), self._body()
             )
 
         assert exc_info.value.status_code == 403
@@ -479,7 +486,14 @@ class TestUpsertIntegrityLinkRulePermission:
 
         with pytest.raises(HTTPException) as exc_info:
             upsert_integrity_link_rule(
-                session, _write_ctx(), INTLINK_ID, GROUP_IDS, MagicMock(), MagicMock(), self._body()
+                session,
+                _write_ctx(),
+                INTLINK_ID,
+                GROUP_IDS,
+                MagicMock(),
+                MagicMock(),
+                MagicMock(),
+                self._body(),
             )
 
         assert exc_info.value.status_code == 403
@@ -493,7 +507,14 @@ class TestUpsertIntegrityLinkRulePermission:
         session.exec.side_effect = [access_mock, no_rule_mock]
 
         result = upsert_integrity_link_rule(
-            session, _owner_ctx(), INTLINK_ID, [], MagicMock(), MagicMock(), self._body()
+            session,
+            _owner_ctx(),
+            INTLINK_ID,
+            [],
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            self._body(),
         )
 
         assert result is not None

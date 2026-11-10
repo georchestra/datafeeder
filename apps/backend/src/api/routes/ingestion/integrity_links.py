@@ -8,13 +8,14 @@ from sqlalchemy import select as sa_select
 from sqlmodel import Session, col
 
 from src.api.deps import (
+    ConsoleServiceDep,
     DatafeederSessionDep,
     DataSessionDep,
     GeorchestraContextDep,
     GroupIdsDep,
 )
 from src.api.routes.groups_common import GroupItem
-from src.core.config import get_data_schema, get_settings, get_staging_schema
+from src.core.config import get_data_schema, get_staging_schema
 from src.core.logging import get_logger
 from src.core.security import (
     AccessLevel,
@@ -33,7 +34,6 @@ from src.models.data_import import (
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule
 from src.models.recurrence import RecurrencePreset
-from src.services.console_service import ConsoleService
 
 router = APIRouter(prefix="/ingestion/integrity-links", tags=["Ingestion"])
 logger = get_logger()
@@ -161,6 +161,7 @@ def list_integrity_links(
     data_session: DataSessionDep,
     geo_ctx: GeorchestraContextDep,
     group_ids: GroupIdsDep,
+    console_service: ConsoleServiceDep,
     offset: int = Query(0, ge=0, description="Number of items to skip (for lazy loading)"),
     search: str | None = Query(None, description="Filter by integrity title (case-insensitive)"),
     organization: Annotated[
@@ -299,9 +300,8 @@ def list_integrity_links(
 
     usernames = list({item.integrity_owner for item in items})
     organizations = list({item.integrity_organization for item in items})
-    console = ConsoleService(get_settings().CONSOLE_INTERNAL_URL)
-    display_names = console.fetch_users_by_usernames(usernames)
-    organization_names = console.fetch_organizations_by_short_names(organizations)
+    display_names = console_service.fetch_users_by_usernames(usernames)
+    organization_names = console_service.fetch_organizations_by_short_names(organizations)
     for item in items:
         item.owner_display_name = display_names.get(item.integrity_owner)
         item.organization_display_name = organization_names.get(item.integrity_organization)
@@ -326,6 +326,7 @@ def list_integrity_link_organizations(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     group_ids: GroupIdsDep,
+    console_service: ConsoleServiceDep,
 ) -> list[GroupItem]:
     """List distinct organizations, restricted to datasets the caller can see."""
     query = sa_select(col(IntegrityLink.integrity_organization)).distinct()
@@ -336,9 +337,7 @@ def list_integrity_link_organizations(
     if not short_names:
         return []
 
-    long_names = ConsoleService(
-        get_settings().CONSOLE_INTERNAL_URL
-    ).fetch_organizations_by_short_names(list(short_names))
+    long_names = console_service.fetch_organizations_by_short_names(list(short_names))
     return [
         GroupItem(id=short_name, label=long_names.get(short_name) or short_name)
         for short_name in sorted(short_names)
@@ -357,6 +356,7 @@ def list_integrity_link_owners(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     group_ids: GroupIdsDep,
+    console_service: ConsoleServiceDep,
 ) -> list[GroupItem]:
     """List distinct owners, restricted to datasets the caller can see."""
     owner = col(IntegrityLink.integrity_owner)
@@ -368,9 +368,7 @@ def list_integrity_link_owners(
     if not counts:
         return []
 
-    display_names = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).fetch_users_by_usernames(
-        list(counts)
-    )
+    display_names = console_service.fetch_users_by_usernames(list(counts))
     items = [
         GroupItem(id=username, label=display_names.get(username) or username) for username in counts
     ]
