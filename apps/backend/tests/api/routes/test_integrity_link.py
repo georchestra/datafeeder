@@ -1,6 +1,7 @@
 """Tests for integrity_link API routes (single link endpoints)."""
 
 from collections.abc import Iterator
+from typing import Any
 from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
 
@@ -47,6 +48,12 @@ def _geo_ctx() -> GeorchestraContext:
         lastname="",
         organization="",
     )
+
+
+def _rule_type_filter(exec_call: Any) -> RuleType:
+    """Rule type bound in the WHERE clause of the statement passed to session.exec."""
+    statement = exec_call.args[0]
+    return statement.compile().params["rule_type_1"]
 
 
 class TestUpsertIntegrityLinkRule:
@@ -596,10 +603,10 @@ class TestSyncAfterUpsertRule:
 
         mock_ms.sync_record_sharing.assert_not_called()
 
-    def test_sync_skips_non_metadata_rules(
+    def test_sync_queries_only_metadata_rules(
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
-        """Only METADATA rules are passed to sync; DATA rules are ignored."""
+        """The rules synced to GeoNetwork are filtered on METADATA type in SQL."""
         mock_session.get.return_value = IntegrityLink(
             id=UUID(integrity_link_id),
             integrity_owner="testuser",
@@ -614,15 +621,7 @@ class TestSyncAfterUpsertRule:
         no_rule_mock = MagicMock()
         no_rule_mock.first.return_value = None
         rules_mock = MagicMock()
-        rules_mock.all.return_value = [
-            IntegrityLinkRule(
-                id=1,
-                integrity_link_id=UUID(integrity_link_id),
-                group_or_role="org-uuid-1",
-                rule_type=RuleType.DATA,  # DATA rule — should be skipped
-                rule_value=RuleValue.READ,
-            )
-        ]
+        rules_mock.all.return_value = []  # the DATA rule is filtered out by the query
         mock_session.exec.side_effect = [access_mock, no_rule_mock, rules_mock]
 
         body = UpsertRuleRequest(
@@ -653,7 +652,7 @@ class TestSyncAfterUpsertRule:
                 console_service=mock_console,
             )
 
-        # sync called with empty resolved list (DATA rule filtered out)
+        assert _rule_type_filter(mock_session.exec.call_args_list[2]) == RuleType.METADATA
         mock_ms.sync_record_sharing.assert_called_once_with("meta-uuid", [])
 
     def test_raises_500_when_console_cannot_resolve_org(
@@ -1153,10 +1152,10 @@ class TestSyncDataSharingAfterUpsert:
         assert mock_console.method_calls == []
         mock_gs.sync_layer_acl.assert_not_called()
 
-    def test_gs_sync_filters_metadata_rules(
+    def test_gs_sync_queries_only_data_rules(
         self, mock_session: MagicMock, integrity_link_id: str
     ) -> None:
-        """Only DATA rules are passed to GeoServer; METADATA rules are ignored."""
+        """The rules synced to GeoServer are filtered on DATA type in SQL."""
         mock_session.get.return_value = IntegrityLink(
             id=UUID(integrity_link_id),
             integrity_owner="testuser",
@@ -1170,8 +1169,8 @@ class TestSyncDataSharingAfterUpsert:
         access_mock.first.return_value = "OWNER"
         no_rule_mock = MagicMock()
         no_rule_mock.first.return_value = None
-        all_rules_mock = MagicMock()
-        all_rules_mock.all.return_value = [
+        data_rules_mock = MagicMock()
+        data_rules_mock.all.return_value = [
             IntegrityLinkRule(
                 id=1,
                 integrity_link_id=UUID(integrity_link_id),
@@ -1179,15 +1178,8 @@ class TestSyncDataSharingAfterUpsert:
                 rule_type=RuleType.DATA,
                 rule_value=RuleValue.READ,
             ),
-            IntegrityLinkRule(
-                id=2,
-                integrity_link_id=UUID(integrity_link_id),
-                group_or_role="org-uuid-1",
-                rule_type=RuleType.METADATA,  # should be filtered out
-                rule_value=RuleValue.READ,
-            ),
         ]
-        mock_session.exec.side_effect = [access_mock, no_rule_mock, all_rules_mock]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, data_rules_mock]
 
         body = UpsertRuleRequest(
             group_or_role="role-uuid-1",
@@ -1211,6 +1203,7 @@ class TestSyncDataSharingAfterUpsert:
             console_service=mock_console,
         )
 
+        assert _rule_type_filter(mock_session.exec.call_args_list[2]) == RuleType.DATA
         mock_gs.sync_layer_acl.assert_called_once_with(
             "myorg", "my_layer", [("ROLE_GN_REVIEWER", RuleValue.READ)]
         )

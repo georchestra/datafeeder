@@ -69,13 +69,12 @@ def _sync_metadata_sharing(
 
     settings = get_settings()
 
-    all_rules = list(
-        session.exec(
-            select(IntegrityLinkRule).where(
-                IntegrityLinkRule.integrity_link_id == integrity_link.id
-            )
-        ).all()
-    )
+    metadata_rules = session.exec(
+        select(IntegrityLinkRule).where(
+            IntegrityLinkRule.integrity_link_id == integrity_link.id,
+            IntegrityLinkRule.rule_type == RuleType.METADATA,
+        )
+    ).all()
 
     try:
         if settings.GN_SYNC_MODE == "ORG":
@@ -97,9 +96,7 @@ def _sync_metadata_sharing(
         raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
 
     resolved: list[tuple[str, RuleValue]] = []
-    for rule in all_rules:
-        if rule.rule_type != RuleType.METADATA:
-            continue
+    for rule in metadata_rules:
         gn_group_name = groups_by_id.get(rule.group_or_role.lower())
         if not gn_group_name:
             logger.error("Could not resolve group '%s' for sharing sync", rule.group_or_role)
@@ -153,15 +150,12 @@ def _sync_data_sharing(
     if not layer_name:
         return
 
-    all_rules = list(
-        session.exec(
-            select(IntegrityLinkRule).where(
-                IntegrityLinkRule.integrity_link_id == integrity_link.id
-            )
-        ).all()
-    )
-
-    data_rules = [rule for rule in all_rules if rule.rule_type == RuleType.DATA]
+    data_rules = session.exec(
+        select(IntegrityLinkRule).where(
+            IntegrityLinkRule.integrity_link_id == integrity_link.id,
+            IntegrityLinkRule.rule_type == RuleType.DATA,
+        )
+    ).all()
     uuids_to_resolve = {
         rule.group_or_role for rule in data_rules if rule.group_or_role != GROUP_OR_ROLE_EVERYONE
     }
