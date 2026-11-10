@@ -1518,7 +1518,9 @@ class TestTogglePublishGnIntegrityLink:
 
     @pytest.fixture
     def mock_session(self) -> MagicMock:
-        return MagicMock()
+        session = MagicMock()
+        session.exec.return_value.first.return_value = "OWNER"
+        return session
 
     @pytest.fixture
     def integrity_link_id(self) -> str:
@@ -1542,6 +1544,7 @@ class TestTogglePublishGnIntegrityLink:
         toggle_publish_gn_integrity_link(
             session=mock_session,
             georchestra_context=_geo_ctx(),
+            group_ids=[],
             integrity_link_id=integrity_link_id,
             metadata_service=mock_ms,
             publish=True,
@@ -1571,6 +1574,7 @@ class TestTogglePublishGnIntegrityLink:
         toggle_publish_gn_integrity_link(
             session=mock_session,
             georchestra_context=_geo_ctx(),
+            group_ids=[],
             integrity_link_id=integrity_link_id,
             metadata_service=mock_ms,
             publish=False,
@@ -1589,6 +1593,7 @@ class TestTogglePublishGnIntegrityLink:
             toggle_publish_gn_integrity_link(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
+                group_ids=[],
                 integrity_link_id=str(uuid4()),
                 metadata_service=MagicMock(),
                 publish=True,
@@ -1611,6 +1616,7 @@ class TestTogglePublishGnIntegrityLink:
             toggle_publish_gn_integrity_link(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
+                group_ids=[],
                 integrity_link_id=integrity_link_id,
                 metadata_service=MagicMock(),
                 publish=True,
@@ -1640,6 +1646,7 @@ class TestTogglePublishGnIntegrityLink:
             toggle_publish_gn_integrity_link(
                 session=mock_session,
                 georchestra_context=_geo_ctx(),
+                group_ids=[],
                 integrity_link_id=integrity_link_id,
                 metadata_service=mock_ms,
                 publish=True,
