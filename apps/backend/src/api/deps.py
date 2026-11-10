@@ -47,22 +47,6 @@ def get_console_service() -> ConsoleService:
 ConsoleServiceDep = Annotated[ConsoleService, Depends(get_console_service)]
 
 
-def get_org_id(geo_ctx: GeorchestraContextDep) -> str | None:
-    """Resolve the current user's org shortName to its console UUID once per request.
-
-    FastAPI deduplicates dependencies — geo_ctx is shared with the route handler.
-    Returns the UUID string from the console, or None if the org is not found or
-    if the console is unreachable (user treated as having no org-based access).
-    """
-    if not geo_ctx.organization:
-        return None
-
-    service = ConsoleService(get_settings().CONSOLE_INTERNAL_URL)
-    org = service.get_organization(geo_ctx.organization)
-
-    return str(org["id"]) if org and "id" in org else None
-
-
 def _compile_metadata_filter(raw: str) -> re.Pattern[str] | None:
     """Compile ``METADATA_GROUPS_LABEL_FILTER_REGEX``; ``None`` when unset.
 

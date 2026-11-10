@@ -7,7 +7,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.dialects import postgresql
 
-from src.api.deps import get_group_ids, get_org_id
+from src.api.deps import get_group_ids
 from src.core.security import (
     AccessLevel,
     EffectiveAccess,
@@ -340,57 +340,6 @@ class TestLoadAuthorizedIntegrityLinkOwnerOnly:
         )
 
         assert result[0] is link
-
-
-# ────────────────────────────────────────────────────────
-# get_org_id
-# ────────────────────────────────────────────────────────
-
-
-class TestGetOrgId:
-    """get_org_id dependency resolves org shortName to console UUID once per request."""
-
-    def test_returns_none_when_no_organization(self) -> None:
-        ctx = _geo_ctx(organization="")
-        result = get_org_id(ctx)
-        assert result is None
-
-    @patch("src.api.deps.ConsoleService")
-    def test_returns_uuid_when_org_found(self, mock_cls: MagicMock) -> None:
-        mock_cls.return_value.get_organization.return_value = {"id": "uuid-123", "name": "Org A"}
-        ctx = _geo_ctx(organization="org_a")
-
-        result = get_org_id(ctx)
-
-        assert result == "uuid-123"
-        mock_cls.return_value.get_organization.assert_called_once_with("org_a")
-
-    @patch("src.api.deps.ConsoleService")
-    def test_returns_none_when_org_not_found(self, mock_cls: MagicMock) -> None:
-        mock_cls.return_value.get_organization.return_value = None
-        ctx = _geo_ctx(organization="unknown_org")
-
-        result = get_org_id(ctx)
-
-        assert result is None
-
-    @patch("src.api.deps.ConsoleService")
-    def test_returns_none_when_console_unreachable(self, mock_cls: MagicMock) -> None:
-        mock_cls.return_value.get_organization.return_value = None
-        ctx = _geo_ctx(organization="org_a")
-
-        result = get_org_id(ctx)
-
-        assert result is None
-
-    @patch("src.api.deps.ConsoleService")
-    def test_returns_none_when_id_missing_from_response(self, mock_cls: MagicMock) -> None:
-        mock_cls.return_value.get_organization.return_value = {"name": "Org A"}  # no 'id' key
-        ctx = _geo_ctx(organization="org_a")
-
-        result = get_org_id(ctx)
-
-        assert result is None
 
 
 # ────────────────────────────────────────────────────────
