@@ -31,7 +31,7 @@ from src.models.integrity_link_rule import (
 from src.models.recurrence import RecurrencePreset
 from src.services.console_service import ConsoleServiceError
 from src.services.georchestra import GeorchestraContext
-from src.services.geoserver import GeoServerAclError
+from src.services.geoserver import ACL_ROLE_EVERYONE, GeoServerAclError
 from src.services.metadata_service import MetadataService
 from tests.services.metadata_service_internals.samples import (
     SAMPLE_19115_3_WITH_ONLINE_RESOURCES,
@@ -1061,6 +1061,102 @@ class TestSyncDataSharingAfterUpsert:
             body=body,
         )
 
+        mock_gs.sync_layer_acl.assert_not_called()
+
+    def test_gs_sync_prefilled_targets_layer_from_data_id(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """For PREFILLED datasets, sync_layer_acl targets the 'workspace:layer' of data_id."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="MyOrg",
+            source_import_type=ImportType.PREFILLED,
+            staging_table_name="staging_test",
+            final_table_name=None,
+            data_id="OtherWs:Other_Layer",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        data_rules_mock = MagicMock()
+        data_rules_mock.all.return_value = [
+            IntegrityLinkRule(
+                id=1,
+                integrity_link_id=UUID(integrity_link_id),
+                group_or_role=GROUP_OR_ROLE_EVERYONE,
+                rule_type=RuleType.DATA,
+                rule_value=RuleValue.READ,
+            )
+        ]
+        mock_session.exec.side_effect = [access_mock, no_rule_mock, data_rules_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role=GROUP_OR_ROLE_EVERYONE,
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+
+        mock_gs = MagicMock()
+
+        upsert_integrity_link_rule(
+            session=mock_session,
+            georchestra_context=_geo_ctx(),
+            integrity_link_id=integrity_link_id,
+            group_ids=[],
+            metadata_service=MagicMock(),
+            geoserver_service=mock_gs,
+            body=body,
+        )
+
+        mock_gs.sync_layer_acl.assert_called_once_with(
+            "otherws", "other_layer", [(ACL_ROLE_EVERYONE, RuleValue.READ)]
+        )
+
+    def test_gs_sync_prefilled_without_layer_skips_rules_and_console(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        """A PREFILLED dataset with no usable data_id nor final_table_name returns early:
+        rules are not loaded, Console is not called and sync_layer_acl is not called."""
+        mock_session.get.return_value = IntegrityLink(
+            id=UUID(integrity_link_id),
+            integrity_owner="testuser",
+            integrity_organization="MyOrg",
+            source_import_type=ImportType.PREFILLED,
+            staging_table_name="staging_test",
+            final_table_name=None,
+            data_id="no_colon_layer",
+        )
+
+        access_mock = MagicMock()
+        access_mock.first.return_value = "OWNER"
+        no_rule_mock = MagicMock()
+        no_rule_mock.first.return_value = None
+        # No third exec result: loading the rules would raise StopIteration.
+        mock_session.exec.side_effect = [access_mock, no_rule_mock]
+
+        body = UpsertRuleRequest(
+            group_or_role="role-uuid-1",
+            rule_type=RuleType.DATA,
+            rule_value=RuleValue.READ,
+        )
+
+        mock_gs = MagicMock()
+
+        with patch("src.api.routes.ingestion.integrity_link.ConsoleService") as mock_console_cls:
+            upsert_integrity_link_rule(
+                session=mock_session,
+                georchestra_context=_geo_ctx(),
+                integrity_link_id=integrity_link_id,
+                group_ids=[],
+                metadata_service=MagicMock(),
+                geoserver_service=mock_gs,
+                body=body,
+            )
+
+        mock_console_cls.assert_not_called()
         mock_gs.sync_layer_acl.assert_not_called()
 
     def test_gs_sync_filters_metadata_rules(

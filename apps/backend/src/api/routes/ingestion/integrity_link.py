@@ -126,15 +126,19 @@ def _sync_data_sharing(
     """Sync DATA rules to GeoServer layer ACL.
 
     Resolves role UUIDs to ROLE_xxx names via the Console API before syncing.
-    Skipped when integrity_link has no published layer (final_table_name absent).
+    Skipped when no layer can be targeted: neither a final_table_name nor, for PREFILLED
+    datasets, a data_id formatted as 'workspace:layer'.
 
     Raises:
         HTTPException(500): If role resolution or GeoServer ACL sync fails.
     """
-    if (
-        not integrity_link.final_table_name
-        and integrity_link.source_import_type != ImportType.PREFILLED
-    ):
+    workspace = integrity_link.integrity_organization.lower()
+    layer_name = integrity_link.final_table_name
+    if integrity_link.source_import_type == ImportType.PREFILLED:
+        if parts := integrity_link.parse_data_id():
+            workspace, layer_name = parts[0].lower(), parts[1].lower()
+
+    if not layer_name:
         return
 
     all_rules = list(
@@ -174,17 +178,7 @@ def _sync_data_sharing(
             )
         resolved.append((role_name, rule.rule_value))
 
-    workspace = integrity_link.integrity_organization.lower()
-
-    final_table_name = integrity_link.final_table_name
-    if integrity_link.source_import_type == ImportType.PREFILLED:
-        if parts := integrity_link.parse_data_id():
-            workspace, final_table_name = parts[0].lower(), parts[1].lower()
-
-    if not final_table_name:
-        return
-
-    geoserver_service.sync_layer_acl(workspace, final_table_name, resolved)
+    geoserver_service.sync_layer_acl(workspace, layer_name, resolved)
 
 
 @router.get(
