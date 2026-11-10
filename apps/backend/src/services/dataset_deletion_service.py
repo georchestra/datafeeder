@@ -115,7 +115,10 @@ class DatasetDeletionService:
                 # ACL rules are synced on the lowercased names (see _resolve_gs_layer)
                 self.geoserver_service.delete_layer_acl(parts[0].lower(), parts[1].lower())
             if integrity_link.source_import_type == ImportType.DIRECT_ACCESS:
-                self._delete_direct_access_datastore_if_empty(integrity_link, workspace_name)
+                db_key, pg_schema, _ = parse_db_uri(str(integrity_link.source_url))
+                self.geoserver_service.delete_datastore_if_empty(
+                    workspace_name, direct_access_datastore_name(db_key, pg_schema)
+                )
 
         # Step 3: Drop final data table (best-effort)
         if delete_layer and integrity_link.final_table_name:
@@ -158,15 +161,6 @@ class DatasetDeletionService:
             self.geoserver_service.delete_datastore_if_empty(workspace_name, datastore_name)
             self.geoserver_service.delete_workspace_if_empty(workspace_name)
             self._drop_schema_if_empty(get_data_schema(workspace_name))
-
-    def _delete_direct_access_datastore_if_empty(
-        self, integrity_link: IntegrityLink, workspace_name: str
-    ) -> None:
-        """Delete the source schema datastore of a direct access dataset once unused."""
-        db_key, pg_schema, _ = parse_db_uri(str(integrity_link.source_url))
-        self.geoserver_service.delete_datastore_if_empty(
-            workspace_name, direct_access_datastore_name(db_key, pg_schema)
-        )
 
     def _drop_schema_if_empty(self, schema: str) -> None:
         """Drop an org-specific schema only when empty (RESTRICT).
