@@ -307,6 +307,7 @@ class TestPrefilledLayer:
         deletion_service.delete_dataset(link, session, delete_layer=True)
 
         geoserver_svc.delete_workspace_layer.assert_called_once_with("otherws", "roads")
+        geoserver_svc.delete_layer_acl.assert_called_once_with("otherws", "roads")
         # Org cleanup targets the dataset org, never the workspace of the prefilled layer
         geoserver_svc.delete_workspace_if_empty.assert_called_once_with("testorg")
 
@@ -326,6 +327,59 @@ class TestPrefilledLayer:
         deletion_service.delete_dataset(link, MagicMock(), delete_layer=False)
 
         geoserver_svc.delete_workspace_layer.assert_not_called()
+        geoserver_svc.delete_layer_acl.assert_not_called()
+
+
+class TestDirectAccessLayer:
+    """A direct access dataset publishes a source database table read in place."""
+
+    @staticmethod
+    def _link() -> IntegrityLink:
+        link = _make_link(final_table_name=None)
+        link.source_import_type = ImportType.DIRECT_ACCESS
+        link.staging_table_name = None
+        link.source_url = "db://patrimoine/geo/rivers"
+        link.data_id = "testorg:rivers"
+        return link
+
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_deletes_layer_acl_and_unused_source_schema_datastore(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        deletion_service: DatasetDeletionService,
+        geoserver_svc: MagicMock,
+    ) -> None:
+        session = MagicMock()
+        session.exec.return_value.first.return_value = MagicMock()  # the org has other datasets
+
+        with patch.object(deletion_service, "_drop_table_safe") as drop_table:
+            deletion_service.delete_dataset(self._link(), session, delete_layer=True)
+
+        geoserver_svc.delete_workspace_layer.assert_called_once_with("testorg", "rivers")
+        geoserver_svc.delete_layer_acl.assert_called_once_with("testorg", "rivers")
+        geoserver_svc.delete_datastore_if_empty.assert_called_once_with("testorg", "patrimoine_geo")
+        geoserver_svc.delete_layer.assert_not_called()
+        drop_table.assert_not_called()  # the source table is never dropped
+
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_layer_is_kept_without_delete_layer(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        deletion_service: DatasetDeletionService,
+        geoserver_svc: MagicMock,
+    ) -> None:
+        session = MagicMock()
+        session.exec.return_value.first.return_value = MagicMock()
+
+        deletion_service.delete_dataset(self._link(), session, delete_layer=False)
+
+        geoserver_svc.delete_workspace_layer.assert_not_called()
+        geoserver_svc.delete_layer_acl.assert_not_called()
+        geoserver_svc.delete_datastore_if_empty.assert_not_called()
 
 
 class TestCancelInFlightRuns:
