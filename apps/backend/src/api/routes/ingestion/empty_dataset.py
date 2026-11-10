@@ -1,7 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, MetadataServiceDep
+from src.api.deps import (
+    ConsoleServiceDep,
+    DatafeederSessionDep,
+    GeorchestraContextDep,
+    MetadataServiceDep,
+)
 from src.core.logging import get_logger
 from src.models.data_import import ImportType, IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
@@ -31,6 +36,7 @@ def create_empty_dataset(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
     metadata_service: MetadataServiceDep,
+    console_service: ConsoleServiceDep,
 ) -> IntegrityLinkResponse:
     title = request.title.strip() if request.title else "Untitled Dataset"
 
@@ -46,7 +52,7 @@ def create_empty_dataset(
 
     try:
         # No layer_urls → no online resources in the metadata record
-        publish_new_record(metadata_service, integrity_link, geo_ctx)
+        publish_new_record(metadata_service, console_service, integrity_link, geo_ctx)
     except Exception as e:
         logger.error(
             "Failed to publish metadata for empty dataset %s: %s",

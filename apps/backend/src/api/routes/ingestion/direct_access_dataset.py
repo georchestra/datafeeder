@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import col, select
 
 from src.api.deps import (
+    ConsoleServiceDep,
     DatafeederSessionDep,
     GeorchestraContextDep,
     GeoServerServiceDep,
@@ -59,6 +60,7 @@ async def create_direct_access_dataset(
     geo_ctx: GeorchestraContextDep,
     geoserver_service: GeoServerServiceDep,
     metadata_service: MetadataServiceDep,
+    console_service: ConsoleServiceDep,
 ) -> IntegrityLinkResponse:
     db = _get_direct_access_database(request.db_key, geo_ctx)
     schema, table = request.schema_name, request.table_name
@@ -127,6 +129,7 @@ async def create_direct_access_dataset(
     try:
         publish_new_record(
             metadata_service,
+            console_service,
             integrity_link,
             geo_ctx,
             geoserver_service.build_layer_urls_for_metadata(

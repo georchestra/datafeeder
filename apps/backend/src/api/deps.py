@@ -40,6 +40,13 @@ TokenDep = Annotated[str, Depends(reusable_oauth2)]
 GeorchestraContextDep = Annotated[GeorchestraContext, Depends(get_georchestra_context)]
 
 
+def get_console_service() -> ConsoleService:
+    return ConsoleService(get_settings().CONSOLE_INTERNAL_URL)
+
+
+ConsoleServiceDep = Annotated[ConsoleService, Depends(get_console_service)]
+
+
 def get_org_id(geo_ctx: GeorchestraContextDep) -> str | None:
     """Resolve the current user's org shortName to its console UUID once per request.
 
@@ -70,7 +77,7 @@ def _matches_metadata_filter(name: str, pattern: re.Pattern[str] | None) -> bool
     return pattern is None or pattern.search(name) is not None
 
 
-def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
+def get_group_ids(geo_ctx: GeorchestraContextDep, console_service: ConsoleServiceDep) -> list[str]:
     """Resolve the identifiers used to match ``IntegrityLinkRule.group_or_role``.
 
     In ORG mode the list contains the user's org console UUID (at most one entry);
@@ -103,11 +110,11 @@ def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
     if settings.GN_SYNC_MODE == "ROLE":
         if not geo_ctx.roles:
             return []
-        # PERF: one Console call per request; acceptable at UI scale. If this
-        # becomes hot, promote ConsoleService to a request-scoped FastAPI dep
-        # and memoize get_all_roles on the instance so rule-sync paths share it.
+        # PERF: one Console call per request; acceptable at UI scale. ConsoleServiceDep is
+        # shared with the route within a request: if this becomes hot, memoize get_all_roles
+        # on the instance so rule-sync paths share it.
         try:
-            all_roles = ConsoleService(settings.CONSOLE_INTERNAL_URL).get_all_roles()
+            all_roles = console_service.get_all_roles()
         except ConsoleServiceError as exc:
             logger.warning(
                 "Console unreachable while resolving role UUIDs; "
@@ -127,7 +134,7 @@ def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
 
     if not geo_ctx.organization:
         return []
-    org = ConsoleService(settings.CONSOLE_INTERNAL_URL).get_organization(geo_ctx.organization)
+    org = console_service.get_organization(geo_ctx.organization)
     if not org or "id" not in org:
         return []
     if not _matches_metadata_filter(str(org.get("name", "")), pattern):
@@ -165,13 +172,6 @@ def get_metadata_service() -> MetadataService:
 
 
 MetadataServiceDep = Annotated[MetadataService, Depends(get_metadata_service)]
-
-
-def get_console_service() -> ConsoleService:
-    return ConsoleService(get_settings().CONSOLE_INTERNAL_URL)
-
-
-ConsoleServiceDep = Annotated[ConsoleService, Depends(get_console_service)]
 
 
 def get_current_user(session: DatafeederSessionDep, token: TokenDep) -> User:

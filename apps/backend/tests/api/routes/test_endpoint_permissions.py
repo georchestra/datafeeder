@@ -276,6 +276,7 @@ class TestProcessPermission:
                 [],
                 MagicMock(),
                 MagicMock(),
+                MagicMock(),
             )
 
         assert exc_info.value.status_code == 403
@@ -293,6 +294,7 @@ class TestProcessPermission:
                 session,
                 _write_ctx(),
                 GROUP_IDS,
+                MagicMock(),
                 MagicMock(),
                 MagicMock(),
             )
