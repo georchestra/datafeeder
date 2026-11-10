@@ -1,10 +1,9 @@
 from fastapi import APIRouter, HTTPException
 
-from src.api.deps import GeorchestraContextDep
+from src.api.deps import ConsoleServiceDep, GeorchestraContextDep
 from src.api.routes.groups_common import GroupItem, filter_console_items
 from src.core.config import get_settings
 from src.core.logging import get_logger
-from src.services.console_service import ConsoleService
 
 logger = get_logger()
 
@@ -20,9 +19,10 @@ router = APIRouter(prefix="/metadata/groups", tags=["Metadata"])
         "Returns organizations when GN_SYNC_MODE=ORG, roles when GN_SYNC_MODE=ROLE."
     ),
 )
-def list_groups(geo_ctx: GeorchestraContextDep) -> list[GroupItem]:
+def list_groups(
+    geo_ctx: GeorchestraContextDep, console_service: ConsoleServiceDep
+) -> list[GroupItem]:
     settings = get_settings()
-    console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
 
     try:
         if settings.GN_SYNC_MODE == "ORG":

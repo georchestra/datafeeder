@@ -16,6 +16,7 @@ from sqlmodel import Session, col, select
 from starlette.concurrency import run_in_threadpool
 
 from src.api.deps import (
+    ConsoleServiceDep,
     DatafeederSessionDep,
     GeorchestraContextDep,
     GeoServerServiceDep,
@@ -87,8 +88,7 @@ def _get_integrity_link(session: DatafeederSessionDep, integrity_link_id: UUID) 
     return integrity_link
 
 
-def _require_console_owner(owner: str, organization: str) -> None:
-    console_service = ConsoleService(get_settings().CONSOLE_INTERNAL_URL)
+def _require_console_owner(console_service: ConsoleService, owner: str, organization: str) -> None:
     if console_service.get_organization(organization) is None:
         raise HTTPException(status_code=400, detail=f"Unknown organization '{organization}'")
     if owner not in console_service.fetch_users_by_usernames([owner]):
@@ -454,9 +454,12 @@ async def import_integrity_link(
     geo_ctx: GeorchestraContextDep,
     geoserver_service: GeoServerServiceDep,
     metadata_service: MetadataServiceDep,
+    console_service: ConsoleServiceDep,
 ) -> IntegrityLinkImportResponse:
     require_administrator(geo_ctx)
-    _require_console_owner(request.link.integrity_owner, request.link.integrity_organization)
+    _require_console_owner(
+        console_service, request.link.integrity_owner, request.link.integrity_organization
+    )
     mode = _resolve_import_mode(request, session, metadata_service)
     exported = request.link
 
@@ -555,10 +558,15 @@ def _locate_final_table(
 
 
 def _sync_data_sharing_safe(
-    session: DatafeederSessionDep, integrity_link: IntegrityLink, geoserver: GeoServerService
+    session: DatafeederSessionDep,
+    integrity_link: IntegrityLink,
+    geoserver: GeoServerService,
+    console_service: ConsoleService,
 ) -> None:
     try:
-        _sync_data_sharing(session, str(integrity_link.id), integrity_link, geoserver)
+        _sync_data_sharing(
+            session, str(integrity_link.id), integrity_link, geoserver, console_service
+        )
     except Exception as e:
         logger.error(f"Failed to sync GeoServer ACL of {integrity_link.id}: {e}", exc_info=True)
 
@@ -608,6 +616,7 @@ async def _move_dataset(
     session: DatafeederSessionDep,
     geoserver_service: GeoServerService,
     metadata_service: MetadataService,
+    console_service: ConsoleService,
 ) -> None:
     """Move the final table and layer to the schema and workspace of the new organization.
 
@@ -676,7 +685,7 @@ async def _move_dataset(
 
     geoserver_service.delete_layer(current_ws, f"{current_ws}_ds", table_name)
     geoserver_service.delete_layer_acl(current_ws, table_name)
-    _sync_data_sharing_safe(session, integrity_link, geoserver_service)
+    _sync_data_sharing_safe(session, integrity_link, geoserver_service, console_service)
     _update_record_layer_links(
         integrity_link,
         f"{current_ws}:{table_name}",
@@ -705,19 +714,25 @@ async def reassign_integrity_link_ownership(
     geo_ctx: GeorchestraContextDep,
     geoserver_service: GeoServerServiceDep,
     metadata_service: MetadataServiceDep,
+    console_service: ConsoleServiceDep,
 ) -> IntegrityLinkResponse:
     require_administrator(geo_ctx)
     integrity_link = _get_integrity_link(session, integrity_link_id)
     current = integrity_link.integrity_organization
     org_changes = bool(request.organization) and request.organization.lower() != current.lower()
     organization = request.organization if org_changes and request.organization else current
-    _require_console_owner(request.owner, organization)
+    _require_console_owner(console_service, request.owner, organization)
 
     # Layer and record of a prefilled dataset are not managed by datafeeder
     is_prefilled = integrity_link.source_import_type == ImportType.PREFILLED
     if org_changes and integrity_link.final_table_name and not is_prefilled:
         await _move_dataset(
-            integrity_link, organization, session, geoserver_service, metadata_service
+            integrity_link,
+            organization,
+            session,
+            geoserver_service,
+            metadata_service,
+            console_service,
         )
     else:
         integrity_link.integrity_organization = organization
