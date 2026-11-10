@@ -17,6 +17,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import MetaData, Table
 
 from src.api.deps import (
+    ConsoleServiceDep,
     DatafeederSessionDep,
     DataSessionDep,
     GeorchestraContextDep,
@@ -93,6 +94,7 @@ def process_staging_data(
     group_ids: GroupIdsDep,
     geoserver_service: GeoServerServiceDep,
     metadata_service: MetadataServiceDep,
+    console_service: ConsoleServiceDep,
     sec_username: str = Header(..., alias="sec-username", include_in_schema=False),
 ) -> ProcessResponse:
     """
@@ -212,7 +214,9 @@ def process_staging_data(
                 table_name=final_table_name,
                 is_geographic=is_geographic,
             )
-            publish_new_record(metadata_service, integrity_link, geo_ctx, layer_urls)
+            publish_new_record(
+                metadata_service, console_service, integrity_link, geo_ctx, layer_urls
+            )
         except Exception as e:
             logger.error(
                 f"Failed to publish metadata for IntegrityLink {integrity_link.id}: {e}",

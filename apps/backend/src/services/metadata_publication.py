@@ -2,7 +2,6 @@
 
 from typing import Any
 
-from src.core.config import get_settings
 from src.core.logging import get_logger
 from src.models.integrity_link import IntegrityLink
 from src.services.console_service import ConsoleService
@@ -14,6 +13,7 @@ logger = get_logger()
 
 def publish_new_record(
     metadata_service: MetadataService,
+    console_service: ConsoleService,
     integrity_link: IntegrityLink,
     author: GeorchestraContext,
     layer_urls: dict[str, Any] | None = None,
@@ -30,9 +30,7 @@ def publish_new_record(
     Raises:
         Exception: If the record cannot be created
     """
-    organization = ConsoleService(get_settings().CONSOLE_INTERNAL_URL).get_organization(
-        integrity_link.integrity_organization
-    )
+    organization = console_service.get_organization(integrity_link.integrity_organization)
     org_name = organization.get("name") if organization else None
     contact_email = (organization.get("mail") if organization else None) or author.email
 

@@ -31,17 +31,6 @@ def _geo_ctx(
     )
 
 
-def _mock_settings() -> MagicMock:
-    settings = MagicMock()
-    settings.CONSOLE_INTERNAL_URL = "http://console"
-    settings.GEONETWORK_INTERNAL_URL = "http://geonetwork"
-    settings.GEONETWORK_USERNAME = "admin"
-    settings.GEONETWORK_PASSWORD = "geonetwork"
-    settings.DATADIR_PATH = "/datadir"
-    settings.GN_SYNC_MODE = "ORG"
-    return settings
-
-
 def _make_session_with_link(link_id: UUID | None = None) -> MagicMock:
     """Return a mock session whose flush() assigns an ID to the first added object."""
     link_id = link_id or uuid4()
@@ -60,6 +49,7 @@ class TestCreateEmptyDataset:
 
     def test_successful_creation_returns_201_with_empty_type(self) -> None:
         """Happy path: valid title → integrity link persisted with EMPTY import type."""
+        mock_console = MagicMock()
         link_id = uuid4()
         session = _make_session_with_link(link_id)
 
@@ -67,11 +57,6 @@ class TestCreateEmptyDataset:
 
         # Patch model_validate to avoid needing a fully wired SQLModel
         with (
-            patch(
-                "src.services.metadata_publication.get_settings",
-                return_value=_mock_settings(),
-            ),
-            patch("src.services.metadata_publication.ConsoleService") as mock_console_cls,
             patch(
                 "src.api.routes.ingestion.empty_dataset.IntegrityLinkResponse.model_validate",
                 return_value=MagicMock(
@@ -81,7 +66,7 @@ class TestCreateEmptyDataset:
                 ),
             ),
         ):
-            mock_console_cls.return_value.get_organization.return_value = {
+            mock_console.get_organization.return_value = {
                 "name": "Test Org",
                 "mail": "org@example.com",
             }
@@ -91,6 +76,7 @@ class TestCreateEmptyDataset:
                 session=session,
                 geo_ctx=_geo_ctx(),
                 metadata_service=MagicMock(),
+                console_service=mock_console,
             )
 
         assert result.source_import_type == ImportType.EMPTY
@@ -101,17 +87,13 @@ class TestCreateEmptyDataset:
 
     def test_no_title_creates_link_with_untitled_dataset(self) -> None:
         """A request without a title creates the integrity link with integrity_title='Untitled Dataset'."""
+        mock_console = MagicMock()
         link_id = uuid4()
         session = _make_session_with_link(link_id)
 
         session.refresh.return_value = None
 
         with (
-            patch(
-                "src.services.metadata_publication.get_settings",
-                return_value=_mock_settings(),
-            ),
-            patch("src.services.metadata_publication.ConsoleService") as mock_console_cls,
             patch(
                 "src.api.routes.ingestion.empty_dataset.IntegrityLinkResponse.model_validate",
                 return_value=MagicMock(
@@ -121,13 +103,14 @@ class TestCreateEmptyDataset:
                 ),
             ),
         ):
-            mock_console_cls.return_value.get_organization.return_value = None
+            mock_console.get_organization.return_value = None
 
             result = create_empty_dataset(
                 request=CreateEmptyDatasetRequest(),
                 session=session,
                 geo_ctx=_geo_ctx(),
                 metadata_service=MagicMock(),
+                console_service=mock_console,
             )
 
         added_link = session.add.call_args[0][0]
@@ -138,27 +121,22 @@ class TestCreateEmptyDataset:
 
     def test_metadata_publication_failure_rolls_back_and_raises_500(self) -> None:
         """If metadata creation fails the DB transaction is rolled back and HTTP 500 is raised."""
+        mock_console = MagicMock()
         link_id = uuid4()
         session = _make_session_with_link(link_id)
 
-        with (
-            patch(
-                "src.services.metadata_publication.get_settings",
-                return_value=_mock_settings(),
-            ),
-            patch("src.services.metadata_publication.ConsoleService") as mock_console_cls,
-        ):
-            mock_console_cls.return_value.get_organization.return_value = None
-            mock_ms = MagicMock()
-            mock_ms.create_and_publish_metadata.side_effect = RuntimeError("GeoNetwork down")
+        mock_console.get_organization.return_value = None
+        mock_ms = MagicMock()
+        mock_ms.create_and_publish_metadata.side_effect = RuntimeError("GeoNetwork down")
 
-            with pytest.raises(HTTPException) as exc_info:
-                create_empty_dataset(
-                    request=CreateEmptyDatasetRequest(title="My Dataset"),
-                    session=session,
-                    geo_ctx=_geo_ctx(),
-                    metadata_service=mock_ms,
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            create_empty_dataset(
+                request=CreateEmptyDatasetRequest(title="My Dataset"),
+                session=session,
+                geo_ctx=_geo_ctx(),
+                metadata_service=mock_ms,
+                console_service=mock_console,
+            )
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "import.metadataPublication.error"
