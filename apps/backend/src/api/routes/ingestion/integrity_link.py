@@ -564,7 +564,6 @@ def toggle_publish_gs_integrity_link(
         )
 
     acl_layer_name = GeoServerService.make_acl_layer_name(workspace, final_table_name)
-    gs_read_roles: list[str] | None = None
     try:
         if publish:
             session.add(
