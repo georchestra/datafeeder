@@ -5,6 +5,7 @@ import {
 } from '@angular/common/http/testing'
 import { TestBed } from '@angular/core/testing'
 import { By } from '@angular/platform-browser'
+import { TranslateService } from '@ngx-translate/core'
 import { DatasetJoinComponent } from './dataset-join.component'
 import { TranslateTestingModule } from '../../testing/translate-testing.module'
 import { ApiConfiguration } from '../../../core/api/api-configuration'
@@ -255,5 +256,27 @@ describe('DatasetJoinComponent', () => {
     await selecting
 
     expect(errors).toEqual(['import.dataSource.genericError'])
+  })
+
+  it('emits the translated error key of a dataset no longer available for join', async () => {
+    TestBed.inject(TranslateService).setTranslation(
+      'en',
+      { 'i18nerror.join.unavailable': 'Join failed' },
+      true
+    )
+    const fixture = await create(null)
+    const errors: string[] = []
+    fixture.componentInstance.loadError.subscribe((e) => errors.push(e))
+
+    const selecting = fixture.componentInstance.selectTable(TABLES[1])
+    httpMock
+      .expectOne(columnsUrl('link-2'))
+      .flush(
+        { detail: 'i18nerror.join.unavailable' },
+        { status: 404, statusText: 'Not Found' }
+      )
+    await selecting
+
+    expect(errors).toEqual(['Join failed'])
   })
 })
