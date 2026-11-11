@@ -306,7 +306,9 @@ class TestPrefilledLayer:
 
         deletion_service.delete_dataset(link, session, delete_layer=True)
 
-        geoserver_svc.delete_workspace_layer.assert_called_once_with("otherws", "roads")
+        geoserver_svc.delete_workspace_layer.assert_called_once_with(
+            "otherws", "roads", recurse=False
+        )
         geoserver_svc.delete_layer_acl.assert_called_once_with("otherws", "roads")
         # Org cleanup targets the dataset org, never the workspace of the prefilled layer
         geoserver_svc.delete_workspace_if_empty.assert_called_once_with("testorg")
@@ -357,7 +359,9 @@ class TestDirectAccessLayer:
         with patch.object(deletion_service, "_drop_table_safe") as drop_table:
             deletion_service.delete_dataset(self._link(), session, delete_layer=True)
 
-        geoserver_svc.delete_workspace_layer.assert_called_once_with("testorg", "rivers")
+        geoserver_svc.delete_workspace_layer.assert_called_once_with(
+            "testorg", "rivers", recurse=True
+        )
         geoserver_svc.delete_layer_acl.assert_called_once_with("testorg", "rivers")
         geoserver_svc.delete_datastore_if_empty.assert_called_once_with("testorg", "patrimoine_geo")
         geoserver_svc.delete_layer.assert_not_called()

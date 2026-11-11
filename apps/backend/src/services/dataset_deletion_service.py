@@ -111,7 +111,12 @@ class DatasetDeletionService:
             ImportType.DIRECT_ACCESS,
         ):
             if parts := integrity_link.parse_data_id():
-                self.geoserver_service.delete_workspace_layer(*parts)
+                # The feature type of a direct access dataset was created by datafeeder:
+                # delete it too, so its datastore can be cleaned up once unused
+                self.geoserver_service.delete_workspace_layer(
+                    *parts,
+                    recurse=integrity_link.source_import_type == ImportType.DIRECT_ACCESS,
+                )
                 # ACL rules are synced on the lowercased names (see _resolve_gs_layer)
                 self.geoserver_service.delete_layer_acl(parts[0].lower(), parts[1].lower())
             if integrity_link.source_import_type == ImportType.DIRECT_ACCESS:
