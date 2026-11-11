@@ -418,14 +418,24 @@ class GeoServerService:
         except Exception as e:
             logger.error(f"Failed to delete GeoServer {label}: {e}", exc_info=True)
 
-    def delete_workspace_layer(self, workspace_name: str, layer_name: str) -> None:
-        """Delete a workspace layer, whatever its store. Best-effort, 404 is a success."""
+    def delete_workspace_layer(
+        self, workspace_name: str, layer_name: str, recurse: bool = False
+    ) -> None:
+        """Delete a workspace layer, whatever its store. Best-effort, 404 is a success.
+
+        Args:
+            workspace_name: Name of the GeoServer workspace
+            layer_name: Name of the layer to delete
+            recurse: Also delete the resource (e.g. feature type) the layer publishes;
+                without it, the resource is left in its store
+        """
         label = f"layer {workspace_name}:{layer_name}"
         try:
             url = self.geoserver.rest_service.rest_endpoints.workspace_layer(
                 workspace_name=workspace_name, layer_name=layer_name
             )
-            response = self.geoserver.rest_service.rest_client.delete(url)
+            params = {"recurse": "true"} if recurse else None
+            response = self.geoserver.rest_service.rest_client.delete(url, params=params)
             if response.status_code in (200, 204):
                 logger.info(f"Deleted GeoServer {label}")
             elif response.status_code != 404:

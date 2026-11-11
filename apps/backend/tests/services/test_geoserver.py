@@ -457,6 +457,20 @@ class TestAclLayerGet:
 
         rest_client.delete.assert_called_once()
 
+    @pytest.mark.parametrize(("recurse", "params"), [(False, None), (True, {"recurse": "true"})])
+    def test_delete_workspace_layer_recurse(
+        self,
+        service: GeoServerService,
+        rest_client: MagicMock,
+        recurse: bool,
+        params: dict[str, str] | None,
+    ) -> None:
+        rest_client.delete.return_value.status_code = 200
+
+        service.delete_workspace_layer("otherws", "roads", recurse=recurse)
+
+        assert rest_client.delete.call_args.kwargs["params"] == params
+
     def test_delete_workspace_layer_swallows_errors(
         self, service: GeoServerService, rest_client: MagicMock
     ) -> None:
