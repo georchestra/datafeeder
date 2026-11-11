@@ -493,6 +493,7 @@ async def import_integrity_link(
         final_table_name=exported.final_table_name,
         schedule=schedule,
         schedule_enabled=schedule is not None,
+        is_reference_dataset=exported.is_reference_dataset,
     )
     if mode == IntegrityLinkImportMode.ATTACH:
         integrity_link.data_id = exported.data_id

@@ -121,7 +121,9 @@ def _session(conflict: IntegrityLink | None = None) -> MagicMock:
 class TestExport:
     def test_export_flags_password_and_resolves_preset(self) -> None:
         link = _link(
-            source_password_encrypted="encrypted", schedule=RecurrencePreset.EVERY_DAY.cron
+            source_password_encrypted="encrypted",
+            schedule=RecurrencePreset.EVERY_DAY.cron,
+            is_reference_dataset=True,
         )
         with patch(f"{MODULE}._get_integrity_link", return_value=link):
             result = export_integrity_link(MagicMock(), _ctx(), LINK_ID)
@@ -130,6 +132,7 @@ class TestExport:
         assert result.has_source_password is True
         assert result.preset_id == RecurrencePreset.EVERY_DAY
         assert result.integrity_transformation == {"columns": []}
+        assert result.is_reference_dataset is True
         assert "source_password_encrypted" not in result.model_dump()
 
     def test_non_admin_is_forbidden(self) -> None:
@@ -331,6 +334,13 @@ class TestImportReprocess:
         assert kwargs["source"].source_layer == "ns:voies"
         assert "target_schema=mel" in kwargs["success_callback_url"]
         import_mocks["publish"].assert_not_called()
+
+    async def test_reference_dataset_flag_is_kept(self, import_mocks: dict[str, MagicMock]) -> None:
+        session = _session()
+
+        await _import(IntegrityLinkImportRequest(link=_export(is_reference_dataset=True)), session)
+
+        assert session.add.call_args.args[0].is_reference_dataset is True
 
     async def test_copy_recurrence_uses_the_local_preset_cron(
         self, import_mocks: dict[str, MagicMock]
