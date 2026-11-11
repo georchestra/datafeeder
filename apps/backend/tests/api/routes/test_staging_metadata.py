@@ -105,17 +105,11 @@ class TestGetStagingMetadataJoin:
         assert result.join is None
 
 
-def _edit_metadata(
-    config: StagingMetadata, link: MagicMock, resolve: MagicMock | None = None
-) -> None:
+def _edit_metadata(config: StagingMetadata, link: MagicMock) -> None:
     with (
         patch(
             "src.api.routes.ingestion.staging.load_authorized_integrity_link",
             return_value=(link, MagicMock()),
-        ),
-        patch(
-            "src.api.routes.ingestion.staging.resolve_join_target",
-            resolve or MagicMock(),
         ),
         patch("src.api.routes.ingestion.staging.get_staging_metadata"),
     ):
@@ -150,19 +144,17 @@ class TestEditStagingMetadataJoin:
 
         assert link.integrity_transformation["join"] is None
 
-    def test_unreadable_joined_dataset_is_rejected(self) -> None:
+    def test_joined_dataset_is_not_resolved_on_save(self) -> None:
+        # Only its id is saved: preview and process check it can still be joined.
         link = _mock_link(None)
         config = StagingMetadata(
             columns=[ColumnConfig(original_name="insee")], title="t", file_type=None, join=JOIN
         )
-        resolve = MagicMock(side_effect=HTTPException(status_code=403, detail="Forbidden"))
 
-        with pytest.raises(HTTPException) as exc:
-            _edit_metadata(config, link, resolve)
+        with patch("src.api.routes.ingestion.staging.resolve_join_target") as resolve:
+            _edit_metadata(config, link)
 
-        assert exc.value.status_code == 403
-        assert resolve.call_args.args[0] == JOIN
-        assert link.integrity_transformation is None
+        resolve.assert_not_called()
 
     @pytest.mark.parametrize(
         "joined",

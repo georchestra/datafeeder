@@ -7,8 +7,12 @@ import pytest
 from data_manipulation.models import IntegrityTransformation, JoinConfig, JoinedColumn, JoinTarget
 from fastapi import HTTPException
 
-from src.core.security import AccessLevel
-from src.services.join_target import joins_geom, resolve_join_target
+from src.services.join_target import (
+    JOIN_UNAVAILABLE,
+    get_join_target,
+    joins_geom,
+    resolve_join_target,
+)
 
 
 def _join(columns: list[str] | None = None) -> JoinConfig:
@@ -22,54 +26,70 @@ def _join(columns: list[str] | None = None) -> JoinConfig:
     )
 
 
-def _resolve(join: JoinConfig | None, load: MagicMock) -> JoinTarget | None:
-    with (
-        patch("src.services.join_target.load_authorized_integrity_link", load),
-        patch("src.services.join_target.get_data_schema", side_effect=str.lower),
-    ):
-        return resolve_join_target(join, MagicMock(), MagicMock(), [])
+TARGET = JoinTarget(table_schema="org_b", table_name="communes")
 
 
-def _loads(final_table_name: str | None) -> MagicMock:
-    link = MagicMock(integrity_organization="ORG_B", final_table_name=final_table_name)
-    return MagicMock(return_value=(link, MagicMock()))
+def _session(row: tuple[str, str] | None) -> MagicMock:
+    session = MagicMock()
+    session.exec.return_value.first.return_value = row
+    return session
+
+
+def _resolve(join: JoinConfig | None, target: JoinTarget | None) -> MagicMock:
+    """Resolve *join* with get_join_target returning *target*; return that mock."""
+    with patch("src.services.join_target.get_join_target", return_value=target) as get:
+        resolve_join_target(join, MagicMock())
+    return get
+
+
+def _sql(clause: object) -> str:
+    return str(clause.compile(compile_kwargs={"literal_binds": True}))  # type: ignore[attr-defined]
+
+
+class TestGetJoinTarget:
+    def test_query_is_restricted_to_joinable_datasets(self) -> None:
+        session = _session(None)
+        link_id = uuid4()
+
+        with patch("src.services.join_target.table_exists") as table_exists:
+            assert get_join_target(link_id, session) is None
+        table_exists.assert_not_called()
+
+        sql = _sql(session.exec.call_args.args[0].whereclause)
+        assert link_id.hex in sql.replace("-", "")
+        assert "is_reference_dataset" in sql
+        assert "integrity_owner" not in sql
+
+    @pytest.mark.parametrize("exists", [True, False])
+    def test_final_table_must_exist_in_the_data_database(self, exists: bool) -> None:
+        with (
+            patch("src.services.join_target.get_data_schema", side_effect=str.lower),
+            patch("src.services.join_target.table_exists", return_value=exists) as table_exists,
+        ):
+            result = get_join_target(uuid4(), _session(("ORG_B", "communes")))
+
+        assert result == (TARGET if exists else None)
+        assert table_exists.call_args.args[1:] == ("org_b", "communes")
 
 
 class TestResolveJoinTarget:
     def test_final_table_of_the_joined_dataset(self) -> None:
         join = _join()
-        load = _loads("communes")
 
-        assert _resolve(join, load) == JoinTarget(table_schema="org_b", table_name="communes")
-        assert load.call_args.args[0] == str(join.integrity_link_id)
-        assert load.call_args.args[1] == AccessLevel.METADATA_READ
+        with patch("src.services.join_target.get_join_target", return_value=TARGET) as get:
+            assert resolve_join_target(join, MagicMock()) == TARGET
+        assert get.call_args.args[0] == join.integrity_link_id
 
-    def test_no_join(self) -> None:
-        load = _loads("communes")
+    @pytest.mark.parametrize("join", [None, _join(columns=[])])
+    def test_no_join(self, join: JoinConfig | None) -> None:
+        _resolve(join, TARGET).assert_not_called()
 
-        assert _resolve(None, load) is None
-        load.assert_not_called()
-
-    def test_empty_columns_means_no_join(self) -> None:
-        load = _loads("communes")
-
-        assert _resolve(_join(columns=[]), load) is None
-        load.assert_not_called()
-
-    def test_unreadable_joined_dataset(self) -> None:
-        load = MagicMock(side_effect=HTTPException(status_code=403, detail="Forbidden"))
-
+    def test_joined_dataset_not_joinable(self) -> None:
         with pytest.raises(HTTPException) as exc:
-            _resolve(_join(), load)
-
-        assert exc.value.status_code == 403
-        assert "Joined dataset" in exc.value.detail
-
-    def test_joined_dataset_without_final_table(self) -> None:
-        with pytest.raises(HTTPException) as exc:
-            _resolve(_join(), _loads(None))
+            _resolve(_join(), None)
 
         assert exc.value.status_code == 422
+        assert exc.value.detail == JOIN_UNAVAILABLE
 
 
 class TestJoinsGeom:

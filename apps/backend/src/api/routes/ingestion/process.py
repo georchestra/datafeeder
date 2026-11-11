@@ -127,12 +127,9 @@ def process_staging_data(
         if integrity_link.integrity_transformation
         else None
     )
-    # Before any side effect: the joined dataset must still exist and be readable.
+    # Before any side effect: the joined dataset must still be joinable.
     join_target = resolve_join_target(
-        parsed_transformation.join if parsed_transformation else None,
-        geo_ctx,
-        session,
-        group_ids,
+        parsed_transformation.join if parsed_transformation else None, session
     )
 
     title = _normalize_title(request.title)
