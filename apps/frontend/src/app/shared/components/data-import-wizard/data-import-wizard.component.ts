@@ -802,8 +802,11 @@ export class DataImportWizardComponent {
       this.processing.set(false)
       this.router.navigate([this.integrityLinkStore.intlinkId(), 'edit'])
     } catch (error) {
-      if (error instanceof HttpErrorResponse && error.error?.detail) {
-        this.validationError.set(error.error.detail)
+      if (
+        error instanceof HttpErrorResponse &&
+        typeof error.error?.detail === 'string'
+      ) {
+        this.validationError.set(this.translate.instant(error.error.detail))
       } else {
         this.validationError.set(
           this.translate.instant('import.dataSource.validationError')
