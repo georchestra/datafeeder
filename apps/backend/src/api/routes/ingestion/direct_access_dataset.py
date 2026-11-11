@@ -36,11 +36,7 @@ def _get_direct_access_database(
     db = get_settings().SOURCE_DATABASES.get(db_key)
     if not isinstance(db, DirectAccessSourceDatabase):
         raise HTTPException(status_code=404, detail=f"Unknown direct access database '{db_key}'")
-    if (
-        db.roles
-        and not geo_ctx.is_administrator()
-        and not any(geo_ctx.has_role(role) for role in db.roles)
-    ):
+    if not db.is_available_to(geo_ctx):
         raise HTTPException(status_code=403, detail="Not allowed to use this database")
     return db
 

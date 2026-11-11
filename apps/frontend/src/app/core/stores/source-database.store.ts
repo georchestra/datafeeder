@@ -20,7 +20,7 @@ export class SourceDatabaseStore {
         await this.api.invoke(listSourceDatabasesSourceDatabasesGet)
       )
     } catch {
-      // Admin-only endpoint for now: other users get an empty list
+      // On failure, the wizard shows the same empty state as when no database is available
       this.sourceDatabases.set([])
     }
   }
