@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core'
-import { HttpErrorResponse } from '@angular/common/http'
 import { OperationToast, ToastError } from '../models/operation-toast.model'
+import { errorDetailKey } from '../http/http-error.util'
 
 const TOAST_AUTO_DISMISS_MS = 5000
 
@@ -9,16 +9,7 @@ export class OperationToastStore {
   toasts = signal<OperationToast[]>([])
 
   addError(operationKey: string, error?: ToastError): void {
-    let translationKey: string
-    if (
-      error instanceof HttpErrorResponse &&
-      typeof error.error?.detail === 'string'
-    ) {
-      translationKey = error.error.detail
-    } else {
-      translationKey = `errors.operation.${operationKey}`
-    }
-    this.add(translationKey, 'error')
+    this.add(errorDetailKey(error, `errors.operation.${operationKey}`), 'error')
   }
 
   addInfo(operationKey: string): void {
