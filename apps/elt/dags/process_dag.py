@@ -11,7 +11,7 @@ from airflow.sdk import dag, task
 from callback import _dag_failure_callback, _dag_success_callback
 from data_manipulation.logging import configure_logging
 from task_groups.ingestion import ingestion_group
-from task_groups.transformation import process_transformation_group
+from task_groups.transformation import check_join_target, process_transformation_group
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +134,8 @@ def process_dag(**context: dict[str, Any]) -> None:
     def decide_ingestion_mode(**context: dict[str, Any]) -> str:
         """Decide whether to use existing staging or re-ingest from source."""
         params = context.get("params", {})
+        # Before any ingestion from the source
+        check_join_target(params)
         staging_table_name = params.get("staging_table_name")
         source = params.get("source")
         source_type = params.get("source_type")

@@ -10,7 +10,10 @@ from utils import get_records_as_dicts, normalize_nan
 
 def load_scheduled_integrity_links():
     # The joined dataset is only referenced by id: resolve its final table here, as
-    # the backend does for manual runs. Access was checked when the join was saved.
+    # the backend does for manual runs, with the same rule as its joinable_condition
+    # (apps/backend/src/services/join_target.py). A dataset that is no longer a
+    # reference dataset is not joined: the run then fails (see check_join_target in
+    # task_groups/transformation.py).
     sql = """
         SELECT
             il.id::text,
@@ -32,6 +35,7 @@ def load_scheduled_integrity_links():
         FROM datafeeder.integrity_link il
         LEFT JOIN datafeeder.integrity_link joined
             ON joined.id::text = il.integrity_transformation -> 'join' ->> 'integrity_link_id'
+            AND joined.is_reference_dataset
         WHERE il.schedule NOTNULL AND il.schedule NOT LIKE ''
     """
     return get_records_as_dicts(sql)
