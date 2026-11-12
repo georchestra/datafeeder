@@ -50,10 +50,11 @@ def _geo_ctx() -> GeorchestraContext:
     )
 
 
-def _admin_ctx() -> GeorchestraContext:
+def _superuser_ctx() -> GeorchestraContext:
+    """Superuser"""
     return GeorchestraContext(
-        username="admin1",
-        roles={"ADMINISTRATOR", "IMPORT"},
+        username="superuser1",
+        roles={"SUPERUSER", "IMPORT"},
         email="",
         firstname="",
         lastname="",
@@ -2417,7 +2418,7 @@ class TestUpdateIsReference:
 
         result = update_is_reference(
             session=mock_session,
-            geo_ctx=_admin_ctx(),
+            geo_ctx=_superuser_ctx(),
             integrity_link_id=integrity_link_id,
             metadata_service=mock_ms,
             is_reference=True,
@@ -2438,7 +2439,7 @@ class TestUpdateIsReference:
 
         result = update_is_reference(
             session=mock_session,
-            geo_ctx=_admin_ctx(),
+            geo_ctx=_superuser_ctx(),
             integrity_link_id=integrity_link_id,
             metadata_service=mock_ms,
             is_reference=False,
@@ -2456,7 +2457,7 @@ class TestUpdateIsReference:
         with pytest.raises(HTTPException) as exc_info:
             update_is_reference(
                 session=mock_session,
-                geo_ctx=_admin_ctx(),
+                geo_ctx=_superuser_ctx(),
                 integrity_link_id=integrity_link_id,
                 metadata_service=mock_ms,
                 is_reference=True,
@@ -2477,7 +2478,7 @@ class TestUpdateIsReference:
         with pytest.raises(HTTPException) as exc_info:
             update_is_reference(
                 session=mock_session,
-                geo_ctx=_admin_ctx(),
+                geo_ctx=_superuser_ctx(),
                 integrity_link_id=integrity_link_id,
                 metadata_service=mock_ms,
                 is_reference=True,
@@ -2499,7 +2500,7 @@ class TestUpdateIsReference:
 
         result = update_is_reference(
             session=mock_session,
-            geo_ctx=_admin_ctx(),
+            geo_ctx=_superuser_ctx(),
             integrity_link_id=integrity_link_id,
             metadata_service=mock_ms,
             is_reference=True,

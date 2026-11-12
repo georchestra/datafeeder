@@ -12,7 +12,7 @@ from src.api.deps import (
 )
 from src.core.config import get_settings
 from src.core.logging import get_logger
-from src.core.security import AccessLevel, load_authorized_integrity_link, require_administrator
+from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.models.data_import import (
     ImportType,
     IntegrityLinkGsPublishResponse,
@@ -713,7 +713,8 @@ def update_is_reference(
     metadata_service: MetadataServiceDep,
     is_reference: bool = Body(embed=True),
 ) -> IntegrityLinkResponse:
-    require_administrator(geo_ctx)
+    if not geo_ctx.has_role("SUPERUSER"):
+        raise HTTPException(status_code=403, detail="Superuser role required")
 
     integrity_link = session.get(IntegrityLink, integrity_link_id)
     if integrity_link is None:

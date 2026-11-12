@@ -102,6 +102,18 @@ def _read_ctx() -> GeorchestraContext:
     )
 
 
+def _superuser_ctx() -> GeorchestraContext:
+    """Superuser"""
+    return GeorchestraContext(
+        username="superuser1",
+        roles={"SUPERUSER", "IMPORT"},
+        email="",
+        firstname="",
+        lastname="",
+        organization="other_org",
+    )
+
+
 def _admin_ctx() -> GeorchestraContext:
     """Admin context (not owner)."""
     return GeorchestraContext(
@@ -711,7 +723,7 @@ class TestDeleteIntegrityLinkPermission:
 
 
 # ────────────────────────────────────────────────────────
-# PATCH /ingestion/integrity-link/{id}/is-reference  (admin only)
+# PATCH /ingestion/integrity-link/{id}/is-reference  (superuser only)
 # ────────────────────────────────────────────────────────
 
 
@@ -734,7 +746,7 @@ class TestUpdateIsReferencePermission:
         assert exc_info.value.status_code == 403
         session.commit.assert_not_called()
 
-    def test_succeeds_for_owner(self) -> None:
+    def test_returns_403_for_owner(self) -> None:
         session = _mock_session(_link(), access_result="OWNER")
 
         with pytest.raises(HTTPException) as exc_info:
@@ -743,11 +755,11 @@ class TestUpdateIsReferencePermission:
         assert exc_info.value.status_code == 403
         session.commit.assert_not_called()
 
-    def test_succeeds_for_admin(self) -> None:
-        session = _mock_session(_link(), access_result="ADMIN")
+    def test_succeeds_for_superuser(self) -> None:
+        session = _mock_session(_link(), access_result="OWNER")
 
         response = update_is_reference(
-            session, _admin_ctx(), INTLINK_ID, MagicMock(), is_reference=True
+            session, _superuser_ctx(), INTLINK_ID, MagicMock(), is_reference=True
         )
 
         assert response.is_reference_dataset is True
@@ -761,9 +773,11 @@ class TestUpdateIsReferencePermission:
         assert exc_info.value.status_code == 403
 
     def test_returns_404_for_unknown_id(self) -> None:
-        session = _mock_session(None, access_result="ADMIN")  # no link found
+        session = _mock_session(None, access_result="WRITE")  # no link found
 
         with pytest.raises(HTTPException) as exc_info:
-            update_is_reference(session, _admin_ctx(), str(uuid4()), MagicMock(), is_reference=True)
+            update_is_reference(
+                session, _superuser_ctx(), str(uuid4()), MagicMock(), is_reference=True
+            )
 
         assert exc_info.value.status_code == 404
