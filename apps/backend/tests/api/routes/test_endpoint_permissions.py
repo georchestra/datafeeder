@@ -114,6 +114,18 @@ def _admin_ctx() -> GeorchestraContext:
     )
 
 
+def _gn_admin_ctx() -> GeorchestraContext:
+    """GN Admin context (not owner)."""
+    return GeorchestraContext(
+        username="gn_admin1",
+        roles={"GN_ADMIN", "IMPORT"},
+        email="",
+        firstname="",
+        lastname="",
+        organization="other_org",
+    )
+
+
 def _mock_session(link: IntegrityLink | None = None, access_result: str | None = None) -> MagicMock:
     """Session that returns *link* on `session.get(...)` and *access_result* from exec().first()."""
     session = MagicMock()
@@ -711,7 +723,7 @@ class TestDeleteIntegrityLinkPermission:
 
 
 # ────────────────────────────────────────────────────────
-# PATCH /ingestion/integrity-link/{id}/is-reference  (admin only)
+# PATCH /ingestion/integrity-link/{id}/is-reference  (GN-ADMIN only)
 # ────────────────────────────────────────────────────────
 
 
@@ -734,7 +746,7 @@ class TestUpdateIsReferencePermission:
         assert exc_info.value.status_code == 403
         session.commit.assert_not_called()
 
-    def test_succeeds_for_owner(self) -> None:
+    def test_returns_403_for_owner(self) -> None:
         session = _mock_session(_link(), access_result="OWNER")
 
         with pytest.raises(HTTPException) as exc_info:
@@ -743,8 +755,17 @@ class TestUpdateIsReferencePermission:
         assert exc_info.value.status_code == 403
         session.commit.assert_not_called()
 
+    def test_succeeds_for_gn_admin(self) -> None:
+        session = _mock_session(_link(), access_result="OWNER")
+
+        response = update_is_reference(
+            session, _gn_admin_ctx(), INTLINK_ID, MagicMock(), is_reference=True
+        )
+
+        assert response.is_reference_dataset is True
+
     def test_succeeds_for_admin(self) -> None:
-        session = _mock_session(_link(), access_result="ADMIN")
+        session = _mock_session(_link(), access_result="OWNER")
 
         response = update_is_reference(
             session, _admin_ctx(), INTLINK_ID, MagicMock(), is_reference=True
@@ -752,7 +773,7 @@ class TestUpdateIsReferencePermission:
 
         assert response.is_reference_dataset is True
 
-    def test_returns_403_for_unknown_id_and_not_admin(self) -> None:
+    def test_returns_403_for_unknown_id_and_not_gn_admin(self) -> None:
         session = _mock_session(None)  # no link found
 
         with pytest.raises(HTTPException) as exc_info:
@@ -761,9 +782,11 @@ class TestUpdateIsReferencePermission:
         assert exc_info.value.status_code == 403
 
     def test_returns_404_for_unknown_id(self) -> None:
-        session = _mock_session(None, access_result="ADMIN")  # no link found
+        session = _mock_session(None, access_result="WRITE")  # no link found
 
         with pytest.raises(HTTPException) as exc_info:
-            update_is_reference(session, _admin_ctx(), str(uuid4()), MagicMock(), is_reference=True)
+            update_is_reference(
+                session, _gn_admin_ctx(), str(uuid4()), MagicMock(), is_reference=True
+            )
 
         assert exc_info.value.status_code == 404
