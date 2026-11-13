@@ -1,4 +1,5 @@
 import codecs
+import json
 import logging
 import re
 import subprocess
@@ -106,6 +107,7 @@ def ingest_data_from_file_into_postgis(
     table_name: str,
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
+    reject_multi_layer_gpkg: bool = True,
 ) -> None:
     """Ingest data from a file into a PostGIS table.
 
@@ -114,13 +116,17 @@ def ingest_data_from_file_into_postgis(
         table_name: Target table name in PostGIS
         engine: SQLAlchemy engine
         schema: Target schema (default: public)
+        reject_multi_layer_gpkg: Raise when a GeoPackage source holds several layers (see
+            :func:`ingest_file_with_ogr2ogr`)
     """
     logger.info(f"Ingesting data from file {file_path} into table {table_name}")
 
     try:
         # Read data with encoding handling, use the url function,
         # the path to the file is always an url, even for local files
-        ingest_data_from_url_into_postgis(file_path, table_name, engine, schema)
+        ingest_data_from_url_into_postgis(
+            file_path, table_name, engine, schema, reject_multi_layer_gpkg=reject_multi_layer_gpkg
+        )
     except Exception as e:
         logger.error(f"Error ingesting data from file {file_path}: {e}")
         raise
@@ -132,6 +138,7 @@ def ingest_data_from_ftp_into_postgis(
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
     auth: tuple[str, str] | None = None,
+    reject_multi_layer_gpkg: bool = True,
 ) -> None:
     """Ingest data from an FTP URL into a PostGIS table.
 
@@ -141,6 +148,8 @@ def ingest_data_from_ftp_into_postgis(
         engine: SQLAlchemy engine
         schema: Target schema (default: public)
         auth: Optional tuple of (username, password) for FTP authentication
+        reject_multi_layer_gpkg: Raise when a GeoPackage source holds several layers (see
+            :func:`ingest_file_with_ogr2ogr`)
     """
     logger.info(f"Ingesting data from FTP {url} into table {table_name}")
 
@@ -174,7 +183,9 @@ def ingest_data_from_ftp_into_postgis(
             # Download FTP file using urlretrieve
             urlretrieve(ftp_url_with_auth, temp_file_path)
 
-            ingest_file_with_ogr2ogr(str(temp_file_path), table_name, engine, schema)
+            ingest_file_with_ogr2ogr(
+                str(temp_file_path), table_name, engine, schema, reject_multi_layer_gpkg
+            )
 
     # TODO: handle error for frontend
     except URLError as e:
@@ -391,11 +402,77 @@ def _resolve_zip_source(file_path: str) -> str:
     return source
 
 
+def _list_layers(source: str) -> dict[str, bool]:
+    """Map each layer GDAL finds in *source* to whether it has a geometry.
+
+    Raises when ogrinfo cannot list them: going on without knowing the layer to
+    import would let ogr2ogr silently keep only the last one (see :func:`_select_layer`).
+    """
+    # Counts and extents can require a full scan of the source: skip them, only
+    # the layer names are needed.
+    command = ["ogrinfo", "-json", "-ro", "-so", "-nocount", "-noextent", "-nomd", source]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, errors="replace")
+    except FileNotFoundError as exc:
+        logger.error("ogrinfo binary not found while listing layers of %s", source)
+        raise Exception("ogrinfo (GDAL) is not installed or not on PATH") from exc
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        logger.error("ogrinfo failed on %s: %s", source, stderr)
+        raise Exception(f"Could not read the layers of {Path(source).name}: {stderr}")
+    try:
+        return {
+            layer["name"]: bool(layer.get("geometryFields"))
+            for layer in json.loads(result.stdout)["layers"]
+        }
+    except (ValueError, KeyError, TypeError) as exc:
+        logger.error("Could not parse ogrinfo output for %s: %s", source, exc)
+        raise Exception(f"Could not read the layers of {Path(source).name}") from exc
+
+
+def _is_geopackage(file_path: str) -> bool:
+    """Whether *file_path* is a GeoPackage, or a ZIP archive holding one.
+
+    Only GeoPackages can hold several layers among the supported formats: checking
+    the others would cost a second read of the whole file (e.g. a large GeoJSON) for
+    nothing.
+    """
+    if zipfile.is_zipfile(file_path):
+        with zipfile.ZipFile(file_path) as archive:
+            return any(Path(name).suffix.lower() == ".gpkg" for name in archive.namelist())
+    return Path(file_path).suffix.lower() == ".gpkg"
+
+
+def _select_layer(source: str) -> str:
+    """Return the only layer of the GDAL *source* to import, raise if there are several.
+
+    Without a source layer, ogr2ogr copies every layer: ``-nln`` funnels them into one
+    table and ``-overwrite`` keeps only the last one, the same data loss as for
+    multi-dataset archives (see :func:`_resolve_zip_source`).
+
+    Tables without geometry are ignored when there is a spatial layer: QGIS adds a
+    ``layer_styles`` table to a GeoPackage when saving the style in the datasource,
+    which would otherwise overwrite the data.
+    """
+    layers = _list_layers(source)
+    candidates = [name for name, spatial in layers.items() if spatial] or list(layers)
+    if not candidates:
+        raise Exception(f"{Path(source).name} contains no layer")
+    if len(candidates) > 1:
+        raise Exception(
+            f"{Path(source).name} contains multiple layers ({', '.join(sorted(candidates))}). "
+            "Only single-layer sources are supported: export the layer to import "
+            "and upload it on its own."
+        )
+    return candidates[0]
+
+
 def ingest_file_with_ogr2ogr(
     file_path: str,
     table_name: str,
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
+    reject_multi_layer_gpkg: bool = True,
 ) -> None:
     """Ingest a geospatial file into a PostGIS table using ogr2ogr.
 
@@ -407,13 +484,19 @@ def ingest_file_with_ogr2ogr(
         table_name: Target table name in PostGIS
         engine: SQLAlchemy engine for the target PostGIS database
         schema: Target schema (default: public)
+        reject_multi_layer_gpkg: Import only the layer of a GeoPackage, and raise when it
+            holds several, instead of letting ogr2ogr keep only the last one (see
+            :func:`_select_layer`)
     """
     validate_table_name(table_name, max_length=POSTGIS_TABLE_NAME_MAX_LENGTH)
     validate_schema_name(schema)
 
-    # Detect before rewriting the path: the helper reads the archive itself.
+    # Detect before rewriting the path: the helpers read the archive itself.
     shape_encoding = _detect_shapefile_encoding(file_path)
+    check_layers = reject_multi_layer_gpkg and _is_geopackage(file_path)
     file_path = _resolve_zip_source(file_path)
+    # After resolving the path, so a multi-layer GeoPackage inside a ZIP is caught too.
+    source_layer = _select_layer(file_path) if check_layers else None
 
     pg_connection = _build_pg_connection_string(engine)
 
@@ -423,6 +506,8 @@ def ingest_file_with_ogr2ogr(
         "PostgreSQL",
         pg_connection,
         file_path,
+        # Positional source layer: only this one is copied
+        *([source_layer] if source_layer else []),
         "-nln",
         f"{schema}.{table_name}",
         "-overwrite",
@@ -458,6 +543,7 @@ def ingest_data_from_url_into_postgis(
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
     auth: tuple[str, str] | None = None,
+    reject_multi_layer_gpkg: bool = True,
 ) -> None:
     """Ingest data from a URL into a PostGIS table.
 
@@ -467,6 +553,8 @@ def ingest_data_from_url_into_postgis(
         engine: SQLAlchemy engine
         schema: Target schema (default: public)
         auth: Optional tuple of (username, password) for HTTP Basic Authentication or FTP
+        reject_multi_layer_gpkg: Raise when a GeoPackage source holds several layers (see
+            :func:`ingest_file_with_ogr2ogr`)
     """
     try:
         logger.info(f"Ingesting data from url {url} into table {table_name}")
@@ -475,7 +563,9 @@ def ingest_data_from_url_into_postgis(
 
         # Handle FTP URLs separately
         if parsed_url.scheme == "ftp":
-            ingest_data_from_ftp_into_postgis(url, table_name, engine, schema, auth)
+            ingest_data_from_ftp_into_postgis(
+                url, table_name, engine, schema, auth, reject_multi_layer_gpkg
+            )
         else:
             # Use requests for HTTP/HTTPS URLs. The response is streamed straight to
             # disk: ogr2ogr needs a real file anyway, and buffering the whole body in
@@ -506,7 +596,9 @@ def ingest_data_from_url_into_postgis(
                         for chunk in response.iter_content(chunk_size=_DOWNLOAD_CHUNK_SIZE):
                             temp_file.write(chunk)
 
-                    ingest_file_with_ogr2ogr(str(temp_file_path), table_name, engine, schema)
+                    ingest_file_with_ogr2ogr(
+                        str(temp_file_path), table_name, engine, schema, reject_multi_layer_gpkg
+                    )
 
     except Exception as e:
         logger.error(f"Error ingesting data from URL {url}: {e}")

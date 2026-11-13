@@ -2,9 +2,11 @@
 
 ``ogr2ogr``/GDAL is not installed in the unit-test environment, so every test
 mocks ``subprocess.run`` (and the network helpers) and asserts on the command
-that *would* be executed.  Full integration runs in the Docker image.
+that *would* be executed.  ``ogrinfo`` is stubbed out by the ``layers`` fixture.
+Full integration runs in the Docker image.
 """
 
+import json
 import logging
 import struct
 import subprocess
@@ -20,14 +22,23 @@ from sqlalchemy.engine import Engine
 from data_manipulation.ingestion import (
     _build_pg_connection_string,  # type: ignore[reportPrivateUsage]
     _detect_shapefile_encoding,  # type: ignore[reportPrivateUsage]
+    _list_layers,  # type: ignore[reportPrivateUsage]
     _normalize_oapif_url,  # type: ignore[reportPrivateUsage]
     _resolve_zip_source,  # type: ignore[reportPrivateUsage]
+    _select_layer,  # type: ignore[reportPrivateUsage]
     ingest_data_from_database_into_postgis,
     ingest_data_from_ftp_into_postgis,
     ingest_data_from_ogc_service_into_postgis,
     ingest_data_from_url_into_postgis,
     ingest_file_with_ogr2ogr,
 )
+
+
+@pytest.fixture(autouse=True)
+def layers() -> Iterator[MagicMock]:
+    """Stand in for ogrinfo: a single-layer source unless a test says otherwise."""
+    with patch("data_manipulation.ingestion._list_layers", return_value={"layer": True}) as mock:
+        yield mock
 
 
 @pytest.fixture
@@ -223,6 +234,190 @@ class TestResolveZipSource:
         ingest_file_with_ogr2ogr(archive, "places", engine, schema="staging")
 
         assert f"/vsizip/{archive}" in mock_run.call_args[0][0]
+
+
+def _ogrinfo(layers: dict[str, bool]) -> subprocess.CompletedProcess[str]:
+    """ogrinfo -json output listing *layers* (name -> has a geometry)."""
+    stdout = json.dumps(
+        {
+            "driverShortName": "GPKG",
+            "layers": [
+                {"name": name, "geometryFields": [{"name": "geom"}] if spatial else []}
+                for name, spatial in layers.items()
+            ],
+        }
+    )
+    return subprocess.CompletedProcess(args=["ogrinfo"], returncode=0, stdout=stdout, stderr="")
+
+
+class TestListLayers:
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_tells_spatial_layers_apart(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _ogrinfo({"mairies": True, "layer_styles": False})
+        assert _list_layers("/tmp/qgis.gpkg") == {"mairies": True, "layer_styles": False}
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_skips_counts_and_extents(self, mock_run: MagicMock) -> None:
+        # Either can require a full scan of a multi-GB source.
+        mock_run.return_value = _ogrinfo({"a": True})
+        _list_layers("/tmp/data.geojson")
+        cmd = mock_run.call_args[0][0]
+        assert cmd[0] == "ogrinfo"
+        assert "-json" in cmd and "-ro" in cmd
+        assert "-nocount" in cmd and "-noextent" in cmd
+        assert cmd[-1] == "/tmp/data.geojson"
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_unreadable_source_fails_with_stderr(self, mock_run: MagicMock) -> None:
+        # Skipping the check would let ogr2ogr silently keep only the last layer.
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["ogrinfo"], returncode=1, stdout="", stderr="unable to open\n"
+        )
+        with pytest.raises(Exception, match="missing.gpkg: unable to open"):
+            _list_layers("/tmp/missing.gpkg")
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_unparsable_output_fails(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["ogrinfo"], returncode=0, stdout="not json", stderr=""
+        )
+        with pytest.raises(Exception, match="Could not read the layers of data.gpkg"):
+            _list_layers("/tmp/data.gpkg")
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_missing_binary_raises_clean_error(self, mock_run: MagicMock) -> None:
+        mock_run.side_effect = FileNotFoundError()
+        with pytest.raises(Exception, match="ogrinfo"):
+            _list_layers("/tmp/data.gpkg")
+
+
+class TestSelectLayer:
+    def test_single_layer_is_selected(self, layers: MagicMock) -> None:
+        layers.return_value = {"mairies": True}
+        assert _select_layer("/tmp/one.gpkg") == "mairies"
+
+    def test_multiple_layers_raise_instead_of_losing_data(self, layers: MagicMock) -> None:
+        # ogr2ogr -nln -overwrite would keep only the last layer.
+        layers.return_value = {"zones_calmes": True, "troncons": True}
+        with pytest.raises(Exception, match="multiple layers") as excinfo:
+            _select_layer("/tmp/multi.gpkg")
+        assert "zones_calmes" in str(excinfo.value) and "troncons" in str(excinfo.value)
+
+    def test_qgis_layer_styles_table_is_ignored(self, layers: MagicMock) -> None:
+        # Added by QGIS when saving the style in the GeoPackage: no geometry.
+        layers.return_value = {"mairies": True, "layer_styles": False}
+        assert _select_layer("/tmp/qgis.gpkg") == "mairies"
+
+    def test_single_attribute_table_is_selected(self, layers: MagicMock) -> None:
+        layers.return_value = {"communes": False}
+        assert _select_layer("/tmp/table.gpkg") == "communes"
+
+    def test_several_attribute_tables_raise(self, layers: MagicMock) -> None:
+        layers.return_value = {"communes": False, "layer_styles": False}
+        with pytest.raises(Exception, match="multiple layers"):
+            _select_layer("/tmp/tables.gpkg")
+
+    def test_empty_source_raises(self, layers: MagicMock) -> None:
+        layers.return_value = {}
+        with pytest.raises(Exception, match="no layer"):
+            _select_layer("/tmp/empty.gpkg")
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_ogr2ogr_imports_only_the_selected_layer(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine
+    ) -> None:
+        # Without it, ogr2ogr would also copy layer_styles over the data.
+        mock_run.return_value = _completed()
+        layers.return_value = {"mairies": True, "layer_styles": False}
+        ingest_file_with_ogr2ogr("/tmp/qgis.gpkg", "mairies", engine, schema="staging")
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("/tmp/qgis.gpkg") + 1] == "mairies"
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_no_source_layer_for_other_formats(self, mock_run: MagicMock, engine: Engine) -> None:
+        mock_run.return_value = _completed()
+        ingest_file_with_ogr2ogr("/tmp/data.geojson", "data", engine, schema="staging")
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("/tmp/data.geojson") + 1] == "-nln"
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_ogr2ogr_is_not_run_when_layers_cannot_be_listed(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine
+    ) -> None:
+        layers.side_effect = Exception("Could not read the layers of broken.gpkg")
+        with pytest.raises(Exception, match="Could not read the layers"):
+            ingest_file_with_ogr2ogr("/tmp/broken.gpkg", "broken", engine, schema="staging")
+        mock_run.assert_not_called()
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_ogr2ogr_is_not_run_for_a_multi_layer_source(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine
+    ) -> None:
+        layers.return_value = {"a": True, "b": True}
+        with pytest.raises(Exception, match="multiple layers"):
+            ingest_file_with_ogr2ogr("/tmp/multi.gpkg", "multi", engine, schema="staging")
+        mock_run.assert_not_called()
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_zip_content_is_checked(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine, tmp_path: Path
+    ) -> None:
+        # Checked on the /vsizip/ path, so a multi-layer GeoPackage in a ZIP is caught.
+        archive = _make_zip(tmp_path / "multi.zip", ["multi.gpkg"])
+        layers.return_value = {"a": True, "b": True}
+        with pytest.raises(Exception, match="multiple layers"):
+            ingest_file_with_ogr2ogr(archive, "multi", engine, schema="staging")
+        layers.assert_called_once_with(f"/vsizip/{archive}")
+
+    @pytest.mark.parametrize("path", ["/tmp/big.geojson", "/tmp/data.csv", "/tmp/places.shp"])
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_only_geopackages_are_checked(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine, path: str
+    ) -> None:
+        # Opening a large GeoJSON means reading all of it: skip formats with one layer.
+        mock_run.return_value = _completed()
+        ingest_file_with_ogr2ogr(path, "data", engine, schema="staging")
+        layers.assert_not_called()
+        mock_run.assert_called_once()
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_geopackage_extension_is_case_insensitive(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine
+    ) -> None:
+        layers.return_value = {"a": True, "b": True}
+        with pytest.raises(Exception, match="multiple layers"):
+            ingest_file_with_ogr2ogr("/tmp/MULTI.GPKG", "multi", engine, schema="staging")
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_zipped_shapefile_is_not_checked(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine, tmp_path: Path
+    ) -> None:
+        mock_run.return_value = _completed()
+        archive = _make_zip(tmp_path / "places.zip", _SHAPEFILE_MEMBERS)
+        ingest_file_with_ogr2ogr(archive, "places", engine, schema="staging")
+        layers.assert_not_called()
+
+    @patch("data_manipulation.ingestion.subprocess.run")
+    def test_check_can_be_disabled(
+        self, mock_run: MagicMock, layers: MagicMock, engine: Engine
+    ) -> None:
+        mock_run.return_value = _completed()
+        layers.return_value = {"a": True, "b": True}
+        ingest_file_with_ogr2ogr(
+            "/tmp/multi.gpkg", "multi", engine, schema="staging", reject_multi_layer_gpkg=False
+        )
+        layers.assert_not_called()
+        mock_run.assert_called_once()
+
+    @patch("data_manipulation.ingestion.ingest_file_with_ogr2ogr")
+    @patch("data_manipulation.ingestion.urlretrieve")
+    def test_ftp_forwards_the_flag(
+        self, _retrieve: MagicMock, mock_ingest: MagicMock, engine: Engine
+    ) -> None:
+        ingest_data_from_ftp_into_postgis(
+            "ftp://ftp.example.org/multi.gpkg", "multi", engine, reject_multi_layer_gpkg=False
+        )
+        assert mock_ingest.call_args[0][4] is False
 
 
 def _identity_url(url: str) -> str:
