@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -34,6 +33,7 @@ import type {
   JoinableTable,
   JoinConfig
 } from '../../../core/api/models'
+import { errorDetailKey } from '../../../core/http/http-error.util'
 
 const NONE: DropdownChoice = { value: '', label: '-' }
 // Reserved output column of the transformation, a joined one would clash with it.
@@ -175,9 +175,9 @@ export class DatasetJoinComponent implements OnInit {
 
   private showLoadError(error: unknown): void {
     this.loadError.emit(
-      error instanceof HttpErrorResponse && error.error?.detail
-        ? error.error.detail
-        : this.translate.instant('import.dataSource.genericError')
+      this.translate.instant(
+        errorDetailKey(error, 'import.dataSource.genericError')
+      )
     )
   }
 }

@@ -1441,6 +1441,54 @@ describe('DataImportWizardComponent - Dataset Validation', () => {
     expect(component.processing()).toBe(false)
   })
 
+  it('should translate the error key of a failed validation', async () => {
+    TestBed.inject(TranslateService).setTranslation(
+      'en',
+      { 'import.metadataPublication.error': 'Metadata publication failed' },
+      true
+    )
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkStore.intlinkId.set('test-link-789')
+    const promise = component.onValidateDataset('Test Dataset')
+
+    httpMock
+      .expectOne('http://localhost:8000/ingestion/process/')
+      .flush(
+        { detail: 'import.metadataPublication.error' },
+        { status: 500, statusText: 'Internal Server Error' }
+      )
+    await promise
+
+    expect(component.validationError()).toBe('Metadata publication failed')
+  })
+
+  it('should show the generic error of a failed request validation', async () => {
+    TestBed.inject(TranslateService).setTranslation(
+      'en',
+      { 'import.dataSource.validationError': 'Validation failed' },
+      true
+    )
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkStore.intlinkId.set('test-link-789')
+    const promise = component.onValidateDataset('Test Dataset')
+
+    httpMock
+      .expectOne('http://localhost:8000/ingestion/process/')
+      .flush(
+        { detail: [{ loc: ['body', 'title'], msg: 'Field required' }] },
+        { status: 422, statusText: 'Unprocessable Entity' }
+      )
+    await promise
+
+    expect(component.validationError()).toBe('Validation failed')
+  })
+
   it('should reset processing flag on error', async () => {
     const fixture = TestBed.createComponent(DataImportWizardComponent)
     const component = fixture.componentInstance
