@@ -41,6 +41,23 @@ assert set(_CRON_EXPRESSIONS) == set(RecurrencePreset), (
 _CRON_TO_PRESET: dict[str, RecurrencePreset] = {v: k for k, v in _CRON_EXPRESSIONS.items()}
 
 
+class RecurrenceFilter(str, Enum):
+    """Dashboard recurrence filter values: every preset plus datasets without a schedule."""
+
+    EVERY_MINUTE = "EVERY_MINUTE"
+    EVERY_HOUR = "EVERY_HOUR"
+    EVERY_DAY = "EVERY_DAY"
+    EVERY_WEEK = "EVERY_WEEK"
+    EVERY_MONTH = "EVERY_MONTH"
+    EVERY_YEAR = "EVERY_YEAR"
+    NONE = "NONE"
+
+
+assert {f.value for f in RecurrenceFilter} - {"NONE"} == {p.value for p in RecurrencePreset}, (
+    "RecurrenceFilter must mirror RecurrencePreset"
+)
+
+
 class RecurrencePresetItem(BaseModel):
     id: RecurrencePreset
     cron: str

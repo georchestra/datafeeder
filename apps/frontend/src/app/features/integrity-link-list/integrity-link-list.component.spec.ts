@@ -57,7 +57,11 @@ describe('IntegrityLinkListComponent', () => {
     const pendingRequests = httpMock.match(() => true)
     pendingRequests.forEach((req) => {
       if (req.cancelled) return
-      if (/\/(organizations|owners)$/.test(req.request.url)) {
+      if (
+        /\/(organizations|owners|access-levels|recurrences)$/.test(
+          req.request.url
+        )
+      ) {
         req.flush([])
       } else {
         req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
@@ -902,6 +906,40 @@ describe('IntegrityLinkListComponent', () => {
       expect(component.total()).toBe(1)
     })
 
+    it('should reload filter choices and drop selections no longer available after delete', async () => {
+      const { component } = await setupWithItems([createMockItem('1')])
+      const choicesUrl = (name: string) =>
+        `http://localhost:8000/ingestion/integrity-links/${name}`
+      const flushChoices = (recurrences: string[]) => {
+        httpMock.expectOne(choicesUrl('organizations')).flush([])
+        httpMock.expectOne(choicesUrl('owners')).flush([])
+        httpMock.expectOne(choicesUrl('access-levels')).flush([])
+        httpMock.expectOne(choicesUrl('recurrences')).flush(recurrences)
+      }
+      flushChoices(['EVERY_YEAR', 'NONE'])
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      component.selectedRecurrence.set(['EVERY_YEAR', 'NONE'])
+
+      matDialog.open.mockReturnValue({ afterClosed: () => of(true) })
+      const deletePromise = component.deleteIntegrityLink(
+        new MouseEvent('click'),
+        '1'
+      )
+      await Promise.resolve()
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-link/1')
+        .flush(null, { status: 204, statusText: 'No Content' })
+      await deletePromise
+
+      flushChoices(['NONE'])
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(component.recurrenceChoices().map((c) => c.value)).toEqual([
+        'NONE'
+      ])
+      expect(component.selectedRecurrence()).toEqual(['NONE'])
+    })
+
     it('should NOT remove item from list on API failure', async () => {
       const { component } = await setupWithItems([
         createMockItem('1'),
@@ -966,6 +1004,67 @@ describe('IntegrityLinkListComponent', () => {
   })
 
   describe('access and recurrence filters', () => {
+    it('should populate access and recurrence choices from the backend', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/?offset=0')
+        .flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+      httpMock
+        .expectOne(
+          'http://localhost:8000/ingestion/integrity-links/access-levels'
+        )
+        .flush(['open'])
+      httpMock
+        .expectOne(
+          'http://localhost:8000/ingestion/integrity-links/recurrences'
+        )
+        .flush(['EVERY_DAY', 'NONE'])
+      httpMock
+        .expectOne(
+          'http://localhost:8000/ingestion/integrity-links/organizations'
+        )
+        .flush([])
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/owners')
+        .flush([])
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(component.accessChoices().map((c) => c.value)).toEqual(['open'])
+      expect(component.recurrenceChoices()).toEqual([
+        { value: 'EVERY_DAY', label: 'recurrence.preset.EVERY_DAY' },
+        { value: 'NONE', label: 'recurrence.none' }
+      ])
+    })
+
+    it('should ignore filter choices from a superseded load', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      const choicesUrl = (name: string) =>
+        `http://localhost:8000/ingestion/integrity-links/${name}`
+      const loadChoices = () =>
+        (
+          component as unknown as { loadFilterChoices(): Promise<void> }
+        ).loadFilterChoices()
+
+      loadChoices()
+      await Promise.resolve()
+      const [stale, fresh] = httpMock.match(choicesUrl('recurrences'))
+      for (const name of ['organizations', 'owners', 'access-levels']) {
+        httpMock.match(choicesUrl(name)).forEach((req) => req.flush([]))
+      }
+      fresh.flush(['NONE'])
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      stale.flush(['EVERY_DAY'])
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(component.recurrenceChoices().map((c) => c.value)).toEqual([
+        'NONE'
+      ])
+    })
+
     it('should trigger a reload with the access param when selectedAccess changes', async () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)
       const component = fixture.componentInstance
@@ -1158,6 +1257,16 @@ describe('IntegrityLinkListComponent', () => {
           { id: 'jdoe', label: 'John Doe' },
           { id: 'asmith', label: 'Alice Smith' }
         ])
+      httpMock
+        .expectOne(
+          'http://localhost:8000/ingestion/integrity-links/access-levels'
+        )
+        .flush([])
+      httpMock
+        .expectOne(
+          'http://localhost:8000/ingestion/integrity-links/recurrences'
+        )
+        .flush([])
 
       await new Promise((resolve) => setTimeout(resolve, 10))
 

@@ -32,7 +32,7 @@ from src.models.data_import import (
 )
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule
-from src.models.recurrence import RecurrencePreset
+from src.models.recurrence import RecurrenceFilter, RecurrencePreset
 from src.services.console_service import ConsoleService
 
 router = APIRouter(prefix="/ingestion/integrity-links", tags=["Ingestion"])
@@ -173,7 +173,8 @@ def list_integrity_links(
         list[PublicAccess] | None, Query(description="Filter by public access level")
     ] = None,
     recurrence: Annotated[
-        list[RecurrencePreset] | None, Query(description="Filter by recurrence preset")
+        list[RecurrenceFilter] | None,
+        Query(description="Filter by recurrence preset, NONE for datasets without a schedule"),
     ] = None,
 ) -> IntegrityLinkListResponse:
     """
@@ -222,7 +223,12 @@ def list_integrity_links(
     if access:
         query = query.where(_public_access_expr.in_([level.value for level in access]))
     if recurrence:
-        query = query.where(col(IntegrityLink.schedule).in_([preset.cron for preset in recurrence]))
+        schedule = col(IntegrityLink.schedule)
+        crons = [RecurrencePreset(r.value).cron for r in recurrence if r != RecurrenceFilter.NONE]
+        conditions = [schedule.in_(crons)] if crons else []
+        if RecurrenceFilter.NONE in recurrence:
+            conditions.append(schedule.is_(None))
+        query = query.where(or_(*conditions))
 
     base_query = query.order_by(IntegrityLink.created_at.desc())  # type: ignore[union-attr]
 
@@ -375,6 +381,53 @@ def list_integrity_link_owners(
         GroupItem(id=username, label=display_names.get(username) or username) for username in counts
     ]
     return sorted(items, key=lambda item: (-counts[item.id], item.label.casefold()))
+
+
+@router.get(
+    "/access-levels",
+    response_model=list[PublicAccess],
+    summary="List distinct public access levels across accessible integrity links",
+    description="Public access levels carried by at least one integrity link the caller can see, "
+    "for display in a filter dropdown.",
+)
+def list_integrity_link_access_levels(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    group_ids: GroupIdsDep,
+) -> list[PublicAccess]:
+    query = sa_select(_public_access_expr).distinct()
+    if not geo_ctx.is_administrator():
+        query = query.where(visibility_condition(geo_ctx.username, group_ids))
+
+    values = set(session.execute(query).scalars().all())  # type: ignore[reportDeprecated]
+    return [level for level in PublicAccess if level.value in values]
+
+
+@router.get(
+    "/recurrences",
+    response_model=list[RecurrenceFilter],
+    summary="List distinct recurrences across accessible integrity links",
+    description="Recurrence presets carried by at least one integrity link the caller can see, "
+    "plus NONE if some have no schedule, for display in a filter dropdown. "
+    "Schedules matching no preset are omitted.",
+)
+def list_integrity_link_recurrences(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    group_ids: GroupIdsDep,
+) -> list[RecurrenceFilter]:
+    query = sa_select(col(IntegrityLink.schedule)).distinct()
+    if not geo_ctx.is_administrator():
+        query = query.where(visibility_condition(geo_ctx.username, group_ids))
+
+    schedules = session.execute(query).scalars().all()  # type: ignore[reportDeprecated]
+    values: set[str] = set()
+    for cron in schedules:
+        if cron is None:
+            values.add(RecurrenceFilter.NONE.value)
+        elif preset := RecurrencePreset.from_cron(cron):
+            values.add(preset.value)
+    return [f for f in RecurrenceFilter if f.value in values]
 
 
 @router.get(

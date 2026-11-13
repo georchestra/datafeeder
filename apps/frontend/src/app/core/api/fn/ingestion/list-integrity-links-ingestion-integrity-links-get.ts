@@ -9,7 +9,7 @@ import { requestBuilders } from '../../request-builders'
 
 import { IntegrityLinkListResponse } from '../../models/integrity-link-list-response'
 import { PublicAccess } from '../../models/public-access'
-import { RecurrencePreset } from '../../models/recurrence-preset'
+import { RecurrenceFilter } from '../../models/recurrence-filter'
 
 export interface ListIntegrityLinksIngestionIntegrityLinksGet$Params {
   /**
@@ -38,9 +38,9 @@ export interface ListIntegrityLinksIngestionIntegrityLinksGet$Params {
   access?: Array<PublicAccess> | null
 
   /**
-   * Filter by recurrence preset
+   * Filter by recurrence preset, NONE for datasets without a schedule
    */
-  recurrence?: Array<RecurrencePreset> | null
+  recurrence?: Array<RecurrenceFilter> | null
 }
 
 export function listIntegrityLinksIngestionIntegrityLinksGet(
