@@ -24,16 +24,14 @@ from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
 
-_CONSOLE_PATCH = "src.api.routes.ingestion.integrity_links.ConsoleService"
 
-
-@pytest.fixture(autouse=True)
-def mock_console_service():
-    """Patch ConsoleService so tests don't hit the network; returns empty display names by default."""
-    with patch(_CONSOLE_PATCH) as mock_cls:
-        mock_cls.return_value.fetch_users_by_usernames.return_value = {}
-        mock_cls.return_value.fetch_organizations_by_short_names.return_value = {}
-        yield mock_cls
+@pytest.fixture
+def mock_console_service() -> MagicMock:
+    """ConsoleService double; returns empty display names by default."""
+    console_service = MagicMock()
+    console_service.fetch_users_by_usernames.return_value = {}
+    console_service.fetch_organizations_by_short_names.return_value = {}
+    return console_service
 
 
 def _mock_list_rows(mock_session: MagicMock, rows: list[Any]) -> None:
@@ -120,6 +118,7 @@ class TestListIntegrityLinks:
         mock_session: MagicMock,
         mock_data_session: MagicMock,
         sample_integrity_links: list[IntegrityLink],
+        mock_console_service: MagicMock,
     ) -> None:
         """Test that normal users only see their own integrity links."""
 
@@ -138,6 +137,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == len(user0_links)
@@ -151,6 +151,7 @@ class TestListIntegrityLinks:
         mock_session: MagicMock,
         mock_data_session: MagicMock,
         sample_integrity_links: list[IntegrityLink],
+        mock_console_service: MagicMock,
     ) -> None:
         """Test that administrators see all integrity links."""
 
@@ -169,13 +170,18 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == len(sample_integrity_links)
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_pagination_has_more_true(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Test that has_more is True when there are more items."""
 
@@ -206,6 +212,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert response.has_more is True
@@ -218,6 +225,7 @@ class TestListIntegrityLinks:
         mock_session: MagicMock,
         mock_data_session: MagicMock,
         sample_integrity_links: list[IntegrityLink],
+        mock_console_service: MagicMock,
     ) -> None:
         """Links dropped post-query (no staging/final table) are not counted in total."""
         self._setup_session(mock_session, sample_integrity_links)
@@ -231,6 +239,7 @@ class TestListIntegrityLinks:
             geo_ctx=self._create_geo_ctx("user0", {"IMPORT"}),
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 2
@@ -252,6 +261,7 @@ class TestListIntegrityLinks:
         mock_session: MagicMock,
         mock_data_session: MagicMock,
         sample_integrity_links: list[IntegrityLink],
+        mock_console_service: MagicMock,
     ) -> None:
         """Later pages carry no total and don't run its query."""
         self._setup_session(mock_session, sample_integrity_links)
@@ -263,6 +273,7 @@ class TestListIntegrityLinks:
             geo_ctx=self._create_geo_ctx("user0", {"IMPORT"}),
             group_ids=[],
             offset=BATCH_SIZE,
+            console_service=mock_console_service,
         )
 
         assert response.total is None
@@ -270,7 +281,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_pagination_has_more_false(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Test that has_more is False when there are no more items."""
 
@@ -301,6 +316,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert response.has_more is False
@@ -308,7 +324,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_offset_parameter(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Test that offset parameter is included in response."""
 
@@ -323,13 +343,18 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=200,
+            console_service=mock_console_service,
         )
 
         assert response.offset == 200
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_sensitive_fields_excluded(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Test that sensitive fields are excluded from response."""
 
@@ -360,6 +385,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 1
@@ -379,7 +405,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_empty_result(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Test handling of empty results."""
 
@@ -394,6 +424,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 0
@@ -402,7 +433,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_search_parameter_filters_by_title(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Test that the search parameter filters results by integrity_title."""
 
@@ -429,6 +464,7 @@ class TestListIntegrityLinks:
             group_ids=[],
             offset=0,
             search="Dataset",
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 1
@@ -442,7 +478,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_search_with_pagination(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Test that search works correctly with pagination."""
 
@@ -474,6 +514,7 @@ class TestListIntegrityLinks:
             group_ids=[],
             offset=50,
             search="Matching",
+            console_service=mock_console_service,
         )
 
         assert response.has_more is True
@@ -482,7 +523,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_search_empty_string_ignored(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Test that an empty search string does not add a filter."""
 
@@ -512,6 +557,7 @@ class TestListIntegrityLinks:
             group_ids=[],
             offset=0,
             search="",
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 1
@@ -528,6 +574,7 @@ class TestListIntegrityLinks:
         mock_session: MagicMock,
         mock_data_session: MagicMock,
         sample_integrity_links: list[IntegrityLink],
+        mock_console_service: MagicMock,
     ) -> None:
         """Test that response model has correct structure."""
 
@@ -548,6 +595,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         # Check response structure
@@ -579,7 +627,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_has_final_table_false_when_no_final_table(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Test that has_final_table is False when the final table does not exist."""
         link = IntegrityLink(
@@ -604,6 +656,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 1
@@ -611,7 +664,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_link_excluded_when_staging_table_not_in_db(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Links whose staging table no longer exists in the DB are filtered out."""
         link = IntegrityLink(
@@ -637,13 +694,18 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 0
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_link_included_via_final_table_only(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """A link whose staging table is absent from DB is still included when its final table exists."""
         link = IntegrityLink(
@@ -670,6 +732,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 1
@@ -677,7 +740,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_link_with_both_tables_only_staging_exists(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """A link with both table names is included but has_final_table=False when only staging exists."""
         link = IntegrityLink(
@@ -704,6 +771,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 1
@@ -711,7 +779,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_no_db_query_when_no_links(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """data_session.execute is never called when the page of links is empty."""
         self._setup_session(mock_session, [])
@@ -724,6 +796,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 0
@@ -732,7 +805,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_only_candidate_names_passed_to_db_query(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Only the table names from the fetched links are passed to the IN clause."""
         link = IntegrityLink(
@@ -758,6 +835,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         # Staging and final checks, run once for the page and once for the total.
@@ -794,9 +872,7 @@ class TestListIntegrityLinks:
         )
         self._setup_session(mock_session, [link])
         self._setup_data_session(mock_data_session, ["staging_labelled"], [])
-        mock_console_service.return_value.fetch_users_by_usernames.return_value = {
-            "jdoe": "Jane Doe"
-        }
+        mock_console_service.fetch_users_by_usernames.return_value = {"jdoe": "Jane Doe"}
 
         geo_ctx = self._create_geo_ctx("jdoe", {"IMPORT"})
         response = list_integrity_links(
@@ -805,6 +881,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert response.items[0].owner_display_name == "Jane Doe"
@@ -830,7 +907,7 @@ class TestListIntegrityLinks:
         )
         self._setup_session(mock_session, [link])
         self._setup_data_session(mock_data_session, ["staging_fallback"], [])
-        mock_console_service.return_value.fetch_users_by_usernames.return_value = {}
+        mock_console_service.fetch_users_by_usernames.return_value = {}
 
         geo_ctx = self._create_geo_ctx("jdoe", {"IMPORT"})
         response = list_integrity_links(
@@ -839,6 +916,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert response.items[0].owner_display_name is None
@@ -864,7 +942,7 @@ class TestListIntegrityLinks:
         )
         self._setup_session(mock_session, [link])
         self._setup_data_session(mock_data_session, ["staging_org"], [])
-        mock_console_service.return_value.fetch_organizations_by_short_names.return_value = {
+        mock_console_service.fetch_organizations_by_short_names.return_value = {
             "testorg": "Test Organization"
         }
 
@@ -875,13 +953,18 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert response.items[0].organization_display_name == "Test Organization"
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_next_offset_present_no_more(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """next_offset equals total DB rows scanned when has_more is False."""
         links = [
@@ -907,6 +990,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert response.has_more is False
@@ -914,7 +998,11 @@ class TestListIntegrityLinks:
 
     @patch("src.api.routes.ingestion.integrity_links.logger")
     def test_next_offset_present_has_more(
-        self, mock_logger: MagicMock, mock_session: MagicMock, mock_data_session: MagicMock
+        self,
+        mock_logger: MagicMock,
+        mock_session: MagicMock,
+        mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """next_offset points to the first skipped item's raw DB index when has_more is True."""
         links = [
@@ -942,6 +1030,7 @@ class TestListIntegrityLinks:
             geo_ctx=geo_ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert response.has_more is True
@@ -1008,6 +1097,7 @@ class TestListIntegrityLinksVisibility:
         mock_logger: MagicMock,
         mock_session: MagicMock,
         mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Owner sees own datasets and gets OWNER access level."""
 
@@ -1023,6 +1113,7 @@ class TestListIntegrityLinksVisibility:
             geo_ctx=ctx,
             group_ids=["org-uuid"],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 1
@@ -1034,6 +1125,7 @@ class TestListIntegrityLinksVisibility:
         mock_logger: MagicMock,
         mock_session: MagicMock,
         mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Admin sees all datasets and gets ADMIN access level."""
 
@@ -1048,6 +1140,7 @@ class TestListIntegrityLinksVisibility:
             geo_ctx=ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 2
@@ -1060,6 +1153,7 @@ class TestListIntegrityLinksVisibility:
         mock_logger: MagicMock,
         mock_session: MagicMock,
         mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """User whose group has METADATA READ sees dataset with READ access level."""
 
@@ -1077,6 +1171,7 @@ class TestListIntegrityLinksVisibility:
             geo_ctx=ctx,
             group_ids=[group_id],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 1
@@ -1088,6 +1183,7 @@ class TestListIntegrityLinksVisibility:
         mock_logger: MagicMock,
         mock_session: MagicMock,
         mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """User whose group has METADATA WRITE sees dataset with WRITE access level."""
 
@@ -1105,6 +1201,7 @@ class TestListIntegrityLinksVisibility:
             geo_ctx=ctx,
             group_ids=[group_id],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 1
@@ -1116,6 +1213,7 @@ class TestListIntegrityLinksVisibility:
         mock_logger: MagicMock,
         mock_session: MagicMock,
         mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """User with no ownership and no group rules sees empty list."""
 
@@ -1131,6 +1229,7 @@ class TestListIntegrityLinksVisibility:
             geo_ctx=ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         assert len(response.items) == 0
@@ -1141,6 +1240,7 @@ class TestListIntegrityLinksVisibility:
         mock_logger: MagicMock,
         mock_session: MagicMock,
         mock_data_session: MagicMock,
+        mock_console_service: MagicMock,
     ) -> None:
         """Non-admin query should include OR condition for ownership + org rules."""
 
@@ -1156,6 +1256,7 @@ class TestListIntegrityLinksVisibility:
             geo_ctx=ctx,
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         # Verify the query was executed and contains both conditions
@@ -1187,19 +1288,20 @@ class TestListIntegrityLinkOrganizations:
         self, mock_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         mock_session.execute.return_value.scalars.return_value.all.return_value = ["c2c", "geo"]
-        mock_console_service.return_value.fetch_organizations_by_short_names.return_value = {
-            "c2c": "Camptocamp"
-        }
+        mock_console_service.fetch_organizations_by_short_names.return_value = {"c2c": "Camptocamp"}
 
         response = list_integrity_link_organizations(
-            session=mock_session, geo_ctx=self._geo_ctx("user0"), group_ids=[]
+            session=mock_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            console_service=mock_console_service,
         )
 
         assert response == [
             GroupItem(id="c2c", label="Camptocamp"),
             GroupItem(id="geo", label="geo"),
         ]
-        mock_console_service.return_value.fetch_organizations_by_short_names.assert_called_once_with(
+        mock_console_service.fetch_organizations_by_short_names.assert_called_once_with(
             ["c2c", "geo"]
         )
 
@@ -1207,10 +1309,13 @@ class TestListIntegrityLinkOrganizations:
         self, mock_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         mock_session.execute.return_value.scalars.return_value.all.return_value = ["c2c"]
-        mock_console_service.return_value.fetch_organizations_by_short_names.return_value = {}
+        mock_console_service.fetch_organizations_by_short_names.return_value = {}
 
         response = list_integrity_link_organizations(
-            session=mock_session, geo_ctx=self._geo_ctx("user0"), group_ids=[]
+            session=mock_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            console_service=mock_console_service,
         )
 
         assert response == [GroupItem(id="c2c", label="c2c")]
@@ -1221,11 +1326,14 @@ class TestListIntegrityLinkOrganizations:
         mock_session.execute.return_value.scalars.return_value.all.return_value = []
 
         response = list_integrity_link_organizations(
-            session=mock_session, geo_ctx=self._geo_ctx("user0"), group_ids=[]
+            session=mock_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            console_service=mock_console_service,
         )
 
         assert response == []
-        mock_console_service.return_value.fetch_organizations_by_short_names.assert_not_called()
+        mock_console_service.fetch_organizations_by_short_names.assert_not_called()
 
     def test_query_restricted_to_owner_or_rule_for_non_admin(
         self, mock_session: MagicMock, mock_console_service: MagicMock
@@ -1233,7 +1341,10 @@ class TestListIntegrityLinkOrganizations:
         mock_session.execute.return_value.scalars.return_value.all.return_value = []
 
         list_integrity_link_organizations(
-            session=mock_session, geo_ctx=self._geo_ctx("user1"), group_ids=[]
+            session=mock_session,
+            geo_ctx=self._geo_ctx("user1"),
+            group_ids=[],
+            console_service=mock_console_service,
         )
 
         executed_query = mock_session.execute.call_args_list[0][0][0]
@@ -1248,6 +1359,7 @@ class TestListIntegrityLinkOrganizations:
             session=mock_session,
             geo_ctx=self._geo_ctx("admin", {"ADMINISTRATOR"}),
             group_ids=[],
+            console_service=mock_console_service,
         )
 
         executed_query = mock_session.execute.call_args_list[0][0][0]
@@ -1281,13 +1393,16 @@ class TestListIntegrityLinkOwners:
             ("bob", 1),
             ("zed", 1),
         ]
-        mock_console_service.return_value.fetch_users_by_usernames.return_value = {
+        mock_console_service.fetch_users_by_usernames.return_value = {
             "jdoe": "John Doe",
             "zed": "Alice Zed",
         }
 
         response = list_integrity_link_owners(
-            session=mock_session, geo_ctx=self._geo_ctx("user0"), group_ids=[]
+            session=mock_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            console_service=mock_console_service,
         )
 
         assert response == [
@@ -1303,7 +1418,10 @@ class TestListIntegrityLinkOwners:
         mock_session.execute.return_value.all.return_value = []
 
         list_integrity_link_owners(
-            session=mock_session, geo_ctx=self._geo_ctx("admin", {"ADMINISTRATOR"}), group_ids=[]
+            session=mock_session,
+            geo_ctx=self._geo_ctx("admin", {"ADMINISTRATOR"}),
+            group_ids=[],
+            console_service=mock_console_service,
         )
 
         executed_query = mock_session.execute.call_args_list[0][0][0]
@@ -1319,11 +1437,14 @@ class TestListIntegrityLinkOwners:
         mock_session.execute.return_value.all.return_value = []
 
         response = list_integrity_link_owners(
-            session=mock_session, geo_ctx=self._geo_ctx("user0"), group_ids=[]
+            session=mock_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            console_service=mock_console_service,
         )
 
         assert response == []
-        mock_console_service.return_value.fetch_users_by_usernames.assert_not_called()
+        mock_console_service.fetch_users_by_usernames.assert_not_called()
 
     def test_query_restricted_to_owner_or_rule_for_non_admin(
         self, mock_session: MagicMock, mock_console_service: MagicMock
@@ -1331,7 +1452,10 @@ class TestListIntegrityLinkOwners:
         mock_session.execute.return_value.all.return_value = []
 
         list_integrity_link_owners(
-            session=mock_session, geo_ctx=self._geo_ctx("user1"), group_ids=[]
+            session=mock_session,
+            geo_ctx=self._geo_ctx("user1"),
+            group_ids=[],
+            console_service=mock_console_service,
         )
 
         executed_query = mock_session.execute.call_args_list[0][0][0]
@@ -1346,6 +1470,7 @@ class TestListIntegrityLinkOwners:
             session=mock_session,
             geo_ctx=self._geo_ctx("admin", {"ADMINISTRATOR"}),
             group_ids=[],
+            console_service=mock_console_service,
         )
 
         executed_query = mock_session.execute.call_args_list[0][0][0]
@@ -1396,6 +1521,7 @@ class TestPublicAccessComputation:
             data_session=mock_data_session,
             geo_ctx=self._geo_ctx("user0"),
             group_ids=[],
+            console_service=MagicMock(),
             offset=0,
         )
 
@@ -1457,7 +1583,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         return str(executed_query.whereclause.compile(compile_kwargs={"literal_binds": True}))
 
     def test_recurrence_filter_added_to_query(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         self._empty_result(mock_session)
 
@@ -1468,6 +1594,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
             group_ids=[],
             offset=0,
             recurrence=[RecurrencePreset.EVERY_DAY],
+            console_service=mock_console_service,
         )
 
         query_str = self._compiled_first_query(mock_session)
@@ -1475,7 +1602,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         assert RecurrencePreset.EVERY_DAY.cron in query_str
 
     def test_access_filter_added_to_query(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         self._empty_result(mock_session)
 
@@ -1486,6 +1613,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
             group_ids=[],
             offset=0,
             access=[PublicAccess.OPEN],
+            console_service=mock_console_service,
         )
 
         where_clause = self._where_clause(mock_session)
@@ -1493,7 +1621,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         assert "gs_is_published" in where_clause
 
     def test_no_filter_params_omits_filter_clauses(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         self._empty_result(mock_session)
 
@@ -1503,6 +1631,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
             geo_ctx=self._geo_ctx("user0"),
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         where_clause = self._where_clause(mock_session)
@@ -1510,7 +1639,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         assert "gn_is_published" not in where_clause
 
     def test_recurrence_filter_with_multiple_values_ors_them(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         self._empty_result(mock_session)
 
@@ -1521,6 +1650,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
             group_ids=[],
             offset=0,
             recurrence=[RecurrencePreset.EVERY_DAY, RecurrencePreset.EVERY_WEEK],
+            console_service=mock_console_service,
         )
 
         query_str = self._compiled_first_query(mock_session)
@@ -1528,7 +1658,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         assert RecurrencePreset.EVERY_WEEK.cron in query_str
 
     def test_access_filter_with_multiple_values_ors_them(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         self._empty_result(mock_session)
 
@@ -1539,6 +1669,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
             group_ids=[],
             offset=0,
             access=[PublicAccess.OPEN, PublicAccess.UNCONFIGURED],
+            console_service=mock_console_service,
         )
 
         where_clause = self._where_clause(mock_session)
@@ -1546,7 +1677,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         assert "gn_is_published" in where_clause
 
     def test_access_and_recurrence_filters_combine_with_and(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         self._empty_result(mock_session)
 
@@ -1558,6 +1689,7 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
             offset=0,
             access=[PublicAccess.OPEN],
             recurrence=[RecurrencePreset.EVERY_DAY],
+            console_service=mock_console_service,
         )
 
         where_clause = self._where_clause(mock_session)
@@ -1597,7 +1729,7 @@ class TestListIntegrityLinksOrganizationOwnerFilters:
         return str(executed_query.whereclause.compile(compile_kwargs={"literal_binds": True}))
 
     def test_organization_filter_added_to_query(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         self._empty_result(mock_session)
 
@@ -1608,6 +1740,7 @@ class TestListIntegrityLinksOrganizationOwnerFilters:
             group_ids=[],
             offset=0,
             organization=["c2c"],
+            console_service=mock_console_service,
         )
 
         where_clause = self._where_clause(mock_session)
@@ -1615,7 +1748,7 @@ class TestListIntegrityLinksOrganizationOwnerFilters:
         assert "c2c" in where_clause
 
     def test_owner_filter_added_to_query(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         self._empty_result(mock_session)
 
@@ -1626,6 +1759,7 @@ class TestListIntegrityLinksOrganizationOwnerFilters:
             group_ids=[],
             offset=0,
             owner=["jdoe"],
+            console_service=mock_console_service,
         )
 
         where_clause = self._where_clause(mock_session)
@@ -1633,7 +1767,7 @@ class TestListIntegrityLinksOrganizationOwnerFilters:
         assert "jdoe" in where_clause
 
     def test_no_filter_params_omits_organization_owner_clauses(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         self._empty_result(mock_session)
 
@@ -1643,6 +1777,7 @@ class TestListIntegrityLinksOrganizationOwnerFilters:
             geo_ctx=self._geo_ctx("user0"),
             group_ids=[],
             offset=0,
+            console_service=mock_console_service,
         )
 
         where_clause = self._where_clause(mock_session)
@@ -1650,7 +1785,7 @@ class TestListIntegrityLinksOrganizationOwnerFilters:
         assert "integrity_owner IN" not in where_clause
 
     def test_organization_filter_with_multiple_values_ors_them(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         self._empty_result(mock_session)
 
@@ -1661,6 +1796,7 @@ class TestListIntegrityLinksOrganizationOwnerFilters:
             group_ids=[],
             offset=0,
             organization=["c2c", "geo"],
+            console_service=mock_console_service,
         )
 
         where_clause = self._where_clause(mock_session)
@@ -1668,7 +1804,7 @@ class TestListIntegrityLinksOrganizationOwnerFilters:
         assert "geo" in where_clause
 
     def test_organization_and_owner_filters_combine_with_and(
-        self, mock_session: MagicMock, mock_data_session: MagicMock
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
     ) -> None:
         self._empty_result(mock_session)
 
@@ -1680,6 +1816,7 @@ class TestListIntegrityLinksOrganizationOwnerFilters:
             offset=0,
             organization=["c2c"],
             owner=["jdoe"],
+            console_service=mock_console_service,
         )
 
         where_clause = self._where_clause(mock_session)

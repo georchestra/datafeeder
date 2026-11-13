@@ -144,11 +144,7 @@ def import_mocks() -> Iterator[dict[str, MagicMock]]:
     executor.trigger_process_task.return_value = TaskRunInfo(
         task_id="process_dag", run_id="run-1", status=TaskStatus.QUEUED
     )
-    console = MagicMock()
-    console.get_organization.return_value = {"shortName": "MEL"}
-    console.fetch_users_by_usernames.return_value = {"owner1": "Owner One"}
     with (
-        patch(f"{MODULE}.ConsoleService", return_value=console),
         patch(f"{MODULE}.table_exists", return_value=False) as table_exists,
         patch(f"{MODULE}.get_data_schema", side_effect=_schema_per_org),
         patch(f"{MODULE}.get_task_executor", return_value=executor),
@@ -157,7 +153,6 @@ def import_mocks() -> Iterator[dict[str, MagicMock]]:
         patch(f"{MODULE}.publish_data_db_table", new_callable=AsyncMock) as publish,
     ):
         yield {
-            "console": console,
             "table_exists": table_exists,
             "executor": executor,
             "encrypt": encrypt,
@@ -178,6 +173,7 @@ async def _import(
     geoserver: MagicMock | None = None,
     metadata_service: MagicMock | None = None,
     ctx: GeorchestraContext | None = None,
+    console: MagicMock | None = None,
 ) -> Any:
     return await import_integrity_link(
         request,
@@ -185,7 +181,19 @@ async def _import(
         ctx or _ctx(),
         geoserver or _geoserver(),
         metadata_service or _metadata_service(),
+        console or _console(),
     )
+
+
+def _console() -> MagicMock:
+    """Console knowing the organizations and owners used by these tests."""
+    console = MagicMock()
+    console.get_organization.return_value = {"shortName": "MEL"}
+    console.fetch_users_by_usernames.return_value = {
+        "owner1": "Owner One",
+        "new_owner": "New Owner",
+    }
+    return console
 
 
 @pytest.mark.asyncio
@@ -421,11 +429,14 @@ class TestImportRejected:
     async def test_owner_unknown_to_the_console_is_rejected(
         self, import_mocks: dict[str, MagicMock]
     ) -> None:
-        import_mocks["console"].fetch_users_by_usernames.return_value = {}
+        console = _console()
+        console.fetch_users_by_usernames.return_value = {}
         session = _session()
 
         with pytest.raises(HTTPException) as exc:
-            await _import(IntegrityLinkImportRequest(link=_export()), session=session)
+            await _import(
+                IntegrityLinkImportRequest(link=_export()), session=session, console=console
+            )
 
         assert exc.value.status_code == 400
         session.add.assert_not_called()
@@ -458,11 +469,7 @@ class TestImportRejected:
 
 @pytest.fixture
 def reassign_mocks() -> Iterator[dict[str, MagicMock]]:
-    console = MagicMock()
-    console.get_organization.return_value = {"shortName": "VILLE_ROUBAIX"}
-    console.fetch_users_by_usernames.return_value = {"new_owner": "New Owner"}
     with (
-        patch(f"{MODULE}.ConsoleService", return_value=console),
         patch(f"{MODULE}.get_data_schema", side_effect=_schema_per_org),
         patch(f"{MODULE}.table_exists", side_effect=_table_only_in_mel) as table_exists,
         patch(f"{MODULE}.read_table_extent") as read_table_extent,
@@ -472,7 +479,6 @@ def reassign_mocks() -> Iterator[dict[str, MagicMock]]:
         patch(f"{MODULE}.cancel_dataset_runs") as cancel_runs,
     ):
         yield {
-            "console": console,
             "table_exists": table_exists,
             "read_table_extent": read_table_extent,
             "publish": publish,
@@ -489,6 +495,7 @@ async def _reassign(
     geoserver: MagicMock | None = None,
     metadata_service: MagicMock | None = None,
     ctx: GeorchestraContext | None = None,
+    console: MagicMock | None = None,
 ) -> Any:
     geoserver = geoserver or _geoserver()
     with patch(f"{MODULE}._get_integrity_link", return_value=link):
@@ -499,6 +506,7 @@ async def _reassign(
             ctx or _ctx(),
             geoserver,
             metadata_service or MagicMock(),
+            console or _console(),
         )
 
 
@@ -702,13 +710,18 @@ class TestReassignOwnership:
         geoserver = _geoserver()
         metadata_service = MagicMock()
         link = _link()
+        console = _console()
 
         await _reassign(
-            link, organization=organization, geoserver=geoserver, metadata_service=metadata_service
+            link,
+            organization=organization,
+            geoserver=geoserver,
+            metadata_service=metadata_service,
+            console=console,
         )
 
         assert (link.integrity_owner, link.integrity_organization) == ("new_owner", "MEL")
-        reassign_mocks["console"].get_organization.assert_called_once_with("MEL")
+        console.get_organization.assert_called_once_with("MEL")
         reassign_mocks["move_table"].assert_not_called()
         reassign_mocks["table_exists"].assert_not_called()
         geoserver.get_datastore_schema.assert_not_called()
@@ -799,14 +812,15 @@ class TestReassignOwnership:
     async def test_unknown_owner_or_organization_is_rejected(
         self, reassign_mocks: dict[str, MagicMock], unknown: str
     ) -> None:
+        console = _console()
         if unknown == "organization":
-            reassign_mocks["console"].get_organization.return_value = None
+            console.get_organization.return_value = None
         else:
-            reassign_mocks["console"].fetch_users_by_usernames.return_value = {}
+            console.fetch_users_by_usernames.return_value = {}
         link = _link()
 
         with pytest.raises(HTTPException) as exc:
-            await _reassign(link)
+            await _reassign(link, console=console)
 
         assert exc.value.status_code == 400
         assert (link.integrity_owner, link.integrity_organization) == ("owner1", "MEL")

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import col, select
 
 from src.api.deps import (
+    ConsoleServiceDep,
     DatafeederSessionDep,
     GeorchestraContextDep,
     GeoServerServiceDep,
@@ -16,7 +17,7 @@ from src.core.logging import get_logger
 from src.models.data_import import ImportType, IntegrityLinkResponse
 from src.models.integrity_link import IntegrityLink
 from src.services.georchestra import GeorchestraContext
-from src.services.layer_publication import publish_table
+from src.services.layer_publication import direct_access_datastore_name, publish_table
 from src.services.metadata_publication import publish_new_record
 
 router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
@@ -59,6 +60,7 @@ async def create_direct_access_dataset(
     geo_ctx: GeorchestraContextDep,
     geoserver_service: GeoServerServiceDep,
     metadata_service: MetadataServiceDep,
+    console_service: ConsoleServiceDep,
 ) -> IntegrityLinkResponse:
     db = _get_direct_access_database(request.db_key, geo_ctx)
     schema, table = request.schema_name, request.table_name
@@ -127,6 +129,7 @@ async def create_direct_access_dataset(
     try:
         publish_new_record(
             metadata_service,
+            console_service,
             integrity_link,
             geo_ctx,
             geoserver_service.build_layer_urls_for_metadata(
@@ -152,7 +155,7 @@ async def create_direct_access_dataset(
             integrity_link,
             table,
             extent,
-            datastore_name=sanitize_name(f"{request.db_key}_{schema}"),
+            datastore_name=direct_access_datastore_name(request.db_key, schema),
             pg_schema=schema,
             jndi_reference=db.jndi_reference,
         )

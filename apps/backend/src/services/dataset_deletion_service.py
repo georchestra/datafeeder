@@ -1,3 +1,4 @@
+from data_manipulation.utils import parse_db_uri
 from sqlalchemy import MetaData, Table, text
 from sqlmodel import Session, select
 
@@ -13,6 +14,7 @@ from src.services.airflow_client import (
     purge_dataset_dag_runs,
 )
 from src.services.geoserver import GeoServerService
+from src.services.layer_publication import direct_access_datastore_name
 from src.services.metadata_service import MetadataService
 
 logger = get_logger()
@@ -41,7 +43,8 @@ class DatasetDeletionService:
         Cleanup sequence:
         0. Cancel in-flight DAG runs — best-effort
         1. Delete Airflow DAG — BLOCKING: raises on failure
-        2. Delete GeoServer layer + its ACL rules — best-effort, if delete_layer
+        2. Delete GeoServer layer + its ACL rules (and, for a direct access dataset, its
+           datastore once unused) — best-effort, if delete_layer
         3. Drop final data table — best-effort, if delete_layer
         4. Drop staging table — best-effort
         5. Delete GeoNetwork record (if delete_metadata), Airflow run history — best-effort
@@ -101,10 +104,26 @@ class DatasetDeletionService:
                 workspace_name=workspace_name,
                 layer_name=integrity_link.final_table_name,
             )
-        # A prefilled dataset references a layer published outside datafeeder
-        if delete_layer and integrity_link.source_import_type == ImportType.PREFILLED:
+        # PREFILLED (layer published outside datafeeder) and DIRECT_ACCESS (table read in place
+        # from a source database) datasets reference their layer through data_id
+        if delete_layer and integrity_link.source_import_type in (
+            ImportType.PREFILLED,
+            ImportType.DIRECT_ACCESS,
+        ):
             if parts := integrity_link.parse_data_id():
-                self.geoserver_service.delete_workspace_layer(*parts)
+                # The feature type of a direct access dataset was created by datafeeder:
+                # delete it too, so its datastore can be cleaned up once unused
+                self.geoserver_service.delete_workspace_layer(
+                    *parts,
+                    recurse=integrity_link.source_import_type == ImportType.DIRECT_ACCESS,
+                )
+                # ACL rules are synced on the lowercased names (see _resolve_gs_layer)
+                self.geoserver_service.delete_layer_acl(parts[0].lower(), parts[1].lower())
+            if integrity_link.source_import_type == ImportType.DIRECT_ACCESS:
+                db_key, pg_schema, _ = parse_db_uri(str(integrity_link.source_url))
+                self.geoserver_service.delete_datastore_if_empty(
+                    workspace_name, direct_access_datastore_name(db_key, pg_schema)
+                )
 
         # Step 3: Drop final data table (best-effort)
         if delete_layer and integrity_link.final_table_name:

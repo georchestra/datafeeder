@@ -1,8 +1,7 @@
 """Tests for the metadata record creation of a new dataset."""
 
-from collections.abc import Iterator
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
@@ -32,9 +31,8 @@ def _link() -> IntegrityLink:
 
 
 @pytest.fixture
-def console() -> Iterator[MagicMock]:
-    with patch("src.services.metadata_publication.ConsoleService") as console_cls:
-        yield console_cls.return_value
+def console() -> MagicMock:
+    return MagicMock()
 
 
 def _contact(metadata_service: MagicMock) -> dict[str, Any]:
@@ -45,7 +43,7 @@ def test_contact_is_the_organization(console: MagicMock) -> None:
     console.get_organization.return_value = {"name": "Métropole", "mail": "mel@example.com"}
     metadata_service, link = MagicMock(), _link()
 
-    publish_new_record(metadata_service, link, AUTHOR, {"wms": {}})
+    publish_new_record(metadata_service, console, link, AUTHOR, {"wms": {}})
 
     console.get_organization.assert_called_once_with("MEL")
     assert _contact(metadata_service) == {
@@ -63,7 +61,7 @@ def test_contact_is_the_author_without_organization(console: MagicMock) -> None:
     console.get_organization.return_value = None
     metadata_service = MagicMock()
 
-    publish_new_record(metadata_service, _link(), AUTHOR)
+    publish_new_record(metadata_service, console, _link(), AUTHOR)
 
     assert _contact(metadata_service) == {
         "user_email": "alice@example.com",
@@ -78,7 +76,7 @@ def test_organization_without_name_or_mail_falls_back_to_the_author(console: Mag
     console.get_organization.return_value = {}
     metadata_service = MagicMock()
 
-    publish_new_record(metadata_service, _link(), AUTHOR)
+    publish_new_record(metadata_service, console, _link(), AUTHOR)
 
     contact = _contact(metadata_service)
     assert contact["user_email"] == "alice@example.com"
@@ -86,23 +84,21 @@ def test_organization_without_name_or_mail_falls_back_to_the_author(console: Mag
     assert contact["user_last_name"] == "Liddell"
 
 
-@pytest.mark.usefixtures("console")
-def test_ownership_failure_is_soft() -> None:
+def test_ownership_failure_is_soft(console: MagicMock) -> None:
     metadata_service, link = MagicMock(), _link()
     metadata_service.set_record_ownership.side_effect = RuntimeError("GN down")
 
-    publish_new_record(metadata_service, link, AUTHOR)
+    publish_new_record(metadata_service, console, link, AUTHOR)
 
     assert link.metadata_id == str(link.id)
 
 
-@pytest.mark.usefixtures("console")
-def test_creation_failure_propagates() -> None:
+def test_creation_failure_propagates(console: MagicMock) -> None:
     metadata_service, link = MagicMock(), _link()
     metadata_service.create_and_publish_metadata.side_effect = RuntimeError("GN down")
 
     with pytest.raises(RuntimeError):
-        publish_new_record(metadata_service, link, AUTHOR)
+        publish_new_record(metadata_service, console, link, AUTHOR)
 
     assert link.metadata_id is None
     metadata_service.set_record_ownership.assert_not_called()

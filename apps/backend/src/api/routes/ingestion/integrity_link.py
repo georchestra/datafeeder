@@ -1,9 +1,11 @@
 from uuid import UUID
 
+from data_manipulation.utils import parse_db_uri
 from fastapi import APIRouter, Body, HTTPException, Query, Response
 from sqlmodel import select
 
 from src.api.deps import (
+    ConsoleServiceDep,
     DatafeederSessionDep,
     GeorchestraContextDep,
     GeoServerServiceDep,
@@ -39,6 +41,7 @@ from src.services.geoserver import (
     GeoServerAclError,
     GeoServerService,
 )
+from src.services.layer_publication import direct_access_datastore_name
 from src.services.metadata_service import MetadataService
 from src.services.schedule_service import clear_schedule
 
@@ -49,9 +52,9 @@ router = APIRouter(prefix="/ingestion/integrity-link", tags=["Ingestion"])
 
 def _sync_metadata_sharing(
     session: DatafeederSessionDep,
-    integrity_link_id: str,
     integrity_link: IntegrityLink,
     metadata_service: MetadataService,
+    console_service: ConsoleService,
 ) -> None:
     """Sync METADATA rules to GeoNetwork sharing privileges.
 
@@ -68,16 +71,14 @@ def _sync_metadata_sharing(
 
     settings = get_settings()
 
-    all_rules = list(
-        session.exec(
-            select(IntegrityLinkRule).where(
-                IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
-            )
-        ).all()
-    )
+    metadata_rules = session.exec(
+        select(IntegrityLinkRule).where(
+            IntegrityLinkRule.integrity_link_id == integrity_link.id,
+            IntegrityLinkRule.rule_type == RuleType.METADATA,
+        )
+    ).all()
 
     try:
-        console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
         if settings.GN_SYNC_MODE == "ORG":
             items = console_service.get_all_organizations()
             groups_by_id = {
@@ -97,9 +98,7 @@ def _sync_metadata_sharing(
         raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
 
     resolved: list[tuple[str, RuleValue]] = []
-    for rule in all_rules:
-        if rule.rule_type != RuleType.METADATA:
-            continue
+    for rule in metadata_rules:
         gn_group_name = groups_by_id.get(rule.group_or_role.lower())
         if not gn_group_name:
             logger.error("Could not resolve group '%s' for sharing sync", rule.group_or_role)
@@ -111,67 +110,69 @@ def _sync_metadata_sharing(
     except Exception:
         logger.error(
             "Failed to sync GN sharing for integrity_link %s",
-            integrity_link_id,
+            integrity_link.id,
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
 
 
+def _resolve_gs_layer(integrity_link: IntegrityLink) -> tuple[str, str | None]:
+    """Return the (workspace, layer) targeted on GeoServer by an IntegrityLink.
+
+    PREFILLED and DIRECT_ACCESS datasets reference their layer through data_id
+    ('workspace:layer'); the others use their organization and final_table_name.
+
+    Returns:
+        (workspace, layer) with a lowercased workspace (and layer, from data_id);
+        layer is None when no layer can be targeted.
+    """
+    workspace = integrity_link.integrity_organization.lower()
+    layer_name = integrity_link.final_table_name
+    if integrity_link.source_import_type in (ImportType.PREFILLED, ImportType.DIRECT_ACCESS):
+        if parts := integrity_link.parse_data_id():
+            workspace, layer_name = parts[0].lower(), parts[1].lower()
+    return workspace, layer_name
+
+
 def _sync_data_sharing(
     session: DatafeederSessionDep,
-    integrity_link_id: str,
     integrity_link: IntegrityLink,
-    geoserver_service: GeoServerService | None = None,
+    geoserver_service: GeoServerService,
+    console_service: ConsoleService,
 ) -> None:
     """Sync DATA rules to GeoServer layer ACL.
 
     Resolves role UUIDs to ROLE_xxx names via the Console API before syncing.
-    Skipped when integrity_link has no published layer (final_table_name absent).
-
-    Args:
-        geoserver_service: Optional pre-built service instance. When None (default),
-            a new instance is created from settings. Pass the injected service when
-            calling from a route handler to allow test mocking.
+    Skipped when no layer can be targeted.
 
     Raises:
         HTTPException(500): If role resolution or GeoServer ACL sync fails.
     """
-    if (
-        not integrity_link.final_table_name
-        and integrity_link.source_import_type != ImportType.PREFILLED
-    ):
+    workspace, layer_name = _resolve_gs_layer(integrity_link)
+    if not layer_name:
         return
 
-    all_rules = list(
-        session.exec(
-            select(IntegrityLinkRule).where(
-                IntegrityLinkRule.integrity_link_id == UUID(integrity_link_id)
-            )
-        ).all()
-    )
-
-    settings = get_settings()
-
-    data_rules = [rule for rule in all_rules if rule.rule_type == RuleType.DATA]
+    data_rules = session.exec(
+        select(IntegrityLinkRule).where(
+            IntegrityLinkRule.integrity_link_id == integrity_link.id,
+            IntegrityLinkRule.rule_type == RuleType.DATA,
+        )
+    ).all()
     uuids_to_resolve = {
         rule.group_or_role for rule in data_rules if rule.group_or_role != GROUP_OR_ROLE_EVERYONE
     }
 
-    id_to_name: dict[str, str] = {}
+    id_to_name: dict[str, str] = {GROUP_OR_ROLE_EVERYONE: ACL_ROLE_EVERYONE}
     if uuids_to_resolve:
         # Only call Console when at least one non-EVERYONE role needs UUID resolution.
         # This keeps EVERYONE-only configs resilient to Console outages.
-        console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
         all_roles = console_service.get_all_roles()  # raises ConsoleServiceError on failure
-        id_to_name = {
+        id_to_name |= {
             str(r["id"]): f"ROLE_{r['name']}" for r in all_roles if r.get("id") and r.get("name")
         }
 
     resolved: list[tuple[str, RuleValue]] = []
     for rule in data_rules:
-        if rule.group_or_role == GROUP_OR_ROLE_EVERYONE:
-            resolved.append((ACL_ROLE_EVERYONE, rule.rule_value))
-            continue
         role_name = id_to_name.get(rule.group_or_role)
         if not role_name:
             raise ConsoleServiceError(
@@ -179,24 +180,7 @@ def _sync_data_sharing(
             )
         resolved.append((role_name, rule.rule_value))
 
-    workspace = integrity_link.integrity_organization.lower()
-
-    final_table_name = integrity_link.final_table_name
-    if integrity_link.source_import_type == ImportType.PREFILLED:
-        if parts := integrity_link.parse_data_id():
-            workspace, final_table_name = parts[0].lower(), parts[1].lower()
-
-    if not final_table_name:
-        return
-
-    if geoserver_service is None:
-        geoserver_service = GeoServerService(
-            base_url=settings.GEOSERVER_INTERNAL_URL,
-            username=settings.GEOSERVER_USER,
-            password=settings.GEOSERVER_PASSWORD,
-            public_url=settings.DATA_PUBLIC_URL,
-        )
-    geoserver_service.sync_layer_acl(workspace, final_table_name, resolved)
+    geoserver_service.sync_layer_acl(workspace, layer_name, resolved)
 
 
 @router.get(
@@ -233,20 +217,24 @@ def get_integrity_link(
     return response
 
 
-def _sync_title_geoserver(title: str, integrity_link: IntegrityLink) -> None:
-    """Sync the metadata title to the corresponding GeoServer feature type layer."""
-    if not integrity_link.final_table_name:
+def _sync_title_geoserver(
+    title: str, integrity_link: IntegrityLink, geoserver_service: GeoServerService
+) -> None:
+    """Sync the metadata title to the corresponding GeoServer feature type layer.
+
+    Skipped for PREFILLED datasets, whose layer is not managed by datafeeder.
+    """
+    if integrity_link.source_import_type == ImportType.PREFILLED:
         return
-    settings = get_settings()
-    gs = GeoServerService(
-        base_url=settings.GEOSERVER_INTERNAL_URL,
-        username=settings.GEOSERVER_USER,
-        password=settings.GEOSERVER_PASSWORD,
-        public_url=settings.DATA_PUBLIC_URL,
-    )
-    workspace = integrity_link.integrity_organization.lower()
-    datastore = f"{workspace}_ds"
-    gs.update_layer_title(workspace, datastore, integrity_link.final_table_name, title)
+    workspace, layer_name = _resolve_gs_layer(integrity_link)
+    if not layer_name:
+        return
+    if integrity_link.source_import_type == ImportType.DIRECT_ACCESS:
+        db_key, pg_schema, _ = parse_db_uri(str(integrity_link.source_url))
+        datastore = direct_access_datastore_name(db_key, pg_schema)
+    else:
+        datastore = f"{workspace}_ds"
+    geoserver_service.update_layer_title(workspace, datastore, layer_name, title)
 
 
 @router.put(
@@ -265,6 +253,7 @@ def update_metadata_gn(
     integrity_link_id: str,
     group_ids: GroupIdsDep,
     metadata_service: MetadataServiceDep,
+    geoserver_service: GeoServerServiceDep,
     body: UpdateMetadataGnRequest,
 ) -> IntegrityLinkResponse:
     """Upload serialized metadata XML to GeoNetwork, then sync title to GeoServer and DB."""
@@ -285,7 +274,7 @@ def update_metadata_gn(
         raise HTTPException(status_code=502, detail="i18nerror.save.geonetwork")
 
     try:
-        _sync_title_geoserver(body.title, integrity_link)
+        _sync_title_geoserver(body.title, integrity_link, geoserver_service)
     except Exception as e:
         logger.error(
             "GeoServer title sync failed for IntegrityLink %s: %s",
@@ -336,6 +325,8 @@ def upsert_integrity_link_rule(
     integrity_link_id: str,
     group_ids: GroupIdsDep,
     metadata_service: MetadataServiceDep,
+    geoserver_service: GeoServerServiceDep,
+    console_service: ConsoleServiceDep,
     body: UpsertRuleRequest,
 ) -> IntegrityLinkRule:
     """Create or update a rule for a given IntegrityLink."""
@@ -348,51 +339,42 @@ def upsert_integrity_link_rule(
         IntegrityLinkRule.group_or_role == body.group_or_role,
         IntegrityLinkRule.rule_type == body.rule_type,
     )
-    existing_rule = session.exec(statement).first()
+    rule = session.exec(statement).first()
 
-    if existing_rule:
-        existing_rule.rule_value = body.rule_value
-        session.add(existing_rule)
-        session.flush()
-        session.refresh(existing_rule)
-        if body.rule_type == RuleType.DATA:
-            try:
-                _sync_data_sharing(session, integrity_link_id, integrity_link)
-            except (GeoServerAclError, ConsoleServiceError) as e:
-                logger.error(
-                    "GeoServer sync failed while updating rule for IntegrityLink %s: %s",
-                    integrity_link_id,
-                    e,
-                )
-                session.rollback()
-                raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
-        session.commit()
-        _sync_metadata_sharing(session, integrity_link_id, integrity_link, metadata_service)
-        return existing_rule
-
-    new_rule = IntegrityLinkRule(
-        integrity_link_id=UUID(integrity_link_id),
-        group_or_role=body.group_or_role,
-        rule_type=body.rule_type,
-        rule_value=body.rule_value,
+    logger.info(
+        "%s %s rule for %s on IntegrityLink %s",
+        "Updating" if rule else "Creating",
+        body.rule_type,
+        body.group_or_role,
+        integrity_link_id,
     )
-    session.add(new_rule)
+    if rule:
+        rule.rule_value = body.rule_value
+    else:
+        rule = IntegrityLinkRule(
+            integrity_link_id=UUID(integrity_link_id),
+            group_or_role=body.group_or_role,
+            rule_type=body.rule_type,
+            rule_value=body.rule_value,
+        )
+
+    session.add(rule)
     session.flush()
-    session.refresh(new_rule)
+    session.refresh(rule)
     if body.rule_type == RuleType.DATA:
         try:
-            _sync_data_sharing(session, integrity_link_id, integrity_link)
+            _sync_data_sharing(session, integrity_link, geoserver_service, console_service)
         except (GeoServerAclError, ConsoleServiceError) as e:
             logger.error(
-                "GeoServer sync failed while creating rule for IntegrityLink %s: %s",
+                "GeoServer sync failed while upserting rule for IntegrityLink %s: %s",
                 integrity_link_id,
                 e,
             )
             session.rollback()
             raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
     session.commit()
-    _sync_metadata_sharing(session, integrity_link_id, integrity_link, metadata_service)
-    return new_rule
+    _sync_metadata_sharing(session, integrity_link, metadata_service, console_service)
+    return rule
 
 
 @router.delete(
@@ -406,6 +388,8 @@ def delete_integrity_link_rule(
     integrity_link_id: str,
     group_ids: GroupIdsDep,
     metadata_service: MetadataServiceDep,
+    geoserver_service: GeoServerServiceDep,
+    console_service: ConsoleServiceDep,
     rule_id: int,
 ) -> Response:
     """Delete a rule from a given IntegrityLink."""
@@ -422,7 +406,7 @@ def delete_integrity_link_rule(
     session.flush()
     if rule_type == RuleType.DATA:
         try:
-            _sync_data_sharing(session, integrity_link_id, integrity_link)
+            _sync_data_sharing(session, integrity_link, geoserver_service, console_service)
         except (GeoServerAclError, ConsoleServiceError) as e:
             logger.error(
                 "GeoServer sync failed while deleting rule for IntegrityLink %s: %s",
@@ -432,7 +416,7 @@ def delete_integrity_link_rule(
             session.rollback()
             raise HTTPException(status_code=500, detail="i18nerror.sync.geoserver")
     session.commit()
-    _sync_metadata_sharing(session, integrity_link_id, integrity_link, metadata_service)
+    _sync_metadata_sharing(session, integrity_link, metadata_service, console_service)
     return Response(status_code=204)
 
 
@@ -445,14 +429,19 @@ def delete_integrity_link_rule(
 def toggle_publish_gn_integrity_link(
     session: DatafeederSessionDep,
     georchestra_context: GeorchestraContextDep,
-    integrity_link_id: str,
+    group_ids: GroupIdsDep,
     metadata_service: MetadataServiceDep,
+    integrity_link_id: str,
     publish: bool = Query(description="Set to true to publish, false to unpublish"),
 ) -> IntegrityLinkResponse:
     """Publish or unpublish an IntegrityLink metadata in GeoNetwork."""
-    integrity_link = session.get(IntegrityLink, UUID(integrity_link_id))
-    if not integrity_link:
-        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    integrity_link, _ = load_authorized_integrity_link(
+        integrity_link_id,
+        AccessLevel.OWNER_ONLY,
+        georchestra_context,
+        session,
+        group_ids,
+    )
 
     # Verify that the IntegrityLink has metadata
     if not integrity_link.metadata_id:
@@ -530,19 +519,13 @@ def delete_integrity_link(
     integrity_link_id: str,
     group_ids: GroupIdsDep,
     metadata_service: MetadataServiceDep,
+    geoserver_service: GeoServerServiceDep,
 ) -> Response:
     """Delete a dataset and all associated resources."""
     integrity_link, _ = load_authorized_integrity_link(
         integrity_link_id, AccessLevel.OWNER_ONLY, geo_ctx, session, group_ids
     )
 
-    settings = get_settings()
-    geoserver_service = GeoServerService(
-        base_url=settings.GEOSERVER_INTERNAL_URL,
-        username=settings.GEOSERVER_USER,
-        password=settings.GEOSERVER_PASSWORD,
-        public_url=settings.DATA_PUBLIC_URL,
-    )
     deletion_service = DatasetDeletionService(
         geoserver_service=geoserver_service,
         metadata_service=metadata_service,
@@ -576,6 +559,7 @@ def toggle_publish_gs_integrity_link(
     georchestra_context: GeorchestraContextDep,
     group_ids: GroupIdsDep,
     geoserver_service: GeoServerServiceDep,
+    console_service: ConsoleServiceDep,
     integrity_link_id: str,
     publish: bool = Query(description="Set to true to publish, false to unpublish"),
 ) -> IntegrityLinkGsPublishResponse:
@@ -587,12 +571,7 @@ def toggle_publish_gs_integrity_link(
         session,
         group_ids,
     )
-    workspace = integrity_link.integrity_organization.lower()
-    final_table_name = integrity_link.final_table_name
-    if integrity_link.source_import_type == ImportType.PREFILLED:
-        if parts := integrity_link.parse_data_id():
-            workspace, final_table_name = parts[0].lower(), parts[1].lower()
-
+    workspace, final_table_name = _resolve_gs_layer(integrity_link)
     if not final_table_name:
         raise HTTPException(
             status_code=400,
@@ -600,7 +579,6 @@ def toggle_publish_gs_integrity_link(
         )
 
     acl_layer_name = GeoServerService.make_acl_layer_name(workspace, final_table_name)
-    gs_read_roles: list[str] | None = None
     try:
         if publish:
             session.add(
@@ -611,7 +589,7 @@ def toggle_publish_gs_integrity_link(
                     group_or_role=GROUP_OR_ROLE_EVERYONE,
                 )
             )
-            _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
+            _sync_data_sharing(session, integrity_link, geoserver_service, console_service)
         else:
             everyone_rules = session.exec(
                 select(IntegrityLinkRule).where(
@@ -624,7 +602,7 @@ def toggle_publish_gs_integrity_link(
             for rule in everyone_rules:
                 session.delete(rule)
             session.flush()  # make deletions visible before the sync query
-            _sync_data_sharing(session, integrity_link_id, integrity_link, geoserver_service)
+            _sync_data_sharing(session, integrity_link, geoserver_service, console_service)
 
         gs_read_roles = geoserver_service.acl_layer_get(
             layer_name=acl_layer_name,
