@@ -12,10 +12,7 @@ from src.api.deps import (
 )
 from src.core.config import get_settings
 from src.core.logging import get_logger
-from src.core.security import (
-    AccessLevel,
-    load_authorized_integrity_link,
-)
+from src.core.security import AccessLevel, load_authorized_integrity_link
 from src.models.data_import import (
     ImportType,
     IntegrityLinkGsPublishResponse,
@@ -700,4 +697,52 @@ def update_schedule(
     )
     return IntegrityLinkResponse.model_validate(integrity_link).model_copy(
         update={"access_level": effective.value, "preset_id": resolved_preset}
+    )
+
+
+@router.patch(
+    "/{integrity_link_id}/is-reference",
+    response_model=IntegrityLinkResponse,
+    summary="Update whether the dataset is a reference dataset",
+    description="Set or clear the reference dataset flag for an IntegrityLink.",
+)
+def update_is_reference(
+    session: DatafeederSessionDep,
+    geo_ctx: GeorchestraContextDep,
+    integrity_link_id: str,
+    metadata_service: MetadataServiceDep,
+    is_reference: bool = Body(embed=True),
+) -> IntegrityLinkResponse:
+    if not geo_ctx.has_role("SUPERUSER"):
+        raise HTTPException(status_code=403, detail="Superuser role required")
+
+    integrity_link = session.get(IntegrityLink, integrity_link_id)
+    if integrity_link is None:
+        raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    integrity_link.is_reference_dataset = is_reference
+
+    # The frontend only offers the toggle once the GeoNetwork record exists: without record,
+    # the flag is only stored.
+    if integrity_link.metadata_id:
+        try:
+            metadata_service.set_reference_dataset_flag(
+                integrity_link.metadata_id,
+                integrity_link.is_reference_dataset,
+            )
+        except Exception as e:
+            logger.error(
+                "GeoNetwork category modification failed for IntegrityLink %s: %s",
+                integrity_link_id,
+                e,
+            )
+            raise HTTPException(status_code=502, detail="i18nerror.save.geonetwork")
+
+    session.commit()
+    session.refresh(integrity_link)
+
+    resolved_preset = (
+        RecurrencePreset.from_cron(integrity_link.schedule) if integrity_link.schedule else None
+    )
+    return IntegrityLinkResponse.model_validate(integrity_link).model_copy(
+        update={"access_level": "ADMIN", "preset_id": resolved_preset}
     )
