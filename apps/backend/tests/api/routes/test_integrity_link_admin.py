@@ -361,6 +361,24 @@ class TestImportReprocess:
         assert exc.value.status_code == 500
         session.delete.assert_called_once_with(session.add.call_args.args[0])
 
+    async def test_unresolved_join_is_rejected_before_creating_the_link(
+        self, import_mocks: dict[str, MagicMock]
+    ) -> None:
+        session = _session()
+        no_final_table = HTTPException(
+            status_code=422, detail="Joined dataset has no final table yet"
+        )
+
+        with (
+            patch(f"{MODULE}.resolve_join_target", side_effect=no_final_table),
+            pytest.raises(HTTPException) as exc,
+        ):
+            await _import(IntegrityLinkImportRequest(link=_export()), session)
+
+        assert exc.value is no_final_table
+        session.add.assert_not_called()
+        import_mocks["executor"].trigger_process_task.assert_not_called()
+
 
 @pytest.mark.asyncio
 class TestImportRejected:
