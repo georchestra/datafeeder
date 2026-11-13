@@ -9,6 +9,7 @@ apps/
   frontend/           # Angular 20 application
 libs/
   data_manipulation/  # Shared Python data processing library
+e2e-tests/            # End-to-end tests: Playwright (Python) + pytest, against the local stack
 ```
 
 ## Commands
@@ -17,6 +18,8 @@ libs/
 - `make test-backend`, `make test-libs`: Python tests
 - `make fix-and-check-all-python`: lint and format Python
 - In `apps/frontend/`: `npm run test:ut`, `npm run lint`, `npm run format`
+- In `e2e-tests/`: `uv run pytest` (stack must be running, see its README). E2E tests use
+  Playwright for Python only: do not add Cypress or JS Playwright tests
 
 ## Skills
 
