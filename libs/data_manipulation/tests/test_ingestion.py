@@ -404,7 +404,7 @@ class TestSelectLayer:
         mock_run.return_value = _completed()
         layers.return_value = {"a": True, "b": True}
         ingest_file_with_ogr2ogr(
-            "/tmp/multi.gpkg", "multi", engine, schema="staging", reject_multi_layer=False
+            "/tmp/multi.gpkg", "multi", engine, schema="staging", reject_multi_layer_gpkg=False
         )
         layers.assert_not_called()
         mock_run.assert_called_once()
@@ -415,7 +415,7 @@ class TestSelectLayer:
         self, _retrieve: MagicMock, mock_ingest: MagicMock, engine: Engine
     ) -> None:
         ingest_data_from_ftp_into_postgis(
-            "ftp://ftp.example.org/multi.gpkg", "multi", engine, reject_multi_layer=False
+            "ftp://ftp.example.org/multi.gpkg", "multi", engine, reject_multi_layer_gpkg=False
         )
         assert mock_ingest.call_args[0][4] is False
 

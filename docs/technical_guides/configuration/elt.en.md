@@ -22,6 +22,7 @@ for the details.
 | `AIRFLOW_UID` | User ID Airflow containers run as. Set in `.env`; `make install-python` writes your current UID automatically |
 | `AIRFLOW_STAGING_TIMEOUT_SECONDS` | Timeout, in seconds, for the staging task execution (default: `600`) |
 | `USE_ORG_SCHEMA` | Schema of the final tables written by scheduled runs: the org short name when `true`, the shared `data` schema otherwise (default: `false`). **Must match the backend `USE_ORG_SCHEMA`** |
+| `REJECT_MULTI_LAYER_GPKG` | Reject GeoPackages (also inside a ZIP) holding several layers instead of letting `ogr2ogr` keep only the last one; other formats are not checked (default: `true`). Only read by the DAGs: the backend local executor always rejects them |
 | `AIRFLOW_VERSION` | Airflow version installed by `Dockerfile.airflow`; keep in sync with `apps/elt/pyproject.toml` (default: `3.3.2`) |
 
 The backend also needs to be pointed at the Airflow instance: see `AIRFLOW_INTERNAL_URL`, `AIRFLOW_USERNAME` and

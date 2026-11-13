@@ -107,7 +107,7 @@ def ingest_data_from_file_into_postgis(
     table_name: str,
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
-    reject_multi_layer: bool = True,
+    reject_multi_layer_gpkg: bool = True,
 ) -> None:
     """Ingest data from a file into a PostGIS table.
 
@@ -116,7 +116,7 @@ def ingest_data_from_file_into_postgis(
         table_name: Target table name in PostGIS
         engine: SQLAlchemy engine
         schema: Target schema (default: public)
-        reject_multi_layer: Raise when the source holds several layers (see
+        reject_multi_layer_gpkg: Raise when a GeoPackage source holds several layers (see
             :func:`ingest_file_with_ogr2ogr`)
     """
     logger.info(f"Ingesting data from file {file_path} into table {table_name}")
@@ -125,7 +125,7 @@ def ingest_data_from_file_into_postgis(
         # Read data with encoding handling, use the url function,
         # the path to the file is always an url, even for local files
         ingest_data_from_url_into_postgis(
-            file_path, table_name, engine, schema, reject_multi_layer=reject_multi_layer
+            file_path, table_name, engine, schema, reject_multi_layer_gpkg=reject_multi_layer_gpkg
         )
     except Exception as e:
         logger.error(f"Error ingesting data from file {file_path}: {e}")
@@ -138,7 +138,7 @@ def ingest_data_from_ftp_into_postgis(
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
     auth: tuple[str, str] | None = None,
-    reject_multi_layer: bool = True,
+    reject_multi_layer_gpkg: bool = True,
 ) -> None:
     """Ingest data from an FTP URL into a PostGIS table.
 
@@ -148,7 +148,7 @@ def ingest_data_from_ftp_into_postgis(
         engine: SQLAlchemy engine
         schema: Target schema (default: public)
         auth: Optional tuple of (username, password) for FTP authentication
-        reject_multi_layer: Raise when the source holds several layers (see
+        reject_multi_layer_gpkg: Raise when a GeoPackage source holds several layers (see
             :func:`ingest_file_with_ogr2ogr`)
     """
     logger.info(f"Ingesting data from FTP {url} into table {table_name}")
@@ -184,7 +184,7 @@ def ingest_data_from_ftp_into_postgis(
             urlretrieve(ftp_url_with_auth, temp_file_path)
 
             ingest_file_with_ogr2ogr(
-                str(temp_file_path), table_name, engine, schema, reject_multi_layer
+                str(temp_file_path), table_name, engine, schema, reject_multi_layer_gpkg
             )
 
     # TODO: handle error for frontend
@@ -472,7 +472,7 @@ def ingest_file_with_ogr2ogr(
     table_name: str,
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
-    reject_multi_layer: bool = True,
+    reject_multi_layer_gpkg: bool = True,
 ) -> None:
     """Ingest a geospatial file into a PostGIS table using ogr2ogr.
 
@@ -484,7 +484,7 @@ def ingest_file_with_ogr2ogr(
         table_name: Target table name in PostGIS
         engine: SQLAlchemy engine for the target PostGIS database
         schema: Target schema (default: public)
-        reject_multi_layer: Import only the layer of a GeoPackage, and raise when it
+        reject_multi_layer_gpkg: Import only the layer of a GeoPackage, and raise when it
             holds several, instead of letting ogr2ogr keep only the last one (see
             :func:`_select_layer`)
     """
@@ -493,7 +493,7 @@ def ingest_file_with_ogr2ogr(
 
     # Detect before rewriting the path: the helpers read the archive itself.
     shape_encoding = _detect_shapefile_encoding(file_path)
-    check_layers = reject_multi_layer and _is_geopackage(file_path)
+    check_layers = reject_multi_layer_gpkg and _is_geopackage(file_path)
     file_path = _resolve_zip_source(file_path)
     # After resolving the path, so a multi-layer GeoPackage inside a ZIP is caught too.
     source_layer = _select_layer(file_path) if check_layers else None
@@ -543,7 +543,7 @@ def ingest_data_from_url_into_postgis(
     engine: Engine,
     schema: str = DEFAULT_SCHEMA,
     auth: tuple[str, str] | None = None,
-    reject_multi_layer: bool = True,
+    reject_multi_layer_gpkg: bool = True,
 ) -> None:
     """Ingest data from a URL into a PostGIS table.
 
@@ -553,7 +553,7 @@ def ingest_data_from_url_into_postgis(
         engine: SQLAlchemy engine
         schema: Target schema (default: public)
         auth: Optional tuple of (username, password) for HTTP Basic Authentication or FTP
-        reject_multi_layer: Raise when the source holds several layers (see
+        reject_multi_layer_gpkg: Raise when a GeoPackage source holds several layers (see
             :func:`ingest_file_with_ogr2ogr`)
     """
     try:
@@ -564,7 +564,7 @@ def ingest_data_from_url_into_postgis(
         # Handle FTP URLs separately
         if parsed_url.scheme == "ftp":
             ingest_data_from_ftp_into_postgis(
-                url, table_name, engine, schema, auth, reject_multi_layer
+                url, table_name, engine, schema, auth, reject_multi_layer_gpkg
             )
         else:
             # Use requests for HTTP/HTTPS URLs. The response is streamed straight to
@@ -597,7 +597,7 @@ def ingest_data_from_url_into_postgis(
                             temp_file.write(chunk)
 
                     ingest_file_with_ogr2ogr(
-                        str(temp_file_path), table_name, engine, schema, reject_multi_layer
+                        str(temp_file_path), table_name, engine, schema, reject_multi_layer_gpkg
                     )
 
     except Exception as e:
