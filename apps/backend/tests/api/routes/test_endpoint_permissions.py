@@ -20,6 +20,7 @@ from src.api.routes.ingestion.integrity_link import (
     delete_integrity_link_rule,
     get_integrity_link,
     list_integrity_link_rules,
+    update_is_reference,
     upsert_integrity_link_rule,
 )
 from src.api.routes.ingestion.process import process_staging_data
@@ -106,6 +107,18 @@ def _admin_ctx() -> GeorchestraContext:
     return GeorchestraContext(
         username="admin1",
         roles={"ADMINISTRATOR", "IMPORT"},
+        email="",
+        firstname="",
+        lastname="",
+        organization="other_org",
+    )
+
+
+def _gn_admin_ctx() -> GeorchestraContext:
+    """GN Admin context (not owner)."""
+    return GeorchestraContext(
+        username="gn_admin1",
+        roles={"GN_ADMIN", "IMPORT"},
         email="",
         firstname="",
         lastname="",
@@ -707,3 +720,73 @@ class TestDeleteIntegrityLinkPermission:
             delete_integrity_link(MagicMock(), _ctx(), INTLINK_ID, [], MagicMock())
 
         mock_load.assert_called_once_with(INTLINK_ID, AccessLevel.OWNER_ONLY, ANY, ANY, ANY)
+
+
+# ────────────────────────────────────────────────────────
+# PATCH /ingestion/integrity-link/{id}/is-reference  (GN-ADMIN only)
+# ────────────────────────────────────────────────────────
+
+
+class TestUpdateIsReferencePermission:
+    def test_returns_403_for_unauthorized_user(self) -> None:
+        session = _mock_session(_link())
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_is_reference(session, _ctx(), INTLINK_ID, MagicMock(), is_reference=True)
+
+        assert exc_info.value.status_code == 403
+        session.commit.assert_not_called()
+
+    def test_returns_403_for_write_group_user(self) -> None:
+        session = _mock_session_with_rule(_link(), RuleValue.WRITE)
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_is_reference(session, _write_ctx(), INTLINK_ID, MagicMock(), is_reference=True)
+
+        assert exc_info.value.status_code == 403
+        session.commit.assert_not_called()
+
+    def test_returns_403_for_owner(self) -> None:
+        session = _mock_session(_link(), access_result="OWNER")
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_is_reference(session, _write_ctx(), INTLINK_ID, MagicMock(), is_reference=True)
+
+        assert exc_info.value.status_code == 403
+        session.commit.assert_not_called()
+
+    def test_succeeds_for_gn_admin(self) -> None:
+        session = _mock_session(_link(), access_result="OWNER")
+
+        response = update_is_reference(
+            session, _gn_admin_ctx(), INTLINK_ID, MagicMock(), is_reference=True
+        )
+
+        assert response.is_reference_dataset is True
+
+    def test_succeeds_for_admin(self) -> None:
+        session = _mock_session(_link(), access_result="OWNER")
+
+        response = update_is_reference(
+            session, _admin_ctx(), INTLINK_ID, MagicMock(), is_reference=True
+        )
+
+        assert response.is_reference_dataset is True
+
+    def test_returns_403_for_unknown_id_and_not_gn_admin(self) -> None:
+        session = _mock_session(None)  # no link found
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_is_reference(session, _owner_ctx(), str(uuid4()), MagicMock(), is_reference=True)
+
+        assert exc_info.value.status_code == 403
+
+    def test_returns_404_for_unknown_id(self) -> None:
+        session = _mock_session(None, access_result="WRITE")  # no link found
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_is_reference(
+                session, _gn_admin_ctx(), str(uuid4()), MagicMock(), is_reference=True
+            )
+
+        assert exc_info.value.status_code == 404

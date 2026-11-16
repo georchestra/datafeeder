@@ -13,6 +13,7 @@ import {
   provideGn4,
   provideI18n,
   provideRepositoryUrl,
+  RecordsRepositoryInterface,
   TRANSLATE_DEFAULT_CONFIG
 } from 'geonetwork-ui'
 import { appRoutes } from './app.routes'
@@ -22,6 +23,7 @@ import { EffectsModule } from '@ngrx/effects'
 import { SettingsService } from './core/settings/settings.service'
 import { TranslateLoader } from '@ngx-translate/core'
 import { DatafeederTranslateLoader } from './core/i18n/translate.loader'
+import { DatafeederRepository } from './core/stores/datafeeder.repository'
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -35,6 +37,10 @@ export const appConfig: ApplicationConfig = {
     }),
     provideRepositoryUrl('/datafeeder-backend/geonetwork/srv/api'),
     provideGn4({ disableDraft: true }),
+    {
+      provide: RecordsRepositoryInterface,
+      useClass: DatafeederRepository
+    },
     importProvidersFrom(
       StoreModule.forRoot(
         {},

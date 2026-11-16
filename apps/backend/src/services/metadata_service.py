@@ -527,6 +527,38 @@ class MetadataService:
             )
             raise
 
+    def set_reference_dataset_flag(self, metadata_uuid: str, value: bool) -> None:
+        """Either add or remove the "geonetwork-ui:IS_REFERENCE_DATASET" category on a GeoNetwork record.
+
+        Existing categories on the record are kept.
+
+        Raises:
+            ValueError: If the category does not exist in GeoNetwork.
+            requests.HTTPError: If a GeoNetwork API call fails.
+        """
+        category_name = "geonetwork-ui:IS_REFERENCE_DATASET"
+        resp = self.gn_api.session.get(f"{self.gn_api.api_url}/tags")
+        resp.raise_for_status()
+        category_id = next((t["id"] for t in resp.json() if t.get("name") == category_name), None)
+        if category_id is None:
+            raise ValueError(f"GeoNetwork category '{category_name}' not found")
+
+        if not value:
+            resp = self.gn_api.session.delete(
+                f"{self.gn_api.api_url}/records/{metadata_uuid}/tags",
+                params={"id": category_id},
+            )
+            resp.raise_for_status()
+            logger.info(f"Removed category '{category_name}' from record {metadata_uuid}")
+            return
+
+        resp = self.gn_api.session.put(
+            f"{self.gn_api.api_url}/records/{metadata_uuid}/tags",
+            params={"id": category_id},
+        )
+        resp.raise_for_status()
+        logger.info(f"Set category '{category_name}' on record {metadata_uuid}")
+
     def get_templates_uuid(self, groups_id: list[int]) -> dict[str, list[str]]:
         group_owner_clause = " OR ".join(f'groupOwner:"{group_id}"' for group_id in groups_id)
         req = {
