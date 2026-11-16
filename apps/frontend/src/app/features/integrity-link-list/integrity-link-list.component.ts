@@ -71,6 +71,8 @@ marker('integrityLinks.view')
 marker('integrityLinks.visibility.open')
 marker('integrityLinks.visibility.restricted')
 marker('integrityLinks.visibility.unconfigured')
+marker('integrityLinks.filters.reference.yes')
+marker('integrityLinks.filters.reference.no')
 
 const DEBOUNCE_TIME = 300
 
@@ -118,12 +120,11 @@ export class IntegrityLinkListComponent {
   selectedOwner = signal<string[]>([])
   selectedAccess = signal<string[]>([])
   selectedRecurrence = signal<string[]>([])
-  // Statut/Référence have no backend support yet — placeholder dropdowns
+  selectedReference = signal<string[]>([])
+  // Statut has no backend support yet — placeholder dropdown
   // for layout only, not wired into filters/reload.
   selectedStatus = signal<string[]>([])
-  selectedReference = signal<string[]>([])
   readonly statusChoices: Choice<string>[] = []
-  readonly referenceChoices: Choice<string>[] = []
   organizationChoices = signal<Choice<string>[]>([])
   ownerChoices = signal<Choice<string>[]>([])
   private accessOptions = signal<PublicAccess[]>([])
@@ -155,13 +156,28 @@ export class IntegrityLinkListComponent {
     }))
   })
 
+  readonly referenceChoices = computed<Choice<string>[]>(() => {
+    this.currentLang()
+    return [
+      {
+        value: 'true',
+        label: this.translate.instant('integrityLinks.filters.reference.yes')
+      },
+      {
+        value: 'false',
+        label: this.translate.instant('integrityLinks.filters.reference.no')
+      }
+    ]
+  })
+
   hasActiveFilters = computed(
     () =>
       this.searchQuery().length > 0 ||
       this.selectedOrganization().length > 0 ||
       this.selectedOwner().length > 0 ||
       this.selectedAccess().length > 0 ||
-      this.selectedRecurrence().length > 0
+      this.selectedRecurrence().length > 0 ||
+      this.selectedReference().length > 0
   )
 
   private filters = computed(() => ({
@@ -169,7 +185,8 @@ export class IntegrityLinkListComponent {
     organization: this.selectedOrganization(),
     owner: this.selectedOwner(),
     access: this.selectedAccess(),
-    recurrence: this.selectedRecurrence()
+    recurrence: this.selectedRecurrence(),
+    reference: this.selectedReference()
   }))
 
   private requestId = 0
@@ -269,9 +286,12 @@ export class IntegrityLinkListComponent {
       const recurrence = this.selectedRecurrence().length
         ? (this.selectedRecurrence() as RecurrenceFilter[])
         : undefined
+      const reference = this.selectedReference().length
+        ? this.selectedReference().map((v) => v === 'true')
+        : undefined
       const response = await this.api.invoke(
         listIntegrityLinksIngestionIntegrityLinksGet,
-        { offset, search, organization, owner, access, recurrence }
+        { offset, search, organization, owner, access, recurrence, reference }
       )
       if (requestId !== this.requestId) return
       if (append) {

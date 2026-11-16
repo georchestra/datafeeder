@@ -1123,6 +1123,29 @@ describe('IntegrityLinkListComponent', () => {
       req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
     })
 
+    it('should trigger a reload with the boolean reference param when selectedReference changes', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/?offset=0')
+        .flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.selectedReference.set(['true'])
+      fixture.detectChanges()
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const req = httpMock.expectOne(
+        (r) =>
+          r.url === 'http://localhost:8000/ingestion/integrity-links/' &&
+          r.params.getAll('reference')?.join(',') === 'true'
+      )
+      req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+      expect(component.hasActiveFilters()).toBe(true)
+    })
+
     it('should show noResults, not emptyList, when only a filter is active and there are zero results', async () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)
       const component = fixture.componentInstance

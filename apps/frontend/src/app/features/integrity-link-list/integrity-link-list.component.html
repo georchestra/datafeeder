@@ -66,10 +66,9 @@
             [allowSearch]="false"
             (selectValues)="selectedRecurrence.set($event)"
           />
-          <!-- Référence has no backend support yet — empty choices, not wired to any filter. -->
           <gn-ui-dropdown-multiselect
             [title]="'integrityLinks.filters.reference' | translate"
-            [choices]="referenceChoices"
+            [choices]="referenceChoices()"
             [selected]="selectedReference()"
             [allowSearch]="false"
             (selectValues)="selectedReference.set($event)"

@@ -41,6 +41,11 @@ export interface ListIntegrityLinksIngestionIntegrityLinksGet$Params {
    * Filter by recurrence preset, NONE for datasets without a schedule
    */
   recurrence?: Array<RecurrencePreset | 'NONE'> | null
+
+  /**
+   * Filter by reference dataset flag
+   */
+  reference?: Array<boolean> | null
 }
 
 export function listIntegrityLinksIngestionIntegrityLinksGet(
@@ -61,6 +66,7 @@ export function listIntegrityLinksIngestionIntegrityLinksGet(
     rb.query('owner', params.owner, {})
     rb.query('access', params.access, {})
     rb.query('recurrence', params.recurrence, {})
+    rb.query('reference', params.reference, {})
   }
 
   return http
