@@ -1717,6 +1717,37 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         assert "schedule IN" in where_clause
         assert " AND " in where_clause
 
+    def test_reference_filter_added_to_query(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            reference=[True],
+        )
+
+        assert "is_reference_dataset IN (true)" in self._where_clause(mock_session)
+
+    def test_no_reference_param_omits_reference_clause(
+        self, mock_session: MagicMock, mock_data_session: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+        )
+
+        assert "is_reference_dataset" not in self._where_clause(mock_session)
+
 
 class TestListIntegrityLinksOrganizationOwnerFilters:
     """Test the organization and owner query params on list_integrity_links."""
