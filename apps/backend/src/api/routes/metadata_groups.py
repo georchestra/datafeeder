@@ -4,7 +4,7 @@ from src.api.deps import GeorchestraContextDep
 from src.api.routes.groups_common import GroupItem, filter_console_items
 from src.core.config import get_settings
 from src.core.logging import get_logger
-from src.services.console_service import ConsoleService
+from src.services.directory import get_directory_service
 
 logger = get_logger()
 
@@ -16,31 +16,31 @@ router = APIRouter(prefix="/metadata/groups", tags=["Metadata"])
     response_model=list[GroupItem],
     summary="List metadata groups",
     description=(
-        "Fetch groups from geOrchestra console and return identifier + label pairs. "
+        "Fetch groups from the directory (geOrchestra console or Keycloak) and return identifier + label pairs. "
         "Returns organizations when GN_SYNC_MODE=ORG, roles when GN_SYNC_MODE=ROLE."
     ),
 )
 def list_groups(geo_ctx: GeorchestraContextDep) -> list[GroupItem]:
     settings = get_settings()
-    console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
+    directory = get_directory_service()
 
     try:
         if settings.GN_SYNC_MODE == "ORG":
-            items = console_service.get_all_organizations()
+            items = directory.get_all_groups()
             group_items = [
                 GroupItem(id=item["id"], label=item["name"])
                 for item in filter_console_items(items, settings.METADATA_GROUPS_LABEL_FILTER_REGEX)
                 if item.get("id") and item.get("name")
             ]
         else:
-            items = console_service.get_all_roles()
+            items = directory.get_all_roles()
             group_items = [
                 GroupItem(id=item["id"], label=str(item["description"] or item["name"]))
                 for item in filter_console_items(items, settings.METADATA_GROUPS_LABEL_FILTER_REGEX)
                 if item.get("id") and item.get("name")
             ]
     except Exception as e:
-        logger.error("Failed to fetch metadata groups from console: %s", e)
-        raise HTTPException(status_code=502, detail=f"Failed to fetch groups from console: {e}")
+        logger.error("Failed to fetch metadata groups from directory: %s", e)
+        raise HTTPException(status_code=502, detail=f"Failed to fetch groups from directory: {e}")
 
     return group_items

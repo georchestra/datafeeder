@@ -95,7 +95,7 @@ def source_db() -> Iterator[MagicMock]:
                 bbox={"minx": 1.0, "miny": 2.0, "maxx": 3.0, "maxy": 4.0},
             ),
         ),
-        patch("src.services.metadata_publication.ConsoleService") as console,
+        patch("src.services.metadata_publication.get_directory_service") as console,
     ):
         console.return_value.get_organization.return_value = None
         yield get_engine

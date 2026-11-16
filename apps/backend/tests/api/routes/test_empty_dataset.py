@@ -31,17 +31,6 @@ def _geo_ctx(
     )
 
 
-def _mock_settings() -> MagicMock:
-    settings = MagicMock()
-    settings.CONSOLE_INTERNAL_URL = "http://console"
-    settings.GEONETWORK_INTERNAL_URL = "http://geonetwork"
-    settings.GEONETWORK_USERNAME = "admin"
-    settings.GEONETWORK_PASSWORD = "geonetwork"
-    settings.DATADIR_PATH = "/datadir"
-    settings.GN_SYNC_MODE = "ORG"
-    return settings
-
-
 def _make_session_with_link(link_id: UUID | None = None) -> MagicMock:
     """Return a mock session whose flush() assigns an ID to the first added object."""
     link_id = link_id or uuid4()
@@ -67,11 +56,7 @@ class TestCreateEmptyDataset:
 
         # Patch model_validate to avoid needing a fully wired SQLModel
         with (
-            patch(
-                "src.services.metadata_publication.get_settings",
-                return_value=_mock_settings(),
-            ),
-            patch("src.services.metadata_publication.ConsoleService") as mock_console_cls,
+            patch("src.services.metadata_publication.get_directory_service") as mock_console_cls,
             patch(
                 "src.api.routes.ingestion.empty_dataset.IntegrityLinkResponse.model_validate",
                 return_value=MagicMock(
@@ -107,11 +92,7 @@ class TestCreateEmptyDataset:
         session.refresh.return_value = None
 
         with (
-            patch(
-                "src.services.metadata_publication.get_settings",
-                return_value=_mock_settings(),
-            ),
-            patch("src.services.metadata_publication.ConsoleService") as mock_console_cls,
+            patch("src.services.metadata_publication.get_directory_service") as mock_console_cls,
             patch(
                 "src.api.routes.ingestion.empty_dataset.IntegrityLinkResponse.model_validate",
                 return_value=MagicMock(
@@ -142,11 +123,7 @@ class TestCreateEmptyDataset:
         session = _make_session_with_link(link_id)
 
         with (
-            patch(
-                "src.services.metadata_publication.get_settings",
-                return_value=_mock_settings(),
-            ),
-            patch("src.services.metadata_publication.ConsoleService") as mock_console_cls,
+            patch("src.services.metadata_publication.get_directory_service") as mock_console_cls,
         ):
             mock_console_cls.return_value.get_organization.return_value = None
             mock_ms = MagicMock()

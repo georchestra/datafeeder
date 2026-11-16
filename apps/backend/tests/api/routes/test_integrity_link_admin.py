@@ -148,7 +148,7 @@ def import_mocks() -> Iterator[dict[str, MagicMock]]:
     console.get_organization.return_value = {"shortName": "MEL"}
     console.fetch_users_by_usernames.return_value = {"owner1": "Owner One"}
     with (
-        patch(f"{MODULE}.ConsoleService", return_value=console),
+        patch(f"{MODULE}.get_directory_service", return_value=console),
         patch(f"{MODULE}.table_exists", return_value=False) as table_exists,
         patch(f"{MODULE}.get_data_schema", side_effect=_schema_per_org),
         patch(f"{MODULE}.get_task_executor", return_value=executor),
@@ -462,7 +462,7 @@ def reassign_mocks() -> Iterator[dict[str, MagicMock]]:
     console.get_organization.return_value = {"shortName": "VILLE_ROUBAIX"}
     console.fetch_users_by_usernames.return_value = {"new_owner": "New Owner"}
     with (
-        patch(f"{MODULE}.ConsoleService", return_value=console),
+        patch(f"{MODULE}.get_directory_service", return_value=console),
         patch(f"{MODULE}.get_data_schema", side_effect=_schema_per_org),
         patch(f"{MODULE}.table_exists", side_effect=_table_only_in_mel) as table_exists,
         patch(f"{MODULE}.read_table_extent") as read_table_extent,

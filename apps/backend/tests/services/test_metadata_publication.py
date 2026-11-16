@@ -33,7 +33,7 @@ def _link() -> IntegrityLink:
 
 @pytest.fixture
 def console() -> Iterator[MagicMock]:
-    with patch("src.services.metadata_publication.ConsoleService") as console_cls:
+    with patch("src.services.metadata_publication.get_directory_service") as console_cls:
         yield console_cls.return_value
 
 

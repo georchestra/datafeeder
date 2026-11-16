@@ -28,8 +28,10 @@ from src.models.integrity_link_rule import (
     UpsertRuleRequest,
 )
 from src.models.recurrence import RecurrencePreset
-from src.services.console_service import ConsoleService, ConsoleServiceError
 from src.services.dataset_deletion_service import DatasetDeletionService
+from src.services.directory import get_directory_service
+from src.services.directory_service import DirectoryServiceError
+from src.services.georchestra_headers_auth import geoserver_auth
 from src.services.geoserver import (
     ACL_ROLE_EVERYONE,
     AclAccessType,
@@ -53,7 +55,7 @@ def _sync_metadata_sharing(
     """Sync METADATA rules to GeoNetwork sharing privileges.
 
     Called after any rule mutation. Resolves group_or_role IDs to GeoNetwork group names
-    via ConsoleService (organizations or roles depending on GN_SYNC_MODE), then delegates
+    via the directory service (organizations or roles depending on GN_SYNC_MODE), then delegates
     to MetadataService.sync_record_sharing.
     Skipped when integrity_link has no associated GeoNetwork record.
 
@@ -74,23 +76,23 @@ def _sync_metadata_sharing(
     )
 
     try:
-        console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
+        directory = get_directory_service()
         if settings.GN_SYNC_MODE == "ORG":
-            items = console_service.get_all_organizations()
+            items = directory.get_all_groups()
             groups_by_id = {
                 item["id"].lower(): item["shortName"]
                 for item in items
                 if item.get("id") and item.get("shortName")
             }
         else:
-            items = console_service.get_all_roles()
+            items = directory.get_all_roles()
             groups_by_id = {
                 item["id"].lower(): item["name"]
                 for item in items
                 if item.get("id") and item.get("name")
             }
     except Exception:
-        logger.error("Failed to fetch groups from console for GN sync")
+        logger.error("Failed to fetch groups from directory for GN sync")
         raise HTTPException(status_code=500, detail="i18nerror.sync.geonetwork")
 
     resolved: list[tuple[str, RuleValue]] = []
@@ -122,7 +124,7 @@ def _sync_data_sharing(
 ) -> None:
     """Sync DATA rules to GeoServer layer ACL.
 
-    Resolves role UUIDs to ROLE_xxx names via the Console API before syncing.
+    Resolves role UUIDs to ROLE_xxx names via the directory before syncing.
     Skipped when integrity_link has no published layer (final_table_name absent).
 
     Args:
@@ -158,8 +160,8 @@ def _sync_data_sharing(
     if uuids_to_resolve:
         # Only call Console when at least one non-EVERYONE role needs UUID resolution.
         # This keeps EVERYONE-only configs resilient to Console outages.
-        console_service = ConsoleService(settings.CONSOLE_INTERNAL_URL)
-        all_roles = console_service.get_all_roles()  # raises ConsoleServiceError on failure
+        directory = get_directory_service()
+        all_roles = directory.get_data_roles()  # raises DirectoryServiceError on failure
         id_to_name = {
             str(r["id"]): f"ROLE_{r['name']}" for r in all_roles if r.get("id") and r.get("name")
         }
@@ -171,7 +173,7 @@ def _sync_data_sharing(
             continue
         role_name = id_to_name.get(rule.group_or_role)
         if not role_name:
-            raise ConsoleServiceError(
+            raise DirectoryServiceError(
                 f"Could not resolve role '{rule.group_or_role}' for GeoServer ACL sync"
             )
         resolved.append((role_name, rule.rule_value))
@@ -191,6 +193,7 @@ def _sync_data_sharing(
             base_url=settings.GEOSERVER_INTERNAL_URL,
             username=settings.GEOSERVER_USER,
             password=settings.GEOSERVER_PASSWORD,
+            auth=geoserver_auth(settings),
             public_url=settings.DATA_PUBLIC_URL,
         )
     geoserver_service.sync_layer_acl(workspace, final_table_name, resolved)
@@ -239,6 +242,7 @@ def _sync_title_geoserver(title: str, integrity_link: IntegrityLink) -> None:
         base_url=settings.GEOSERVER_INTERNAL_URL,
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
+        auth=geoserver_auth(settings),
         public_url=settings.DATA_PUBLIC_URL,
     )
     workspace = integrity_link.integrity_organization.lower()
@@ -355,7 +359,7 @@ def upsert_integrity_link_rule(
         if body.rule_type == RuleType.DATA:
             try:
                 _sync_data_sharing(session, integrity_link_id, integrity_link)
-            except (GeoServerAclError, ConsoleServiceError) as e:
+            except (GeoServerAclError, DirectoryServiceError) as e:
                 logger.error(
                     "GeoServer sync failed while updating rule for IntegrityLink %s: %s",
                     integrity_link_id,
@@ -379,7 +383,7 @@ def upsert_integrity_link_rule(
     if body.rule_type == RuleType.DATA:
         try:
             _sync_data_sharing(session, integrity_link_id, integrity_link)
-        except (GeoServerAclError, ConsoleServiceError) as e:
+        except (GeoServerAclError, DirectoryServiceError) as e:
             logger.error(
                 "GeoServer sync failed while creating rule for IntegrityLink %s: %s",
                 integrity_link_id,
@@ -420,7 +424,7 @@ def delete_integrity_link_rule(
     if rule_type == RuleType.DATA:
         try:
             _sync_data_sharing(session, integrity_link_id, integrity_link)
-        except (GeoServerAclError, ConsoleServiceError) as e:
+        except (GeoServerAclError, DirectoryServiceError) as e:
             logger.error(
                 "GeoServer sync failed while deleting rule for IntegrityLink %s: %s",
                 integrity_link_id,
@@ -538,6 +542,7 @@ def delete_integrity_link(
         base_url=settings.GEOSERVER_INTERNAL_URL,
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
+        auth=geoserver_auth(settings),
         public_url=settings.DATA_PUBLIC_URL,
     )
     deletion_service = DatasetDeletionService(

@@ -1,12 +1,13 @@
 import re
 from collections.abc import Generator
-from typing import Annotated
+from typing import Annotated, Any
 
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
+from requests.auth import AuthBase
 from sqlmodel import Session
 
 from src.core import security
@@ -14,9 +15,12 @@ from src.core.config import get_settings
 from src.core.db import data_engine, datafeeder_engine
 from src.core.logging import get_logger
 from src.models import TokenPayload, User
-from src.services.console_service import ConsoleService, ConsoleServiceError
+from src.services.directory import get_directory_service
+from src.services.directory_service import DirectoryServiceError
 from src.services.georchestra import GeorchestraContext, get_georchestra_context
+from src.services.georchestra_headers_auth import geonetwork_headers_auth, geoserver_auth
 from src.services.geoserver import GeoServerService
+from src.services.keycloak_auth import KeycloakRequestsAuth, get_token_provider
 from src.services.metadata_service import MetadataService
 
 logger = get_logger()
@@ -41,16 +45,16 @@ GeorchestraContextDep = Annotated[GeorchestraContext, Depends(get_georchestra_co
 
 
 def get_org_id(geo_ctx: GeorchestraContextDep) -> str | None:
-    """Resolve the current user's org shortName to its console UUID once per request.
+    """Resolve the current user's org shortName to its directory id once per request.
 
     FastAPI deduplicates dependencies — geo_ctx is shared with the route handler.
-    Returns the UUID string from the console, or None if the org is not found or
-    if the console is unreachable (user treated as having no org-based access).
+    Returns the id from the directory, or None if the org is not found or
+    if the directory is unreachable (user treated as having no org-based access).
     """
     if not geo_ctx.organization:
         return None
 
-    service = ConsoleService(get_settings().CONSOLE_INTERNAL_URL)
+    service = get_directory_service()
     org = service.get_organization(geo_ctx.organization)
 
     return str(org["id"]) if org and "id" in org else None
@@ -73,7 +77,7 @@ def _matches_metadata_filter(name: str, pattern: re.Pattern[str] | None) -> bool
 def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
     """Resolve the identifiers used to match ``IntegrityLinkRule.group_or_role``.
 
-    In ORG mode the list contains the user's org console UUID (at most one entry);
+    In ORG mode the list contains the user's org directory id (at most one entry);
     in ROLE mode it contains the UUIDs of every role the user holds. An empty list
     means the user has no group-based access — only the owner/admin paths apply.
 
@@ -83,10 +87,10 @@ def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
     rules created outside the UI (direct API calls, seeded data, or rules whose
     matching filter was tightened afterwards) from bypassing the filter.
 
-    Performs one Console round-trip per request; FastAPI deduplicates the dependency.
-    Fail-closed on Console errors and on an invalid regex: a warning/error is logged
+    Performs one directory round-trip per request; FastAPI deduplicates the dependency.
+    Fail-closed on directory errors and on an invalid regex: a warning/error is logged
     and an empty list is returned, so owner/admin paths keep working while
-    group-based access is denied until the Console is reachable or the config is fixed.
+    group-based access is denied until the directory is reachable or the config is fixed.
     """
     settings = get_settings()
 
@@ -103,14 +107,14 @@ def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
     if settings.GN_SYNC_MODE == "ROLE":
         if not geo_ctx.roles:
             return []
-        # PERF: one Console call per request; acceptable at UI scale. If this
-        # becomes hot, promote ConsoleService to a request-scoped FastAPI dep
+        # PERF: one directory call per request; acceptable at UI scale. If this
+        # becomes hot, promote the directory service to a request-scoped FastAPI dep
         # and memoize get_all_roles on the instance so rule-sync paths share it.
         try:
-            all_roles = ConsoleService(settings.CONSOLE_INTERNAL_URL).get_all_roles()
-        except ConsoleServiceError as exc:
+            all_roles = get_directory_service().get_all_roles()
+        except DirectoryServiceError as exc:
             logger.warning(
-                "Console unreachable while resolving role UUIDs; "
+                "Directory unreachable while resolving role ids; "
                 "group-based access denied for user '%s': %s",
                 geo_ctx.username,
                 exc,
@@ -125,14 +129,25 @@ def get_group_ids(geo_ctx: GeorchestraContextDep) -> list[str]:
             and _matches_metadata_filter(str(role["name"]), pattern)
         ]
 
-    if not geo_ctx.organization:
-        return []
-    org = ConsoleService(settings.CONSOLE_INTERNAL_URL).get_organization(geo_ctx.organization)
-    if not org or "id" not in org:
-        return []
-    if not _matches_metadata_filter(str(org.get("name", "")), pattern):
-        return []
-    return [str(org["id"])]
+    # ORG mode: the user's organization, and its other groups when the directory knows them
+    directory = get_directory_service()
+    groups: list[dict[str, Any]] = []
+    if geo_ctx.organization:
+        org = directory.get_organization(geo_ctx.organization)
+        if org:
+            groups.append(org)
+    if geo_ctx.username:
+        groups.extend(directory.get_user_groups(geo_ctx.username))
+    ids: list[str] = []
+    for group in groups:
+        group_id = str(group.get("id") or "")
+        if (
+            group_id
+            and group_id not in ids
+            and _matches_metadata_filter(str(group.get("name", "")), pattern)
+        ):
+            ids.append(group_id)
+    return ids
 
 
 GroupIdsDep = Annotated[list[str], Depends(get_group_ids)]
@@ -145,10 +160,22 @@ def get_geoserver_service() -> GeoServerService:
         username=settings.GEOSERVER_USER,
         password=settings.GEOSERVER_PASSWORD,
         public_url=settings.DATA_PUBLIC_URL,
+        auth=geoserver_auth(settings),
     )
 
 
 GeoServerServiceDep = Annotated[GeoServerService, Depends(get_geoserver_service)]
+
+
+def get_geonetwork_credentials() -> AuthBase | tuple[str, str]:
+    """GnApi credentials: Keycloak bearer token, geOrchestra headers or Basic auth, per
+    ``GEONETWORK_AUTH``."""
+    settings = get_settings()
+    if settings.GEONETWORK_AUTH == "keycloak":
+        return KeycloakRequestsAuth(get_token_provider(settings))
+    if settings.GEONETWORK_AUTH == "headers":
+        return geonetwork_headers_auth(settings)
+    return (settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD)
 
 
 def get_metadata_service() -> MetadataService:
@@ -156,7 +183,7 @@ def get_metadata_service() -> MetadataService:
     return MetadataService(
         gn_api_url=f"{settings.GEONETWORK_INTERNAL_URL}/srv/api",
         datadir_path=settings.DATADIR_PATH,
-        credentials=(settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD),
+        credentials=get_geonetwork_credentials(),
         gn_sync_mode=settings.GN_SYNC_MODE,
         metadata_default_group_name=settings.METADATA_DEFAULT_GROUP_NAME,
         metadata_admin_default_group_name=settings.METADATA_ADMIN_DEFAULT_GROUP_NAME,

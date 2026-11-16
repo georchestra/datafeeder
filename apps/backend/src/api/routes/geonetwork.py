@@ -4,6 +4,8 @@ from fastapi.responses import Response
 
 from src.core.config import get_settings
 from src.core.logging import get_logger
+from src.services.georchestra_headers_auth import geonetwork_headers_auth
+from src.services.keycloak_auth import KeycloakHttpxAuth, get_token_provider
 
 router = APIRouter(prefix="/geonetwork", tags=["GeoNetwork"])
 logger = get_logger()
@@ -13,7 +15,7 @@ HOP_BY_HOP_HEADERS = {
     "authorization",  # Don't forward frontend JWT, we add our own GN auth
     "connection",
     "content-encoding",  # httpx auto-decompresses, so don't forward encoding header
-    "cookie",  # Don't forward browser cookies, we use Basic Auth
+    "cookie",  # Don't forward browser cookies, we use our own GN auth
     "keep-alive",
     "proxy-authenticate",
     "proxy-authorization",
@@ -29,9 +31,14 @@ HOP_BY_HOP_HEADERS = {
 FILTERED_HEADER_PREFIXES = ("sec-",)
 
 
-def _get_geonetwork_auth() -> tuple[str, str]:
-    """Get GeoNetwork authentication credentials."""
+def _get_geonetwork_auth() -> httpx.Auth | tuple[str, str]:
+    """Get GeoNetwork authentication: Keycloak bearer token, geOrchestra headers or Basic auth
+    (GEONETWORK_AUTH)."""
     settings = get_settings()
+    if settings.GEONETWORK_AUTH == "keycloak":
+        return KeycloakHttpxAuth(get_token_provider(settings))
+    if settings.GEONETWORK_AUTH == "headers":
+        return geonetwork_headers_auth(settings)
     return (settings.GEONETWORK_USERNAME, settings.GEONETWORK_PASSWORD)
 
 

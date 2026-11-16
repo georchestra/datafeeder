@@ -48,8 +48,8 @@ from src.models.data_import import (
 from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
 from src.services.airflow_client import cancel_dataset_runs
-from src.services.console_service import ConsoleService
 from src.services.dataset_deletion_service import DatasetDeletionService
+from src.services.directory import get_directory_service
 from src.services.executor_factory import get_task_executor
 from src.services.georchestra import GeorchestraContext
 from src.services.geoserver import GeoServerService
@@ -87,11 +87,11 @@ def _get_integrity_link(session: DatafeederSessionDep, integrity_link_id: UUID) 
     return integrity_link
 
 
-def _require_console_owner(owner: str, organization: str) -> None:
-    console_service = ConsoleService(get_settings().CONSOLE_INTERNAL_URL)
-    if console_service.get_organization(organization) is None:
+def _require_directory_owner(owner: str, organization: str) -> None:
+    directory = get_directory_service()
+    if directory.get_organization(organization) is None:
         raise HTTPException(status_code=400, detail=f"Unknown organization '{organization}'")
-    if owner not in console_service.fetch_users_by_usernames([owner]):
+    if owner not in directory.fetch_users_by_usernames([owner]):
         raise HTTPException(status_code=400, detail=f"Unknown user '{owner}'")
 
 
@@ -456,7 +456,7 @@ async def import_integrity_link(
     metadata_service: MetadataServiceDep,
 ) -> IntegrityLinkImportResponse:
     require_administrator(geo_ctx)
-    _require_console_owner(request.link.integrity_owner, request.link.integrity_organization)
+    _require_directory_owner(request.link.integrity_owner, request.link.integrity_organization)
     mode = _resolve_import_mode(request, session, metadata_service)
     exported = request.link
 
@@ -711,7 +711,7 @@ async def reassign_integrity_link_ownership(
     current = integrity_link.integrity_organization
     org_changes = bool(request.organization) and request.organization.lower() != current.lower()
     organization = request.organization if org_changes and request.organization else current
-    _require_console_owner(request.owner, organization)
+    _require_directory_owner(request.owner, organization)
 
     # Layer and record of a prefilled dataset are not managed by datafeeder
     is_prefilled = integrity_link.source_import_type == ImportType.PREFILLED

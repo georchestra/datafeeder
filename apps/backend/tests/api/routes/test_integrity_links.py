@@ -24,7 +24,7 @@ from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
 
-_CONSOLE_PATCH = "src.api.routes.ingestion.integrity_links.ConsoleService"
+_CONSOLE_PATCH = "src.api.routes.ingestion.integrity_links.get_directory_service"
 
 
 @pytest.fixture(autouse=True)

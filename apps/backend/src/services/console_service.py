@@ -3,11 +3,12 @@ from typing import Any
 import httpx
 
 from src.core.logging import get_logger
+from src.services.directory_service import DirectoryServiceError
 
 logger = get_logger()
 
 
-class ConsoleServiceError(Exception):
+class ConsoleServiceError(DirectoryServiceError):
     """Raised when the geOrchestra Console API is unreachable or returns an error."""
 
 
@@ -72,6 +73,10 @@ class ConsoleService:
                 exc_info=True,
             )
             return None
+
+    def get_data_roles(self) -> list[dict[str, Any]]:
+        """Data rules target the console roles."""
+        return self.get_all_roles()
 
     def get_all_roles(self) -> list[dict[str, Any]]:
         """Fetch all roles from geOrchestra console API.
@@ -163,6 +168,14 @@ class ConsoleService:
             for org in organizations
             if org.get("shortName") and org.get("name")
         }
+
+    def get_all_groups(self) -> list[dict[str, Any]]:
+        """The console only has organizations."""
+        return self.get_all_organizations()
+
+    def get_user_groups(self, username: str) -> list[dict[str, Any]]:
+        """Not provided by the console: the user's organization (sec-org header) applies."""
+        return []
 
     def get_all_organizations(self) -> list[dict[str, Any]]:
         """Fetch all organizations from geOrchestra console API.

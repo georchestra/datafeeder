@@ -355,7 +355,7 @@ class TestGetOrgId:
         result = get_org_id(ctx)
         assert result is None
 
-    @patch("src.api.deps.ConsoleService")
+    @patch("src.api.deps.get_directory_service")
     def test_returns_uuid_when_org_found(self, mock_cls: MagicMock) -> None:
         mock_cls.return_value.get_organization.return_value = {"id": "uuid-123", "name": "Org A"}
         ctx = _geo_ctx(organization="org_a")
@@ -365,7 +365,7 @@ class TestGetOrgId:
         assert result == "uuid-123"
         mock_cls.return_value.get_organization.assert_called_once_with("org_a")
 
-    @patch("src.api.deps.ConsoleService")
+    @patch("src.api.deps.get_directory_service")
     def test_returns_none_when_org_not_found(self, mock_cls: MagicMock) -> None:
         mock_cls.return_value.get_organization.return_value = None
         ctx = _geo_ctx(organization="unknown_org")
@@ -374,7 +374,7 @@ class TestGetOrgId:
 
         assert result is None
 
-    @patch("src.api.deps.ConsoleService")
+    @patch("src.api.deps.get_directory_service")
     def test_returns_none_when_console_unreachable(self, mock_cls: MagicMock) -> None:
         mock_cls.return_value.get_organization.return_value = None
         ctx = _geo_ctx(organization="org_a")
@@ -383,7 +383,7 @@ class TestGetOrgId:
 
         assert result is None
 
-    @patch("src.api.deps.ConsoleService")
+    @patch("src.api.deps.get_directory_service")
     def test_returns_none_when_id_missing_from_response(self, mock_cls: MagicMock) -> None:
         mock_cls.return_value.get_organization.return_value = {"name": "Org A"}  # no 'id' key
         ctx = _geo_ctx(organization="org_a")
@@ -468,7 +468,7 @@ class TestGetGroupIds:
         mock_settings.return_value.METADATA_GROUPS_LABEL_FILTER_REGEX = filter_regex
 
     @patch("src.api.deps.get_settings")
-    @patch("src.api.deps.ConsoleService")
+    @patch("src.api.deps.get_directory_service")
     def test_org_mode_returns_single_org_uuid(
         self, mock_cls: MagicMock, mock_settings: MagicMock
     ) -> None:
@@ -479,6 +479,24 @@ class TestGetGroupIds:
         assert get_group_ids(ctx) == ["org-uuid"]
 
     @patch("src.api.deps.get_settings")
+    @patch("src.api.deps.get_directory_service")
+    def test_org_mode_includes_the_user_groups(
+        self, mock_cls: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        """Groups the user belongs to (besides its organization) grant access too."""
+        self._configure(mock_settings, mode="ORG", filter_regex="^(?!Hidden).*")
+        mock_cls.return_value.get_organization.return_value = {"id": "org-uuid", "name": "Org A"}
+        mock_cls.return_value.get_user_groups.return_value = [
+            {"id": "org-uuid", "name": "Org A"},
+            {"id": "group-uuid", "name": "Projet Littoral"},
+            {"id": "hidden-uuid", "name": "Hidden group"},
+        ]
+        ctx = _geo_ctx(organization="org_a")
+
+        assert get_group_ids(ctx) == ["org-uuid", "group-uuid"]
+        mock_cls.return_value.get_user_groups.assert_called_once_with(ctx.username)
+
+    @patch("src.api.deps.get_settings")
     def test_org_mode_returns_empty_when_no_org(self, mock_settings: MagicMock) -> None:
         self._configure(mock_settings, mode="ORG")
         ctx = _geo_ctx(organization="")
@@ -486,7 +504,7 @@ class TestGetGroupIds:
         assert get_group_ids(ctx) == []
 
     @patch("src.api.deps.get_settings")
-    @patch("src.api.deps.ConsoleService")
+    @patch("src.api.deps.get_directory_service")
     def test_role_mode_returns_uuids_of_user_roles_only(
         self, mock_cls: MagicMock, mock_settings: MagicMock
     ) -> None:
@@ -522,7 +540,7 @@ class TestGetGroupIds:
 
     @patch("src.api.deps.logger")
     @patch("src.api.deps.get_settings")
-    @patch("src.api.deps.ConsoleService")
+    @patch("src.api.deps.get_directory_service")
     def test_role_mode_returns_empty_and_logs_when_console_unreachable(
         self, mock_cls: MagicMock, mock_settings: MagicMock, mock_logger: MagicMock
     ) -> None:
@@ -554,7 +572,7 @@ class TestGetGroupIds:
     # tightened regex.
 
     @patch("src.api.deps.get_settings")
-    @patch("src.api.deps.ConsoleService")
+    @patch("src.api.deps.get_directory_service")
     def test_role_mode_filter_drops_roles_outside_pattern(
         self, mock_cls: MagicMock, mock_settings: MagicMock
     ) -> None:
@@ -575,7 +593,7 @@ class TestGetGroupIds:
         assert get_group_ids(ctx) == ["id-test-editor"]
 
     @patch("src.api.deps.get_settings")
-    @patch("src.api.deps.ConsoleService")
+    @patch("src.api.deps.get_directory_service")
     def test_role_mode_filter_returns_empty_when_no_role_matches(
         self, mock_cls: MagicMock, mock_settings: MagicMock
     ) -> None:
@@ -595,7 +613,7 @@ class TestGetGroupIds:
         assert get_group_ids(ctx) == []
 
     @patch("src.api.deps.get_settings")
-    @patch("src.api.deps.ConsoleService")
+    @patch("src.api.deps.get_directory_service")
     def test_org_mode_filter_drops_org_outside_pattern(
         self, mock_cls: MagicMock, mock_settings: MagicMock
     ) -> None:
@@ -609,7 +627,7 @@ class TestGetGroupIds:
         assert get_group_ids(ctx) == []
 
     @patch("src.api.deps.get_settings")
-    @patch("src.api.deps.ConsoleService")
+    @patch("src.api.deps.get_directory_service")
     def test_org_mode_filter_keeps_org_matching_pattern(
         self, mock_cls: MagicMock, mock_settings: MagicMock
     ) -> None:

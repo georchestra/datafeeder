@@ -228,6 +228,14 @@ class Settings(BaseSettings):
 
     GEOSERVER_PASSWORD: str = "testadmin"
 
+    # GeoServer authentication: "basic" (GEOSERVER_USER/PASSWORD) or "headers" (geOrchestra
+    # sec-* headers of GEOSERVER_USER with SEC_HEADERS_ROLES, GEOSERVER_INTERNAL_URL being
+    # GeoServer itself, not the gateway: deployments without LDAP behind the gateway)
+    GEOSERVER_AUTH: Literal["basic", "headers"] = "basic"
+
+    # Roles sent in sec-roles by the "headers" authentications
+    SEC_HEADERS_ROLES: str = "ROLE_ADMINISTRATOR"
+
     # Geonetwork
     GEONETWORK_INTERNAL_URL: str = "http://localhost:8080/geonetwork"
 
@@ -244,8 +252,33 @@ class Settings(BaseSettings):
 
     METADATA_ADMIN_DEFAULT_GROUP_NAME: str = "sample"
 
-    # Console
+    # GeoNetwork authentication: "basic" (GEONETWORK_USERNAME/PASSWORD), "keycloak"
+    # (bearer token of the KEYCLOAK_CLIENT_ID service account, for GeoNetwork's jwt-headers
+    # security mode) or "headers" (geOrchestra sec-* headers of GEONETWORK_USERNAME with
+    # SEC_HEADERS_ROLES, GEONETWORK_INTERNAL_URL being GeoNetwork itself, not the gateway)
+    GEONETWORK_AUTH: Literal["basic", "keycloak", "headers"] = "basic"
+
+    # Directory of users / organizations / roles: "console" or "keycloak"
+    DIRECTORY_PROVIDER: Literal["console", "keycloak"] = "console"
+
+    # Console (DIRECTORY_PROVIDER=console)
     CONSOLE_INTERNAL_URL: str = "http://localhost:8085/console"
+
+    # Keycloak (DIRECTORY_PROVIDER=keycloak and/or GEONETWORK_AUTH=keycloak)
+    KEYCLOAK_INTERNAL_URL: str = "http://localhost:8180"
+    KEYCLOAK_REALM: str = "georchestra"
+    # Confidential client with service account enabled
+    KEYCLOAK_CLIENT_ID: str = "datafeeder"
+    KEYCLOAK_CLIENT_SECRET: str = ""
+    # Path of the group whose children are the organizations ("" = top-level groups)
+    KEYCLOAK_ORG_GROUP_PATH: str = ""
+    # Group attributes holding the organization long name and email
+    KEYCLOAK_ORG_NAME_ATTRIBUTE: str = "o"
+    # Group attribute holding the organization code (short name); "" = the group name
+    KEYCLOAK_ORG_CODE_ATTRIBUTE: str = ""
+    # Group attribute flagging an organization (value "true"); "" = every candidate group
+    KEYCLOAK_ORG_FLAG_ATTRIBUTE: str = ""
+    KEYCLOAK_ORG_MAIL_ATTRIBUTE: str = "mail"
 
     # Metadata groups (for authorization UI)
     METADATA_GROUPS_LABEL_FILTER_REGEX: str = ""

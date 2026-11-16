@@ -255,7 +255,31 @@ class MetadataService:
             organization_name=organization_name,
             layer_urls=layer_urls,
         )
-        return self.publish_metadata(metadata_xml)
+        return self.publish_metadata(
+            metadata_xml, group_id=self.publication_group_id(integrity_link)
+        )
+
+    def publication_group_id(self, integrity_link: IntegrityLink) -> str:
+        """GeoNetwork group the record is created in.
+
+        The group of the dataset (resolved as for its ownership), else the default metadata
+        group. The historical "100" is only a last resort: GeoNetwork group ids are not fixed,
+        and a missing group makes the record creation fail (404).
+        """
+        user_id, profile = self.resolve_user_id(integrity_link)
+        group_id = self.choose_group_and_template(
+            self.resolve_group_id(integrity_link, user_id, profile)
+        )[0]
+        if group_id is None:
+            defaults = self._resolve_group_by_org_name(self.metadata_default_group_name)
+            group_id = defaults[0] if defaults else None
+        if group_id is None:
+            logger.warning(
+                "No GeoNetwork group found for dataset %s, creating its record in group 100",
+                integrity_link.id,
+            )
+            return "100"
+        return str(group_id)
 
     def set_record_ownership(self, integrity_link: IntegrityLink) -> None:
         """Set ownership of a GeoNetwork metadata record.
@@ -477,7 +501,10 @@ class MetadataService:
                     org_name = search.group(1)
             gn_group_id = group_id_by_name.get(org_name.lower())
             if gn_group_id is None:
-                raise ValueError(f"No GN group found for org '{org_name}'")
+                # e.g. a group just created in the directory, not synchronized by GeoNetwork yet:
+                # GeoNetwork links it to the directory group (by name) at its next synchronization
+                gn_group_id = self.create_group(org_name)
+                group_id_by_name[org_name.lower()] = gn_group_id
 
             is_write = rule_value == RuleValue.WRITE
             gn_privileges.append(
@@ -501,6 +528,27 @@ class MetadataService:
             metadata_uuid,
             len(gn_privileges),
         )
+
+    def create_group(self, name: str) -> int:
+        """Create a GeoNetwork group, returning its id.
+
+        Raises:
+            ValueError: If GeoNetwork does not create it.
+        """
+        resp = self.gn_api.session.put(
+            f"{self.gn_api.api_url}/groups",
+            json={"id": -99, "name": name, "label": {}},
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            resp.raise_for_status()
+            group_id = int(resp.json())
+        except Exception as exc:
+            raise ValueError(
+                f"No GN group found for org '{name}', and unable to create it"
+            ) from exc
+        logger.info("Created GeoNetwork group %s (id %s)", name, group_id)
+        return group_id
 
     def toggle_publish_metadata_record(self, metadata_uuid: str, publish: bool) -> None:
         """Toggle publication status of a metadata record in GeoNetwork.

@@ -45,7 +45,17 @@ counterpart.
 | `GN_SYNC_MODE` | `ORG` or `ROLE` — which geOrchestra group flavor GeoNetwork groups are synced from |
 | `METADATA_DEFAULT_GROUP_NAME` | Default GeoNetwork group name used when publishing metadata |
 | `METADATA_ADMIN_DEFAULT_GROUP_NAME`| Default GeoNetwork group name used when publishing metadata user having administrator profile |
-| `CONSOLE_INTERNAL_URL` | Internal URL of the geOrchestra console |
+| `GEONETWORK_AUTH` | GeoNetwork authentication: `basic` (default, `GEONETWORK_USERNAME`/`GEONETWORK_PASSWORD`), `keycloak` (service-account bearer token, for GeoNetwork's `jwt-headers` security mode) or `headers` (geOrchestra `sec-*` headers of `GEONETWORK_USERNAME`, `GEONETWORK_INTERNAL_URL` being GeoNetwork itself: deployments without LDAP, where the gateway cannot check Basic credentials) |
+| `GEOSERVER_AUTH` | GeoServer authentication: `basic` (default, `GEOSERVER_USER`/`GEOSERVER_PASSWORD`) or `headers` (geOrchestra `sec-*` headers of `GEOSERVER_USER`, `GEOSERVER_INTERNAL_URL` being GeoServer itself) |
+| `SEC_HEADERS_ROLES` | Roles sent in `sec-roles` by the `headers` authentications (default `ROLE_ADMINISTRATOR`). The backends must only be reachable from the internal network |
+| `DIRECTORY_PROVIDER` | Directory of users, organizations and roles: `console` (default) or `keycloak` — see [Keycloak directory](#keycloak-directory) |
+| `CONSOLE_INTERNAL_URL` | Internal URL of the geOrchestra console (`DIRECTORY_PROVIDER=console`) |
+| `KEYCLOAK_INTERNAL_URL` / `KEYCLOAK_REALM` | Keycloak internal URL and realm |
+| `KEYCLOAK_CLIENT_ID` / `KEYCLOAK_CLIENT_SECRET` | Confidential client whose service account calls the Keycloak admin API and GeoNetwork |
+| `KEYCLOAK_ORG_GROUP_PATH` | Path of the group whose children are the organizations (empty: top-level groups) |
+| `KEYCLOAK_ORG_NAME_ATTRIBUTE` / `KEYCLOAK_ORG_MAIL_ATTRIBUTE` | Group attributes holding the organization long name (`o`, else the group name) and email (`mail`) |
+| `KEYCLOAK_ORG_CODE_ATTRIBUTE` | Group attribute holding the organization code (short name); empty: the group name |
+| `KEYCLOAK_ORG_FLAG_ATTRIBUTE` | Group attribute flagging an organization (value `true`); empty: every top-level group (or child of `KEYCLOAK_ORG_GROUP_PATH`) |
 | `METADATA_GROUPS_LABEL_FILTER_REGEX` | Regex used to filter metadata groups shown in the authorization UI |
 | `DATA_GROUPS_LABEL_FILTER_REGEX` | Regex used to filter data groups shown in the GeoServer authorization UI |
 | `AIRFLOW_INTERNAL_URL` / `AIRFLOW_USERNAME` / `AIRFLOW_PASSWORD` | Airflow REST API used to trigger and monitor DAG runs |
@@ -62,6 +72,41 @@ counterpart.
 
     `SECRET_KEY`, `POSTGRES_DATAFEEDER_PASSWORD` and `ENCRYPTION_KEY` must not be left at their default/placeholder
     value outside of `local` environment: the backend refuses to start otherwise.
+
+## Keycloak directory
+
+By default the backend reads organizations, roles and user display names from the geOrchestra console.
+With `DIRECTORY_PROVIDER=keycloak` it reads them from the Keycloak admin REST API instead, so the
+console is not needed:
+
+- organizations are Keycloak groups (top-level groups, or the children of `KEYCLOAK_ORG_GROUP_PATH`):
+  the short name is the group name, the long name and email come from the `o` and `mail` group attributes
+- roles are Keycloak realm roles (built-in `offline_access`, `uma_authorization` and `default-roles-<realm>`
+  are ignored)
+
+In `GN_SYNC_MODE=ORG`, metadata can be shared with every group (organizations and the other
+groups), and a user gets access through its organization and all its groups.
+
+Data (GeoServer layers) is shared with the same groups: a data rule on a group writes the role
+`ROLE_GRP_<CODE>` (`<CODE>` being the group code, see `KEYCLOAK_ORG_CODE_ATTRIBUTE`) in the layer
+rules. Keycloak must give that role to the group members, in a token claim the gateway adds to
+`sec-roles` (e.g. the "geOrchestra group roles" protocol mapper of the geOrchestra Keycloak
+extension, claim `group_roles` listed in the gateway OIDC `roles.json.path`).
+
+With the geOrchestra LDAP federated in Keycloak (group mapper on `ou=orgs`, role mapper on `ou=roles`),
+the backend sees the same organizations and roles as with the console.
+
+The `KEYCLOAK_CLIENT_ID` client must be confidential, with service account enabled and the
+`realm-management` client roles `view-users`, `query-groups` and `view-realm`.
+
+!!! warning "Identifiers"
+
+    Sharing rules store organization / role identifiers. With `keycloak` these are Keycloak ids, which
+    differ from the console ones: rules created with the console provider no longer match after switching.
+
+To call GeoNetwork in its `jwt-headers` security mode (no Basic auth), set `GEONETWORK_AUTH=keycloak`:
+requests carry the service account access token (`Authorization: Bearer`). GeoNetwork must map this
+account to an administrator (e.g. a `gn_roles: ["Administrator"]` claim).
 
 ## Database migrations
 
