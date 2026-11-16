@@ -38,9 +38,9 @@ export interface ListIntegrityLinksIngestionIntegrityLinksGet$Params {
   access?: Array<PublicAccess> | null
 
   /**
-   * Filter by recurrence preset
+   * Filter by recurrence preset, NONE for datasets without a schedule
    */
-  recurrence?: Array<RecurrencePreset> | null
+  recurrence?: Array<RecurrencePreset | 'NONE'> | null
 }
 
 export function listIntegrityLinksIngestionIntegrityLinksGet(

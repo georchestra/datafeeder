@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -39,6 +40,10 @@ assert set(_CRON_EXPRESSIONS) == set(RecurrencePreset), (
 )
 
 _CRON_TO_PRESET: dict[str, RecurrencePreset] = {v: k for k, v in _CRON_EXPRESSIONS.items()}
+
+
+# Dashboard recurrence filter values: every preset plus datasets without a schedule.
+RecurrenceFilter = RecurrencePreset | Literal["NONE"]
 
 
 class RecurrencePresetItem(BaseModel):
