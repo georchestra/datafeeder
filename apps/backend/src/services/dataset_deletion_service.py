@@ -111,14 +111,8 @@ class DatasetDeletionService:
             ImportType.DIRECT_ACCESS,
         ):
             if parts := integrity_link.parse_data_id():
-                # The feature type of a direct access dataset was created by datafeeder:
-                # delete it too, so its datastore can be cleaned up once unused
-                self.geoserver_service.delete_workspace_layer(
-                    *parts,
-                    recurse=integrity_link.source_import_type == ImportType.DIRECT_ACCESS,
-                )
-                # ACL rules are synced on the lowercased names (see _resolve_gs_layer)
-                self.geoserver_service.delete_layer_acl(parts[0].lower(), parts[1].lower())
+                workspace, layer = parts
+                direct_access_datastore = None
                 if integrity_link.source_import_type == ImportType.DIRECT_ACCESS:
                     # source_url may be missing or malformed on an imported link
                     try:
@@ -129,9 +123,19 @@ class DatasetDeletionService:
                             f"{integrity_link.id}: {e}"
                         )
                     else:
-                        self.geoserver_service.delete_datastore_if_empty(
-                            parts[0].lower(), direct_access_datastore_name(db_key, pg_schema)
-                        )
+                        direct_access_datastore = direct_access_datastore_name(db_key, pg_schema)
+                if direct_access_datastore:
+                    # The feature type of a direct access dataset was created by datafeeder:
+                    # delete it with its layer, so its datastore can be cleaned up once unused
+                    self.geoserver_service.delete_layer(workspace, direct_access_datastore, layer)
+                else:
+                    self.geoserver_service.delete_workspace_layer(workspace, layer)
+                # ACL rules are synced on the lowercased names (see _resolve_gs_layer)
+                self.geoserver_service.delete_layer_acl(workspace.lower(), layer.lower())
+                if direct_access_datastore:
+                    self.geoserver_service.delete_datastore_if_empty(
+                        workspace.lower(), direct_access_datastore
+                    )
 
         # Step 3: Drop final data table (best-effort)
         if delete_layer and integrity_link.final_table_name:
