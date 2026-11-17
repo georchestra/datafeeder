@@ -306,9 +306,7 @@ class TestPrefilledLayer:
 
         deletion_service.delete_dataset(link, session, delete_layer=True)
 
-        geoserver_svc.delete_workspace_layer.assert_called_once_with(
-            "otherws", "roads", recurse=False
-        )
+        geoserver_svc.delete_workspace_layer.assert_called_once_with("otherws", "roads")
         geoserver_svc.delete_layer_acl.assert_called_once_with("otherws", "roads")
         # Org cleanup targets the dataset org, never the workspace of the prefilled layer
         geoserver_svc.delete_workspace_if_empty.assert_called_once_with("testorg")
@@ -359,12 +357,11 @@ class TestDirectAccessLayer:
         with patch.object(deletion_service, "_drop_table_safe") as drop_table:
             deletion_service.delete_dataset(self._link(), session, delete_layer=True)
 
-        geoserver_svc.delete_workspace_layer.assert_called_once_with(
-            "testorg", "rivers", recurse=True
-        )
+        # The feature type is deleted with its layer
+        geoserver_svc.delete_layer.assert_called_once_with("testorg", "patrimoine_geo", "rivers")
+        geoserver_svc.delete_workspace_layer.assert_not_called()
         geoserver_svc.delete_layer_acl.assert_called_once_with("testorg", "rivers")
         geoserver_svc.delete_datastore_if_empty.assert_called_once_with("testorg", "patrimoine_geo")
-        geoserver_svc.delete_layer.assert_not_called()
         drop_table.assert_not_called()  # the source table is never dropped
 
     @patch("src.services.dataset_deletion_service.data_engine")
@@ -388,7 +385,7 @@ class TestDirectAccessLayer:
     @pytest.mark.parametrize("source_url", [None, "not-a-db-uri"])
     @patch("src.services.dataset_deletion_service.data_engine")
     @patch("src.services.dataset_deletion_service.delete_dag")
-    def test_invalid_source_url_skips_datastore_cleanup_only(
+    def test_invalid_source_url_deletes_the_layer_only(
         self,
         mock_delete_dag: MagicMock,
         mock_data_engine: MagicMock,
@@ -404,9 +401,9 @@ class TestDirectAccessLayer:
 
         deletion_service.delete_dataset(link, session, delete_layer=True)
 
-        geoserver_svc.delete_workspace_layer.assert_called_once_with(
-            "testorg", "rivers", recurse=True
-        )
+        # Without its datastore, only the layer can be deleted
+        geoserver_svc.delete_workspace_layer.assert_called_once_with("testorg", "rivers")
+        geoserver_svc.delete_layer.assert_not_called()
         geoserver_svc.delete_layer_acl.assert_called_once_with("testorg", "rivers")
         geoserver_svc.delete_datastore_if_empty.assert_not_called()
         session.delete.assert_called_once_with(link)
