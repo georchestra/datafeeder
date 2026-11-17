@@ -1,5 +1,7 @@
 # Datafeeder
 
+[![E2E tests](https://github.com/georchestra/datafeeder/actions/workflows/e2e-tests.yml/badge.svg?branch=main)](https://github.com/georchestra/datafeeder/actions/workflows/e2e-tests.yml?query=branch%3Amain)
+
 Data ingestion module for geOrchestra - supports CSV, GeoPackage, GeoJSON, Zipped-Shapefile, Parquet, GeoParquet files & OGC services, FTP, Database.
 
 ## Prerequisites
