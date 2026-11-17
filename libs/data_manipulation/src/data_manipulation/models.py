@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
+
 
 class FilterOperator(StrEnum):
     """Filter comparison operator for column filtering."""
@@ -29,6 +31,13 @@ class ForceProjection(BaseModel):
     type: str = Field(default="", description="Projection type, e.g., 'EPSG:4326'")
     y_column: str | None = Field(default=None, description="Latitude/Y coordinate column name")
     x_column: str | None = Field(default=None, description="Longitude/X coordinate column name")
+
+
+def _output_name(original_name: str, new_name: str | None) -> str:
+    """Name of a column in the output: a geometry column is never renamed."""
+    if original_name == DEFAULT_GEOMETRY_COLUMN:
+        return DEFAULT_GEOMETRY_COLUMN
+    return new_name or original_name
 
 
 class ColumnFilter(BaseModel):
@@ -62,6 +71,26 @@ class ColumnConfig(BaseModel):
         default=None, description="Active filter on this column. None = no filter."
     )
 
+    def output_name(self) -> str:
+        """Name of the column in the output: the geometry is never renamed."""
+        return _output_name(self.original_name, self.new_name)
+
+
+class JoinedColumn(BaseModel):
+    """Column of the joined table added to the output, optionally renamed and filtered."""
+
+    original_name: str = Field(..., description="Column name in the joined table")
+    new_name: str | None = Field(
+        default=None, description="Renamed column name. None = keep original name."
+    )
+    filter: ColumnFilter | None = Field(
+        default=None, description="Active filter on this column. None = no filter."
+    )
+
+    def output_name(self) -> str:
+        """Name of the column in the output: a joined geometry is never renamed."""
+        return _output_name(self.original_name, self.new_name)
+
 
 class JoinConfig(BaseModel):
     """LEFT JOIN of the staging table with the final table of another dataset.
@@ -73,7 +102,7 @@ class JoinConfig(BaseModel):
     integrity_link_id: UUID = Field(..., description="Dataset whose final table is joined")
     source_column: str = Field(..., description="Join key column of the staging table")
     target_column: str = Field(..., description="Join key column of the joined table")
-    columns: list[str] = Field(
+    columns: list[JoinedColumn] = Field(
         default_factory=list,
         description="Columns of the joined table to add to the output. Empty = no join.",
     )

@@ -56,6 +56,7 @@ import type {
   TaskStatus,
   ForceProjection,
   JoinConfig,
+  JoinedColumn,
   StagingResponse,
   StagingMetadataResponse,
   StagingPreviewResponse
@@ -70,7 +71,11 @@ import type {
   CastType
 } from '../column-action-menu/column-action-menu.component'
 import type { ColumnFilter } from '../../../core/api/models/column-filter'
-import { DatasetPreviewTableComponent } from '../dataset-preview-table/dataset-preview-table.component'
+import {
+  DatasetPreviewTableComponent,
+  joinColumnId,
+  outputName
+} from '../dataset-preview-table/dataset-preview-table.component'
 import { DatasetJoinComponent } from '../dataset-join/dataset-join.component'
 import { DatasetPreviewMapComponent } from '../dataset-preview-map/dataset-preview-map.component'
 import { UiAlertBoxComponent } from '../ui-alert-box/ui-alert-box.component'
@@ -149,6 +154,7 @@ export class DataImportWizardComponent {
   private renameSubject = new Subject<{
     originalName: string
     newName: string
+    joined?: boolean
   }>()
 
   integrityLinkStore = inject(IntegrityLinkStore)
@@ -226,15 +232,24 @@ export class DataImportWizardComponent {
 
   join = signal<JoinConfig | null>(null)
   joinOpen = signal(false)
-  // Mirrors the names the backend reserves before joining: excluded columns
-  // free their name, and a point built from X/Y takes the geom column.
+  // Mirrors joined_column_clashes in the backend: excluded columns free their
+  // name, id_datafeeder is the primary key of the final table, geom is only for
+  // the joined geometry and is taken by a point built from X/Y.
   joinClashes = computed(() => {
-    const names = this.columnConfigs()
+    const taken = this.columnConfigs()
       .filter((col) => !col.excluded)
-      .map((col) => col.new_name ?? col.original_name)
+      .map(outputName)
+    taken.push('id_datafeeder')
     const projection = this.forceProjection()
-    if (projection?.x_column && projection.y_column) names.push('geom')
-    return (this.join()?.columns ?? []).filter((col) => names.includes(col))
+    if (projection?.x_column && projection.y_column) taken.push('geom')
+    const clashes: string[] = []
+    for (const col of this.join()?.columns ?? []) {
+      const name = outputName(col)
+      const renamedToGeom = name === 'geom' && col.original_name !== 'geom'
+      if (taken.includes(name) || renamedToGeom) clashes.push(col.original_name)
+      taken.push(name)
+    }
+    return clashes
   })
 
   columnNameErrors = signal<Set<string>>(new Set())
@@ -283,14 +298,18 @@ export class DataImportWizardComponent {
 
     this.renameSubject
       .pipe(debounceTime(400), takeUntilDestroyed())
-      .subscribe(({ originalName, newName }) => {
-        this.columnConfigs.update((cols) =>
-          cols.map((col) =>
-            col.original_name === originalName
-              ? { ...col, new_name: newName }
-              : col
+      .subscribe(({ originalName, newName, joined }) => {
+        if (joined) {
+          this.updateJoinColumn(originalName, { new_name: newName })
+        } else {
+          this.columnConfigs.update((cols) =>
+            cols.map((col) =>
+              col.original_name === originalName
+                ? { ...col, new_name: newName }
+                : col
+            )
           )
-        )
+        }
         this.saveConfigAndRefresh()
       })
 
@@ -429,14 +448,63 @@ export class DataImportWizardComponent {
     this.saveConfigAndRefresh()
   }
 
+  onJoinColumnRenameRequested(event: {
+    originalName: string
+    newName: string
+  }): void {
+    this.renameSubject.next({ ...event, joined: true })
+  }
+
+  onJoinColumnFilterChangeRequested(event: {
+    originalName: string
+    filter: ColumnFilter | null
+  }): void {
+    this.updateJoinColumn(event.originalName, {
+      filter: event.filter ?? undefined
+    })
+    this.saveConfigAndRefresh()
+  }
+
+  private updateJoinColumn(
+    originalName: string,
+    changes: Partial<JoinedColumn>
+  ): void {
+    this.join.update(
+      (join) =>
+        join && {
+          ...join,
+          columns: (join.columns ?? []).map((col) =>
+            col.original_name === originalName ? { ...col, ...changes } : col
+          )
+        }
+    )
+  }
+
   // The join is only persisted once a column is added, so a change is saved
   // when columns were or are now part of the join.
   onJoinChange(join: JoinConfig): void {
     const before = this.join()?.columns?.length ?? 0
     const after = join.columns?.length ?? 0
+    this.dropRemovedJoinColumnErrors(join)
     this.join.set(join)
     if (before || after) this.saveConfigAndRefresh()
     if (after > before) this.previewTable()?.scrollToEnd()
+  }
+
+  // The header of a removed joined column is gone and cannot clear its error.
+  private dropRemovedJoinColumnErrors(next: JoinConfig): void {
+    const kept = (next.columns ?? []).map((col) => col.original_name)
+    const removed = (this.join()?.columns ?? []).filter(
+      (col) => !kept.includes(col.original_name)
+    )
+    if (!removed.length) return
+    this.columnNameErrors.update((errors) => {
+      const remaining = new Set(errors)
+      removed.forEach((col) =>
+        remaining.delete(joinColumnId(col.original_name))
+      )
+      return remaining
+    })
   }
 
   // Clashing columns are left out, like an invalid rename is never sent.
@@ -444,7 +512,7 @@ export class DataImportWizardComponent {
     const join = this.join()
     const clashes = this.joinClashes()
     const columns = (join?.columns ?? []).filter(
-      (col) => !clashes.includes(col)
+      (col) => !clashes.includes(col.original_name)
     )
     return join?.source_column && join.target_column && columns.length
       ? { ...join, columns }

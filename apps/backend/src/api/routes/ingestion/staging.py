@@ -10,9 +10,9 @@ from data_manipulation import (
     IntegrityTransformation,
     detect_column_type_from_sqla,
     detect_table_srid,
+    joined_column_clashes,
     read_transformed_preview,
 )
-from data_manipulation.constants import DEFAULT_GEOMETRY_COLUMN
 from data_manipulation.database import schema_exists, table_exists
 from data_manipulation.logging import configure_logging
 from data_manipulation.models import ForceProjection as DataManipulationForceProjection
@@ -1015,6 +1015,26 @@ def edit_staging_metadata(
                 )
             seen.add(name)
 
+    if config.join:
+        # Checked again on each preview and process, where a bad name would only
+        # surface as a failed preview or a failed DAG run.
+        for joined in config.join.columns:
+            if not joined.output_name().strip():
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Joined column '{joined.original_name}' has an empty name. "
+                    "Column names cannot be empty.",
+                )
+        projection = config.force_projection
+        build_point = bool(projection and projection.x_column and projection.y_column)
+        clashes = joined_column_clashes(config.columns, config.join, build_point)
+        if clashes:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Joined column names {clashes} are already used or reserved. "
+                "Each column must have a unique name.",
+            )
+
     if config.title:
         integrity_link.source_file_name = config.title
     if config.file_type:
@@ -1053,13 +1073,6 @@ def edit_staging_metadata(
         integrity_link_id=integrity_link_id,
         group_ids=group_ids,
     )
-
-
-def _output_name(col: ColumnConfig) -> str:
-    """Name of *col* in the transformed table: the staging geom is never renamed."""
-    if col.original_name == DEFAULT_GEOMETRY_COLUMN:
-        return DEFAULT_GEOMETRY_COLUMN
-    return col.new_name or col.original_name
 
 
 @router.get("/{integrity_link_id}/preview")
@@ -1142,7 +1155,9 @@ def get_staging_preview(
     # Excluded staging columns replaced by a joined one stay excluded even with
     # include_excluded: they would clash with it.
     joined_columns: set[str] = (
-        set(config.join.columns) if config is not None and config.join else set()
+        {col.output_name() for col in config.join.columns}
+        if config is not None and config.join
+        else set()
     )
 
     # Track whether the geom column is explicitly excluded in the saved config.
@@ -1169,7 +1184,7 @@ def get_staging_preview(
                         cast_type=None,  # cast is not supported in preview, so ignore any cast_type in config
                         filter=None,  # filter is not supported in preview, so ignore any filter_expression in config
                     )
-                    if col.excluded and _output_name(col) not in joined_columns
+                    if col.excluded and col.output_name() not in joined_columns
                     else col
                     for col in config.columns
                 ]

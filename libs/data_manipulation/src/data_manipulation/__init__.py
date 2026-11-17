@@ -15,6 +15,7 @@ from data_manipulation.models import (
     ForceProjection,
     IntegrityTransformation,
     JoinConfig,
+    JoinedColumn,
     JoinTarget,
 )
 from data_manipulation.transformation.filter_sql import build_filter_clause, build_sql_column_ops
@@ -23,6 +24,7 @@ from data_manipulation.transformation.sql_transform import (
     TransformationQuery,
     build_transformation_select,
     detect_table_srid,
+    joined_column_clashes,
     read_transformed_preview,
     transform_staging_to_final,
 )
@@ -42,6 +44,7 @@ __all__ = [
     "transform_staging_to_final",
     "read_transformed_preview",
     "detect_table_srid",
+    "joined_column_clashes",
     "PreviewResult",
     "TransformationQuery",
     "detect_column_type_from_sqla",
@@ -53,6 +56,7 @@ __all__ = [
     "ForceProjection",
     "IntegrityTransformation",
     "JoinConfig",
+    "JoinedColumn",
     "JoinTarget",
 ]
 

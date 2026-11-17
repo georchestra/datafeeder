@@ -1,8 +1,11 @@
 import { TestBed } from '@angular/core/testing'
+import { By } from '@angular/platform-browser'
 import { DatasetPreviewTableComponent } from './dataset-preview-table.component'
+import { ColumnHeaderComponent } from '../column-header/column-header.component'
 import { TranslateTestingModule } from '../../testing/translate-testing.module'
 import { TranslateMessageFormatCompiler } from 'ngx-translate-messageformat-compiler'
 import type {
+  JoinedColumn,
   StagingMetadataResponse,
   StagingPreviewResponse
 } from '../../../core/api/models'
@@ -240,7 +243,7 @@ describe('DatasetPreviewTableComponent', () => {
       data: [{ insee: '59009', nom: 'source nom', population: 1000 }]
     }
 
-    function create(joinColumns: string[], joinClashes: string[] = []) {
+    function create(joinColumns: JoinedColumn[], joinClashes: string[] = []) {
       const fixture = TestBed.createComponent(DatasetPreviewTableComponent)
       fixture.componentRef.setInput('metadata', metadata)
       fixture.componentRef.setInput('preview', preview)
@@ -250,8 +253,8 @@ describe('DatasetPreviewTableComponent', () => {
       return fixture
     }
 
-    it('renders joined columns after the source columns, read-only and green', () => {
-      const fixture = create(['population'])
+    it('renders joined columns after the source columns, editable and green', () => {
+      const fixture = create([{ original_name: 'population' }])
       const el = fixture.nativeElement as HTMLElement
 
       expect(fixture.componentInstance.displayedColumns()).toEqual([
@@ -260,24 +263,97 @@ describe('DatasetPreviewTableComponent', () => {
         'join:population'
       ])
       const header = el.querySelector('[data-join-header]')!
-      expect(header.textContent).toContain('population')
-      expect(header.querySelector('[data-action-button]')).toBeNull()
+      expect(
+        header.querySelector<HTMLInputElement>('[data-name-input]')!.value
+      ).toBe('population')
+      expect(header.querySelector('[data-action-button]')).not.toBeNull()
       const cell = el.querySelector('[data-join-cell]')!
       expect(cell.textContent?.trim()).toBe('1000')
       expect(cell.classList).toContain('!bg-green-50')
     })
 
     it('includes joined columns in the names checked for duplicates', () => {
-      const fixture = create(['population'])
+      const fixture = create([
+        { original_name: 'population', new_name: 'habitants' }
+      ])
       expect(fixture.componentInstance.allDisplayNames()).toEqual([
         'insee',
         'nom',
+        'habitants'
+      ])
+    })
+
+    it('shows the values of a renamed joined column under its new name', () => {
+      const fixture = create([{ original_name: 'pop', new_name: 'population' }])
+      const el = fixture.nativeElement as HTMLElement
+      expect(el.querySelector('[data-join-cell]')!.textContent?.trim()).toBe(
+        '1000'
+      )
+    })
+
+    it('emits renames and filters of a joined column by its original name', () => {
+      const fixture = create([{ original_name: 'population' }])
+      const renames: unknown[] = []
+      const filters: unknown[] = []
+      const errors: unknown[] = []
+      const table = fixture.componentInstance
+      table.joinColumnRenameRequested.subscribe((e) => renames.push(e))
+      table.joinColumnFilterChangeRequested.subscribe((e) => filters.push(e))
+      table.columnNameValidationErrorChanged.subscribe((e) => errors.push(e))
+      const header = fixture.debugElement.query(
+        By.css('[data-join-header] app-column-header')
+      ).componentInstance as ColumnHeaderComponent
+      const filter = { operator: 'contains' as const, value: '10' }
+
+      header.nameChanged.emit('habitants')
+      header.filterChanged.emit(filter)
+      header.nameValidationErrorChanged.emit('empty')
+
+      expect(renames).toEqual([
+        { originalName: 'population', newName: 'habitants' }
+      ])
+      expect(filters).toEqual([{ originalName: 'population', filter }])
+      expect(errors).toEqual([
+        { originalName: 'join:population', error: 'empty' }
+      ])
+    })
+
+    it('keeps the joined geom name read-only and shows it under geom', () => {
+      const fixture = create([{ original_name: 'geom', new_name: 'shape' }])
+      fixture.componentRef.setInput('preview', {
+        data: [{ insee: '59009', nom: 'n', geom: 'POINT(1 2)' }]
+      })
+      fixture.detectChanges()
+      const el = fixture.nativeElement as HTMLElement
+
+      const input = el.querySelector<HTMLInputElement>(
+        '[data-join-header] [data-name-input]'
+      )!
+      expect(input.readOnly).toBe(true)
+      expect(el.querySelector('[data-join-cell]')!.textContent?.trim()).toBe(
+        'POINT(1 2)'
+      )
+    })
+
+    it('lets a joined column take the name of an excluded source column', () => {
+      const fixture = create([{ original_name: 'population' }])
+      fixture.componentRef.setInput('metadata', {
+        ...metadata,
+        columns: [
+          { original_name: 'insee' },
+          { original_name: 'nom', excluded: true }
+        ]
+      })
+      fixture.detectChanges()
+
+      expect(fixture.componentInstance.joinHeaderNames()).toEqual([
+        'insee',
         'population'
       ])
     })
 
     it('flags a clashing joined column and hides its values', () => {
-      const fixture = create(['nom'], ['nom'])
+      const fixture = create([{ original_name: 'nom' }], ['nom'])
       const el = fixture.nativeElement as HTMLElement
 
       expect(

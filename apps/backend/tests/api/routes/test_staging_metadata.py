@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from data_manipulation import PreviewResult
+from data_manipulation import JoinedColumn, PreviewResult
 from fastapi import HTTPException
 
 from src.api.routes.ingestion.staging import (
@@ -25,7 +25,7 @@ JOIN = JoinConfig(
     integrity_link_id=uuid4(),
     source_column="insee",
     target_column="code_insee",
-    columns=["nom", "population"],
+    columns=[JoinedColumn(original_name="nom"), JoinedColumn(original_name="population")],
 )
 
 
@@ -164,6 +164,50 @@ class TestEditStagingMetadataJoin:
         assert resolve.call_args.args[0] == JOIN
         assert link.integrity_transformation is None
 
+    @pytest.mark.parametrize(
+        "joined",
+        [
+            JoinedColumn(original_name="nom", new_name="insee"),
+            JoinedColumn(original_name="nom", new_name="population"),
+            JoinedColumn(original_name="nom", new_name="id_datafeeder"),
+            JoinedColumn(original_name="nom", new_name="geom"),
+            JoinedColumn(original_name="nom", new_name="  "),
+        ],
+    )
+    def test_invalid_joined_column_name_is_rejected(self, joined: JoinedColumn) -> None:
+        link = _mock_link(None)
+        join = JOIN.model_copy(
+            update={"columns": [joined, JoinedColumn(original_name="population")]}
+        )
+        config = StagingMetadata(
+            columns=[ColumnConfig(original_name="insee")], title="t", file_type=None, join=join
+        )
+
+        with pytest.raises(HTTPException) as exc:
+            _edit_metadata(config, link)
+
+        assert exc.value.status_code == 422
+        assert link.integrity_transformation is None
+
+    def test_joined_column_may_take_the_name_of_an_excluded_one(self) -> None:
+        link = _mock_link(None)
+        join = JOIN.model_copy(
+            update={"columns": [JoinedColumn(original_name="nom", new_name="statut")]}
+        )
+        config = StagingMetadata(
+            columns=[
+                ColumnConfig(original_name="insee"),
+                ColumnConfig(original_name="statut", excluded=True),
+            ],
+            title="t",
+            file_type=None,
+            join=join,
+        )
+
+        _edit_metadata(config, link)
+
+        assert link.integrity_transformation["join"] == join.model_dump(mode="json")
+
     def test_join_with_itself_is_rejected(self) -> None:
         link = _mock_link(None)
         link.id = JOIN.integrity_link_id
@@ -216,8 +260,11 @@ def _preview(
     return response, read
 
 
-def _excluded_geom(join_columns: list[str]) -> dict[str, Any]:
-    join = JOIN.model_copy(update={"columns": join_columns})
+def _excluded_geom(join_columns: list[str | JoinedColumn]) -> dict[str, Any]:
+    columns = [
+        JoinedColumn(original_name=col) if isinstance(col, str) else col for col in join_columns
+    ]
+    join = JOIN.model_copy(update={"columns": columns})
     return {
         "columns": [
             {"original_name": "insee"},
@@ -267,6 +314,16 @@ class TestStagingPreviewJoinedGeom:
         transformation["columns"].append(
             {"original_name": "statut", "new_name": "statut_old", "excluded": True}
         )
+        _, read = _preview(transformation, include_excluded=True)
+
+        config = read.call_args.args[2]
+        assert all(not col.excluded for col in config.columns)
+
+    def test_include_excluded_includes_staging_column_freed_by_renamed_joined_one(self) -> None:
+        transformation = _excluded_geom(
+            [JoinedColumn(original_name="statut", new_name="statut_ref")]
+        )
+        transformation["columns"].append({"original_name": "statut", "excluded": True})
         _, read = _preview(transformation, include_excluded=True)
 
         config = read.call_args.args[2]

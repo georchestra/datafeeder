@@ -2353,7 +2353,7 @@ describe('DataImportWizardComponent - Join', () => {
     integrity_link_id: 'ref-1',
     source_column: 'insee',
     target_column: 'code_insee',
-    columns: ['nom_commune']
+    columns: [{ original_name: 'nom_commune' }]
   }
   const mockMetadata = {
     title: 'test.csv',
@@ -2454,12 +2454,17 @@ describe('DataImportWizardComponent - Join', () => {
     const { component } = createOnPreviewStep()
     component.join.set(JOIN)
 
-    component.onJoinChange({ ...JOIN, columns: ['nom_commune', 'pop'] })
+    component.onJoinChange({
+      ...JOIN,
+      columns: [{ original_name: 'nom_commune' }, { original_name: 'pop' }]
+    })
 
     expect(component.joinClashes()).toEqual(['pop'])
     expect(component.hasColumnNameError()).toBe(true)
     const put = httpMock.expectOne(METADATA_URL)
-    expect(put.request.body.join.columns).toEqual(['nom_commune'])
+    expect(put.request.body.join.columns).toEqual([
+      { original_name: 'nom_commune' }
+    ])
     put.flush(mockMetadata)
     await settle()
   })
@@ -2470,14 +2475,14 @@ describe('DataImportWizardComponent - Join', () => {
       { original_name: 'insee' },
       { original_name: 'pop', excluded: true }
     ])
-    component.join.set({ ...JOIN, columns: ['pop'] })
+    component.join.set({ ...JOIN, columns: [{ original_name: 'pop' }] })
 
     expect(component.joinClashes()).toEqual([])
   })
 
   it('counts geom as a clash when the point is built from X/Y', () => {
     const { component } = createOnPreviewStep()
-    component.join.set({ ...JOIN, columns: ['geom'] })
+    component.join.set({ ...JOIN, columns: [{ original_name: 'geom' }] })
     expect(component.joinClashes()).toEqual([])
 
     component.forceProjection.set({
@@ -2486,6 +2491,109 @@ describe('DataImportWizardComponent - Join', () => {
       y_column: 'lat'
     })
     expect(component.joinClashes()).toEqual(['geom'])
+  })
+
+  it('a renamed joined column no longer clashes and is saved', fakeAsync(() => {
+    const { component } = createOnPreviewStep()
+    component.join.set({ ...JOIN, columns: [{ original_name: 'pop' }] })
+    expect(component.joinClashes()).toEqual(['pop'])
+
+    component.onJoinColumnRenameRequested({
+      originalName: 'pop',
+      newName: 'pop_ref'
+    })
+    tick(400)
+
+    expect(component.joinClashes()).toEqual([])
+    const put = httpMock.expectOne(METADATA_URL)
+    expect(put.request.body.join.columns).toEqual([
+      { original_name: 'pop', new_name: 'pop_ref' }
+    ])
+    expect(put.request.body.columns).toEqual(mockMetadata.columns)
+  }))
+
+  it('a renamed source column clashes with a joined column of that name', () => {
+    const { component } = createOnPreviewStep()
+    component.join.set({
+      ...JOIN,
+      columns: [{ original_name: 'nom', new_name: 'commune' }]
+    })
+    component.columnConfigs.set([
+      { original_name: 'insee', new_name: 'commune' },
+      { original_name: 'pop' }
+    ])
+
+    expect(component.joinClashes()).toEqual(['nom'])
+  })
+
+  it('counts a joined column clashing with an earlier joined one', () => {
+    const { component } = createOnPreviewStep()
+    component.join.set({
+      ...JOIN,
+      columns: [
+        { original_name: 'insee', new_name: 'code' },
+        { original_name: 'code' }
+      ]
+    })
+
+    expect(component.joinClashes()).toEqual(['code'])
+  })
+
+  it('counts a joined column renamed id_datafeeder or geom as a clash', () => {
+    const { component } = createOnPreviewStep()
+    component.join.set({
+      ...JOIN,
+      columns: [
+        { original_name: 'nom', new_name: 'id_datafeeder' },
+        { original_name: 'dept', new_name: 'geom' }
+      ]
+    })
+
+    expect(component.joinClashes()).toEqual(['nom', 'dept'])
+  })
+
+  it('compares the joined geom with the kept source geom even when renamed', () => {
+    const { component } = createOnPreviewStep()
+    component.columnConfigs.set([
+      { original_name: 'insee' },
+      { original_name: 'geom', new_name: 'shape' }
+    ])
+    component.join.set({
+      ...JOIN,
+      columns: [{ original_name: 'geom', new_name: 'other' }]
+    })
+
+    expect(component.joinClashes()).toEqual(['geom'])
+  })
+
+  it('saves the filter of a joined column', () => {
+    const { component } = createOnPreviewStep()
+    component.join.set(JOIN)
+    const filter = { operator: 'starts_with' as const, value: 'Lil' }
+
+    component.onJoinColumnFilterChangeRequested({
+      originalName: 'nom_commune',
+      filter
+    })
+
+    const put = httpMock.expectOne(METADATA_URL)
+    expect(put.request.body.join.columns).toEqual([
+      { original_name: 'nom_commune', filter }
+    ])
+  })
+
+  it('drops the name error of a removed joined column', () => {
+    const { component } = createOnPreviewStep()
+    component.join.set(JOIN)
+    component.onColumnNameValidationErrorChanged({
+      originalName: 'join:nom_commune',
+      error: 'empty'
+    })
+    expect(component.hasColumnNameError()).toBe(true)
+
+    component.onJoinChange({ ...JOIN, columns: [] })
+
+    expect(component.hasColumnNameError()).toBe(false)
   })
 
   it('restores the join from the saved metadata', async () => {

@@ -35,7 +35,7 @@ const JOIN: JoinConfig = {
   integrity_link_id: 'link-1',
   source_column: 'insee',
   target_column: 'code_insee',
-  columns: ['nom']
+  columns: [{ original_name: 'nom' }]
 }
 
 describe('DatasetJoinComponent', () => {
@@ -197,7 +197,12 @@ describe('DatasetJoinComponent', () => {
     fixture.componentInstance.addColumn('')
     fixture.componentInstance.addColumn('geom')
 
-    expect(joins).toEqual([{ ...JOIN, columns: ['nom', 'geom'] }])
+    expect(joins).toEqual([
+      {
+        ...JOIN,
+        columns: [{ original_name: 'nom' }, { original_name: 'geom' }]
+      }
+    ])
   })
 
   it('resets the add dropdown so a column offered back is not shown as selected', async () => {

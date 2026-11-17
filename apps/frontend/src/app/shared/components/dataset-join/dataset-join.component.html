@@ -72,14 +72,14 @@
           (selectValue)="addColumn($any($event))"
         ></gn-ui-dropdown-selector>
       </div>
-      } @for (col of join()?.columns ?? []; track col) {
+      } @for (col of join()?.columns ?? []; track col.original_name) {
       <button
         type="button"
         data-join-column
         class="group flex items-center gap-2 border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 hover:bg-gray-200"
-        (click)="removeColumn(col)"
+        (click)="removeColumn(col.original_name)"
       >
-        {{ col }}
+        {{ col.original_name }}
         <span class="flex group-hover:hidden">
           <ng-icon name="iconoirCheckCircle"></ng-icon>
         </span>

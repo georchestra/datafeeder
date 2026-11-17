@@ -67,6 +67,9 @@ export class ColumnHeaderComponent implements OnDestroy {
 
   columnConfig = input.required<ColumnConfig>()
   allColumnNames = input<string[]>([])
+  filterOnly = input(false)
+  nameEditable = input(true)
+  clash = input(false)
 
   actionMenuOpened = output<ColumnAction>()
   nameChanged = output<string>()
@@ -93,7 +96,14 @@ export class ColumnHeaderComponent implements OnDestroy {
   }
 
   isMenuOpen = signal(false)
-  nameValidationError = signal<string | null>(null)
+  private readonly inputError = signal<string | null>(null)
+  nameValidationError = computed(
+    () =>
+      this.inputError() ??
+      (this.clash()
+        ? this.translate.instant('import.columnHeader.error.duplicate')
+        : null)
+  )
 
   displayName = computed(
     () => this.columnConfig().new_name ?? this.columnConfig().original_name
@@ -191,8 +201,8 @@ export class ColumnHeaderComponent implements OnDestroy {
   // An invalid name is never saved: removing or restoring the column drops it,
   // so its error no longer blocks the next step.
   private discardInvalidName(): void {
-    if (!this.nameValidationError()) return
-    this.nameValidationError.set(null)
+    if (!this.inputError()) return
+    this.inputError.set(null)
     this.nameValidationErrorChanged.emit(null)
     const el = this.nameInputEl()?.nativeElement
     if (el) el.value = this.displayName()
@@ -219,7 +229,7 @@ export class ColumnHeaderComponent implements OnDestroy {
 
     if (!value) {
       const error = this.translate.instant('import.columnHeader.error.empty')
-      this.nameValidationError.set(error)
+      this.inputError.set(error)
       this.nameValidationErrorChanged.emit(error)
       return
     }
@@ -231,12 +241,12 @@ export class ColumnHeaderComponent implements OnDestroy {
       const error = this.translate.instant(
         'import.columnHeader.error.duplicate'
       )
-      this.nameValidationError.set(error)
+      this.inputError.set(error)
       this.nameValidationErrorChanged.emit(error)
       return
     }
 
-    this.nameValidationError.set(null)
+    this.inputError.set(null)
     this.nameValidationErrorChanged.emit(null)
     this.nameChanged.emit(value)
   }

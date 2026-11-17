@@ -99,7 +99,7 @@ export class DatasetJoinComponent implements OnInit {
   )
 
   availableColumns = computed<DropdownChoice[]>(() => {
-    const added = this.join()?.columns ?? []
+    const added = (this.join()?.columns ?? []).map((col) => col.original_name)
     return this.targetColumns()
       .filter((col) => col !== ID_COLUMN && !added.includes(col))
       .map((col) => ({ value: col, label: col }))
@@ -149,7 +149,9 @@ export class DatasetJoinComponent implements OnInit {
 
   addColumn(column: string): void {
     if (!column) return
-    this.update({ columns: [...(this.join()?.columns ?? []), column] })
+    this.update({
+      columns: [...(this.join()?.columns ?? []), { original_name: column }]
+    })
     // The dropdown keeps its own selection, which would show this column again
     // once it is removed and offered back.
     this.addDropdown()!.selected = ''
@@ -157,7 +159,9 @@ export class DatasetJoinComponent implements OnInit {
 
   removeColumn(column: string): void {
     this.update({
-      columns: (this.join()?.columns ?? []).filter((col) => col !== column)
+      columns: (this.join()?.columns ?? []).filter(
+        (col) => col.original_name !== column
+      )
     })
   }
 

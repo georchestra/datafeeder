@@ -90,6 +90,18 @@ describe('ColumnHeaderComponent', () => {
     expect(input?.value).toBe('renamed_column')
   })
 
+  it('should show the duplicate error when the column clashes', () => {
+    const fixture = TestBed.createComponent(ColumnHeaderComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.componentRef.setInput('clash', true)
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    expect(compiled.querySelector('[data-name-error]')?.textContent).toContain(
+      'Ce nom est déjà utilisé'
+    )
+  })
+
   it('should render the action button', () => {
     const fixture = TestBed.createComponent(ColumnHeaderComponent)
     fixture.componentRef.setInput('columnConfig', baseColumnConfig)
