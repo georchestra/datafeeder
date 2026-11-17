@@ -119,11 +119,11 @@ class DatasetDeletionService:
                 )
                 # ACL rules are synced on the lowercased names (see _resolve_gs_layer)
                 self.geoserver_service.delete_layer_acl(parts[0].lower(), parts[1].lower())
-            if integrity_link.source_import_type == ImportType.DIRECT_ACCESS:
-                db_key, pg_schema, _ = parse_db_uri(str(integrity_link.source_url))
-                self.geoserver_service.delete_datastore_if_empty(
-                    workspace_name, direct_access_datastore_name(db_key, pg_schema)
-                )
+                if integrity_link.source_import_type == ImportType.DIRECT_ACCESS:
+                    db_key, pg_schema, _ = parse_db_uri(str(integrity_link.source_url))
+                    self.geoserver_service.delete_datastore_if_empty(
+                        parts[0].lower(), direct_access_datastore_name(db_key, pg_schema)
+                    )
 
         # Step 3: Drop final data table (best-effort)
         if delete_layer and integrity_link.final_table_name:
