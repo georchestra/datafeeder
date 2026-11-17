@@ -2176,6 +2176,36 @@ describe('DataImportWizardComponent - Rename Debounce (T023)', () => {
 
     tick(100)
   }))
+  it('applies renames of different columns made within the debounce delay', fakeAsync(() => {
+    const fixture = TestBed.createComponent(DataImportWizardComponent)
+    const component = fixture.componentInstance
+    fixture.detectChanges()
+
+    component.integrityLinkStore.intlinkId.set('link-abc')
+    component.metadata.set(mockMetadata)
+    component.columnConfigs.set([...mockMetadata.columns])
+    component.join.set({
+      integrity_link_id: 'ref-1',
+      source_column: 'col1',
+      target_column: 'code',
+      columns: [{ original_name: 'nom' }]
+    })
+
+    component.onColumnRenameRequested({ originalName: 'col1', newName: 'a' })
+    tick(100)
+    component.onJoinColumnRenameRequested({ originalName: 'nom', newName: 'b' })
+    tick(400)
+
+    expect(component.columnConfigs()[0].new_name).toBe('a')
+    expect(component.join()?.columns).toEqual([
+      { original_name: 'nom', new_name: 'b' }
+    ])
+
+    httpMock
+      .match(() => true)
+      .forEach((req) => req.flush(req.method === 'PUT' ? mockMetadata : null))
+    tick(100)
+  }))
 })
 
 describe('DataImportWizardComponent - Column Name Validation', () => {

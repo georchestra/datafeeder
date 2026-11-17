@@ -29,8 +29,10 @@ import {
   catchError,
   debounceTime,
   from,
+  groupBy,
   interval,
   lastValueFrom,
+  mergeMap,
   of,
   switchMap,
   takeWhile,
@@ -296,8 +298,15 @@ export class DataImportWizardComponent {
       untracked(() => this.footerService.setContent(tpl ?? null))
     })
 
+    // Debounced per column: typing in another header must not drop a rename.
     this.renameSubject
-      .pipe(debounceTime(400), takeUntilDestroyed())
+      .pipe(
+        groupBy(({ originalName, joined }) =>
+          joined ? joinColumnId(originalName) : originalName
+        ),
+        mergeMap((renames) => renames.pipe(debounceTime(400))),
+        takeUntilDestroyed()
+      )
       .subscribe(({ originalName, newName, joined }) => {
         if (joined) {
           this.updateJoinColumn(originalName, { new_name: newName })
