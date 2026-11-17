@@ -136,10 +136,14 @@ class TestDatafeeder:
         validate_and_assert_feature_count(page, 6721, 15)
         page.goto("/dataset/import")
         page.get_by_label("From a database").check()
-        page.get_by_role("textbox").first.click()
-        page.get_by_role("textbox").first.fill("data")
-        page.get_by_role("textbox").nth(1).click()
-        page.get_by_role("textbox").nth(1).fill("mon_dataset")
+        # SOURCE_DB_1 is the data database, where the dataset above was published
+        page.locator('[data-test="source-database-list"]').get_by_role(
+            "button", name="SOURCE_DB_1"
+        ).click()
+        page.locator('[data-test="source-database-schema"]').get_by_role("button").click()
+        page.locator("[role='listbox'] [data-cy-value='data']").click()
+        page.locator('[data-test="source-database-table"]').get_by_role("button").click()
+        page.locator("[role='listbox'] [data-cy-value='mon_dataset']").click()
         page.get_by_role("button", name="Configure the dataset").click()
         page.get_by_role("textbox", name="Enter a title for your dataset").click()
         page.get_by_role("textbox", name="Enter a title for your dataset").press("ControlOrMeta+a")
