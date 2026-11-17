@@ -10,7 +10,7 @@ COPY ./ .
 RUN npm run build && ls -la dist/
 
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.30-alpine
 
 ENV CUSTOM_SCRIPTS_DIRECTORY=""
 ENV CONFIG_DIRECTORY_OVERRIDE=""
