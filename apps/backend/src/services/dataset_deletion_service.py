@@ -120,10 +120,18 @@ class DatasetDeletionService:
                 # ACL rules are synced on the lowercased names (see _resolve_gs_layer)
                 self.geoserver_service.delete_layer_acl(parts[0].lower(), parts[1].lower())
                 if integrity_link.source_import_type == ImportType.DIRECT_ACCESS:
-                    db_key, pg_schema, _ = parse_db_uri(str(integrity_link.source_url))
-                    self.geoserver_service.delete_datastore_if_empty(
-                        parts[0].lower(), direct_access_datastore_name(db_key, pg_schema)
-                    )
+                    # source_url may be missing or malformed on an imported link
+                    try:
+                        db_key, pg_schema, _ = parse_db_uri(str(integrity_link.source_url))
+                    except ValueError as e:
+                        logger.warning(
+                            f"Cannot clean up the direct access datastore of IntegrityLink "
+                            f"{integrity_link.id}: {e}"
+                        )
+                    else:
+                        self.geoserver_service.delete_datastore_if_empty(
+                            parts[0].lower(), direct_access_datastore_name(db_key, pg_schema)
+                        )
 
         # Step 3: Drop final data table (best-effort)
         if delete_layer and integrity_link.final_table_name:

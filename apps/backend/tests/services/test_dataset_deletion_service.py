@@ -385,6 +385,33 @@ class TestDirectAccessLayer:
         geoserver_svc.delete_layer_acl.assert_not_called()
         geoserver_svc.delete_datastore_if_empty.assert_not_called()
 
+    @pytest.mark.parametrize("source_url", [None, "not-a-db-uri"])
+    @patch("src.services.dataset_deletion_service.data_engine")
+    @patch("src.services.dataset_deletion_service.delete_dag")
+    def test_invalid_source_url_skips_datastore_cleanup_only(
+        self,
+        mock_delete_dag: MagicMock,
+        mock_data_engine: MagicMock,
+        deletion_service: DatasetDeletionService,
+        geoserver_svc: MagicMock,
+        source_url: str | None,
+    ) -> None:
+        """An imported link may lack a valid source_url: the deletion still completes."""
+        link = self._link()
+        link.source_url = source_url
+        session = MagicMock()
+        session.exec.return_value.first.return_value = MagicMock()
+
+        deletion_service.delete_dataset(link, session, delete_layer=True)
+
+        geoserver_svc.delete_workspace_layer.assert_called_once_with(
+            "testorg", "rivers", recurse=True
+        )
+        geoserver_svc.delete_layer_acl.assert_called_once_with("testorg", "rivers")
+        geoserver_svc.delete_datastore_if_empty.assert_not_called()
+        session.delete.assert_called_once_with(link)
+        session.commit.assert_called_once()
+
 
 class TestCancelInFlightRuns:
     """In-flight DAG runs are cancelled before any resource is removed."""
