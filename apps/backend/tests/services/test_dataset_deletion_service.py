@@ -351,17 +351,20 @@ class TestDirectAccessLayer:
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
     ) -> None:
+        link = self._link()
+        # Reassigned to testorg: the layer stays in the workspace of its former organization
+        link.data_id = "oldorg:rivers"
         session = MagicMock()
         session.exec.return_value.first.return_value = MagicMock()  # the org has other datasets
 
         with patch.object(deletion_service, "_drop_table_safe") as drop_table:
-            deletion_service.delete_dataset(self._link(), session, delete_layer=True)
+            deletion_service.delete_dataset(link, session, delete_layer=True)
 
-        # The feature type is deleted with its layer
-        geoserver_svc.delete_layer.assert_called_once_with("testorg", "patrimoine_geo", "rivers")
+        # The feature type is deleted with its layer, in the workspace of data_id
+        geoserver_svc.delete_layer.assert_called_once_with("oldorg", "patrimoine_geo", "rivers")
         geoserver_svc.delete_workspace_layer.assert_not_called()
-        geoserver_svc.delete_layer_acl.assert_called_once_with("testorg", "rivers")
-        geoserver_svc.delete_datastore_if_empty.assert_called_once_with("testorg", "patrimoine_geo")
+        geoserver_svc.delete_layer_acl.assert_called_once_with("oldorg", "rivers")
+        geoserver_svc.delete_datastore_if_empty.assert_called_once_with("oldorg", "patrimoine_geo")
         drop_table.assert_not_called()  # the source table is never dropped
 
     @patch("src.services.dataset_deletion_service.data_engine")
