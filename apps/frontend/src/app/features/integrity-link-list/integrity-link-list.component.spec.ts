@@ -244,6 +244,35 @@ describe('IntegrityLinkListComponent', () => {
     })
   })
 
+  describe('Reference column', () => {
+    it('should show the reference icon only for reference datasets', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/?offset=0')
+        .flush({
+          items: [
+            { ...createMockItem('1'), is_reference_dataset: true },
+            createMockItem('2')
+          ],
+          has_more: false,
+          offset: 0
+        })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      fixture.detectChanges()
+
+      const rows = Array.from<HTMLElement>(
+        fixture.nativeElement.querySelectorAll('.group')
+      )
+      expect(
+        rows.map(
+          (row) => !!row.querySelector('ng-icon[name="iconoirBadgeCheck"]')
+        )
+      ).toEqual([true, false])
+    })
+  })
+
   describe('Load More Pagination', () => {
     it('should take total from the first page and keep it when loading more', async () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)

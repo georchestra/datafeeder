@@ -24,6 +24,7 @@ export interface IntegrityLinkListItem {
   integrity_organization: string
   integrity_owner: string
   integrity_title: string | null
+  is_reference_dataset?: boolean
   last_retrieval_timestamp: string | null
   metadata_id: string | null
   organization_display_name?: string | null

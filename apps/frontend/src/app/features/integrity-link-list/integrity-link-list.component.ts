@@ -46,7 +46,8 @@ import {
   iconoirChatBubbleWarning,
   iconoirTrash,
   iconoirRefreshCircle,
-  iconoirOpenNewWindow
+  iconoirOpenNewWindow,
+  iconoirBadgeCheck
 } from '@ng-icons/iconoir'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 import { QuickCreationComponent } from '../../shared/components/quick-creation/quick-creation.component'
@@ -96,7 +97,8 @@ type RecurrenceFilter = RecurrencePreset | 'NONE'
       iconoirChatBubbleWarning,
       iconoirTrash,
       iconoirRefreshCircle,
-      iconoirOpenNewWindow
+      iconoirOpenNewWindow,
+      iconoirBadgeCheck
     })
   ]
 })

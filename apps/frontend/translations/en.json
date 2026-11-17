@@ -163,6 +163,7 @@
   "integrityLinks.owner": "Author",
   "integrityLinks.readOnly": "Read only",
   "integrityLinks.recurrence": "Recurrence",
+  "integrityLinks.reference": "Reference",
   "integrityLinks.search": "Search...",
   "integrityLinks.title": "Title",
   "integrityLinks.view": "View",
