@@ -23,8 +23,15 @@ uv run pytest -k parquet                                           # one case by
 Tests only depend on the local stack. `tests/test_import.py` imports the files in `files/` by
 URL from a server the tests start on port `8765` (`E2E_FILES_PORT`), and WFS / OGC API Features
 from the stack's GeoServer (`geor:public_layer`). The ingestion must reach both under `localhost`,
-which holds with the local executor (`make up-no-airflow`); with Airflow, set `E2E_HOST` (e.g.
-`host.docker.internal`).
+which holds with the local executor (`make up-no-airflow`). With Airflow, set `E2E_HOST` to an
+address both the host-run backend and the Airflow workers reach, e.g. the Docker bridge gateway:
+
+```bash
+E2E_HOST=172.17.0.1 uv run pytest
+```
+
+`host.docker.internal` does not work on Linux: the backend checks the URL from the host, where
+that name does not resolve.
 
 `tests/test_import_local_file.py` uploads the files in `files/`. The CSV lat/lon case is skipped
 unless `EPSG:2154` is in the backend `PROJECTIONS` setting (the CI sets it).
