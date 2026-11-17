@@ -93,7 +93,8 @@ class DatasetDeletionService:
         workspace_name = integrity_link.integrity_organization.lower()
         datastore_name = f"{workspace_name}_ds"
 
-        # Step 2: Delete GeoServer layer and its ACL rules (best-effort)
+        # Step 2: Delete GeoServer layer and its ACL rules (best-effort),
+        # first for datasets ingested into a final table
         if delete_layer and integrity_link.final_table_name:
             self.geoserver_service.delete_layer(
                 workspace_name=workspace_name,
@@ -104,8 +105,14 @@ class DatasetDeletionService:
                 workspace_name=workspace_name,
                 layer_name=integrity_link.final_table_name,
             )
-        # PREFILLED (layer published outside datafeeder) and DIRECT_ACCESS (table read in place
-        # from a source database) datasets reference their layer through data_id
+            # Step 3: Drop final data table (best-effort), once its layer is gone
+            self._drop_table_safe(get_data_schema(workspace_name), integrity_link.final_table_name)
+        # Step 4: Drop staging table (best-effort)
+        if integrity_link.staging_table_name:
+            self._drop_table_safe("staging", integrity_link.staging_table_name)
+
+        # Step 2, continued: PREFILLED (layer published outside datafeeder) and DIRECT_ACCESS
+        # (table read in place from a source database) datasets reference their layer through data_id
         if delete_layer and integrity_link.source_import_type in (
             ImportType.PREFILLED,
             ImportType.DIRECT_ACCESS,
@@ -124,26 +131,17 @@ class DatasetDeletionService:
                         )
                     else:
                         direct_access_datastore = direct_access_datastore_name(db_key, pg_schema)
+                # ACL rules are synced on the lowercased names (see _resolve_gs_layer)
+                self.geoserver_service.delete_layer_acl(workspace.lower(), layer.lower())
                 if direct_access_datastore:
                     # The feature type of a direct access dataset was created by datafeeder:
                     # delete it with its layer, so its datastore can be cleaned up once unused
                     self.geoserver_service.delete_layer(workspace, direct_access_datastore, layer)
-                else:
-                    self.geoserver_service.delete_workspace_layer(workspace, layer)
-                # ACL rules are synced on the lowercased names (see _resolve_gs_layer)
-                self.geoserver_service.delete_layer_acl(workspace.lower(), layer.lower())
-                if direct_access_datastore:
                     self.geoserver_service.delete_datastore_if_empty(
                         workspace.lower(), direct_access_datastore
                     )
-
-        # Step 3: Drop final data table (best-effort)
-        if delete_layer and integrity_link.final_table_name:
-            self._drop_table_safe(get_data_schema(workspace_name), integrity_link.final_table_name)
-
-        # Step 4: Drop staging table (best-effort)
-        if integrity_link.staging_table_name:
-            self._drop_table_safe("staging", integrity_link.staging_table_name)
+                else:
+                    self.geoserver_service.delete_workspace_layer(workspace, layer)
 
         # Step 5: Delete GeoNetwork record (best-effort)
         if delete_metadata and integrity_link.metadata_id:
