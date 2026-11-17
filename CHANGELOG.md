@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased]
+
+### Upgrade notes
+
+- **Data access rules of direct access datasets must be resynced.** These rules were saved but
+  never pushed to the GeoServer ACL, so the authorizations page shows roles with data access that
+  GeoServer denies. They are now synced, but only when a rule of the dataset changes. After
+  upgrading, edit one data access rule of each affected dataset to push all of its rules. To list
+  the affected datasets:
+
+  ```sql
+  SELECT DISTINCT l.id, l.integrity_title, l.integrity_organization
+  FROM datafeeder.integrity_link l
+  JOIN datafeeder.integrity_link_rules r ON r.integrity_link_id = l.id
+  WHERE l.source_import_type = 'direct_access' AND r.rule_type = 'DATA';
+  ```
+
+### Fixed
+
+- GeoServer layer of direct access datasets: data access rules are synced to the GeoServer ACL, the
+  layer title follows the metadata title, and deleting the dataset removes its layer, its ACL rules
+  and its datastore once unused.
+
 ## [2.1.0] 
 
 Changes since [2.0.1].
