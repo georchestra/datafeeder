@@ -43,6 +43,20 @@ def mock_purge_runs():
         yield mock
 
 
+@pytest.fixture(autouse=True)
+def mock_delete_dag():
+    """delete_dataset deletes the Airflow DAG; keep it mocked everywhere."""
+    with patch("src.services.dataset_deletion_service.delete_dag") as mock:
+        yield mock
+
+
+@pytest.fixture(autouse=True)
+def mock_data_engine():
+    """delete_dataset drops tables and schemas; keep the data database mocked everywhere."""
+    with patch("src.services.dataset_deletion_service.data_engine") as mock:
+        yield mock
+
+
 @pytest.fixture
 def geoserver_svc() -> MagicMock:
     svc = MagicMock()
@@ -68,12 +82,9 @@ def deletion_service(geoserver_svc: MagicMock, metadata_svc: MagicMock) -> Datas
 class TestDatasetDeletionService:
     """Unit tests for DatasetDeletionService.delete_dataset()."""
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_happy_path_with_schedule(
         self,
         mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
         metadata_svc: MagicMock,
@@ -103,12 +114,9 @@ class TestDatasetDeletionService:
         session.delete.assert_called_once_with(link)
         session.commit.assert_called_once()
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_dag_deleted_even_without_schedule(
         self,
         mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
     ) -> None:
         """Without schedule: DAG deletion is still attempted (stale DAGs from a
@@ -121,12 +129,9 @@ class TestDatasetDeletionService:
 
         mock_delete_dag.assert_called_once_with("ingestion_00000000-0000-0000-0000-000000000001")
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_dag_delete_failure_raises_and_skips_remaining_steps(
         self,
         mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
         metadata_svc: MagicMock,
@@ -143,12 +148,9 @@ class TestDatasetDeletionService:
         metadata_svc.delete_record.assert_not_called()
         session.delete.assert_not_called()
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_dag_404_treated_as_success(
         self,
         mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
     ) -> None:
@@ -165,12 +167,8 @@ class TestDatasetDeletionService:
         geoserver_svc.delete_layer.assert_called_once()
         session.delete.assert_called_once_with(link)
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_without_final_table_skips_geoserver_and_table_drop(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
     ) -> None:
@@ -189,12 +187,8 @@ class TestDatasetDeletionService:
         # Only staging table drop should be attempted (1 call)
         assert mock_table.drop.call_count == 1
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_table_drop_failure_is_best_effort(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         metadata_svc: MagicMock,
     ) -> None:
@@ -214,12 +208,8 @@ class TestDatasetDeletionService:
         metadata_svc.delete_record.assert_called_once()
         session.delete.assert_called_once_with(link)
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_without_metadata_id_skips_geonetwork(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         metadata_svc: MagicMock,
     ) -> None:
@@ -237,12 +227,9 @@ class TestDatasetDeletionService:
 class TestKeepLayerAndMetadata:
     """delete_layer / delete_metadata = False keep the published data and the record."""
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_keeps_layer_table_and_record(
         self,
         mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
         metadata_svc: MagicMock,
@@ -265,12 +252,8 @@ class TestKeepLayerAndMetadata:
         mock_delete_dag.assert_called_once()
         session.delete.assert_called_once_with(link)
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_options_are_independent(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
         metadata_svc: MagicMock,
@@ -289,12 +272,8 @@ class TestKeepLayerAndMetadata:
 class TestPrefilledLayer:
     """A prefilled dataset references a layer published outside datafeeder."""
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_deletes_the_referenced_layer_and_cleans_up_the_dataset_org(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
     ) -> None:
@@ -311,12 +290,8 @@ class TestPrefilledLayer:
         # Org cleanup targets the dataset org, never the workspace of the prefilled layer
         geoserver_svc.delete_workspace_if_empty.assert_called_once_with("testorg")
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_referenced_layer_is_kept_by_default(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
     ) -> None:
@@ -342,12 +317,8 @@ class TestDirectAccessLayer:
         link.data_id = "testorg:rivers"
         return link
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_deletes_layer_acl_and_unused_source_schema_datastore(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
     ) -> None:
@@ -367,12 +338,8 @@ class TestDirectAccessLayer:
         geoserver_svc.delete_datastore_if_empty.assert_called_once_with("oldorg", "patrimoine_geo")
         drop_table.assert_not_called()  # the source table is never dropped
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_layer_is_kept_without_delete_layer(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
     ) -> None:
@@ -386,12 +353,8 @@ class TestDirectAccessLayer:
         geoserver_svc.delete_datastore_if_empty.assert_not_called()
 
     @pytest.mark.parametrize("source_url", [None, "not-a-db-uri"])
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_invalid_source_url_deletes_the_layer_only(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
         source_url: str | None,
@@ -416,12 +379,8 @@ class TestDirectAccessLayer:
 class TestCancelInFlightRuns:
     """In-flight DAG runs are cancelled before any resource is removed."""
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_cancels_runs_for_the_dataset(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         mock_cancel_runs: MagicMock,
     ) -> None:
@@ -433,12 +392,8 @@ class TestCancelInFlightRuns:
 
         mock_cancel_runs.assert_called_once_with("00000000-0000-0000-0000-000000000001")
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_cancel_failure_is_best_effort(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         mock_cancel_runs: MagicMock,
     ) -> None:
@@ -456,12 +411,8 @@ class TestCancelInFlightRuns:
 class TestPurgeRunHistory:
     """Airflow run history is purged before the IntegrityLink row is deleted."""
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_purges_run_history(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         mock_purge_runs: MagicMock,
     ) -> None:
@@ -473,12 +424,8 @@ class TestPurgeRunHistory:
 
         mock_purge_runs.assert_called_once_with("00000000-0000-0000-0000-000000000001")
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_purge_failure_is_best_effort(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         mock_purge_runs: MagicMock,
     ) -> None:
@@ -496,12 +443,9 @@ class TestPurgeRunHistory:
 class TestLocalExecutor:
     """With TASK_EXECUTOR=LOCAL, no Airflow calls are made and none can block deletion."""
 
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_local_executor_skips_airflow_calls(
         self,
         mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         mock_cancel_runs: MagicMock,
         mock_purge_runs: MagicMock,
@@ -531,13 +475,10 @@ class TestOrgResourceCleanup:
     """Shared org resources are cleaned up when the last dataset is removed."""
 
     @patch("src.services.dataset_deletion_service.get_data_schema", return_value="testorg")
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_last_dataset_triggers_cleanup(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         mock_get_schema: MagicMock,
+        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
     ) -> None:
@@ -554,12 +495,8 @@ class TestOrgResourceCleanup:
         mock_data_engine.connect.assert_called()
 
     @patch("src.services.dataset_deletion_service.get_data_schema", return_value="testorg")
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_remaining_datasets_skip_cleanup(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         mock_get_schema: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
@@ -575,13 +512,10 @@ class TestOrgResourceCleanup:
         geoserver_svc.delete_workspace_if_empty.assert_not_called()
 
     @patch("src.services.dataset_deletion_service.get_data_schema", return_value="data")
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_shared_data_schema_is_never_dropped(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         mock_get_schema: MagicMock,
+        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
     ) -> None:
@@ -598,13 +532,10 @@ class TestOrgResourceCleanup:
         mock_data_engine.connect.assert_not_called()
 
     @patch("src.services.dataset_deletion_service.get_data_schema", return_value="testorg")
-    @patch("src.services.dataset_deletion_service.data_engine")
-    @patch("src.services.dataset_deletion_service.delete_dag")
     def test_cleanup_failure_is_best_effort(
         self,
-        mock_delete_dag: MagicMock,
-        mock_data_engine: MagicMock,
         mock_get_schema: MagicMock,
+        mock_data_engine: MagicMock,
         deletion_service: DatasetDeletionService,
         geoserver_svc: MagicMock,
     ) -> None:
