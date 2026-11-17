@@ -184,6 +184,7 @@ class IntegrityLinkListItem(BaseModel):
     gs_is_published: bool = False
     public_access: PublicAccess = PublicAccess.UNCONFIGURED
     has_final_table: bool = False
+    is_reference_dataset: bool = False
     owner_display_name: str | None = None
     organization_display_name: str | None = None
 

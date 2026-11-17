@@ -154,7 +154,8 @@ _public_access_expr = case(
     description="List integrity links with role-based filtering. "
     "Normal users see only their own links, administrators see all links. "
     "Supports filtering by title search, organization, owner, public access level, "
-    "and recurrence preset (AND across filters, OR within a filter's multiple values).",
+    "recurrence preset and reference dataset flag "
+    "(AND across filters, OR within a filter's multiple values).",
 )
 def list_integrity_links(
     session: DatafeederSessionDep,
@@ -176,6 +177,9 @@ def list_integrity_links(
         list[RecurrenceFilter] | None,
         Query(description="Filter by recurrence preset, NONE for datasets without a schedule"),
     ] = None,
+    reference: Annotated[
+        list[bool] | None, Query(description="Filter by reference dataset flag")
+    ] = None,
 ) -> IntegrityLinkListResponse:
     """
     List integrity links with role-based access control.
@@ -194,6 +198,7 @@ def list_integrity_links(
         owner: Owner usernames to include (OR'd together)
         access: Public access levels to include (OR'd together)
         recurrence: Recurrence presets to include (OR'd together)
+        reference: Reference dataset flags to include (OR'd together)
 
     Returns:
         IntegrityLinkListResponse with items, has_more flag, current offset and, on the first page,
@@ -229,6 +234,8 @@ def list_integrity_links(
         if "NONE" in recurrence:
             conditions.append(schedule.is_(None))
         query = query.where(or_(*conditions))
+    if reference:
+        query = query.where(col(IntegrityLink.is_reference_dataset).in_(reference))
 
     base_query = query.order_by(IntegrityLink.created_at.desc())  # type: ignore[union-attr]
 

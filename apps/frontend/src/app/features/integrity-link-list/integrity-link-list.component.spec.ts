@@ -244,6 +244,35 @@ describe('IntegrityLinkListComponent', () => {
     })
   })
 
+  describe('Reference column', () => {
+    it('should show the reference icon only for reference datasets', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/?offset=0')
+        .flush({
+          items: [
+            { ...createMockItem('1'), is_reference_dataset: true },
+            createMockItem('2')
+          ],
+          has_more: false,
+          offset: 0
+        })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      fixture.detectChanges()
+
+      const rows = Array.from<HTMLElement>(
+        fixture.nativeElement.querySelectorAll('.group')
+      )
+      expect(
+        rows.map(
+          (row) => !!row.querySelector('ng-icon[name="iconoirBadgeCheck"]')
+        )
+      ).toEqual([true, false])
+    })
+  })
+
   describe('Load More Pagination', () => {
     it('should take total from the first page and keep it when loading more', async () => {
       const fixture = TestBed.createComponent(IntegrityLinkListComponent)
@@ -1121,6 +1150,29 @@ describe('IntegrityLinkListComponent', () => {
       )
       expect(req.request.method).toBe('GET')
       req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+    })
+
+    it('should trigger a reload with the boolean reference param when selectedReference changes', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/?offset=0')
+        .flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      component.selectedReference.set(['true'])
+      fixture.detectChanges()
+      await new Promise((resolve) => setTimeout(resolve, 350))
+
+      const req = httpMock.expectOne(
+        (r) =>
+          r.url === 'http://localhost:8000/ingestion/integrity-links/' &&
+          r.params.getAll('reference')?.join(',') === 'true'
+      )
+      req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+      expect(component.hasActiveFilters()).toBe(true)
     })
 
     it('should show noResults, not emptyList, when only a filter is active and there are zero results', async () => {

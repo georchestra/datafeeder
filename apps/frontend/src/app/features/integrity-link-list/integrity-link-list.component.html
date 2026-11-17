@@ -66,10 +66,9 @@
             [allowSearch]="false"
             (selectValues)="selectedRecurrence.set($event)"
           />
-          <!-- Référence has no backend support yet — empty choices, not wired to any filter. -->
           <gn-ui-dropdown-multiselect
             [title]="'integrityLinks.filters.reference' | translate"
-            [choices]="referenceChoices"
+            [choices]="referenceChoices()"
             [selected]="selectedReference()"
             [allowSearch]="false"
             (selectValues)="selectedReference.set($event)"
@@ -101,6 +100,9 @@
       </div>
       <div class="w-44 pr-4 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.recurrence' | translate }}
+      </div>
+      <div class="w-24 pr-4 text-sm font-semibold text-gray-2">
+        {{ 'integrityLinks.reference' | translate }}
       </div>
       <div class="pl-2 w-32 pr-4 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.creation' | translate }}
@@ -169,6 +171,17 @@
           <span class="truncate">{{
             link.schedule | recurrenceLabel : link.preset_id
           }}</span>
+          }
+        </div>
+        <div class="flex w-24 justify-center pr-4 text-gray-2">
+          @if (link.is_reference_dataset) {
+          <ng-icon
+            name="iconoirBadgeCheck"
+            size="1.25em"
+            role="img"
+            [attr.aria-label]="'integrityLinks.reference' | translate"
+            [title]="'integrityLinks.reference' | translate"
+          ></ng-icon>
           }
         </div>
         <div class="pl-2 w-32 pr-4 text-sm text-gray-2">

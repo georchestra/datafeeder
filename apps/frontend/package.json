@@ -7,6 +7,7 @@
     "start": "ng serve --host 0.0.0.0 --serve-path /dataset/",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
+    "generate-api-from-backend": "curl -o openapi.json http://localhost:8000/openapi.json && npm run generate-api && npm run format",
     "generate-api": "ng-openapi-gen",
     "i18n:extract": "ngx-translate-extract -s --fi '  ' --input ./src --output ./translations/{en,de,fr,it,es,nl,pt,sk}.json --clean --format json && npm run format",
     "lint": "eslint .",
