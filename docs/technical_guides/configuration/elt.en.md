@@ -10,10 +10,13 @@ The Docker Compose setup builds a custom Airflow image (`docker/Dockerfile.airfl
 and the shared `libs/data_manipulation` package. For a platform deployment, deploy this image (or your own image
 built the same way) as your Airflow workers/scheduler.
 
-The image is built on the official GDAL image rather than on `apache/airflow`, because the ingestion code shells out
-to `ogr2ogr` and needs GDAL >= 3.13, which no Debian release packages. Airflow is installed on top from
-`apps/elt/uv.lock`, and the official image's `/entrypoint` is reused. See the header of `docker/Dockerfile.airflow`
-for the details.
+The image is built on the official slim `apache/airflow` image (Debian 13 since Airflow 3.4). The slim variant is
+used because the default one preinstalls ~30 providers that each Celery worker process loads, which costs ~230 MiB of
+worker memory at idle. The providers the ELT needs (celery, fab, postgres) and the `libs/data_manipulation`
+dependencies are installed from `apps/elt/uv.lock`; the providers and the celery stack are pinned to Airflow's
+constraints file for the Airflow version, so bump them together. The ingestion code shells out to `ogr2ogr` and needs
+GDAL >= 3.13 with the Parquet driver, which no Debian package provides, so GDAL is installed from conda-forge into
+`/opt/gdal`. See the header of `docker/Dockerfile.airflow` for the details.
 
 ## Key settings
 
@@ -23,7 +26,7 @@ for the details.
 | `AIRFLOW_STAGING_TIMEOUT_SECONDS` | Timeout, in seconds, for the staging task execution (default: `600`) |
 | `USE_ORG_SCHEMA` | Schema of the final tables written by scheduled runs: the org short name when `true`, the shared `data` schema otherwise (default: `false`). **Must match the backend `USE_ORG_SCHEMA`** |
 | `REJECT_MULTI_LAYER_GPKG` | Reject GeoPackages (also inside a ZIP) holding several layers instead of letting `ogr2ogr` keep only the last one; other formats are not checked (default: `true`). Only read by the DAGs: the backend local executor always rejects them |
-| `AIRFLOW_VERSION` | Airflow version installed by `Dockerfile.airflow`; keep in sync with `apps/elt/pyproject.toml` (default: `3.3.2`) |
+| `AIRFLOW_VERSION` | Airflow version installed by `Dockerfile.airflow`; keep in sync with `apps/elt/pyproject.toml` (default: `3.4.0`) |
 
 The backend also needs to be pointed at the Airflow instance: see `AIRFLOW_INTERNAL_URL`, `AIRFLOW_USERNAME` and
 `AIRFLOW_PASSWORD` in the [backend configuration](backend.md).
