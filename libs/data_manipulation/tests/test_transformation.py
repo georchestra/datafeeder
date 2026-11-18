@@ -22,6 +22,7 @@ from data_manipulation.models import (
     ForceProjection,
     IntegrityTransformation,
     JoinConfig,
+    JoinedColumn,
     JoinTarget,
 )
 from data_manipulation.transformation.sql_transform import (
@@ -221,13 +222,18 @@ def _communes_table() -> Table:
 
 
 def _join(
-    columns: list[str] | None = None, staging_columns: list[ColumnConfig] | None = None
+    columns: list[str | JoinedColumn] | None = None,
+    staging_columns: list[ColumnConfig] | None = None,
 ) -> IntegrityTransformation:
+    """Join on ratio = insee; a column given by name is added unrenamed and unfiltered."""
     join = JoinConfig(
         integrity_link_id=uuid4(),
         source_column="ratio",
         target_column="insee",
-        columns=["insee", "dept"] if columns is None else columns,
+        columns=[
+            JoinedColumn(original_name=col) if isinstance(col, str) else col
+            for col in (["insee", "dept"] if columns is None else columns)
+        ],
     )
     return IntegrityTransformation(columns=staging_columns, join=join)
 
@@ -358,11 +364,73 @@ class TestJoin:
                 integrity_link_id=uuid4(),
                 source_column="nope",
                 target_column="insee",
-                columns=["dept"],
+                columns=[JoinedColumn(original_name="dept")],
             )
         )
         with pytest.raises(ValueError, match="nope"):
             build_transformation_select(_staging_table(), config, _communes_table())
+
+    def test_renames_joined_column(self) -> None:
+        config = _join(columns=[JoinedColumn(original_name="dept", new_name="departement")])
+        tq = build_transformation_select(_staging_table(), config, _communes_table())
+        assert tq.property_columns[-1] == "departement"
+        sql = str(tq.select.compile(dialect=postgresql.dialect()))
+        assert "org_a.communes.dept AS departement" in sql
+
+    def test_renaming_joined_column_avoids_clash(self) -> None:
+        config = _join(columns=[JoinedColumn(original_name="name", new_name="commune")])
+        tq = build_transformation_select(_staging_table(), config, _communes_table())
+        assert tq.property_columns.count("name") == 1
+        assert tq.property_columns[-1] == "commune"
+
+    def test_renamed_joined_column_clashes_with_staging_column(self) -> None:
+        config = _join(columns=[JoinedColumn(original_name="dept", new_name="name")])
+        with pytest.raises(ValueError, match="clash"):
+            build_transformation_select(_staging_table(), config, _communes_table())
+
+    def test_joined_columns_clash_with_each_other(self) -> None:
+        config = _join(columns=["dept", JoinedColumn(original_name="insee", new_name="dept")])
+        with pytest.raises(ValueError, match="clash"):
+            build_transformation_select(_staging_table(), config, _communes_table())
+
+    def test_joined_geom_clashes_with_renamed_staging_geom(self) -> None:
+        staging = _staging_columns(geom=ColumnConfig(original_name="geom", new_name="shape"))
+        config = _join(columns=["geom"], staging_columns=staging)
+        with pytest.raises(ValueError, match="clash"):
+            build_transformation_select(_staging_table(), config, _communes_table())
+
+    def test_joined_column_renamed_id_datafeeder_clashes(self) -> None:
+        config = _join(columns=[JoinedColumn(original_name="dept", new_name="id_datafeeder")])
+        with pytest.raises(ValueError, match="clash"):
+            build_transformation_select(_staging_table(), config, _communes_table())
+
+    def test_joined_column_renamed_geom_clashes_without_staging_geom(self) -> None:
+        config = _join(columns=[JoinedColumn(original_name="dept", new_name="geom")])
+        with pytest.raises(ValueError, match="clash"):
+            build_transformation_select(_staging_table(with_geom=False), config, _communes_table())
+
+    def test_joined_geom_is_never_renamed(self) -> None:
+        staging = _staging_columns(geom=ColumnConfig(original_name="geom", excluded=True))
+        config = _join(
+            columns=[JoinedColumn(original_name="geom", new_name="shape")],
+            staging_columns=staging,
+        )
+        tq = build_transformation_select(_staging_table(), config, _communes_table())
+        assert tq.geom_column == "geom"
+        assert "shape" not in tq.property_columns
+
+    def test_filters_on_joined_column(self) -> None:
+        joined = JoinedColumn(
+            original_name="dept",
+            new_name="departement",
+            filter=ColumnFilter(operator=FilterOperator.STARTS_WITH, value="59"),
+        )
+        tq = build_transformation_select(
+            _staging_table(), _join(columns=[joined]), _communes_table()
+        )
+        compiled = tq.select.compile(dialect=postgresql.dialect())
+        assert "CAST(org_a.communes.dept AS TEXT) ILIKE" in str(compiled)
+        assert "59%" in compiled.params.values()
 
 
 class _RecordingConnection:

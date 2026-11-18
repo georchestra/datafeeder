@@ -210,8 +210,37 @@ def reflect_join_table(
     return Table(join_target.table_name, metadata, autoload_with=engine)
 
 
+def joined_column_clashes(
+    columns: list[ColumnConfig], join: JoinConfig, build_point: bool
+) -> list[str]:
+    """Return the output names of joined columns that are not unique.
+
+    A joined column clashes with a kept staging column, with ``id_datafeeder``
+    (the primary key added to the final table), with ``geom`` when the point is
+    built from X/Y or when the column is not the joined geometry, and with an
+    earlier joined column.
+    """
+    taken = [c.output_name() for c in columns if not c.excluded] + [ID_COLUMN]
+    if build_point:
+        taken.append(DEFAULT_GEOMETRY_COLUMN)
+    clashes: list[str] = []
+    for col in join.columns:
+        name = col.output_name()
+        renamed_to_geom = (
+            name == DEFAULT_GEOMETRY_COLUMN and col.original_name != DEFAULT_GEOMETRY_COLUMN
+        )
+        if name in taken or renamed_to_geom:
+            clashes.append(name)
+        taken.append(name)
+    return clashes
+
+
 def _join_from_clause(
-    table: Table, join_table: Table, join: JoinConfig, taken_names: list[str]
+    table: Table,
+    join_table: Table,
+    join: JoinConfig,
+    columns: list[ColumnConfig],
+    build_point: bool,
 ) -> FromClause:
     """Validate *join* and return ``table LEFT JOIN join_table`` on the join keys.
 
@@ -219,9 +248,9 @@ def _join_from_clause(
     typed column of the joined table.
 
     Raises:
-        ValueError: When a join key or a joined column does not exist, or when a
-            joined column has the same name as an output column of *table* or
-            as a reserved output column (``id_datafeeder``).
+        ValueError: When a join key or a joined column does not exist, or when the
+            output name of a joined column is not unique (see
+            :func:`joined_column_clashes`).
     """
     if join.source_column not in table.c:
         raise ValueError(f"Join column '{join.source_column}' not found in table '{table.name}'")
@@ -229,13 +258,13 @@ def _join_from_clause(
         raise ValueError(
             f"Join column '{join.target_column}' not found in table '{join_table.name}'"
         )
-    unknown = [name for name in join.columns if name not in join_table.c]
+    unknown = [col.original_name for col in join.columns if col.original_name not in join_table.c]
     if unknown:
         raise ValueError(f"Columns {unknown} not found in table '{join_table.name}'")
-    clashes = [name for name in join.columns if name in taken_names]
+    clashes = joined_column_clashes(columns, join, build_point)
     if clashes:
         raise ValueError(
-            f"Columns {clashes} of '{join_table.name}' clash with columns of '{table.name}'"
+            f"Joined columns {clashes} clash with other output columns or reserved names"
         )
 
     on_clause = cast(table.c[join.source_column], Text) == cast(
@@ -260,8 +289,9 @@ def build_transformation_select(
         - existing geom + forced projection → ``ST_SetSRID(geom, srid)``,
         - existing geom, no forced projection → passthrough.
     * optional ``LEFT JOIN`` with another table of the same database
-      (``config.join``), whose columns are added, unrenamed, after the staging
-      ones.  Its ``geom`` can replace an excluded staging geometry.
+      (``config.join``), whose columns are added after the staging ones, with
+      their own rename and filter.  Its ``geom`` can replace an excluded
+      staging geometry.
 
     Args:
         table: Reflected SQLAlchemy ``Table`` for the staging table.
@@ -301,11 +331,7 @@ def build_transformation_select(
     if join is not None:
         if join_table is None:
             raise ValueError("config.join is set but no join_table was provided")
-        # id_datafeeder is reserved for the primary key added to the final table.
-        taken_names = [c.new_name or c.original_name for c in columns] + [ID_COLUMN]
-        if build_point:
-            taken_names.append(DEFAULT_GEOMETRY_COLUMN)
-        from_clause = _join_from_clause(table, join_table, join, taken_names)
+        from_clause = _join_from_clause(table, join_table, join, columns, build_point)
 
     select_exprs: list[ColumnElement[Any]] = []
     where_clauses: list[ColumnElement[Any]] = []
@@ -321,7 +347,7 @@ def build_transformation_select(
         else:
             col: Column[Any] = table.c[name]
             expr = _cast_expr(col, col_config.cast_type) if col_config.cast_type else col
-            effective = col_config.new_name or col_config.original_name
+            effective = col_config.output_name()
             select_exprs.append(expr.label(effective))
             property_columns.append(effective)
 
@@ -329,14 +355,19 @@ def build_transformation_select(
                 where_clauses.append(build_filter_clause(col, col_config.filter))
 
     if join is not None and join_table is not None:
-        for name in join.columns:
-            if name == DEFAULT_GEOMETRY_COLUMN:
+        for joined in join.columns:
+            if joined.original_name == DEFAULT_GEOMETRY_COLUMN:
                 # Replaces the staging geometry, excluded (clashes are rejected above).
                 select_exprs.append(_geom_expr(join_table, geom_srid))
                 geom_out = DEFAULT_GEOMETRY_COLUMN
             else:
-                select_exprs.append(join_table.c[name].label(name))
-                property_columns.append(name)
+                joined_col: Column[Any] = join_table.c[joined.original_name]
+                effective = joined.output_name()
+                select_exprs.append(joined_col.label(effective))
+                property_columns.append(effective)
+
+                if joined.filter is not None:
+                    where_clauses.append(build_filter_clause(joined_col, joined.filter))
 
     if build_point and x_col is not None and y_col is not None:
         srid = geom_srid if geom_srid is not None else DEFAULT_SRID

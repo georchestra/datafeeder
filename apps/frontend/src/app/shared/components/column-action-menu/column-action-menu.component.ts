@@ -44,6 +44,7 @@ export type ColumnAction = 'filter' | 'changeType' | 'remove'
 })
 export class ColumnActionMenuComponent {
   columnConfig = input.required<ColumnConfig>()
+  filterOnly = input(false)
 
   actionSelected = output<ColumnAction>()
   typeSelected = output<CastType | null>()

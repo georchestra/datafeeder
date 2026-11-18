@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from data_manipulation.models import IntegrityTransformation, JoinConfig, JoinTarget
+from data_manipulation.models import IntegrityTransformation, JoinConfig, JoinedColumn, JoinTarget
 from fastapi import HTTPException
 
 from src.core.security import AccessLevel
@@ -16,7 +16,9 @@ def _join(columns: list[str] | None = None) -> JoinConfig:
         integrity_link_id=uuid4(),
         source_column="insee",
         target_column="code_insee",
-        columns=["nom"] if columns is None else columns,
+        columns=[
+            JoinedColumn(original_name=col) for col in (["nom"] if columns is None else columns)
+        ],
     )
 
 

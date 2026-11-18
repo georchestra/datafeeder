@@ -11,8 +11,9 @@
         type="text"
         data-name-input
         [disabled]="isExcluded()"
+        [readOnly]="!nameEditable()"
         class="w-full bg-transparent font-bold text-[14px] text-[#646464] leading-[1.5] truncate outline-none"
-        [class.cursor-default]="isExcluded()"
+        [class.cursor-default]="isExcluded() || !nameEditable()"
         [class.pointer-events-none]="isExcluded()"
         [attr.aria-label]="displayName()"
         (input)="onNameInput($event)"
@@ -63,6 +64,7 @@
 <ng-template #menuTemplate>
   <app-column-action-menu
     [columnConfig]="columnConfig()"
+    [filterOnly]="filterOnly()"
     (actionSelected)="onMenuAction($event)"
     (typeSelected)="onTypeSelected($event)"
     (filterValidated)="onFilterValidated($event)"

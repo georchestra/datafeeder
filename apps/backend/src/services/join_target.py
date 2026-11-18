@@ -17,7 +17,9 @@ def joins_geom(transformation: IntegrityTransformation | None) -> bool:
     build_transformation_select).
     """
     join = transformation.join if transformation is not None else None
-    return join is not None and DEFAULT_GEOMETRY_COLUMN in join.columns
+    return join is not None and any(
+        col.original_name == DEFAULT_GEOMETRY_COLUMN for col in join.columns
+    )
 
 
 def resolve_join_target(

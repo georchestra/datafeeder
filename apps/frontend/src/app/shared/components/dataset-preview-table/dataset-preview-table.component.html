@@ -42,34 +42,34 @@
           [class.pointer-events-none]="col.excluded"
           [class.excluded-cell]="col.excluded"
         >
-          {{ row[col.new_name ?? col.original_name] }}
+          {{ row[outputName(col)] }}
         </td>
       </ng-container>
-      } @for (name of joinColumns(); track name) {
-      <ng-container [matColumnDef]="joinColumnId(name)">
+      } @for (col of joinColumns(); track col.original_name) {
+      <ng-container [matColumnDef]="joinColumnId(col.original_name)">
         <th
           mat-header-cell
           *matHeaderCellDef
           data-join-header
           class="!p-0 !bg-gray-200 !border-b !border-r !border-gray-400 !w-[220px] !min-w-[220px] !max-w-[220px] !h-12 last:!border-r-0 !overflow-visible"
         >
-          <div class="relative h-12 px-[5px] py-[8px]">
-            <div
-              class="h-full border flex items-center px-2 bg-white font-bold text-[14px] text-[#646464] truncate"
-              [class.border-red-400]="joinClashes().includes(name)"
-              [class.border-gray-300]="!joinClashes().includes(name)"
-            >
-              {{ name }}
-            </div>
-            @if (joinClashes().includes(name)) {
-            <div
-              data-name-error
-              class="absolute top-full left-0 right-0 z-40 bg-red-50 border border-red-300 text-red-700 text-xs px-2 py-1 shadow-sm"
-            >
-              {{ 'import.columnHeader.error.duplicate' | translate }}
-            </div>
-            }
-          </div>
+          <app-column-header
+            [columnConfig]="col"
+            [allColumnNames]="joinHeaderNames()"
+            [filterOnly]="true"
+            [nameEditable]="col.original_name !== 'geom'"
+            [clash]="joinClashes().includes(col.original_name)"
+            (nameChanged)="onJoinColumnRename(col.original_name, $event)"
+            (nameValidationErrorChanged)="
+              onColumnNameValidationErrorChange(
+                joinColumnId(col.original_name),
+                $event
+              )
+            "
+            (filterChanged)="
+              onJoinColumnFilterChange(col.original_name, $event)
+            "
+          ></app-column-header>
         </th>
         <td
           mat-cell
@@ -77,8 +77,8 @@
           data-join-cell
           class="!px-4 !bg-green-50 !text-gray-900 !border-b !border-r !border-gray-400 !whitespace-nowrap !w-[220px] !min-w-[220px] !max-w-[220px] !h-[37px] last:!border-r-0"
         >
-          @if (!joinClashes().includes(name)) {
-          {{ row[name] }}
+          @if (!joinClashes().includes(col.original_name)) {
+          {{ row[outputName(col)] }}
           }
         </td>
       </ng-container>

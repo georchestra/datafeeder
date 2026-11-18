@@ -58,6 +58,18 @@ describe('ColumnActionMenuComponent', () => {
     expect(compiled.textContent).toContain('Retirer la colonne')
   })
 
+  it('should render only the filter action when filterOnly is set', () => {
+    const fixture = TestBed.createComponent(ColumnActionMenuComponent)
+    fixture.componentRef.setInput('columnConfig', baseColumnConfig)
+    fixture.componentRef.setInput('filterOnly', true)
+    fixture.detectChanges()
+
+    const compiled = fixture.nativeElement as HTMLElement
+    expect(compiled.querySelector('[data-action="filter"]')).not.toBeNull()
+    expect(compiled.querySelector('[data-action="changeType"]')).toBeNull()
+    expect(compiled.querySelector('[data-action="remove"]')).toBeNull()
+  })
+
   it('should toggle the filter panel when "Filter" action is clicked (does not emit actionSelected)', () => {
     const fixture = TestBed.createComponent(ColumnActionMenuComponent)
     fixture.componentRef.setInput('columnConfig', baseColumnConfig)
