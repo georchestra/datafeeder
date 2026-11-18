@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http'
 import {
   Component,
   computed,
@@ -63,6 +62,7 @@ import type {
 import type { SourceData } from '../data-source-selector/data-source-selector.component'
 import { DataSourceSelectorComponent } from '../data-source-selector/data-source-selector.component'
 import { downloadTextBlob } from '../../utils/download.util'
+import { errorDetailKey } from '../../../core/http/http-error.util'
 import { DatasetTitleComponent } from '../dataset-title/dataset-title.component'
 import { DatasetConfigurationComponent } from '../dataset-configuration/dataset-configuration.component'
 import type {
@@ -506,9 +506,9 @@ export class DataImportWizardComponent {
       this.router.navigate([link.id, 'edit'])
     } catch (error) {
       this.importError.set(
-        error instanceof HttpErrorResponse && error.error?.detail
-          ? this.translate.instant(error.error.detail)
-          : this.translate.instant('import.dataSource.genericError')
+        this.translate.instant(
+          errorDetailKey(error, 'import.dataSource.genericError')
+        )
       )
     } finally {
       this.importing.set(false)
@@ -717,12 +717,10 @@ export class DataImportWizardComponent {
       this.metadata.set(updatedMetadata)
       this.columnConfigs.set(updatedMetadata.columns)
     } catch (error) {
-      const errorMessage =
-        error instanceof HttpErrorResponse
-          ? error.error?.detail || error.message
-          : 'import.dataSource.unknownError'
       this.previewError.set(
-        this.translate.instant(errorMessage) || errorMessage
+        this.translate.instant(
+          errorDetailKey(error, 'import.dataSource.unknownError')
+        )
       )
       return
     } finally {
@@ -770,11 +768,11 @@ export class DataImportWizardComponent {
       if (!raw) this.previewError.set(null)
     } catch (error) {
       if (!raw) {
-        const errorMessage =
-          error instanceof HttpErrorResponse
-            ? error.error?.detail || error.message
-            : 'import.dataSource.unknownError'
-        this.previewError.set(this.translate.instant(errorMessage))
+        this.previewError.set(
+          this.translate.instant(
+            errorDetailKey(error, 'import.dataSource.unknownError')
+          )
+        )
         this.previewTabIndex.set(0)
         await this.refreshPreview(integrityLinkId, true)
       }
@@ -802,13 +800,11 @@ export class DataImportWizardComponent {
       this.processing.set(false)
       this.router.navigate([this.integrityLinkStore.intlinkId(), 'edit'])
     } catch (error) {
-      if (error instanceof HttpErrorResponse && error.error?.detail) {
-        this.validationError.set(error.error.detail)
-      } else {
-        this.validationError.set(
-          this.translate.instant('import.dataSource.validationError')
+      this.validationError.set(
+        this.translate.instant(
+          errorDetailKey(error, 'import.dataSource.validationError')
         )
-      }
+      )
       this.processing.set(false)
     }
   }
