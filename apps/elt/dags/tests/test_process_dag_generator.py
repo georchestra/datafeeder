@@ -212,3 +212,14 @@ class TestCreateDagJoinTarget:
             "table_schema": "data",
             "table_name": "communes",
         }
+
+
+class TestLoadScheduledIntegrityLinks:
+    def test_joined_dataset_must_still_be_a_reference_dataset(self, monkeypatch):
+        queries: list[str] = []
+        monkeypatch.setattr(_module, "get_records_as_dicts", lambda sql: queries.append(sql) or [])
+
+        _module.load_scheduled_integrity_links()
+
+        join_clause = queries[0].split("LEFT JOIN")[1].split("WHERE")[0]
+        assert "joined.is_reference_dataset" in join_clause

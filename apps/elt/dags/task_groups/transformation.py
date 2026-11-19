@@ -11,11 +11,28 @@ from data_manipulation import (
     JoinTarget,
     transform_staging_to_final,
 )
-from data_manipulation.database import create_schema
+from data_manipulation.database import create_schema, table_exists
 from sqlalchemy import MetaData, Table
 from utils import get_data_sql_engine, get_staging_schema
 
 logger = logging.getLogger(__name__)
+
+
+def check_join_target(params: dict[str, Any]) -> None:
+    """Fail when the transformation joins a dataset that cannot be joined.
+
+    Scheduled runs get no join_target when the joined dataset is no longer a
+    reference dataset (see process-dag-generator.py). Its table must also exist,
+    as the backend checks for manual runs (get_join_target).
+    """
+    join = (params.get("integrity_transformation") or {}).get("join")
+    if not join or not join.get("columns"):
+        return
+    target = params.get("join_target")
+    if not target or not table_exists(
+        get_data_sql_engine(), target["table_schema"], target["table_name"]
+    ):
+        raise AirflowException("Join failed: the joined dataset is no longer available for join")
 
 
 def process_transformation_group(

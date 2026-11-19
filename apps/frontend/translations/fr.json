@@ -60,6 +60,7 @@
   "footer.saveAndNext.events": "Sauvegarder et continuer",
   "footer.saveAndNext.recurrence": "Sauvegarder et continuer",
   "footer.saveAndOpenInCatalogue": "Sauvegarder et voir la fiche dans le catalogue",
+  "i18nerror.join.unavailable": "Erreur lors de la jointure : la donnée de référence n'est plus disponible",
   "i18nerror.publish.geonetwork": "Erreur lors de la publication des informations du jeu de données",
   "i18nerror.publish.geoserver": "Erreur lors de la publication de la donnée",
   "i18nerror.sync.geonetwork": "Erreur lors de la synchronisation des droits",

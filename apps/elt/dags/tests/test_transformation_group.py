@@ -64,6 +64,7 @@ def _load_transformation_module():
 
     dm_db_stub = types.ModuleType("data_manipulation.database")
     dm_db_stub.create_schema = lambda *a, **kw: None  # type: ignore[attr-defined]
+    dm_db_stub.table_exists = lambda *a: True  # type: ignore[attr-defined]
 
     sqlalchemy_stub = types.ModuleType("sqlalchemy")
     sqlalchemy_stub.MetaData = type("MetaData", (), {"__init__": lambda self, *a, **kw: None})  # type: ignore[attr-defined]
@@ -200,3 +201,36 @@ class TestCleanStagingTableTriggerRule:
         _clean_task_kwargs(group_id="g", clean_on_failure=True)
         read_kwargs = _TASK_REGISTRY["read_transform_write_task"].kwargs
         assert read_kwargs["trigger_rule"] == "none_failed_min_one_success"
+
+
+class TestCheckJoinTarget:
+    """A scheduled run whose joined dataset is no longer joinable gets no join_target."""
+
+    JOIN = {"integrity_link_id": "1", "columns": ["nom"]}
+    TARGET = {"table_schema": "s", "table_name": "t"}
+
+    def test_join_without_join_target_raises(self):
+        with pytest.raises(Exception, match="Join failed"):
+            _transformation.check_join_target(
+                {"integrity_transformation": {"join": self.JOIN}, "join_target": None}
+            )
+
+    def test_join_target_without_table_raises(self, monkeypatch):
+        monkeypatch.setattr(_transformation, "get_data_sql_engine", lambda: object())
+        monkeypatch.setattr(_transformation, "table_exists", lambda *a: False)
+        with pytest.raises(Exception, match="Join failed"):
+            _transformation.check_join_target(
+                {"integrity_transformation": {"join": self.JOIN}, "join_target": self.TARGET}
+            )
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {"integrity_transformation": {"join": JOIN}, "join_target": TARGET},
+            {"integrity_transformation": {}},
+        ],
+    )
+    def test_no_join_or_resolved_join_passes(self, monkeypatch, params):
+        monkeypatch.setattr(_transformation, "get_data_sql_engine", lambda: object())
+        monkeypatch.setattr(_transformation, "table_exists", lambda *a: True)
+        _transformation.check_join_target(params)

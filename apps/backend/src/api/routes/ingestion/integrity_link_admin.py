@@ -458,12 +458,11 @@ async def import_integrity_link(
 
     join_target = None
     if mode == IntegrityLinkImportMode.REPROCESS:
-        # Before any side effect: the joined dataset must exist here.
-        # Administrators only: no group-based access needed
+        # Before any side effect: the joined dataset must be joinable here.
         transformation = IntegrityTransformation.model_validate(
             exported.integrity_transformation or {}
         )
-        join_target = resolve_join_target(transformation.join, geo_ctx, session, [])
+        join_target = resolve_join_target(transformation.join, session)
 
     encrypted_password = None
     if request.source_password and exported.source_username:
@@ -494,6 +493,7 @@ async def import_integrity_link(
         final_table_name=exported.final_table_name,
         schedule=schedule,
         schedule_enabled=schedule is not None,
+        is_reference_dataset=exported.is_reference_dataset,
     )
     if mode == IntegrityLinkImportMode.ATTACH:
         integrity_link.data_id = exported.data_id

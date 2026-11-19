@@ -288,6 +288,7 @@ class IntegrityLinkExport(BaseModel):
     last_retrieval_timestamp: datetime | None = None
     schedule: str | None = None
     preset_id: RecurrencePreset | None = None
+    is_reference_dataset: bool = False
 
     @field_validator("final_table_name")
     @classmethod

@@ -18,9 +18,7 @@ from src.api.routes.groups_common import GroupItem
 from src.core.config import get_data_schema, get_staging_schema
 from src.core.logging import get_logger
 from src.core.security import (
-    AccessLevel,
     build_access_expr,
-    load_authorized_integrity_link,
     visibility_condition,
 )
 from src.models.data_import import (
@@ -34,6 +32,7 @@ from src.models.data_import import (
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule
 from src.models.recurrence import RecurrenceFilter, RecurrencePreset
+from src.services.join_target import JOIN_UNAVAILABLE, get_join_target, joinable_condition
 
 router = APIRouter(prefix="/ingestion/integrity-links", tags=["Ingestion"])
 logger = get_logger()
@@ -436,27 +435,20 @@ def list_integrity_link_recurrences(
     "/joinable-tables",
     response_model=list[JoinableTable],
     summary="List tables available for join",
-    description="List tables available for join with role-based filtering. "
-    "Normal users see only their own links, administrators see all links. "
-    "No filtering on COPY mode or reference datasets yet.",
+    description="List the final tables of reference datasets, whoever the caller.",
 )
 def list_joinable_tables(
     session: DatafeederSessionDep,
     data_session: DataSessionDep,
-    geo_ctx: GeorchestraContextDep,
-    group_ids: GroupIdsDep,
 ) -> list[JoinableTable]:
-    """List tables available as join targets, restricted to datasets the caller can see."""
-    query = sa_select(IntegrityLink).where(col(IntegrityLink.final_table_name).is_not(None))
-
-    if not geo_ctx.is_administrator():
-        # Same visibility rule as the main integrity-links list: own datasets +
-        # datasets with a METADATA rule matching the user's org/role — a user
-        # shouldn't be able to discover table/column names of datasets they
-        # otherwise have no access to.
-        query = query.where(visibility_condition(geo_ctx.username, group_ids))
-
-    links = session.execute(query).scalars().all()  # type: ignore[reportDeprecated]
+    """List tables available as join targets (see joinable_condition)."""
+    query = sa_select(
+        col(IntegrityLink.id),
+        col(IntegrityLink.integrity_title),
+        col(IntegrityLink.integrity_organization),
+        col(IntegrityLink.final_table_name),
+    ).where(joinable_condition())
+    links = session.execute(query).all()  # type: ignore[reportDeprecated]
 
     existing_final = _check_final_existence(links, data_session)
 
@@ -484,22 +476,17 @@ def get_joinable_columns(
     integrity_link_id: UUID,
     session: DatafeederSessionDep,
     data_session: DataSessionDep,
-    geo_ctx: GeorchestraContextDep,
-    group_ids: GroupIdsDep,
 ) -> list[JoinableColumn]:
-    """List the columns of a joinable table; 404/403 mirror load_authorized_integrity_link."""
-    link, _ = load_authorized_integrity_link(
-        str(integrity_link_id), AccessLevel.METADATA_READ, geo_ctx, session, group_ids
-    )
-    if not link.final_table_name:
-        raise HTTPException(status_code=404, detail="IntegrityLink has no final table yet")
+    """List the columns of a joinable table, whoever the caller."""
+    target = get_join_target(integrity_link_id, session)
+    if target is None:
+        raise HTTPException(status_code=404, detail=JOIN_UNAVAILABLE)
 
-    schema = get_data_schema(link.integrity_organization)
     column_names = (
         data_session.execute(  # type: ignore[reportDeprecated]
             sa_select(_info_columns.c.column_name).where(
-                _info_columns.c.table_schema == schema,
-                _info_columns.c.table_name == link.final_table_name,
+                _info_columns.c.table_schema == target.table_schema,
+                _info_columns.c.table_name == target.table_name,
             )
         )
         .scalars()

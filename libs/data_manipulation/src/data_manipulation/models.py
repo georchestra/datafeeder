@@ -96,7 +96,8 @@ class JoinConfig(BaseModel):
     """LEFT JOIN of the staging table with the final table of another dataset.
 
     The joined table is referenced by its dataset, never by schema/table name: the
-    backend resolves it, after checking that the caller can read that dataset.
+    backend resolves it, after checking that the dataset can be joined (a reference
+    dataset with a final table).
     """
 
     integrity_link_id: UUID = Field(..., description="Dataset whose final table is joined")

@@ -1052,9 +1052,7 @@ def edit_staging_metadata(
     # Its own final table is dropped before being recreated on each process.
     if config.join and config.join.integrity_link_id == integrity_link.id:
         raise HTTPException(status_code=422, detail="A dataset cannot be joined with itself")
-    # Rejects a joined dataset the caller cannot read: only its id is saved, and it
-    # is resolved again on each preview and process.
-    resolve_join_target(config.join, geo_ctx, datafeeder_session, group_ids)
+    # Only the joined dataset's id is saved: preview and process check it can be joined.
     transformation = IntegrityTransformation(
         columns=config.columns or None,
         force_projection=force_proj,
@@ -1191,9 +1189,7 @@ def get_staging_preview(
             }
         )
 
-    join_target = resolve_join_target(
-        config.join if config else None, geo_ctx, datafeeder_session, group_ids
-    )
+    join_target = resolve_join_target(config.join if config else None, datafeeder_session)
 
     try:
         preview = read_transformed_preview(
