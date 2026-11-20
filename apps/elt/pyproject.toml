@@ -13,20 +13,34 @@ readme = "README.md"
 requires-python = "==3.13.*"
 dependencies = [
     "data_manipulation",
-    "apache-airflow==3.3.2",  # keep in sync with AIRFLOW_VERSION in docker/Dockerfile.airflow
-    "apache-airflow-providers-postgres",
-    # Required by docker/compose.airflow.yaml, which sets CeleryExecutor and
-    # FabAuthManager. The apache/airflow image preinstalls both, but
-    # docker/Dockerfile.airflow builds on the GDAL image and installs only what
-    # this lock declares.
-    "apache-airflow-providers-celery",
-    "apache-airflow-providers-fab",
+    "apache-airflow==3.4.0",  # keep in sync with AIRFLOW_VERSION in docker/Dockerfile.airflow
+    # Providers pinned to the versions of Airflow's constraints file for this
+    # airflow version (constraints-<AIRFLOW_VERSION>/constraints-3.13.txt), i.e.
+    # what the default apache/airflow image ships: newer releases are not
+    # guaranteed to work with it (celery provider 4.0.0 fails to import with
+    # celery 5.7). Bump them together with apache-airflow.
+    "apache-airflow-providers-postgres==7.1.1",
+    # celery and fab are required by docker/compose.airflow.yaml, which sets
+    # CeleryExecutor and FabAuthManager. docker/Dockerfile.airflow builds on the
+    # slim airflow image, which ships neither, and installs what this lock declares.
+    "apache-airflow-providers-celery==3.26.0",
+    "apache-airflow-providers-fab==3.10.2",
 ]
 
 [dependency-groups]
 dev = [
     "ruff>0",
     "poethepoet>0",
+]
+
+[tool.uv]
+# The celery stack, also pinned to Airflow's constraints file (see the providers
+# above): the provider's own version ranges let celery 5.7 in, which removed
+# celery.backends.database.retry that the provider imports.
+constraint-dependencies = [
+    "celery==5.6.3",
+    "kombu==5.6.2",
+    "redis==6.4.0",
 ]
 
 [tool.uv.workspace]
