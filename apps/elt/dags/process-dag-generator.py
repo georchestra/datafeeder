@@ -41,12 +41,20 @@ def load_scheduled_integrity_links():
     return get_records_as_dicts(sql)
 
 
-def _build_callback_url(route: str, integrity_link_id: str, final_table_name: str) -> str:
+def _build_callback_url(
+    route: str, integrity_link_id: str, final_table_name: str, dag_run_id: str
+) -> str:
     backend_url = os.environ.get("BACKEND_INTERNAL_URL", "http://datafeeder-backend:8000")
     params = urlencode(
-        {"integrity_link_id": integrity_link_id, "final_table_name": final_table_name}
+        {
+            "integrity_link_id": integrity_link_id,
+            "final_table_name": final_table_name,
+            "dag_id": "process_dag",
+        }
     )
-    return f"{backend_url}{route}?{params}"
+    # dag_run_id is a Jinja template rendered with the conf: urlencode would escape its
+    # braces. Rendered, it is '<uuid>_<ts_nodash>', which needs no encoding.
+    return f"{backend_url}{route}?{params}&dag_run_id={dag_run_id}"
 
 
 DEFAULT_DATA_SCHEMA = "data"
@@ -110,11 +118,13 @@ def create_dag(config):
                     "/internal/ingestion/process/dag_success",
                     config["id"],
                     config["final_table_name"],
+                    dag_run_id,
                 ),
                 "failure_callback_url": _build_callback_url(
                     "/internal/ingestion/process/dag_failure",
                     config["id"],
                     config["final_table_name"],
+                    dag_run_id,
                 ),
             },
             wait_for_completion=True,

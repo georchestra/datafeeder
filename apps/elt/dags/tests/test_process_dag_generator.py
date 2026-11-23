@@ -6,6 +6,7 @@ import types
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import jinja2
 import pytest
 
 TRIGGER_OPERATOR_CALLS: list[dict] = []
@@ -76,7 +77,9 @@ _build_callback_url = _module._build_callback_url  # type: ignore[attr-defined]
 class TestBuildCallbackUrl:
     def test_success_url_uses_backend_url_env(self, monkeypatch):
         monkeypatch.setenv("BACKEND_INTERNAL_URL", "http://my-backend:9000")
-        url = _build_callback_url("/ingestion/process/dag_success", "abc-123", "my_table")
+        url = _build_callback_url(
+            "/ingestion/process/dag_success", "abc-123", "my_table", "abc-123_ts"
+        )
         parsed = urlparse(url)
         assert parsed.scheme == "http"
         assert parsed.netloc == "my-backend:9000"
@@ -84,24 +87,32 @@ class TestBuildCallbackUrl:
 
     def test_success_url_contains_integrity_link_id(self, monkeypatch):
         monkeypatch.setenv("BACKEND_INTERNAL_URL", "http://datafeeder-backend:8000")
-        url = _build_callback_url("/ingestion/process/dag_success", "abc-123", "my_table")
+        url = _build_callback_url(
+            "/ingestion/process/dag_success", "abc-123", "my_table", "abc-123_ts"
+        )
         qs = parse_qs(urlparse(url).query)
         assert qs["integrity_link_id"] == ["abc-123"]
 
     def test_success_url_contains_final_table_name(self, monkeypatch):
         monkeypatch.setenv("BACKEND_INTERNAL_URL", "http://datafeeder-backend:8000")
-        url = _build_callback_url("/ingestion/process/dag_success", "abc-123", "my_table")
+        url = _build_callback_url(
+            "/ingestion/process/dag_success", "abc-123", "my_table", "abc-123_ts"
+        )
         qs = parse_qs(urlparse(url).query)
         assert qs["final_table_name"] == ["my_table"]
 
     def test_failure_url_points_to_dag_failure_endpoint(self, monkeypatch):
         monkeypatch.setenv("BACKEND_INTERNAL_URL", "http://datafeeder-backend:8000")
-        url = _build_callback_url("/ingestion/process/dag_failure", "abc-123", "my_table")
+        url = _build_callback_url(
+            "/ingestion/process/dag_failure", "abc-123", "my_table", "abc-123_ts"
+        )
         assert urlparse(url).path == "/ingestion/process/dag_failure"
 
     def test_default_backend_url_when_env_not_set(self, monkeypatch):
         monkeypatch.delenv("BACKEND_INTERNAL_URL", raising=False)
-        url = _build_callback_url("/ingestion/process/dag_success", "abc-123", "my_table")
+        url = _build_callback_url(
+            "/ingestion/process/dag_success", "abc-123", "my_table", "abc-123_ts"
+        )
         assert url.startswith("http://datafeeder-backend:8000")
 
 
@@ -143,6 +154,20 @@ class TestCreateDagCallbackUrls:
         assert (
             urlparse(conf["failure_callback_url"]).path == "/internal/ingestion/process/dag_failure"
         )
+
+    def test_failure_url_identifies_the_process_run(self, monkeypatch):
+        """The backend's dag_failure endpoint requires dag_id and dag_run_id."""
+        monkeypatch.setenv("BACKEND_INTERNAL_URL", "http://datafeeder-backend:8000")
+        TRIGGER_OPERATOR_CALLS.clear()
+
+        _module.create_dag(_config())
+
+        call = TRIGGER_OPERATOR_CALLS[0]
+        # conf is a templated field: Airflow renders it like trigger_run_id
+        render = lambda value: jinja2.Template(value).render(ts_nodash="20261123T000000")  # noqa: E731
+        qs = parse_qs(urlparse(render(call["conf"]["failure_callback_url"])).query)
+        assert qs["dag_id"] == ["process_dag"]
+        assert qs["dag_run_id"] == [render(call["trigger_run_id"])]
 
 
 def _config(organization: str | None = "VILLE_ROUBAIX") -> dict:
