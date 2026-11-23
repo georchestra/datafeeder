@@ -22,7 +22,12 @@ from src.api.routes.ingestion.integrity_links import (
     list_integrity_links,
     list_joinable_tables,
 )
-from src.models.data_import import ImportType, IntegrityLinkListResponse, PublicAccess
+from src.models.data_import import (
+    ImportType,
+    IntegrityLinkListResponse,
+    LastRunStatus,
+    PublicAccess,
+)
 from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
@@ -1884,6 +1889,39 @@ class TestListIntegrityLinksAccessRecurrenceFilters:
         )
 
         assert "is_reference_dataset" not in self._where_clause(mock_session)
+
+    def test_last_run_status_filter_added_to_query(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            last_run_status=[LastRunStatus.FAILED],
+            console_service=mock_console_service,
+        )
+
+        assert "last_run_status IN ('failed')" in self._where_clause(mock_session)
+
+    def test_no_last_run_status_param_omits_status_clause(
+        self, mock_session: MagicMock, mock_data_session: MagicMock, mock_console_service: MagicMock
+    ) -> None:
+        self._empty_result(mock_session)
+
+        list_integrity_links(
+            session=mock_session,
+            data_session=mock_data_session,
+            geo_ctx=self._geo_ctx("user0"),
+            group_ids=[],
+            offset=0,
+            console_service=mock_console_service,
+        )
+
+        assert "last_run_status" not in self._where_clause(mock_session)
 
 
 class TestListIntegrityLinksOrganizationOwnerFilters:

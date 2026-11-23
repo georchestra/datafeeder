@@ -27,6 +27,7 @@ from src.models.data_import import (
     IntegrityLinkListResponse,
     JoinableColumn,
     JoinableTable,
+    LastRunStatus,
     PublicAccess,
 )
 from src.models.integrity_link import IntegrityLink
@@ -153,7 +154,7 @@ _public_access_expr = case(
     description="List integrity links with role-based filtering. "
     "Normal users see only their own links, administrators see all links. "
     "Supports filtering by title search, organization, owner, public access level, "
-    "recurrence preset and reference dataset flag "
+    "recurrence preset, reference dataset flag and last run status "
     "(AND across filters, OR within a filter's multiple values).",
 )
 def list_integrity_links(
@@ -180,6 +181,10 @@ def list_integrity_links(
     reference: Annotated[
         list[bool] | None, Query(description="Filter by reference dataset flag")
     ] = None,
+    last_run_status: Annotated[
+        list[LastRunStatus] | None,
+        Query(description="Filter by outcome of the last finished ingestion run"),
+    ] = None,
 ) -> IntegrityLinkListResponse:
     """
     List integrity links with role-based access control.
@@ -199,6 +204,7 @@ def list_integrity_links(
         access: Public access levels to include (OR'd together)
         recurrence: Recurrence presets to include (OR'd together)
         reference: Reference dataset flags to include (OR'd together)
+        last_run_status: Outcomes of the last finished ingestion run to include (OR'd together)
 
     Returns:
         IntegrityLinkListResponse with items, has_more flag, current offset and, on the first page,
@@ -236,6 +242,8 @@ def list_integrity_links(
         query = query.where(or_(*conditions))
     if reference:
         query = query.where(col(IntegrityLink.is_reference_dataset).in_(reference))
+    if last_run_status:
+        query = query.where(col(IntegrityLink.last_run_status).in_(last_run_status))
 
     base_query = query.order_by(IntegrityLink.created_at.desc())  # type: ignore[union-attr]
 
