@@ -86,8 +86,21 @@
     } @else {
     <!-- Header -->
     <div class="-mx-7 mb-2 flex border-t border-gray-200 px-7 pt-3">
-      <div class="flex-1 pl-2 pr-4 text-sm font-semibold text-gray-2">
-        {{ 'integrityLinks.title' | translate }}
+      <div
+        class="flex-1 pl-2 pr-4 text-sm font-semibold text-gray-2"
+        [attr.aria-sort]="ariaSort('title')"
+      >
+        <button
+          type="button"
+          class="flex items-center gap-1 hover:text-primary"
+          data-test="sort-title"
+          (click)="sortOn('title')"
+        >
+          {{ 'integrityLinks.title' | translate }}
+          @if (sortIcon('title'); as icon) {
+          <ng-icon [name]="icon" class="shrink-0 opacity-40"></ng-icon>
+          }
+        </button>
       </div>
       <div class="w-48 pr-4 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.organization' | translate }}
@@ -104,8 +117,21 @@
       <div class="w-24 pr-4 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.reference' | translate }}
       </div>
-      <div class="pl-2 w-32 pr-4 text-sm font-semibold text-gray-2">
-        {{ 'integrityLinks.creation' | translate }}
+      <div
+        class="pl-2 w-32 pr-4 text-sm font-semibold text-gray-2"
+        [attr.aria-sort]="ariaSort('created_at')"
+      >
+        <button
+          type="button"
+          class="flex items-center gap-1 hover:text-primary"
+          data-test="sort-created-at"
+          (click)="sortOn('created_at')"
+        >
+          {{ 'integrityLinks.creation' | translate }}
+          @if (sortIcon('created_at'); as icon) {
+          <ng-icon [name]="icon" class="shrink-0 opacity-40"></ng-icon>
+          }
+        </button>
       </div>
     </div>
 

@@ -3,7 +3,7 @@ import {
   HttpTestingController,
   provideHttpClientTesting
 } from '@angular/common/http/testing'
-import { TestBed } from '@angular/core/testing'
+import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { provideRouter, Router } from '@angular/router'
 import { MatDialog } from '@angular/material/dialog'
 import { of } from 'rxjs'
@@ -1387,6 +1387,134 @@ describe('IntegrityLinkListComponent', () => {
       )
       expect(req.request.method).toBe('GET')
       req.flush({ items: [], has_more: false, offset: 0, next_offset: 0 })
+    })
+  })
+
+  describe('Sorting', () => {
+    const flushInitialLoad = async () => {
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/?offset=0')
+        .flush({
+          items: [createMockItem('1')],
+          has_more: false,
+          offset: 0,
+          next_offset: 1
+        })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+
+    const expectReload = async (
+      sortBy: string | null,
+      sortOrder: string | null
+    ) => {
+      await new Promise((resolve) => setTimeout(resolve, 350))
+      httpMock
+        .expectOne(
+          (r) =>
+            r.url === 'http://localhost:8000/ingestion/integrity-links/' &&
+            r.params.get('offset') === '0' &&
+            r.params.get('sort_by') === sortBy &&
+            r.params.get('sort_order') === sortOrder
+        )
+        .flush({
+          items: [createMockItem('1')],
+          has_more: false,
+          offset: 0,
+          next_offset: 1
+        })
+    }
+
+    const clickHeader = async (
+      fixture: ComponentFixture<IntegrityLinkListComponent>,
+      dataTest: string
+    ) => {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      fixture.detectChanges()
+      fixture.nativeElement.querySelector(`[data-test="${dataTest}"]`).click()
+      fixture.detectChanges()
+    }
+
+    const headerIcon = (
+      fixture: ComponentFixture<IntegrityLinkListComponent>,
+      dataTest: string
+    ): Element | null =>
+      fixture.nativeElement.querySelector(`[data-test="${dataTest}"] ng-icon`)
+
+    it('should apply no column sort and show no sort icon by default', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      await flushInitialLoad()
+      fixture.detectChanges()
+
+      expect(headerIcon(fixture, 'sort-title')).toBeNull()
+      expect(headerIcon(fixture, 'sort-created-at')).toBeNull()
+      expect(fixture.componentInstance.ariaSort('title')).toBe('none')
+      expect(fixture.componentInstance.ariaSort('created_at')).toBe('none')
+    })
+
+    it('should cycle title through A to Z, Z to A, then back to the default order', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      await flushInitialLoad()
+      fixture.detectChanges()
+
+      await clickHeader(fixture, 'sort-title')
+      await expectReload('title', 'asc')
+      expect(component.sortIcon('title')).toBe('matExpandLess')
+      expect(component.ariaSort('title')).toBe('ascending')
+
+      await clickHeader(fixture, 'sort-title')
+      await expectReload('title', 'desc')
+      expect(component.sortIcon('title')).toBe('matExpandMore')
+
+      await clickHeader(fixture, 'sort-title')
+      await expectReload(null, null)
+      fixture.detectChanges()
+      expect(headerIcon(fixture, 'sort-title')).toBeNull()
+    })
+
+    it('should cycle creation date through newest first, oldest first, then back to the default order', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      await flushInitialLoad()
+      fixture.detectChanges()
+
+      await clickHeader(fixture, 'sort-created-at')
+      await expectReload('created_at', 'desc')
+      expect(component.sortIcon('created_at')).toBe('matExpandMore')
+
+      await clickHeader(fixture, 'sort-created-at')
+      await expectReload('created_at', 'asc')
+      expect(component.sortIcon('created_at')).toBe('matExpandLess')
+
+      await clickHeader(fixture, 'sort-created-at')
+      await expectReload(null, null)
+      expect(component.sortIcon('created_at')).toBeNull()
+    })
+
+    it('should replace the active sort when the other column header is clicked', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      await flushInitialLoad()
+      fixture.detectChanges()
+
+      await clickHeader(fixture, 'sort-title')
+      await expectReload('title', 'asc')
+      await clickHeader(fixture, 'sort-created-at')
+      await expectReload('created_at', 'desc')
+
+      expect(component.sortIcon('title')).toBeNull()
+      expect(component.sortIcon('created_at')).toBe('matExpandMore')
+    })
+
+    it('should not count sorting as an active filter', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+      const component = fixture.componentInstance
+      await flushInitialLoad()
+
+      component.sortOn('title')
+      fixture.detectChanges()
+      await expectReload('title', 'asc')
+      expect(component.hasActiveFilters()).toBe(false)
     })
   })
 })
