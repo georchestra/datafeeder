@@ -25,9 +25,11 @@ from src.models.data_import import (
     ImportType,
     IntegrityLinkListItem,
     IntegrityLinkListResponse,
+    IntegrityLinkSortField,
     JoinableColumn,
     JoinableTable,
     PublicAccess,
+    SortOrder,
 )
 from src.models.integrity_link import IntegrityLink
 from src.models.integrity_link_rule import IntegrityLinkRule
@@ -146,6 +148,18 @@ _public_access_expr = case(
 )
 
 
+def _order_by(sort_by: IntegrityLinkSortField, sort_order: SortOrder) -> list[Any]:
+    """ORDER BY clauses; the id tie-breaker keeps offset pagination stable."""
+    if sort_by == IntegrityLinkSortField.TITLE:
+        key = func.lower(col(IntegrityLink.integrity_title))
+    else:
+        key = col(IntegrityLink.created_at)
+    key = key.asc() if sort_order == SortOrder.ASC else key.desc()
+    tie_breaker = col(IntegrityLink.id)
+    tie_breaker = tie_breaker.asc() if sort_order == SortOrder.ASC else tie_breaker.desc()
+    return [key.nulls_last(), tie_breaker]
+
+
 @router.get(
     "/",
     response_model=IntegrityLinkListResponse,
@@ -154,7 +168,8 @@ _public_access_expr = case(
     "Normal users see only their own links, administrators see all links. "
     "Supports filtering by title search, organization, owner, public access level, "
     "recurrence preset and reference dataset flag "
-    "(AND across filters, OR within a filter's multiple values).",
+    "(AND across filters, OR within a filter's multiple values), "
+    "sorted by title or creation date.",
 )
 def list_integrity_links(
     session: DatafeederSessionDep,
@@ -180,6 +195,10 @@ def list_integrity_links(
     reference: Annotated[
         list[bool] | None, Query(description="Filter by reference dataset flag")
     ] = None,
+    sort_by: Annotated[
+        IntegrityLinkSortField, Query(description="Column to sort by")
+    ] = IntegrityLinkSortField.CREATED_AT,
+    sort_order: Annotated[SortOrder, Query(description="Sort direction")] = SortOrder.DESC,
 ) -> IntegrityLinkListResponse:
     """
     List integrity links with role-based access control.
@@ -199,6 +218,8 @@ def list_integrity_links(
         access: Public access levels to include (OR'd together)
         recurrence: Recurrence presets to include (OR'd together)
         reference: Reference dataset flags to include (OR'd together)
+        sort_by: Column to sort by (title is case-insensitive)
+        sort_order: Sort direction
 
     Returns:
         IntegrityLinkListResponse with items, has_more flag, current offset and, on the first page,
@@ -237,7 +258,7 @@ def list_integrity_links(
     if reference:
         query = query.where(col(IntegrityLink.is_reference_dataset).in_(reference))
 
-    base_query = query.order_by(IntegrityLink.created_at.desc())  # type: ignore[union-attr]
+    base_query = query.order_by(*_order_by(sort_by, sort_order))
 
     # Fetch in chunks until BATCH_SIZE+1 filtered items accumulated or DB exhausted.
     # Needed because table-existence filtering happens post-query (cross-DB information_schema

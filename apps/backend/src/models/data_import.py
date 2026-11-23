@@ -41,6 +41,20 @@ class PublicAccess(str, Enum):
     OPEN = "open"
 
 
+class IntegrityLinkSortField(str, Enum):
+    """Column the integrity link list can be sorted by."""
+
+    TITLE = "title"
+    CREATED_AT = "created_at"
+
+
+class SortOrder(str, Enum):
+    """Sort direction."""
+
+    ASC = "asc"
+    DESC = "desc"
+
+
 class FileType(str, Enum):
     """Supported file types"""
 

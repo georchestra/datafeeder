@@ -1,6 +1,7 @@
 """Tests for integrity_links API routes."""
 
 import itertools
+import re
 from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -22,7 +23,13 @@ from src.api.routes.ingestion.integrity_links import (
     list_integrity_links,
     list_joinable_tables,
 )
-from src.models.data_import import ImportType, IntegrityLinkListResponse, PublicAccess
+from src.models.data_import import (
+    ImportType,
+    IntegrityLinkListResponse,
+    IntegrityLinkSortField,
+    PublicAccess,
+    SortOrder,
+)
 from src.models.integrity_link import IntegrityLink
 from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
@@ -2134,3 +2141,44 @@ class TestGetJoinableColumns:
 
         assert exc_info.value.status_code == 404
         mock_data_session.execute.assert_not_called()
+
+
+class TestListIntegrityLinksSort:
+    """Test the sort_by and sort_order query params on list_integrity_links."""
+
+    def _order_by_clause(self, **sort: Any) -> str:
+        mock_session = MagicMock()
+        mock_session.execute.return_value.all.return_value = []
+        list_integrity_links(
+            session=mock_session,
+            data_session=MagicMock(),
+            geo_ctx=_filter_geo_ctx("user0"),
+            group_ids=[],
+            console_service=MagicMock(),
+            offset=0,
+            **sort,
+        )
+        executed_query = mock_session.execute.call_args_list[0][0][0]
+        query_str = str(executed_query.compile(dialect=postgresql.dialect()))
+        clause = query_str.split("ORDER BY", 1)[1].split("LIMIT", 1)[0].strip()
+        return re.sub(r"\b\w+\.(?=integrity_link\.)", "", clause)
+
+    def test_defaults_to_most_recent_first(self) -> None:
+        assert self._order_by_clause() == (
+            "integrity_link.created_at DESC NULLS LAST, integrity_link.id DESC"
+        )
+
+    def test_sorts_by_creation_date_ascending(self) -> None:
+        clause = self._order_by_clause(
+            sort_by=IntegrityLinkSortField.CREATED_AT, sort_order=SortOrder.ASC
+        )
+        assert clause == "integrity_link.created_at ASC NULLS LAST, integrity_link.id ASC"
+
+    @pytest.mark.parametrize("order", ["ASC", "DESC"])
+    def test_sorts_by_title_case_insensitively(self, order: str) -> None:
+        clause = self._order_by_clause(
+            sort_by=IntegrityLinkSortField.TITLE, sort_order=SortOrder(order.lower())
+        )
+        assert clause == (
+            f"lower(integrity_link.integrity_title) {order} NULLS LAST, integrity_link.id {order}"
+        )
