@@ -227,6 +227,7 @@ class TestImportAttach:
         assert (link.integrity_owner, link.integrity_organization) == ("owner1", "MEL")
         assert link.data_id == "mel:voie_nommee"
         assert link.last_retrieval_timestamp == retrieved_at
+        assert link.last_run_status == "success"
         # Not copied unless asked: the dataset starts unscheduled and unpublished
         assert link.schedule is None and link.schedule_enabled is False
         assert link.gn_is_published is False and link.gs_is_published is False

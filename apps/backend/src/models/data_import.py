@@ -41,6 +41,13 @@ class PublicAccess(str, Enum):
     OPEN = "open"
 
 
+class LastRunStatus(str, Enum):
+    """Outcome of the last finished ingestion run of a dataset."""
+
+    FAILED = "failed"
+    SUCCESS = "success"
+
+
 class FileType(str, Enum):
     """Supported file types"""
 

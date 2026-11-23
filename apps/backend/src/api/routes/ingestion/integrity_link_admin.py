@@ -43,6 +43,7 @@ from src.models.data_import import (
     IntegrityLinkImportResponse,
     IntegrityLinkOwnershipRequest,
     IntegrityLinkResponse,
+    LastRunStatus,
     TableDataImportResponse,
     TableDataStatus,
 )
@@ -503,6 +504,7 @@ async def import_integrity_link(
             integrity_link.last_retrieval_timestamp = exported.last_retrieval_timestamp or (
                 datetime.now(timezone.utc)
             )
+            integrity_link.last_run_status = LastRunStatus.SUCCESS
 
     session.add(integrity_link)
     session.commit()

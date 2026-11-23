@@ -14,7 +14,7 @@ from src.api.routes.ingestion.staging import (
     edit_staging,
     get_staging_metadata,
 )
-from src.models.data_import import ImportType
+from src.models.data_import import ImportType, LastRunStatus
 from src.services.georchestra import GeorchestraContext
 
 
@@ -480,7 +480,7 @@ class TestDagSuccessCallbackTempFile:
 
 
 class TestDagFailureCallbackTempFile:
-    """Test temp upload file cleanup in the staging failure callback."""
+    """Test temp upload file cleanup and the run status in the staging failure callback."""
 
     def _make_link(
         self,
@@ -537,6 +537,17 @@ class TestDagFailureCallbackTempFile:
         self._call(link)
 
         mock_delete.assert_not_called()
+
+    @patch("src.api.routes.ingestion.staging.delete_temp_file")
+    def test_rerun_failure_records_failed_status(self, _mock_delete: MagicMock) -> None:
+        link = self._make_link(ImportType.FILE, last_retrieval=datetime.now(timezone.utc))
+        link.last_run_status = LastRunStatus.SUCCESS
+
+        datafeeder_session, _ = self._call(link)
+
+        assert link.last_run_status == LastRunStatus.FAILED
+        datafeeder_session.commit.assert_called()
+        datafeeder_session.delete.assert_not_called()
 
     @patch("src.api.routes.ingestion.staging.delete_temp_file")
     def test_temp_file_deleted_on_rerun_but_link_kept(self, mock_delete: MagicMock) -> None:

@@ -10,7 +10,7 @@ from sqlalchemy import JSON, Column
 from sqlalchemy import Enum as SqlEnum
 from sqlmodel import Field, SQLModel
 
-from src.models.data_import import FileType, ImportType
+from src.models.data_import import FileType, ImportType, LastRunStatus
 
 
 def get_enum_values(enum_cls: type[Enum]) -> list[str]:
@@ -53,6 +53,11 @@ class IntegrityLink(SQLModel, table=True):
     staging_retrieve_time: Optional[timedelta] = None
     final_table_name: Optional[str] = Field(default=None, max_length=63, unique=True)
     last_retrieval_timestamp: Optional[datetime] = None
+    # None until a first run has finished
+    last_run_status: Optional[LastRunStatus] = Field(
+        default=None,
+        sa_column=Column(SqlEnum(LastRunStatus, values_callable=get_enum_values), nullable=True),
+    )
     schedule: Optional[str] = Field(default=None, max_length=63)
     schedule_enabled: bool = Field(default=False)
     gn_is_published: bool = Field(default=False)

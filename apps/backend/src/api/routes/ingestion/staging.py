@@ -41,6 +41,7 @@ from src.models.data_import import (
     FileType,
     ForceProjection,
     ImportType,
+    LastRunStatus,
     StagingMetadata,
     StagingMetadataResponse,
     StagingPreviewResponse,
@@ -826,6 +827,9 @@ def dag_failure_callback(
                 )
 
         datafeeder_session.delete(integrity_link)
+        datafeeder_session.commit()
+    else:
+        integrity_link.last_run_status = LastRunStatus.FAILED
         datafeeder_session.commit()
 
 
