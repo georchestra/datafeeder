@@ -38,9 +38,11 @@ import {
 } from '../../core/api/functions'
 import {
   IntegrityLinkListItem,
+  LastRunStatus,
   PublicAccess,
   RecurrencePreset
 } from '../../core/api/models'
+import { LAST_RUN_STATUS } from '../../core/api/models/last-run-status-array'
 import {
   iconoirPlus,
   iconoirChatBubbleWarning,
@@ -74,6 +76,8 @@ marker('integrityLinks.visibility.restricted')
 marker('integrityLinks.visibility.unconfigured')
 marker('integrityLinks.filters.reference.yes')
 marker('integrityLinks.filters.reference.no')
+marker('integrityLinks.filters.status.success')
+marker('integrityLinks.filters.status.failed')
 
 const DEBOUNCE_TIME = 300
 
@@ -123,10 +127,7 @@ export class IntegrityLinkListComponent {
   selectedAccess = signal<string[]>([])
   selectedRecurrence = signal<string[]>([])
   selectedReference = signal<string[]>([])
-  // Statut has no backend support yet — placeholder dropdown
-  // for layout only, not wired into filters/reload.
   selectedStatus = signal<string[]>([])
-  readonly statusChoices: Choice<string>[] = []
   organizationChoices = signal<Choice<string>[]>([])
   ownerChoices = signal<Choice<string>[]>([])
   private accessOptions = signal<PublicAccess[]>([])
@@ -158,6 +159,14 @@ export class IntegrityLinkListComponent {
     }))
   })
 
+  readonly statusChoices = computed<Choice<string>[]>(() => {
+    this.currentLang()
+    return LAST_RUN_STATUS.map((value) => ({
+      value,
+      label: this.translate.instant(`integrityLinks.filters.status.${value}`)
+    }))
+  })
+
   readonly referenceChoices = computed<Choice<string>[]>(() => {
     this.currentLang()
     return [
@@ -179,7 +188,8 @@ export class IntegrityLinkListComponent {
       this.selectedOwner().length > 0 ||
       this.selectedAccess().length > 0 ||
       this.selectedRecurrence().length > 0 ||
-      this.selectedReference().length > 0
+      this.selectedReference().length > 0 ||
+      this.selectedStatus().length > 0
   )
 
   private filters = computed(() => ({
@@ -188,7 +198,8 @@ export class IntegrityLinkListComponent {
     owner: this.selectedOwner(),
     access: this.selectedAccess(),
     recurrence: this.selectedRecurrence(),
-    reference: this.selectedReference()
+    reference: this.selectedReference(),
+    lastRunStatus: this.selectedStatus()
   }))
 
   private requestId = 0
@@ -291,9 +302,21 @@ export class IntegrityLinkListComponent {
       const reference = this.selectedReference().length
         ? this.selectedReference().map((v) => v === 'true')
         : undefined
+      const last_run_status = this.selectedStatus().length
+        ? (this.selectedStatus() as LastRunStatus[])
+        : undefined
       const response = await this.api.invoke(
         listIntegrityLinksIngestionIntegrityLinksGet,
-        { offset, search, organization, owner, access, recurrence, reference }
+        {
+          offset,
+          search,
+          organization,
+          owner,
+          access,
+          recurrence,
+          reference,
+          last_run_status
+        }
       )
       if (requestId !== this.requestId) return
       if (append) {

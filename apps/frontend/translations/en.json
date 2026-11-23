@@ -158,6 +158,8 @@
   "integrityLinks.filters.reference.yes": "Is a reference dataset",
   "integrityLinks.filters.resultCount": "{count, plural, one{{count} result} other{{count} results}}",
   "integrityLinks.filters.status": "Status",
+  "integrityLinks.filters.status.failed": "Ingestion failed",
+  "integrityLinks.filters.status.success": "Ingestion succeeded",
   "integrityLinks.filters.title": "Filter your data",
   "integrityLinks.loadMore": "Load more",
   "integrityLinks.noFinalTable": "Ingestion to configure",
