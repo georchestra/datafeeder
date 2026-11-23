@@ -15,7 +15,7 @@ from src.api.routes.ingestion.process import (
     dag_failure_callback,
     dag_success_callback,
 )
-from src.models.data_import import ImportType
+from src.models.data_import import ImportType, LastRunStatus
 from src.models.integrity_link import IntegrityLink
 
 
@@ -333,3 +333,49 @@ class TestCallbacksTargetSchema:
         )
 
         mock_table_cls.return_value.drop.assert_not_called()
+
+
+@pytest.mark.asyncio
+class TestCallbacksRecordLastRunStatus:
+    """Both callbacks record the outcome of the run, for the dashboard status filter."""
+
+    @patch("src.api.routes.ingestion.process.read_table_extent", return_value=TableExtent())
+    @patch("src.api.routes.ingestion.process.create_schema")
+    async def test_success_callback_records_success(
+        self, _mock_create_schema: MagicMock, _mock_read_table_extent: MagicMock
+    ) -> None:
+        link = _make_integrity_link_with_metadata()
+        link.last_run_status = LastRunStatus.FAILED
+        session = _make_mock_session(link)
+
+        await dag_success_callback(
+            datafeeder_session=session,
+            geoserver_service=_make_mock_geoserver(),
+            metadata_service=MagicMock(),
+            integrity_link_id=str(link.id),
+            final_table_name="final_test",
+            target_schema="target_schema",
+        )
+
+        assert link.last_run_status == LastRunStatus.SUCCESS
+        session.commit.assert_called()
+
+    @patch("src.api.routes.ingestion.process.Table")
+    async def test_failure_callback_records_failure(self, _mock_table_cls: MagicMock) -> None:
+        link = _make_integrity_link_with_metadata()
+        link.last_run_status = LastRunStatus.SUCCESS
+        session = _make_mock_session(link)
+
+        await dag_failure_callback(
+            data_session=MagicMock(),
+            datafeeder_session=session,
+            integrity_link_id=str(link.id),
+            dag_id="process_dag",
+            dag_run_id="run-1",
+            final_table_name="final_test",
+            target_schema="target_schema",
+            reason=None,
+        )
+
+        assert link.last_run_status == LastRunStatus.FAILED
+        session.commit.assert_called()

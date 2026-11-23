@@ -35,6 +35,7 @@ from src.models import (
     ProcessRequest,
     ProcessResponse,
 )
+from src.models.data_import import LastRunStatus
 from src.models.integrity_link import IntegrityLink
 from src.services.airflow_client import get_dag_run_api
 from src.services.executor_factory import get_task_executor
@@ -326,6 +327,7 @@ async def dag_success_callback(
     # Update retrieval timestamp
     integrity_link.final_table_name = final_table_name
     integrity_link.last_retrieval_timestamp = datetime.now(timezone.utc)
+    integrity_link.last_run_status = LastRunStatus.SUCCESS
 
     datafeeder_session.commit()
     datafeeder_session.refresh(integrity_link)
@@ -409,8 +411,8 @@ async def dag_failure_callback(
             logger.error(f"Error dropping final table {final_table_name}: {e}")
 
     # Mark the integrity link as failed (keep it for auditing purposes)
-    # TODO: Add a status field to IntegrityLink model to track failures
-    # For now, we just log the failure
+    integrity_link.last_run_status = LastRunStatus.FAILED
+    datafeeder_session.commit()
     logger.error(
         f"Process DAG failure for IntegrityLink {integrity_link.id} | "
         f"final_table={final_table_name} | reason={reason!r}"
