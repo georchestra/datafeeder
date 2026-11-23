@@ -195,14 +195,12 @@ class MetadataService:
         result: _XSLTResultTree = transform(xml_doc)
         return str(etree.tostring(result, encoding="unicode"))
 
-    def publish_metadata(
-        self, metadata_xml: str, group_id: str = "100", publish: bool = False
-    ) -> str:
+    def publish_metadata(self, metadata_xml: str, group_id: str, publish: bool = False) -> str:
         """Publish metadata to GeoNetwork.
 
         Args:
             metadata_xml: ISO 19115-3 metadata XML string
-            group_id: GeoNetwork group ID (default: '100' = public)
+            group_id: GeoNetwork group ID owning the record
             publish: Whether to publish the metadata publicly (default: False = private, owner only)
 
         Returns:
@@ -246,7 +244,19 @@ class MetadataService:
 
         Returns:
             Metadata UUID from GeoNetwork
+
+        Raises:
+            ValueError: If no GeoNetwork group can be resolved for the record
         """
+        user_id, profile = self.resolve_user_id(integrity_link)
+        group_id = self.choose_group_and_template(
+            self.resolve_group_id(integrity_link, user_id, profile)
+        )[0]
+        if group_id is None:
+            raise ValueError(
+                f"No GeoNetwork group resolved for user '{integrity_link.integrity_owner}'"
+            )
+
         metadata_xml = self.generate_metadata(
             integrity_link,
             user_email=user_email,
@@ -255,7 +265,7 @@ class MetadataService:
             organization_name=organization_name,
             layer_urls=layer_urls,
         )
-        return self.publish_metadata(metadata_xml)
+        return self.publish_metadata(metadata_xml, group_id=str(group_id))
 
     def set_record_ownership(self, integrity_link: IntegrityLink) -> None:
         """Set ownership of a GeoNetwork metadata record.

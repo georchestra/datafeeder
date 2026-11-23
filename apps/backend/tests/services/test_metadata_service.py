@@ -184,12 +184,12 @@ class TestMetadataService:
             datadir_path="/test/datadir",
         )
 
-        result_uuid = service.publish_metadata("<mock_metadata/>")
+        result_uuid = service.publish_metadata("<mock_metadata/>", group_id="42")
 
         assert result_uuid == expected_uuid
         mock_api_instance.upload_metadata.assert_called_once_with(
             metadata="<mock_metadata/>",
-            groupid="100",
+            groupid="42",
             uuidprocessing="OVERWRITE",
             publish=False,
         )
@@ -207,7 +207,7 @@ class TestMetadataService:
         )
 
         with pytest.raises(Exception, match="Connection refused"):
-            service.publish_metadata("<mock_metadata/>")
+            service.publish_metadata("<mock_metadata/>", group_id="42")
 
     @patch("src.services.metadata_service.etree.parse")
     @patch("src.services.metadata_service.GnApi")
@@ -238,10 +238,38 @@ class TestMetadataService:
             datadir_path="/test/datadir",
         )
 
-        with patch("src.services.metadata_service.etree.XSLT", return_value=mock_transform):
+        with (
+            patch("src.services.metadata_service.etree.XSLT", return_value=mock_transform),
+            patch.object(service, "resolve_user_id", return_value=(7, "Administrator")),
+            patch.object(service, "resolve_group_id", return_value=[42]),
+            patch.object(service, "choose_group_and_template", return_value=(42, None)),
+        ):
             result_uuid = service.create_and_publish_metadata(sample_integrity_link)
 
             assert result_uuid == expected_uuid
+            assert mock_api_instance.upload_metadata.call_args.kwargs["groupid"] == "42"
+
+    @patch("src.services.metadata_service.GnApi")
+    def test_create_and_publish_metadata_raises_without_group(
+        self, mock_gn_api: MagicMock, sample_integrity_link: IntegrityLink
+    ) -> None:
+        """No resolvable GeoNetwork group: nothing is uploaded."""
+        mock_api_instance = MagicMock()
+        mock_gn_api.return_value = mock_api_instance
+
+        service = MetadataService(
+            gn_api_url="http://test/api",
+            datadir_path="/test/datadir",
+        )
+
+        with (
+            patch.object(service, "resolve_user_id", return_value=(None, None)),
+            patch.object(service, "resolve_group_id", return_value=[]),
+            pytest.raises(ValueError, match="No GeoNetwork group resolved"),
+        ):
+            service.create_and_publish_metadata(sample_integrity_link)
+
+        mock_api_instance.upload_metadata.assert_not_called()
 
     @patch("src.services.metadata_service.GnApi")
     def test_set_record_ownership_success(self, mock_gn_api: MagicMock) -> None:
