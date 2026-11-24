@@ -697,6 +697,10 @@ def update_is_reference(
     integrity_link = session.get(IntegrityLink, integrity_link_id)
     if integrity_link is None:
         raise HTTPException(status_code=404, detail="IntegrityLink not found")
+    if is_reference and integrity_link.source_import_type == ImportType.EMPTY:
+        raise HTTPException(
+            status_code=400, detail="A dataset without data cannot be a reference dataset"
+        )
     integrity_link.is_reference_dataset = is_reference
 
     # The frontend only offers the toggle once the GeoNetwork record exists: without record,

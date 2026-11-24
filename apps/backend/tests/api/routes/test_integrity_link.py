@@ -2568,6 +2568,48 @@ class TestUpdateIsReference:
         mock_session.commit.assert_called_once()
         assert result.is_reference_dataset is False
 
+    def test_set_flag_on_dataset_without_data_raises_400(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        mock_ms = MagicMock()
+        integrity_link = self._link(integrity_link_id)
+        integrity_link.source_import_type = ImportType.EMPTY
+        mock_session.get.return_value = integrity_link
+
+        with pytest.raises(HTTPException) as exc_info:
+            update_is_reference(
+                session=mock_session,
+                geo_ctx=_gn_admin_ctx(),
+                integrity_link_id=integrity_link_id,
+                metadata_service=mock_ms,
+                is_reference=True,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert integrity_link.is_reference_dataset is False
+        mock_ms.set_reference_dataset_flag.assert_not_called()
+        mock_session.commit.assert_not_called()
+
+    def test_clear_flag_on_dataset_without_data(
+        self, mock_session: MagicMock, integrity_link_id: str
+    ) -> None:
+        mock_ms = MagicMock()
+        integrity_link = self._link(integrity_link_id)
+        integrity_link.source_import_type = ImportType.EMPTY
+        integrity_link.is_reference_dataset = True
+        mock_session.get.return_value = integrity_link
+
+        result = update_is_reference(
+            session=mock_session,
+            geo_ctx=_gn_admin_ctx(),
+            integrity_link_id=integrity_link_id,
+            metadata_service=mock_ms,
+            is_reference=False,
+        )
+
+        assert result.is_reference_dataset is False
+        mock_ms.set_reference_dataset_flag.assert_called_once_with("metadata-uuid", False)
+
     def test_not_found_raises_404(self, mock_session: MagicMock, integrity_link_id: str) -> None:
         mock_ms = MagicMock()
         mock_session.get.return_value = None
