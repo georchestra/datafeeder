@@ -47,6 +47,7 @@ describe('MetadataComponent', () => {
   let currentPageSubject: BehaviorSubject<number>
 
   const integrityLinkSignal = signal<any>(null)
+  const isEmptyDatasetSignal = signal(false)
 
   beforeEach(async () => {
     recordSubject = new BehaviorSubject(null)
@@ -72,7 +73,8 @@ describe('MetadataComponent', () => {
     }
 
     mockIntegrityLinkStore = {
-      integrityLink: integrityLinkSignal
+      integrityLink: integrityLinkSignal,
+      isEmptyDataset: isEmptyDatasetSignal
     }
 
     mockApi = {
@@ -109,6 +111,7 @@ describe('MetadataComponent', () => {
     fixture = TestBed.createComponent(MetadataComponent)
     component = fixture.componentInstance
     integrityLinkSignal.set(null)
+    isEmptyDatasetSignal.set(false)
   })
 
   it('should create', () => {
@@ -145,6 +148,28 @@ describe('MetadataComponent', () => {
         mockEditorFacade.setConfiguration.mock.calls[1][0]
       expect(secondCallConfig.pages[1].sections.length).toBe(1)
       expect(secondCallConfig.pages[1].sections[0]).toBeDefined()
+    })
+
+    const referenceField = (config: any) =>
+      config.pages[0].sections
+        .flatMap((section: any) => section.fields)
+        .find(
+          (field: any) => field.modelSpecifier === 'flags:IS_REFERENCE_DATASET'
+        )
+
+    it('should keep the reference dataset toggle for a dataset with data', () => {
+      fixture.detectChanges()
+
+      const config = mockEditorFacade.setConfiguration.mock.calls[0][0]
+      expect(referenceField(config).hidden).not.toBe(true)
+    })
+
+    it('should hide the reference dataset toggle for a dataset without data', () => {
+      isEmptyDatasetSignal.set(true)
+      fixture.detectChanges()
+
+      const config = mockEditorFacade.setConfiguration.mock.calls[0][0]
+      expect(referenceField(config).hidden).toBe(true)
     })
   })
 
