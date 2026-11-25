@@ -97,16 +97,13 @@ async def create_direct_access_dataset(
         )
     ).first()
     if duplicate is not None:
-        raise HTTPException(
-            status_code=409, detail=f"Table already published by dataset {duplicate}"
-        )
+        logger.info("%s already published by dataset %s", source_url, duplicate)
+        raise HTTPException(status_code=409, detail="i18nerror.directAccess.tableAlreadyPublished")
 
     # Layer names are unique per workspace: another store may already publish this name
     if geoserver_service.workspace_layer_exists(workspace_name, table):
-        raise HTTPException(
-            status_code=409,
-            detail=f"Layer '{table}' already exists in workspace '{workspace_name}'",
-        )
+        logger.info("Layer '%s' already exists in workspace '%s'", table, workspace_name)
+        raise HTTPException(status_code=409, detail="i18nerror.directAccess.layerNameTaken")
 
     try:
         extent = read_table_extent(engine, schema, table)
