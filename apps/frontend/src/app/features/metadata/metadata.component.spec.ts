@@ -161,15 +161,18 @@ describe('MetadataComponent', () => {
       fixture.detectChanges()
 
       const config = mockEditorFacade.setConfiguration.mock.calls[0][0]
-      expect(referenceField(config).hidden).not.toBe(true)
+      expect(referenceField(config)).toBeDefined()
     })
 
-    it('should hide the reference dataset toggle for a dataset without data', () => {
+    it('should remove the reference dataset toggle for a dataset without data', () => {
       isEmptyDatasetSignal.set(true)
       fixture.detectChanges()
 
       const config = mockEditorFacade.setConfiguration.mock.calls[0][0]
-      expect(referenceField(config).hidden).toBe(true)
+      expect(referenceField(config)).toBeUndefined()
+      expect(config.pages[0].sections[0].fields.length).toBe(
+        DEFAULT_CONFIGURATION.pages[0].sections[0].fields.length - 1
+      )
     })
   })
 

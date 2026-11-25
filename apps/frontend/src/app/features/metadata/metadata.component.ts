@@ -185,10 +185,8 @@ export class MetadataComponent implements OnInit {
         ...pages[0],
         sections: pages[0].sections.map((section) => ({
           ...section,
-          fields: section.fields.map((field) =>
-            field.modelSpecifier === 'flags:IS_REFERENCE_DATASET'
-              ? { ...field, hidden: true }
-              : field
+          fields: section.fields.filter(
+            (field) => field.modelSpecifier !== 'flags:IS_REFERENCE_DATASET'
           )
         }))
       }
