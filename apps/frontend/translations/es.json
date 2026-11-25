@@ -60,6 +60,8 @@
   "footer.saveAndNext.events": "",
   "footer.saveAndNext.recurrence": "",
   "footer.saveAndOpenInCatalogue": "",
+  "i18nerror.directAccess.layerNameTaken": "",
+  "i18nerror.directAccess.tableAlreadyPublished": "",
   "i18nerror.join.unavailable": "",
   "i18nerror.publish.geonetwork": "",
   "i18nerror.publish.geoserver": "",

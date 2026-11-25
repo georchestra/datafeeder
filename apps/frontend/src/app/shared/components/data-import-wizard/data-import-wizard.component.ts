@@ -92,6 +92,8 @@ marker('i18nerror.transformation.columns_both_required')
 marker('i18nerror.transformation.projection_application_failed')
 marker('i18nerror.sync.geonetwork')
 marker('i18nerror.join.unavailable')
+marker('i18nerror.directAccess.tableAlreadyPublished')
+marker('i18nerror.directAccess.layerNameTaken')
 marker('import.metadataPublication.error')
 
 const POLL_INTERVAL_MS = 500
