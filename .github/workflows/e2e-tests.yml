@@ -6,8 +6,15 @@ on:
     branches:
       - main
   pull_request:
+    paths:
+      - "e2e-tests/**"
+      - ".github/workflows/e2e-tests.yml"
+      # The airflow job runs the DAGs from the repo and builds the airflow image
+      - "apps/elt/**"
+      - "docker/Dockerfile.airflow"
+      - "docker/compose.airflow.yaml"
     types: [labeled]
-    
+
 
 permissions:
   contents: read
@@ -23,12 +30,35 @@ jobs:
   e2e:
     if: github.event_name != 'pull_request' || github.event.label.name == 'e2e'
     runs-on: ubuntu-latest
-    name: E2E tests
+    name: E2E tests (${{ matrix.executor }} executor)
     timeout-minutes: 90
+
+    # Same tests against both task executors: the backend running ingestion itself
+    # (TASK_EXECUTOR=LOCAL), and Airflow running the DAGs (TASK_EXECUTOR=AIRFLOW).
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - executor: local
+            stack_target: up-no-airflow
+            backend_target: run-backend-with-local-task-executor
+            compose_profile: local-executor
+          - executor: airflow
+            stack_target: up
+            backend_target: run-backend
+            compose_profile: airflow
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+
+      # The airflow image and services come on top of the whole georchestra stack,
+      # which does not fit in the runner's default free disk space.
+      - name: Free disk space
+        if: matrix.executor == 'airflow'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -48,16 +78,19 @@ jobs:
           cache-dependency-path: apps/frontend/package-lock.json
 
       # Same layout as local dev: georchestra in Docker, backend and frontend on the
-      # host, reached by the gateway through host.docker.internal. No Airflow: the
-      # backend runs ingestion itself, calling ogr2ogr in the datafeeder-gdal container.
+      # host, reached by the gateway through host.docker.internal.
+      # - local: no Airflow, the backend runs ingestion itself, calling ogr2ogr in the
+      #   datafeeder-gdal container.
+      # - airflow: the backend triggers the DAGs through the Airflow API (localhost:8081),
+      #   and the workers call the backend back through host.docker.internal.
       - name: Start Docker stack
-        run: make up-no-airflow
+        run: make ${{ matrix.stack_target }}
 
       # EPSG:2154 is needed by test_import_csv_lat_lon_2154, which skips itself otherwise
       - name: Start backend
         env:
           PROJECTIONS: '[{"value": "EPSG:4326", "label": "WGS 84"}, {"value": "EPSG:3857", "label": "Web Mercator"}, {"value": "EPSG:2154", "label": "RGF93 / Lambert-93"}]'
-        run: nohup make run-backend-with-local-task-executor BACKEND_RELOAD= > backend.log 2>&1 &
+        run: nohup make ${{ matrix.backend_target }} BACKEND_RELOAD= > backend.log 2>&1 &
 
       - name: Install frontend deps
         working-directory: ./apps/frontend
@@ -104,6 +137,14 @@ jobs:
             if [ -n "${!name}" ]; then echo "$name=${!name}" >> .env; fi
           done
 
+      # URL imports must reach the files server the tests start on the host, and the
+      # stack's GeoServer, from both the host-run backend and the Airflow workers:
+      # localhost only works for the former, so use the Docker bridge gateway (see
+      # e2e-tests/README.md).
+      - name: Set E2E_HOST
+        if: matrix.executor == 'airflow'
+        run: echo "E2E_HOST=$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}')" >> "$GITHUB_ENV"
+
       - name: Run e2e tests
         working-directory: ./e2e-tests
         run: >
@@ -115,15 +156,17 @@ jobs:
       - name: Dump logs
         if: failure()
         run: |
-          docker compose --profile local-executor logs --no-color > docker-compose.log
+          docker compose --profile ${{ matrix.compose_profile }} logs --no-color > docker-compose.log
           mkdir -p logs
           mv backend.log frontend.log docker-compose.log logs/
+          # Airflow task logs, where the ingestion errors are
+          if [ -d apps/elt/logs ]; then cp -r apps/elt/logs logs/airflow; fi
 
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-results
+          name: e2e-results-${{ matrix.executor }}
           path: |
             e2e-tests/test-results
             logs

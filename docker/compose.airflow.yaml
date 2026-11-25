@@ -315,6 +315,13 @@ services:
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
+    # On a fresh volume, PostgreSQL is still initializing when airflow-init starts:
+    # the migration then fails and the other airflow services refuse to start
+    # ("Database migration required").
+    depends_on:
+      <<: *airflow-common-depends-on
+      database:
+        condition: service_healthy
 
   airflow-cli:
     <<: *airflow-common
