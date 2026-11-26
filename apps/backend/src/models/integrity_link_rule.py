@@ -3,6 +3,8 @@ from typing import ClassVar, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
+from sqlalchemy import Column
+from sqlalchemy import Enum as SqlEnum
 from sqlmodel import Field, SQLModel
 
 GROUP_OR_ROLE_EVERYONE = "*"
@@ -27,8 +29,20 @@ class IntegrityLinkRule(SQLModel, table=True):
     integrity_link_id: Optional[UUID] = Field(
         default=None, foreign_key="datafeeder.integrity_link.id"
     )
-    rule_type: RuleType
-    rule_value: RuleValue = Field(default=RuleValue.READ)
+    # Named after the PostgreSQL types of docker/datafeeder-init.sql: multi-row inserts
+    # cast their values to the type name.
+    rule_type: RuleType = Field(
+        sa_column=Column(
+            SqlEnum(RuleType, name="rule_type_enum", schema="datafeeder"), nullable=False
+        )
+    )
+    rule_value: RuleValue = Field(
+        default=RuleValue.READ,
+        sa_column=Column(
+            SqlEnum(RuleValue, name="rule_value_enum", schema="datafeeder"),
+            server_default=RuleValue.READ.value,
+        ),
+    )
     group_or_role: str = Field(max_length=255)
 
 

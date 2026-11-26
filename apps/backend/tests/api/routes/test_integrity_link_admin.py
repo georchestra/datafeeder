@@ -26,6 +26,7 @@ from src.core.config import get_data_schema
 from src.core.db import data_engine
 from src.core.task_executor import TaskExecutorType, TaskRunInfo, TaskStatus
 from src.models.data_import import (
+    ExportedRule,
     ImportType,
     IntegrityLinkExport,
     IntegrityLinkImportMode,
@@ -33,6 +34,12 @@ from src.models.data_import import (
     IntegrityLinkOwnershipRequest,
 )
 from src.models.integrity_link import IntegrityLink
+from src.models.integrity_link_rule import (
+    GROUP_OR_ROLE_EVERYONE,
+    IntegrityLinkRule,
+    RuleType,
+    RuleValue,
+)
 from src.models.recurrence import RecurrencePreset
 from src.services.georchestra import GeorchestraContext
 from src.services.layer_publication import DatastoreSchemaMismatchError
@@ -118,6 +125,34 @@ def _session(conflict: IntegrityLink | None = None) -> MagicMock:
     return session
 
 
+ROLE_ID = "11111111-aaaa-4bbb-8ccc-000000000001"
+ORG_ID = "22222222-aaaa-4bbb-8ccc-000000000002"
+
+
+def _rule(rule_type: RuleType, group_or_role: str, value: RuleValue = RuleValue.READ) -> Any:
+    return IntegrityLinkRule(
+        id=1,
+        integrity_link_id=LINK_ID,
+        rule_type=rule_type,
+        rule_value=value,
+        group_or_role=group_or_role,
+    )
+
+
+def _rules_session(rules: list[IntegrityLinkRule]) -> MagicMock:
+    session = MagicMock()
+    session.exec.return_value.all.return_value = rules
+    return session
+
+
+def _console_with_groups(console: MagicMock | None = None) -> MagicMock:
+    """Console with one role and one organization, under the given (or other) UUIDs."""
+    console = console or _console()
+    console.get_all_roles.return_value = [{"id": ROLE_ID, "name": "EDITORS"}]
+    console.get_all_organizations.return_value = [{"id": ORG_ID, "shortName": "MEL"}]
+    return console
+
+
 class TestExport:
     def test_export_flags_password_and_resolves_preset(self) -> None:
         link = _link(
@@ -126,9 +161,10 @@ class TestExport:
             is_reference_dataset=True,
         )
         with patch(f"{MODULE}._get_integrity_link", return_value=link):
-            result = export_integrity_link(MagicMock(), _ctx(), LINK_ID)
+            result = export_integrity_link(_rules_session([]), _ctx(), _console(), LINK_ID)
 
         assert result.id == LINK_ID
+        assert result.rules == []
         assert result.has_source_password is True
         assert result.preset_id == RecurrencePreset.EVERY_DAY
         assert result.integrity_transformation == {"columns": []}
@@ -137,8 +173,36 @@ class TestExport:
 
     def test_non_admin_is_forbidden(self) -> None:
         with pytest.raises(HTTPException) as exc:
-            export_integrity_link(MagicMock(), _ctx(admin=False), LINK_ID)
+            export_integrity_link(MagicMock(), _ctx(admin=False), _console(), LINK_ID)
         assert exc.value.status_code == 403
+
+    def test_rules_are_exported_by_group_name(self) -> None:
+        session = _rules_session(
+            [
+                _rule(RuleType.DATA, ROLE_ID, RuleValue.WRITE),
+                _rule(RuleType.METADATA, ORG_ID.upper()),
+                # Publication state: not exported
+                _rule(RuleType.DATA, GROUP_OR_ROLE_EVERYONE),
+                # Group deleted from the Console: skipped
+                _rule(RuleType.METADATA, "33333333-aaaa-4bbb-8ccc-000000000003"),
+            ]
+        )
+
+        with patch(f"{MODULE}._get_integrity_link", return_value=_link()):
+            result = export_integrity_link(session, _ctx(), _console_with_groups(), LINK_ID)
+
+        assert result.rules == [
+            ExportedRule(
+                rule_type=RuleType.DATA,
+                rule_value=RuleValue.WRITE,
+                group_name="EDITORS",
+            ),
+            ExportedRule(
+                rule_type=RuleType.METADATA,
+                rule_value=RuleValue.READ,
+                group_name="MEL",
+            ),
+        ]
 
 
 @pytest.fixture
@@ -536,6 +600,74 @@ async def _reassign(
             metadata_service or MagicMock(),
             console or _console(),
         )
+
+
+EXPORTED_RULES = [
+    ExportedRule(
+        rule_type=RuleType.DATA,
+        rule_value=RuleValue.WRITE,
+        group_name="editors",
+    ),
+    ExportedRule(
+        rule_type=RuleType.METADATA,
+        rule_value=RuleValue.READ,
+        group_name="MEL",
+    ),
+]
+
+
+@pytest.fixture
+def sync_mocks() -> Iterator[dict[str, MagicMock]]:
+    with (
+        patch(f"{MODULE}._sync_data_sharing_safe") as data,
+        patch(f"{MODULE}._sync_metadata_sharing") as metadata,
+    ):
+        yield {"data": data, "metadata": metadata}
+
+
+@pytest.mark.asyncio
+class TestImportRules:
+    async def test_rules_are_copied_with_the_local_uuids_and_synced(
+        self, import_mocks: dict[str, MagicMock], sync_mocks: dict[str, MagicMock]
+    ) -> None:
+        import_mocks["table_exists"].return_value = True
+        session = _session()
+
+        result = await _import(
+            IntegrityLinkImportRequest(link=_export(rules=EXPORTED_RULES), copy_rules=True),
+            session,
+            console=_console_with_groups(),
+        )
+
+        assert result.mode == IntegrityLinkImportMode.ATTACH
+        rules = session.add_all.call_args.args[0]
+        assert [(r.rule_type, r.rule_value, r.group_or_role) for r in rules] == [
+            (RuleType.DATA, RuleValue.WRITE, ROLE_ID),
+            (RuleType.METADATA, RuleValue.READ, ORG_ID),
+        ]
+        assert all(r.integrity_link_id == LINK_ID for r in rules)
+        link = session.add.call_args.args[0]
+        assert sync_mocks["data"].call_args.args[1] is link
+        assert sync_mocks["metadata"].call_args.args[1] is link
+
+    async def test_unknown_groups_are_rejected_before_creating_the_link(
+        self, import_mocks: dict[str, MagicMock], sync_mocks: dict[str, MagicMock]
+    ) -> None:
+        console = _console_with_groups()
+        console.get_all_roles.return_value = []
+        session = _session()
+
+        with pytest.raises(HTTPException) as exc:
+            await _import(
+                IntegrityLinkImportRequest(link=_export(rules=EXPORTED_RULES), copy_rules=True),
+                session,
+                console=console,
+            )
+
+        assert exc.value.status_code == 400
+        assert "'editors' (DATA)" in exc.value.detail
+        session.add.assert_not_called()
+        import_mocks["executor"].trigger_process_task.assert_not_called()
 
 
 def _geoserver() -> MagicMock:

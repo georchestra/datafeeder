@@ -14,7 +14,7 @@ from geojson_pydantic.geometries import Geometry
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.task_executor import TaskStatus
-from src.models.integrity_link_rule import IntegrityLinkRule
+from src.models.integrity_link_rule import IntegrityLinkRule, RuleType, RuleValue
 from src.models.recurrence import RecurrencePreset
 
 
@@ -264,8 +264,19 @@ class IntegrityLinkGsPublishResponse(IntegrityLinkResponse):
 ORGANIZATION_PATTERN = r"^[A-Za-z][A-Za-z0-9_]{0,62}$"
 
 
+class ExportedRule(BaseModel):
+    """Permission rule naming its group, whose Console UUID differs on each platform.
+
+    The group is a role, or an organization for METADATA rules in GN_SYNC_MODE ORG.
+    """
+
+    rule_type: RuleType
+    rule_value: RuleValue
+    group_name: str = Field(min_length=1)
+
+
 class IntegrityLinkExport(BaseModel):
-    """Dataset definition, without its data, permission rules or source password."""
+    """Dataset definition, without its data, publication state or source password."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -289,6 +300,8 @@ class IntegrityLinkExport(BaseModel):
     schedule: str | None = None
     preset_id: RecurrencePreset | None = None
     is_reference_dataset: bool = False
+    # Without the "everyone" rules, which make the publication state
+    rules: list[ExportedRule] = []
 
     @field_validator("final_table_name")
     @classmethod
@@ -313,6 +326,11 @@ class IntegrityLinkImportRequest(BaseModel):
     source_password: str | None = Field(
         default=None,
         description="Source password, required when the exported dataset has one",
+    )
+    copy_rules: bool = Field(
+        default=False,
+        description="Also set the permission rules of the exported dataset: each role and "
+        "organization must exist on this platform, under the same name",
     )
 
 
