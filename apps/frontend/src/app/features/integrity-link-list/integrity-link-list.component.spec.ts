@@ -230,7 +230,7 @@ describe('IntegrityLinkListComponent', () => {
       fixture.detectChanges()
 
       const cells = Array.from<HTMLElement>(
-        fixture.nativeElement.querySelectorAll('.group > div:nth-child(2)')
+        fixture.nativeElement.querySelectorAll('.group > div:nth-child(3)')
       )
 
       expect(cells.map((el) => el.textContent?.trim())).toEqual([
@@ -270,6 +270,36 @@ describe('IntegrityLinkListComponent', () => {
           (row) => !!row.querySelector('ng-icon[name="iconoirBadgeCheck"]')
         )
       ).toEqual([true, false])
+    })
+  })
+
+  describe('Status column', () => {
+    it('should show the error icon only for datasets whose last run failed', async () => {
+      const fixture = TestBed.createComponent(IntegrityLinkListComponent)
+
+      httpMock
+        .expectOne('http://localhost:8000/ingestion/integrity-links/?offset=0')
+        .flush({
+          items: [
+            { ...createMockItem('1'), last_run_status: 'failed' },
+            { ...createMockItem('2'), last_run_status: 'success' },
+            createMockItem('3')
+          ],
+          has_more: false,
+          offset: 0
+        })
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      fixture.detectChanges()
+
+      const rows = Array.from<HTMLElement>(
+        fixture.nativeElement.querySelectorAll('.group')
+      )
+      expect(
+        rows.map(
+          (row) => !!row.querySelector('ng-icon[name="matHighlightOffOutline"]')
+        )
+      ).toEqual([true, false, false])
     })
   })
 

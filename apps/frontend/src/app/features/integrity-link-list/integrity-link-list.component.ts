@@ -49,6 +49,7 @@ import {
   iconoirOpenNewWindow,
   iconoirBadgeCheck
 } from '@ng-icons/iconoir'
+import { matHighlightOffOutline } from '@ng-icons/material-icons/outline'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 import { QuickCreationComponent } from '../../shared/components/quick-creation/quick-creation.component'
 import { RecurrenceLabelPipe } from '../../shared/pipes/recurrence-label.pipe'
@@ -98,7 +99,8 @@ type RecurrenceFilter = RecurrencePreset | 'NONE'
       iconoirTrash,
       iconoirRefreshCircle,
       iconoirOpenNewWindow,
-      iconoirBadgeCheck
+      iconoirBadgeCheck,
+      matHighlightOffOutline
     })
   ]
 })

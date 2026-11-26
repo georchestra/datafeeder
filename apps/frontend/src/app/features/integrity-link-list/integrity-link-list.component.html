@@ -86,6 +86,9 @@
     } @else {
     <!-- Header -->
     <div class="-mx-7 mb-2 flex border-t border-gray-200 px-7 pt-3">
+      <div class="w-16 pl-2 text-sm font-semibold text-gray-2">
+        {{ 'integrityLinks.filters.status' | translate }}
+      </div>
       <div class="flex-1 pl-2 pr-4 text-sm font-semibold text-gray-2">
         {{ 'integrityLinks.title' | translate }}
       </div>
@@ -123,6 +126,18 @@
         (click)="onRowClick(link)"
         (keydown.enter)="onRowKeydown($event, link)"
       >
+        <div class="flex w-16 justify-center">
+          @if (link.last_run_status === 'failed') {
+          <ng-icon
+            name="matHighlightOffOutline"
+            size="1.25em"
+            class="text-red-600"
+            role="img"
+            [attr.aria-label]="'status.type.error' | translate"
+            [title]="'status.type.error' | translate"
+          ></ng-icon>
+          }
+        </div>
         <div class="flex-1 truncate pl-2 pr-4 text-sm text-gray-2">
           @if (!isDraft(link)) {
           {{ link.integrity_title }}
