@@ -240,6 +240,7 @@ async def test_rejects_table_already_published_by_the_organization() -> None:
     with pytest.raises(HTTPException) as exc_info:
         await _create(session, _geoserver(), MagicMock())
     assert exc_info.value.status_code == 409
+    assert exc_info.value.detail == "i18nerror.directAccess.tableAlreadyPublished"
     session.add.assert_not_called()
 
 
@@ -253,6 +254,7 @@ async def test_rejects_table_whose_name_is_already_a_workspace_layer() -> None:
         await _create(session, geoserver, metadata)
 
     assert exc_info.value.status_code == 409
+    assert exc_info.value.detail == "i18nerror.directAccess.layerNameTaken"
     geoserver.workspace_layer_exists.assert_called_once_with("mel", "rivers")
     session.add.assert_not_called()
     metadata.create_and_publish_metadata.assert_not_called()

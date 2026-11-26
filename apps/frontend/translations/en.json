@@ -60,6 +60,8 @@
   "footer.saveAndNext.events": "Save and schedule recurrence and check events",
   "footer.saveAndNext.recurrence": "Save and schedule recurrence",
   "footer.saveAndOpenInCatalogue": "Save and view record in catalogue",
+  "i18nerror.directAccess.layerNameTaken": "A layer with this name already exists in the workspace",
+  "i18nerror.directAccess.tableAlreadyPublished": "Table already published by another dataset",
   "i18nerror.join.unavailable": "Error joining the reference data: it is no longer available",
   "i18nerror.publish.geonetwork": "Error publishing metadata to GeoNetwork",
   "i18nerror.publish.geoserver": "Error publishing layer to GeoServer",

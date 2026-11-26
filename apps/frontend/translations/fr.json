@@ -60,6 +60,8 @@
   "footer.saveAndNext.events": "Sauvegarder et continuer",
   "footer.saveAndNext.recurrence": "Sauvegarder et continuer",
   "footer.saveAndOpenInCatalogue": "Sauvegarder et voir la fiche dans le catalogue",
+  "i18nerror.directAccess.layerNameTaken": "Une couche portant ce nom existe déjà dans l'espace de travail",
+  "i18nerror.directAccess.tableAlreadyPublished": "Table déjà publiée par un autre jeu de données",
   "i18nerror.join.unavailable": "Erreur lors de la jointure : la donnée de référence n'est plus disponible",
   "i18nerror.publish.geonetwork": "Erreur lors de la publication des informations du jeu de données",
   "i18nerror.publish.geoserver": "Erreur lors de la publication de la donnée",
