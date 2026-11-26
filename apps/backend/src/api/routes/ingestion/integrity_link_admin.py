@@ -24,6 +24,7 @@ from src.api.deps import (
 )
 from src.api.routes.ingestion.integrity_link import (
     _sync_data_sharing,  # pyright: ignore[reportPrivateUsage]
+    _sync_metadata_sharing,  # pyright: ignore[reportPrivateUsage]
 )
 from src.core.callback import build_callback_url
 from src.core.config import get_data_schema, get_settings
@@ -36,6 +37,7 @@ from src.core.security import require_administrator
 from src.core.task_executor import ProcessSource, TaskExecutorType
 from src.models.data_import import (
     ORGANIZATION_PATTERN,
+    ExportedRule,
     ImportType,
     IntegrityLinkExport,
     IntegrityLinkImportMode,
@@ -47,6 +49,11 @@ from src.models.data_import import (
     TableDataStatus,
 )
 from src.models.integrity_link import IntegrityLink
+from src.models.integrity_link_rule import (
+    GROUP_OR_ROLE_EVERYONE,
+    IntegrityLinkRule,
+    RuleType,
+)
 from src.models.recurrence import RecurrencePreset
 from src.services.airflow_client import cancel_dataset_runs
 from src.services.console_service import ConsoleService
@@ -92,6 +99,95 @@ def _require_console_owner(console_service: ConsoleService, owner: str, organiza
         raise HTTPException(status_code=400, detail=f"Unknown organization '{organization}'")
     if owner not in console_service.fetch_users_by_usernames([owner]):
         raise HTTPException(status_code=400, detail=f"Unknown user '{owner}'")
+
+
+def _console_group_names(console_service: ConsoleService) -> dict[RuleType, dict[str, str]]:
+    """Console names of the rule groups, by rule type then lowercased UUID.
+
+    DATA rules target roles; METADATA rules target organizations (short names) or roles,
+    depending on GN_SYNC_MODE.
+    """
+    try:
+        roles = {
+            str(r["id"]).lower(): r["name"]
+            for r in console_service.get_all_roles()
+            if r.get("id") and r.get("name")
+        }
+        metadata_groups = roles
+        if get_settings().GN_SYNC_MODE == "ORG":
+            metadata_groups = {
+                str(o["id"]).lower(): o["shortName"]
+                for o in console_service.get_all_organizations()
+                if o.get("id") and o.get("shortName")
+            }
+    except Exception as e:
+        logger.error(f"Failed to fetch the Console roles and organizations: {e}")
+        raise HTTPException(status_code=502, detail="Console is unreachable")
+    return {RuleType.DATA: roles, RuleType.METADATA: metadata_groups}
+
+
+def _export_rules(
+    session: DatafeederSessionDep, integrity_link: IntegrityLink, console_service: ConsoleService
+) -> list[ExportedRule]:
+    """Rules of the dataset, by group name; the "everyone" ones make its publication state."""
+    rules = [
+        rule
+        for rule in session.exec(
+            select(IntegrityLinkRule).where(
+                IntegrityLinkRule.integrity_link_id == integrity_link.id
+            )
+        ).all()
+        if rule.group_or_role != GROUP_OR_ROLE_EVERYONE
+    ]
+    if not rules:
+        return []
+    names = _console_group_names(console_service)
+    exported: list[ExportedRule] = []
+    for rule in rules:
+        name = names[rule.rule_type].get(rule.group_or_role.lower())
+        if name is None:
+            logger.warning(
+                f"Rule {rule.id} of {integrity_link.id} not exported: group "
+                f"'{rule.group_or_role}' unknown to the Console"
+            )
+            continue
+        exported.append(
+            ExportedRule(rule_type=rule.rule_type, rule_value=rule.rule_value, group_name=name)
+        )
+    return exported
+
+
+def _resolve_imported_rules(
+    request: IntegrityLinkImportRequest, console_service: ConsoleService
+) -> list[IntegrityLinkRule]:
+    """Rules of the imported dataset, with the UUIDs of their groups on this platform."""
+    if not request.copy_rules or not request.link.rules:
+        return []
+    ids_by_name = {
+        rule_type: {name.lower(): group_id for group_id, name in by_id.items()}
+        for rule_type, by_id in _console_group_names(console_service).items()
+    }
+    rules: list[IntegrityLinkRule] = []
+    missing: list[str] = []
+    for exported in request.link.rules:
+        group_id = ids_by_name[exported.rule_type].get(exported.group_name.lower())
+        if group_id is None:
+            missing.append(f"'{exported.group_name}' ({exported.rule_type.value})")
+            continue
+        rules.append(
+            IntegrityLinkRule(
+                integrity_link_id=request.link.id,
+                rule_type=exported.rule_type,
+                rule_value=exported.rule_value,
+                group_or_role=group_id,
+            )
+        )
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown on this platform: {', '.join(dict.fromkeys(missing))}",
+        )
+    return rules
 
 
 # Declared before the /{integrity_link_id}/... routes, which would capture its path
@@ -262,18 +358,21 @@ def export_table_data(
     summary="Export a dataset definition",
     description=(
         "Administrators only. Dataset definition to import on another platform. "
-        "Permission rules, publication state and source password are not exported."
+        "Permission rules name their role or organization; the publication state and "
+        "the source password are not exported."
     ),
 )
 def export_integrity_link(
     session: DatafeederSessionDep,
     geo_ctx: GeorchestraContextDep,
+    console_service: ConsoleServiceDep,
     integrity_link_id: UUID,
 ) -> IntegrityLinkExport:
     require_administrator(geo_ctx)
     integrity_link = _get_integrity_link(session, integrity_link_id)
     return IntegrityLinkExport.model_validate(integrity_link).model_copy(
         update={
+            "rules": _export_rules(session, integrity_link, console_service),
             "has_source_password": integrity_link.source_password_encrypted is not None,
             "preset_id": (
                 RecurrencePreset.from_cron(integrity_link.schedule)
@@ -438,7 +537,8 @@ def _trigger_reprocess(
         "Administrators only. The metadata record must already be in GeoNetwork. 'attach' "
         "mode if the final table is already here, otherwise 'reprocess' from the source "
         "(impossible for files). A failed reprocess leaves the dataset without data: delete "
-        "it before retrying. The dataset starts unpublished."
+        "it before retrying. The dataset starts unpublished. With copy_rules, its permission "
+        "rules are copied and synced to GeoServer and GeoNetwork (soft failure)."
     ),
 )
 async def import_integrity_link(
@@ -454,6 +554,7 @@ async def import_integrity_link(
         console_service, request.link.integrity_owner, request.link.integrity_organization
     )
     mode = _resolve_import_mode(request, session, metadata_service)
+    rules = _resolve_imported_rules(request, console_service)
     exported = request.link
 
     join_target = None
@@ -505,6 +606,7 @@ async def import_integrity_link(
             )
 
     session.add(integrity_link)
+    session.add_all(rules)
     session.commit()
     session.refresh(integrity_link)
     logger.info(
@@ -518,16 +620,44 @@ async def import_integrity_link(
         logger.warning(f"Failed to set metadata ownership for {integrity_link.id}: {e}")
 
     if mode == IntegrityLinkImportMode.ATTACH:
-        return IntegrityLinkImportResponse(
+        response = IntegrityLinkImportResponse(
             integrity_link_id=str(integrity_link.id), mode=IntegrityLinkImportMode.ATTACH
         )
-    try:
-        return _trigger_reprocess(integrity_link, encrypted_password, join_target)
-    except Exception as e:
-        logger.error(f"Failed to trigger process for imported {integrity_link.id}: {e}")
-        session.delete(integrity_link)
-        session.commit()
-        raise HTTPException(status_code=500, detail=f"Task execution error: {e}")
+    else:
+        try:
+            response = _trigger_reprocess(integrity_link, encrypted_password, join_target)
+        except Exception as e:
+            logger.error(f"Failed to trigger process for imported {integrity_link.id}: {e}")
+            session.delete(integrity_link)
+            session.commit()
+            raise HTTPException(status_code=500, detail=f"Task execution error: {e}")
+
+    _sync_imported_rules(
+        session, integrity_link, rules, geoserver_service, metadata_service, console_service
+    )
+    return response
+
+
+def _sync_imported_rules(
+    session: DatafeederSessionDep,
+    integrity_link: IntegrityLink,
+    rules: list[IntegrityLinkRule],
+    geoserver_service: GeoServerService,
+    metadata_service: MetadataService,
+    console_service: ConsoleService,
+) -> None:
+    """Apply the copied rules to GeoServer and GeoNetwork (soft failure).
+
+    The GeoServer ACL is named after the layer: it applies once a reprocess publishes it.
+    """
+    rule_types = {rule.rule_type for rule in rules}
+    if RuleType.DATA in rule_types:
+        _sync_data_sharing_safe(session, integrity_link, geoserver_service, console_service)
+    if RuleType.METADATA in rule_types:
+        try:
+            _sync_metadata_sharing(session, integrity_link, metadata_service, console_service)
+        except Exception as e:
+            logger.error(f"Failed to sync GeoNetwork sharing of {integrity_link.id}: {e}")
 
 
 def _move_table(table_name: str, from_schema: str, to_schema: str) -> None:
