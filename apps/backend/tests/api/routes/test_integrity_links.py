@@ -622,6 +622,7 @@ class TestListIntegrityLinks:
         assert hasattr(item, "data_id")
         assert hasattr(item, "created_at")
         assert hasattr(item, "last_retrieval_timestamp")
+        assert hasattr(item, "last_run_status")
         assert hasattr(item, "schedule")
         assert hasattr(item, "schedule_enabled")
         assert hasattr(item, "access_level")

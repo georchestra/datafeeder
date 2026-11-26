@@ -3,6 +3,7 @@
 
 import { FileType } from '../models/file-type'
 import { ImportType } from '../models/import-type'
+import { LastRunStatus } from '../models/last-run-status'
 import { PublicAccess } from '../models/public-access'
 import { RecurrencePreset } from '../models/recurrence-preset'
 
@@ -26,6 +27,7 @@ export interface IntegrityLinkListItem {
   integrity_title: string | null
   is_reference_dataset?: boolean
   last_retrieval_timestamp: string | null
+  last_run_status?: LastRunStatus | null
   metadata_id: string | null
   organization_display_name?: string | null
   owner_display_name?: string | null
