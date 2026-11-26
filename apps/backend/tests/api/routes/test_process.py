@@ -1,6 +1,6 @@
 """Tests for the ingestion process route helpers."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -313,3 +313,23 @@ class TestCallbacksTargetSchema:
 
         mock_metadata_cls.assert_called_once_with(schema="testorg")
         mock_table_cls.return_value.drop.assert_called_once()
+
+    @patch("src.api.routes.ingestion.process.Table")
+    async def test_failure_callback_keeps_table_of_ingested_dataset(
+        self, mock_table_cls: MagicMock
+    ) -> None:
+        link = _make_integrity_link_with_metadata()
+        link.last_retrieval_timestamp = datetime.now(timezone.utc)
+
+        await dag_failure_callback(
+            data_session=MagicMock(),
+            datafeeder_session=_make_mock_session(link),
+            integrity_link_id=str(link.id),
+            dag_id="process_dag",
+            dag_run_id="run-1",
+            final_table_name="final_test",
+            target_schema="data",
+            reason=None,
+        )
+
+        mock_table_cls.return_value.drop.assert_not_called()
