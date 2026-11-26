@@ -158,6 +158,8 @@
   "integrityLinks.filters.reference.yes": "",
   "integrityLinks.filters.resultCount": "",
   "integrityLinks.filters.status": "",
+  "integrityLinks.filters.status.failed": "",
+  "integrityLinks.filters.status.success": "",
   "integrityLinks.filters.title": "",
   "integrityLinks.loadMore": "",
   "integrityLinks.noFinalTable": "Aufnahme zu konfigurieren",

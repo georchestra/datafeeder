@@ -29,10 +29,9 @@
         }
       </span>
       <div class="flex items-center justify-between">
-        <!-- Statut has no backend support yet — empty choices, not wired to any filter. -->
         <gn-ui-dropdown-multiselect
           [title]="'integrityLinks.filters.status' | translate"
-          [choices]="statusChoices"
+          [choices]="statusChoices()"
           [selected]="selectedStatus()"
           [allowSearch]="false"
           (selectValues)="selectedStatus.set($event)"

@@ -8,6 +8,7 @@ import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
 import { IntegrityLinkListResponse } from '../../models/integrity-link-list-response'
+import { LastRunStatus } from '../../models/last-run-status'
 import { PublicAccess } from '../../models/public-access'
 import { RecurrencePreset } from '../../models/recurrence-preset'
 
@@ -46,6 +47,11 @@ export interface ListIntegrityLinksIngestionIntegrityLinksGet$Params {
    * Filter by reference dataset flag
    */
   reference?: Array<boolean> | null
+
+  /**
+   * Filter by outcome of the last finished ingestion run
+   */
+  last_run_status?: Array<LastRunStatus> | null
 }
 
 export function listIntegrityLinksIngestionIntegrityLinksGet(
@@ -67,6 +73,7 @@ export function listIntegrityLinksIngestionIntegrityLinksGet(
     rb.query('access', params.access, {})
     rb.query('recurrence', params.recurrence, {})
     rb.query('reference', params.reference, {})
+    rb.query('last_run_status', params.last_run_status, {})
   }
 
   return http
