@@ -373,7 +373,7 @@ async def dag_failure_callback(
 ) -> None:
     """
     Failure callback endpoint called by Airflow DAG on failure.
-    Drops the final table if it exists and marks the IntegrityLink as failed.
+    Drops the final table of a first run and marks the IntegrityLink as failed.
 
     Args:
         data_session: Data database session (injected)
@@ -391,8 +391,8 @@ async def dag_failure_callback(
     # Not passed by scheduled runs
     target_schema = target_schema or get_data_schema(integrity_link.integrity_organization)
 
-    # Drop the final table if it exists
-    if final_table_name:
+    # A re-run keeps the table of the last successful run
+    if final_table_name and integrity_link.last_retrieval_timestamp is None:
         try:
             # CRITICAL: Validate table name before using in SQL (defense in depth)
             validate_table_name(final_table_name, context="final")
