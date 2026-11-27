@@ -193,6 +193,15 @@ def process_transformation_group(
             except Exception as e:
                 raise AirflowException(f"Failed to drop staging table: {e}")
 
-        read_transform_write_task() >> clean_staging_table_task()
+        # The cleanup task is a leaf that succeeds even after a failure: without this
+        # task, the run would end in success.
+        @task(task_id="fail_run_task", trigger_rule=TriggerRule.ONE_FAILED)
+        def fail_run_task() -> None:
+            raise AirflowException("An upstream task failed")
+
+        read_task = read_transform_write_task()
+        read_task >> clean_staging_table_task()
+        if clean_on_failure:
+            read_task >> fail_run_task()
 
     return _transformation_group

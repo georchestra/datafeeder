@@ -53,6 +53,7 @@ def _load_transformation_module():
         ALL_SUCCESS = "all_success"
         ALL_DONE = "all_done"
         NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"
+        ONE_FAILED = "one_failed"
 
     trigger_rule_stub = types.ModuleType("airflow.utils.trigger_rule")
     trigger_rule_stub.TriggerRule = _TriggerRule  # type: ignore[attr-defined]
@@ -201,6 +202,14 @@ class TestCleanStagingTableTriggerRule:
         _clean_task_kwargs(group_id="g", clean_on_failure=True)
         read_kwargs = _TASK_REGISTRY["read_transform_write_task"].kwargs
         assert read_kwargs["trigger_rule"] == "none_failed_min_one_success"
+
+    def test_clean_on_failure_still_fails_the_run(self):
+        """The cleanup succeeding must not hide a failed run."""
+        _clean_task_kwargs(group_id="g", clean_on_failure=True)
+        fail_run = _TASK_REGISTRY["fail_run_task"]
+        assert fail_run.kwargs["trigger_rule"] == "one_failed"
+        with pytest.raises(Exception, match="upstream task failed"):
+            fail_run.fn()
 
 
 class TestCheckJoinTarget:

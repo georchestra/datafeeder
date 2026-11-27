@@ -41,6 +41,13 @@ class PublicAccess(str, Enum):
     OPEN = "open"
 
 
+class LastRunStatus(str, Enum):
+    """Outcome of the last finished ingestion run of a dataset."""
+
+    FAILED = "failed"
+    SUCCESS = "success"
+
+
 class FileType(str, Enum):
     """Supported file types"""
 
@@ -173,6 +180,7 @@ class IntegrityLinkListItem(BaseModel):
     data_id: str | None
     created_at: datetime | None
     last_retrieval_timestamp: datetime | None
+    last_run_status: LastRunStatus | None = None
     schedule: str | None
     schedule_enabled: bool
     preset_id: RecurrencePreset | None = None
