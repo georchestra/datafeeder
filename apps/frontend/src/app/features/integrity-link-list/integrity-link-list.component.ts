@@ -38,8 +38,10 @@ import {
 } from '../../core/api/functions'
 import {
   IntegrityLinkListItem,
+  IntegrityLinkSortField,
   PublicAccess,
-  RecurrencePreset
+  RecurrencePreset,
+  SortOrder
 } from '../../core/api/models'
 import {
   iconoirPlus,
@@ -49,6 +51,7 @@ import {
   iconoirOpenNewWindow,
   iconoirBadgeCheck
 } from '@ng-icons/iconoir'
+import { matExpandLess, matExpandMore } from '@ng-icons/material-icons/baseline'
 import { SearchInputComponent } from '../../shared/components/search-input/search-input.component'
 import { QuickCreationComponent } from '../../shared/components/quick-creation/quick-creation.component'
 import { RecurrenceLabelPipe } from '../../shared/pipes/recurrence-label.pipe'
@@ -79,6 +82,13 @@ const DEBOUNCE_TIME = 300
 
 type RecurrenceFilter = RecurrencePreset | 'NONE'
 
+// Direction of the first click on a column: A→Z for titles, newest first for dates.
+// The second click reverses it, the third goes back to the backend default order.
+const FIRST_SORT_ORDER: Record<IntegrityLinkSortField, SortOrder> = {
+  title: 'asc',
+  created_at: 'desc'
+}
+
 @Component({
   selector: 'app-integrity-link-list',
   imports: [
@@ -98,7 +108,9 @@ type RecurrenceFilter = RecurrencePreset | 'NONE'
       iconoirTrash,
       iconoirRefreshCircle,
       iconoirOpenNewWindow,
-      iconoirBadgeCheck
+      iconoirBadgeCheck,
+      matExpandLess,
+      matExpandMore
     })
   ]
 })
@@ -131,6 +143,9 @@ export class IntegrityLinkListComponent {
   ownerChoices = signal<Choice<string>[]>([])
   private accessOptions = signal<PublicAccess[]>([])
   private recurrenceOptions = signal<RecurrenceFilter[]>([])
+  // null: no column sort, the backend default order applies
+  sortBy = signal<IntegrityLinkSortField | null>(null)
+  sortOrder = signal<SortOrder | null>(null)
   deleting = signal<string | null>(null)
   private nextOffset = signal(0)
 
@@ -188,7 +203,9 @@ export class IntegrityLinkListComponent {
     owner: this.selectedOwner(),
     access: this.selectedAccess(),
     recurrence: this.selectedRecurrence(),
-    reference: this.selectedReference()
+    reference: this.selectedReference(),
+    sortBy: this.sortBy(),
+    sortOrder: this.sortOrder()
   }))
 
   private requestId = 0
@@ -293,7 +310,17 @@ export class IntegrityLinkListComponent {
         : undefined
       const response = await this.api.invoke(
         listIntegrityLinksIngestionIntegrityLinksGet,
-        { offset, search, organization, owner, access, recurrence, reference }
+        {
+          offset,
+          search,
+          organization,
+          owner,
+          access,
+          recurrence,
+          reference,
+          sort_by: this.sortBy() ?? undefined,
+          sort_order: this.sortOrder() ?? undefined
+        }
       )
       if (requestId !== this.requestId) return
       if (append) {
@@ -312,6 +339,29 @@ export class IntegrityLinkListComponent {
         this.loadingMore.set(false)
       }
     }
+  }
+
+  sortOn(field: IntegrityLinkSortField): void {
+    const first = FIRST_SORT_ORDER[field]
+    if (this.sortBy() !== field) {
+      this.sortBy.set(field)
+      this.sortOrder.set(first)
+    } else if (this.sortOrder() === first) {
+      this.sortOrder.set(first === 'asc' ? 'desc' : 'asc')
+    } else {
+      this.sortBy.set(null)
+      this.sortOrder.set(null)
+    }
+  }
+
+  sortIcon(field: IntegrityLinkSortField): string | null {
+    if (this.sortBy() !== field) return null
+    return this.sortOrder() === 'asc' ? 'matExpandLess' : 'matExpandMore'
+  }
+
+  ariaSort(field: IntegrityLinkSortField): string {
+    if (this.sortBy() !== field) return 'none'
+    return this.sortOrder() === 'asc' ? 'ascending' : 'descending'
   }
 
   loadMore(): void {

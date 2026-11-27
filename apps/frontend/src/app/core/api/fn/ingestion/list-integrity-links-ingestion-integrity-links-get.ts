@@ -8,8 +8,10 @@ import { StrictHttpResponse } from '../../strict-http-response'
 import { requestBuilders } from '../../request-builders'
 
 import { IntegrityLinkListResponse } from '../../models/integrity-link-list-response'
+import { IntegrityLinkSortField } from '../../models/integrity-link-sort-field'
 import { PublicAccess } from '../../models/public-access'
 import { RecurrencePreset } from '../../models/recurrence-preset'
+import { SortOrder } from '../../models/sort-order'
 
 export interface ListIntegrityLinksIngestionIntegrityLinksGet$Params {
   /**
@@ -46,6 +48,16 @@ export interface ListIntegrityLinksIngestionIntegrityLinksGet$Params {
    * Filter by reference dataset flag
    */
   reference?: Array<boolean> | null
+
+  /**
+   * Column to sort by
+   */
+  sort_by?: IntegrityLinkSortField
+
+  /**
+   * Sort direction
+   */
+  sort_order?: SortOrder
 }
 
 export function listIntegrityLinksIngestionIntegrityLinksGet(
@@ -67,6 +79,8 @@ export function listIntegrityLinksIngestionIntegrityLinksGet(
     rb.query('access', params.access, {})
     rb.query('recurrence', params.recurrence, {})
     rb.query('reference', params.reference, {})
+    rb.query('sort_by', params.sort_by, {})
+    rb.query('sort_order', params.sort_order, {})
   }
 
   return http
