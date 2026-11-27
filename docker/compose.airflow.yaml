@@ -60,9 +60,9 @@ x-airflow-common:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://georchestra:georchestra@database/georchestra?options=-csearch_path%3Dairflow
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg://georchestra:georchestra@database/georchestra?options=-csearch_path%3Dairflow
     AIRFLOW__DATABASE__SQL_ALCHEMY_SCHEMA: airflow
-    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://georchestra:georchestra@database/georchestra?options=-csearch_path%3Dairflow
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql+psycopg://georchestra:georchestra@database/georchestra?options=-csearch_path%3Dairflow
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
