@@ -179,6 +179,18 @@ export class MetadataComponent implements OnInit {
       ...resourcesPage,
       sections: resourcesPage.sections.slice(1, 2)
     }
+    // A dataset without data cannot be a reference dataset (it has nothing to join)
+    if (this.store.isEmptyDataset()) {
+      pages[0] = {
+        ...pages[0],
+        sections: pages[0].sections.map((section) => ({
+          ...section,
+          fields: section.fields.filter(
+            (field) => field.modelSpecifier !== 'flags:IS_REFERENCE_DATASET'
+          )
+        }))
+      }
+    }
     this.editor.setConfiguration({ ...DEFAULT_CONFIGURATION, pages })
   }
 
