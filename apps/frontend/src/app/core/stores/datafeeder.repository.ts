@@ -1,15 +1,14 @@
 import { inject, Injectable } from '@angular/core'
-import { Gn4Repository } from 'geonetwork-ui'
-import { from, Observable, of } from 'rxjs'
-import { Api } from '../api/api'
-import { updateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferencePatch } from '../api/functions'
+import { Gn4Repository, markRecordAsChanged } from 'geonetwork-ui'
+import { Observable, of } from 'rxjs'
 import { IntegrityLinkStore } from './integrity-link.store'
+import { Store } from '@ngrx/store'
 
 @Injectable({
   providedIn: 'root'
 })
 export class DatafeederRepository extends Gn4Repository {
-  private api = inject(Api)
+  private editorStore = inject(Store)
   private store = inject(IntegrityLinkStore)
 
   // we're reading flags from the datafeeder backend
@@ -23,7 +22,6 @@ export class DatafeederRepository extends Gn4Repository {
     return of(this.store.integrityLink().is_reference_dataset)
   }
 
-  // we're writing flags only to the datafeeder backend
   setRecordFlag(
     uniqueIdentifier: string,
     flagName: 'IS_REFERENCE_DATASET',
@@ -32,20 +30,12 @@ export class DatafeederRepository extends Gn4Repository {
     if (flagName !== 'IS_REFERENCE_DATASET') {
       throw new Error(`Unknown record flag: ${flagName}`)
     }
-    const promise = this.api
-      .invoke(
-        updateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferencePatch,
-        {
-          integrity_link_id: this.store.integrityLink().id,
-          body: { is_reference: value }
-        }
-      )
-      .then(() => {
-        this.store.integrityLink.update((intLink) => ({
-          ...intLink,
-          is_reference_dataset: value
-        }))
-      })
-    return from(promise)
+    this.store.integrityLink.update((intLink) => ({
+      ...intLink,
+      is_reference_dataset: value
+    }))
+    this.store.isReferenceDatasetChanged.set(true)
+    this.editorStore.dispatch(markRecordAsChanged())
+    return of(undefined)
   }
 }

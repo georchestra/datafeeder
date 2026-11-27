@@ -3,40 +3,45 @@ import {
   HttpTestingController,
   provideHttpClientTesting
 } from '@angular/common/http/testing'
-import { signal } from '@angular/core'
+import { Signal, signal } from '@angular/core'
 import { firstValueFrom } from 'rxjs'
 import {
+  markRecordAsChanged,
   provideGn4,
   provideI18n,
   provideRepositoryUrl,
   TRANSLATE_DEFAULT_CONFIG
 } from 'geonetwork-ui'
+import { Store } from '@ngrx/store'
 import { DatafeederRepository } from './datafeeder.repository'
 import { IntegrityLinkStore } from './integrity-link.store'
-import { Api } from '../api/api'
 import { IntegrityLinkResponse } from '../api/models'
-import { updateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferencePatch } from '../api/functions'
 
 describe('DatafeederRepository', () => {
   let repository: DatafeederRepository
-  let mockApi: { invoke: ReturnType<typeof vi.fn> }
-  let integrityLink: ReturnType<typeof signal<IntegrityLinkResponse | null>>
+  let mockEditorStore
+  let integrityLink: Signal<IntegrityLinkResponse>
+  let isReferenceDatasetChanged: Signal<boolean>
   let httpController: HttpTestingController
 
   beforeEach(() => {
-    mockApi = { invoke: vi.fn().mockResolvedValue({}) }
-    integrityLink = signal<IntegrityLinkResponse | null>({
+    mockEditorStore = { dispatch: vi.fn() }
+    integrityLink = signal<IntegrityLinkResponse>({
       id: 'intlink-1',
       is_reference_dataset: true
     } as IntegrityLinkResponse)
+    isReferenceDatasetChanged = signal(false)
 
     TestBed.configureTestingModule({
       providers: [
         provideI18n(TRANSLATE_DEFAULT_CONFIG),
         provideRepositoryUrl(() => '/geonetwork/srv/api'),
         provideGn4({ disableDraft: true }),
-        { provide: Api, useValue: mockApi },
-        { provide: IntegrityLinkStore, useValue: { integrityLink } },
+        { provide: Store, useValue: mockEditorStore },
+        {
+          provide: IntegrityLinkStore,
+          useValue: { integrityLink, isReferenceDatasetChanged }
+        },
         provideHttpClientTesting()
       ]
     })
@@ -79,20 +84,19 @@ describe('DatafeederRepository', () => {
   })
 
   describe('setRecordFlag', () => {
-    it('calls the is_reference endpoint for the current integrity link', async () => {
+    it('updates the local flag, marks it as changed, and marks the record as changed', async () => {
       await firstValueFrom(
         repository.setRecordFlag('record-uuid', 'IS_REFERENCE_DATASET', false)
       )
 
-      expect(mockApi.invoke).toHaveBeenCalledWith(
-        updateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferencePatch,
-        { integrity_link_id: 'intlink-1', body: { is_reference: false } }
-      )
-      // the integrity link store should be updated as well
       expect(integrityLink()).toEqual({
         id: 'intlink-1',
         is_reference_dataset: false
       })
+      expect(isReferenceDatasetChanged()).toBe(true)
+      expect(mockEditorStore.dispatch).toHaveBeenCalledWith(
+        markRecordAsChanged()
+      )
     })
 
     it('does not call the GN4 API', async () => {
@@ -104,21 +108,10 @@ describe('DatafeederRepository', () => {
       )
     })
 
-    it('propagates API errors', async () => {
-      mockApi.invoke.mockRejectedValue(new Error('Forbidden'))
-
-      await expect(
-        firstValueFrom(
-          repository.setRecordFlag('record-uuid', 'IS_REFERENCE_DATASET', true)
-        )
-      ).rejects.toThrow('Forbidden')
-    })
-
-    it('throws on an unknown flag without calling the API', () => {
+    it('throws on an unknown flag without changing local state', () => {
       expect(() =>
         repository.setRecordFlag('record-uuid', 'UNKNOWN' as any, true)
       ).toThrow('Unknown record flag: UNKNOWN')
-      expect(mockApi.invoke).not.toHaveBeenCalled()
     })
   })
 })

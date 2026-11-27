@@ -6,6 +6,7 @@ import { MetadataSaveService } from './metadata-save.service'
 import { Api } from '../api/api'
 import { IntegrityLinkStore } from '../stores/integrity-link.store'
 import { OperationToastStore } from '../stores/operation-toast.store'
+import { updateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferencePatch } from '../api/functions'
 
 vi.mock('geonetwork-ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('geonetwork-ui')>()
@@ -32,7 +33,8 @@ function setup() {
   } as any)
 
   const mockStore = {
-    integrityLink: integrityLinkSignal
+    integrityLink: integrityLinkSignal,
+    isReferenceDatasetChanged: signal(false)
   }
 
   const mockApi = {
@@ -126,6 +128,33 @@ describe('MetadataSaveService', () => {
       const { service, mockStore } = setup()
       await service.save()
       expect(mockStore.integrityLink().integrity_title).toBe('Updated Title')
+    })
+
+    it('should update the isReferenceDataset flag if it was changed', async () => {
+      const { service, mockApi, mockStore } = setup()
+      mockStore.isReferenceDatasetChanged.set(true)
+      mockStore.integrityLink.update((current) => ({
+        ...current!,
+        is_reference_dataset: true
+      }))
+      await service.save()
+      expect(mockApi.invoke).toHaveBeenCalledWith(
+        updateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferencePatch,
+        expect.objectContaining({
+          integrity_link_id: 'intlink-1',
+          body: { is_reference: true }
+        })
+      )
+      expect(mockStore.isReferenceDatasetChanged()).toBe(false)
+    })
+
+    it('does not update isReferenceDataset flag if it was not changed', async () => {
+      const { service, mockApi } = setup()
+      await service.save()
+      expect(mockApi.invoke).not.toHaveBeenCalledWith(
+        updateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferencePatch,
+        expect.anything()
+      )
     })
 
     it('should add an info toast', async () => {

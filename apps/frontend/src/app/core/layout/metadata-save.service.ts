@@ -2,7 +2,10 @@ import { inject, Injectable, signal, Signal } from '@angular/core'
 import { firstValueFrom, combineLatest } from 'rxjs'
 import { EditorFacade, findConverterForDocument } from 'geonetwork-ui'
 import { Api } from '../api/api'
-import { updateMetadataGnIngestionIntegrityLinkIntegrityLinkIdMetadataGnPut } from '../api/functions'
+import {
+  updateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferencePatch,
+  updateMetadataGnIngestionIntegrityLinkIntegrityLinkIdMetadataGnPut
+} from '../api/functions'
 import { IntegrityLinkStore } from '../stores/integrity-link.store'
 import { OperationToastStore } from '../stores/operation-toast.store'
 
@@ -30,6 +33,17 @@ export class MetadataSaveService {
       const serializedXml = await findConverterForDocument(
         recordSource
       ).writeRecord(record, recordSource)
+      // only update the isReferenceDataset flag if it was changed (admins only)
+      if (this.store.isReferenceDatasetChanged()) {
+        await this.api.invoke(
+          updateIsReferenceIngestionIntegrityLinkIntegrityLinkIdIsReferencePatch,
+          {
+            integrity_link_id: this.store.integrityLink().id,
+            body: { is_reference: integrityLink.is_reference_dataset }
+          }
+        )
+        this.store.isReferenceDatasetChanged.set(false)
+      }
       const updated = await this.api.invoke(
         updateMetadataGnIngestionIntegrityLinkIntegrityLinkIdMetadataGnPut,
         {
