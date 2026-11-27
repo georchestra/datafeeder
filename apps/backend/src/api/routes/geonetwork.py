@@ -1,9 +1,17 @@
+import hashlib
+import re
+
 import httpx
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
+from sqlmodel import Session, col, select
 
+from src.api.deps import DatafeederSessionDep, GeorchestraContextDep, GroupIdsDep
 from src.core.config import get_settings
 from src.core.logging import get_logger
+from src.core.security import AccessLevel, load_authorized_integrity_link
+from src.models.integrity_link import IntegrityLink
+from src.services.georchestra import GeorchestraContext
 
 router = APIRouter(prefix="/geonetwork", tags=["GeoNetwork"])
 logger = get_logger()
@@ -29,6 +37,38 @@ HOP_BY_HOP_HEADERS = {
 FILTERED_HEADER_PREFIXES = ("sec-",)
 
 
+# The proxy authenticates as the GeoNetwork service account: only the calls needed by the
+# metadata editor are allowed, so that users never get the service account's rights.
+ALLOWED_ROUTES = {
+    ("GET", "srv/api/groups"),
+    ("GET", "srv/api/users"),
+    ("GET", "srv/api/site/settings"),
+    ("GET", "srv/api/thesaurus"),
+    ("GET", "srv/api/registries/vocabularies/search"),
+    ("POST", "srv/api/search/records/_search"),
+}
+# Record-scoped calls, allowed only on records of datasets the user can access
+RECORD_ROUTE = re.compile(r"srv/api/records/([^/]+)/(?:formatters/xml|attachments(?:/[^/]+)?)")
+
+
+def authorize_geonetwork_call(
+    method: str, path: str, geo_ctx: GeorchestraContext, session: Session, group_ids: list[str]
+) -> None:
+    """Raise 403 unless the call is allowed for this user."""
+    if (method, path) in ALLOWED_ROUTES:
+        return
+    match = RECORD_ROUTE.fullmatch(path)
+    if match and ".." not in path:
+        link = session.exec(
+            select(IntegrityLink).where(col(IntegrityLink.metadata_id) == match.group(1))
+        ).first()
+        if link:
+            level = AccessLevel.METADATA_READ if method == "GET" else AccessLevel.METADATA_WRITE
+            load_authorized_integrity_link(str(link.id), level, geo_ctx, session, group_ids)
+            return
+    raise HTTPException(status_code=403, detail="GeoNetwork call not allowed")
+
+
 def _get_geonetwork_auth() -> tuple[str, str]:
     """Get GeoNetwork authentication credentials."""
     settings = get_settings()
@@ -50,14 +90,44 @@ def _filter_headers(headers: dict[str, str]) -> dict[str, str]:
     return {k: v for k, v in headers.items() if not _should_filter_header(k)}
 
 
+@router.get("/srv/api/me", include_in_schema=False)
+def geonetwork_me(geo_ctx: GeorchestraContextDep) -> Response:
+    """Answer GeoNetwork's /me with the geOrchestra user, never the service account."""
+    if not geo_ctx.username:
+        return Response(status_code=204)
+    return JSONResponse(
+        {
+            "id": geo_ctx.username,
+            "username": geo_ctx.username,
+            "name": geo_ctx.firstname,
+            "surname": geo_ctx.lastname,
+            "email": geo_ctx.email,
+            "organisation": geo_ctx.organization,
+            "profile": "Administrator" if geo_ctx.is_administrator() else "Editor",
+            "admin": geo_ctx.is_administrator(),
+            "hash": hashlib.md5(geo_ctx.email.strip().lower().encode()).hexdigest(),
+            "groupsWithRegisteredUser": [],
+            "groupsWithEditor": [],
+            "groupsWithReviewer": [],
+            "groupsWithUserAdmin": [],
+        }
+    )
+
+
 @router.api_route(
     "/{path:path}",
-    methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    methods=["GET", "POST", "DELETE"],
     summary="GeoNetwork proxy",
     description="Pass-through proxy to GeoNetwork. Forwards all requests transparently.",
     include_in_schema=False,
 )
-async def proxy_geonetwork(path: str, request: Request) -> Response:
+async def proxy_geonetwork(
+    path: str,
+    request: Request,
+    geo_ctx: GeorchestraContextDep,
+    session: DatafeederSessionDep,
+    group_ids: GroupIdsDep,
+) -> Response:
     """
     Full pass-through proxy to GeoNetwork.
 
@@ -68,6 +138,7 @@ async def proxy_geonetwork(path: str, request: Request) -> Response:
     - Request body
     - Response status code, headers, and content
     """
+    authorize_geonetwork_call(request.method, path, geo_ctx, session, group_ids)
     settings = get_settings()
 
     # Build upstream URL
