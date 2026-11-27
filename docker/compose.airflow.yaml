@@ -26,7 +26,7 @@
 # AIRFLOW_VERSION              - Apache Airflow version installed by Dockerfile.airflow,
 #                                which also selects the image the entrypoint is taken from.
 #                                Keep in sync with apps/elt/pyproject.toml.
-#                                Default: 3.3.2
+#                                Default: 3.4.0
 # AIRFLOW_UID                  - User ID in Airflow containers
 #                                Default: 50000
 # AIRFLOW_PROJ_DIR             - Base path to which all the files will be volumed.
@@ -53,16 +53,16 @@ x-airflow-common:
     dockerfile: ./docker/Dockerfile.airflow
     target: development
     args:
-      AIRFLOW_VERSION: ${AIRFLOW_VERSION:-3.3.2}
+      AIRFLOW_VERSION: ${AIRFLOW_VERSION:-3.4.0}
   env_file:
     - ../.env
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://georchestra:georchestra@database/georchestra?options=-csearch_path%3Dairflow
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg://georchestra:georchestra@database/georchestra?options=-csearch_path%3Dairflow
     AIRFLOW__DATABASE__SQL_ALCHEMY_SCHEMA: airflow
-    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://georchestra:georchestra@database/georchestra?options=-csearch_path%3Dairflow
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql+psycopg://georchestra:georchestra@database/georchestra?options=-csearch_path%3Dairflow
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
@@ -315,6 +315,13 @@ services:
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
+    # On a fresh volume, PostgreSQL is still initializing when airflow-init starts:
+    # the migration then fails and the other airflow services refuse to start
+    # ("Database migration required").
+    depends_on:
+      <<: *airflow-common-depends-on
+      database:
+        condition: service_healthy
 
   airflow-cli:
     <<: *airflow-common

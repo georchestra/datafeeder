@@ -18,8 +18,7 @@ GEOSERVER_URL = f"http://{E2E_HOST}:8080/geoserver"
 
 
 def login(page: Page, username: str = "testadmin", password: str = "testadmin"):
-    page.goto("/datahub/")
-    page.get_by_role("link", name="login").click()
+    page.goto("/login")
     username_input = page.get_by_placeholder("Username")
     username_input.fill(username)
     username_input.press("Tab")
@@ -30,6 +29,12 @@ def login(page: Page, username: str = "testadmin", password: str = "testadmin"):
 
 def validate_dataset(page: Page, timeout: int) -> str:
     """Click "Validate the dataset" and return the published layer's ``workspace:layer``."""
+    _, data_id = validate_dataset_ids(page, timeout)
+    return data_id
+
+
+def validate_dataset_ids(page: Page, timeout: int) -> tuple[str, str]:
+    """Click "Validate the dataset" and return ``(integrity_link_id, data_id)``."""
     with page.expect_response(
         lambda r: "/ingestion/process/" in r.url and r.request.method == "POST",
         timeout=timeout * 1000,
@@ -47,7 +52,7 @@ def validate_dataset(page: Page, timeout: int) -> str:
         expect(integrity_link).to_be_ok()
         data_id = integrity_link.json()["data_id"]
         if data_id:
-            return data_id
+            return integrity_link_id, data_id
         assert time.monotonic() < deadline, f"data_id not set on integrity link {integrity_link_id}"
         page.wait_for_timeout(1000)
 
