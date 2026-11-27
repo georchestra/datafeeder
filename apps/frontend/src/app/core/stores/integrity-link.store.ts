@@ -87,4 +87,6 @@ export class IntegrityLinkStore {
     this.intlinkId.set(null)
     this.integrityLink.set(null)
   }
+
+  isReferenceDatasetChanged = signal(false)
 }
