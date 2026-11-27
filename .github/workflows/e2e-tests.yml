@@ -6,15 +6,7 @@ on:
     branches:
       - main
   pull_request:
-    paths:
-      - "e2e-tests/**"
-      - ".github/workflows/e2e-tests.yml"
-      # The airflow job runs the DAGs from the repo and builds the airflow image
-      - "apps/elt/**"
-      - "docker/Dockerfile.airflow"
-      - "docker/compose.airflow.yaml"
     types: [labeled]
-
 
 permissions:
   contents: read

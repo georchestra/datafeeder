@@ -1,10 +1,21 @@
+import hashlib
+import json
 from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
 from fastapi import HTTPException
 
-from src.api.routes.geonetwork import proxy_geonetwork
+from src.api.routes import geonetwork
+from src.api.routes.geonetwork import authorize_geonetwork_call, geonetwork_me
+from src.core.security import AccessLevel
+from src.services.georchestra import GeorchestraContext
+
+
+async def proxy_geonetwork(path: str, request: Mock):
+    """Call the route with dummy auth dependencies (authorization is tested separately)."""
+    with patch("src.api.routes.geonetwork.authorize_geonetwork_call"):
+        return await geonetwork.proxy_geonetwork(path, request, Mock(), Mock(), [])
 
 
 class TestGeoNetworkProxy:
@@ -241,3 +252,82 @@ class TestGeoNetworkProxy:
                 expected_url = f"{mock_settings.GEONETWORK_INTERNAL_URL}/{path}"
                 assert call_kwargs["url"] == expected_url
                 assert "?" not in call_kwargs["url"]
+
+
+class TestGeoNetworkProxyAuthorization:
+    """The proxy uses the GN service account: only allowed calls may go through."""
+
+    @pytest.mark.parametrize(
+        ("method", "path"),
+        [
+            ("GET", "srv/api/registries/vocabularies/search"),
+            ("POST", "srv/api/search/records/_search"),
+        ],
+    )
+    def test_given_allowed_route_when_authorizing_then_passes(self, method: str, path: str):
+        authorize_geonetwork_call(method, path, Mock(), Mock(), [])
+
+    @pytest.mark.parametrize(
+        ("method", "path"),
+        [
+            ("DELETE", "srv/api/records/some-uuid"),
+            ("PUT", "srv/api/users/1"),
+            ("GET", "srv/api/me"),
+            ("GET", "srv/api/site"),
+            ("GET", "srv/api/records/../users/attachments"),
+        ],
+    )
+    def test_given_other_route_when_authorizing_then_403(self, method: str, path: str):
+        with pytest.raises(HTTPException) as exc_info:
+            authorize_geonetwork_call(method, path, Mock(), Mock(), [])
+        assert exc_info.value.status_code == 403
+
+    def test_given_record_of_unknown_dataset_when_authorizing_then_403(self):
+        session = Mock()
+        session.exec.return_value.first.return_value = None
+        with pytest.raises(HTTPException) as exc_info:
+            authorize_geonetwork_call(
+                "POST", "srv/api/records/other-uuid/attachments", Mock(), session, []
+            )
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.parametrize(
+        ("method", "level"),
+        [("GET", AccessLevel.METADATA_READ), ("POST", AccessLevel.METADATA_WRITE)],
+    )
+    def test_given_record_of_dataset_when_authorizing_then_checks_dataset_access(
+        self, method: str, level: AccessLevel
+    ):
+        session = Mock()
+        session.exec.return_value.first.return_value = Mock(id="link-id")
+        geo_ctx = Mock()
+        with patch("src.api.routes.geonetwork.load_authorized_integrity_link") as check:
+            authorize_geonetwork_call(
+                method, "srv/api/records/md-uuid/attachments", geo_ctx, session, ["g"]
+            )
+        check.assert_called_once_with("link-id", level, geo_ctx, session, ["g"])
+
+
+class TestGeoNetworkMe:
+    """/me is answered from the geOrchestra user, never from the GN service account."""
+
+    def test_given_user_when_calling_me_then_returns_georchestra_user(self):
+        geo_ctx = GeorchestraContext(
+            username="importer",
+            roles={"IMPORT"},
+            email="Importer@example.org",
+            firstname="Imp",
+            lastname="Orter",
+            organization="Org",
+        )
+
+        body = json.loads(bytes(geonetwork_me(geo_ctx).body))
+
+        assert body["username"] == "importer"
+        assert body["email"] == "Importer@example.org"
+        assert body["admin"] is False
+        assert body["hash"] == hashlib.md5(b"importer@example.org").hexdigest()
+
+    def test_given_anonymous_when_calling_me_then_204(self):
+        geo_ctx = GeorchestraContext("", set(), "", "", "", "")
+        assert geonetwork_me(geo_ctx).status_code == 204
